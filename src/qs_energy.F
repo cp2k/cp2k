@@ -22,7 +22,8 @@ MODULE qs_energy
   USE input_constants,                 ONLY: do_diag,&
                                              ehrenfest,&
                                              use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+                                             use_orb_basis_set,&
+                                             do_cn
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -51,7 +52,8 @@ MODULE qs_energy
   USE rt_propagation_methods,          ONLY: calc_update_rho,&
                                              propagation_step,&
                                              s_matrices_create,&
-                                             update_core_and_matrices
+                                             update_core_and_matrices,&
+                                             aspc_extrapolate
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
@@ -289,7 +291,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_rtp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i
+    INTEGER                                  :: handle, i,ihist,aspc_order
     LOGICAL                                  :: diagonalize
     REAL(Kind=dp)                            :: delta_iter, eps_ener
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -304,17 +306,20 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     eps_ener=qs_env%dft_control%rtp_control%eps_ener
-   
+    aspc_order=qs_env%dft_control%rtp_control%aspc_order
     IF(qs_env%dft_control%rtp_control%calc_restart)THEN
        CALL calc_update_rho(qs_env,error)
        CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,error=error)
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
             error=error)
     ELSE
-
-       CALL update_core_and_matrices(qs_env,globenv,error)
+       IF(qs_env%rtp%iter==1)THEN
+          CALL update_core_and_matrices(qs_env,globenv,error)
+       END IF
        CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
+
        diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
+       IF(qs_env%dft_control%rtp_control%propagator==do_cn)diagonalize=.FALSE.
 
        CALL s_matrices_create (s_mat,rtp,diagonalize,error)
        CALL calc_S_derivs(qs_env,error)
@@ -327,15 +332,21 @@ CONTAINS
                  error=error)
        
        eps_ener=qs_env%dft_control%rtp_control%eps_ener
+       
+       IF(rtp%istep.GT.0.AND.rtp%iter==1)THEN
+          CALL aspc_extrapolate(rtp,aspc_order,error)
+       END IF
+
        CALL propagation_step(qs_env,delta_iter, error)
        rtp%energy_new=qs_env%energy%total
        rtp%converged=(delta_iter.LT.eps_ener)
 
-
        IF(rtp%converged)THEN
+          ihist=MOD(rtp%istep,aspc_order)+1
           DO i=1,SIZE(mos_new)
              CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
              CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
+             CALL cp_fm_to_fm(exp_H_new(i)%matrix,rtp%history%exp_history(i,ihist)%matrix,error)
           END DO
        END IF
        CALL rt_prop_output(qs_env,ehrenfest,delta_iter,error)

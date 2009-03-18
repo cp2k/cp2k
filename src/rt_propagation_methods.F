@@ -11,7 +11,6 @@ MODULE rt_propagation_methods
 
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -29,10 +28,12 @@ MODULE rt_propagation_methods
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_create_matrix_vect
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_diag,&
-                                             do_taylor
+  USE input_constants,                 ONLY: do_cn,&
+                                             do_em,&
+                                             do_etrs
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
+  USE mathlib,                         ONLY: binomial
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -51,9 +52,10 @@ MODULE rt_propagation_methods
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE rt_matrix_exp,                   ONLY: backtransform_matrix,&
-                                             exp_diag,&
-                                             exp_taylor
+  USE rt_make_propagators,             ONLY: make_cn_propagator,&
+                                             make_em_propagator,&
+                                             make_etrs_exp
+  USE rt_matrix_exp,                   ONLY: backtransform_matrix
   USE rt_propagation_output,           ONLY: rt_convergence
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
@@ -72,11 +74,11 @@ MODULE rt_propagation_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_methods'
 
   PUBLIC :: propagation_step,&
-       propagate_orb,&
-       calc_exp_iHt,&
        s_matrices_create,&
        update_core_and_matrices,&
-       calc_update_rho
+       calc_update_rho,&
+       aspc_extrapolate,&
+       calc_sinvH
 
 
 CONTAINS
@@ -131,8 +133,17 @@ CONTAINS
        CALL cp_fm_to_fm(rtp%mos_new(i)%matrix,delta_mos(i)%matrix,error)
     END DO
     
+    SELECT CASE(qs_env%dft_control%rtp_control%propagator)
+    CASE(do_cn,do_em)
+       IF(rtp%iter.NE.1)&
+            CALL calc_SinvH(exp_H_new,qs_env,error)
+       CALL propagate_cn_or_em(qs_env,error)
+    CASE(do_etrs)
+       IF(rtp%iter.NE.1)&
+            CALL make_etrs_exp(exp_H_new,qs_env,error)
+       CALL propagate_etrs(qs_env,error)
+    END SELECT
 
-    CALL propagate_orb(qs_env,error)
 
     DO i=1,2*SIZE(mos)
        CALL cp_fm_scale_and_add(-1.0_dp,delta_mos(i)%matrix,1.0_dp,rtp%mos_new(i)%matrix,error)
@@ -142,10 +153,91 @@ CONTAINS
     CALL cp_fm_vect_dealloc(delta_mos,error)
     CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
          error=error)
-    CALL calc_exp_iHt(exp_H_new,qs_env,error)
     CALL timestop(handle)
 
   END SUBROUTINE propagation_step
+
+
+
+! *****************************************************************************
+!> \brief performes a crank nicholson or exponential midpoint propagation
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE propagate_cn_or_em(qs_env, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'propagate_cn_or_em', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: i, im_part, nao, nmo, &
+                                                re_part, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: exp_H_new, exp_H_old, &
+                                                mos_new, mos_old, propagator
+    TYPE(cp_fm_type), POINTER                :: tmp_im, tmp_re
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(rt_prop_type), POINTER              :: rtp
+
+    failure=.FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,rho=rho,mos=mos,rtp=rtp,error=error)    
+    CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,&
+         exp_H_old=exp_H_old,exp_H_new=exp_H_new,error=error)
+
+    ALLOCATE(propagator(2*SIZE(mos)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO i=1,2*SIZE(mos)
+       CALL cp_fm_create(propagator(i)%matrix,&
+            matrix_struct=exp_H_new(1)%matrix%matrix_struct,&
+            error=error) 
+    END DO
+
+    SELECT CASE (qs_env%dft_control%rtp_control%propagator)
+    CASE(do_cn)
+       CALL make_cn_propagator(propagator,rtp,error)
+    CASE(do_em)
+       CALL make_em_propagator(propagator,rtp,qs_env,error)
+    END SELECT
+
+    DO i=1,SIZE(mos)
+       re_part=2*i-1
+       im_part=2*i
+       
+       tmp_re=>propagator(re_part)%matrix
+       tmp_im=>propagator(im_part)%matrix
+       
+       CALL cp_fm_get_info(mos(i)%mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo,error=error)
+ 
+
+       CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
+            mos_old(re_part)%matrix,zero,mos_new(re_part)%matrix,error)
+       CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_im,&
+            mos_old(re_part)%matrix,zero,mos_new(im_part)%matrix,error)
+
+       CALL cp_fm_gemm("N","N",nao,nmo,nao,-one,tmp_im,&
+            mos_old(im_part)%matrix,one,mos_new(re_part)%matrix,error)
+       CALL cp_fm_gemm("N","N",nao,nmo,nao,one,tmp_re,&
+            mos_old(im_part)%matrix,one,mos_new(im_part)%matrix,error)
+
+
+    END DO
+
+    CALL cp_fm_vect_dealloc(propagator,error)
+
+    CALL calc_update_rho(qs_env,error)
+
+  END SUBROUTINE propagate_cn_or_em
+
+
+
   
 ! *****************************************************************************
 !> \brief applys the propagator on the MO coefficients
@@ -154,13 +246,13 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE propagate_orb(qs_env,error)
+  SUBROUTINE propagate_etrs(qs_env,error)
 
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'propagate_orb', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'propagate_etrs', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
@@ -229,43 +321,37 @@ CONTAINS
     CALL calc_update_rho(qs_env,error)
 
     CALL timestop(handle)
-  END SUBROUTINE propagate_orb
+  END SUBROUTINE propagate_etrs
+
+
 
 ! *****************************************************************************
-!> \brief driver routine for the calculation of matrix exponentials in the 
-!>        propagation.
-!>        distinguishes between taylor expansion and explicit diagonalization.
-!>        different treatment for RTP and EMD, since RTP has a purely imaginary
-!>        matrix in the exponent 
+!> \brief computes t*S_inv*H, if needed t*Sinv*B 
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE calc_exp_iHt(exp_H,qs_env,error)
-
-
+  SUBROUTINE calc_SinvH(exp_H,qs_env,error)
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calc_exp_iHt', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_SinvH', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: eps_exp, handle, ispin, lb, &
-                                                ndim, ub
+    INTEGER                                  :: handle, ispin, lb, ndim, ub
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
-    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, &
-                                                tmp_mat_B, tmp_mat_H
+    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, tmp_mat_H
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, s_mat
+      POINTER                                :: matrix_ks
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_s=s_mat,rtp=rtp,error=error)  
+    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)  
     CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
 
     CALL cp_fm_create(H_fm,&
@@ -274,60 +360,33 @@ CONTAINS
          error=error)
     CALL cp_fm_create(tmp_mat_H,&
          matrix_struct=exp_H(1)%matrix%matrix_struct,&
-         name="TMP_H",&
+         name="RTP_H_FM",&
          error=error)
- 
-    ndim=H_fm%matrix_struct%nrow_global   
-    !!!!! up to now its only ETRS
-    t=-t/2.0_dp
+    ndim=H_fm%matrix_struct%nrow_global
+
     DO ispin=1,SIZE(matrix_ks)
        
        lb=(ispin-1)*2+1
        ub=(ispin-1)*2+2
- 
+
        CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
-
        CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
-
-       CALL cp_fm_scale(t,H_fm,error)
-    
-       SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
-
-       CASE(do_taylor)
-          eps_exp=qs_env%dft_control%rtp_control%eps_exp
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,tmp_mat_H,error) 
-          IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-             CALL exp_taylor(exp_H(lb:ub),tmp_mat_H,eps_exp,error)
-          ELSE
-             CALL get_rtp(rtp=rtp,B_mat=B_mat,error=error)
-
-             CALL cp_fm_create(tmp_mat_B,&
-                  matrix_struct=exp_H(1)%matrix%matrix_struct,&
-                  name="TMP_B",&
-                  error=error)
-             CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,tmp_mat_B,error) 
-             CALL cp_fm_scale(t,tmp_mat_B,error)
-
-             CALL exp_taylor(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,eps_exp,error)
-             CALL cp_fm_release(tmp_mat_B,error)
-          END IF
-
-       CASE(do_diag)
-          CALL cp_assert(qs_env%dft_control%rtp_control%fixed_ions,&
-               cp_failure_level,cp_assertion_failed,&
-               routineP,"diagonalization does not yet work for the Ehrenfest scheme",&
-               error,failure)
-          CALL exp_diag(rtp,exp_H(lb:ub),H_fm,error)
-       END SELECT
-          
+       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,exp_H(ub)%matrix,error) 
+       IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
+          CALL get_rtp(rtp=rtp,B_mat=B_mat,error=error)
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,exp_H(lb)%matrix,error)
+       END IF
     END DO
-
+            
     CALL cp_fm_release(H_fm,error)
     CALL cp_fm_release(tmp_mat_H,error)
 
     CALL timestop(handle)
+  END SUBROUTINE calc_SinvH
 
-  END SUBROUTINE calc_exp_iHt
+       
+
+
 
 ! *****************************************************************************
 !> \brief calculates the needed overlaplike matrices
@@ -524,9 +583,58 @@ CONTAINS
        CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
        CALL qs_ks_release(ks_env,error=error)
     END IF
+   
     
     CALL timestop(handle)
   
   END SUBROUTINE update_core_and_matrices
+
+  SUBROUTINE aspc_extrapolate(rtp,aspc_order,error)
+    TYPE(rt_prop_type), POINTER              :: rtp
+    INTEGER                                  :: aspc_order
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'aspc_extrapolate', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: iaspc, ihist, imat, naspc, &
+                                                nmat
+    REAL(KIND=dp)                            :: alpha
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: exp_H_new
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: exp_hist
+
+    NULLIFY(exp_hist)
+    CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,error=error)
+    nmat=SIZE(rtp%exp_H_new)
+    exp_hist=>rtp%history%exp_history
+
+    naspc=MIN(rtp%istep,aspc_order)
+
+    IF(naspc.GT.1)THEN
+       DO imat=1,nmat
+          DO iaspc=1,naspc
+             IF(iaspc==1)alpha = REAL(4*naspc - 2,KIND=dp)/REAL(naspc + 1,KIND=dp)
+             IF(iaspc.GT.1) alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
+                  binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
+             
+             ihist=MOD(rtp%istep-iaspc,aspc_order)+1
+             IF(iaspc==1)THEN
+                CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
+             ELSE
+                CALL cp_fm_scale_and_add(one,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
+             END IF
+          END DO
+       END DO
+    ELSE IF(naspc==1)THEN
+       DO imat=1,nmat
+          CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,one,exp_hist(imat,1)%matrix,error)
+       END DO
+    END IF
+
+  END SUBROUTINE aspc_extrapolate
+
 
 END MODULE rt_propagation_methods

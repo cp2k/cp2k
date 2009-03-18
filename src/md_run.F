@@ -398,6 +398,7 @@ CONTAINS
        ! Increase counters
        itimes = itimes + 1
        time   = time + simpar%dt
+       IF(ehrenfest_md)force_env%qs_env%rtp%istep=istep
 
        CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),iter_nr=itimes,error=error)
        ! Open possible Shake output units

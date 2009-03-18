@@ -817,7 +817,11 @@ CONTAINS
              DO i = 1, 3
                 kvec(:) = twopi*cell%h_inv(i,:)
                 CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
-                CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+                IF(qs_env%run_rtp)THEN
+                   CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,qs_env%rtp%mos_new,error)
+                ELSE
+                   CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+                END IF
                 zdet = CMPLX ( 1._dp, 0._dp, dp )
                 DO ispin = 1, dft_control%nspins
                   eigrmat%local_data(:,:) = &
@@ -838,7 +842,11 @@ CONTAINS
                DO j = i, 3
                   kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
                   CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
-                  CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+                  IF(qs_env%run_rtp)THEN
+                     CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,qs_env%rtp%mos_new,error)
+                  ELSE
+                     CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+                  END IF
                   zdet = CMPLX ( 1._dp, 0._dp, dp )
                   DO ispin = 1, dft_control%nspins
                     eigrmat%local_data(:,:) = &
@@ -974,6 +982,56 @@ CONTAINS
     ENDDO
 
   END SUBROUTINE op_orbbas
+
+! *****************************************************************************
+  SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
+
+    TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_fm_set
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: opvec
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_new
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER                                  :: i, nao, nmo,l
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    DO i=1,SIZE ( op_fm_set, 2 )   ! spin
+       CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
+       CALL cp_sm_fm_multiply(cosmat, mos_new(2*i-1)%matrix, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i-1)%matrix,opvec(i)%matrix,0.0_dp,&
+            op_fm_set(1,i)%matrix,error=error)
+
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_new(2*i)%matrix,opvec(i)%matrix,0.0_dp,&
+            op_fm_set(2,i)%matrix,error=error)
+
+       CALL cp_sm_fm_multiply(cosmat, mos_new(2*i)%matrix, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i)%matrix,opvec(i)%matrix,1.0_dp,&
+            op_fm_set(1,i)%matrix,error=error)
+
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i-1)%matrix,opvec(i)%matrix,1.0_dp,&
+            op_fm_set(2,i)%matrix,error=error)
+
+       CALL cp_sm_fm_multiply(sinmat, mos_new(2*i-1)%matrix, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i-1)%matrix,opvec(i)%matrix,1.0_dp,&
+            op_fm_set(2,i)%matrix,error=error)
+
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i)%matrix,opvec(i)%matrix,1.0_dp,&
+            op_fm_set(1,i)%matrix,error=error)
+
+       CALL cp_sm_fm_multiply(sinmat, mos_new(2*i)%matrix, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i)%matrix,opvec(i)%matrix,1.0_dp,&
+            op_fm_set(2,i)%matrix,error=error)
+
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_new(2*i-1)%matrix,opvec(i)%matrix,1.0_dp,&
+            op_fm_set(1,i)%matrix,error=error)
+    ENDDO
+
+  END SUBROUTINE op_orbbas_rtp
 
 ! *****************************************************************************
   SUBROUTINE qs_moment_locop (qs_env,nmoments,reference,ref_point,unit_number,error)

@@ -235,8 +235,10 @@ CPSourceFileRef,&
          i_val=dft_control%rtp_control%max_iter,error=error)
        CALL section_vals_val_get(tmp_section,"MAT_EXP",&
          i_val=dft_control%rtp_control%mat_exp,error=error)
+       CALL section_vals_val_get(tmp_section,"ASPC_ORDER",&
+         i_val=dft_control%rtp_control%aspc_order,error=error)
        CALL section_vals_val_get(tmp_section,"EXP_ACCURACY",&
-         i_val=dft_control%rtp_control%eps_exp,error=error)
+         r_val=dft_control%rtp_control%eps_exp,error=error)
        CALL section_vals_val_get(tmp_section,"PROPAGATOR",&
          i_val=dft_control%rtp_control%propagator,error=error)
        CALL section_vals_val_get(tmp_section,"EPS_ITER",&

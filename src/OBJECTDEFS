@@ -542,6 +542,7 @@ OBJECTS_GENERIC =\
  replica_types.o\
  restraint.o\
  rmsd.o\
+ rt_make_propagators.o\
  rt_matrix_exp.o\
  rt_propagation.o\
  rt_propagation_types.o\

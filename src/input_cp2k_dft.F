@@ -7170,40 +7170,48 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ASPC_ORDER",&
+            description="Speciefies how many steps will be used for extrapolation. "//&
+            "One will be always used which is means X(t+dt)=X(t)",&
+            usage="ASPC_ORDER 4",&
+            default_i_val=4,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MAT_EXP",&
             description="Which method should be used to calculate the exponential"//&
             " in the propagator. For Ehrenfest MD only the Taylor method works, "//&
             "for real time propagation diagonalization works as well.",&
             usage="MAT_EXP TAYLOR",default_i_val=do_taylor, &
-            enum_c_vals=s2a("TAYLOR","DIAG"),&
-            enum_i_vals=(/do_taylor,do_diag/),&
+            enum_c_vals=s2a("TAYLOR","DIAG","PADE"),&
+            enum_i_vals=(/do_taylor,do_diag,do_pade/),&
             enum_desc=s2a("exponential is evaluated using scaling and squaring in combination"//&
             " with a taylor expansion of the exponential.",&
-            "uses the eignvalues an eigenvectors to calculate the exponential."),&
+            "uses the eignvalues an eigenvectors to calculate the exponential.",&
+            " uses scaling and squaring together with the pade approximation"),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EXP_ACCURACY",&
-            description="Accuracy for the taylor approximation. "//&
+            description="Accuracy for the taylor and pade approximation. "//&
             "This is only an upper bound bound since the norm used for the guess "//&
-            "is an upper bound for the needed one.",&          
-            usage="EXP_ACCURACY MEDIUM",default_i_val=eps_medium, &
-            enum_c_vals=s2a("LOOSE","MEDIUM","TIGHT"),&
-            enum_i_vals=(/eps_loose,eps_medium,eps_tight/),&
-            enum_desc=s2a("accuracy 1.0E-9",&
-            "accuracy 1.0E-12",&
-            "accuracy 1.0E-15"),&
-            error=error)
+            "is an upper bound for the needed one.",&      
+            usage="EXP_ACCURACY 1.0E-6",&
+            default_r_val=1.0E-9_dp,&
+            error=error)    
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PROPAGATOR",&
             description="Which propagator should be used for the orbitals",&
             usage="PROPAGATOR ETRS",default_i_val=do_etrs, &
-            enum_c_vals=s2a("ETRS"),&
-            enum_i_vals=(/do_etrs/),&
-            enum_desc=s2a("enforced time reversible symmetry"),&
+            enum_c_vals=s2a("ETRS","CN","EM"),&
+            enum_i_vals=(/do_etrs,do_cn,do_em/),&
+            enum_desc=s2a("enforced time reversible symmetry",&
+            "Crank Nicholson propagator",&
+            "Exponential midpoint propagator"),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -7240,5 +7248,6 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_rtp_section
+
 
 END MODULE input_cp2k_dft

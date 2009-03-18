@@ -759,9 +759,12 @@ MODULE input_constants
                                               copy_fcoeff=2
   !real time propagation
   INTEGER, PARAMETER, PUBLIC               :: do_taylor=1,  &
-                                              do_diag=2
+                                              do_diag=2,&
+                                              do_pade=3
 
-  INTEGER, PARAMETER, PUBLIC               :: do_etrs=1
+  INTEGER, PARAMETER, PUBLIC               :: do_etrs=1,&
+                                              do_cn=2,&
+                                              do_em=3
 
   INTEGER, PARAMETER, PUBLIC               :: use_scf_wfn=1,  &
                                               use_restart_wfn=2

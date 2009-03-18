@@ -58,10 +58,16 @@ MODULE rt_propagation_types
     REAL(KIND=dp)                               :: energy_old
     REAL(KIND=dp)                               :: energy_new
     REAL(KIND=dp)                               :: dt
-    INTEGER                                     :: nsteps
+    INTEGER                                     :: nsteps,istep
     INTEGER                                     :: iter
     LOGICAL                                     :: converged
+    TYPE(rtp_history_type),POINTER              :: history 
  END TYPE rt_prop_type 
+
+ TYPE rtp_history_type
+    TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:)                  :: old_exponent
+    TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:,:)                :: exp_history
+ END TYPE rtp_history_type
 
 ! *** Public data types ***
 
@@ -71,7 +77,8 @@ MODULE rt_propagation_types
 
   PUBLIC ::  rt_prop_create,&
              get_rtp,&
-             rt_prop_release
+             rt_prop_release,&
+             rtp_history_create
 
 
 
@@ -90,11 +97,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, nao, nrow_block
+    INTEGER                                  :: i, j, nao, nrow_block, stat
+    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct, ao_mo_fmstruct
     TYPE(rtp_control_type), POINTER          :: rtp_control
+
+    failure=.FALSE.
 
     NULLIFY(rtp_control)
 
@@ -115,10 +125,14 @@ CONTAINS
          template_fmstruct=ao_mo_fmstruct, error=error)
 
 
-    ALLOCATE(rtp%exp_H_old(2*SIZE(mos)))
-    ALLOCATE(rtp%exp_H_new(2*SIZE(mos)))
-    ALLOCATE(rtp%mos_old(2*SIZE(mos)))
-    ALLOCATE(rtp%mos_new(2*SIZE(mos)))
+    ALLOCATE(rtp%exp_H_old(2*SIZE(mos)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(rtp%exp_H_new(2*SIZE(mos)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(rtp%mos_old(2*SIZE(mos)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(rtp%mos_new(2*SIZE(mos)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1,SIZE(mos)
        DO j=1,2
           NULLIFY(rtp%mos_old(2*(i-1)+j)%matrix)
@@ -191,7 +205,8 @@ CONTAINS
        END DO
     END IF
     rtp_control%converged=.FALSE.
-
+    rtp%istep=0
+    rtp%iter=0
     CALL cp_fm_struct_release(ao_ao_fmstruct,error)
 
   END SUBROUTINE rt_prop_create
@@ -262,7 +277,77 @@ CONTAINS
          CALL cp_fm_vect_dealloc(rtp%C_mat,error)
     IF(ASSOCIATED(rtp%S_der))&
          CALL cp_fm_vect_dealloc(rtp%S_der,error)
-
+    IF(ASSOCIATED(rtp%history))&
+         CALL rtp_history_release(rtp,error)
+ 
   END SUBROUTINE rt_prop_release
+
+  SUBROUTINE rtp_history_create(rtp,use_delta_e,aspc_order,error)
+    TYPE(rt_prop_type)                       :: rtp
+    LOGICAL                                  :: use_delta_e
+    INTEGER                                  :: aspc_order
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, nmat, stat
+    LOGICAL                                  :: failure
+    TYPE(rtp_history_type), POINTER          :: history
+
+    failure=.FALSE.
+
+    NULLIFY(history)
+    ALLOCATE(rtp%history,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    history=> rtp%history
+
+    NULLIFY(history%exp_history)
+    IF(aspc_order.GT.0)THEN
+      nmat=SIZE(rtp%exp_H_old)
+       ALLOCATE(history%exp_history(nmat,aspc_order),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       DO i=1,nmat
+          DO j=1,aspc_order
+             NULLIFY(history%exp_history(i,j)%matrix)
+             CALL cp_fm_create(history%exp_history(i,j)%matrix,&
+                  matrix_struct=rtp%exp_H_new(1)%matrix%matrix_struct,&
+                  name="exp_hist"//TRIM(ADJUSTL(cp_to_string(i))),&
+                  error=error)
+          END DO
+       END DO
+    END IF   
+
+  END SUBROUTINE rtp_history_create
+
+          
+    
+  SUBROUTINE rtp_history_release(rtp,error)
+    TYPE(rt_prop_type)                       :: rtp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF (ASSOCIATED(rtp%history%exp_history)) THEN
+       DO i=1,SIZE(rtp%history%exp_history,1)
+          DO j=1,SIZE(rtp%history%exp_history,2)
+             CALL cp_fm_release(rtp%history%exp_history(i,j)%matrix,error=error)
+          END DO
+       END DO
+       DEALLOCATE(rtp%history%exp_history,stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    END IF
+
+
+    DEALLOCATE(rtp%history,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+    
+  END SUBROUTINE rtp_history_release
     
 END MODULE rt_propagation_types

@@ -13,7 +13,8 @@
 ! *****************************************************************************
 MODULE cp_cfm_basic_linalg
   USE cp_cfm_types,                    ONLY: cp_cfm_get_element,&
-                                             cp_cfm_type
+                                             cp_cfm_type,&
+                                             cp_cfm_set_all
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -26,7 +27,8 @@ MODULE cp_cfm_basic_linalg
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
-  PUBLIC :: cp_cfm_add, cp_cfm_gemm, cp_cfm_lu_decompose, cp_cfm_column_scale, cp_cfm_schur_product
+  PUBLIC :: cp_cfm_add, cp_cfm_gemm, cp_cfm_lu_decompose, cp_cfm_column_scale, cp_cfm_schur_product,&
+             cp_cfm_solve
 CONTAINS
 
 ! *****************************************************************************
@@ -317,4 +319,56 @@ CPSourceFileRef,&
     ENDDO
 #endif
   END SUBROUTINE cp_cfm_column_scale
+
+! *****************************************************************************
+!> \brief computs the the solution to A*b=A_general using lu decomposition
+!>        pay attention, both matrices are overwritten, a_general contais the result    
+!> \author Florian Schiffmann
+! *****************************************************************************  
+  SUBROUTINE cp_cfm_solve(matrix_a,general_a,error)
+    TYPE(cp_cfm_type), POINTER               :: matrix_a,general_a
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_decompose', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
+                                                zero = (0.0_dp,0.0_dp)
+    COMPLEX(KIND=dp)                         :: determinant
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a,a_general
+    INTEGER                                  :: handle, i, info, lda, n,ldb
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
+    INTEGER, DIMENSION(9)                    :: desca,descb
+
+! *** locals ***
+
+    CALL timeset(routineN,handle)
+
+    a => matrix_a%local_data
+    a_general => general_a%local_data
+    n = matrix_a%matrix_struct%nrow_global
+    ALLOCATE(ipivot(n))
+
+#if defined(__SCALAPACK)
+    desca(:) = matrix_a%matrix_struct%descriptor(:)
+    descb(:) = general_a%matrix_struct%descriptor(:)
+    CALL pzgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
+    CALL pzgetrs("N" , n , n , a(1,1), 1, 1, desca ,ipivot, a_general(1,1) ,&
+                 1, 1, descb, info )
+
+#else
+    lda=SIZE(a,1)
+    ldb=SIZE(a_general,1)
+    CALL zgetrf(n,n,a(1,1),lda,ipivot,info)
+    CALL zgetrs("N",n,n,a(1,1),lda,ipivot,a_general,ldb,info)
+
+#endif
+    ! info is allowed to be zero
+    ! this does just signal a zero diagonal element
+    DEALLOCATE(ipivot)
+    CALL timestop(handle)
+  END SUBROUTINE
+
 END MODULE cp_cfm_basic_linalg

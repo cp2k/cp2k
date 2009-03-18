@@ -54,8 +54,9 @@ MODULE cp_control_types
      INTEGER                              :: propagator
      LOGICAL                              :: fixed_ions
      INTEGER                              :: initial_wfn
-     INTEGER                              :: eps_exp
+     REAL(dp)                             :: eps_exp
      LOGICAL                              :: calc_restart
+     INTEGER                              :: aspc_order
   END TYPE rtp_control_type
 ! *****************************************************************************
 ! \brief Control parameters for DFTB calculations

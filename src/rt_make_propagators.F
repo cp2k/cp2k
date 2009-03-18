@@ -1,0 +1,325 @@
+
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2009  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief Routines for calculating a complex matrix exponential.
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+MODULE rt_make_propagators
+
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add,&
+                                             cp_cfm_solve
+  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                             cp_cfm_release,&
+                                             cp_cfm_set_all,&
+                                             cp_cfm_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale,&
+                                             cp_fm_upper_to_full
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
+                                             cp_fm_release,&
+                                             cp_fm_type
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE input_constants,                 ONLY: do_diag,&
+                                             do_pade,&
+                                             do_taylor
+  USE kinds,                           ONLY: dp
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE rt_matrix_exp,                   ONLY: exp_diag,&
+                                             exp_pade_full_complex,&
+                                             exp_pade_only_imaginary,&
+                                             taylor_full_complex,&
+                                             taylor_only_imaginary
+  USE rt_propagation_types,            ONLY: get_rtp,&
+                                             rt_prop_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_make_propagators'
+
+  PUBLIC :: make_etrs_exp,&
+            make_cn_propagator,&
+            make_em_propagator
+
+
+CONTAINS
+! *****************************************************************************
+!> \brief calculats the exponentials for th ETRS propagator
+!>        depending on input exp(i*H(t)*dt/2) or   exp(i*H(t+dt)*dt/2)
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE make_etrs_exp(exp_H,qs_env,error)
+
+
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: exp_H
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_etrs_exp', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: handle, ispin, lb, ndim, ub
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: eps_exp, t
+    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, &
+                                                tmp_mat_B, tmp_mat_H
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
+    TYPE(rt_prop_type), POINTER              :: rtp
+
+    failure=.FALSE.
+    CALL timeset(routineN,handle)
+
+    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)  
+    CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
+
+    CALL cp_fm_create(H_fm,&
+         matrix_struct=exp_H(1)%matrix%matrix_struct,&
+         name="RTP_H_FM",&
+         error=error)
+    CALL cp_fm_create(tmp_mat_H,&
+         matrix_struct=exp_H(1)%matrix%matrix_struct,&
+         name="TMP_H",&
+         error=error)
+ 
+    ndim=H_fm%matrix_struct%nrow_global   
+
+    t=-t/2.0_dp
+    DO ispin=1,SIZE(matrix_ks)
+       
+       lb=(ispin-1)*2+1
+       ub=(ispin-1)*2+2
+ 
+       CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
+
+       CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
+
+       CALL cp_fm_scale(t,H_fm,error)
+    
+       SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
+
+       CASE(do_taylor,do_pade)
+          eps_exp=qs_env%dft_control%rtp_control%eps_exp
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,tmp_mat_H,error) 
+          IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
+             IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
+                  CALL taylor_only_imaginary(exp_H(lb:ub),tmp_mat_H,eps_exp,error)
+
+             IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
+                  CALL exp_pade_only_imaginary(exp_H(lb:ub),tmp_mat_H,eps_exp,error)
+          ELSE
+             CALL get_rtp(rtp=rtp,B_mat=B_mat,error=error)
+
+             CALL cp_fm_create(tmp_mat_B,&
+                  matrix_struct=exp_H(1)%matrix%matrix_struct,&
+                  name="TMP_B",&
+                  error=error)
+             CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,tmp_mat_B,error) 
+             CALL cp_fm_scale(t,tmp_mat_B,error)
+             IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
+                  CALL taylor_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,eps_exp,error)
+             IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
+                  CALL exp_pade_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,eps_exp,error)
+             CALL cp_fm_release(tmp_mat_B,error)
+          END IF
+
+       CASE(do_diag)
+          CALL cp_assert(qs_env%dft_control%rtp_control%fixed_ions,&
+               cp_failure_level,cp_assertion_failed,&
+               routineP,"diagonalization does not yet work for the Ehrenfest scheme",&
+               error,failure)
+          CALL exp_diag(rtp,exp_H(lb:ub),H_fm,error)
+       END SELECT
+          
+    END DO
+
+    CALL cp_fm_release(H_fm,error)
+    CALL cp_fm_release(tmp_mat_H,error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE make_etrs_exp
+
+! *****************************************************************************
+!> \brief computs the Crank Nicholson propagator
+!>        [1-idt/2H(t+dt/2)-dt/2B(t+dt/2)]/ (1+idt/2H(t+dt/2)+dt/2B(t+dt/2))
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE make_cn_propagator(propagator,rtp,error)
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: propagator
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_cn_propagator', &
+      routineP = moduleN//':'//routineN
+    COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
+                                                zero = (0.0_dp,0.0_dp)
+
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    INTEGER                                  :: i, im, ispin, ndim, re
+    REAL(dp)                                 :: dt
+    TYPE(cp_cfm_type), POINTER               :: M1, M2, M_inverse
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: new_Ham, old_Ham
+    TYPE(cp_fm_type), POINTER                :: U_im, U_re
+
+    CALL cp_cfm_create(M1,&
+                      matrix_struct=propagator(1)%matrix%matrix_struct,&
+                      name="M1",&
+                      error=error)
+    CALL cp_cfm_create(M2,&
+                      matrix_struct=propagator(1)%matrix%matrix_struct,&
+                      name="M2",&
+                      error=error)
+    CALL cp_cfm_create(M_inverse,&
+                      matrix_struct=propagator(1)%matrix%matrix_struct,&
+                      name="M_inverse",&
+                      error=error)   
+
+
+    a=> M_inverse%local_data
+    CALL get_rtp(rtp=rtp,exp_H_old=old_Ham,exp_H_new=new_Ham,dt=dt,error=error)
+
+    ndim=M1%matrix_struct%nrow_global
+    DO ispin=1,SIZE(propagator)/2
+       re=2*ispin-1
+       im=2*ispin
+
+       U_re=>propagator(re)%matrix
+       U_im=>propagator(im)%matrix
+
+       CALL cp_cfm_set_all(M1,zero,one,error)
+       CALL cp_cfm_set_all(M2,zero,one,error)
+
+       dt=dt*0.5_dp
+
+       !M_inverse is used right here as temporary matrix
+       DO i=1,ndim
+          a(:,i)=&
+               CMPLX(0.5_dp*dt*old_ham(re)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(re)%matrix%local_data(:,i),&
+               0.5_dp*dt*old_ham(im)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(im)%matrix%local_data(:,i),KIND=dp)
+       END DO
+       
+       CALL cp_cfm_add(one,M1,-one,M_inverse,error)
+       CALL cp_cfm_add(one,M2,one,M_inverse,error)
+       
+       CALL cp_cfm_solve(M2,M1,error)
+       
+       !now M2 is temporary
+       
+       U_re%local_data=REAL(M1%local_data,KIND=dp)
+       U_im%local_data=AIMAG(M1%local_data)
+       
+
+    END DO
+
+    CALL cp_cfm_release(M1,error)
+    CALL cp_cfm_release(M2,error)
+    CALL cp_cfm_release(M_inverse,error)
+
+  END SUBROUTINE make_cn_propagator
+
+! *****************************************************************************
+!> \brief computs exponential midpoint propagator
+!>        exp[-idt/2H(t+dt/2)-tB(t+dt/2)]
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE make_em_propagator(propagator,rtp,qs_env,error)
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: propagator
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_em_propagator', &
+      routineP = moduleN//':'//routineN
+    COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
+                                                zero = (0.0_dp,0.0_dp)
+
+    INTEGER                                  :: i, im, ispin, ndim, re
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: dt, eps_exp
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: new_Ham, old_Ham
+    TYPE(cp_fm_type), POINTER                :: M1, M2
+
+    failure=.FALSE.
+
+    CALL cp_fm_create(M1,&
+                      matrix_struct=propagator(1)%matrix%matrix_struct,&
+                      name="M1",&
+                      error=error)
+    CALL cp_fm_create(M2,&
+                      matrix_struct=propagator(1)%matrix%matrix_struct,&
+                      name="M2",&
+                      error=error)
+
+
+    CALL get_rtp(rtp=rtp,exp_H_old=old_Ham,exp_H_new=new_Ham,dt=dt,error=error)
+
+
+    ndim=M1%matrix_struct%nrow_global
+    DO ispin=1,SIZE(propagator)/2
+       re=2*ispin-1
+       im=2*ispin
+
+       dt=-dt
+
+       DO i=1,ndim
+          M2%local_data(:,i)=0.5_dp*dt*old_ham(im)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(im)%matrix%local_data(:,i)
+       END DO
+       IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
+          DO i=1,ndim
+             M1%local_data(:,i)=0.5_dp*dt*old_ham(re)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(re)%matrix%local_data(:,i)
+          END DO
+       END IF
+       SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
+
+       CASE(do_taylor)
+          eps_exp=qs_env%dft_control%rtp_control%eps_exp
+          IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
+             CALL taylor_only_imaginary(propagator(re:im),M2,eps_exp,error)
+          ELSE
+             CALL taylor_full_complex(propagator(re:im),M1,M2,eps_exp,error)
+          END IF
+       CASE(do_pade)
+          eps_exp=qs_env%dft_control%rtp_control%eps_exp
+          IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
+             CALL exp_pade_only_imaginary(propagator(re:im),M2,eps_exp,error)
+          ELSE
+             CALL exp_pade_full_complex(propagator(re:im),M1,M2,eps_exp,error)
+          END IF
+
+       CASE(do_diag)
+          CALL cp_assert(qs_env%dft_control%rtp_control%fixed_ions,&
+               cp_failure_level,cp_assertion_failed,&
+               routineP,"diagonalization does not yet work for the Ehrenfest scheme",&
+               error,failure)
+          CALL exp_diag(rtp,propagator(re:im),M2,error)
+       END SELECT
+
+    END DO
+    CALL cp_fm_release(M1,error)
+    CALL cp_fm_release(M2,error)
+    
+  END SUBROUTINE make_em_propagator
+
+END MODULE rt_make_propagators
