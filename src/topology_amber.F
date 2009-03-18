@@ -30,6 +30,7 @@ MODULE topology_amber
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_generate_util,          ONLY: topology_generate_molname
@@ -1392,11 +1393,12 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bonds_info', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
     INTEGER                                  :: handle, i, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, l_dum
 
     failure        = .FALSE.
     CALL timeset(routineN, handle)
@@ -1406,8 +1408,11 @@ CPSourceFileRef,&
        ALLOCATE(iwork(nbond),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i = 1, nbond
-          work_label(1,i) = particle_set(ib(i))%atomic_kind%name
-          work_label(2,i) = particle_set(jb(i))%atomic_kind%name
+          name_atm_a = particle_set(ib(i))%atomic_kind%name
+          name_atm_b = particle_set(jb(i))%atomic_kind%name
+          l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
+          work_label(1,i) = name_atm_a
+          work_label(2,i) = name_atm_b
        END DO
        CALL sort(work_label, 1, nbond, 1, 2, iwork)
 
@@ -1470,11 +1475,13 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bends_info', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b, &
+                                                name_atm_c
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
     INTEGER                                  :: handle, i, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, l_dum
 
     failure        = .FALSE.
     CALL timeset(routineN,handle)
@@ -1484,9 +1491,14 @@ CPSourceFileRef,&
        ALLOCATE(iwork(ntheta),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i = 1, ntheta
-          work_label(1,i) = particle_set(it(i))%atomic_kind%name
-          work_label(2,i) = particle_set(jt(i))%atomic_kind%name
-          work_label(3,i) = particle_set(kt(i))%atomic_kind%name
+          name_atm_a = particle_set(it(i))%atomic_kind%name
+          name_atm_b = particle_set(jt(i))%atomic_kind%name
+          name_atm_c = particle_set(kt(i))%atomic_kind%name
+          l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b,&
+               id3=name_atm_c)
+          work_label(1,i) = name_atm_a
+          work_label(2,i) = name_atm_b
+          work_label(3,i) = name_atm_c
        END DO
           
        CALL sort(work_label, 1, ntheta, 1, 3, iwork)
@@ -1557,11 +1569,13 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_torsions_info', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b, &
+                                                name_atm_c, name_atm_d
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
     INTEGER                                  :: handle, i, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, l_dum
 
     failure        = .FALSE.
     CALL timeset(routineN, handle)
@@ -1571,10 +1585,16 @@ CPSourceFileRef,&
        ALLOCATE(iwork(nphi),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i = 1, nphi
-          work_label(1,i) = particle_set(ip(i))%atomic_kind%name
-          work_label(2,i) = particle_set(jp(i))%atomic_kind%name
-          work_label(3,i) = particle_set(kp(i))%atomic_kind%name
-          work_label(4,i) = particle_set(lp(i))%atomic_kind%name
+          name_atm_a = particle_set(ip(i))%atomic_kind%name
+          name_atm_b = particle_set(jp(i))%atomic_kind%name
+          name_atm_c = particle_set(kp(i))%atomic_kind%name
+          name_atm_d = particle_set(lp(i))%atomic_kind%name
+          l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b,&
+               id3=name_atm_c, id4=name_atm_d)
+          work_label(1,i) = name_atm_a
+          work_label(2,i) = name_atm_b
+          work_label(3,i) = name_atm_c
+          work_label(4,i) = name_atm_d
           ! Phase and multiplicity must be kept into account 
           ! for the ordering of the torsions
           work_label(5,i) = TRIM(ADJUSTL(cp_to_string(phase(icp(i)))))
@@ -1661,11 +1681,12 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_LJ_info', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: name_atm_a
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: work_label
     INTEGER                                  :: handle, i, natom, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check, failure, l_dum
     REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
                                                 sigma6
 
@@ -1677,7 +1698,9 @@ CPSourceFileRef,&
     ALLOCATE(iwork(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i = 1, natom
-       work_label(i) = particle_set(i)%atomic_kind%name
+       name_atm_a = particle_set(i)%atomic_kind%name
+       l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a)
+       work_label(i) = name_atm_a
     END DO
     CALL sort(work_label, natom, iwork)
     
@@ -1689,9 +1712,15 @@ CPSourceFileRef,&
     END IF
     F12 = cn1( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
     F6  = cn2( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
-    sigma6   = (2.0_dp*F12/F6)
-    my_sigma = sigma6**(1.0_dp/6.0_dp)
-    my_eps   = F6/(2.0_dp*sigma6) 
+    check = (F6==0.0_dp).EQV.(F12==0.0_dp)
+    CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    my_sigma = 0.0_dp
+    my_eps   = 0.0_dp
+    IF (F6/=0.0_dp) THEN
+       sigma6   = (2.0_dp*F12/F6)
+       my_sigma = sigma6**(1.0_dp/6.0_dp)
+       my_eps   = F6/(2.0_dp*sigma6) 
+    END IF
     atom_label(nsize) = work_label(1)
     sigma(nsize)      = my_sigma/2.0_dp
     eps(nsize)        = my_eps
