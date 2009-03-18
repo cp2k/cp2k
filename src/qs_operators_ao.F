@@ -226,7 +226,7 @@ CONTAINS
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local,alpha)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
-!$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
+!$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,difabt,qs_env)&
 !$OMP shared(op_dipt)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
@@ -588,7 +588,7 @@ CONTAINS
 !$OMP private(rc,rac,rbc)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
-!$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
+!$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,angabt,qs_env)&
 !$OMP shared(op_angijt)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
@@ -927,7 +927,7 @@ CONTAINS
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local,imom)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
-!$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
+!$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,mabt,qs_env)&
 !$OMP shared(op_dipt,order,M_dim,rc)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
@@ -1320,7 +1320,7 @@ CONTAINS
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local,alpha,failure,ldb_min)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
-!$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
+!$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,mabt,difmabt,qs_env)&
 !$OMP shared(op_dipt,op_dip_dert,order,M_dim,rc)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm,op_sm_der)&
