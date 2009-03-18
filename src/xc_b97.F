@@ -50,7 +50,7 @@ MODULE xc_b97
   PUBLIC :: b97_lda_info, b97_lsd_info, b97_lda_eval, b97_lsd_eval
   
   REAL(dp), DIMENSION(10) :: params_b97_orig=(/ 0.8094_dp, 0.5073_dp, 0.7481_dp, &
-    0.9454_dp, 0.7471_dp, -4.5961_dp, 0.1737_dp, 2.387_dp, -2.4868_dp , 1.0_dp-0.1943_dp /)
+    0.9454_dp, 0.7471_dp, -4.5961_dp, 0.1737_dp, 2.3487_dp, -2.4868_dp , 1.0_dp-0.1943_dp /)
   REAL(dp), DIMENSION(10) :: params_b97_grimme=(/ 1.08662_dp, -0.52127_dp, 3.25429_dp, &
     0.69041_dp, 6.30270_dp, -14.9712_dp, 0.22340_dp, -1.56208_dp, 1.94293_dp, 1.0_dp /)
   
