@@ -2386,21 +2386,23 @@ CONTAINS
 
        CALL keyword_create(keyword, name="CUTOFF",&
             description="Atomic Cutoff Radius Cutoff for the evaluation of the  Coulomb integrals. ",&
-            usage="CUTOFF {real} ",unit_str="bohr",default_r_val=24.0_dp, error=error)
+            usage="CUTOFF {real} ",unit_str="angstrom",&
+            default_r_val=cp_unit_to_cp2k(value=12.0_dp,unit_str="angstrom",error=error),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_TAPER",&
             description="Atomic Cutoff Radius Cutoff for Tapering Coulomb integrals. "//&
             "If not specified it assumes the same value specified for the CUTOFF.",&
-            usage="RC_TAPER {real} ",unit_str="bohr",type_of_var=real_t, error=error)
+            usage="RC_TAPER {real} ",unit_str="angstrom",type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_RANGE",&
             description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
-            "where r0=2*RC_TAPER-20*RC_RANGE.",&
-            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=0.0_dp, error=error)
+            "where r0=2.0*RC_TAPER-20.0*RC_RANGE.",&
+            usage="RC_RANGE {real} ",unit_str="angstrom",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
@@ -2436,23 +2438,25 @@ CONTAINS
 
        CALL keyword_create(keyword, name="CUTOFF",&
             description="Atomic Cutoff Radius Cutoff for the evaluation of the Exchange integrals. ",&
-            usage="CUTOFF {real} ",unit_str="bohr",default_r_val=24.0_dp, error=error)
+            usage="CUTOFF {real} ",unit_str="angstrom",&
+            default_r_val=cp_unit_to_cp2k(value=12.0_dp,unit_str="angstrom",error=error),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_TAPER",&
             description="Atomic Cutoff Radius Cutoff for Tapering Exchange integrals. "//&
             "If not specified it assumes the same value specified for the CUTOFF.",&
-            usage="RC_TAPER {real} ",unit_str="bohr",type_of_var=real_t, error=error)
+            usage="RC_TAPER {real} ",unit_str="angstrom",type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_RANGE",&
             description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
-            "where r0=2*RC_TAPER-20*RC_RANGE.",&
-            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=0.0_dp, error=error)
+            "where r0=2.0*RC_TAPER-20.0*RC_RANGE.",&
+            usage="RC_RANGE {real} ",unit_str="angstrom",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_exchange_section
@@ -2486,14 +2490,16 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RC_TAPER",&
             description="Atomic Cutoff Radius Cutoff for Tapering the screening term. ",&
-            usage="RC_TAPER {real} ",unit_str="bohr",default_r_val=12.0_dp, error=error)
+            usage="RC_TAPER {real} ",unit_str="angstrom",&
+            default_r_val=cp_unit_to_cp2k(value=12.0_dp,unit_str="angstrom",error=error),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_RANGE",&
             description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
             "where r0=2*RC_TAPER-20*RC_RANGE.",&
-            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=0.0_dp, error=error)
+            usage="RC_RANGE {real} ",unit_str="angstrom",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 

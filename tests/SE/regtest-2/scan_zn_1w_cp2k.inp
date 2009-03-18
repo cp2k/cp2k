@@ -7,9 +7,11 @@
     &QS
       &SE
         &COULOMB
+          CUTOFF   [bohr] 24.0
           RC_RANGE [bohr] 0.1
         &END
         &EXCHANGE
+          CUTOFF   [bohr] 24.0
           RC_RANGE [bohr]  0.1
         &END
       &END

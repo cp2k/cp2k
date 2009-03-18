@@ -8,9 +8,11 @@
       METHOD PM3
       &SE
         &COULOMB
+          CUTOFF   [bohr] 24.0
           RC_RANGE [bohr] 1.0
         &END
         &EXCHANGE
+          CUTOFF   [bohr] 24.0
           RC_TAPER [bohr] 24.0
           RC_RANGE [bohr]  1.0
         &END
