@@ -35,6 +35,8 @@ MODULE hfx_load_balance_methods
                                              mp_waitall
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -123,10 +125,10 @@ MODULE hfx_load_balance_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: data_from, dest, i, iatom, ibin, icpu, ikind, ipos, iset, j, &
-      jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, &
-      my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, req(2), &
-      source, stat
+    INTEGER :: data_from, dest, handle, handle_inner, i, iatom, ibin, icpu, &
+      ikind, ipos, iset, j, jatom, jkind, jset, katom, kkind, kset, latom, &
+      lkind, lset, my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, &
+      req(2), source, stat
     INTEGER(int_8) :: box_idx1, current_counter, distribution_counter_end, &
       distribution_counter_start, int_per_cpu, mepos, n_processes, ncpu, &
       optimal_cost, restore_counter, tmp_counter1, total_integrals
@@ -153,6 +155,12 @@ MODULE hfx_load_balance_methods
     TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timeset(routineN,handle)
+!$OMP END MASTER
+!$OMP BARRIER
+
     IF(potential_parameter%omega /= 0.0_dp) THEN
       omega2Inv = 1.0_dp/(potential_parameter%omega**2)
     ELSE
@@ -178,7 +186,15 @@ MODULE hfx_load_balance_methods
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
+
+   
       !! Calculate total numbers of integrals that have to be calculated (wrt screening and symmetry)
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timeset(routineN//"_count",handle_inner)
+!$OMP END MASTER
+!$OMP BARRIER
+
       total_integrals = 0
       my_process_id = para_env%mepos*n_threads + i_thread
      
@@ -268,6 +284,13 @@ MODULE hfx_load_balance_methods
       nbins = load_balance_parameter%nbins
       !floor value
       int_per_cpu = (total_integrals + nbins -1 ) / (nbins) 
+
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle_inner)
+    CALL timeset(routineN//"_bin",handle_inner)
+!$OMP END MASTER
+!$OMP BARRIER
 
       ALLOCATE(binned_dist(1,nbins), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -390,6 +413,13 @@ MODULE hfx_load_balance_methods
         ENDDO
       ENDDO
 
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle_inner)
+    CALL timeset(routineN//"_dist",handle_inner)
+!$OMP END MASTER
+!$OMP BARRIER
+
       !! Fill the last bin if necessary
       IF( current_counter /= 0 ) THEN  
         binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
@@ -406,12 +436,10 @@ MODULE hfx_load_balance_methods
       cost_matrix = 0
 !$OMP END MASTER
 !$OMP BARRIER
-      DO icpu=1,ncpu
-        IF(para_env%mepos+1 == icpu ) THEN
-          DO i=1,nbins
-            cost_matrix((icpu-1)*nbins*n_threads +i_thread*nbins + i) = binned_dist(1,i)%cost 
-          END DO
-        END IF
+
+      icpu = para_env%mepos+1
+      DO i=1,nbins
+        cost_matrix((icpu-1)*nbins*n_threads +i_thread*nbins + i) = binned_dist(1,i)%cost 
       END DO
 
       mepos = para_env%mepos
@@ -443,8 +471,15 @@ MODULE hfx_load_balance_methods
       DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !$OMP END MASTER
-         
 !$OMP BARRIER
+
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle_inner)
+    CALL timeset(routineN//"_opt",handle_inner)
+!$OMP END MASTER
+!$OMP BARRIER
+
       !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
       ALLOCATE(distribution_vector(ncpu*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -461,6 +496,13 @@ MODULE hfx_load_balance_methods
       local_cost_matrix = cost_matrix
       CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
                                       load_balance_parameter, optimal_cost, my_process_id, error)
+
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle_inner)
+    CALL timeset(routineN//"_redist",handle_inner)
+!$OMP END MASTER
+!$OMP BARRIER
       
       !! Find optimal load balance wrt the cost
       optimal_costs(my_process_id+1) = optimal_cost
@@ -504,11 +546,8 @@ MODULE hfx_load_balance_methods
       full_dist(:,:)%time_forces = 0.0_dp
 !$OMP END MASTER
 !$OMP BARRIER
-      DO mepos = 1,ncpu
-        IF(para_env%mepos == mepos-1) THEN
-          full_dist((mepos-1)*n_threads+i_thread+1,:) = binned_dist(1,:)
-        END IF
-      END DO
+      mepos = para_env%mepos + 1
+      full_dist((mepos-1)*n_threads+i_thread+1,:) = binned_dist(1,:)
      
 !$OMP BARRIER
 !$OMP MASTER
@@ -578,27 +617,21 @@ MODULE hfx_load_balance_methods
       tmp_dist(:,:)%time_other_scf = 0.0_dp
       tmp_dist(:,:)%time_forces = 0.0_dp
 
-      
-      DO mepos = 1,n_processes
-        DO icpu= 1,n_processes
-          DO i=1,nbins
+      DO icpu= 1,n_processes
+        DO i=1,nbins
+            mepos = my_process_id + 1
             IF(shm_distribution_vector((icpu-1)*nbins + i) == mepos) THEN
-              IF( mepos - 1 == my_process_id) THEN
-                tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
-                tmp_pos(mepos) = tmp_pos(mepos) + 1
-              END IF
+              tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+              tmp_pos(mepos) = tmp_pos(mepos) + 1
             END IF
-          END DO
         END DO
       END DO
 
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist) 
-      DO mepos=1,n_processes
-        IF(my_process_id == mepos -1) THEN
-          ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
-        END IF
-      END DO
+      mepos = my_process_id+1
+      ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
+
       CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
 !$OMP BARRIER
 !$OMP MASTER
@@ -612,7 +645,19 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(binned_dist, local_cost_matrix, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle_inner)
+!$OMP END MASTER
+!$OMP BARRIER
     END IF
+
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle)
+!$OMP END MASTER
+!$OMP BARRIER
+
   END SUBROUTINE load_balance_energy
 
 
@@ -966,12 +1011,9 @@ MODULE hfx_load_balance_methods
       cost_matrix = 0
 !$OMP END MASTER
 !$OMP BARRIER
-      DO icpu=1,ncpu
-        IF(para_env%mepos+1 == icpu ) THEN
-          DO i=1,nbins
-            cost_matrix((icpu-1)*nbins*n_threads +i_thread*nbins + i) = binned_dist(1,i)%cost
-          END DO
-        END IF
+      icpu = para_env%mepos+1
+      DO i=1,nbins
+        cost_matrix((icpu-1)*nbins*n_threads +i_thread*nbins + i) = binned_dist(1,i)%cost
       END DO
 
       mepos = para_env%mepos
@@ -1065,11 +1107,8 @@ MODULE hfx_load_balance_methods
       full_dist(:,:)%time_forces = 0.0_dp
 !$OMP END MASTER
 !$OMP BARRIER
-      DO mepos = 1,ncpu
-        IF(para_env%mepos == mepos-1) THEN
-          full_dist((mepos-1)*n_threads+i_thread+1,:) = binned_dist(1,:)
-        END IF
-      END DO
+      mepos=para_env%mepos+1
+      full_dist((mepos-1)*n_threads+i_thread+1,:) = binned_dist(1,:)
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1138,26 +1177,21 @@ MODULE hfx_load_balance_methods
       tmp_dist(:,:)%time_first_scf = 0.0_dp
       tmp_dist(:,:)%time_other_scf = 0.0_dp
       tmp_dist(:,:)%time_forces = 0.0_dp
-      DO mepos = 1,n_processes
-        DO icpu= 1,n_processes
-          DO i=1,nbins
-            IF(shm_distribution_vector((icpu-1)*nbins + i) == mepos) THEN
-              IF(mepos - 1 == my_process_id) THEN
-                tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
-                tmp_pos(mepos) = tmp_pos(mepos) + 1
-              END IF
-            END IF
-          END DO
+      mepos = my_process_id + 1
+      DO icpu= 1,n_processes
+        DO i=1,nbins
+          IF(shm_distribution_vector((icpu-1)*nbins + i) == mepos) THEN
+              tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+              tmp_pos(mepos) = tmp_pos(mepos) + 1
+          END IF
         END DO
       END DO
 
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist)
-      DO mepos=1,n_processes
-        IF(my_process_id == mepos -1) THEN
-          ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
-        END IF
-      END DO
+      mepos = my_process_id + 1
+      ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
+
       CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
 !$OMP BARRIER
 !$OMP MASTER
@@ -1300,12 +1334,9 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
       my_global_start_idx = bin_histogram(my_process_id+1,2)- my_bin_size
-      DO icpu=1,ncpu
-        IF(para_env%mepos+1 == icpu ) THEN
-          DO i=1,my_bin_size
-            cost_matrix(my_global_start_idx + i) = binned_dist(i)%cost
-          END DO
-        END IF
+      icpu = para_env%mepos+1 
+      DO i=1,my_bin_size
+        cost_matrix(my_global_start_idx + i) = binned_dist(i)%cost
       END DO
 
       mepos = para_env%mepos
@@ -1477,26 +1508,20 @@ MODULE hfx_load_balance_methods
       tmp_dist(:,:)%time_other_scf = 0.0_dp
       tmp_dist(:,:)%time_forces = 0.0_dp
 
-      DO mepos = 1,n_processes
-        DO icpu= 1,n_processes
-          DO i = 1,bin_histogram(icpu,1)
-            IF(shm_distribution_vector(bin_histogram(icpu,2)- bin_histogram(icpu,1) + i) == mepos) THEN
-               IF( mepos - 1 == my_process_id) THEN
-                 tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
-                 tmp_pos(mepos) = tmp_pos(mepos) + 1
-               END IF
-            END IF
-          END DO
+      mepos = my_process_id + 1
+      DO icpu= 1,n_processes
+        DO i = 1,bin_histogram(icpu,1)
+          IF(shm_distribution_vector(bin_histogram(icpu,2)- bin_histogram(icpu,1) + i) == mepos) THEN
+               tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+               tmp_pos(mepos) = tmp_pos(mepos) + 1
+          END IF
         END DO
       END DO
  
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist) 
-      DO mepos=1,n_processes
-        IF(my_process_id == mepos -1) THEN
-          ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
-        END IF
-      END DO
+      mepos = my_process_id + 1
+      ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
 
       CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
 
@@ -1640,12 +1665,9 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
       my_global_start_idx = bin_histogram(my_process_id+1,2)- my_bin_size
-      DO icpu=1,ncpu
-        IF(para_env%mepos+1 == icpu ) THEN
-          DO i=1,my_bin_size
-            cost_matrix(my_global_start_idx + i) = binned_dist(i)%cost
-          END DO
-        END IF
+      icpu = para_env%mepos+1
+      DO i=1,my_bin_size
+        cost_matrix(my_global_start_idx + i) = binned_dist(i)%cost
       END DO
 
       mepos = para_env%mepos
@@ -1745,11 +1767,8 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 
 !$OMP BARRIER
-      DO mepos = 1,ncpu
-        IF(para_env%mepos == mepos-1) THEN
-           full_dist((mepos-1)*n_threads+i_thread+1,1:my_bin_size) = binned_dist(1:my_bin_size)
-        END IF
-      END DO
+      mepos = para_env%mepos + 1
+      full_dist((mepos-1)*n_threads+i_thread+1,1:my_bin_size) = binned_dist(1:my_bin_size)
 !$OMP BARRIER
 !$OMP MASTER
       ALLOCATE(sendbuffer(7*max_bin_size*n_threads),STAT=stat)
@@ -1818,26 +1837,20 @@ MODULE hfx_load_balance_methods
       tmp_dist(:,:)%time_other_scf = 0.0_dp
       tmp_dist(:,:)%time_forces = 0.0_dp
 
-      DO mepos = 1,n_processes
-        DO icpu= 1,n_processes
-          DO i = 1,bin_histogram(icpu,1)
-            IF(shm_distribution_vector(bin_histogram(icpu,2)- bin_histogram(icpu,1) + i) == mepos) THEN
-              IF( mepos - 1 == my_process_id) THEN
-                tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
-                tmp_pos(mepos) = tmp_pos(mepos) + 1
-              END IF
-            END IF
-          END DO
+      mepos = my_process_id + 1
+      DO icpu= 1,n_processes
+        DO i = 1,bin_histogram(icpu,1)
+          IF(shm_distribution_vector(bin_histogram(icpu,2)- bin_histogram(icpu,1) + i) == mepos) THEN
+              tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+              tmp_pos(mepos) = tmp_pos(mepos) + 1
+          END IF
         END DO
       END DO
      
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist) 
-      DO mepos=1,n_processes
-        IF(my_process_id == mepos -1) THEN
-          ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
-        END IF
-      END DO
+      mepos = my_process_id + 1
+      ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
 
       CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
 

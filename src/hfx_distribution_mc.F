@@ -205,31 +205,43 @@ MODULE hfx_distribution_mc
     INTEGER                                  :: my_process_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: i, iswap, itmp, itries, &
-                                                jswap, nele, &
+    INTEGER                                  :: i, iswap, itmp, itries, j, &
+                                                jswap, ncpu, nele, nstep, &
                                                 old_distribution(my_nbin)
     INTEGER(int_8)                           :: average, best_max_cost, &
                                                 max_cost, max_cost_old
-    INTEGER(int_8), DIMENSION(:), POINTER    :: tmp_cost
-    INTEGER, DIMENSION(:), POINTER           :: tmp_index
+    INTEGER(int_8), DIMENSION(:), POINTER    :: tmp_cost, tmp_cpu_cost
+    INTEGER, DIMENSION(:), POINTER           :: tmp_cpu_index, tmp_index
     REAL(dp)                                 :: random_accept, random_move, &
                                                 T, T_local
 
     nele=SIZE(my_bin_costs)
+    ncpu=SIZE(my_cost_cpu)
+    nstep=MAX(1,ncpu/2)
 
     ALLOCATE(tmp_cost(nele))
     ALLOCATE(tmp_index(nele))
+    ALLOCATE(tmp_cpu_cost(ncpu))
+    ALLOCATE(tmp_cpu_index(ncpu))
     tmp_cost=my_bin_costs
     CALL sort(tmp_cost,nele,tmp_index)
     my_cost_cpu=0
 !
 ! assign the largest remaining bin to the CPU with the smallest load
-! gives near perfect distributions already
+! gives near perfect distributions for a sufficient number of bins ...
+! doing this in chunks of nstep (where nstep ~ ncpu) makes this n log n and gives
+! each cpu a similar number of tasks.
+! it also avoids degenerate cases where thousands of zero sized tasks
+! are assigned to the same (least loaded) cpu
 !
-    DO i=my_nbin,1,-1
-       itmp=MINLOC(my_cost_cpu,1)
-       my_distribution(tmp_index(i))=itmp
-       my_cost_cpu(itmp)=my_cost_cpu(itmp)+my_bin_costs(tmp_index(i))
+    DO i=my_nbin,1,-nstep
+       tmp_cpu_cost=my_cost_cpu
+       CALL sort(tmp_cpu_cost,ncpu,tmp_cpu_index)
+       DO j=1,MIN(i,nstep)
+          itmp=tmp_cpu_index(j)
+          my_distribution(tmp_index(i-j+1))=itmp
+          my_cost_cpu(itmp)=my_cost_cpu(itmp)+my_bin_costs(tmp_index(i-j+1))
+       ENDDO
     ENDDO
 
     CALL compute_cost_cpu(my_distribution, my_nbin, my_cost_cpu, my_bin_costs)
@@ -237,13 +249,20 @@ MODULE hfx_distribution_mc
     CALL compute_max_cost(max_cost, average, my_cost_cpu)
     best_max_cost = max_cost
     my_best_distribution = my_distribution
+
     max_cost_old = max_cost
     old_distribution = my_distribution
+
+    DEALLOCATE(tmp_cost,tmp_index,tmp_cpu_cost,tmp_cpu_index)
+
+    !
+    ! A HELL OF HACK: FIXME FIXME FIXME
+    !
+    RETURN
 
     ! we base the temperature on a variance of the results obtained so far
     ! too high a temperature would melt the system instead of converging to a minimum
     T_local=my_initial_temperature*SQRT(REAL(SUM((my_cost_cpu-average)**2)/SIZE(my_cost_cpu),kind=dp))
-    DEALLOCATE(tmp_cost,tmp_index)
 
     DO itries=0,my_moves
       !do annealing 
@@ -295,6 +314,7 @@ MODULE hfx_distribution_mc
 
     CALL compute_cost_cpu(my_best_distribution, my_nbin, my_cost_cpu, my_bin_costs)
     my_best_cost = best_max_cost
+
   END SUBROUTINE distribute_monte_carlo
 
 ! *****************************************************************************
