@@ -19,11 +19,11 @@ MODULE qs_energy
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_diag,&
+  USE input_constants,                 ONLY: do_cn,&
+                                             do_diag,&
                                              ehrenfest,&
                                              use_aux_fit_basis_set,&
-                                             use_orb_basis_set,&
-                                             do_cn
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -49,11 +49,11 @@ MODULE qs_energy
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
-  USE rt_propagation_methods,          ONLY: calc_update_rho,&
+  USE rt_propagation_methods,          ONLY: aspc_extrapolate,&
+                                             calc_update_rho,&
                                              propagation_step,&
                                              s_matrices_create,&
-                                             update_core_and_matrices,&
-                                             aspc_extrapolate
+                                             update_core_and_matrices
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
@@ -291,7 +291,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_rtp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i,ihist,aspc_order
+    INTEGER                                  :: aspc_order, handle, i, ihist
     LOGICAL                                  :: diagonalize
     REAL(Kind=dp)                            :: delta_iter, eps_ener
     TYPE(cp_fm_p_type), DIMENSION(:), &

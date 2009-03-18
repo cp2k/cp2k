@@ -992,12 +992,10 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: op_fm_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: opvec
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos_new
+      POINTER                                :: opvec, mos_new
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: i, nao, nmo,l
+    INTEGER                                  :: i, nao, nmo
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
     DO i=1,SIZE ( op_fm_set, 2 )   ! spin

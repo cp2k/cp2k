@@ -13,8 +13,7 @@
 ! *****************************************************************************
 MODULE cp_cfm_basic_linalg
   USE cp_cfm_types,                    ONLY: cp_cfm_get_element,&
-                                             cp_cfm_type,&
-                                             cp_cfm_set_all
+                                             cp_cfm_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -326,21 +325,19 @@ CPSourceFileRef,&
 !> \author Florian Schiffmann
 ! *****************************************************************************  
   SUBROUTINE cp_cfm_solve(matrix_a,general_a,error)
-    TYPE(cp_cfm_type), POINTER               :: matrix_a,general_a
+    TYPE(cp_cfm_type), POINTER               :: matrix_a, general_a
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_decompose', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_solve', &
       routineP = moduleN//':'//routineN
-
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
-    COMPLEX(KIND=dp)                         :: determinant
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
+
     COMPLEX(KIND=dp), DIMENSION(:, :), &
-      POINTER                                :: a,a_general
-    INTEGER                                  :: handle, i, info, lda, n,ldb
+      POINTER                                :: a, a_general
+    INTEGER                                  :: handle, info, lda, ldb, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
-    INTEGER, DIMENSION(9)                    :: desca,descb
+    INTEGER, DIMENSION(9)                    :: desca, descb
 
 ! *** locals ***
 
