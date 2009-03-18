@@ -815,7 +815,6 @@ CPSourceFileRef,&
                mo_array(ispin)%mo_set%homo,&
                mo_array(ispin)%mo_set%lfomo,&
                mo_array(ispin)%mo_set%nelectron
-          WRITE (ires) mo_array(ispin)%mo_set%mu
           WRITE (ires) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
        END IF
@@ -980,7 +979,6 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
     LOGICAL                                  :: failure, minbas, my_xas, &
                                                 use_this
-    REAL(KIND=dp)                            :: mu_read
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1077,7 +1075,6 @@ CPSourceFileRef,&
 
       IF (para_env%ionode.AND.(nmo > 0)) THEN
         READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
-        READ (rst_unit) mu_read
         ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         eig_read = 0.0_dp
@@ -1111,7 +1108,6 @@ CPSourceFileRef,&
 
         mos(ispin)%mo_set%homo = homo_read
         mos(ispin)%mo_set%lfomo = lfomo_read
-        mos(ispin)%mo_set%mu = mu_read
         IF (homo_read > nmo) THEN
           IF(nelectron_read==mos(ispin)%mo_set%nelectron) THEN
              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
