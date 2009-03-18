@@ -455,7 +455,7 @@ CONTAINS
 
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: i, j, l, m, ncol_local, ndim, &
+    INTEGER                                  :: i, j, l, ncol_local, ndim, &
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     TYPE(cp_fm_type), POINTER                :: tmp
@@ -473,8 +473,7 @@ CONTAINS
     DO i=1,ncol_local
        l=col_indices(i)
        DO j=1,nrow_local
-          m=row_indices(j)
-          tmp%local_data(m,l)=eigenvec%local_data(m,l)*Eval(l)
+          tmp%local_data(j,i)=eigenvec%local_data(j,i)*Eval(l)
        END DO
     END DO
     CALL cp_fm_gemm("N","T",ndim,ndim,ndim,one,tmp,eigenvec,zero,&
