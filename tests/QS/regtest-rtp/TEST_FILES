@@ -10,3 +10,9 @@ H2-rtp.inp 1
 H2-emd.inp 2
 H2plus-emd-1.inp 2
 H2plus-emd.inp 2
+H2-emd_CN.inp 2
+H2-emd_EM.inp 2
+H2-emd_ETRS_PADE.inp 2
+H2-rtp_CN.inp 1
+H2-rtp_EM_DIAG.inp 1
+H2-rtp_ETRS_PADE.inp 1
