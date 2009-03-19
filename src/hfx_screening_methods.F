@@ -91,7 +91,7 @@ MODULE hfx_screening_methods
     max_val_temp = max_val
     DO ipgf = 1,npgfa
       DO jpgf = 1,npgfb
-        R1 = tmp_R_1(jpgf,ipgf)%x(1)*rab2 + tmp_R_1(jpgf,ipgf)%x(2)
+        R1 = MAX(0.0_dp, tmp_R_1(jpgf,ipgf)%x(1)*rab2 + tmp_R_1(jpgf,ipgf)%x(2))
         DO la = la_min,la_max
           DO lb = lb_min, lb_max
             !Build primitives
@@ -342,8 +342,8 @@ MODULE hfx_screening_methods
                 DO i=0,100 
                   rb(1) = 0.0_dp + REAL(i,dp) * 0.01_dp * radius
                   max_val = 0.0_dp
-                  R1 = radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x(1)*rb(1)**2 + &
-                       radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x(2)
+                  R1 = MAX(0.0_dp, radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x(1)*rb(1)**2 + &
+                       radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x(2))
                   DO la = la_min(iset),la_max(iset)
                     DO lb = lb_min(jset), lb_max(jset)
                       !Build primitives
@@ -584,9 +584,9 @@ MODULE hfx_screening_methods
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure
-    REAL(dp) :: alt(0:100), cutoff, DATA(2,0:100), ff, max_contraction_a, &
-      max_contraction_b, prefactor, R1, R1_max_alt, R_max, ra(3), rab(3), &
-      rab2, radius, rap(3), rb(3), rp(3), x(2), zetp
+    REAL(dp) :: cutoff, DATA(2,0:100), ff, max_contraction_a, &
+      max_contraction_b, prefactor, R1, R_max, ra(3), rab(3), rab2, radius, &
+      rap(3), rb(3), rp(3), x(2), zetp
     REAL(dp), DIMENSION(:), POINTER          :: set_radius_a, set_radius_b
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
@@ -659,7 +659,6 @@ MODULE hfx_screening_methods
                 DO i=0,100
                   rb(1) = 0.0_dp + 0.01_dp * radius*i
                   R_max = 0.0_dp
-                  R1_max_alt = 0.0_dp
                   DO la = la_min(iset),la_max(iset)
                     DO lb = lb_min(jset), lb_max(jset)
                       zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
@@ -673,25 +672,17 @@ MODULE hfx_screening_methods
                       rb(:) = ra(:) + rab(:)
                       cutoff = 1.0_dp
                       R1=exp_radius_very_extended(la,la,lb,lb,ra=ra,rb=rb,rp=rp,&
-                             zetp=zetp,eps=eps_schwarz,prefactor=prefactor,cutoff=cutoff)
+                             zetp=zetp,eps=eps_schwarz,prefactor=prefactor,cutoff=cutoff,epsin=1.0E-12_dp)
                       R_max = MAX(R_max,R1)
-                      ! R1=exp_radius_very_extended(la,la,lb,lb,ra=ra,rb=rb,rp=rp,&
-                      !        zetp=zetp,eps=eps_schwarz,prefactor=prefactor,cutoff=cutoff,epsin=1.0E-12_dp)
-                      ! R1_max_alt = MAX(R1_max_alt,R1)
                     END DO
                   END DO
                   DATA(1,i) = rb(1)
                   DATA(2,i) = R_max
-                  ! DATA(2,i) = R1_max_alt
-                  alt(i) = R1_max_alt
                 END DO
-                CALL optimize_it(DATA,x,-HUGE(1.0_dp))
-                ! CALL optimize_it(DATA,x,0.0_dp)
+                ! the radius can not be negative, we take that into account in the code as well by using a MAX
+                ! the functional form we use for fitting does not seem particularly accurate 
+                CALL optimize_it(DATA,x,0.0_dp)
                 radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x = x 
-                ! DO i=0,100
-                !   write(1000+isave,*) DATA(:,i),x(1)*DATA(1,i)**2+x(2),alt(i)
-                ! ENDDO
-                isave=isave+1
               END DO !jpgf
             END DO !ipgf
           END DO

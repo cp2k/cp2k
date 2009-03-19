@@ -1702,8 +1702,7 @@ MODULE hfx_energy_potential
       DO jpgf = 1,npgfb
         pgf_max_1 = pgf1(jpgf,ipgf)%x(1)*rab2+pgf1(jpgf,ipgf)%x(2)
         IF( pgf_max_1 + max_val2_set + log10_pmax < log10_eps_schwarz) CYCLE
-        R1 = R1_pgf(jpgf,ipgf)%x(1)*rab2 + &
-             R1_pgf(jpgf,ipgf)%x(2)
+        R1 = MAX(0.0_dp, R1_pgf(jpgf,ipgf)%x(1)*rab2 + R1_pgf(jpgf,ipgf)%x(2))
         Zeta_B = zetb(jpgf)
         Zeta1 = Zeta_A + Zeta_B
         ZetaInv = 1.0_dp/Zeta1
@@ -1716,8 +1715,7 @@ MODULE hfx_energy_potential
           DO lpgf = 1,npgfd
             pgf_max_2 = pgf2(lpgf,kpgf)%x(1)*rcd2+pgf2(lpgf,kpgf)%x(2)
             IF (pgf_max_1 + pgf_max_2 + log10_pmax < log10_eps_schwarz ) CYCLE
-            R2 = R2_pgf(lpgf,kpgf)%x(1)*rcd2 + &
-                 R2_pgf(lpgf,kpgf)%x(2)
+            R2 = MAX(0.0_dp, R2_pgf(lpgf,kpgf)%x(1)*rcd2 + R2_pgf(lpgf,kpgf)%x(2))
             Zeta_D = zetd(lpgf)
             Eta  =  Zeta_C + Zeta_D
             EtaInv = 1.0_dp/Eta
@@ -1858,8 +1856,7 @@ MODULE hfx_energy_potential
           DO jpgf = 1,npgfb
             pgf_max_1 = pgf1(jpgf,ipgf)%x(1)*rab2+pgf1(jpgf,ipgf)%x(2)
             IF( pgf_max_1 + max_val2 + log10_pmax < log10_eps_schwarz) CYCLE
-            R1 = R1_pgf(jpgf,ipgf)%x(1)*rab2 + &
-                 R1_pgf(jpgf,ipgf)%x(2)
+            R1 = MAX(0.0_dp,R1_pgf(jpgf,ipgf)%x(1)*rab2 + R1_pgf(jpgf,ipgf)%x(2))
             Zeta_B = zetb(jpgf)
             offset_b1 = (jpgf-1)*ncoset(lb_max)
             Zeta1 = Zeta_A + Zeta_B
@@ -1872,8 +1869,7 @@ MODULE hfx_energy_potential
               DO lpgf = 1,npgfd
                 pgf_max_2 = pgf2(lpgf,kpgf)%x(1)*rcd2+pgf2(lpgf,kpgf)%x(2)
                 IF (pgf_max_1 + pgf_max_2 + log10_pmax < log10_eps_schwarz ) CYCLE
-                R2 = R2_pgf(lpgf,kpgf)%x(1)*rcd2 +&
-                     R2_pgf(lpgf,kpgf)%x(2)
+                R2 = MAX(0.0_dp, R2_pgf(lpgf,kpgf)%x(1)*rcd2 + R2_pgf(lpgf,kpgf)%x(2))
                 offset_d1 = (lpgf-1)*ncoset(ld_max)
                 Zeta_D = zetd(lpgf)
                 Eta  =  Zeta_C + Zeta_D
