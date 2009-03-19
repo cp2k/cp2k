@@ -10,6 +10,7 @@
      &XC
        &XC_FUNCTIONAL 
             &BECKE97
+              PARAMETRIZATION B97GRIMME
             &END BECKE97
        &END XC_FUNCTIONAL
      &END XC
