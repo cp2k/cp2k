@@ -12,11 +12,16 @@ MODULE semi_empirical_utils
                                              create_gto_from_sto_basis,&
                                              gto_basis_set_type,&
                                              set_sto_basis_set
+  USE cell_types,                      ONLY: cell_type,&
+                                             plane_distance
+  USE cp_control_types,                ONLY: semi_empirical_control_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
        do_method_rm1
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE semi_empirical_mpole_methods,    ONLY: semi_empirical_mpole_p_setup
   USE semi_empirical_par_utils,        ONLY: get_se_basis,&
@@ -41,9 +46,105 @@ MODULE semi_empirical_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_utils'
 
   PUBLIC :: init_se_param, se_param_set_default, get_se_type,&
-            initialize_se_taper, finalize_se_taper
+            initialize_se_taper, finalize_se_taper, se_cutoff_compatible
 
 CONTAINS
+! *****************************************************************************
+!> \brief  Reset cutoffs trying to be somehow a bit smarter
+!> \author Teodoro Laino [tlaino] - 03.2009 
+! *****************************************************************************
+  SUBROUTINE se_cutoff_compatible(se_control, se_section, cell, output_unit, error)
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
+    TYPE(section_vals_type), POINTER         :: se_section
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'se_cutoff_compatible', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: explicit1, explicit2, failure
+    REAL(KIND=dp)                            :: rc
+
+    failure = .FALSE.
+    ! Coulomb Cutoff Taper
+    CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",explicit=explicit1,error=error)
+    CALL section_vals_val_get(se_section,"COULOMB%RC_TAPER",explicit=explicit2,error=error)
+    IF ((.NOT.explicit1).AND.(ALL(cell%perd==0))) THEN
+       rc = MAX(plane_distance(1,0,0,cell),&
+                plane_distance(0,1,0,cell),&
+                plane_distance(0,0,1,cell))
+       IF (rc /= se_control%cutoff_cou) THEN
+          IF (output_unit>0) THEN
+             WRITE(output_unit,*)
+             WRITE(output_unit,'(A,T37,A)')     " SEMIEMPIRICAL|",&
+                  " Coulomb Integral cutoff/taper was redefined"
+             WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| Old value [a.u.]",&
+                  se_control%cutoff_cou
+             WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| New value [a.u.]",rc
+             WRITE(output_unit,*)
+          END IF
+       END IF
+                           se_control%cutoff_cou = rc
+       IF (.NOT.explicit2) se_control%taper_cou  = rc
+    END IF
+    IF (output_unit>0) THEN
+       WRITE(output_unit,*)
+       WRITE(output_unit,'(A,T44,A)')     " SEMIEMPIRICAL|",&
+            " Coulomb Integral cutoff/taper values"
+       WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| Cutoff [a.u.]",&
+            se_control%cutoff_cou
+       WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| Taper  [a.u.]",&
+            se_control%taper_cou
+       WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| Range  [a.u.]",&
+            se_control%range_cou
+       WRITE(output_unit,*)
+    END IF
+    ! Exchange Cutoff Taper
+    CALL section_vals_val_get(se_section,"EXCHANGE%CUTOFF",explicit=explicit1,error=error)
+    CALL section_vals_val_get(se_section,"EXCHANGE%RC_TAPER",explicit=explicit2,error=error)
+    IF ((.NOT.explicit1).AND.(ALL(cell%perd==0))) THEN
+       rc = MAX(plane_distance(1,0,0,cell),&
+                plane_distance(0,1,0,cell),&
+                plane_distance(0,0,1,cell))
+    ELSE IF (ANY(cell%perd==1)) THEN
+       ! Make interaction radius compatible with unit cell in case of Periodic calculation
+       ! only for Exchange
+       rc = se_control%cutoff_exc
+       IF(cell%perd(1)==1) rc = MIN(rc,0.25_dp*plane_distance(1,0,0,cell))
+       IF(cell%perd(2)==1) rc = MIN(rc,0.25_dp*plane_distance(0,1,0,cell))
+       IF(cell%perd(3)==1) rc = MIN(rc,0.25_dp*plane_distance(0,0,1,cell))
+    END IF
+    IF (rc /= se_control%cutoff_exc) THEN
+       IF (output_unit>0) THEN
+          WRITE(output_unit,*)
+          WRITE(output_unit,'(A,T36,A)')     " SEMIEMPIRICAL|",&
+               " Exchange Integral cutoff/taper was redefined"
+          WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| Old value [a.u.]",&
+               se_control%cutoff_exc
+          WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| New value [a.u.]",rc
+          WRITE(output_unit,*)
+       END IF
+    END IF
+                        se_control%cutoff_exc = rc
+    IF (.NOT.explicit2) se_control%taper_exc  = rc
+
+    IF (output_unit>0) THEN
+       WRITE(output_unit,*)
+       WRITE(output_unit,'(A,T43,A)')     " SEMIEMPIRICAL|",&
+            " Exchange Integral cutoff/taper values"
+       WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| Cutoff [a.u.]",&
+            se_control%cutoff_exc
+       WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| Taper  [a.u.]",&
+            se_control%taper_exc
+       WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| Range  [a.u.]",&
+            se_control%range_exc
+       WRITE(output_unit,*)
+    END IF
+
+  END SUBROUTINE se_cutoff_compatible
+
 ! *****************************************************************************
 !> \brief  Initializes the semi-empirical taper for a chunk calculation
 !> \author Teodoro Laino [tlaino] - 03.2009 

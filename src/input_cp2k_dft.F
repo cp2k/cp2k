@@ -2385,7 +2385,9 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="CUTOFF",&
-            description="Atomic Cutoff Radius Cutoff for the evaluation of the  Coulomb integrals. ",&
+            description="Atomic Cutoff Radius Cutoff for the evaluation of the  Coulomb integrals. "//&
+            "For non-periodic calculation the default value is exactly the full cell dimension, in order "//&
+            "to evaluate all pair interactions. Instead, for periodic calculations the default numerical value is used." ,&
             usage="CUTOFF {real} ",unit_str="angstrom",&
             default_r_val=cp_unit_to_cp2k(value=12.0_dp,unit_str="angstrom",error=error),&
             error=error)
@@ -2437,7 +2439,11 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="CUTOFF",&
-            description="Atomic Cutoff Radius Cutoff for the evaluation of the Exchange integrals. ",&
+            description="Atomic Cutoff Radius Cutoff for the evaluation of the Exchange integrals. "//&
+            "For non-periodic calculation the default value is exactly the full cell dimension, in order "//&
+            "to evaluate all pair interactions. Instead, for periodic calculations the default is the "//&
+            "minimum value between 1/4 of the cell dimension and the value specified in input (either"//&
+            " explicitly defined or the default numerical value).",&
             usage="CUTOFF {real} ",unit_str="angstrom",&
             default_r_val=cp_unit_to_cp2k(value=12.0_dp,unit_str="angstrom",error=error),&
             error=error)

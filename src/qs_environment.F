@@ -166,6 +166,7 @@ MODULE qs_environment
                                              semi_empirical_si_type
   USE semi_empirical_types,            ONLY: se_taper_create,&
                                              se_taper_type
+  USE semi_empirical_utils,            ONLY: se_cutoff_compatible
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -680,27 +681,14 @@ CONTAINS
        natom = SIZE(particle_set)
        se_section => section_vals_get_subs_vals(qs_section,"SE",error=error)
        se_control => dft_control%qs_control%se_control
-       ! Make interaction radius compatible with unit cell
-       rc = se_control%cutoff_exc
-       IF(cell%perd(1)==1) rc = MIN(rc,0.25_dp*plane_distance(1,0,0,cell))
-       IF(cell%perd(2)==1) rc = MIN(rc,0.25_dp*plane_distance(0,1,0,cell))
-       IF(cell%perd(3)==1) rc = MIN(rc,0.25_dp*plane_distance(0,0,1,cell))
-       IF (rc /= se_control%cutoff_exc) THEN
-          IF (output_unit>0) THEN
-             WRITE(output_unit,*)
-             WRITE(output_unit,'(A,T34,A)')     " WARNING|",&
-                  " Integral interaction cutoff has been redefined"
-             WRITE(output_unit,'(A,T71,F10.3)') " WARNING| Old value [a.u.]",&
-                  se_control%cutoff_exc
-             WRITE(output_unit,'(A,T71,F10.3)') " WARNING| New value [a.u.]",rc
-             WRITE(output_unit,*)
-          END IF
-       END IF
-       se_control%cutoff_exc = rc
+
+       ! Make the cutoff radii choice a bit smarter
+       CALL se_cutoff_compatible(se_control, se_section, cell, output_unit, error)
+
        SELECT CASE ( dft_control%qs_control%method_id)
        CASE DEFAULT
        CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3,&
-             do_method_pm6,do_method_mndod, do_method_pnnl)
+             do_method_pm6,do_method_mndod,do_method_pnnl)
           ! Neighbor lists have to be MAX(interaction range, orbital range)
           ! set new kind radius
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,subsys_section,error)
@@ -1002,6 +990,7 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE qs_init_subsys
+
 ! *****************************************************************************
 !> \brief Write the total number of kinds, atoms, etc. to the logical unit
 !>      number lunit.
