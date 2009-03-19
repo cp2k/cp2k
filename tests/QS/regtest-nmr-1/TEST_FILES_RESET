@@ -461,3 +461,11 @@ H2O-NMR-10.inp
 H2O-NMR-11.inp
 # reduced precision
 H2O-NMR-12.inp
+# merged linres and ot preconditioner
+H2O-NMR-3.inp
+# merged linres and ot preconditioner
+H2O-NMR-6.inp
+# merged linres and ot preconditioner
+H2O-NMR-12.inp
+# merged linres and ot preconditioner
+H2O-NMR-9.inp

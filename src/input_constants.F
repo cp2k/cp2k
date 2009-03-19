@@ -615,15 +615,6 @@ MODULE input_constants
                                               lr_chemshift=1,&
                                               lr_gtensor=2,&
                                               lr_current=3
-  INTEGER, PARAMETER, PUBLIC               :: lr_cg=1,&
-                                              lr_diis=2,&
-                                              lr_sd=3
-  INTEGER, PARAMETER, PUBLIC               :: lr_precond_none=0, &
-                                              lr_precond_single=1, &
-                                              lr_precond_h0_inverse=2, &
-                                              lr_precond_s_inverse=3,&
-                                              lr_precond_kinetic=4, &
-                                              lr_precond_full_all=6
                                            
   INTEGER, PARAMETER, PUBLIC               :: xc_pbe_orig=11,&
                                               xc_rev_pbe=12

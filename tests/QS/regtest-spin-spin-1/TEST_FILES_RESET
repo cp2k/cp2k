@@ -4,3 +4,7 @@ nh3-issc-op-1.inp
 nh3-issc-op-1.inp
 #
 nh3-issc-op-1.inp
+# merged linres and ot preconditioner
+ch4-gapw-issc-2.inp
+# merged linres and ot preconditioner
+no-gapw-issc-1.inp

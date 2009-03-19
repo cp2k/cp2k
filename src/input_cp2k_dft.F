@@ -6056,15 +6056,32 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PRECONDITIONER",&
-            description="Type of preconditioner to be used with all minimization schemes."//&
-            "They differ in effectiveness, cost of construction, cost of application.",&
-            usage="PRECONDITIONER FULL_S_INVERSE",&
-            default_i_val=lr_precond_none,&
-            enum_c_vals=s2a("FULL_ALL","FULL_S_INVERSE","FULL_H0","NONE"),&
-            enum_desc=s2a("State selective, similar to full_single",&
-            "Cholesky inversion of S", "full H0","skip preconditioning"),&
-            enum_i_vals=(/lr_precond_full_all,lr_precond_s_inverse,&
-            lr_precond_h0_inverse,lr_precond_none/), error=error)
+            description="Type of preconditioner to be used with all minimization schemes. "//&
+            "They differ in effectiveness, cost of construction, cost of application. "//&
+            "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.",&
+            usage="PRECONDITIONER FULL_ALL",&
+            default_i_val=ot_precond_none,&
+            enum_c_vals=s2a("FULL_ALL","FULL_SINGLE_INVERSE","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE",&
+            "SPARSE_DIAG","SPARSE_KINETIC","NONE"),&
+            enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "//&
+            "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "//&
+            "This preconditioner is recommended for almost all systems, except very large systems where "//&
+            "make_preconditioner would dominate the total computational cost.",&
+            "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "//&
+            "but cheaper to construct, "//&
+            "might be somewhat less robust. Recommended for large systems.",&
+            "Based on H-eS diagonalisation, not as good as FULL_ALL, but somewhat cheaper to apply. ",&
+            "Cholesky inversion of S and T, fast construction, robust, and relatively good, "//&
+            "use for very large systems.",&
+            "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.",&
+            "Only based on atomic blocks, very cheap in construction but quite poor.",&
+            "Toward -sparse- linear solver for T-eS.",&
+            "skip preconditioning"),&
+            enum_i_vals=(/ot_precond_full_all,ot_precond_full_single_inverse,ot_precond_full_single, &
+            ot_precond_full_kinetic,ot_precond_s_inverse,&
+            ot_precond_sparse_diag,ot_precond_sparse_kinetic,ot_precond_none/),&
+            citations=(/VandeVondele2003/),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

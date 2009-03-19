@@ -30,13 +30,14 @@ MODULE qs_linres_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
   USE input_constants,                 ONLY: do_loc_none,&
-                                             lr_precond_none,&
                                              op_loc_berry,&
+                                             ot_precond_none,&
+                                             ot_precond_solver_default,&
                                              state_loc_all
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE preconditioner,                  ONLY: apply_preconditioner_lr,&
+  USE preconditioner,                  ONLY: apply_preconditioner,&
                                              make_preconditioner
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -192,7 +193,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s, matrix_t
     TYPE(section_vals_type), POINTER         :: lr_section
 
 !
@@ -201,7 +202,7 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
    
-    NULLIFY(dft_control,linres_control,matrix_s,matrix_ks,para_env)
+    NULLIFY(dft_control,linres_control,matrix_s,matrix_t,matrix_ks,para_env)
     NULLIFY(Ap,r,p,z,lr_section,logger,buf,mos,tmp_fm_struct,mo_coeff)
     NULLIFY(Sc,chc)
 
@@ -211,6 +212,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_ks=matrix_ks,&
                     matrix_s=matrix_s,&
+                    kinetic=matrix_t,&
                     dft_control=dft_control,&
                     linres_control=linres_control,&
                     para_env=para_env,&
@@ -301,17 +303,16 @@ CONTAINS
     ENDDO
     !
     ! build the preconditioner
-    IF(linres_control%preconditioner_type /= lr_precond_none) THEN
+    IF(linres_control%preconditioner_type /= ot_precond_none) THEN
        IF(p_env%new_preconditioner) THEN
           p_env%os_valid = .FALSE.
           DO ispin = 1,nspins
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-             p_env%ev_h0(ispin)%matrix => mo_coeff
+             CALL make_preconditioner(p_env%preconditioner(ispin),&
+                  linres_control%preconditioner_type,ot_precond_solver_default,&
+                  matrix_ks(ispin)%matrix,matrix_s(1)%matrix,matrix_t(1)%matrix,&
+                  mo_coeff,linres_control%energy_gap,error=error)
           ENDDO
-          CALL make_preconditioner(p_env%preconditioner,&
-               linres_control%preconditioner_type,p_env%ev_h0,&
-               matrix_ks,matrix_s(1)%matrix,&
-               linres_control%energy_gap,error=error)
           p_env%new_preconditioner = .FALSE.
        ENDIF
     ENDIF
@@ -334,7 +335,7 @@ CONTAINS
     !
     ! preconditioner
     linres_control%flag=""
-    IF(linres_control%preconditioner_type.EQ.lr_precond_none) THEN
+    IF(linres_control%preconditioner_type.EQ.ot_precond_none) THEN
        !
        ! z_0 = r_0
        DO ispin = 1,nspins
@@ -345,8 +346,8 @@ CONTAINS
        !
        ! z_0 = M * r_0
        DO ispin = 1,nspins
-          CALL apply_preconditioner_lr(p_env%preconditioner(ispin),r(ispin)%matrix,&
-              &                        z(ispin)%matrix,error=error)
+          CALL apply_preconditioner(p_env%preconditioner(ispin),r(ispin)%matrix,&
+              &                     z(ispin)%matrix,error)
        ENDDO
        linres_control%flag="PCG"
     ENDIF
@@ -452,7 +453,7 @@ CONTAINS
        !
        ! preconditioner
        linres_control%flag=""
-       IF(linres_control%preconditioner_type.EQ.lr_precond_none) THEN
+       IF(linres_control%preconditioner_type.EQ.ot_precond_none) THEN
           !
           ! z_j+1 = r_j+1
           DO ispin = 1,nspins
@@ -463,8 +464,8 @@ CONTAINS
           !
           ! z_j+1 = M * r_j+1
           DO ispin = 1,nspins
-             CALL apply_preconditioner_lr(p_env%preconditioner(ispin),r(ispin)%matrix,&
-                  &                       z(ispin)%matrix,error=error)
+             CALL apply_preconditioner(p_env%preconditioner(ispin),r(ispin)%matrix,&
+                  &                    z(ispin)%matrix,error)
           ENDDO
           linres_control%flag="PCG"
        ENDIF
@@ -661,7 +662,7 @@ CONTAINS
     p_env%ls_grad = 0.0_dp
     p_env%gnorm_old = 1.0_dp
 
-    IF(linres_control%preconditioner_type /= lr_precond_none) THEN
+    IF(linres_control%preconditioner_type /= ot_precond_none) THEN
        CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,error,failure)
        DO ispin = 1,nspins
           CALL cp_fm_get_info(p_env%PS_psi0(ispin)%matrix,nrow_global=nrow,ncol_global=ncol,error=error)

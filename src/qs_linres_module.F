@@ -22,12 +22,11 @@ MODULE qs_linres_module
                                              force_env_type,&
                                              use_qmmm,&
                                              use_qs_force
-  USE input_constants,                 ONLY: lr_current,&
-                                             lr_none,&
-                                             lr_precond_full_all,&
-                                             lr_precond_h0_inverse,&
-                                             lr_precond_none,&
-                                             lr_precond_s_inverse
+  USE input_constants,                 ONLY: &
+       lr_current, lr_none, ot_precond_full_all, ot_precond_full_kinetic, &
+       ot_precond_full_single, ot_precond_full_single_inverse, &
+       ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
+       ot_precond_sparse_kinetic
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -418,18 +417,30 @@ CONTAINS
               "LINRES| Optimization algorithm"," Conjugate Gradients"
 
          SELECT CASE(linres_control%preconditioner_type)
-         CASE(lr_precond_none)
+         CASE(ot_precond_none)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
                  "LINRES| Preconditioner","                NONE"
-         CASE(lr_precond_h0_inverse)
+         CASE(ot_precond_full_single)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner","         FULL SINGLE"
-         CASE(lr_precond_s_inverse)
+                 "LINRES| Preconditioner","         FULL_SINGLE"
+         CASE(ot_precond_full_kinetic)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner","      FULL S_INVERSE"
-         CASE(lr_precond_full_all)
+                 "LINRES| Preconditioner","        FULL_KINETIC"
+         CASE(ot_precond_s_inverse)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner","            FULL ALL"
+                 "LINRES| Preconditioner","      FULL_S_INVERSE"
+         CASE(ot_precond_full_single_inverse)
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+                 "LINRES| Preconditioner"," FULL_SINGLE_INVERSE"
+         CASE(ot_precond_full_all)
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+                 "LINRES| Preconditioner","            FULL_ALL"
+         CASE(ot_precond_sparse_diag)
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+                 "LINRES| Preconditioner","         SPARSE_DIAG"
+         CASE(ot_precond_sparse_kinetic)
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+                 "LINRES| Preconditioner","      SPARSE_KINETIC"
          CASE DEFAULT
             CALL stop_program(routineP,"Preconditioner NYI")
          END SELECT

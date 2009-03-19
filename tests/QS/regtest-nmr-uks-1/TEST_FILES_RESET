@@ -493,3 +493,15 @@ O2-UKS-NMR-5.inp
 O2-UKS-NMR-8.inp
 # selected states
 O2-UKS-NMR-11.inp
+# merged linres and ot preconditioner
+O2-UKS-NMR-4.inp
+# merged linres and ot preconditioner
+O2-UKS-NMR-6.inp
+# merged linres and ot preconditioner
+O2-UKS-NMR-7.inp
+# merged linres and ot preconditioner
+O2-UKS-NMR-10.inp
+# merged linres and ot preconditioner
+O2-UKS-NMR-12.inp
+# merged linres and ot preconditioner
+O2-UKS-NMR-3.inp

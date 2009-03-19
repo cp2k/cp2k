@@ -107,3 +107,9 @@ NO2-EPR-1.inp
 NO2-EPR-2.inp
 # selected states
 NO2-EPR-3.inp
+# merged linres and ot preconditioner
+NO2-EPR-1.inp
+# merged linres and ot preconditioner
+NO2-EPR-2.inp
+# merged linres and ot preconditioner
+NO2-EPR-3.inp

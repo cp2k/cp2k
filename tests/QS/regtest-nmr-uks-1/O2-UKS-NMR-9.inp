@@ -27,7 +27,7 @@
        &LOCALIZE
        &END
        MAX_ITER 10
-       PRECONDITIONER FULL_H0
+       PRECONDITIONER FULL_SINGLE
        &NMR
        &END
     &END

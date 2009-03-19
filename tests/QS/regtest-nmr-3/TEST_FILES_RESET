@@ -107,3 +107,5 @@ ch2o-nmr-nics-1.inp
 h2o-nmr-nics-1.inp
 # reduced precision
 no-gapw-nics.inp
+# merged linres and ot preconditioner
+no-gapw-nics.inp

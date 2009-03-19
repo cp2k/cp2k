@@ -47,7 +47,7 @@ MODULE qs_p_env_methods
   USE f77_blas
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
-  USE input_constants,                 ONLY: lr_precond_none
+  USE input_constants,                 ONLY: ot_precond_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
@@ -272,7 +272,7 @@ CONTAINS
        !------------------------!
        IF(PRESENT(linres_control)) THEN
 
-         IF(linres_control%preconditioner_type/= lr_precond_none) THEN
+         IF(linres_control%preconditioner_type/= ot_precond_none) THEN
          ! Initialize the preconditioner matrix
            IF (.NOT.ASSOCIATED(p_env%preconditioner)) THEN
 

@@ -94,11 +94,8 @@ MODULE qs_core_hamiltonian
   USE harris_env_types,                ONLY: harris_env_type
   USE input_constants,                 ONLY: diag_ot,&
                                              linear_response_run,&
-                                             lr_precond_kinetic,&
                                              rel_none
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+  USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indco,&
@@ -182,10 +179,10 @@ CONTAINS
     CHARACTER(LEN=80)                        :: name
     INTEGER :: atom_a, atom_b, first_col, handle, i, iab, iat, iatom, ico, &
       icol, ikind, ilist, inode, irow, iset, ithread, j, jatom, jco, jkind, &
-      jset, last_jatom, ldai, ldsab, lr_precond, maxblock, maxco, maxdco, &
-      maxder, maxl, maxlgto, maxlppl, maxsgf, n, nat, natom, ncoa, ncob, &
-      ncol, nder, neighbor_list_id, nkind, nlist, nnode, nrow, nseta, nsetb, &
-      nsgf, nthread, sgfa, sgfb, stat
+      jset, last_jatom, ldai, ldsab, maxblock, maxco, maxdco, maxder, maxl, &
+      maxlgto, maxlppl, maxsgf, n, nat, natom, ncoa, ncob, ncol, nder, &
+      neighbor_list_id, nkind, nlist, nnode, nrow, nseta, nsetb, nsgf, &
+      nthread, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf, &
                                                 last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
@@ -242,7 +239,6 @@ CONTAINS
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_rho0
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: lr_section
     TYPE(virial_type), POINTER               :: virial
     TYPE(vtriple_type), DIMENSION(:, :), &
       POINTER                                :: VH_3c_list
@@ -440,11 +436,6 @@ CONTAINS
    !   *** Allocate the kinetic energy integral ***
    !   *** matrix (only needed for printing or  ***
    !   *** the OT preconditioner)               ***
-   lr_precond = 0
-   IF(globenv%run_type_id==linear_response_run) THEN
-      lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
-      CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=lr_precond,error=error)
-   END IF
    
    ! The transition potential method may need the kinetic matrix
    xas_calculation = qs_env%dft_control%do_xas_calculation
@@ -461,7 +452,7 @@ CONTAINS
         cp_print_key_should_output(logger%iter_info,&
         qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error)/=0.OR.&
         (scf_control%use_diag .AND. scf_control%diagonalization%method == diag_ot ) .OR.&
-        lr_precond == lr_precond_kinetic .OR. xas_calculation .OR. epr_calculation)
+        globenv%run_type_id==linear_response_run .OR. xas_calculation .OR. epr_calculation)
    ! Assume false by default
    return_t_derivatives = .FALSE.
   

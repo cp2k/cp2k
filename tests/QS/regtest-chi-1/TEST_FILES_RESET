@@ -150,3 +150,7 @@ H2O-chi-gpw-2.inp
 O2-uks-chi-gpw-1.inp
 # reduced precision
 O2-uks-chi-gpw-2.inp
+# merged linres and ot preconditioner
+O2-uks-chi-gpw-1.inp
+# merged linres and ot preconditioner
+O2-uks-chi-gpw-2.inp

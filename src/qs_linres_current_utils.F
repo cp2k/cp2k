@@ -51,7 +51,7 @@ MODULE qs_linres_current_utils
                                              current_orb_center_box,&
                                              current_orb_center_common,&
                                              current_orb_center_wannier,&
-                                             lr_precond_full_all
+                                             ot_precond_full_all
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -741,7 +741,7 @@ CONTAINS
     current_env%do_selected_states = n_rep.GT.0
     !
     ! for the moment selected states doesnt work with the preconditioner FULL_ALL
-    IF(linres_control%preconditioner_type.EQ.lr_precond_full_all.AND.current_env%do_selected_states) &
+    IF(linres_control%preconditioner_type.EQ.ot_precond_full_all.AND.current_env%do_selected_states) &
          CALL stop_program("current_env_init","selected states doesnt work with the preconditioner FULL_ALL")
     !
     !

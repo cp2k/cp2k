@@ -598,3 +598,25 @@ ch3m-gapw-1.inp
 ch3p-gapw-1.inp
 # selected states
 no-gapw-4.inp
+# merged linres and ot preconditioner
+no-gapw-1.inp
+# merged linres and ot preconditioner
+no-gapw-2.inp
+# merged linres and ot preconditioner
+no-gapw-3.inp
+# merged linres and ot preconditioner
+no-gapw-4.inp
+# merged linres and ot preconditioner
+no-gapw-5.inp
+# merged linres and ot preconditioner
+no-gapw-1-distributed.inp
+# merged linres and ot preconditioner
+no-gapw-1-replicated.inp
+# merged linres and ot preconditioner
+w2_qmmm-1.inp
+# merged linres and ot preconditioner
+w2_qmmm-2.inp
+# merged linres and ot preconditioner
+w2_qmmm-3.inp
+# merged linres and ot preconditioner
+no-gapw-gpw-1.inp
