@@ -33,7 +33,6 @@ MODULE qs_environment
                                              cell_release,&
                                              cell_type,&
                                              get_cell,&
-                                             plane_distance,&
                                              read_cell,&
                                              write_cell
   USE cp_control_types,                ONLY: dft_control_release,&
@@ -367,7 +366,7 @@ CONTAINS
     LOGICAL                                  :: all_potential_present, &
                                                 explicit, harris_flag, &
                                                 ionode, was_present
-    REAL(dp)                                 :: ewald_rcut, maxocc, rc, &
+    REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
