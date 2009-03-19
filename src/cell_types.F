@@ -248,11 +248,10 @@ CONTAINS
 !> \author  Teodoro Laino
 !> \date    03.2008
 ! *****************************************************************************
-  SUBROUTINE set_cell_param(cell,cell_length,cell_angle,error)
+  SUBROUTINE set_cell_param(cell,cell_length,cell_angle,do_init_cell,error)
     TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: cell_length
-    REAL(KIND=dp), DIMENSION(3), &
-      INTENT(IN), OPTIONAL                   :: cell_angle
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: cell_length, cell_angle
+    LOGICAL, INTENT(IN)                      :: do_init_cell
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_cell_param', &
@@ -264,10 +263,10 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ALL(cell_angle/=0.0_dp),cp_failure_level,routineP,error,failure)
-    cos_gamma = COS(cell_angle(3))
-    sin_gamma = SIN(cell_angle(3))
-    cos_beta  = COS(cell_angle(2))
-    cos_alpha = COS(cell_angle(1))
+    cos_gamma = COS(cell_angle(3)); IF (ABS(cos_gamma)<EPSILON(0.0_dp)) cos_gamma = 0.0_dp
+    sin_gamma = SIN(cell_angle(3)); IF (ABS(sin_gamma)<EPSILON(0.0_dp)) sin_gamma = 0.0_dp
+    cos_beta  = COS(cell_angle(2)); IF (ABS(cos_beta )<EPSILON(0.0_dp)) cos_beta  = 0.0_dp
+    cos_alpha = COS(cell_angle(1)); IF (ABS(cos_alpha)<EPSILON(0.0_dp)) cos_alpha = 0.0_dp
     
     cell%hmat(:,1)=(/   1.0_dp,                                   0.0_dp,  0.0_dp/)
     cell%hmat(:,2)=(/cos_gamma,                                sin_gamma,  0.0_dp/)
@@ -277,7 +276,7 @@ CONTAINS
     cell%hmat(:,1)=cell%hmat(:,1)*cell_length(1)
     cell%hmat(:,2)=cell%hmat(:,2)*cell_length(2)
     cell%hmat(:,3)=cell%hmat(:,3)*cell_length(3)
-    CALL init_cell(cell)
+    IF (do_init_cell) CALL init_cell(cell)
 
   END SUBROUTINE set_cell_param
 
@@ -515,9 +514,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_cell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_per, n_rep
-    LOGICAL                                  :: failure, my_check
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
+    INTEGER                                  :: my_per
+    LOGICAL :: cell_read_a, cell_read_abc, cell_read_b, cell_read_c, &
+      cell_read_file, check, failure, my_check
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_angles, cell_par
     TYPE(section_vals_type), POINTER         :: cell_ref_section
 
     failure  = .FALSE.
@@ -533,30 +533,52 @@ CONTAINS
        cell%perd(:)    = 1
        cell%hmat(:,:)  = 0.0_dp
        cell%h_inv(:,:) = 0.0_dp
-
-       CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",n_rep_val=n_rep,error=error)
-       IF (n_rep==1) CALL read_cell_from_external_file(cell_section, cell, para_env, error)
-       CALL section_vals_val_get(cell_section,"A",n_rep_val=n_rep,error=error)
-       IF (n_rep /= 0) THEN
+       cell_read_file  = .FALSE.
+       cell_read_a     = .FALSE.
+       cell_read_b     = .FALSE.
+       cell_read_c     = .FALSE.
+       ! Trying to read cell info from file
+       CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",explicit=cell_read_file,error=error)
+       IF (cell_read_file) CALL read_cell_from_external_file(cell_section, cell, para_env, error)
+       
+       ! Trying to read cell info from the separate A, B, C vectors
+       ! If cell information is provided through file A,B,C contain the file information..
+       ! a print warning is shown on screen..
+       CALL section_vals_val_get(cell_section,"A",explicit=cell_read_a,error=error)
+       IF (cell_read_a) THEN
           CALL section_vals_val_get(cell_section,"A",r_vals=cell_par,error=error)
           cell%hmat(:,1) = cell_par(:)
        END IF
-       CALL section_vals_val_get(cell_section,"B",n_rep_val=n_rep,error=error)
-       IF (n_rep /= 0) THEN
+       CALL section_vals_val_get(cell_section,"B",explicit=cell_read_b,error=error)
+       IF (cell_read_b) THEN
           CALL section_vals_val_get(cell_section,"B",r_vals=cell_par,error=error)
           cell%hmat(:,2) = cell_par(:)
        END IF
-       CALL section_vals_val_get(cell_section,"C",n_rep_val=n_rep,error=error)
-       IF (n_rep /= 0) THEN
+       CALL section_vals_val_get(cell_section,"C",explicit=cell_read_c,error=error)
+       IF (cell_read_c) THEN
           CALL section_vals_val_get(cell_section,"C",r_vals=cell_par,error=error)
           cell%hmat(:,3) = cell_par(:)
        END IF
-       CALL section_vals_val_get(cell_section,"ABC",n_rep_val=n_rep,error=error)
-       IF (n_rep /= 0) THEN
+       check = ((cell_read_a.EQV.cell_read_b).AND.(cell_read_b.EQV.cell_read_c))
+       CALL cp_assert(check,cp_warning_level,cp_assertion_failed,routineP,&
+            "Cell Information provided through vectors A, B and C. Not all three "//&
+            "vectors were provided! Cell setup may be incomplete!"//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+
+       ! Very last option.. Trying to read cell info from ABC keyword
+       CALL section_vals_val_get(cell_section,"ABC",explicit=cell_read_abc,error=error)
+       IF (cell_read_abc) THEN
+          check = (cell_read_a.OR.cell_read_b.OR.cell_read_c)
+          CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
+               "Cell Information provided through vectors A, B and C in conjunction with ABC."//&
+               " The definition of the ABC keyword will override the one provided by A,B and C."//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+          cell%hmat = 0.0_dp
           CALL section_vals_val_get(cell_section,"ABC",r_vals=cell_par,error=error)
-          cell%hmat(1,1) = cell_par(1)
-          cell%hmat(2,2) = cell_par(2)
-          cell%hmat(3,3) = cell_par(3)
+          CALL section_vals_val_get(cell_section,"ALPHA_BETA_GAMMA",r_vals=cell_angles,error=error)
+          CALL set_cell_param(cell,cell_par,cell_angles,do_init_cell=.FALSE.,error=error)
        END IF
 
        CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
@@ -664,6 +686,7 @@ CONTAINS
          "external file! "//&
 CPSourceFileRef,&
          only_ionode=.TRUE.)
+    ! Copy cell information in the A, B, C fields..(we may need them later on..)
     ALLOCATE(cell_par(3), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     cell_par = hmat(:,1)
@@ -676,7 +699,9 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     cell_par = hmat(:,3)
     CALL section_vals_val_set(cell_section,"C",r_vals_ptr=cell_par,error=error)
-
+    ! Unset possible keywords
+    CALL section_vals_val_unset(cell_section,"ABC",error=error)
+    CALL section_vals_val_unset(cell_section,"ALPHA_BETA_GAMMA",error=error)
   END SUBROUTINE read_cell_from_external_file
 
 ! *****************************************************************************

@@ -1747,6 +1747,7 @@ CONTAINS
     work(1:3) = cell%hmat(1:3,3)
     CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
     CALL section_vals_val_unset(work_section,"ABC",error=error)
+    CALL section_vals_val_unset(work_section,"ALPHA_BETA_GAMMA",error=error)
     ! CELL_REF
     IF (use_ref_cell.AND.ASSOCIATED(cell_ref)) THEN
        work_section => section_vals_get_subs_vals(subsys_section,"CELL%CELL_REF",error=error)
@@ -1766,6 +1767,7 @@ CONTAINS
        work(1:3) = cell_ref%hmat(1:3,3)
        CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
        CALL section_vals_val_unset(work_section,"ABC",error=error)
+       CALL section_vals_val_unset(work_section,"ALPHA_BETA_GAMMA",error=error)
     END IF
     CALL timestop(handle)
   END SUBROUTINE update_cell_section

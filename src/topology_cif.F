@@ -203,7 +203,7 @@ CPSourceFileRef)
     ! Create cell
     NULLIFY(cell)
     CALL cell_create(cell,periodic=periodic,orthorhombic=orthorhombic,error=error)
-    CALL set_cell_param(cell,cell_lengths,cell_angles,error=error)
+    CALL set_cell_param(cell,cell_lengths,cell_angles,do_init_cell=.TRUE.,error=error)
     CALL write_cell(cell,subsys_section,label="CELL_CIF|",error=error)
 
     ! Parse atoms info an fractional coordinates

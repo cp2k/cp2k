@@ -112,12 +112,27 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ABC",&
-            description="Specify the lengths of the cell vectors A, B, and C. "//&
-                        "This defines the diagonal elements of h matrix "//&
-                        "for an orthorhombic cell. For non-orthorhombic cells use the keywords "//&
-                        "A, B, and C.",&
+            description="Specify the lengths of the cell vectors A, B, and C, which"//&
+            " defines the diagonal elements of h matrix for an orthorhombic cell."//&
+            " For non-orthorhombic cells it is possible either to specify the angles "//&
+            "ALPHA, BETA, GAMMA via ALPHA_BETA_GAMMA keyword or alternatively use the keywords "//&
+            "A, B, and C. The convention is that A lies along the X-axis, B is in the XY plane.",&
             usage="ABC 10.000 10.000 10.000", unit_str="angstrom",&
             n_var=3,type_of_var=real_t,repeats=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALPHA_BETA_GAMMA",&
+            variants=(/"ANGLES"/),&
+            description="Specify the angles between the vectors A, B and C when using the ABC keyword. "//&
+            "The convention is that A lies along the X-axis, B is in the XY plane. "//&
+            "ALPHA is the angle between B and C, BETA is the angle between A and C and "//&
+            "GAMMA the angle between A and B.",&
+            usage="ALPHA_BETA_GAMMA [deg] 90.0 90.0 120.0", unit_str="deg",&
+            n_var=3,default_r_vals=(/cp_unit_to_cp2k(value=90.0_dp,unit_str="deg",error=error),&
+                                     cp_unit_to_cp2k(value=90.0_dp,unit_str="deg",error=error),&
+                                     cp_unit_to_cp2k(value=90.0_dp,unit_str="deg",error=error)/),&
+                                     repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
