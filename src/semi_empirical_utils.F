@@ -104,6 +104,7 @@ CONTAINS
     ! Exchange Cutoff Taper
     CALL section_vals_val_get(se_section,"EXCHANGE%CUTOFF",explicit=explicit1,error=error)
     CALL section_vals_val_get(se_section,"EXCHANGE%RC_TAPER",explicit=explicit2,error=error)
+    rc = se_control%cutoff_exc
     IF ((.NOT.explicit1).AND.(ALL(cell%perd==0))) THEN
        rc = MAX(plane_distance(1,0,0,cell),&
                 plane_distance(0,1,0,cell),&
@@ -111,7 +112,6 @@ CONTAINS
     ELSE IF (ANY(cell%perd==1)) THEN
        ! Make interaction radius compatible with unit cell in case of Periodic calculation
        ! only for Exchange
-       rc = se_control%cutoff_exc
        IF(cell%perd(1)==1) rc = MIN(rc,0.25_dp*plane_distance(1,0,0,cell))
        IF(cell%perd(2)==1) rc = MIN(rc,0.25_dp*plane_distance(0,1,0,cell))
        IF(cell%perd(3)==1) rc = MIN(rc,0.25_dp*plane_distance(0,0,1,cell))
