@@ -30,3 +30,17 @@ CH3-trunc-1.inp
 CH3-coul-0.inp
 CH3-trunc-1.inp
 CH3-coul-0.inp
+# numerics due to better hfx powell fits 
+H2O-trunc-2.inp
+# numerics due to better hfx powell fits 
+H2O-trunc-auto.inp
+# numerics due to better hfx powell fits 
+H2O-trunc-auto-md.inp
+# numerics due to better hfx powell fits 
+CH3-trunc-auto.inp
+# numerics due to better hfx powell fits 
+CH3-trunc-1.inp
+# numerics due to better hfx powell fits 
+CH3-trunc-auto-md.inp
+# numerics due to better hfx powell fits 
+CH3-coul-0.inp

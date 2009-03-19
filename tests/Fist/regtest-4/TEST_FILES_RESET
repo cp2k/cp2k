@@ -202,3 +202,5 @@ nh3-meta-walks_2r.inp
 H2O-meta-combine.inp
 # updated all electron integrals 
 nh3-meta-walks_2r.inp
+# numerics due to better hfx powell fits 
+nh3-meta-walks_2r.inp

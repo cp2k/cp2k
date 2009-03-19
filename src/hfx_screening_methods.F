@@ -31,6 +31,8 @@ MODULE hfx_screening_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -131,12 +133,14 @@ MODULE hfx_screening_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: jatom, jkind, jset, katom, kkind, kset, mb, mc, nsetb, nsetc, &
-      nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, sgfb, sgfc
+    INTEGER :: handle, jatom, jkind, jset, katom, kkind, kset, mb, mc, nsetb, &
+      nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, sgfb, sgfc
     INTEGER, DIMENSION(:), POINTER           :: nsgfb, nsgfc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
     REAL(dp)                                 :: pmax_tmp
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -182,6 +186,8 @@ MODULE hfx_screening_methods
         END DO
       END DO
     END DO
+
+    CALL timestop(handle)
 
   END SUBROUTINE update_pmax_mat
 
@@ -236,18 +242,18 @@ MODULE hfx_screening_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_screening_functions', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ikind, ipgf, iset, jkind, &
-                                                jpgf, jset, la, lb, ncoa, &
-                                                ncob, nkind, nseta, nsetb, &
-                                                sgfa, sgfb, stat
+    INTEGER                                  :: handle, i, ikind, ipgf, iset, &
+                                                jkind, jpgf, jset, la, lb, &
+                                                ncoa, ncob, nkind, nseta, &
+                                                nsetb, sgfa, sgfb, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure
-    REAL(dp) :: DATA(2,0:100), f, kind_radius_a, kind_radius_b, &
+    REAL(dp) :: DATA(2,0:100), kind_radius_a, kind_radius_b, &
       max_contraction_a, max_contraction_b, max_val, max_val_temp, R1, ra(3), &
-      radius, rb(3), weight, x(2)
+      radius, rb(3), x(2)
     REAL(dp), DIMENSION(:), POINTER          :: set_radius_a, set_radius_b
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
@@ -257,9 +263,10 @@ MODULE hfx_screening_methods
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: tmp_R_1
-    TYPE(opt_state_type)                     :: opt_state
 
     failure = .FALSE.
+
+    CALL timeset(routineN,handle)
 
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -357,35 +364,10 @@ MODULE hfx_screening_methods
                     DATA(2,i) = LOG10((max_val))
                   END IF
                 END DO
-                opt_state%state = 0
-                opt_state%nvar = 2
-                opt_state%iprint = 3
-                opt_state%unit = default_output_unit
-                opt_state%maxfun = 100000
-                opt_state%rhobeg = 0.1
-                opt_state%rhoend = 0.000001
-                x(1) = 0.0_dp!1.0_dp
-                x(2) = 0.0_dp!1.0_dp
-                DO
-                  IF ( opt_state%state == 2 ) THEN
-                    opt_state%f = 0.0_dp
-                    DO i=0,100
-                      f = x(1)*DATA(1,i)**2 +  x(2)
-                      IF( f > DATA(2,i) ) THEN
-                        weight = 1.0_dp
-                      ELSE
-                        weight = 10000.0_dp
-                      END IF 
-                      IF( DATA(2,i) > powell_min_log)  opt_state%f = opt_state%f + weight * (f-DATA(2,i))**2
-                    END DO
-                  END IF
-         
-                  IF ( opt_state%state == -1 ) EXIT
-                  CALL powell_optimize (opt_state%nvar, x, opt_state)
-                END DO
+
+                CALL optimize_it(DATA,x,powell_min_log)
                 coeffs_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x = x 
-                opt_state%state = 8
-                CALL powell_optimize (opt_state%nvar, x, opt_state)
+
               END DO
             END DO
           END DO
@@ -467,35 +449,8 @@ MODULE hfx_screening_methods
               END IF
             END DO
 
-            opt_state%state = 0
-            opt_state%nvar = 2
-            opt_state%iprint = 3
-            opt_state%unit = default_output_unit
-            opt_state%maxfun = 100000
-            opt_state%rhobeg = 0.1
-            opt_state%rhoend = 0.000001
-            x(1) = 0.0_dp!1.0_dp
-            x(2) = 0.0_dp!1.0_dp
-            DO
-              IF ( opt_state%state == 2 ) THEN
-                opt_state%f = 0.0_dp
-                DO i=0,100
-                  f = x(1)*DATA(1,i)**2 +  x(2)
-                  IF( f > DATA(2,i) ) THEN
-                    weight = 1.0_dp
-                  ELSE
-                    weight = 10000.0_dp
-                  END IF 
-                  IF( DATA(2,i) > powell_min_log)  opt_state%f = opt_state%f + weight * (f-DATA(2,i))**2
-                END DO
-              END IF
-    
-              IF ( opt_state%state == -1 ) EXIT
-              CALL powell_optimize (opt_state%nvar, x, opt_state)
-            END DO
+            CALL optimize_it(DATA,x,powell_min_log)
             coeffs_set(jset,iset,jkind,ikind)%x = x 
-            opt_state%state = 8
-            CALL powell_optimize (opt_state%nvar, x, opt_state)
 
           END DO
         END DO
@@ -576,37 +531,13 @@ MODULE hfx_screening_methods
           END DO
         END DO
 
-        opt_state%state = 0
-        opt_state%nvar = 2
-        opt_state%iprint = 3
-        opt_state%unit = default_output_unit
-        opt_state%maxfun = 100000
-        opt_state%rhobeg = 0.1
-        opt_state%rhoend = 0.000001
-        x(1) = 0.0_dp!1.0_dp
-        x(2) = 0.0_dp!1.0_dp
-        DO
-          IF ( opt_state%state == 2 ) THEN
-            opt_state%f = 0.0_dp
-            DO i=0,100
-              f = x(1)*DATA(1,i)**2 +  x(2)
-              IF( f > DATA(2,i) ) THEN
-                weight = 1.0_dp
-              ELSE
-                weight = 10000.0_dp
-              END IF 
-              IF( DATA(2,i) > powell_min_log)  opt_state%f = opt_state%f + weight * (f-DATA(2,i))**2
-            END DO
-          END IF
-
-          IF ( opt_state%state == -1 ) EXIT
-          CALL powell_optimize (opt_state%nvar, x, opt_state)
-        END DO
+        CALL optimize_it(DATA,x,powell_min_log)
         coeffs_kind(jkind,ikind)%x = x 
-        opt_state%state = 8
-        CALL powell_optimize (opt_state%nvar, x, opt_state)
+
       END DO
     END DO
+
+    CALL timestop(handle)
 
   END SUBROUTINE calc_screening_functions
 
@@ -646,18 +577,16 @@ MODULE hfx_screening_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_pair_dist_radii', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ikind, ipgf, iset, jkind, &
-                                                jpgf, jset, la, lb, ncoa, &
-                                                ncob, nkind, nseta, nsetb, &
-                                                sgfa, sgfb, stat
+    INTEGER :: handle, i, ikind, ipgf, isave, iset, jkind, jpgf, jset, la, &
+      lb, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure
-    REAL(dp) :: cutoff, DATA(2,0:100), f, ff, max_contraction_a, &
-      max_contraction_b, prefactor, R1, R_max, ra(3), rab(3), rab2, radius, &
-      rap(3), rb(3), rp(3), weight, x(2), zetp
+    REAL(dp) :: alt(0:100), cutoff, DATA(2,0:100), ff, max_contraction_a, &
+      max_contraction_b, prefactor, R1, R1_max_alt, R_max, ra(3), rab(3), &
+      rab2, radius, rap(3), rb(3), rp(3), x(2), zetp
     REAL(dp), DIMENSION(:), POINTER          :: set_radius_a, set_radius_b
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
@@ -665,15 +594,17 @@ MODULE hfx_screening_methods
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
-    TYPE(opt_state_type)                     :: opt_state
 
     failure = .FALSE.
+
+    CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set,1)
+    isave=0
     ra = 0.0_dp
     rb = 0.0_dp
     DATA = 0.0_dp
@@ -721,7 +652,6 @@ MODULE hfx_screening_methods
             sgfb = first_sgfb(1,jset)
             max_contraction_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,i))),i=sgfb,sgfb+nsgfb(jset)-1)/))
             DATA = 0.0_dp
-            R_max = 0.0_dp
             DO ipgf = 1,npgfa(iset)
               DO jpgf = 1,npgfb(jset)
                 DATA = 0.0_dp
@@ -729,6 +659,7 @@ MODULE hfx_screening_methods
                 DO i=0,100
                   rb(1) = 0.0_dp + 0.01_dp * radius*i
                   R_max = 0.0_dp
+                  R1_max_alt = 0.0_dp
                   DO la = la_min(iset),la_max(iset)
                     DO lb = lb_min(jset), lb_max(jset)
                       zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
@@ -744,46 +675,102 @@ MODULE hfx_screening_methods
                       R1=exp_radius_very_extended(la,la,lb,lb,ra=ra,rb=rb,rp=rp,&
                              zetp=zetp,eps=eps_schwarz,prefactor=prefactor,cutoff=cutoff)
                       R_max = MAX(R_max,R1)
+                      ! R1=exp_radius_very_extended(la,la,lb,lb,ra=ra,rb=rb,rp=rp,&
+                      !        zetp=zetp,eps=eps_schwarz,prefactor=prefactor,cutoff=cutoff,epsin=1.0E-12_dp)
+                      ! R1_max_alt = MAX(R1_max_alt,R1)
                     END DO
                   END DO
                   DATA(1,i) = rb(1)
                   DATA(2,i) = R_max
+                  ! DATA(2,i) = R1_max_alt
+                  alt(i) = R1_max_alt
                 END DO
-                opt_state%state = 0
-                opt_state%nvar = 2
-                opt_state%iprint = 3
-                opt_state%unit = default_output_unit
-                opt_state%maxfun = 100000
-                opt_state%rhobeg = 0.1
-                opt_state%rhoend = 0.000001
-                x(1) = 0.0_dp!1.0_dp
-                x(2) = 0.0_dp!1.0_dp
-                DO
-                  IF ( opt_state%state == 2 ) THEN
-                    opt_state%f = 0.0_dp
-                    DO i=0,100
-                      f = x(1)*DATA(1,i)**2 +  x(2)
-                      IF( f > DATA(2,i) ) THEN
-                        weight = 1.0_dp
-                      ELSE
-                        weight = 10000.0_dp
-                      END IF 
-                      opt_state%f = opt_state%f + weight * (f-DATA(2,i))**2
-                    END DO
-                  END IF
-            
-                  IF ( opt_state%state == -1 ) EXIT
-                  CALL powell_optimize (opt_state%nvar, x, opt_state)
-                END DO
+                CALL optimize_it(DATA,x,-HUGE(1.0_dp))
+                ! CALL optimize_it(DATA,x,0.0_dp)
                 radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x = x 
-                opt_state%state = 8
-                CALL powell_optimize (opt_state%nvar, x, opt_state)
+                ! DO i=0,100
+                !   write(1000+isave,*) DATA(:,i),x(1)*DATA(1,i)**2+x(2),alt(i)
+                ! ENDDO
+                isave=isave+1
               END DO !jpgf
             END DO !ipgf
           END DO
         END DO
       END DO
     END DO
+
+    CALL timestop(handle)
+
   END SUBROUTINE calc_pair_dist_radii
+
+!
+!
+! little drive routine for the powell minimizer
+! data is the data to fit, x is of the form (x(1)*DATA(1)**2+x(2))
+! only values of DATA(2) larger than fmin are taken into account
+! it constructs an approximate upper bound of the fitted function
+!
+!
+  SUBROUTINE optimize_it(DATA,x,fmin)
+
+    REAL(KIND=dp), INTENT(IN)                :: DATA(2,0:100)
+    REAL(KIND=dp), INTENT(OUT)               :: x(2)
+    REAL(KIND=dp), INTENT(IN)                :: fmin
+
+    INTEGER                                  :: i, k
+    REAL(KIND=dp)                            :: f, large_weight, &
+                                                small_weight, weight
+    TYPE(opt_state_type)                     :: opt_state
+
+! initial values
+
+     x(1) = 0.0_dp
+     x(2) = 0.0_dp
+
+     ! we go in two steps, first we do the symmetric weight to get a good, unique initial guess
+     ! we restart afterwards for the assym. 
+     ! the assym function appears to have several local minima, depending on the data to fit
+     ! the loop over k can make the switch gradual, but there is not much need, seemingly
+     DO k=0,4,5
+
+        small_weight=1.0_dp
+        large_weight=small_weight*(10.0_dp**k)
+
+        ! init opt run
+        opt_state%state = 0
+        opt_state%nvar = 2
+        opt_state%iprint = 3
+        opt_state%unit = default_output_unit
+        opt_state%maxfun = 100000
+        opt_state%rhobeg = 0.1_dp
+        opt_state%rhoend = 0.000001_dp
+
+        DO
+
+          ! compute function
+          IF ( opt_state%state == 2 ) THEN
+            opt_state%f = 0.0_dp
+            DO i=0,100
+              f = x(1)*DATA(1,i)**2 +  x(2)
+              IF( f > DATA(2,i) ) THEN
+                weight = small_weight
+              ELSE
+                weight = large_weight
+              END IF
+              IF( DATA(2,i) > fmin ) opt_state%f = opt_state%f + weight * (f-DATA(2,i))**2
+            END DO
+          END IF
+
+          IF ( opt_state%state == -1 ) EXIT
+          CALL powell_optimize (opt_state%nvar, x, opt_state)
+        END DO
+
+        ! dealloc mem
+        opt_state%state = 8
+        CALL powell_optimize (opt_state%nvar, x, opt_state)
+ 
+     ENDDO
+
+  END SUBROUTINE optimize_it
 
 END MODULE hfx_screening_methods
