@@ -105,7 +105,7 @@ CONTAINS
                       itype, dcharg_int_nri, error)
 
     ! Handle the derivative of the Tapering term
-    IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype==do_method_pchg)) THEN
+    IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
        dfs = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
             se_int_control%integral_screening, .FALSE., itype, dcharg_int_nri_fs,&
             error)
@@ -928,7 +928,7 @@ CONTAINS
                      itype, dcharg_int_ri, error)
 
     ! Handle the derivative of the Tapering term
-    IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype==do_method_pchg)) THEN
+    IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
        dfs = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
             se_int_control%integral_screening, .FALSE., itype, dcharg_int_ri_fs,&
             error)
