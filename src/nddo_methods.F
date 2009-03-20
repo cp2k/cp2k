@@ -508,7 +508,6 @@ CONTAINS
       natorb_b2, nkind, nlist, nnode, nspins, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
-                                                do_ewald, do_ewald_r3, &
                                                 failure, scp_nddo, switch
     REAL(KIND=dp)                            :: delta, dr1, ecore2
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
