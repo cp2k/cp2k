@@ -123,8 +123,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, ncol_global, &
                                                 nspins, output_unit
-    LOGICAL                                  :: do_ewald, do_ewald_r3, &
-                                                failure, scp_nddo
+    LOGICAL                                  :: failure, scp_nddo
     REAL(dp), POINTER                        :: ascp_diag( : )
     REAL(KIND=dp)                            :: ecoul, ecoul_scp, qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
@@ -162,8 +161,6 @@ CONTAINS
             atomic_kind_set=atomic_kind_set, error=error)
 
        se_control  => dft_control%qs_control%se_control
-       do_ewald    =  se_control%do_ewald
-       do_ewald_r3 =  se_control%do_ewald_r3
        scp_nddo    =  se_control%scp
 
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
@@ -181,7 +178,7 @@ CONTAINS
 
        ! Zero the ks_scp matrix.  Will get info from coulomb routines
        IF (scp_nddo) THEN
-          CALL get_scp_env ( scp_env, ks_scp=ks_scp, error = error )
+          CALL get_scp_env(scp_env, ks_scp=ks_scp, error=error)
           CALL set_matrix(ks_scp,0.0_dp)
        END IF
 
@@ -194,7 +191,7 @@ CONTAINS
        CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
 
        ! Long Range Electrostatic
-       IF (do_ewald) THEN
+       IF (se_control%do_ewald) THEN
           ! Debug statements
           IF (debug_coulomb_lr) THEN
              ! Zero structures only for debugging purpose
@@ -208,7 +205,7 @@ CONTAINS
           CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,matrix_p,energy,calculate_forces,error)
 
           ! Possibly handle the slowly convergent term 1/R^3
-          IF (do_ewald_r3) THEN
+          IF (se_control%do_ewald_r3) THEN
              CALL build_fock_matrix_coul_lr_r3(qs_env,ks_matrix,matrix_p,energy,calculate_forces,error)
           END IF
        END IF
@@ -328,8 +325,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
       itype, jatom, jkind, natom, nkind, nlist, nnode, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, defined, do_ewald, &
-                                                failure
+    LOGICAL                                  :: anag, defined, failure
     REAL(KIND=dp)                            :: delta, dr1, dr3inv(3), enuc, &
                                                 enuclear, r2inv, r3inv, rinv
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij

@@ -113,8 +113,7 @@ CONTAINS
                                                 d_matrix
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: CPC, PC1
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: C_coeff_hh_a, C_coeff_hh_b, &
-      C_coeff_ss_a, C_coeff_ss_b, r_coef_h, r_coef_s, tmp_coeff, &
-      zero_coeff
+      C_coeff_ss_a, C_coeff_ss_b, r_coef_h, r_coef_s, tmp_coeff, zero_coeff
     TYPE(alist_type), POINTER                :: alist_ac, alist_bc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
