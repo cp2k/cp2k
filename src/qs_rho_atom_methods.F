@@ -451,7 +451,7 @@ MODULE qs_rho_atom_methods
     INTEGER :: handle, i, iab, iac, iatom, ibc, icol, ikind, ilist, inode, &
       irow, ispin, istat, jatom, jkind, kac, katom, kbc, kkind, max_gau, &
       max_nsgf, maxsoc, n_cont_a, n_cont_b, nat_kind, natom, nkind, nlist, &
-      nnode, np_sph, nsetc, nsgfa, nsgfb, nsoctot, nspins
+      nnode, nsatbas, nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: a_list, list_a, list_b
@@ -624,8 +624,8 @@ MODULE qs_rho_atom_methods
 
               IF(.NOT. paw_atom)  CYCLE
 
-              CALL get_paw_proj_set(paw_proj_set=paw_proj,nsgauprj=np_sph)
-              nsoctot = np_sph
+              CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas)
+              nsoctot = nsatbas
 
               iac = ikind + nkind*(kkind - 1)
               ibc = jkind + nkind*(kkind - 1)
@@ -973,7 +973,7 @@ MODULE qs_rho_atom_methods
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iat, iatom, ikind, ispin, istat, j, max_iso_not0, &
-      maxso, nat, natom, nkind, np_sph, nr, nset, nsotot, nspins, tmpstat
+      maxso, nat, natom, nkind, nr, nsatbas, nset, nsotot, nspins, tmpstat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1014,7 +1014,7 @@ MODULE qs_rho_atom_methods
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxso=maxso, nset=nset)
 
        IF (paw_atom) THEN
-         CALL get_paw_proj_set(paw_proj_set=paw_proj,nsgauprj=np_sph)
+         CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas)
          nsotot = maxso * nset
        END IF
 
@@ -1075,8 +1075,8 @@ MODULE qs_rho_atom_methods
                 ALLOCATE(rho_atom_set(iatom)%cpc_h(ispin)%r_coef(1:nsotot,1:nsotot), &
                          rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsotot,1:nsotot),&
                          STAT=tmpstat)
-                ALLOCATE(rho_atom_set(iatom)%cpc_hx(ispin)%r_coef(1:np_sph,1:np_sph), &
-                         rho_atom_set(iatom)%cpc_sx(ispin)%r_coef(1:np_sph,1:np_sph),&
+                ALLOCATE(rho_atom_set(iatom)%cpc_hx(ispin)%r_coef(1:nsatbas,1:nsatbas), &
+                         rho_atom_set(iatom)%cpc_sx(ispin)%r_coef(1:nsatbas,1:nsatbas),&
                          STAT=tmpstat)
                 istat = istat + tmpstat
 

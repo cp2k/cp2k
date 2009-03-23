@@ -535,7 +535,7 @@ CONTAINS
     INTEGER :: atom, handle, iatom, ico, ico1_pgf, ico1_set, ikind, ipgf, &
       iset, iso, iso1_pgf, iso1_set, ison, ispin, istat, jco, jco1_pgf, &
       jco1_set, jpgf, jset, jso, jso1_pgf, jso1_set, json, la, lb, maxco, &
-      maxso, na, natom, nb, ncoa, ncob, ncotot, nkind, np_sph, nset, nsoa, &
+      maxso, na, natom, nb, ncoa, ncob, ncotot, nkind, nsatbas, nset, nsoa, &
       nsob, nsotot, nspin
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, &
                                                 o2nindex
@@ -660,7 +660,7 @@ CONTAINS
 
         IF (.NOT.paw_atom) CYCLE ! no PAW atom: nothing to do
 
-        CALL get_paw_proj_set(paw_proj_set=paw_proj,o2nindex=o2nindex,nsgauprj=np_sph)
+        CALL get_paw_proj_set(paw_proj_set=paw_proj,o2nindex=o2nindex,nsatbas=nsatbas)
 
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                lmax=lmax,&
@@ -673,7 +673,7 @@ CONTAINS
 
         ncotot = maxco*nset
         nsotot = maxso*nset
-        CALL reallocate(delta_cpc,1,np_sph,1,np_sph)
+        CALL reallocate(delta_cpc,1,nsatbas,1,nsatbas)
         CALL reallocate(pab,1,ncotot,1,ncotot)
         CALL reallocate(work,1,maxso,1,maxco)
 

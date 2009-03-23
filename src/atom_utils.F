@@ -216,11 +216,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_denmat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, l
+    INTEGER                                  :: i, j, k, l, n
 
     pmat = 0._dp
+    n = SIZE(wfn,2)
     DO l=0,maxl
-      DO i=1,maxn(l)
+      DO i=1,MIN(n,maxn(l))
         DO k=1,nbas(l)
           DO j=1,nbas(l)
             pmat(j,k,l) =  pmat(j,k,l) + occ(l,i)*wfn(j,i,l)*wfn(k,i,l)

@@ -79,8 +79,8 @@ CONTAINS
     INTEGER :: first_col, ic, ico, ider, ig1, igau, ip, ipgf, is, isgfb, &
       isgfb_cnt, iso, isp, istat, jc, jset, lds, lm, lpoint, lprj, lsgfb, &
       lsgfb_cnt, lshell, lx, ly, lz, m, m1, maxcob, maxder, maxlb, maxlprj, &
-      maxnprja, maxsoa, msab, n, ncob, np_car, np_sph, nseta, nsetb, nsoatot, &
-      ntotsgfb, sgf_hard_only
+      maxnprja, maxsoa, msab, n, ncob, np_car, np_sph, nsatbas, nseta, nsetb, &
+      nsoatot, ntotsgfb, sgf_hard_only
     INTEGER, DIMENSION(:), POINTER           :: fp_cara, fp_spha, lb_max, &
                                                 lb_min, npgfb, nprjla, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
@@ -113,7 +113,7 @@ CONTAINS
 
    NULLIFY(cprj_s,nprjla,fp_cara,fp_spha,rzetprja,zetprja)
    CALL get_paw_proj_set(paw_proj_set=paw_proj_a,cprj_s=cprj_s,csprj=csprj,maxl=maxlprj, &
-                         nprj=nprjla,ncgauprj=np_car,nsgauprj=np_sph,rcprj=rcprja, &
+                         nprj=nprjla,ncgauprj=np_car,nsgauprj=np_sph,nsatbas=nsatbas,rcprj=rcprja, &
                          first_prj=fp_cara,first_prjs=fp_spha,&
                          rzetprj=rzetprja,zetprj=zetprja)
 
@@ -241,7 +241,7 @@ CONTAINS
                     sphi_b(1,isgfb),SIZE(sphi_b,1),&
                     0.0_dp,spa_sb(1,isgfb),SIZE(spa_sb,1))
 
-          CALL dgemm("T","N",np_sph,nsgfb(jset),np_sph,&
+          CALL dgemm("T","N",nsatbas,nsgfb(jset),np_sph,&
                     1.0_dp,csprj(1,1),SIZE(csprj,1),&
                     spa_sb(1,isgfb),SIZE(spa_sb,1),&
                     1.0_dp,oces(ider)%block(1,isgfb_cnt),SIZE(oces(ider)%block,1))
@@ -273,7 +273,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iset, isgfa, j, jc, lsgfa, &
-                                                maxlprj, maxsoa, n, np_sph, &
+                                                maxlprj, maxsoa, n, nsatbas, &
                                                 nseta, nsgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: n2oindex, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
@@ -290,7 +290,7 @@ CONTAINS
  
     IF(.NOT. paw_atom_a) RETURN
  
-    CALL get_paw_proj_set(paw_proj_set=paw_proj_a,maxl=maxlprj,nsgauprj=np_sph,&
+    CALL get_paw_proj_set(paw_proj_set=paw_proj_a,maxl=maxlprj,nsatbas=nsatbas,&
                           n2oindex=n2oindex)
  
     CALL get_gto_basis_set(gto_basis_set=orb_basis_a,first_sgf=first_sgfa,&
@@ -321,7 +321,7 @@ CONTAINS
     ENDDO
 
     DO i=1,nsgfa
-      DO j=1,np_sph
+      DO j=1,nsatbas
         jc=n2oindex(j)
         oceh(1)%block(j,i) = prjloc_h(jc,i)
         oces(1)%block(j,i) = prjloc_s(jc,i)
@@ -364,7 +364,8 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, &
       jneighbor, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlprj, maxprj, &
       maxsgf, maxsoa, maxsob, mlprj, natom, ncoa_sum, nkind, nlist, &
-      nneighbor, np_car, np_sph, nseta, nsetb, nsgf_cnt, nsgfa, nsobtot, stat
+      nneighbor, np_car, np_sph, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, &
+      nsobtot, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sgf_list
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: fp_car, fp_sph, la_max, &
@@ -472,13 +473,14 @@ CONTAINS
                                  nprj=nprjla,&
                                  ncgauprj=np_car,&
                                  nsgauprj=np_sph,&
+                                 nsatbas=nsatbas,&
                                  rcprj=rcprj, &
                                  first_prj=fp_car,&
                                  first_prjs=fp_sph,&
                                  rzetprj=rzetprj,&
                                  zetprj=zetb)
 
-           nsobtot = np_sph
+           nsobtot = nsatbas
 
            CALL get_neighbor_list_set(neighbor_list_set=sap_oce(iac)%neighbor_list_set,nlist=nlist)
            NULLIFY(sap_oce_neighbor_list)
@@ -660,7 +662,7 @@ CONTAINS
   SUBROUTINE prj_gather(ain,aout,atom,error)
 
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ain
-    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: aout
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: aout
     TYPE(atomic_kind_type), POINTER          :: atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 

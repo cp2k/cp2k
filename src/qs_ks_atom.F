@@ -208,7 +208,7 @@ CONTAINS
             paw_atom=paw_atom, natom=nat)
        IF(paw_atom) THEN
          DO iat = 1,nat
-         iatom =  atom_list(iat)
+            iatom =  atom_list(iat)
             DO ispin = 1,nspins
               CALL prj_gather(rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
                               rho_atom(iatom)%cpc_hx(ispin)%r_coef,atomic_kind,error)

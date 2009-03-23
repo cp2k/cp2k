@@ -101,7 +101,7 @@ CONTAINS
     INTEGER :: bo(2), handle, iab, iac, iat, iatom, ibc, idir2, ii, iii, &
       ikind, ilist, inode, ispin, istat, jatom, jkind, kac, katom, kbc, &
       kkind, max_gau, max_nsgf, mepos, n_cont_a, n_cont_b, nat, natom, nkind, &
-      nlist, nnode, np_sph, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe
+      nlist, nnode, nsatbas, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
     LOGICAL :: dista, distab, distb, failure, is_not_associated, paw_atom, &
@@ -323,8 +323,8 @@ CONTAINS
                    ! Quick cycle if needed.
                    IF(.NOT.paw_atom) CYCLE
 
-                   CALL get_paw_proj_set(paw_proj_set=paw_proj,nsgauprj=np_sph)
-                   nsoctot = np_sph
+                   CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas)
+                   nsoctot = nsatbas
 
                    iac = ikind + nkind*(kkind - 1)
                    ibc = jkind + nkind*(kkind - 1)
@@ -476,8 +476,8 @@ CONTAINS
 
        IF(.NOT. paw_atom) CYCLE
 
-       CALL get_paw_proj_set(paw_proj_set=paw_proj,nsgauprj=np_sph)
-       nsoctot = np_sph
+       CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas)
+       nsoctot = nsatbas
        !
        num_pe = para_env%num_pe
        mepos  = para_env%mepos

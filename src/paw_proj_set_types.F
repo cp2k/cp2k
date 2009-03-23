@@ -67,6 +67,7 @@ MODULE paw_proj_set_types
      REAL(dp), DIMENSION(:,:), POINTER        :: sphi_h, sphi_s
      REAL(dp), DIMENSION(:,:,:,:), POINTER    :: gccprj     ! maxnprj,maxnpgf,0:maxl,nset
      LOGICAL, DIMENSION(:,:), POINTER         :: isoprj     ! maxnprj,0:maxl
+     INTEGER                                  :: nsatbas
      INTEGER, DIMENSION(:), POINTER           :: o2nindex   ! maxso*nset
      INTEGER, DIMENSION(:), POINTER           :: n2oindex   ! maxso*nset
 
@@ -816,6 +817,7 @@ CONTAINS
          END DO 
        END DO 
        mp = ico-1
+       paw_proj%nsatbas = mp
        ALLOCATE(paw_proj%csprj(nsgauprj,mp),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%csprj = 0._dp
@@ -834,7 +836,7 @@ CONTAINS
   SUBROUTINE get_paw_proj_set(paw_proj_set,cprj,cprj_s,csprj,&
        first_prj,first_prjs,last_prj, & 
        local_oce_sphi_h,local_oce_sphi_s,&
-       maxl,ncgauprj,nsgauprj,nprj,&
+       maxl,ncgauprj,nsgauprj,nsatbas,nprj,&
        o2nindex,n2oindex,&
        rcprj,rzetprj,zisomin,zetprj)
 
@@ -846,7 +848,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: local_oce_sphi_h, &
                                                 local_oce_sphi_s
-    INTEGER, INTENT(OUT), OPTIONAL           :: maxl, ncgauprj, nsgauprj
+    INTEGER, INTENT(OUT), OPTIONAL           :: maxl, ncgauprj, nsgauprj, &
+                                                nsatbas
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nprj, o2nindex, n2oindex
     REAL(dp), INTENT(OUT), OPTIONAL          :: rcprj
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
@@ -871,6 +874,7 @@ CONTAINS
        IF (PRESENT(maxl)) maxl = paw_proj_set%maxl
        IF (PRESENT(ncgauprj )) ncgauprj  = paw_proj_set%ncgauprj
        IF (PRESENT(nsgauprj )) nsgauprj  = paw_proj_set%nsgauprj
+       IF (PRESENT(nsatbas  )) nsatbas   = paw_proj_set%nsatbas 
        IF (PRESENT(nprj))   nprj => paw_proj_set%nprj
        IF (PRESENT(rcprj))  rcprj = paw_proj_set%rcprj
        IF (PRESENT(rzetprj)) rzetprj => paw_proj_set%rzetprj 

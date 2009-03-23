@@ -296,7 +296,7 @@ CONTAINS
           DO i=1,n
             IF (w(i) > basis%eps_eig) THEN
               ii = ii + 1
-              integrals%utrans(:,ii,l) = omat(:,i)/SQRT(w(i))
+              integrals%utrans(1:n,ii,l) = omat(1:n,i)/SQRT(w(i))
             END IF
           END DO
           integrals%nne(l) = ii
