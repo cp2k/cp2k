@@ -190,7 +190,7 @@ CONTAINS
           current_env%ref_count=0
           current_env%do_qmmm = do_qmmm
           !current_env%prop='nmr'
-          CALL current_env_init(current_env,p_env,qs_env,error=error)
+          CALL current_env_init(current_env,qs_env,error=error)
           CALL current_operators(current_env,qs_env,error=error)
           CALL current_response(current_env,p_env,qs_env,error)
           !
@@ -391,6 +391,7 @@ CONTAINS
          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        END IF
 
+       CALL section_vals_val_get(lr_section,"RESTART",l_val=linres_control%linres_restart,error=error)
        CALL section_vals_val_get(lr_section,"MAX_ITER",i_val=linres_control%max_iter,error=error)
        CALL section_vals_val_get(lr_section,"EPS",r_val=linres_control%eps,error=error)
        CALL section_vals_val_get(lr_section,"RESTART_EVERY",i_val=linres_control%restart_every,error=error)

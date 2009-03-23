@@ -59,6 +59,7 @@ MODULE qs_linres_types
      LOGICAL                                   :: localized_psi0
      LOGICAL                                   :: do_kernel
      LOGICAL                                   :: converged
+     LOGICAL                                   :: linres_restart
      REAL(KIND=dp)                             :: eps
      TYPE(localized_wfn_control_type),POINTER  :: localized_wfn_control
      CHARACTER(LEN=8)                          :: flag

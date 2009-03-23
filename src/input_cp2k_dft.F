@@ -6092,6 +6092,23 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RESTART",&
+            description="Restart the response calculation if the restart file exists",&
+            usage="RESTART",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME",&
+            variants=(/"RESTART_FILE_NAME"/),&
+            description="Root of the file names where to read the response functions from"//&
+            "which to restart the calculation of the linear response",&
+            usage="WFN_RESTART_FILE_NAME <FILENAME>",&
+            type_of_var=lchar_t,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL create_localize_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -6112,18 +6129,30 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL section_create(subsection,"PRINT","printing of information during the XAS calculation",&
+       CALL section_create(subsection,"PRINT","printing of information during the linear response calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
        ! Add printing of wannier infos
        CALL print_wanniers(subsection, error)
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
-            description="Controls the printing of basic iteration information during the XAS", &
+            description="Controls the printing of basic iteration information during the linearresponse calculationxsxs", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RESTART",&
+            description="Controls the dumping of MO restart file during the scf"//&
+            "of a Core-Level-Spectroscopy calculation. For each new excited atom,"//&
+            "one different restart file is dumped. These restart files should be"//&
+            "employed only to restart the same type of CLS calculation, "//&
+            "i.e. with the same core potential.", &
+            print_level=low_print_level,common_iter_levels=3,each_iter_names=s2a("ITER"),&
+            add_last=add_last_numeric,each_iter_values=(/3/),filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

@@ -12,6 +12,8 @@
 ! *****************************************************************************
 MODULE qs_linres_methods
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
@@ -20,11 +22,16 @@ MODULE qs_linres_methods
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_generate_filename,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
@@ -35,8 +42,11 @@ MODULE qs_linres_methods
                                              ot_precond_solver_default,&
                                              state_loc_all
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
-  USE kinds,                           ONLY: dp
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
+  USE message_passing,                 ONLY: mp_bcast
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              make_preconditioner
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -66,6 +76,7 @@ MODULE qs_linres_methods
 
   ! *** Public subroutines ***
   PUBLIC :: linres_localize, linres_solver
+  PUBLIC :: linres_write_restart, linres_read_restart, linres_init_write_restart
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
 
@@ -635,6 +646,274 @@ CONTAINS
     CALL timestop(handle)
     !
   END SUBROUTINE postortho
+
+  SUBROUTINE linres_write_restart(qs_env,linres_section,vec,ivec,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: linres_section
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: vec
+    INTEGER, INTENT(IN)                      :: ivec
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_write_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, i_block, ispin, &
+                                                istat, j, max_block, nao, &
+                                                nmo, nspins, output_unit, &
+                                                rst_unit
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+
+    failure = .FALSE.
+
+    NULLIFY(mo_coeff,para_env)
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+
+    IF(BTEST(cp_print_key_should_output(logger%iter_info,linres_section,"PRINT%RESTART",error=error),&
+         cp_p_file)) THEN
+
+       output_unit = cp_print_key_unit_nr(logger,linres_section,&
+            "PRINT%PROGRAM_RUN_INFO",extension=".Log",error=error)
+
+       CALL get_qs_env(qs_env=qs_env, &
+                       mos=mos, &
+                       para_env=para_env, &
+                       error=error)
+
+       nspins = SIZE(mos)
+
+       rst_unit = cp_print_key_unit_nr(logger,linres_section,"PRINT%RESTART",&
+            extension=".lr",middle_name="RESTART",file_status="OLD",&
+            file_position="APPEND",file_action="WRITE",file_form="UNFORMATTED",&
+            error=error)
+       !
+       ! write data to file
+       ! use the scalapack block size as a default for buffering columns
+       CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
+       CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block,error=error)
+       ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       IF(rst_unit>0) WRITE(rst_unit) ivec,nspins,nao
+
+       DO ispin=1,nspins
+          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+          CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,error=error)
+
+          IF(rst_unit>0) WRITE(rst_unit) nmo
+
+          DO i=1,nmo,MAX(max_block,1)
+             i_block=MIN(max_block,nmo-i+1)
+             CALL cp_fm_get_submatrix(vec(ispin)%matrix,vecbuffer,1,i,nao,i_block,error=error)
+             ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
+             ! to old ones, and in cases where max_block is different between runs, as might happen during
+             ! restarts with a different number of CPUs
+             DO j=1,i_block
+                IF(rst_unit>0) WRITE (rst_unit) vecbuffer(1:nao,j)
+             ENDDO
+          ENDDO
+       ENDDO
+
+       DEALLOCATE (vecbuffer,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       CALL cp_print_key_finished_output(rst_unit,logger,linres_section,&
+            "PRINT%RESTART",error=error)
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE linres_write_restart
+
+
+  SUBROUTINE linres_init_write_restart(qs_env,linres_section,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: linres_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init_write_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, output_unit, rst_unit
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    failure = .FALSE.
+
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+
+    IF(BTEST(cp_print_key_should_output(logger%iter_info,linres_section,"PRINT%RESTART",error=error),&
+         cp_p_file)) THEN
+
+       output_unit = cp_print_key_unit_nr(logger,linres_section,&
+            "PRINT%PROGRAM_RUN_INFO",extension=".Log",error=error)
+
+       rst_unit = cp_print_key_unit_nr(logger,linres_section,"PRINT%RESTART",&
+            extension=".lr",middle_name="RESTART",file_status="REPLACE",&
+            file_action="WRITE",file_position="APPEND",file_form="UNFORMATTED",&
+            error=error)
+
+       ! may write some infos here about the response...
+
+       CALL cp_print_key_finished_output(rst_unit,logger,linres_section,&
+            "PRINT%RESTART",error=error)
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE linres_init_write_restart
+
+
+  SUBROUTINE linres_read_restart(qs_env,linres_section,vec,ivec,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: linres_section
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: vec
+    INTEGER, INTENT(IN)                      :: ivec
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_read_restart', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER :: group, handle, i, i_block, iostat, ispin, istat, iv, ivec_tmp, &
+      j, max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, &
+      nspins_tmp, output_unit, rst_unit, source
+    LOGICAL                                  :: failure, file_exists
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    failure = .FALSE.
+    file_exists = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(mos,para_env,logger)
+    logger => cp_error_get_logger(error)
+
+    output_unit = cp_print_key_unit_nr(logger,linres_section,&
+         "PRINT%PROGRAM_RUN_INFO", extension=".Log",error=error)
+
+    CALL get_qs_env(qs_env=qs_env, &
+                    para_env=para_env,&
+                    mos=mos,&
+                    error=error)
+
+    nspins = SIZE(mos)
+    group  = para_env%group
+    source = para_env%source!ionode???
+
+    rst_unit = -1
+    IF(para_env%ionode) THEN
+       CALL section_vals_val_get(linres_section,"WFN_RESTART_FILE_NAME",n_rep_val=n_rep_val,error=error)
+       IF(n_rep_val>0) THEN
+          CALL section_vals_val_get(linres_section,"WFN_RESTART_FILE_NAME",c_val=filename,error=error)
+       ELSE
+         ! try to read from the filename that is generated automatically from the printkey
+          print_key => section_vals_get_subs_vals(linres_section,"PRINT%RESTART",error=error)
+          filename = cp_print_key_generate_filename(logger,print_key, &
+                      extension=".lr",middle_name="RESTART",my_local=.FALSE., error=error)
+       ENDIF
+       INQUIRE(FILE=filename,exist=file_exists)
+       !
+       ! open file
+       IF(file_exists) THEN
+          CALL open_file(file_name=TRIM(filename),&
+                         file_action="READ",&
+                         file_form="UNFORMATTED",&
+                         file_position="REWIND",&
+                         file_status="OLD",&
+                         unit_number=rst_unit)
+
+          IF(output_unit > 0) WRITE(output_unit,"(/,T20,A,I5)")&
+               "Read restart file for ivec ", ivec
+       ELSE
+          IF(output_unit > 0) WRITE(output_unit,"(/,T10,A)")&
+               "Restart file not available filename=<"//TRIM(filename)//'>'
+       ENDIF
+    ENDIF
+
+    CALL mp_bcast(file_exists,source,group)
+
+    IF(file_exists) THEN
+
+       CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
+       CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block,error=error)
+
+       ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
+       ! read headers
+       DO iv = 1,ivec
+
+          IF(rst_unit>0) READ(rst_unit,IOSTAT=iostat) ivec_tmp,nspins_tmp,nao_tmp
+          CALL mp_bcast(iostat,source,group)
+          IF(iostat.NE.0) EXIT
+          CALL mp_bcast(ivec_tmp,source,group)
+          CALL mp_bcast(nspins_tmp,source,group)
+          CALL mp_bcast(nao_tmp,source,group)
+
+          ! check that the number nao, nmo and nspins are
+          ! the same as in the current mos
+          IF(nspins_tmp.NE.nspins) CALL stop_program("linres_read_restart","nspins not consistent")
+          IF(nao_tmp   .NE.nao   ) CALL stop_program("linres_read_restart","nao not consistent")
+          !
+          DO ispin = 1,nspins
+             CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+             CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,error=error)
+             !
+             IF(rst_unit>0) READ(rst_unit) nmo_tmp
+             CALL mp_bcast(nmo_tmp,source,group)
+             IF(nmo_tmp.NE.nmo) CALL stop_program("linres_read_restart","nmo not consistent")
+             !
+             ! read the response
+             DO i=1,nmo,MAX(max_block,1)
+                i_block=MIN(max_block,nmo-i+1)
+                DO j=1,i_block
+                   IF(rst_unit>0) READ(rst_unit) vecbuffer(1:nao,j)
+                ENDDO
+                IF(iv.EQ.ivec_tmp) THEN
+                   CALL mp_bcast(vecbuffer,source,group)
+                   CALL cp_fm_set_submatrix(vec(ispin)%matrix,vecbuffer,1,i,nao,i_block,error=error)
+                ENDIF
+             ENDDO
+          ENDDO
+          IF(ivec.EQ.ivec_tmp) EXIT
+       ENDDO
+
+       IF(iostat.NE.0) THEN
+          IF(output_unit > 0) WRITE(output_unit,"(/,T10,A,I3,/)") "Restart file: didnt find ",ivec
+       ENDIF
+
+       DEALLOCATE(vecbuffer,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ENDIF
+
+    IF(para_env%ionode) THEN
+       IF(file_exists) CALL close_file(unit_number=rst_unit)
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE linres_read_restart
 
 ! *****************************************************************************
 

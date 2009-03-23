@@ -71,7 +71,10 @@ MODULE qs_linres_current_utils
                                              pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_methods,               ONLY: linres_solver
+  USE qs_linres_methods,               ONLY: linres_init_write_restart,&
+                                             linres_read_restart,&
+                                             linres_solver,&
+                                             linres_write_restart
   USE qs_linres_op,                    ONLY: set_vecp
   USE qs_linres_types,                 ONLY: current_env_create,&
                                              current_env_type,&
@@ -133,7 +136,8 @@ CONTAINS
       POINTER                                :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fm_work_ii, fm_work_iii, &
-                                                h1_psi0, psi0_order, psi1
+                                                h1_psi0, hpsi0_ptr, &
+                                                psi0_order, psi1, psi1_ptr
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: p_psi0, psi1_D, psi1_p, &
                                                 psi1_rxp, rxp_psi0
@@ -194,137 +198,120 @@ CONTAINS
                          error=error)
     !
     ! allocate the vectors
-    ALLOCATE(psi1(nspins),h1_psi0(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO ispin = 1,nspins
-       mo_coeff => psi0_order(ispin)%matrix
-       NULLIFY(tmp_fm_struct,psi1(ispin)%matrix,h1_psi0(ispin)%matrix)
-       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-            &                   ncol_global=nstates(ispin),&
-            &                   context=mo_coeff%matrix_struct%context,&
-            &                   error=error)
-       CALL cp_fm_create(psi1(ispin)%matrix,tmp_fm_struct,error=error)
-       CALL cp_fm_create(h1_psi0(ispin)%matrix,tmp_fm_struct,error=error)
-       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+    IF(current_env%full) THEN
+       ALLOCATE(psi1(nspins),h1_psi0(nspins),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ispin = 1,nspins
+          mo_coeff => psi0_order(ispin)%matrix
+          NULLIFY(tmp_fm_struct,psi1(ispin)%matrix,h1_psi0(ispin)%matrix)
+          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+               &                   ncol_global=nstates(ispin),&
+               &                   context=mo_coeff%matrix_struct%context,&
+               &                   error=error)
+          CALL cp_fm_create(psi1(ispin)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_create(h1_psi0(ispin)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+       ENDDO
+    ENDIF
+    !
+    ! set response to zero
+    !
+    DO idir = 1,3
+       DO ispin = 1,nspins
+          CALL cp_fm_set_all(psi1_p(ispin,idir)%matrix  ,0.0_dp,error=error)
+          CALL cp_fm_set_all(psi1_rxp(ispin,idir)%matrix,0.0_dp,error=error)
+          IF(current_env%full) CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
+       ENDDO
     ENDDO
+    !
+    !
+    !
+    ! load restart file
+    !
+    IF(linres_control%linres_restart) THEN
+       DO idir = 1,3
+          ! operator p
+          psi1_ptr => psi1_p(:,idir)
+          CALL linres_read_restart(qs_env,lr_section,psi1_ptr,idir,error)
+          ! operator rxp
+          psi1_ptr => psi1_rxp(:,idir)
+          CALL linres_read_restart(qs_env,lr_section,psi1_ptr,idir+3,error)
+          ! operator D
+          !IF(current_env%full) THEN
+          !   psi_ptr => psi1_D(:,idir)
+          !   CALL linres_read_restart(qs_env,lr_section,psi_ptr,idir+6,error)
+          !ENDIF
+       ENDDO
+    ENDIF
+    !
+    !
+    ! init the restart file for the write
+    !
+    CALL linres_init_write_restart(qs_env,lr_section,error)
+    !
+    !
     !
     ! operator p
     DO idir = 1,3
-       DO ispin = 1,nspins
-          CALL cp_fm_set_all(psi1_p(ispin,idir)%matrix,0.0_dp,error=error)
-       ENDDO
-       IF(.NOT.current_env%simple_done(idir)) THEN
-          IF(output_unit>0) THEN
-             WRITE(output_unit,"(T10,A)") "Response to the perturbation operator P_"//ACHAR(idir+119)
-          ENDIF
-          !
-          !Initial guess for psi1
-          DO ispin = 1,nspins
-             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-             !CALL cp_fm_to_fm(p_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
-             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
-          ENDDO
-          !
-          !DO scf cycle to optimize psi1
-          DO ispin = 1,nspins
-             CALL cp_fm_to_fm(p_psi0(ispin,idir)%matrix,h1_psi0(ispin)%matrix,error=error)
-          ENDDO
-          !
-          !
-          linres_control%converged = .FALSE.
-          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
-          !
-          !
-          ! the optimized wfns are copied in the  fm
-          IF(output_unit>0) THEN
-             WRITE(output_unit,"(T10,A)")&
-                  & "Store the psi1 for the calculation of the response current density "
-          ENDIF
-          DO ispin=1,nspins
-             CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_p(ispin,idir)%matrix,error=error)
-          ENDDO
-          !
-          ! print response functions
-          IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
-               &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
-             ncubes = SIZE(list_cubes,1)
-             print_key => section_vals_get_subs_vals(current_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
-             DO ispin = 1,nspins
-                CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
-                      centers_set(ispin)%array,print_key,'psi1_p',&
-                      idir=idir,ispin=ispin,error=error)
-             ENDDO ! ispin
-          ENDIF ! print response functions
-          !
-          !
-          IF(output_unit>0) THEN
-             WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
-          ENDIF
-          ! Write the result in the restart file
-          current_env%simple_done(idir) = .TRUE.
-          current_env%simple_converged(idir) = linres_control%converged
-          !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir,error=error)
+       IF(output_unit>0) THEN
+          WRITE(output_unit,"(T10,A)") "Response to the perturbation operator P_"//ACHAR(idir+119)
        ENDIF
-
+       !
+       ! Initial guess for psi1
+       psi1_ptr => psi1_p(:,idir)
+       hpsi0_ptr => p_psi0(:,idir)
+       !
+       !
+       linres_control%converged = .FALSE.
+       CALL linres_solver(p_env,qs_env,psi1_ptr,hpsi0_ptr,psi0_order,error=error)
+       !
+       !
+       ! print response functions
+       IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
+            &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+          ncubes = SIZE(list_cubes,1)
+          print_key => section_vals_get_subs_vals(current_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
+          DO ispin = 1,nspins
+             CALL qs_print_cubes(qs_env,psi1_ptr(ispin)%matrix,ncubes,list_cubes,&
+                  centers_set(ispin)%array,print_key,'psi1_p',&
+                  idir=idir,ispin=ispin,error=error)
+          ENDDO ! ispin
+       ENDIF ! print response functions
+       !
+       ! write restart file
+       IF(output_unit>0) WRITE(output_unit,"(T10,A)") "Write the response to file"
+       CALL linres_write_restart(qs_env,lr_section,psi1_ptr,idir,error)
     ENDDO ! idir
     !
     ! operator rxp
     DO idir = 1,3
-       DO ispin = 1,nspins
-          CALL cp_fm_set_all(psi1_rxp(ispin,idir)%matrix,0.0_dp,error=error)
-       ENDDO
-       IF(.NOT.current_env%simple_done(idir+3)) THEN
-          IF(output_unit>0) THEN
-             WRITE(output_unit,"(T10,A)") "Response to the perturbation operator L_"//ACHAR(idir+119)
-          ENDIF
-          !
-          !Initial guess for psi1
-          DO ispin = 1,nspins
-             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-             !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
-             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
-          ENDDO
-          !
-          !DO scf cycle to optimize psi1
-          DO ispin = 1,nspins
-             CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix,h1_psi0(ispin)%matrix,error=error)
-          ENDDO
-          !
-          ! 
-          linres_control%converged = .FALSE.
-          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
-          !
-          !
-          !   the optimized wfns are copied in the  fm
-          IF(output_unit>0) THEN
-             WRITE(output_unit,"(T10,A)")&
-                  & "Store the psi1 for the calculation of the response current density "
-          ENDIF
-          !
-          DO ispin=1,nspins
-             CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_rxp(ispin,idir)%matrix,error=error)
-          ENDDO
-          !
-          ! print response functions
-          IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
-               &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
-             ncubes = SIZE(list_cubes,1)
-             print_key => section_vals_get_subs_vals(current_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
-             DO ispin = 1,nspins
-                CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
-                     centers_set(ispin)%array,print_key,'psi1_rxp',&
-                     idir=idir,ispin=ispin,error=error)
-             ENDDO ! ispin
-          ENDIF ! print response functions
-          !
-          !
-          IF(output_unit>0) THEN
-             WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
-          ENDIF
-          ! Write the result inthe restart file
-          current_env%simple_done(idir+3) = .TRUE.
-          !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+3,error=error)
+       IF(output_unit>0) THEN
+          WRITE(output_unit,"(T10,A)") "Response to the perturbation operator L_"//ACHAR(idir+119)
        ENDIF
+       !
+       ! Initial guess for psi1
+       psi1_ptr => psi1_rxp(:,idir)
+       hpsi0_ptr => rxp_psi0(:,idir)
+       !
+       !
+       linres_control%converged = .FALSE.
+       CALL linres_solver(p_env,qs_env,psi1_ptr,hpsi0_ptr,psi0_order,error=error)
+       !
+       ! print response functions
+       IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
+            &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+          ncubes = SIZE(list_cubes,1)
+          print_key => section_vals_get_subs_vals(current_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
+          DO ispin = 1,nspins
+             CALL qs_print_cubes(qs_env,psi1_ptr(ispin)%matrix,ncubes,list_cubes,&
+                  centers_set(ispin)%array,print_key,'psi1_rxp',&
+                  idir=idir,ispin=ispin,error=error)
+          ENDDO ! ispin
+       ENDIF ! print response functions
+       !
+       ! write restart file
+       IF(output_unit>0) WRITE(output_unit,"(T10,A)") "Write the response to file"
+       CALL linres_write_restart(qs_env,lr_section,psi1_ptr,idir+3,error)
     ENDDO ! idir
     !
     ! operator D
@@ -475,7 +462,10 @@ CONTAINS
                       idir=idir,ispin=ispin,error=error)
              ENDDO
           ENDIF ! print response functions
-          ! CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+6,error=error)
+          !
+          ! write restart file
+          !IF(output_unit>0) WRITE(output_unit,"(T10,A)") "Write the response to file"
+          !CALL linres_write_restart(qs_env,lr_section,psi1,idir+6,error)
        ENDDO ! idir
        !
        ! clean up
@@ -489,12 +479,14 @@ CONTAINS
     ENDIF
     !
     ! clean up
-    DO ispin = 1,nspins
-       CALL cp_fm_release(psi1(ispin)%matrix,error=error)
-       CALL cp_fm_release(h1_psi0(ispin)%matrix,error=error)
-    ENDDO
-    DEALLOCATE(psi1,h1_psi0,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF(current_env%full) THEN
+       DO ispin = 1,nspins
+          CALL cp_fm_release(psi1(ispin)%matrix,error=error)
+          CALL cp_fm_release(h1_psi0(ispin)%matrix,error=error)
+       ENDDO
+       DEALLOCATE(psi1,h1_psi0,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          &                            "PRINT%PROGRAM_RUN_INFO",error=error)
@@ -505,10 +497,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE current_env_init(current_env,p_env,qs_env,error)
+  SUBROUTINE current_env_init(current_env,qs_env,error)
     !
     TYPE(current_env_type)                   :: current_env
-    TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
