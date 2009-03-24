@@ -23,7 +23,8 @@ MODULE rt_make_propagators
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_get_info
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE input_constants,                 ONLY: do_diag,&
                                              do_pade,&
@@ -173,7 +174,7 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
-    INTEGER                                  :: i, im, ispin, ndim, re
+    INTEGER                                  :: i, im, ispin, ndim, re, ldim
     REAL(dp)                                 :: dt
     TYPE(cp_cfm_type), POINTER               :: M1, M2, M_inverse
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -197,7 +198,7 @@ CONTAINS
     a=> M_inverse%local_data
     CALL get_rtp(rtp=rtp,exp_H_old=old_Ham,exp_H_new=new_Ham,dt=dt,error=error)
 
-    ndim=M1%matrix_struct%nrow_global
+    CALL cp_fm_get_info(propagator(1)%matrix,ncol_local=ldim,nrow_global=ndim,error=error)
     DO ispin=1,SIZE(propagator)/2
        re=2*ispin-1
        im=2*ispin
@@ -211,7 +212,7 @@ CONTAINS
        dt=dt*0.5_dp
 
        !M_inverse is used right here as temporary matrix
-       DO i=1,ndim
+       DO i=1,ldim
           a(:,i)=&
                CMPLX(0.5_dp*dt*old_ham(re)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(re)%matrix%local_data(:,i),&
                0.5_dp*dt*old_ham(im)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(im)%matrix%local_data(:,i),KIND=dp)
@@ -254,7 +255,7 @@ CONTAINS
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
-    INTEGER                                  :: i, im, ispin, ndim, re
+    INTEGER                                  :: i, im, ispin, ndim, re, ldim
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dt, eps_exp
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -262,7 +263,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: M1, M2
 
     failure=.FALSE.
-
     CALL cp_fm_create(M1,&
                       matrix_struct=propagator(1)%matrix%matrix_struct,&
                       name="M1",&
@@ -273,21 +273,21 @@ CONTAINS
                       error=error)
 
 
+    CALL cp_fm_get_info(M1,ncol_local=ldim,nrow_global=ndim,error=error)
     CALL get_rtp(rtp=rtp,exp_H_old=old_Ham,exp_H_new=new_Ham,dt=dt,error=error)
 
 
-    ndim=M1%matrix_struct%nrow_global
     DO ispin=1,SIZE(propagator)/2
        re=2*ispin-1
        im=2*ispin
 
        dt=-dt
 
-       DO i=1,ndim
+       DO i=1,ldim
           M2%local_data(:,i)=0.5_dp*dt*old_ham(im)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(im)%matrix%local_data(:,i)
        END DO
        IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
-          DO i=1,ndim
+          DO i=1,ldim
              M1%local_data(:,i)=0.5_dp*dt*old_ham(re)%matrix%local_data(:,i)+0.5_dp*dt*new_ham(re)%matrix%local_data(:,i)
           END DO
        END IF

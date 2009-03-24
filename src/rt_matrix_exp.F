@@ -77,7 +77,6 @@ CONTAINS
     ndim=im_matrix%matrix_struct%nrow_global   
 
     square_fac=1.0_dp/(2.0_dp**REAL(nsquare,dp))
-    WRITE(*,*)square_fac
     CALL cp_fm_scale(square_fac,im_matrix,error)
     CALL cp_fm_create(T1,&
                        matrix_struct=im_matrix%matrix_struct,&
@@ -499,7 +498,7 @@ CONTAINS
                                                 zero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
-    INTEGER                                  :: i, ndim, npade, nsquare, p, q
+    INTEGER                                  :: i, ndim, npade, nsquare, p, q,ldim
     REAL(KIND=dp)                            :: square_fac, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im, local_data_re
     TYPE(cp_cfm_p_type), DIMENSION(:), &
@@ -511,9 +510,9 @@ CONTAINS
     p=npade
     q=npade
     
-    CALL cp_fm_get_info(re_part,local_data=local_data_re,error=error)
+    CALL cp_fm_get_info(re_part,local_data=local_data_re,ncol_local=ldim,&
+         nrow_global=ndim,error=error)
     CALL cp_fm_get_info(im_part,local_data=local_data_im,error=error)
-    ndim=re_part%matrix_struct%nrow_global
 
     ALLOCATE(mult_p(2))
 
@@ -542,7 +541,7 @@ CONTAINS
                       name="Tres",&
                       error=error)
 
-    DO i=1,ndim
+    DO i=1,ldim
        T2%local_data(:,i)=CMPLX(local_data_re(:,i)/square_fac,local_data_im(:,i)/square_fac,KIND=dp)
     END DO
     CALL cp_cfm_to_cfm(T2,T1,error)
@@ -580,9 +579,10 @@ CONTAINS
     ELSE
        fin_p=>Npq
     END IF
-    WRITE(*,*)fin_p%local_data(1,1)
-    exp_H(1)%matrix%local_data=REAL(fin_p%local_data,KIND=dp)
-    exp_H(2)%matrix%local_data=AIMAG(fin_p%local_data)
+    DO i=1,ldim
+       exp_H(1)%matrix%local_data(:,i)=REAL(fin_p%local_data(:,i),KIND=dp)
+       exp_H(2)%matrix%local_data(:,i)=AIMAG(fin_p%local_data(:,i))
+    END DO
 
     CALL cp_cfm_release(Npq,error)
     CALL cp_cfm_release(Dpq,error)
@@ -611,7 +611,7 @@ CONTAINS
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
     INTEGER                                  :: i, j, k, ndim, npade, &
-                                                nsquare, p, q
+                                                nsquare, p, q, ldim
     REAL(KIND=dp)                            :: my_fac, square_fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im
     TYPE(cp_cfm_p_type), DIMENSION(:), &
@@ -627,9 +627,8 @@ CONTAINS
     npade=CEILING(REAL(q,dp)/2.0_dp)
     p=2*npade
     q=2*npade
-    WRITE(*,*)"ORDERS",npade,nsquare
-    CALL cp_fm_get_info(im_part,local_data=local_data_im,error=error)
-    ndim=im_part%matrix_struct%nrow_global
+    
+    CALL cp_fm_get_info(im_part,local_data=local_data_im,ncol_local=ldim,nrow_global=ndim,error=error)
     square_fac=2.0_dp**REAL(nsquare,dp)
     ALLOCATE(cmult_p(2))
     ALLOCATE(mult_p(2))
@@ -659,7 +658,7 @@ CONTAINS
                       name="Tres",&
                       error=error)
 
-    DO i=1,ndim
+    DO i=1,ldim
        local_data_im(:,i)=local_data_im(:,i)/square_fac
     END DO
 
@@ -670,7 +669,7 @@ CONTAINS
     CALL cp_cfm_set_all(Npq,zero,one,error)
     CALL cp_cfm_set_all(Dpq,zero,one,error)
 
-    DO i=1,ndim
+    DO i=1,ldim
        Npq%local_data(:,i)= Npq%local_data(:,i)+0.5_dp*CMPLX(0.0_dp,local_data_im(:,i),dp)
        Dpq%local_data(:,i)= Dpq%local_data(:,i)-0.5_dp*CMPLX(0.0_dp,local_data_im(:,i),dp)
     END DO
@@ -687,22 +686,23 @@ CONTAINS
           CALL cp_fm_gemm("N","N",ndim,ndim,ndim,rone,im_part,mult_p(MOD(i,2)+1)%matrix,rzero,&
                mult_p(MOD(i+1,2)+1)%matrix,error)
 
-          DO k=1,ndim
+          DO k=1,ldim
              Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX( mult_p(MOD(i+1,2)+1)%matrix%local_data(:,k),0.0_dp,dp)
              Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX( mult_p(MOD(i+1,2)+1)%matrix%local_data(:,k),0.0_dp,dp)
           END DO
 
+          IF(2*j+1.le.q)THEN
           i=2*j+1
           IF(i.LE.p)scaleN=my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i ))
           scaleD=my_fac*(-1.0_dp)**i  * fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,rone,im_part,mult_p(MOD(i,2)+1)%matrix,rzero,&
-               mult_p(MOD(i+1,2)+1)%matrix,error)
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,rone,im_part,mult_p(MOD(i+1,2)+1)%matrix,rzero,&
+               mult_p(MOD(i,2)+1)%matrix,error)
 
-          DO k=1,ndim
-             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX(0.0_dp, mult_p(MOD(i+1,2)+1)%matrix%local_data(:,k),dp)
-             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX(0.0_dp, mult_p(MOD(i+1,2)+1)%matrix%local_data(:,k),dp)
+          DO k=1,ldim
+             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX(0.0_dp, mult_p(MOD(i,2)+1)%matrix%local_data(:,k),dp)
+             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX(0.0_dp, mult_p(MOD(i,2)+1)%matrix%local_data(:,k),dp)
           END DO
-
+          ENDIF
        END DO
     END IF
 
@@ -719,9 +719,11 @@ CONTAINS
     ELSE
        fin_p=>Npq
     END IF
-    WRITE(*,*)fin_p%local_data(1,1)
-    exp_H(1)%matrix%local_data=REAL(fin_p%local_data,KIND=dp)
-    exp_H(2)%matrix%local_data=AIMAG(fin_p%local_data)
+
+    DO k=1,ldim
+       exp_H(1)%matrix%local_data(:,k)=REAL(fin_p%local_data(:,k),KIND=dp)
+       exp_H(2)%matrix%local_data(:,k)=AIMAG(fin_p%local_data(:,k))
+    END DO
 
     CALL cp_cfm_release(Npq,error)
     CALL cp_cfm_release(Dpq,error)
