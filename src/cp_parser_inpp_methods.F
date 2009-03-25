@@ -410,7 +410,7 @@ CONTAINS
   END SUBROUTINE inpp_end_include
 
 ! *****************************************************************************
-!> \brief expand all ${VAR} variable entries on the input string
+!> \brief expand all ${VAR} or $VAR variable entries on the input string
 !> \par History
 !>      - standalone proof-of-concept implemenation (22.02.2008,AK)
 !>      - integrated into cp2k (23.02.2008)
@@ -434,7 +434,7 @@ CONTAINS
     failure = .TRUE.
     CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,error,failure)
 
-    ! process line until all variables are expanded
+    ! process line until all variables named with the convention ${VAR} are expanded
     DO WHILE (INDEX(input_line,'${') > 0)
        pos1=INDEX(input_line,'${')
        pos1=pos1+2
@@ -468,7 +468,34 @@ CONTAINS
        input_line=newline
     END DO
 
-    RETURN
+    ! process line until all variables named with the convention $VAR are expanded
+    DO WHILE (INDEX(input_line,'$') > 0)
+       pos1=INDEX(input_line,'$')
+       pos1=pos1+1
+       pos2=INDEX(input_line(pos1:),' ')
+       CPPostcondition(pos2>=0,cp_failure_level,routineP,error,failure)
+       IF(pos2==0) pos2 = LEN_TRIM(input_line(pos1:))+1
+
+       pos2=pos1+pos2-1
+       varname=input_line(pos1:pos2)
+       idx=inpp_find_variable(inpp,varname)
+       CPPostcondition(idx>0,cp_failure_level,routineP,error,failure)
+       IF(idx==0) THEN
+          WRITE(UNIT=message,FMT="(5A,I6)") &
+               "INPP_@SET: Variable $",TRIM(varname)," not defined in file: ",&
+               TRIM(input_file_name), "  Line:",input_line_number
+          CALL stop_program(routineP,TRIM(message))
+       ENDIF
+
+       IF(pos1>2) THEN
+          newline=input_line(1:pos1-2) // TRIM(inpp%variable_value(idx)) &
+               // input_line(pos2+1:)
+       ELSE
+          newline=TRIM(inpp%variable_value(idx)) // input_line(pos2+1:)
+       ENDIF
+ 
+       input_line=newline
+    END DO
   END SUBROUTINE inpp_expand_variables
 
 ! *****************************************************************************

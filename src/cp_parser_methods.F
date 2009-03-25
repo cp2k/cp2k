@@ -281,7 +281,8 @@ CONTAINS
              ! 1. Expand variables 2. Process directives and read next line.
              ! On read failure try to go back from included file to previous i/o-stream.
              IF (istat==0) THEN
-                imark = INDEX(parser%buffer%input_lines(iline),"${")
+                imark = INDEX(parser%buffer%input_lines(iline),"${")+&
+                        INDEX(parser%buffer%input_lines(iline),"$")
                 IF (imark/=0) THEN
                    CALL inpp_expand_variables(parser%inpp, parser%buffer%input_lines(iline),&
                         parser%input_file_name, parser%buffer%input_line_numbers(iline),error)

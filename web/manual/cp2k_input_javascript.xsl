@@ -53,11 +53,11 @@
     <dd>
      Assigns the text <i>value</i> to the preprocessing variable <i>VAR</i>. <i>value</i>
      is the text following <i>VAR</i> with the outer whitespace removed. The variable can be
-     recalled with a <i>${VAR}</i> statement. There can be only one @SET statement per line.
+     recalled with a <i>${VAR}</i> (or  <i>$VAR</i>) statement. There can be only one @SET statement per line.
     </dd>
-    <dt><b>${VAR}</b></dt>
+    <dt><b>${VAR}</b> or <b>$VAR</b></dt>
     <dd>
-     Expand the variable <i>VAR</i>. The text <i>${VAR}</i> is replaced with the value assigned
+     Expand the variable <i>VAR</i>. The text <i>${VAR}</i> (or  <i>$VAR</i>) is replaced with the value assigned
      to <i>VAR</i> in the last @SET directive. There can be multiple variable statements
      per line. The expansion process is repeated until no more variables are found.
     </dd>
