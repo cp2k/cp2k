@@ -474,7 +474,8 @@ CONTAINS
        END IF
        
        CALL mp_sum(enuclear,para_env%group)
-       energy%core_overlap = enuclear
+       energy%core_overlap  = enuclear
+       energy%core_overlap0 = enuclear
     END IF
 
     CALL finalize_se_taper(se_taper,error=error)
@@ -1098,7 +1099,8 @@ CONTAINS
           ! Debug Statements
           IF (debug_coulomb_lr) THEN
              CALL mp_sum(energy_glob,para_env%group)
-             WRITE(*,*)"TOTAL ENERGY AFTER EWALD:",energy_local+ energy_glob+ e_neut+ e_self
+             WRITE(*,*)"TOTAL ENERGY AFTER EWALD:",energy_local+ energy_glob+ e_neut+ e_self,&
+                  energy_local, energy_glob, e_neut, e_self
           END IF
 
           ! Modify the KS matrix and possibly compute derivatives
@@ -1163,11 +1165,11 @@ CONTAINS
        END DO
        ! Sum nuclear energy contribution
        CALL mp_sum(enuc, para_env%group)
-       energy%hartree = energy%hartree + enuc
+       energy%core_overlap = energy%core_overlap0 + 0.5_dp*enuc
 
        ! Debug Statements
        IF (debug_coulomb_lr) THEN
-          WRITE(*,*)"ENUC: ",enuc
+          WRITE(*,*)"ENUC: ",enuc*0.5_dp
        END IF
 
        ! Increment the SCP portion of the Fock matrix with the long-range coulomb portion of the Fock matrix

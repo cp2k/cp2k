@@ -113,3 +113,5 @@ water_g3x3_excl_mm.inp
 nh3_g4x6_excl_qm.inp
 # New initial guess ATOMIC 
 Si_tersoff_qmmm.inp
+# numerics
+Si_tersoff_qmmm.inp

@@ -344,3 +344,5 @@ dimer.inp
 dimer3.inp
 # New initial guess ATOMIC 
 dimer4.inp
+# numerics
+geom.inp

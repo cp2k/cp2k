@@ -28,6 +28,7 @@ MODULE qs_energy_types
   TYPE qs_energy_type
     REAL(KIND = dp) :: core,&
                        core_overlap,&
+                       core_overlap0,&
                        core_self,&
                        repulsive,&
                        dispersion,& 

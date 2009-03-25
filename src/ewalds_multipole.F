@@ -225,8 +225,9 @@ CONTAINS
        energy_glob = energy_glob + e_rspace
     END IF
 
-    e_neut = 0.0_dp
-    e_self = 0.0_dp
+    e_neut       = 0.0_dp
+    e_self       = 0.0_dp
+    energy_local = 0.0_dp
     IF (.NOT.debug_r_space) THEN
        ! Compute the Reciprocal Space (Long-Range) part of the Ewald sum
        CALL ewald_multipole_LR(ewald_env, ewald_pw, cell, particle_set, &
@@ -1543,15 +1544,15 @@ CONTAINS
                    ! Corrections for G=0 to potential, field
                    IF (do_efield) THEN
                       ! Potential
-                      IF (do_efield0) THEN
+                      IF (do_efield0.AND.(ANY(task(3,:)))) THEN
                          efield0(    iparticle) = efield0(    iparticle) - (1.0_dp/(18.0_dp))*trq_t
                       END IF
                       ! Electrostatic field
-                      IF (do_efield1) THEN
+                      IF (do_efield1.AND.(ANY(task(2,:)))) THEN
                          efield1(1:3,iparticle) = efield1(1:3,iparticle) - (1.0_dp/6.0_dp)*(dipole_t(1:3)-dipoles(:,iparticle))
                       END IF
                       ! Electrostatic field gradients
-                      IF (do_efield2) THEN
+                      IF (do_efield2.AND.(ANY(task(1,:)))) THEN
                          efield2(1,iparticle) = efield2(1,iparticle) - (1.0_dp/(18.0_dp))*(q_t-charges(  iparticle))
                          efield2(5,iparticle) = efield2(5,iparticle) - (1.0_dp/(18.0_dp))*(q_t-charges(  iparticle))
                          efield2(9,iparticle) = efield2(9,iparticle) - (1.0_dp/(18.0_dp))*(q_t-charges(  iparticle))
