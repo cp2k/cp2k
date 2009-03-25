@@ -498,7 +498,8 @@ CONTAINS
                                                 zero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
-    INTEGER                                  :: i, ndim, npade, nsquare, p, q,ldim
+    INTEGER                                  :: i, ldim, ndim, npade, &
+                                                nsquare, p, q
     REAL(KIND=dp)                            :: square_fac, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im, local_data_re
     TYPE(cp_cfm_p_type), DIMENSION(:), &
@@ -610,8 +611,8 @@ CONTAINS
                                                 rzero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
-    INTEGER                                  :: i, j, k, ndim, npade, &
-                                                nsquare, p, q, ldim
+    INTEGER                                  :: i, j, k, ldim, ndim, npade, &
+                                                nsquare, p, q
     REAL(KIND=dp)                            :: my_fac, square_fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im
     TYPE(cp_cfm_p_type), DIMENSION(:), &

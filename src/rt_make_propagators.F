@@ -21,10 +21,10 @@ MODULE rt_make_propagators
                                              cp_fm_scale,&
                                              cp_fm_upper_to_full
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_type,&
-                                             cp_fm_get_info
+                                             cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE input_constants,                 ONLY: do_diag,&
                                              do_pade,&
@@ -174,7 +174,7 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
-    INTEGER                                  :: i, im, ispin, ndim, re, ldim
+    INTEGER                                  :: i, im, ispin, ldim, ndim, re
     REAL(dp)                                 :: dt
     TYPE(cp_cfm_type), POINTER               :: M1, M2, M_inverse
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -255,7 +255,7 @@ CONTAINS
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
-    INTEGER                                  :: i, im, ispin, ndim, re, ldim
+    INTEGER                                  :: i, im, ispin, ldim, ndim, re
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dt, eps_exp
     TYPE(cp_fm_p_type), DIMENSION(:), &
