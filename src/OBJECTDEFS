@@ -230,7 +230,6 @@ OBJECTS_GENERIC =\
  hfx_compression_core_methods.o\
  hfx_compression_methods.o\
  hfx_derivatives.o\
- hfx_distribution_mc.o\
  hfx_energy_potential.o\
  hfx_helpers.o\
  hfx_libint_interface.o\

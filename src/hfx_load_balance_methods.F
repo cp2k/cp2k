@@ -14,7 +14,6 @@ MODULE hfx_load_balance_methods
                                              pbc
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE hfx_distribution_mc,             ONLY: optimize_distribution
   USE hfx_helpers,                     ONLY: FNV64
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_distribution,&
@@ -27,16 +26,15 @@ MODULE hfx_load_balance_methods
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_isendrecv,&
+  USE message_passing,                 ONLY: mp_isendrecv,&
                                              mp_max,&
                                              mp_sum,&
-                                             mp_sum_i8,&
                                              mp_waitall
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -131,9 +129,7 @@ MODULE hfx_load_balance_methods
       req(2), source, stat
     INTEGER(int_8) :: box_idx1, current_counter, distribution_counter_end, &
       distribution_counter_start, int_per_cpu, mepos, n_processes, ncpu, &
-      optimal_cost, restore_counter, tmp_counter1, total_integrals
-    INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:), SAVE                     :: optimal_costs
+      restore_counter, tmp_counter1, total_integrals
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
@@ -142,16 +138,13 @@ MODULE hfx_load_balance_methods
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
-    INTEGER, SAVE                            :: rank_id_of_best_dist, &
-                                                thread_id_of_best_dist
     LOGICAL                                  :: failure
     REAL(dp) :: B11(3), D11(3), log10_eps_schwarz, max_val1, max_val2, &
       omega2Inv, pbc_B(3), pbc_D(3), pmax_entry, ra(3), rab2, rb(3), rc(3), &
       rcd2, rd(3), temp(3)
     TYPE(hfx_distribution), DIMENSION(:), &
-      POINTER                                :: ptr_to_tmp_dist
-    TYPE(hfx_distribution), &
-      DIMENSION(:, :), POINTER               :: binned_dist, tmp_dist
+      POINTER                                :: binned_dist, ptr_to_tmp_dist, &
+                                                tmp_dist
     TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
@@ -173,21 +166,19 @@ MODULE hfx_load_balance_methods
     n_processes = ncpu * n_threads
     !! If there is only 1 cpu skip the binning
     IF(n_processes == 1) THEN
-      ALLOCATE(tmp_dist(1,1),STAT=stat)
+      ALLOCATE(tmp_dist(1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1,1)%number_of_atom_quartets = HUGE(tmp_dist(1,1)%number_of_atom_quartets)
-      tmp_dist(1,1)%istart = 1
-      tmp_dist(1,1)%jstart = 1
-      tmp_dist(1,1)%kstart = 1
-      tmp_dist(1,1)%lstart = 1
-      tmp_dist(1,1)%original_cpu_id = 1
-      ptr_to_tmp_dist => tmp_dist(1,:)
+      tmp_dist(1)%number_of_atom_quartets = HUGE(tmp_dist(1)%number_of_atom_quartets)
+      tmp_dist(1)%istart = 1
+      tmp_dist(1)%jstart = 1
+      tmp_dist(1)%kstart = 1
+      tmp_dist(1)%lstart = 1
+      tmp_dist(1)%original_cpu_id = 1
+      ptr_to_tmp_dist => tmp_dist(:)
       CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-
-   
       !! Calculate total numbers of integrals that have to be calculated (wrt screening and symmetry)
 !$OMP BARRIER
 !$OMP MASTER
@@ -292,19 +283,19 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
 
-      ALLOCATE(binned_dist(1,nbins), STAT=stat)
+      ALLOCATE(binned_dist(nbins), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      binned_dist(:,:)%istart = 0
-      binned_dist(:,:)%jstart = 0
-      binned_dist(:,:)%kstart = 0
-      binned_dist(:,:)%lstart = 0
-      binned_dist(:,:)%number_of_atom_quartets = 0
-      binned_dist(:,:)%cost = 0
+      binned_dist(:)%istart = 0
+      binned_dist(:)%jstart = 0
+      binned_dist(:)%kstart = 0
+      binned_dist(:)%lstart = 0
+      binned_dist(:)%number_of_atom_quartets = 0
+      binned_dist(:)%cost = 0
 
-      binned_dist(:,:)%original_cpu_id = 0
-      binned_dist(:,:)%time_first_scf = 0.0_dp
-      binned_dist(:,:)%time_other_scf =0.0_dp
-      binned_dist(:,:)%time_forces = 0.0_dp
+      binned_dist(:)%original_cpu_id = 0
+      binned_dist(:)%time_first_scf = 0.0_dp
+      binned_dist(:)%time_other_scf =0.0_dp
+      binned_dist(:)%time_forces = 0.0_dp
  
       tmp_counter1=0
       current_counter = 0
@@ -344,10 +335,10 @@ MODULE hfx_load_balance_methods
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
                 distribution_counter_end = distribution_counter_end + 1
 
-                IF(binned_dist(1,ibin)%istart == 0 ) binned_dist(1,ibin)%istart = iatom
-                IF(binned_dist(1,ibin)%jstart == 0 ) binned_dist(1,ibin)%jstart = jatom
-                IF(binned_dist(1,ibin)%kstart == 0 ) binned_dist(1,ibin)%kstart = katom
-                IF(binned_dist(1,ibin)%lstart == 0 ) binned_dist(1,ibin)%lstart = latom
+                IF(binned_dist(ibin)%istart == 0 ) binned_dist(ibin)%istart = iatom
+                IF(binned_dist(ibin)%jstart == 0 ) binned_dist(ibin)%jstart = jatom
+                IF(binned_dist(ibin)%kstart == 0 ) binned_dist(ibin)%kstart = katom
+                IF(binned_dist(ibin)%lstart == 0 ) binned_dist(ibin)%lstart = latom
 
                 lkind = kind_of(latom)
                 rd=particle_set(latom)%r(:)
@@ -399,8 +390,8 @@ MODULE hfx_load_balance_methods
                 ENDDO
 
                 IF( current_counter >= int_per_cpu) THEN
-                  binned_dist(1,ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
-                  binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
+                  binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
+                  binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
                   ! protect against int_per_cpu==0 and possibly roundoff
                   ibin = MIN(ibin + 1,nbins)
                   distribution_counter_start = distribution_counter_end + 1
@@ -419,15 +410,14 @@ MODULE hfx_load_balance_methods
     CALL timeset(routineN//"_dist",handle_inner)
 !$OMP END MASTER
 !$OMP BARRIER
-
       !! Fill the last bin if necessary
       IF( current_counter /= 0 ) THEN  
-        binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
-        binned_dist(1,ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
+        binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
+        binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
       END IF
 
       !! store the original cpu_id
-      binned_dist(1,:)%original_cpu_id = my_process_id + 1 !para_env%mepos + 1
+      binned_dist(:)%original_cpu_id = my_process_id + 1 !para_env%mepos + 1
 !$OMP BARRIER     
       !! store all local results in a big cost matrix
 !$OMP MASTER
@@ -436,14 +426,13 @@ MODULE hfx_load_balance_methods
       cost_matrix = 0
 !$OMP END MASTER
 !$OMP BARRIER
-
       icpu = para_env%mepos+1
       DO i=1,nbins
-        cost_matrix((icpu-1)*nbins*n_threads +i_thread*nbins + i) = binned_dist(1,i)%cost 
+        cost_matrix((icpu-1)*nbins*n_threads +i_thread*nbins + i) = binned_dist(i)%cost 
       END DO
-
       mepos = para_env%mepos
 !$OMP BARRIER
+
 !$OMP MASTER
       ALLOCATE(sendbuffer(nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -483,53 +472,20 @@ MODULE hfx_load_balance_methods
       !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
       ALLOCATE(distribution_vector(ncpu*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP MASTER
-      ALLOCATE(optimal_costs(ncpu*n_threads), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      optimal_costs = 0
-!$OMP END MASTER
 !$OMP BARRIER
-      optimal_cost = 0
-      !! Optimize load on each node independently
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                      load_balance_parameter, optimal_cost, my_process_id, error)
+      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
+                                 distribution_vector, error)
 
 !$OMP BARRIER
 !$OMP MASTER
-    CALL timestop(handle_inner)
-    CALL timeset(routineN//"_redist",handle_inner)
-!$OMP END MASTER
-!$OMP BARRIER
-      
-      !! Find optimal load balance wrt the cost
-      optimal_costs(my_process_id+1) = optimal_cost
-!$OMP BARRIER
-!$OMP MASTER
-      CALL mp_sum_i8(optimal_costs(1:ncpu*n_threads), para_env%group)
-      icpu = 0
-      optimal_cost = HUGE(optimal_cost)
-      !! Get process id of the best distribution
-      DO i = 1,n_processes
-        IF(optimal_costs(i) < optimal_cost ) THEN
-          optimal_cost = optimal_costs(i)
-          thread_id_of_best_dist = i
-        END IF
-      END DO
-      rank_id_of_best_dist = (thread_id_of_best_dist-1)/n_threads
+      CALL timestop(handle_inner)
+      CALL timeset(routineN//"_redist",handle_inner)
       ALLOCATE(shm_distribution_vector(ncpu*nbins*n_threads), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP END MASTER
-!$OMP BARRIER
-      IF(i_thread == MOD(thread_id_of_best_dist-1,n_threads)) THEN
-        shm_distribution_vector = distribution_vector
-        !! Broadcast the best distribution_vector
-        CALL mp_bcast(shm_distribution_vector,rank_id_of_best_dist,para_env%group) 
-      END IF      
-!$OMP BARRIER
-!$OMP MASTER
+      shm_distribution_vector = distribution_vector
       !! Collect local data to global array
       ALLOCATE(full_dist(ncpu*n_threads,nbins),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -547,7 +503,7 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
       mepos = para_env%mepos + 1
-      full_dist((mepos-1)*n_threads+i_thread+1,:) = binned_dist(1,:)
+      full_dist((mepos-1)*n_threads+i_thread+1,:) = binned_dist(:)
      
 !$OMP BARRIER
 !$OMP MASTER
@@ -603,25 +559,25 @@ MODULE hfx_load_balance_methods
       ALLOCATE(tmp_pos(ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_pos = 1
-      ALLOCATE(tmp_dist(1,nbins*ncpu*n_threads),STAT=stat)
+      ALLOCATE(tmp_dist(nbins*ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      tmp_dist(:,:)%istart = 0
-      tmp_dist(:,:)%jstart = 0
-      tmp_dist(:,:)%kstart = 0
-      tmp_dist(:,:)%lstart = 0
-      tmp_dist(:,:)%number_of_atom_quartets = 0
-      tmp_dist(:,:)%cost = 0
-      tmp_dist(:,:)%original_cpu_id = 0
-      tmp_dist(:,:)%time_first_scf = 0.0_dp
-      tmp_dist(:,:)%time_other_scf = 0.0_dp
-      tmp_dist(:,:)%time_forces = 0.0_dp
+      tmp_dist(:)%istart = 0
+      tmp_dist(:)%jstart = 0
+      tmp_dist(:)%kstart = 0
+      tmp_dist(:)%lstart = 0
+      tmp_dist(:)%number_of_atom_quartets = 0
+      tmp_dist(:)%cost = 0
+      tmp_dist(:)%original_cpu_id = 0
+      tmp_dist(:)%time_first_scf = 0.0_dp
+      tmp_dist(:)%time_other_scf = 0.0_dp
+      tmp_dist(:)%time_forces = 0.0_dp
 
       DO icpu= 1,n_processes
         DO i=1,nbins
             mepos = my_process_id + 1
             IF(shm_distribution_vector((icpu-1)*nbins + i) == mepos) THEN
-              tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+              tmp_dist(tmp_pos(mepos)) = full_dist(icpu,i)
               tmp_pos(mepos) = tmp_pos(mepos) + 1
             END IF
         END DO
@@ -630,12 +586,12 @@ MODULE hfx_load_balance_methods
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist) 
       mepos = my_process_id+1
-      ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
+      ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
 
       CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
 !$OMP BARRIER
 !$OMP MASTER
-      DEALLOCATE(full_dist,optimal_costs,cost_matrix,shm_distribution_vector, STAT=stat)
+      DEALLOCATE(full_dist,cost_matrix,shm_distribution_vector, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !$OMP END MASTER
 !$OMP BARRIER
@@ -657,7 +613,6 @@ MODULE hfx_load_balance_methods
     CALL timestop(handle)
 !$OMP END MASTER
 !$OMP BARRIER
-
   END SUBROUTINE load_balance_energy
 
 
@@ -739,9 +694,7 @@ MODULE hfx_load_balance_methods
       source, stat
     INTEGER(int_8) :: box_idx1, current_counter, distribution_counter_end, &
       distribution_counter_start, int_per_cpu, mepos, n_processes, ncpu, &
-      optimal_cost, restore_counter, tmp_counter1, total_integrals
-    INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:), SAVE                     :: optimal_costs
+      restore_counter, tmp_counter1, total_integrals
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
@@ -750,16 +703,13 @@ MODULE hfx_load_balance_methods
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
-    INTEGER, SAVE                            :: rank_id_of_best_dist, &
-                                                thread_id_of_best_dist
     LOGICAL                                  :: failure
     REAL(dp) :: B11(3), D11(3), log10_eps_schwarz, log10_pmax, log_2, &
       max_val1, max_val2, omega2Inv, pbc_B(3), pbc_D(3), ra(3), rab2, rb(3), &
       rc(3), rcd2, rd(3), temp(3)
     TYPE(hfx_distribution), DIMENSION(:), &
-      POINTER                                :: ptr_to_tmp_dist
-    TYPE(hfx_distribution), &
-      DIMENSION(:, :), POINTER               :: binned_dist, tmp_dist
+      POINTER                                :: binned_dist, ptr_to_tmp_dist, &
+                                                tmp_dist
     TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
@@ -777,15 +727,15 @@ MODULE hfx_load_balance_methods
     ncpu = para_env%num_pe
     n_processes = ncpu * n_threads
     IF(n_processes == 1) THEN
-      ALLOCATE(tmp_dist(1,1),STAT=stat)
+      ALLOCATE(tmp_dist(1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1,1)%number_of_atom_quartets = HUGE(tmp_dist(1,1)%number_of_atom_quartets)
-      tmp_dist(1,1)%istart = 1
-      tmp_dist(1,1)%jstart = 1
-      tmp_dist(1,1)%kstart = 1
-      tmp_dist(1,1)%lstart = 1
-      tmp_dist(1,1)%original_cpu_id = 1
-      ptr_to_tmp_dist => tmp_dist(1,:)
+      tmp_dist(1)%number_of_atom_quartets = HUGE(tmp_dist(1)%number_of_atom_quartets)
+      tmp_dist(1)%istart = 1
+      tmp_dist(1)%jstart = 1
+      tmp_dist(1)%kstart = 1
+      tmp_dist(1)%lstart = 1
+      tmp_dist(1)%original_cpu_id = 1
+      ptr_to_tmp_dist => tmp_dist(:)
       CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -877,15 +827,15 @@ MODULE hfx_load_balance_methods
 
       nbins = load_balance_parameter%nbins 
       int_per_cpu = (total_integrals + nbins -1 ) / nbins
-      ALLOCATE(binned_dist(1,nbins), STAT=stat)
+      ALLOCATE(binned_dist(nbins), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      binned_dist(:,:)%istart = 0
-      binned_dist(:,:)%jstart = 0
-      binned_dist(:,:)%kstart = 0
-      binned_dist(:,:)%lstart = 0
-      binned_dist(:,:)%number_of_atom_quartets = 0
-      binned_dist(:,:)%cost = 0
-      binned_dist(:,:)%original_cpu_id = 0
+      binned_dist(:)%istart = 0
+      binned_dist(:)%jstart = 0
+      binned_dist(:)%kstart = 0
+      binned_dist(:)%lstart = 0
+      binned_dist(:)%number_of_atom_quartets = 0
+      binned_dist(:)%cost = 0
+      binned_dist(:)%original_cpu_id = 0
  
       tmp_counter1=0
       current_counter = 0
@@ -927,10 +877,10 @@ MODULE hfx_load_balance_methods
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
                 distribution_counter_end = distribution_counter_end + 1
             
-                IF(binned_dist(1,ibin)%istart == 0 ) binned_dist(1,ibin)%istart = iatom
-                IF(binned_dist(1,ibin)%jstart == 0 ) binned_dist(1,ibin)%jstart = jatom
-                IF(binned_dist(1,ibin)%kstart == 0 ) binned_dist(1,ibin)%kstart = katom
-                IF(binned_dist(1,ibin)%lstart == 0 ) binned_dist(1,ibin)%lstart = latom
+                IF(binned_dist(ibin)%istart == 0 ) binned_dist(ibin)%istart = iatom
+                IF(binned_dist(ibin)%jstart == 0 ) binned_dist(ibin)%jstart = jatom
+                IF(binned_dist(ibin)%kstart == 0 ) binned_dist(ibin)%kstart = katom
+                IF(binned_dist(ibin)%lstart == 0 ) binned_dist(ibin)%lstart = latom
 
                 lkind = kind_of(latom)
                 rd = particle_set(latom)%r(:)
@@ -981,8 +931,8 @@ MODULE hfx_load_balance_methods
                   ENDDO
                 ENDDO
                 IF( current_counter >= int_per_cpu) THEN
-                  binned_dist(1,ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start +1
-                  binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
+                  binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start +1
+                  binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
                   ! protect against int_per_cpu==0 and possibly roundoff
                   ibin = MIN(ibin + 1,nbins)
                   distribution_counter_start = distribution_counter_end + 1
@@ -996,12 +946,12 @@ MODULE hfx_load_balance_methods
       ENDDO
       !! Fill the last bin if necessary
       IF( current_counter /= 0 ) THEN  
-        binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
-        binned_dist(1,ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
+        binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
+        binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
       END IF
 
       !! store the original cpu_di
-      binned_dist(1,:)%original_cpu_id = my_process_id + 1 !para_env%mepos + 1
+      binned_dist(:)%original_cpu_id = my_process_id + 1 !para_env%mepos + 1
     
       !! store all local results in a big cost matrix
 !$OMP BARRIER
@@ -1013,7 +963,7 @@ MODULE hfx_load_balance_methods
 !$OMP BARRIER
       icpu = para_env%mepos+1
       DO i=1,nbins
-        cost_matrix((icpu-1)*nbins*n_threads +i_thread*nbins + i) = binned_dist(1,i)%cost
+        cost_matrix((icpu-1)*nbins*n_threads +i_thread*nbins + i) = binned_dist(i)%cost
       END DO
 
       mepos = para_env%mepos
@@ -1050,47 +1000,18 @@ MODULE hfx_load_balance_methods
       !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
       ALLOCATE(distribution_vector(ncpu*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP MASTER
-      ALLOCATE(optimal_costs(ncpu*n_threads), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      optimal_costs = 0
-!$OMP END MASTER
 
 !$OMP BARRIER
-      optimal_cost = 0
-      !! Optimize load on each node independently
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-
-      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                 load_balance_parameter, optimal_cost, my_process_id, error)
-      !! Find optimal load balance wrt the cost
-      optimal_costs(my_process_id+1) = optimal_cost
+      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
+                                 distribution_vector, error)
 !$OMP BARRIER
 !$OMP MASTER
-      CALL mp_sum_i8(optimal_costs(1:ncpu*n_threads), para_env%group)
-      icpu = 0
-      optimal_cost = HUGE(optimal_cost)
-      !! Get process id of the best distribution
-      DO i = 1,n_processes
-        IF(optimal_costs(i) < optimal_cost ) THEN
-          optimal_cost = optimal_costs(i)
-          thread_id_of_best_dist = i
-        END IF
-      END DO
-      rank_id_of_best_dist = (thread_id_of_best_dist-1)/n_threads
       ALLOCATE(shm_distribution_vector(ncpu*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP END MASTER
-!$OMP BARRIER
-      IF(i_thread == MOD(thread_id_of_best_dist-1,n_threads)) THEN
-        shm_distribution_vector = distribution_vector
-        !! Broadcast the best distribution_vector
-        CALL mp_bcast(shm_distribution_vector,rank_id_of_best_dist,para_env%group)
-      END IF
-!$OMP BARRIER
-!$OMP MASTER
+      shm_distribution_vector = distribution_vector
       !! Collect local data to global array
       ALLOCATE(full_dist(ncpu*n_threads,nbins),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1108,7 +1029,7 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
       mepos=para_env%mepos+1
-      full_dist((mepos-1)*n_threads+i_thread+1,:) = binned_dist(1,:)
+      full_dist((mepos-1)*n_threads+i_thread+1,:) = binned_dist(:)
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1164,24 +1085,24 @@ MODULE hfx_load_balance_methods
       ALLOCATE(tmp_pos(ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_pos = 1
-      ALLOCATE(tmp_dist(1,nbins*ncpu*n_threads),STAT=stat)
+      ALLOCATE(tmp_dist(nbins*ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      tmp_dist(:,:)%istart = 0
-      tmp_dist(:,:)%jstart = 0
-      tmp_dist(:,:)%kstart = 0
-      tmp_dist(:,:)%lstart = 0
-      tmp_dist(:,:)%number_of_atom_quartets = 0
-      tmp_dist(:,:)%cost = 0
-      tmp_dist(:,:)%original_cpu_id = 0
-      tmp_dist(:,:)%time_first_scf = 0.0_dp
-      tmp_dist(:,:)%time_other_scf = 0.0_dp
-      tmp_dist(:,:)%time_forces = 0.0_dp
+      tmp_dist(:)%istart = 0
+      tmp_dist(:)%jstart = 0
+      tmp_dist(:)%kstart = 0
+      tmp_dist(:)%lstart = 0
+      tmp_dist(:)%number_of_atom_quartets = 0
+      tmp_dist(:)%cost = 0
+      tmp_dist(:)%original_cpu_id = 0
+      tmp_dist(:)%time_first_scf = 0.0_dp
+      tmp_dist(:)%time_other_scf = 0.0_dp
+      tmp_dist(:)%time_forces = 0.0_dp
       mepos = my_process_id + 1
       DO icpu= 1,n_processes
         DO i=1,nbins
           IF(shm_distribution_vector((icpu-1)*nbins + i) == mepos) THEN
-              tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+              tmp_dist(tmp_pos(mepos)) = full_dist(icpu,i)
               tmp_pos(mepos) = tmp_pos(mepos) + 1
           END IF
         END DO
@@ -1190,12 +1111,12 @@ MODULE hfx_load_balance_methods
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist)
       mepos = my_process_id + 1
-      ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
+      ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
 
       CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
 !$OMP BARRIER
 !$OMP MASTER
-      DEALLOCATE(full_dist,optimal_costs,cost_matrix,shm_distribution_vector, STAT=stat)
+      DEALLOCATE(full_dist,cost_matrix,shm_distribution_vector, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !$OMP END MASTER
 !$OMP BARRIER
@@ -1242,10 +1163,7 @@ MODULE hfx_load_balance_methods
     INTEGER :: data_from, dest, end_idx, i, ibin, icpu, iprocess, j, &
       my_bin_size, my_global_start_idx, my_process_id, nbins, req(2), source, &
       start_idx, stat
-    INTEGER(int_8)                           :: mepos, n_processes, ncpu, &
-                                                optimal_cost
-    INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:), SAVE                     :: optimal_costs
+    INTEGER(int_8)                           :: mepos, n_processes, ncpu
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
@@ -1256,14 +1174,11 @@ MODULE hfx_load_balance_methods
       SAVE                                   :: bin_histogram
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
-    INTEGER, SAVE                            :: max_bin_size, &
-                                                rank_id_of_best_dist, &
-                                                thread_id_of_best_dist
+    INTEGER, SAVE                            :: max_bin_size
     LOGICAL                                  :: failure
     TYPE(hfx_distribution), DIMENSION(:), &
-      POINTER                                :: binned_dist, ptr_to_tmp_dist
-    TYPE(hfx_distribution), &
-      DIMENSION(:, :), POINTER               :: tmp_dist
+      POINTER                                :: binned_dist, ptr_to_tmp_dist, &
+                                                tmp_dist
     TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
@@ -1273,15 +1188,15 @@ MODULE hfx_load_balance_methods
     n_processes = ncpu * n_threads
     !! If there is only 1 cpu skip the binning
     IF(n_processes == 1) THEN
-      ALLOCATE(tmp_dist(1,1),STAT=stat)
+      ALLOCATE(tmp_dist(1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1,1)%number_of_atom_quartets = HUGE(tmp_dist(1,1)%number_of_atom_quartets)
-      tmp_dist(1,1)%istart = 1
-      tmp_dist(1,1)%jstart = 1
-      tmp_dist(1,1)%kstart = 1
-      tmp_dist(1,1)%lstart = 1
-      tmp_dist(1,1)%original_cpu_id = 1
-      ptr_to_tmp_dist => tmp_dist(1,:)
+      tmp_dist(1)%number_of_atom_quartets = HUGE(tmp_dist(1)%number_of_atom_quartets)
+      tmp_dist(1)%istart = 1
+      tmp_dist(1)%jstart = 1
+      tmp_dist(1)%kstart = 1
+      tmp_dist(1)%lstart = 1
+      tmp_dist(1)%original_cpu_id = 1
+      ptr_to_tmp_dist => tmp_dist(:)
       CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1377,49 +1292,18 @@ MODULE hfx_load_balance_methods
       !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
       ALLOCATE(distribution_vector(ncpu*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP MASTER
-      ALLOCATE(optimal_costs(ncpu*n_threads), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      optimal_costs = 0
-!$OMP END MASTER
 !$OMP BARRIER
-      optimal_cost = 0
-      !! Optimize load on each node independently
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                 load_balance_parameter, optimal_cost, my_process_id, error)
-      
-      !! Find optimal load balance wrt the cost
-      optimal_costs(my_process_id+1) = optimal_cost
+      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
+                                 distribution_vector, error)
+
 !$OMP BARRIER
 !$OMP MASTER
-      CALL mp_sum_i8(optimal_costs(1:ncpu*n_threads), para_env%group)
-      icpu = 0
-      optimal_cost = HUGE(optimal_cost)
-      !! Get process id of the best distribution
-      DO i = 1,n_processes
-        IF(optimal_costs(i) < optimal_cost ) THEN
-          optimal_cost = optimal_costs(i)
-          thread_id_of_best_dist = i
-        END IF
-      END DO
-      rank_id_of_best_dist = (thread_id_of_best_dist-1)/n_threads
       ALLOCATE(shm_distribution_vector(ncpu*nbins*n_threads), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP END MASTER
-
-!$OMP BARRIER
-      IF(i_thread == MOD(thread_id_of_best_dist-1,n_threads)) THEN
-        shm_distribution_vector = distribution_vector
-        !! Broadcast the best distribution_vector
-        CALL mp_bcast(shm_distribution_vector,rank_id_of_best_dist,para_env%group)
-      END IF
-!$OMP BARRIER
-
-!$OMP MASTER
-      !! Collect local data to global array
+      shm_distribution_vector = distribution_vector
       ALLOCATE(full_dist(ncpu*n_threads,max_bin_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -1494,25 +1378,25 @@ MODULE hfx_load_balance_methods
       ALLOCATE(tmp_pos(ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_pos = 1
-      ALLOCATE(tmp_dist(1,nbins*ncpu*n_threads),STAT=stat)
+      ALLOCATE(tmp_dist(nbins*ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      tmp_dist(:,:)%istart = 0
-      tmp_dist(:,:)%jstart = 0
-      tmp_dist(:,:)%kstart = 0
-      tmp_dist(:,:)%lstart = 0
-      tmp_dist(:,:)%number_of_atom_quartets = 0
-      tmp_dist(:,:)%cost = 0
-      tmp_dist(:,:)%original_cpu_id = 0
-      tmp_dist(:,:)%time_first_scf = 0.0_dp
-      tmp_dist(:,:)%time_other_scf = 0.0_dp
-      tmp_dist(:,:)%time_forces = 0.0_dp
+      tmp_dist(:)%istart = 0
+      tmp_dist(:)%jstart = 0
+      tmp_dist(:)%kstart = 0
+      tmp_dist(:)%lstart = 0
+      tmp_dist(:)%number_of_atom_quartets = 0
+      tmp_dist(:)%cost = 0
+      tmp_dist(:)%original_cpu_id = 0
+      tmp_dist(:)%time_first_scf = 0.0_dp
+      tmp_dist(:)%time_other_scf = 0.0_dp
+      tmp_dist(:)%time_forces = 0.0_dp
 
       mepos = my_process_id + 1
       DO icpu= 1,n_processes
         DO i = 1,bin_histogram(icpu,1)
           IF(shm_distribution_vector(bin_histogram(icpu,2)- bin_histogram(icpu,1) + i) == mepos) THEN
-               tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+               tmp_dist(tmp_pos(mepos)) = full_dist(icpu,i)
                tmp_pos(mepos) = tmp_pos(mepos) + 1
           END IF
         END DO
@@ -1521,13 +1405,13 @@ MODULE hfx_load_balance_methods
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist) 
       mepos = my_process_id + 1
-      ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
+      ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
 
       CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
 
 !$OMP BARRIER
 !$OMP MASTER
-      DEALLOCATE(full_dist, optimal_costs, cost_matrix, shm_distribution_vector, STAT=stat)
+      DEALLOCATE(full_dist, cost_matrix, shm_distribution_vector, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(bins_per_rank,bin_histogram, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1574,10 +1458,7 @@ MODULE hfx_load_balance_methods
     INTEGER :: data_from, dest, end_idx, i, ibin, icpu, iprocess, j, &
       my_bin_size, my_global_start_idx, my_process_id, nbins, req(2), source, &
       start_idx, stat
-    INTEGER(int_8)                           :: mepos, n_processes, ncpu, &
-                                                optimal_cost
-    INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:), SAVE                     :: optimal_costs
+    INTEGER(int_8)                           :: mepos, n_processes, ncpu
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
@@ -1588,14 +1469,11 @@ MODULE hfx_load_balance_methods
       SAVE                                   :: bin_histogram
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
-    INTEGER, SAVE                            :: max_bin_size, &
-                                                rank_id_of_best_dist, &
-                                                thread_id_of_best_dist
+    INTEGER, SAVE                            :: max_bin_size
     LOGICAL                                  :: failure
     TYPE(hfx_distribution), DIMENSION(:), &
-      POINTER                                :: binned_dist, ptr_to_tmp_dist
-    TYPE(hfx_distribution), &
-      DIMENSION(:, :), POINTER               :: tmp_dist
+      POINTER                                :: binned_dist, ptr_to_tmp_dist, &
+                                                tmp_dist
     TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
@@ -1605,15 +1483,15 @@ MODULE hfx_load_balance_methods
     n_processes = ncpu * n_threads
     !! If there is only 1 cpu skip the binning
     IF(n_processes == 1) THEN
-      ALLOCATE(tmp_dist(1,1),STAT=stat)
+      ALLOCATE(tmp_dist(1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1,1)%number_of_atom_quartets = HUGE(tmp_dist(1,1)%number_of_atom_quartets)
-      tmp_dist(1,1)%istart = 1
-      tmp_dist(1,1)%jstart = 1
-      tmp_dist(1,1)%kstart = 1
-      tmp_dist(1,1)%lstart = 1
-      tmp_dist(1,1)%original_cpu_id = 1
-      ptr_to_tmp_dist => tmp_dist(1,:)
+      tmp_dist(1)%number_of_atom_quartets = HUGE(tmp_dist(1)%number_of_atom_quartets)
+      tmp_dist(1)%istart = 1
+      tmp_dist(1)%jstart = 1
+      tmp_dist(1)%kstart = 1
+      tmp_dist(1)%lstart = 1
+      tmp_dist(1)%original_cpu_id = 1
+      ptr_to_tmp_dist => tmp_dist(:)
       CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1708,48 +1586,18 @@ MODULE hfx_load_balance_methods
       !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
       ALLOCATE(distribution_vector(ncpu*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP MASTER
-      ALLOCATE(optimal_costs(ncpu*n_threads), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      optimal_costs = 0
-!$OMP END MASTER
 !$OMP BARRIER
-      optimal_cost = 0
-      !! Optimize load on each node independently
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                 load_balance_parameter, optimal_cost, my_process_id, error)
+      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
+                                 distribution_vector, error)
       
-      !! Find optimal load balance wrt the cost
-      optimal_costs(my_process_id+1) = optimal_cost
 !$OMP BARRIER
 !$OMP MASTER
-      CALL mp_sum_i8(optimal_costs(1:ncpu*n_threads), para_env%group)
-      icpu = 0
-      optimal_cost = HUGE(optimal_cost)
-      !! Get process id of the best distribution
-      DO i = 1,n_processes
-        IF(optimal_costs(i) < optimal_cost ) THEN
-          optimal_cost = optimal_costs(i)
-          thread_id_of_best_dist = i
-        END IF
-      END DO
-      rank_id_of_best_dist = (thread_id_of_best_dist-1)/n_threads
       ALLOCATE(shm_distribution_vector(ncpu*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP END MASTER
-
-!$OMP BARRIER
-      IF(i_thread == MOD(thread_id_of_best_dist-1,n_threads)) THEN
-        shm_distribution_vector = distribution_vector
-        !! Broadcast the best distribution_vector
-        CALL mp_bcast(shm_distribution_vector,rank_id_of_best_dist,para_env%group)
-      END IF
-!$OMP BARRIER
-
-!$OMP MASTER
+      shm_distribution_vector = distribution_vector
       !! Collect local data to global array
       ALLOCATE(full_dist(ncpu*n_threads,max_bin_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1823,25 +1671,25 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_pos = 1
        
-      ALLOCATE(tmp_dist(1,nbins*ncpu*n_threads),STAT=stat)
+      ALLOCATE(tmp_dist(nbins*ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      tmp_dist(:,:)%istart = 0
-      tmp_dist(:,:)%jstart = 0
-      tmp_dist(:,:)%kstart = 0
-      tmp_dist(:,:)%lstart = 0
-      tmp_dist(:,:)%number_of_atom_quartets = 0
-      tmp_dist(:,:)%cost = 0
-      tmp_dist(:,:)%original_cpu_id = 0
-      tmp_dist(:,:)%time_first_scf = 0.0_dp
-      tmp_dist(:,:)%time_other_scf = 0.0_dp
-      tmp_dist(:,:)%time_forces = 0.0_dp
+      tmp_dist(:)%istart = 0
+      tmp_dist(:)%jstart = 0
+      tmp_dist(:)%kstart = 0
+      tmp_dist(:)%lstart = 0
+      tmp_dist(:)%number_of_atom_quartets = 0
+      tmp_dist(:)%cost = 0
+      tmp_dist(:)%original_cpu_id = 0
+      tmp_dist(:)%time_first_scf = 0.0_dp
+      tmp_dist(:)%time_other_scf = 0.0_dp
+      tmp_dist(:)%time_forces = 0.0_dp
 
       mepos = my_process_id + 1
       DO icpu= 1,n_processes
         DO i = 1,bin_histogram(icpu,1)
           IF(shm_distribution_vector(bin_histogram(icpu,2)- bin_histogram(icpu,1) + i) == mepos) THEN
-              tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+              tmp_dist(tmp_pos(mepos)) = full_dist(icpu,i)
               tmp_pos(mepos) = tmp_pos(mepos) + 1
           END IF
         END DO
@@ -1850,13 +1698,13 @@ MODULE hfx_load_balance_methods
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist) 
       mepos = my_process_id + 1
-      ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
+      ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
 
       CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
 
 !$OMP BARRIER
 !$OMP MASTER
-      DEALLOCATE(full_dist, optimal_costs, cost_matrix, shm_distribution_vector, STAT=stat)
+      DEALLOCATE(full_dist, cost_matrix, shm_distribution_vector, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(bins_per_rank,bin_histogram, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1871,5 +1719,78 @@ MODULE hfx_load_balance_methods
     END IF
 
   END SUBROUTINE update_load_balance_forces
+
+! *****************************************************************************
+!> \brief Minimizes the maximum cost per cpu by shuffling around all bins
+!> \param para_env para_env
+!> \param total_number_of_bins 
+!> \param number_of_processes
+!> \param bin_costs costs per bin
+!> \param distribution_vector will contain the final distribution
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2009 created from a hack by Joost [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  SUBROUTINE optimize_distribution(para_env, total_number_of_bins, number_of_processes, bin_costs, &
+                                   distribution_vector, error)
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER(int_8)                           :: total_number_of_bins, &
+                                                number_of_processes
+    INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs
+    INTEGER, DIMENSION(:), POINTER           :: distribution_vector
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_distribution', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, itmp, j, nstep, stat
+    INTEGER(int_8), DIMENSION(:), POINTER    :: my_cost_cpu, tmp_cost, &
+                                                tmp_cpu_cost
+    INTEGER, DIMENSION(:), POINTER           :: tmp_cpu_index, tmp_index
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    nstep=MAX(1,INT(number_of_processes)/2)
+
+    ALLOCATE(tmp_cost(total_number_of_bins),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(tmp_index(total_number_of_bins),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(tmp_cpu_cost(number_of_processes),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(tmp_cpu_index(number_of_processes),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(my_cost_cpu(number_of_processes),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    tmp_cost=bin_costs
+
+    CALL sort(tmp_cost,INT(total_number_of_bins),tmp_index)
+    my_cost_cpu=0
+!
+! assign the largest remaining bin to the CPU with the smallest load
+! gives near perfect distributions for a sufficient number of bins ...
+! doing this in chunks of nstep (where nstep ~ number_of_processes) makes this n log n and gives
+! each cpu a similar number of tasks.
+! it also avoids degenerate cases where thousands of zero sized tasks
+! are assigned to the same (least loaded) cpu
+!
+    DO i=total_number_of_bins,1,-nstep
+       tmp_cpu_cost=my_cost_cpu
+       CALL sort(tmp_cpu_cost,INT(number_of_processes),tmp_cpu_index)
+       DO j=1,MIN(i,nstep)
+          itmp=tmp_cpu_index(j)
+          distribution_vector(tmp_index(i-j+1))=itmp
+          my_cost_cpu(itmp)=my_cost_cpu(itmp)+bin_costs(tmp_index(i-j+1))
+       ENDDO
+    ENDDO
+
+    DEALLOCATE(tmp_cost,tmp_index,tmp_cpu_cost,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(tmp_cpu_index,my_cost_cpu,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END SUBROUTINE optimize_distribution
 
 END MODULE hfx_load_balance_methods

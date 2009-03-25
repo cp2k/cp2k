@@ -133,13 +133,6 @@ MODULE hfx_types
 ! *****************************************************************************
   TYPE hfx_load_balance_type
     INTEGER                                  :: nbins                   
-    INTEGER                                  :: moves
-    INTEGER                                  :: cycles
-    INTEGER                                  :: reduction_steps
-    REAL(dp)                                 :: reduction_factor
-    REAL(dp)                                 :: temperature
-    REAL(dp)                                 :: tolerance
-    REAL(dp)                                 :: swap_probability
   END TYPE
 
 ! *****************************************************************************
@@ -437,20 +430,6 @@ MODULE hfx_types
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
         actual_x_data%load_balance_parameter%nbins = int_val
-        CALL section_vals_val_get(hf_sub_section, "MOVES", i_val=int_val, error=error)
-        actual_x_data%load_balance_parameter%moves = int_val
-        CALL section_vals_val_get(hf_sub_section, "CYCLES", i_val=int_val, error=error)
-        actual_x_data%load_balance_parameter%cycles = int_val
-        CALL section_vals_val_get(hf_sub_section, "REDUCTION_STEPS", i_val=int_val, error=error)
-        actual_x_data%load_balance_parameter%reduction_steps = int_val
-        CALL section_vals_val_get(hf_sub_section, "REDUCTION_FACTOR", r_val=real_val, error=error)
-        actual_x_data%load_balance_parameter%reduction_factor = real_val
-        CALL section_vals_val_get(hf_sub_section, "TEMPERATURE", r_val=real_val, error=error)
-        actual_x_data%load_balance_parameter%temperature = real_val
-        CALL section_vals_val_get(hf_sub_section, "TOLERANCE", r_val=real_val, error=error)
-        actual_x_data%load_balance_parameter%tolerance = real_val
-        CALL section_vals_val_get(hf_sub_section, "SWAP_PROBABILITY", r_val=real_val, error=error)
-        actual_x_data%load_balance_parameter%swap_probability = real_val
     
         !! BASIS parameter
         nkind = SIZE(atomic_kind_set,1)
