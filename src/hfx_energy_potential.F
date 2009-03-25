@@ -445,7 +445,7 @@ MODULE hfx_energy_potential
     IF( nspins == 2) subtr_size_mb = subtr_size_mb * 2_int_8
     ! ** Initial P only MAX(alpha,beta) (shared)
     IF(do_p_screening) THEN 
-      subtr_size_mb = subtr_size_mb+max_set**2*natom**2
+      subtr_size_mb = subtr_size_mb+max_set**2*INT(natom**2,KIND=int_8)
     END IF
     ! ** primitive buffers (not shared by the threads)
     subtr_size_mb = subtr_size_mb + 2_int_8*nco_max**4*n_threads
@@ -783,7 +783,7 @@ MODULE hfx_energy_potential
           IF(.NOT. first_k_loop) katom = 0
           DO WHILE(katom+1<=natom)
             katom = katom + 1
-            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            hash_idx =(iatom-1)*INT(natom**2,kind=int_8)+ (jatom-1) * natom + katom
             IF(MODULO(FNV64(hash_idx),n_processes)/=my_original_cpu_id-1) CYCLE
 
             ikind = kind_of(iatom)

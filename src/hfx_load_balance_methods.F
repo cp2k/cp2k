@@ -192,7 +192,7 @@ MODULE hfx_load_balance_methods
       DO iatom=1,natom
         DO jatom=iatom,natom
           DO katom=1,natom
-            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            hash_idx =(iatom-1)*INT(natom**2,kind=int_8)+ (jatom-1) * natom + katom
             IF(MODULO(FNV64(hash_idx),n_processes)/=my_process_id) CYCLE
 
             ikind = kind_of(iatom)
@@ -312,7 +312,7 @@ MODULE hfx_load_balance_methods
       DO iatom=1,natom
         DO jatom=iatom,natom
           DO katom=1,natom
-            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            hash_idx =(iatom-1)*INT(natom**2,kind=int_8)+ (jatom-1) * natom + katom
             IF(MODULO(FNV64(hash_idx),n_processes)/=my_process_id) CYCLE
 
             ikind = kind_of(iatom)
@@ -753,7 +753,7 @@ MODULE hfx_load_balance_methods
       DO iatom=1,natom
         DO jatom=iatom,natom 
           DO katom=1,natom
-            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            hash_idx =(iatom-1)*INT(natom**2,kind=int_8)+ (jatom-1) * natom + katom
             IF(MODULO(FNV64(hash_idx),n_processes) /= my_process_id) CYCLE
 
             ikind = kind_of(iatom)
@@ -859,7 +859,7 @@ MODULE hfx_load_balance_methods
       DO iatom=1,natom
         DO jatom=iatom,natom
           DO katom=1,natom
-            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            hash_idx =(iatom-1)*INT(natom**2,kind=int_8)+ (jatom-1) * natom + katom
             IF(MODULO(FNV64(hash_idx),n_processes) /= my_process_id) CYCLE
 
             ikind = kind_of(iatom)
