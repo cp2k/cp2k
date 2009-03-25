@@ -112,7 +112,7 @@ MODULE hfx_derivatives
       nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, nspins, p_index, &
       pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, sgfa, sgfb, &
       sgfc, sgfd, stat
-    INTEGER(int_8)                           :: box_idx1, my_current_counter, &
+    INTEGER(int_8)                           :: my_current_counter, &
                                                 my_original_cpu_id, &
                                                 n_processes, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
@@ -170,6 +170,7 @@ MODULE hfx_derivatives
       DIMENSION(:,:), POINTER                :: screen_coeffs_kind, tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
     REAL(dp)                                 :: ln_10, B11(3), rab2, D11(3), rcd2, log10_eps_schwarz,&
                                                 log10_pmax, max_val2_set, pbc_B(3), pbc_D(3), log_2
+    INTEGER(int_8)                           :: hash_idx
 
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
@@ -480,60 +481,61 @@ MODULE hfx_derivatives
          my_istart = natom + 1 ; my_jstart = natom + 1 ;my_kstart = natom + 1 ;my_lstart = natom + 1 
       ENDIF
       DO iatom=my_istart,natom
-        ikind = kind_of(iatom)
-        la_max => basis_parameter(ikind)%lmax
-        la_min => basis_parameter(ikind)%lmin
-        npgfa => basis_parameter(ikind)%npgf
-        nseta = basis_parameter(ikind)%nset
-        zeta => basis_parameter(ikind)%zet
-        nsgfa => basis_parameter(ikind)%nsgf
-        first_sgfa => basis_parameter(ikind)%first_sgf
-        sphi_a => basis_parameter(ikind)%sphi
-        nsgfa_total = basis_parameter(ikind)%nsgf_total
-        ra=particle_set(iatom)%r(:)
-        i_atom = atom_of_kind(iatom)
-        pa1 = last_sgf_global(iatom) - nsgfa_total
-        forces_map(1,1) = ikind
-        forces_map(1,2) = i_atom
         IF(first_j_loop) jatom=my_jstart-1
         IF(.NOT. first_j_loop) jatom = iatom-1
         DO WHILE(jatom+1<=natom)
           jatom = jatom + 1
-          !! Be consistent to the modulo distribution of the load balance
-          box_idx1 = (iatom-1)*natom+jatom
-          IF(MODULO(FNV64(box_idx1),n_processes)/=my_original_cpu_id-1) CYCLE
-
-          jkind = kind_of(jatom)
-          lb_max => basis_parameter(jkind)%lmax
-          lb_min => basis_parameter(jkind)%lmin
-          npgfb => basis_parameter(jkind)%npgf
-          nsetb = basis_parameter(jkind)%nset
-          zetb => basis_parameter(jkind)%zet
-          nsgfb => basis_parameter(jkind)%nsgf
-          first_sgfb => basis_parameter(jkind)%first_sgf
-          sphi_b => basis_parameter(jkind)%sphi
-          nsgfb_total = basis_parameter(jkind)%nsgf_total
-
-          rb=particle_set(jatom)%r(:)
-          ! ** pbc for rb
-          IF( do_periodic ) THEN
-            temp = rb -ra
-            pbc_B = pbc(temp,cell)
-            B11 = ra + pbc_B
-            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
-          ELSE
-            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-            B11 = ra - rb
-          END IF
-          
-          j_atom = atom_of_kind(jatom)
-          pb1 = last_sgf_global(jatom) - nsgfb_total
-          forces_map(2,1) = jkind
-          forces_map(2,2) = j_atom
           IF(first_k_loop) katom=my_kstart-1
           IF(.NOT. first_k_loop) katom = 0
           DO WHILE(katom+1<=natom)
             katom = katom + 1
+            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            IF(MODULO(FNV64(hash_idx),n_processes)/=my_original_cpu_id-1) CYCLE
+
+            ikind = kind_of(iatom)
+            la_max => basis_parameter(ikind)%lmax
+            la_min => basis_parameter(ikind)%lmin
+            npgfa => basis_parameter(ikind)%npgf
+            nseta = basis_parameter(ikind)%nset
+            zeta => basis_parameter(ikind)%zet
+            nsgfa => basis_parameter(ikind)%nsgf
+            first_sgfa => basis_parameter(ikind)%first_sgf
+            sphi_a => basis_parameter(ikind)%sphi
+            nsgfa_total = basis_parameter(ikind)%nsgf_total
+            ra=particle_set(iatom)%r(:)
+            i_atom = atom_of_kind(iatom)
+            pa1 = last_sgf_global(iatom) - nsgfa_total
+            forces_map(1,1) = ikind
+            forces_map(1,2) = i_atom
+
+            jkind = kind_of(jatom)
+            lb_max => basis_parameter(jkind)%lmax
+            lb_min => basis_parameter(jkind)%lmin
+            npgfb => basis_parameter(jkind)%npgf
+            nsetb = basis_parameter(jkind)%nset
+            zetb => basis_parameter(jkind)%zet
+            nsgfb => basis_parameter(jkind)%nsgf
+            first_sgfb => basis_parameter(jkind)%first_sgf
+            sphi_b => basis_parameter(jkind)%sphi
+            nsgfb_total = basis_parameter(jkind)%nsgf_total
+  
+            rb=particle_set(jatom)%r(:)
+            ! ** pbc for rb
+            IF( do_periodic ) THEN
+              temp = rb -ra
+              pbc_B = pbc(temp,cell)
+              B11 = ra + pbc_B
+              rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+            ELSE
+              rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+              B11 = ra - rb
+            END IF
+            
+            j_atom = atom_of_kind(jatom)
+            pb1 = last_sgf_global(jatom) - nsgfb_total
+            forces_map(2,1) = jkind
+            forces_map(2,2) = j_atom
+
             kkind = kind_of(katom)
             lc_max => basis_parameter(kkind)%lmax
             lc_min => basis_parameter(kkind)%lmin

@@ -137,12 +137,11 @@ MODULE hfx_energy_potential
       nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, &
       nsgfd_total, nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, &
       pd, pd1, pd2, sgfa, sgfb, sgfc, sgfd, stat
-    INTEGER(int_8) :: box_idx1, estimate_to_store_int, &
-      mem_compression_counter, mem_compression_counter_disk, mem_eris, &
-      mem_eris_disk, mem_max_val, mem_maxvals, my_current_counter, &
-      my_original_cpu_id, n_processes, ncpu, neris_disk, neris_incore, &
-      neris_onthefly, neris_total, stor_count_int_disk, stor_count_max_val, &
-      storage_counter_integrals
+    INTEGER(int_8) :: estimate_to_store_int, mem_compression_counter, &
+      mem_compression_counter_disk, mem_eris, mem_eris_disk, mem_max_val, &
+      mem_maxvals, my_current_counter, my_original_cpu_id, n_processes, ncpu, &
+      neris_disk, neris_incore, neris_onthefly, neris_total, &
+      stor_count_int_disk, stor_count_max_val, storage_counter_integrals
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
@@ -216,7 +215,7 @@ MODULE hfx_energy_potential
                                                 max_val2_from_funct, log10_eps_schwarz, &
                                                 B11(3), pbc_B(3), D11(3), pbc_D(3), log10_pmax, oops,&
                                                 diag1, diag2, diag(3), min_diag(3), R_diag,ln_10
-    INTEGER(int_8)                           :: subtr_size_mb
+    INTEGER(int_8)                           :: subtr_size_mb, hash_idx
 
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:,:), POINTER                :: tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
@@ -776,53 +775,54 @@ MODULE hfx_energy_potential
          my_istart = natom + 1 ; my_jstart = natom + 1 ; my_kstart = natom + 1 ; my_lstart = natom + 1
       ENDIF
       DO iatom=my_istart,natom
-        ikind = kind_of(iatom)
-        la_max => basis_parameter(ikind)%lmax
-        la_min => basis_parameter(ikind)%lmin
-        npgfa => basis_parameter(ikind)%npgf
-        nseta = basis_parameter(ikind)%nset
-        zeta => basis_parameter(ikind)%zet
-        nsgfa => basis_parameter(ikind)%nsgf
-        first_sgfa => basis_parameter(ikind)%first_sgf
-        sphi_a => basis_parameter(ikind)%sphi
-        nsgfa_total = basis_parameter(ikind)%nsgf_total
-        ra=particle_set(iatom)%r(:)
-        pa1 = last_sgf_global(iatom) - nsgfa_total
- 
         IF(first_j_loop) jatom=my_jstart-1
         IF(.NOT. first_j_loop) jatom = iatom-1
         DO WHILE(jatom+1<=natom)
           jatom = jatom + 1
-          !! Be consistent with the modulo distribution of the load balance
-          box_idx1 = (iatom-1)*natom+jatom
-          IF(MODULO(FNV64(box_idx1),n_processes)/=my_original_cpu_id-1) CYCLE
-          jkind = kind_of(jatom)
-          lb_max => basis_parameter(jkind)%lmax
-          lb_min => basis_parameter(jkind)%lmin
-          npgfb => basis_parameter(jkind)%npgf
-          nsetb = basis_parameter(jkind)%nset
-          zetb => basis_parameter(jkind)%zet
-          nsgfb => basis_parameter(jkind)%nsgf
-          first_sgfb => basis_parameter(jkind)%first_sgf
-          sphi_b => basis_parameter(jkind)%sphi
-          nsgfb_total = basis_parameter(jkind)%nsgf_total
-
-          rb=particle_set(jatom)%r(:)
-          ! ** pbc for rb
-          IF( do_periodic ) THEN
-            temp = rb -ra
-            pbc_B = pbc(temp,cell)
-            B11 = ra + pbc_B
-            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
-          ELSE 
-            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-            B11 = ra - rb
-          END IF
-          pb1 = last_sgf_global(jatom) - nsgfb_total
           IF(first_k_loop) katom=my_kstart-1
           IF(.NOT. first_k_loop) katom = 0
           DO WHILE(katom+1<=natom)
             katom = katom + 1
+            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            IF(MODULO(FNV64(hash_idx),n_processes)/=my_original_cpu_id-1) CYCLE
+
+            ikind = kind_of(iatom)
+            la_max => basis_parameter(ikind)%lmax
+            la_min => basis_parameter(ikind)%lmin
+            npgfa => basis_parameter(ikind)%npgf
+            nseta = basis_parameter(ikind)%nset
+            zeta => basis_parameter(ikind)%zet
+            nsgfa => basis_parameter(ikind)%nsgf
+            first_sgfa => basis_parameter(ikind)%first_sgf
+            sphi_a => basis_parameter(ikind)%sphi
+            nsgfa_total = basis_parameter(ikind)%nsgf_total
+            ra=particle_set(iatom)%r(:)
+            pa1 = last_sgf_global(iatom) - nsgfa_total
+
+            jkind = kind_of(jatom)
+            lb_max => basis_parameter(jkind)%lmax
+            lb_min => basis_parameter(jkind)%lmin
+            npgfb => basis_parameter(jkind)%npgf
+            nsetb = basis_parameter(jkind)%nset
+            zetb => basis_parameter(jkind)%zet
+            nsgfb => basis_parameter(jkind)%nsgf
+            first_sgfb => basis_parameter(jkind)%first_sgf
+            sphi_b => basis_parameter(jkind)%sphi
+            nsgfb_total = basis_parameter(jkind)%nsgf_total
+  
+            rb=particle_set(jatom)%r(:)
+            ! ** pbc for rb
+            IF( do_periodic ) THEN
+              temp = rb -ra
+              pbc_B = pbc(temp,cell)
+              B11 = ra + pbc_B
+              rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+            ELSE 
+              rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+              B11 = ra - rb
+            END IF
+            pb1 = last_sgf_global(jatom) - nsgfb_total
+
             kkind = kind_of(katom)
             lc_max => basis_parameter(kkind)%lmax
             lc_min => basis_parameter(kkind)%lmin

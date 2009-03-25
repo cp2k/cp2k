@@ -127,9 +127,9 @@ MODULE hfx_load_balance_methods
       ikind, ipos, iset, j, jatom, jkind, jset, katom, kkind, kset, latom, &
       lkind, lset, my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, &
       req(2), source, stat
-    INTEGER(int_8) :: box_idx1, current_counter, distribution_counter_end, &
-      distribution_counter_start, int_per_cpu, mepos, n_processes, ncpu, &
-      restore_counter, tmp_counter1, total_integrals
+    INTEGER(int_8) :: current_counter, distribution_counter_end, &
+      distribution_counter_start, hash_idx, int_per_cpu, mepos, n_processes, &
+      ncpu, restore_counter, tmp_counter1, total_integrals
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
@@ -190,30 +190,34 @@ MODULE hfx_load_balance_methods
       my_process_id = para_env%mepos*n_threads + i_thread
      
       DO iatom=1,natom
-        ikind = kind_of(iatom)
-        nseta =  basis_parameter(ikind)%nset
-        nsgfa => basis_parameter(ikind)%nsgf
-        ra=particle_set(iatom)%r(:)
         DO jatom=iatom,natom
-          box_idx1 = (iatom-1)*natom+jatom
-          rb=particle_set(jatom)%r(:)
-          IF(MODULO(FNV64(box_idx1),n_processes) /= my_process_id) CYCLE 
-          IF( do_periodic ) THEN
-            temp = rb -ra
-            pbc_B = pbc(temp,cell)
-            B11 = ra + pbc_B
-            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
-          ELSE
-            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-          END IF
-          jkind = kind_of(jatom)
-          nsetb =  basis_parameter(jkind)%nset
-          nsgfb => basis_parameter(jkind)%nsgf
           DO katom=1,natom
+            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            IF(MODULO(FNV64(hash_idx),n_processes)/=my_process_id) CYCLE
+
+            ikind = kind_of(iatom)
+            nseta =  basis_parameter(ikind)%nset
+            nsgfa => basis_parameter(ikind)%nsgf
+            ra=particle_set(iatom)%r(:)
+
+            rb=particle_set(jatom)%r(:)
+            IF( do_periodic ) THEN
+              temp = rb -ra
+              pbc_B = pbc(temp,cell)
+              B11 = ra + pbc_B
+              rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+            ELSE
+              rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+            END IF
+            jkind = kind_of(jatom)
+            nsetb =  basis_parameter(jkind)%nset
+            nsgfb => basis_parameter(jkind)%nsgf
+
             kkind = kind_of(katom)
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
             rc=particle_set(katom)%r(:)
+
             DO latom=katom,natom
               rd=particle_set(latom)%r(:)
               IF( do_periodic ) THEN
@@ -306,30 +310,34 @@ MODULE hfx_load_balance_methods
       distribution_counter_end = 0
       ibin = 1
       DO iatom=1,natom
-        ikind = kind_of(iatom)
-        nseta =  basis_parameter(ikind)%nset
-        nsgfa => basis_parameter(ikind)%nsgf
-        ra=particle_set(iatom)%r(:)
         DO jatom=iatom,natom
-          box_idx1 = (iatom-1)*natom+jatom
-          IF(MODULO(FNV64(box_idx1),n_processes) /= my_process_id) CYCLE
-          jkind = kind_of(jatom)
-          nsetb =  basis_parameter(jkind)%nset
-          nsgfb => basis_parameter(jkind)%nsgf
-          rb=particle_set(jatom)%r(:)
-          IF( do_periodic ) THEN
-            temp = rb -ra
-            pbc_B = pbc(temp,cell)
-            B11 = ra + pbc_B
-            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
-          ELSE
-            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-          END IF
           DO katom=1,natom
+            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            IF(MODULO(FNV64(hash_idx),n_processes)/=my_process_id) CYCLE
+
+            ikind = kind_of(iatom)
+            nseta =  basis_parameter(ikind)%nset
+            nsgfa => basis_parameter(ikind)%nsgf
+            ra=particle_set(iatom)%r(:)
+
+            jkind = kind_of(jatom)
+            nsetb =  basis_parameter(jkind)%nset
+            nsgfb => basis_parameter(jkind)%nsgf
+            rb=particle_set(jatom)%r(:)
+            IF( do_periodic ) THEN
+              temp = rb -ra
+              pbc_B = pbc(temp,cell)
+              B11 = ra + pbc_B
+              rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+            ELSE
+              rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+            END IF
+
             kkind = kind_of(katom)
             rc=particle_set(katom)%r(:)
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
+
             DO latom=katom,natom
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
@@ -692,9 +700,9 @@ MODULE hfx_load_balance_methods
       jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, &
       my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, req(2), &
       source, stat
-    INTEGER(int_8) :: box_idx1, current_counter, distribution_counter_end, &
-      distribution_counter_start, int_per_cpu, mepos, n_processes, ncpu, &
-      restore_counter, tmp_counter1, total_integrals
+    INTEGER(int_8) :: current_counter, distribution_counter_end, &
+      distribution_counter_start, hash_idx, int_per_cpu, mepos, n_processes, &
+      ncpu, restore_counter, tmp_counter1, total_integrals
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
@@ -743,26 +751,29 @@ MODULE hfx_load_balance_methods
       total_integrals = 0
       my_process_id = para_env%mepos*n_threads + i_thread
       DO iatom=1,natom
-        ikind = kind_of(iatom)
-        nseta =  basis_parameter(ikind)%nset
-        nsgfa => basis_parameter(ikind)%nsgf
-        ra = particle_set(iatom)%r(:)
         DO jatom=iatom,natom 
-          box_idx1 = (iatom-1)*natom+jatom
-          IF(MODULO(FNV64(box_idx1),n_processes) /= my_process_id) CYCLE
-          rb=particle_set(jatom)%r(:)
-          IF( do_periodic ) THEN
-            temp = rb -ra
-            pbc_B = pbc(temp,cell)
-            B11 = ra + pbc_B
-            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
-          ELSE
-            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-          END IF
-          jkind = kind_of(jatom)
-          nsetb =  basis_parameter(jkind)%nset
-          nsgfb => basis_parameter(jkind)%nsgf
           DO katom=1,natom
+            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            IF(MODULO(FNV64(hash_idx),n_processes) /= my_process_id) CYCLE
+
+            ikind = kind_of(iatom)
+            nseta =  basis_parameter(ikind)%nset
+            nsgfa => basis_parameter(ikind)%nsgf
+            ra = particle_set(iatom)%r(:)
+
+            rb=particle_set(jatom)%r(:)
+            IF( do_periodic ) THEN
+              temp = rb -ra
+              pbc_B = pbc(temp,cell)
+              B11 = ra + pbc_B
+              rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+            ELSE
+              rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+            END IF
+            jkind = kind_of(jatom)
+            nsetb =  basis_parameter(jkind)%nset
+            nsgfb => basis_parameter(jkind)%nsgf
+
             kkind = kind_of(katom)
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
@@ -846,26 +857,29 @@ MODULE hfx_load_balance_methods
       distribution_counter_end = 0
       ibin = 1
       DO iatom=1,natom
-        ikind = kind_of(iatom)
-        nseta =  basis_parameter(ikind)%nset
-        nsgfa => basis_parameter(ikind)%nsgf
-        ra=particle_set(iatom)%r(:)
         DO jatom=iatom,natom
-          box_idx1 = (iatom-1)*natom+jatom
-          IF(MODULO(FNV64(box_idx1),n_processes) /= my_process_id) CYCLE
-          jkind = kind_of(jatom)
-          rb=particle_set(jatom)%r(:)
-          IF( do_periodic ) THEN
-            temp = rb -ra
-            pbc_B = pbc(temp,cell)
-            B11 = ra + pbc_B
-            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
-          ELSE
-            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-          END IF
-          nsetb =  basis_parameter(jkind)%nset
-          nsgfb => basis_parameter(jkind)%nsgf
           DO katom=1,natom
+            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            IF(MODULO(FNV64(hash_idx),n_processes) /= my_process_id) CYCLE
+
+            ikind = kind_of(iatom)
+            nseta =  basis_parameter(ikind)%nset
+            nsgfa => basis_parameter(ikind)%nsgf
+            ra=particle_set(iatom)%r(:)
+
+            jkind = kind_of(jatom)
+            rb=particle_set(jatom)%r(:)
+            IF( do_periodic ) THEN
+              temp = rb -ra
+              pbc_B = pbc(temp,cell)
+              B11 = ra + pbc_B
+              rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+            ELSE
+              rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+            END IF
+            nsetb =  basis_parameter(jkind)%nset
+            nsgfb => basis_parameter(jkind)%nsgf
+
             kkind = kind_of(katom)
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
