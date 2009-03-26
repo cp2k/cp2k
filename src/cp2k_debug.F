@@ -20,6 +20,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE cp2k_debug
+  USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -32,7 +33,8 @@ MODULE cp2k_debug
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_qs_particle_coordinates
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
 #include "cp_common_uses.h"
 
@@ -60,20 +62,24 @@ CONTAINS
     REAL(kind=dp), DIMENSION(2)              :: numer_energy
     REAL(kind=dp), DIMENSION(3)              :: Err, my_maxerr
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: analyt_forces, numer_forces
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    TYPE(section_vals_type), POINTER         :: harris_section, root_section
+    TYPE(section_vals_type), POINTER         :: harris_section, root_section, &
+                                                subsys_section
 
     failure = .FALSE.
     NULLIFY(analyt_forces, numer_forces, subsys, particles)
-    para_env=>force_env%para_env
+    para_env    =>force_env%para_env
     root_section=>force_env%root_section
     IF (.NOT.failure) THEN
        harris_section => section_vals_get_subs_vals(force_env%force_env_section, &
             "DFT%QS%HARRIS",error=error)
+       subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
+            "SUBSYS",error=error)
        CALL section_vals_val_get(harris_section, "ACTIVATE", &
             l_val=harris_flag, error=error)
 
@@ -85,6 +91,9 @@ CONTAINS
        logger => cp_error_get_logger(error)
        iw=cp_print_key_unit_nr(logger,root_section,"DEBUG%PROGRAM_RUN_INFO",&
             extension=".log",error=error)
+       CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
+       particles => subsys%particles%els
+       CALL write_qs_particle_coordinates(particles,cell,subsys_section,"DEBUG",error)
        !
        ! First evaluate energy and forces...
        !
@@ -93,13 +102,11 @@ CONTAINS
        !
        ! Copy forces in array and start the numerical calculation
        !
-       CALL force_env_get(force_env,subsys=subsys,error=error)
        IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
        iseq = subsys%particles%n_els
        ALLOCATE( analyt_forces(iseq,3), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        iseq = 0
-       particles => subsys%particles%els
        DO ip = 1, subsys%particles%n_els
           iseq = iseq + 1
           analyt_forces(iseq,:) = particles(ip)%f
@@ -111,7 +118,6 @@ CONTAINS
        IF (ASSOCIATED( numer_forces)) DEALLOCATE( numer_forces)
        ALLOCATE(  numer_forces(subsys%particles%n_els,3), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       particles => subsys%particles%els
        Atom: DO ip = 1, subsys%particles%n_els
           iseq = iseq + 1
           Coord: DO k = 1, 3
@@ -119,13 +125,10 @@ CONTAINS
              std_value = particles(ip)%r(k)
              DO j = 1, 2
                 particles(ip)%r(k) = std_value - (-1.0_dp)**j * Dx
-                IF (.NOT. harris_flag) THEN
-                   CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
-                        consistent_energies=.TRUE., error=error)
-                ELSE
-                   CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
-                        consistent_energies=.FALSE., error=error)
-                END IF
+                CALL write_qs_particle_coordinates(particles,cell,subsys_section,"DEBUG",error)
+                ! Compute forces..
+                CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
+                     consistent_energies=(.NOT.harris_flag), error=error)
                 CALL force_env_get (force_env, potential_energy=numer_energy(j), error=error)
              END DO
              particles(ip)%r(k) = std_value
