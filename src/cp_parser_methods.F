@@ -251,10 +251,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_read_line_low', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=1)                         :: thischar
-    INTEGER                                  :: icol, iline, imark, istat, &
+    INTEGER                                  :: iline, imark, istat, &
                                                 last_buffered_line_number
-    LOGICAL                                  :: failure, non_white_found
+    LOGICAL                                  :: failure, non_white_found, &
+                                                this_line_is_white_or_comment
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
@@ -281,21 +281,24 @@ CONTAINS
              ! 1. Expand variables 2. Process directives and read next line.
              ! On read failure try to go back from included file to previous i/o-stream.
              IF (istat==0) THEN
-                imark = INDEX(parser%buffer%input_lines(iline),"${")+&
-                        INDEX(parser%buffer%input_lines(iline),"$")
-                IF (imark/=0) THEN
-                   CALL inpp_expand_variables(parser%inpp, parser%buffer%input_lines(iline),&
-                        parser%input_file_name, parser%buffer%input_line_numbers(iline),error)
-                END IF
-                imark = INDEX(parser%buffer%input_lines(iline),"@")
-                IF (imark/=0) THEN
-                   CALL inpp_process_directive(parser%inpp, parser%buffer%input_lines(iline),&
-                        parser%input_file_name,      parser%buffer%input_line_numbers(iline),&
-                        parser%input_unit, error)
-                   ! Handle index and cycle
-                   last_buffered_line_number = 0
-                   iline                     = iline - 1
-                   CYCLE
+                this_line_is_white_or_comment = is_comment_line(parser, parser%buffer%input_lines(iline))
+                IF (.NOT.this_line_is_white_or_comment) THEN
+                   imark = INDEX(parser%buffer%input_lines(iline),"${")+&
+                           INDEX(parser%buffer%input_lines(iline),"$")
+                   IF (imark/=0) THEN
+                      CALL inpp_expand_variables(parser%inpp, parser%buffer%input_lines(iline),&
+                           parser%input_file_name, parser%buffer%input_line_numbers(iline),error)
+                   END IF
+                   imark = INDEX(parser%buffer%input_lines(iline),"@")
+                   IF (imark/=0) THEN
+                      CALL inpp_process_directive(parser%inpp, parser%buffer%input_lines(iline),&
+                           parser%input_file_name,      parser%buffer%input_line_numbers(iline),&
+                           parser%input_unit, error)
+                      ! Handle index and cycle
+                      last_buffered_line_number = 0
+                      iline                     = iline - 1
+                      CYCLE
+                   END IF
                 END IF
              ELSE IF (istat<0) THEN   ! handle EOF
                 IF (parser%inpp%io_stack_level > 0) THEN
@@ -321,16 +324,9 @@ CONTAINS
 
              ! Pre-processing and error checking done. Ready for parsing.
              IF (.NOT.parser%parse_white_lines) THEN
-                non_white_found=.FALSE.
-                DO icol=1,LEN(parser%buffer%input_lines(iline))
-                   thischar=parser%buffer%input_lines(iline)(icol:icol)
-                   IF (.NOT.is_whitespace(thischar)) THEN
-                      IF (.NOT. is_comment(parser,thischar)) non_white_found=.TRUE.
-                      EXIT
-                   ENDIF
-                ENDDO
+                non_white_found=.NOT.this_line_is_white_or_comment
              ELSE
-                 non_white_found=.TRUE.
+                non_white_found=.TRUE.
              END IF
              IF (.NOT. non_white_found) THEN 
                 iline                      = iline -1
@@ -376,6 +372,32 @@ CONTAINS
   END SUBROUTINE broadcast_input_information
 
 ! *****************************************************************************
+!> \brief returns .true. if the line is a comment line or an empty line
+!> \par History
+!>      03.2009 [tlaino] - Teodoro Laino
+! *****************************************************************************
+  FUNCTION is_comment_line(parser, line) RESULT(resval)
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=*), INTENT(IN)             :: line
+    LOGICAL                                  :: resval
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'is_comment_line', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=1)                         :: thischar
+    INTEGER                                  :: icol
+
+    resval=.TRUE.
+    DO icol=1,LEN_TRIM(line)
+       thischar=line(icol:icol)
+       IF (.NOT.is_whitespace(thischar)) THEN
+          IF (.NOT.is_comment(parser,thischar)) resval=.FALSE.
+          EXIT
+       ENDIF
+    ENDDO
+  END FUNCTION is_comment_line
+
+! *****************************************************************************
 !> \brief returns .true. if the character passed is a comment character
 !> \par History
 !>      02.2008 created, AK
@@ -384,6 +406,9 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=1), INTENT(IN)             :: testchar
     LOGICAL                                  :: resval
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'is_comment', &
+      routineP = moduleN//':'//routineN
 
     resval=.FALSE.
     ! we're in a private function, and parser has been tested before...
