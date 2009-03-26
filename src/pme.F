@@ -15,9 +15,6 @@ MODULE pme
   USE bibliography,                    ONLY: cite_reference,&
                                              darden1993
   USE cell_types,                      ONLY: cell_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs
   USE dg_rho0_types,                   ONLY: dg_rho0_type
   USE dg_types,                        ONLY: dg_get,&
                                              dg_type
@@ -52,10 +49,13 @@ MODULE pme
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
+                                             realspace_grid_descriptor_type,&
                                              rs2pw,&
                                              rs_grid_set_box,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs_grid_create,&
+                                             rs_grid_release
   USE shell_potential_types,           ONLY: shell_kind_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
@@ -113,7 +113,7 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha, dvols, ffa
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
-    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
+    TYPE(realspace_grid_descriptor_type), POINTER           :: rs_desc
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: grid_b, grid_s
@@ -135,7 +135,7 @@ CONTAINS
     CALL cite_reference(Darden1993)
     CALL ewald_env_get (ewald_env, alpha=alpha, group = group ,error=error)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &
-                       pw_small_pool=pw_small_pool, rs_pool=rs_pool,&
+                       pw_small_pool=pw_small_pool, rs_desc=rs_desc,&
                        poisson_env=poisson_env, dg = dg )
 
     grid_b => pw_big_pool % pw_grid
@@ -164,14 +164,14 @@ CONTAINS
     CALL pw_pool_create_pw ( pw_small_pool, rhos2%pw, &
                               use_data = REALDATA3D ,error=error)
 
-    CALL rs_pool_create_rs ( rs_pool, rden, error=error )
+    CALL rs_grid_create(rden, rs_desc, error=error)
     CALL rs_grid_set_box ( grid_b, rs=rden, error=error )
     CALL rs_grid_zero ( rden )
 
-    IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
+    IF ( rden % desc % parallel .AND. rden % desc % group_dim ( 1 ) /= 1 ) THEN
        CALL get_center ( particle_set, box, exp_igr % centre, grid_b % npts, 1 )
     END IF
-    IF ( PRESENT(shell_particle_set) .AND. rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
+    IF ( PRESENT(shell_particle_set) .AND. rden % desc % parallel .AND. rden % desc % group_dim ( 1 ) /= 1 ) THEN
          CALL get_center ( shell_particle_set, box, exp_igr % shell_centre, grid_b % npts, 1 )
          CALL get_center ( core_particle_set, box, exp_igr % core_centre, grid_b % npts, 1 )
     END IF
@@ -275,7 +275,7 @@ CONTAINS
     ALLOCATE ( drpot(1:3), STAT=ierr )
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
     DO i = 1, 3
-       CALL rs_pool_create_rs( rs_pool, drpot(i)%rs_grid, error=error )
+       CALL rs_grid_create(drpot(i)%rs_grid, rs_desc, error=error )
        CALL rs_grid_set_box ( grid_b, rs=drpot(i)%rs_grid, error=error )
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
        CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw ,error=error)
@@ -376,12 +376,14 @@ CONTAINS
 
     !------------------CLEANING UP ----------------------
 
-    CALL rs_pool_give_back_rs ( rs_pool, rden, error=error)
-    DO i = 1, 3
-      CALL rs_pool_give_back_rs ( rs_pool, drpot(i)%rs_grid, error=error)
-    END DO
-    DEALLOCATE ( drpot, STAT = ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    CALL rs_grid_release(rden, error=error)
+    IF (ASSOCIATED(drpot)) THEN
+      DO i = 1, 3
+        CALL rs_grid_release(drpot(i)%rs_grid, error=error)
+      END DO
+      DEALLOCATE ( drpot, STAT = ierr )
+      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     CALL pw_pool_give_back_pw ( pw_small_pool, rhos1%pw ,error=error)
     CALL pw_pool_give_back_pw ( pw_small_pool, rhos2%pw ,error=error)

@@ -17,9 +17,6 @@ MODULE task_list_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             rs_pools_create_rs_vect,&
-                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
@@ -47,6 +44,9 @@ MODULE task_list_methods
        neighbor_node_type, next
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
+                                             realspace_grid_descriptor_p_type,&
+                                             rs_grid_create,&
+                                             rs_grid_release,&
                                              rs_grid_locate_rank
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              get_block_node,&
@@ -99,7 +99,7 @@ CONTAINS
 
     INTEGER :: ab, curr_tasks, handle, iatom, ikind, ilist, inode, jatom, &
       jkind, maxpgf, maxset, my_basis_set_id, natoms, nkind, nlist, nnode, &
-      nseta, nsetb
+      nseta, nsetb,i,stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
     LOGICAL                                  :: failure, my_soft
@@ -111,8 +111,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -160,13 +160,17 @@ CONTAINS
            sab_aux_fit=sab_orb,&
            pw_env=pw_env,error=error)
     END SELECT
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
 
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
 
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    ALLOCATE(rs_rho(SIZE(rs_descs)), STAT=stat)
+    IF (stat/=0) CALL stop_memory(routineN,"rs_rho")
+    DO i=1,SIZE(rs_rho)
+      CALL rs_grid_create(rs_rho(i)%rs_grid, rs_descs(i)%rs_desc, error=error)
+    END DO
 
     ! find maximum numbers
     nkind = SIZE(atomic_kind_set)
@@ -300,8 +304,13 @@ CONTAINS
     CALL distribute_tasks (rs_rho,ntasks, natoms,&
             maxset,maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
             atom_pair_recv=atom_pair_recv, symmetric=.TRUE., error=error)
-
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+    IF (ASSOCIATED(rs_rho)) THEN
+      DO i=1, SIZE(rs_rho)
+        CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
+      END DO
+      DEALLOCATE(rs_rho, STAT=stat)
+      IF (stat/=0) CALL stop_memory(routineN,"rs_rho")
+    END IF
 
     CALL timestop(handle)
 
@@ -438,10 +447,10 @@ CONTAINS
 
     CALL compute_cube_center(cube_center,rs_grid,zeta,zetb,ra,rab)
     ! compute cube_center, the center of the gaussian product to map (folded to within the unit cell)
-    cube_center(:) = MODULO ( cube_center(:), rs_grid%npts(:) )
-    cube_center(:) = cube_center(:) + rs_grid%lb(:)
+    cube_center(:) = MODULO ( cube_center(:), rs_grid%desc%npts(:) )
+    cube_center(:) = cube_center(:) + rs_grid%desc%lb(:)
 
-    IF (rs_grid%orthorhombic ) THEN
+    IF (rs_grid%desc%orthorhombic ) THEN
        CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     ELSE
        ! untested so far
@@ -531,7 +540,7 @@ CONTAINS
        CALL reallocate(tasks,1,6,1,curr_tasks)
     END IF
 
-    IF(rs_grid%distributed) THEN
+    IF(rs_grid%desc%distributed) THEN
 
        ! finds the node(s) that need to process this task
        ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks
@@ -539,7 +548,7 @@ CONTAINS
             ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks,error=error)
 
     ELSE
-       tasks(1,ntasks) = rs_grid%my_pos
+       tasks(1,ntasks) = rs_grid%desc%my_pos
        tasks(4,ntasks) = 0
        tasks(6,ntasks) = 0
        added_tasks = 1
@@ -550,7 +559,7 @@ CONTAINS
     ENDIF
 
     lmax=la_max+lb_max
-    is_ortho=(tasks(4,ntasks)==0 .OR. tasks(4,ntasks)==1) .AND. rs_grid%orthorhombic
+    is_ortho=(tasks(4,ntasks)==0 .OR. tasks(4,ntasks)==1) .AND. rs_grid%desc%orthorhombic
     ! we assume the load is shared equally between processes dealing with a generalised Gaussian.
     ! this could be refined in the future
     fraction=1.0_dp/added_tasks
@@ -559,7 +568,7 @@ CONTAINS
 
     DO j= 1, added_tasks
 
-       tasks (2,ntasks-added_tasks+j) = rs_grid % my_pos
+       tasks (2,ntasks-added_tasks+j) = rs_grid % desc % my_pos
        tasks (5,ntasks-added_tasks+j) = cost
 
        !encode the atom pairs and basis info as a single long integer
@@ -674,7 +683,7 @@ CONTAINS
     CALL compute_load_list(list,rs_rho,tasks,ntasks,natoms, maxset,maxpgf, create_list=.TRUE., error=error)
 
     ! optimize loads & fluxes
-    CALL optimize_load_list(list,rs_rho(1)%rs_grid%group,rs_rho(1)%rs_grid%my_pos, error)
+    CALL optimize_load_list(list,rs_rho(1)%rs_grid%desc%group,rs_rho(1)%rs_grid%desc%my_pos, error)
 
     ! now, walk over the tasks, using the list to set the destinations
     CALL compute_load_list(list,rs_rho,tasks,ntasks,natoms, maxset,maxpgf, create_list=.FALSE., error=error)
@@ -947,7 +956,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    ALLOCATE(loads(0:rs_rho(1)%rs_grid%group_size-1))
+    ALLOCATE(loads(0:rs_rho(1)%rs_grid%desc%group_size-1))
     CALL get_current_loads(loads, rs_rho, ntasks, tasks, skip_distributed=.TRUE., error=error)
 
     failure=.FALSE.
@@ -1188,10 +1197,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,error,failure)
-    ncpu=rs_rho(1)%rs_grid%group_size
+    ncpu=rs_rho(1)%rs_grid%desc%group_size
     ndistributed=0
     DO igrid_level=1,SIZE(rs_rho)
-       IF (rs_rho(igrid_level)%rs_grid%distributed) ndistributed=ndistributed+1
+       IF (rs_rho(igrid_level)%rs_grid%desc%distributed) ndistributed=ndistributed+1
     ENDDO
     ultimate_max=7*ndistributed
 
@@ -1210,8 +1219,8 @@ CONTAINS
        icount=1
        sublist(1)=icpu
        DO igrid_level=1,SIZE(rs_rho)
-          IF (rs_rho(igrid_level)%rs_grid%distributed) THEN
-             coord=rs_rho(igrid_level)%rs_grid%rank2coord(:,icpu)  
+          IF (rs_rho(igrid_level)%rs_grid%desc%distributed) THEN
+             coord=rs_rho(igrid_level)%rs_grid%desc%rank2coord(:,icpu)  
              sublist(icount+1)=rs_grid_locate_rank(rs_rho(igrid_level)%rs_grid,icpu,(/-1,0,0/))    
              sublist(icount+2)=rs_grid_locate_rank(rs_rho(igrid_level)%rs_grid,icpu,(/+1,0,0/))    
              sublist(icount+3)=rs_grid_locate_rank(rs_rho(igrid_level)%rs_grid,icpu,(/0,-1,0/))    
@@ -1275,18 +1284,18 @@ CONTAINS
     rs=>rs_rho(1)%rs_grid
 
     ! allocate local arrays
-    ALLOCATE(send_sizes(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
-    ALLOCATE(recv_sizes(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%group_size)
-    ALLOCATE(send_disps(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%group_size)
-    ALLOCATE(recv_disps(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
-    ALLOCATE(send_buf_i(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%group_size)
-    ALLOCATE(recv_buf_i(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%group_size)
+    ALLOCATE(send_sizes(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
+    ALLOCATE(recv_sizes(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
+    ALLOCATE(send_disps(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
+    ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
+    ALLOCATE(send_buf_i(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
+    ALLOCATE(recv_buf_i(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
 
 !
 ! part 1, load balance on the replicated tasks, i.e. after this step replicated tasks can have
@@ -1297,7 +1306,7 @@ CONTAINS
     recv_sizes = 1
     send_disps(1)=0
     recv_disps(1)=0
-    DO i = 2, rs % group_size
+    DO i = 2, rs % desc % group_size
        send_disps(i) = send_disps(i-1) + send_sizes(i-1)
        recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
     ENDDO
@@ -1312,25 +1321,25 @@ CONTAINS
        IF (skip_distributed .AND. tasks(4,i)==0) CYCLE
        send_buf_i( tasks(1,i)+1 ) = send_buf_i( tasks(1,i)+1 ) + tasks(5,i)
     END DO
-    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
+    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
     total_cost_local = SUM(recv_buf_i)
 
 ! communication step 2 : compute the global cost of the tasks
 
     ! after this step, the recv buffer contains the local cost for each CPU
     send_buf_i = total_cost_local
-    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
+    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
 
     loads=recv_buf_i
 
     DEALLOCATE(send_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc % group_size)
     DEALLOCATE(recv_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc % group_size)
     DEALLOCATE(send_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc % group_size)
     DEALLOCATE(recv_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc % group_size)
 
     CALL timestop(handle)
 
@@ -1375,23 +1384,23 @@ CONTAINS
     rs=>rs_rho(1)%rs_grid
 
     ! allocate local arrays
-    ALLOCATE(send_sizes(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
-    ALLOCATE(recv_sizes(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%group_size)
-    ALLOCATE(send_disps(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%group_size)
-    ALLOCATE(recv_disps(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
-    ALLOCATE(send_buf_i(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%group_size)
-    ALLOCATE(recv_buf_i(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%group_size)
+    ALLOCATE(send_sizes(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
+    ALLOCATE(recv_sizes(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
+    ALLOCATE(send_disps(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
+    ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
+    ALLOCATE(send_buf_i(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
+    ALLOCATE(recv_buf_i(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
     send_sizes = 1
     recv_sizes = 1
     send_disps(1)=0
     recv_disps(1)=0
-    DO i = 2, rs % group_size
+    DO i = 2, rs % desc%group_size
        send_disps(i) = send_disps(i-1) + send_sizes(i-1)
        recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
     ENDDO
@@ -1399,23 +1408,23 @@ CONTAINS
     CALL get_current_loads ( recv_buf_i, rs_rho, ntasks, tasks, skip_distributed=.FALSE., error=error )
 
     total_cost_global = SUM(recv_buf_i)
-    average_cost = total_cost_global / rs%group_size
+    average_cost = total_cost_global / rs%desc%group_size
 
 !
 ! compute how to redistribute the replicated tasks so that the average cost is reached
 !
 
     ! load imbalance measures the load of a given CPU relative to the optimal load distribution (load=average)
-    ALLOCATE(load_imbalance(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%group_size)
-    ALLOCATE(INDEX(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","load_imbalance",rs%group_size)
+    ALLOCATE(load_imbalance(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%desc%group_size)
+    ALLOCATE(INDEX(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","load_imbalance",rs%desc%group_size)
 
     load_imbalance = recv_buf_i - average_cost
     no_overloaded = 0
     no_underloaded = 0
 
-    DO i = 1, rs%group_size
+    DO i = 1, rs%desc%group_size
        IF (load_imbalance(i) .GT. 0 ) no_overloaded = no_overloaded + 1
        IF (load_imbalance(i) .LT. 0 ) no_underloaded = no_underloaded + 1
     ENDDO
@@ -1436,8 +1445,8 @@ CONTAINS
     ! now, correct the load imbalance for the overloaded CPUs
     ! they will send away not more than the total load of replicated tasks
     send_buf_i = cost_task_rep
-    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
-    DO i = 1, rs%group_size
+    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
+    DO i = 1, rs%desc%group_size
        ! At the moment we can only offload replicated tasks
        IF(load_imbalance(i) .GT. 0)&
             load_imbalance(i) = MIN( load_imbalance(i),recv_buf_i(i))
@@ -1449,14 +1458,14 @@ CONTAINS
     ! task balancing will be incomplete
 
     ! only need to do anything if I've excess tasks
-    IF (load_imbalance( rs%my_pos + 1 ) .GT. 0 ) THEN
+    IF (load_imbalance( rs%desc%my_pos + 1 ) .GT. 0 ) THEN
 
        count = 0 ! weighted amount of tasks offloaded
        offset = 0 ! no of underloaded processes already filled by other more overloaded procs
 
        ! calculate offset
-       DO i = rs%group_size, rs%group_size-no_overloaded+1, -1
-          IF ( INDEX(i) .EQ. rs%my_pos+1 ) THEN
+       DO i = rs%desc%group_size, rs%desc%group_size-no_overloaded+1, -1
+          IF ( INDEX(i) .EQ. rs%desc%my_pos+1 ) THEN
              EXIT
           ELSE
              offset = offset + load_imbalance ( INDEX (i) )
@@ -1483,7 +1492,7 @@ CONTAINS
              tasks (1,j) = INDEX ( proc_receiving ) - 1
              offset = offset + tasks(5,j)
              count = count + tasks(5,j)
-             IF(count .GE. load_imbalance (rs%my_pos + 1 ) ) EXIT
+             IF(count .GE. load_imbalance (rs%desc%my_pos + 1 ) ) EXIT
              IF(offset .GT. 0 ) THEN
                 proc_receiving = proc_receiving + 1
                 !just avoid sending to non existing procs due to integer truncation in the computation of the average
@@ -1495,18 +1504,18 @@ CONTAINS
     ENDIF
 
     DEALLOCATE(index,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%desc%group_size)
     DEALLOCATE(load_imbalance,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","load_imbalance",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","load_imbalance",rs%desc%group_size)
 
     DEALLOCATE(send_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
     DEALLOCATE(recv_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
     DEALLOCATE(send_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
     DEALLOCATE(recv_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
 
     CALL timestop(handle)
 
@@ -1550,27 +1559,27 @@ CONTAINS
     rs=>rs_rho(1)%rs_grid
 
     ! allocate local arrays
-    ALLOCATE(send_sizes(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
-    ALLOCATE(recv_sizes(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%group_size)
-    ALLOCATE(send_disps(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%group_size)
-    ALLOCATE(recv_disps(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
+    ALLOCATE(send_sizes(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
+    ALLOCATE(recv_sizes(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
+    ALLOCATE(send_disps(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
+    ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
 
     send_sizes = 1
     recv_sizes = 1
     send_disps(1)=0
     recv_disps(1)=0
-    DO i = 2, rs % group_size
+    DO i = 2, rs % desc % group_size
        send_disps(i) = send_disps(i-1) + send_sizes(i-1)
        recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
     ENDDO
-    ALLOCATE(send_buf_i(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%group_size)
-    ALLOCATE(recv_buf_i(rs%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%group_size)
+    ALLOCATE(send_buf_i(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
+    ALLOCATE(recv_buf_i(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
 
     ! fill send buffer, now counting how many tasks will be send
     send_buf_i=0
@@ -1578,7 +1587,7 @@ CONTAINS
        send_buf_i( tasks(1,i)+1 ) = send_buf_i( tasks(1,i)+1 ) + 1 
     END DO
 
-    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
+    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
     
     ! communication step 3 : pack the tasks, and send them around
 
@@ -1591,7 +1600,7 @@ CONTAINS
 
     send_sizes(1) = send_buf_i(1) * task_dim
     recv_sizes(1) = recv_buf_i(1) * task_dim
-    DO i = 2,rs%group_size
+    DO i = 2,rs%desc%group_size
        send_sizes(i) = send_buf_i(i) * task_dim
        recv_sizes(i) = recv_buf_i(i) * task_dim
        send_disps(i)=send_disps(i-1)+send_sizes(i-1)           
@@ -1600,15 +1609,15 @@ CONTAINS
 
     ! deallocate old send/recv buffers
     DEALLOCATE(send_buf_i,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_i",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_i",rs%desc%group_size)
     DEALLOCATE(recv_buf_i,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_i",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_i",rs%desc%group_size)
 
     ! allocate them with new sizes
     ALLOCATE(send_buf_i(SUM(send_sizes)),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
     ALLOCATE(recv_buf_i(SUM(recv_sizes)),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
 
     ! do packing
     send_buf_i = 0
@@ -1622,18 +1631,18 @@ CONTAINS
     ENDDO
 
     ! do communication
-    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
+    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
 
     DEALLOCATE(send_buf_i,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
 
     ntasks_recv=SUM(recv_sizes)/task_dim
     ALLOCATE(tasks_recv(task_dim,ntasks_recv),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","tasks_recv",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","tasks_recv",rs%desc%group_size)
 
     ! do unpacking
     l = 0
-    DO i = 1,rs % group_size
+    DO i = 1,rs % desc % group_size
        DO j = 0,recv_sizes(i)/task_dim-1
           l = l + 1
           DO k=1,task_dim 
@@ -1643,7 +1652,7 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(recv_buf_i,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
 
     ! send rvals (to be removed :-)
 
@@ -1655,9 +1664,9 @@ CONTAINS
     task_dim=SIZE(rval,1)
 
     ALLOCATE(send_buf_r(SUM(send_sizes)),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",rs%desc%group_size)
     ALLOCATE(recv_buf_r(SUM(recv_sizes)),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",rs%desc%group_size)
 
     !do packing
     send_sizes = 0
@@ -1671,16 +1680,16 @@ CONTAINS
 
     ! do communication
     CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
-         recv_buf_r, recv_sizes, recv_disps, rs % group)
+         recv_buf_r, recv_sizes, recv_disps, rs % desc % group)
 
     DEALLOCATE(send_buf_r,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",rs%desc%group_size)
     ALLOCATE(rval_recv(task_dim,SUM(recv_sizes)/task_dim),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","rval_recv",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","rval_recv",rs%desc%group_size)
 
     ! do unpacking
     l = 0
-    DO i = 1,rs % group_size
+    DO i = 1,rs % desc % group_size
        DO j = 0,recv_sizes(i)/task_dim-1
           l = l + 1
           DO k=1,task_dim
@@ -1690,16 +1699,16 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(recv_buf_r,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",rs%desc%group_size)
 
     DEALLOCATE(send_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
     DEALLOCATE(recv_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
     DEALLOCATE(send_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
     DEALLOCATE(recv_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
 
     CALL timestop(handle)
 
@@ -1751,7 +1760,7 @@ CONTAINS
     ! *** figure out if we have distributed grids
     distributed_grids=.FALSE.
     DO igrid_level=1,SIZE(rs_rho)
-       IF ( rs_rho(igrid_level)%rs_grid%distributed ) THEN
+       IF ( rs_rho(igrid_level)%rs_grid%desc%distributed ) THEN
           distributed_grids=.TRUE.
        ENDIF
     END DO
@@ -1781,27 +1790,27 @@ CONTAINS
        ! we will be sending. These lists are needed for redistribute_matrix.
        !
        ALLOCATE(atom_pair_send(ntasks),STAT=stat)
-       IF (stat/=0) CALL stop_memory("get_my_tasks","atom_pair_send",rs%group_size)
+       IF (stat/=0) CALL stop_memory("get_my_tasks","atom_pair_send",rs%desc%group_size)
        CALL get_atom_pair ( atom_pair_send, tasks, send=.TRUE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf )
  
        ! natom_send=SIZE(atom_pair_send)
-       ! CALL mp_sum(natom_send,rs%group)
+       ! CALL mp_sum(natom_send,rs%desc%group)
        ! IF (rs%my_pos==0) THEN
        !     WRITE(6,*) ""
        !     WRITE(6,*) "Total number of atomic blocks to be send:",natom_send
        ! ENDIF
 
        ALLOCATE(atom_pair_recv(ntasks_recv),STAT=stat)
-       IF (stat/=0) CALL stop_memory("get_my_tasks","atom_pair_recv",rs%group_size)
+       IF (stat/=0) CALL stop_memory("get_my_tasks","atom_pair_recv",rs%desc%group_size)
        CALL get_atom_pair ( atom_pair_recv, tasks_recv, send=.FALSE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf )
 
        ! cleanup, at this point we  don't need the original tasks & rvals anymore
        DEALLOCATE(tasks,STAT=stat)
-       IF (stat/=0) CALL stop_memory("get_my_tasks","tasks",rs%group_size)
+       IF (stat/=0) CALL stop_memory("get_my_tasks","tasks",rs%desc%group_size)
        DEALLOCATE(rval,STAT=stat)
-       IF (stat/=0) CALL stop_memory("get_my_tasks","rval",rs%group_size)
+       IF (stat/=0) CALL stop_memory("get_my_tasks","rval",rs%desc%group_size)
 
     ELSE
 
@@ -1818,9 +1827,9 @@ CONTAINS
     rval => rval_recv
 
     ALLOCATE(taskid(ntasks_recv),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","taskid",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","taskid",rs%desc%group_size)
     ALLOCATE(INDEX(ntasks_recv),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%desc%group_size)
 
     taskid=tasks_recv(3,1:ntasks_recv)
     CALL sort(taskid,SIZE(taskid),index)
@@ -1834,9 +1843,9 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(taskid,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","task_id",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","task_id",rs%desc%group_size)
     DEALLOCATE(index,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%group_size)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%desc%group_size)
 
     !
     ! final lists are ready 
@@ -1943,14 +1952,14 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
   CALL timeset(routineN,handle)
 
   ! allocate local arrays
-  ALLOCATE(send_sizes(rs%group_size),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
-  ALLOCATE(recv_sizes(rs%group_size),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%group_size)
-  ALLOCATE(send_disps(rs%group_size),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%group_size)
-  ALLOCATE(recv_disps(rs%group_size),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
+  ALLOCATE(send_sizes(rs%desc%group_size),STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
+  ALLOCATE(recv_sizes(rs%desc%group_size),STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
+  ALLOCATE(send_disps(rs%desc%group_size),STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
+  ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
 
   ! set up send buffer sizes
   natom8=natoms
@@ -1974,7 +1983,7 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
   ENDDO
 
   send_disps = 0
-  DO i = 2, rs % group_size
+  DO i = 2, rs % desc % group_size
      send_disps(i) = send_disps(i-1) + send_sizes(i-1)
   ENDDO
 
@@ -2034,7 +2043,7 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
   ENDDO
 
   recv_disps = 0     
-  DO i = 2, rs % group_size
+  DO i = 2, rs % desc % group_size
      recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
   ENDDO
 
@@ -2045,7 +2054,7 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
 
   ! do communication
   CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
-       recv_buf_r, recv_sizes, recv_disps, rs % group)
+       recv_buf_r, recv_sizes, recv_disps, rs % desc % group)
 
   !do unpacking
   recv_sizes=0
@@ -2071,7 +2080,7 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
           BLOCK=h_block)
      ENDIF
 
-     IF ( ASSOCIATED ( p_block ) .AND. l .NE. rs%my_pos+1) THEN
+     IF ( ASSOCIATED ( p_block ) .AND. l .NE. rs%desc%my_pos+1) THEN
         !IF( scatter ) THEN
         !   WRITE(6,*) arow,acol,l 
         !   CALL stop_program ( "unpack_matrix here and new", "Matrix block already present" )
@@ -2093,18 +2102,18 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
   ENDDO
 
   DEALLOCATE(send_buf_r,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",rs%group_size)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",rs%desc%group_size)
   DEALLOCATE(recv_buf_r,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",rs%group_size)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",rs%desc%group_size)
 
   DEALLOCATE(send_sizes,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
   DEALLOCATE(recv_sizes,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%group_size)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
   DEALLOCATE(send_disps,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%group_size)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
   DEALLOCATE(recv_disps,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
 
   CALL timestop(handle)
   
@@ -2139,10 +2148,10 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
     INTEGER(KIND=int_8)                      :: bit_pattern
     LOGICAL                                  :: dir_periodic(3), failure
 
-    coord(1)=rs_grid % x2coord(cube_center(1))
-    coord(2)=rs_grid % y2coord(cube_center(2))
-    coord(3)=rs_grid % z2coord(cube_center(3))
-    dest=rs_grid%coord2rank(coord(1),coord(2),coord(3))
+    coord(1)=rs_grid % desc % x2coord(cube_center(1))
+    coord(2)=rs_grid % desc % y2coord(cube_center(2))
+    coord(3)=rs_grid % desc % z2coord(cube_center(3))
+    dest=rs_grid%desc%coord2rank(coord(1),coord(2),coord(3))
 
     failure=.FALSE.
 
@@ -2150,8 +2159,8 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
     lbc=lb_cube+cube_center
     ubc=ub_cube+cube_center
 
-    IF ( ALL ( (rs_grid % lb_global(:,dest)-rs_grid%border) .LE. lbc )  .AND. &
-         ALL ( (rs_grid % ub_global(:,dest)+rs_grid%border) .GE. ubc )) THEN
+    IF ( ALL ( (rs_grid % desc % lb_global(:,dest)-rs_grid%desc%border) .LE. lbc )  .AND. &
+         ALL ( (rs_grid % desc % ub_global(:,dest)+rs_grid%desc%border) .GE. ubc )) THEN
        !standard distributed collocation/integration
        tasks(1,ntasks)=dest
        tasks(4,ntasks)=1
@@ -2174,14 +2183,14 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
        bit_index=0
        bit_pattern=0
        DO i=1,3
-          IF (rs_grid % perd ( i ) ==  1) THEN
+          IF (rs_grid % desc % perd ( i ) ==  1) THEN
              bit_pattern=IBCLR(bit_pattern,bit_index)
              bit_index=bit_index+1 
              bit_pattern=IBCLR(bit_pattern,bit_index)
              bit_index=bit_index+1 
           ELSE
              ! fits the left neighbor ?
-             IF (ubc(i)<=rs_grid%lb_global(i,dest)-1+rs_grid%border) THEN
+             IF (ubc(i)<=rs_grid%desc%lb_global(i,dest)-1+rs_grid%desc%border) THEN
                 bit_pattern=IBSET(bit_pattern,bit_index)
                 bit_index=bit_index+1
              ELSE
@@ -2189,7 +2198,7 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
                 bit_index=bit_index+1
              ENDIF
              ! fits the right neighbor ? 
-             IF (lbc(i)>=rs_grid%ub_global(i,dest)+1-rs_grid%border) THEN
+             IF (lbc(i)>=rs_grid%desc%ub_global(i,dest)+1-rs_grid%desc%border) THEN
                 bit_pattern=IBSET(bit_pattern,bit_index)
                 bit_index=bit_index+1
              ELSE
@@ -2208,18 +2217,18 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
        ! i.e. ub_coord-lb_coord+1 might be larger than group_dim
        lb_coord=coord
        ub_coord=coord
-       lb_domain=rs_grid % lb_global(:,dest) - rs_grid % border
-       ub_domain=rs_grid % ub_global(:,dest) + rs_grid % border
+       lb_domain=rs_grid % desc % lb_global(:,dest) - rs_grid % desc % border
+       ub_domain=rs_grid % desc % ub_global(:,dest) + rs_grid % desc % border
        DO i=1,3
           ! only if the grid is not periodic in this direction we need to take care of adding neighbors
-          IF (rs_grid%perd(i)==0) THEN
+          IF (rs_grid%desc%perd(i)==0) THEN
              ! if the domain lower bound is greater than the lbc we need to add the size of the neighbor domain
              DO
                IF (lb_domain(i)>lbc(i)) THEN
                   lb_coord(i)=lb_coord(i)-1
-                  icoord=MODULO(lb_coord,rs_grid%group_dim)
-                  idest=rs_grid%coord2rank(icoord(1),icoord(2),icoord(3))
-                  lb_domain(i)=lb_domain(i)-(rs_grid % ub_global(i,idest)-rs_grid % lb_global(i,idest)+1)
+                  icoord=MODULO(lb_coord,rs_grid%desc%group_dim)
+                  idest=rs_grid%desc%coord2rank(icoord(1),icoord(2),icoord(3))
+                  lb_domain(i)=lb_domain(i)-(rs_grid % desc % ub_global(i,idest)-rs_grid % desc % lb_global(i,idest)+1)
                ELSE
                   EXIT
                ENDIF
@@ -2228,9 +2237,9 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
              DO
                IF (ub_domain(i)<ubc(i)) THEN
                   ub_coord(i)=ub_coord(i)+1
-                  icoord=MODULO(ub_coord,rs_grid%group_dim)
-                  idest=rs_grid%coord2rank(icoord(1),icoord(2),icoord(3))
-                  ub_domain(i)=ub_domain(i)+(rs_grid % ub_global(i,idest)-rs_grid % lb_global(i,idest)+1)
+                  icoord=MODULO(ub_coord,rs_grid%desc%group_dim)
+                  idest=rs_grid%desc%coord2rank(icoord(1),icoord(2),icoord(3))
+                  ub_domain(i)=ub_domain(i)+(rs_grid % desc % ub_global(i,idest)-rs_grid % desc % lb_global(i,idest)+1)
                ELSE
                   EXIT
                ENDIF
@@ -2240,10 +2249,10 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
 
        ! some care is needed for the periodic boundaries
        DO i=1,3
-          IF (ub_domain(i)-lb_domain(i)+1>=rs_grid%npts(i)) THEN
+          IF (ub_domain(i)-lb_domain(i)+1>=rs_grid%desc%npts(i)) THEN
              dir_periodic(i)=.TRUE. 
              lb_coord(i)=0 
-             ub_coord(i)=rs_grid%group_dim(i)-1
+             ub_coord(i)=rs_grid%desc%group_dim(i)-1
           ELSE
              dir_periodic(i)=.FALSE.
           ENDIF
@@ -2259,8 +2268,8 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
        DO iz=lb_coord(3),ub_coord(3)
        DO iy=lb_coord(2),ub_coord(2)
        DO ix=lb_coord(1),ub_coord(1)
-          icoord=MODULO((/ix,iy,iz/),rs_grid%group_dim)
-          idest =rs_grid%coord2rank(icoord(1),icoord(2),icoord(3))
+          icoord=MODULO((/ix,iy,iz/),rs_grid%desc%group_dim)
+          idest =rs_grid%desc%coord2rank(icoord(1),icoord(2),icoord(3))
           tasks(1,itask)=idest
           tasks(4,itask)=2
           tasks(6,itask)=0 

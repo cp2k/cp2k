@@ -16,9 +16,6 @@ MODULE spme
                                              cite_reference
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_3d
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -51,8 +48,11 @@ MODULE spme
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
+                                             realspace_grid_descriptor_type,&
                                              rs2pw,&
                                              rs_grid_set_box,&
+                                             rs_grid_create,&
+                                             rs_grid_release,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE shell_potential_types,           ONLY: shell_kind_type
@@ -113,7 +113,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
-    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
+    TYPE(realspace_grid_descriptor_type), POINTER           :: rs_desc
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
@@ -132,7 +132,7 @@ CONTAINS
     !-------------- INITIALISATION ---------------------
     CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline,&
          group = group, error=error)
-    CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool,&
+    CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_desc=rs_desc,&
          poisson_env=poisson_env)
     CALL pw_poisson_rebuild(poisson_env,error=error)
     green => poisson_env%green_fft
@@ -145,7 +145,7 @@ CONTAINS
     n = o_spline
     ALLOCATE ( rhos(n,n,n), STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL rs_pool_create_rs ( rs_pool, rden, error=error )
+    CALL rs_grid_create (rden, rs_desc, error=error)
     CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
     CALL rs_grid_zero ( rden )
 
@@ -261,7 +261,7 @@ CONTAINS
     ALLOCATE ( drpot(1:3), STAT=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i = 1, 3
-       CALL rs_pool_create_rs( rs_pool, drpot(i)%rs_grid, error=error )
+       CALL rs_grid_create( drpot(i)%rs_grid, rs_desc, error=error )
        CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
        dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * green % p3m_charge % cr
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
@@ -337,12 +337,14 @@ CONTAINS
     !--------------END OF FORCE CALCULATION -------------
 
     !------------------CLEANING UP ----------------------
-    CALL rs_pool_give_back_rs ( rs_pool, rden, error=error)
-    DO i = 1, 3
-       CALL rs_pool_give_back_rs ( rs_pool, drpot(i)%rs_grid, error=error)
-    END DO
-    DEALLOCATE ( drpot, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL rs_grid_release (rden, error=error)
+    IF (ASSOCIATED(drpot)) THEN
+      DO i = 1, 3
+         CALL rs_grid_release ( drpot(i)%rs_grid, error=error)
+      END DO
+      DEALLOCATE ( drpot, STAT = stat )
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     DEALLOCATE ( rhos, STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

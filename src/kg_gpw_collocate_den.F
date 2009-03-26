@@ -22,9 +22,6 @@ MODULE kg_gpw_collocate_den
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             rs_pools_create_rs_vect,&
-                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
@@ -47,11 +44,14 @@ MODULE kg_gpw_collocate_den
   USE qs_modify_pab_block,             ONLY: FUNC_AB,&
                                              FUNC_DADB
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+                                             realspace_grid_descriptor_p_type,&
+                                             rs_grid_create,&
+                                             rs_grid_release,&
                                              rs_grid_zero
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type,&
                                              real_matrix_type
-  USE termination,                     ONLY: stop_program
+  USE termination,                     ONLY: stop_program, stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -142,8 +142,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -189,16 +189,18 @@ CONTAINS
          error=error)
 
     ! *** set up the pw multi-grids
-    NULLIFY(rs_pools)
+    NULLIFY(rs_descs)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
 
     ! *** set up the rs multi-grids
     distributed_rs_grids=.FALSE.
     NULLIFY(rs_rho)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+    ALLOCATE (rs_rho(SIZE(rs_descs)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+    DO i=1,SIZE(rs_rho)
+       CALL rs_grid_create(rs_rho(i)%rs_grid, rs_descs(i)%rs_desc, error=error)
+       CALL rs_grid_zero(rs_rho(i)%rs_grid)
     END DO
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -373,9 +375,9 @@ CONTAINS
                   DO dir = 1,3
                      rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
                      rp(:) = pbc(rp,cell)
-                     tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
-                     tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
-                     tasks (8+dir,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
+                     tp = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%desc%npts(dir))
+                     tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%desc%npts(dir) )
+                     tasks (8+dir,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%desc%lb(dir)
                   END DO
 
                   tasks (3,n,igrid_level) = iatom
@@ -650,8 +652,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -688,10 +690,14 @@ CONTAINS
                     cell=cell,&
                     error=error)
 
-    NULLIFY(rs_pools)
+    NULLIFY(rs_descs)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
+    ALLOCATE (rs_v(SIZE(rs_descs)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+    DO i=1, SIZE(rs_v)
+      CALL rs_grid_create(rs_v(i)%rs_grid, rs_descs(i)%rs_desc, error=error)
+    END DO
 
     ! *** assign from pw_env for this molecule kind
     NULLIFY(gridlevel_info,cube_info)
@@ -1065,7 +1071,13 @@ CONTAINS
                 pabt,atasks,STAT=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
 
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
+    IF (ASSOCIATED(rs_v)) THEN
+      DO igrid_level = 1, gridlevel_info%ngrid_levels
+        CALL rs_grid_release(rs_v(igrid_level)%rs_grid, error=error)
+      END DO
+      DEALLOCATE(rs_v, STAT=istat)
+      CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    END IF
 
     CALL timestop(handle)
 

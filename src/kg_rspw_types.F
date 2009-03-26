@@ -10,9 +10,6 @@
 !> \author gloria,30.10.2004, previously in kg_rho_types
 ! *****************************************************************************
 MODULE kg_rspw_types
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pools_dealloc
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
   USE f77_blas
@@ -23,6 +20,9 @@ MODULE kg_rspw_types
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_dealloc
+  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_type,&
+                                             realspace_grid_descriptor_p_type,&
+                                             rs_grid_release_descriptor
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -42,7 +42,7 @@ MODULE kg_rspw_types
      TYPE(gridlevel_info_type),POINTER              :: gridlevel_info
      TYPE(cube_info_type), DIMENSION(:), POINTER    :: cube_info
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER    :: pw_pools
-     TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
+     TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), POINTER :: rs_descs
      TYPE(pw_poisson_type), POINTER :: poisson_env
   END TYPE kg_rspw_type
 !-----------------------------------------------------------------------------!
@@ -52,7 +52,7 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 SUBROUTINE kg_rspw_get(kg_rspw, cube_info, gridlevel_info,&
-     auxbas_pw_pool,auxbas_grid,rs_pools,pw_pools,auxbas_rs_pool,&
+     auxbas_pw_pool,auxbas_grid,rs_descs,pw_pools,auxbas_rs_desc,&
      poisson_env,error)
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(cube_info_type), DIMENSION(:), &
@@ -61,11 +61,11 @@ SUBROUTINE kg_rspw_get(kg_rspw, cube_info, gridlevel_info,&
       POINTER                                :: gridlevel_info
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: auxbas_pw_pool
     INTEGER, INTENT(out), OPTIONAL           :: auxbas_grid
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rs_descs
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
-    TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
+    TYPE(realspace_grid_descriptor_type), OPTIONAL, POINTER :: auxbas_rs_desc
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -81,14 +81,14 @@ SUBROUTINE kg_rspw_get(kg_rspw, cube_info, gridlevel_info,&
 
   IF (.NOT. failure) THEN
      IF (PRESENT(pw_pools)) pw_pools => kg_rspw%pw_pools
-     IF (PRESENT(rs_pools)) rs_pools => kg_rspw%rs_pools
+     IF (PRESENT(rs_descs)) rs_descs => kg_rspw%rs_descs
      IF (PRESENT(cube_info)) cube_info => kg_rspw%cube_info
      IF (PRESENT(gridlevel_info)) gridlevel_info => kg_rspw%gridlevel_info
      IF (PRESENT(auxbas_pw_pool)) THEN
         auxbas_pw_pool => kg_rspw%pw_pools(kg_rspw%auxbas_grid)%pool
      END IF
-     IF (PRESENT(auxbas_rs_pool)) THEN
-        auxbas_rs_pool => kg_rspw%rs_pools(kg_rspw%auxbas_grid)%pool
+     IF (PRESENT(auxbas_rs_desc)) THEN
+        auxbas_rs_desc => kg_rspw%rs_descs(kg_rspw%auxbas_grid)%rs_desc
      END IF
      IF (PRESENT(auxbas_grid)) auxbas_grid = kg_rspw%auxbas_grid
      IF (PRESENT(poisson_env)) poisson_env => kg_rspw%poisson_env
@@ -124,7 +124,7 @@ END SUBROUTINE kg_rspw_retain
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, igrid_level, stat
+    INTEGER                                  :: handle, igrid_level, stat, i
     LOGICAL                                  :: failure
 
 !---------------------------------------------------------------------------
@@ -148,7 +148,13 @@ END SUBROUTINE kg_rspw_retain
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       CALL pw_pools_dealloc(kg_rspw%pw_pools,error=error)
-      CALL rs_pools_dealloc(kg_rspw%rs_pools,error=error)
+      IF (ASSOCIATED(kg_rspw%rs_descs)) THEN
+        DO i=1,SIZE(kg_rspw%rs_descs)
+          CALL rs_grid_release_descriptor(kg_rspw%rs_descs(i)%rs_desc, error=error)
+        END DO
+        DEALLOCATE(kg_rspw%rs_descs,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
       CALL pw_poisson_release(kg_rspw%poisson_env,error=error)
       DEALLOCATE(kg_rspw, stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

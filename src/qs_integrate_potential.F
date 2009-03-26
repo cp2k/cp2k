@@ -36,12 +36,6 @@ MODULE qs_integrate_potential
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs,&
-                                             rs_pools_create_rs_vect,&
-                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
@@ -87,7 +81,11 @@ MODULE qs_integrate_potential
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&
+                                             realspace_grid_descriptor_p_type,&
                                              realspace_grid_type,&
+                                             realspace_grid_descriptor_type,&
+                                             rs_grid_create,&
+                                             rs_grid_release,&
                                              rs_pw_transfer
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
@@ -147,7 +145,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -159,13 +157,13 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(pw_env,auxbas_rs_pool,hab,pab,cores)
+    NULLIFY(pw_env,auxbas_rs_desc,hab,pab,cores)
     ALLOCATE(hab(1,1),pab(1,1),STAT=ierr)
     IF(ierr/=0) CALL stop_memory("integrate_v_core_rspace","hab,pab",1)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_pool=auxbas_rs_pool,error=error)
-    CALL rs_pool_create_rs(auxbas_rs_pool,rs_v, error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
+    CALL rs_grid_create(rs_v, auxbas_rs_desc, error=error)
 
     CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
 
@@ -203,13 +201,13 @@ CONTAINS
           atom_a = atom_list(iatom)
           ra(:) = pbc(particle_set(atom_a)%r,cell)
           DO dir =1,3
-             tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
-             tp(dir) = MODULO ( tp(dir), rs_v%npts(dir) )
-             tp(dir) = tp(dir) + rs_v%lb(dir)
+             tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%desc%npts(dir))
+             tp(dir) = MODULO ( tp(dir), rs_v%desc%npts(dir) )
+             tp(dir) = tp(dir) + rs_v%desc%lb(dir)
           END DO
-          IF(rs_v%parallel .AND. .NOT. rs_v%distributed) THEN
+          IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
               ! replicated realspace grid, split the atoms up between procs
-              IF (MODULO(natom_of_kind,rs_v%group_size) == rs_v % my_pos ) THEN
+              IF (MODULO(natom_of_kind,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
                  npme = npme + 1
                  cores (npme) = iatom
               ENDIF
@@ -250,7 +248,7 @@ CONTAINS
 
     END DO
 
-    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v,error=error)
+    CALL rs_grid_release(rs_v, error=error)
 
     DEALLOCATE(hab,pab,cores,STAT=ierr)
     IF(ierr /= 0) CALL stop_memory("integrate_v_core_rspace",&
@@ -300,7 +298,7 @@ CONTAINS
       jatom_old, jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, &
       maxco, maxpgf, maxset, maxsgf_set, my_basis_set_id, n, na1, na2, natom, &
       nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, &
-      sgfa, sgfb, stat
+      sgfa, sgfb, stat, i
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -334,8 +332,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -358,7 +356,7 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
-    NULLIFY(pw_env, rs_pools, tasks, dist_ab)
+    NULLIFY(pw_env, rs_descs, tasks, dist_ab)
 
     debug_count=debug_count+1
 
@@ -419,8 +417,12 @@ CONTAINS
     ntasks=task_list%ntasks
 
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs,error=error)
+    ALLOCATE (rs_v(SIZE(rs_descs)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+    DO i=1,SIZE(rs_v)
+      CALL rs_grid_create(rs_v(i)%rs_grid, rs_descs(i)%rs_desc, error=error)
+    END DO
 
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
@@ -458,7 +460,7 @@ CONTAINS
 
     distributed_grids = .FALSE.
     DO igrid_level = 1, gridlevel_info%ngrid_levels
-       IF ( rs_v(igrid_level)%rs_grid%distributed ) THEN
+       IF ( rs_v(igrid_level)%rs_grid%desc%distributed ) THEN
           distributed_grids = .TRUE.
        ENDIF
     ENDDO
@@ -767,7 +769,7 @@ CONTAINS
        nb2 = jpgf*ncoset(lb_max(jset))
 
        ! check whether we need to use fawzi's generalised collocation scheme
-       IF(rs_v(igrid_level)%rs_grid%distributed)THEN
+       IF(rs_v(igrid_level)%rs_grid%desc%distributed)THEN
           !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
           IF (tasks(4,itask) .EQ. 2 ) THEN
              use_subpatch = .TRUE.
@@ -991,7 +993,13 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,"pabt")
     END IF
 
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
+    IF (ASSOCIATED(rs_v)) THEN
+      DO i=1,SIZE(rs_v)
+        CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
+      END DO
+      DEALLOCATE (rs_v,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+    END IF
 
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
@@ -1288,7 +1296,7 @@ CONTAINS
        RETURN
     ENDIF
 
-    ng(:) = rsgrid%npts(:)
+    ng(:) = rsgrid%desc%npts(:)
     grid => rsgrid%r(:,:,:)
     ALLOCATE(vab(ncoset(la_max_local),ncoset(lb_max_local)))
     vab=0.0_dp
@@ -1296,7 +1304,7 @@ CONTAINS
     IF (subpatch_integrate) THEN
         CALL integrate_general_subpatch()
     ELSE
-        IF (rsgrid%orthorhombic ) THEN
+        IF (rsgrid%desc%orthorhombic ) THEN
           CALL integrate_ortho()
         ELSE
           CALL integrate_general_wings()
@@ -1394,9 +1402,9 @@ CONTAINS
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)    
     cmax=MAXVAL(ub_cube) 
 
-    dr(1) = rsgrid%dh(1,1)
-    dr(2) = rsgrid%dh(2,2)
-    dr(3) = rsgrid%dh(3,3)
+    dr(1) = rsgrid%desc%dh(1,1)
+    dr(2) = rsgrid%desc%dh(2,2)
+    dr(3) = rsgrid%desc%dh(3,3)
 
     gridbounds(1,1)=LBOUND(GRID,1)
     gridbounds(2,1)=UBOUND(GRID,1)
@@ -1413,7 +1421,7 @@ CONTAINS
 !   *** a mapping so that the ig corresponds to the right grid point, also with pbc
     ALLOCATE(map(-cmax:cmax,3))
     DO i=1,3
-      IF ( rsgrid % perd ( i ) == 1 ) THEN
+      IF ( rsgrid % desc % perd ( i ) == 1 ) THEN
         start=lb_cube(i)
         DO
          offset=MODULO(cubecenter(i)+start,ng(i))+1-start
@@ -1426,7 +1434,7 @@ CONTAINS
         END DO
       ELSE
         ! this takes partial grid + border regions into account
-        offset=MODULO(cubecenter(i)+lb_cube(i)+rsgrid%lb(i)-rsgrid%lb_local(i),ng(i))+1-lb_cube(i)
+        offset=MODULO(cubecenter(i)+lb_cube(i)+rsgrid%desc%lb(i)-rsgrid%lb_local(i),ng(i))+1-lb_cube(i)
         ! check for out of bounds
         IF (ub_cube(i)+offset>UBOUND(grid,i).OR.lb_cube(i)+offset<LBOUND(grid,i)) THEN
            CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -1624,12 +1632,12 @@ CONTAINS
 
       CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
 
-      offset(:)=MODULO(index_min(:)+rsgrid%lb(:)-rsgrid%lb_local(:),ng(:))+1
+      offset(:)=MODULO(index_min(:)+rsgrid%desc%lb(:)-rsgrid%lb_local(:),ng(:))+1
 
       ALLOCATE(grid_map(index_min(1):index_max(1)))
       DO i=index_min(1),index_max(1)
          grid_map(i)=MODULO(i,ng(1))+1
-         IF (rsgrid % perd ( 1 )==1) THEN
+         IF (rsgrid % desc % perd ( 1 )==1) THEN
             grid_map(i)=MODULO(i,ng(1))+1
          ELSE
             grid_map(i)=i-index_min(1)+offset(1)
@@ -1645,7 +1653,7 @@ CONTAINS
         pointk=hmatgrid(:,3)*dk
 
         ! allow for generalised rs grids
-        IF (rsgrid % perd ( 3 )==1) THEN
+        IF (rsgrid % desc % perd ( 3 )==1) THEN
            k_index=MODULO(k,ng(3))+1
         ELSE
            k_index=k-index_min(3)+offset(3)
@@ -1656,7 +1664,7 @@ CONTAINS
         DO j=index_min(2),index_max(2)
           dj=j-gp(2)
           pointj=pointk+hmatgrid(:,2)*dj
-          IF (rsgrid % perd ( 2 )==1) THEN
+          IF (rsgrid % desc % perd ( 2 )==1) THEN
              j_index=MODULO(j,ng(2))+1
           ELSE
              j_index=j-index_min(2)+offset(2)
@@ -1803,22 +1811,22 @@ CONTAINS
 
         periodic=1 ! cell%perd         
         lp=la_max_local+lb_max_local
-        local_b(1,:)=rsgrid%lb_real-rsgrid%lb
-        local_b(2,:)=rsgrid%ub_real-rsgrid%lb
+        local_b(1,:)=rsgrid%lb_real-rsgrid%desc%lb
+        local_b(2,:)=rsgrid%ub_real-rsgrid%desc%lb
         local_s=rsgrid%lb_real-rsgrid%lb_local
-        IF (BTEST(subpatch_pattern,0)) local_b(1,1)=local_b(1,1)-rsgrid%border
-        IF (BTEST(subpatch_pattern,1)) local_b(2,1)=local_b(2,1)+rsgrid%border
-        IF (BTEST(subpatch_pattern,2)) local_b(1,2)=local_b(1,2)-rsgrid%border
-        IF (BTEST(subpatch_pattern,3)) local_b(2,2)=local_b(2,2)+rsgrid%border
-        IF (BTEST(subpatch_pattern,4)) local_b(1,3)=local_b(1,3)-rsgrid%border
-        IF (BTEST(subpatch_pattern,5)) local_b(2,3)=local_b(2,3)+rsgrid%border
-        IF (BTEST(subpatch_pattern,0)) local_s(1)=local_s(1)-rsgrid%border
-        IF (BTEST(subpatch_pattern,2)) local_s(2)=local_s(2)-rsgrid%border
-        IF (BTEST(subpatch_pattern,4)) local_s(3)=local_s(3)-rsgrid%border
+        IF (BTEST(subpatch_pattern,0)) local_b(1,1)=local_b(1,1)-rsgrid%desc%border
+        IF (BTEST(subpatch_pattern,1)) local_b(2,1)=local_b(2,1)+rsgrid%desc%border
+        IF (BTEST(subpatch_pattern,2)) local_b(1,2)=local_b(1,2)-rsgrid%desc%border
+        IF (BTEST(subpatch_pattern,3)) local_b(2,2)=local_b(2,2)+rsgrid%desc%border
+        IF (BTEST(subpatch_pattern,4)) local_b(1,3)=local_b(1,3)-rsgrid%desc%border
+        IF (BTEST(subpatch_pattern,5)) local_b(2,3)=local_b(2,3)+rsgrid%desc%border
+        IF (BTEST(subpatch_pattern,0)) local_s(1)=local_s(1)-rsgrid%desc%border
+        IF (BTEST(subpatch_pattern,2)) local_s(2)=local_s(2)-rsgrid%desc%border
+        IF (BTEST(subpatch_pattern,4)) local_s(3)=local_s(3)-rsgrid%desc%border
         CALL integrateGaussFull(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&
-            error=error,scale=rsgrid%ngpts/ABS(cell%deth))
+            error=error,scale=rsgrid%desc%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -1839,8 +1847,8 @@ CONTAINS
 
         periodic=1 ! cell%perd
         local_b(1,:)=0
-        local_b(2,:)=MIN(rsgrid%npts-1,rsgrid%ub_local-rsgrid%lb_local)
-        local_shift=REAL(rsgrid%lb-rsgrid%lb_local,dp)/REAL(rsgrid%npts,dp)
+        local_b(2,:)=MIN(rsgrid%desc%npts-1,rsgrid%ub_local-rsgrid%lb_local)
+        local_shift=REAL(rsgrid%desc%lb-rsgrid%lb_local,dp)/REAL(rsgrid%desc%npts,dp)
         rShifted(1)=rp(1)+cell%hmat(1,1)*local_shift(1)&
              +cell%hmat(1,2)*local_shift(2)&
              +cell%hmat(1,3)*local_shift(3)
@@ -1855,7 +1863,7 @@ CONTAINS
             grid=grid,poly=poly_d3,alphai=zetp,posi=rShifted,&
             max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,&
-            error=error,scale=rsgrid%ngpts/ABS(cell%deth))
+            error=error,scale=rsgrid%desc%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)

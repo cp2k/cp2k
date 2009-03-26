@@ -24,13 +24,6 @@ MODULE pw_env_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             rs_pool_create,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs,&
-                                             rs_pools_create_rs_vect,&
-                                             rs_pools_dealloc,&
-                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info,&
                                              return_cube_max_iradius
@@ -77,8 +70,14 @@ MODULE pw_env_methods
   USE realspace_grid_types,            ONLY: init_input_type,&
                                              realspace_grid_input_type,&
                                              realspace_grid_p_type,&
+                                             realspace_grid_descriptor_type,&
+                                             realspace_grid_descriptor_p_type,&
                                              realspace_grid_type,&
-                                             rs_grid_print
+                                             rs_grid_print,&
+                                             rs_grid_create,&
+                                             rs_grid_create_descriptor,&
+                                             rs_grid_release,&
+                                             rs_grid_release_descriptor
   USE scp_environment_types,           ONLY: scp_environment_type
   USE scp_rspw_methods,                ONLY: maxradius_scp_init
   USE timings,                         ONLY: timeset,&
@@ -126,7 +125,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
   END IF
   IF (.NOT. failure) THEN
      NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
-          pw_env%cube_info, pw_env%rs_pools,&
+          pw_env%cube_info, pw_env%rs_descs,&
           pw_env%xc_pw_pool)
      pw_env%auxbas_grid=-1
      pw_env%ref_count=1
@@ -177,8 +176,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(cell_type), POINTER                 :: cell, cell_ref, my_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: aux_fit_basis_set, &
                                                 orb_basis_set, &
@@ -213,7 +212,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 !
   failure=.FALSE.
   NULLIFY(my_cutoff,cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
-          pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, mt_super_ref_grid,&
+          pw_pools,rho0_mpole,rs_descs, para_env,cell_ref, mt_super_ref_grid,&
           input,poisson_section,xc_super_ref_grid,super_ref_grid,my_cell)
 
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
@@ -221,7 +220,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   IF (.NOT. failure) THEN
      CALL pw_pool_release(pw_env%xc_pw_pool,error=error)
      CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
-     CALL rs_pools_dealloc(pw_env%rs_pools,error=error)
+     IF (ASSOCIATED(pw_env%rs_descs)) THEN
+       DO i=1, SIZE(pw_env%rs_descs)
+         CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc, error=error)
+       END DO
+       DEALLOCATE(pw_env%rs_descs,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
      IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
         CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)
      ELSE
@@ -638,7 +643,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 !    set up the rs_grids and the cubes, requires 'radius' to be set up correctly
 !
 !
-     ALLOCATE(rs_pools(ngrid_level),stat=stat)
+     ALLOCATE(rs_descs(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
      ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
@@ -658,17 +663,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                                   rs_grid_section=rs_grid_section,ilevel=igrid_level,&
                                   higher_grid_layout=higher_grid_layout,error=error)
 
-        NULLIFY(rs_pools(igrid_level)%pool)
-        CALL rs_pool_create(rs_pools(igrid_level)%pool,&
-             el_struct=pw_grid,input_settings=input_settings,error=error)
+        NULLIFY(rs_descs(igrid_level)%rs_desc)
+        CALL rs_grid_create_descriptor(rs_descs(igrid_level)%rs_desc,pw_grid,input_settings, error=error)
 
-        ! to get any info about this type, you have to create it... 
-        CALL rs_pool_create_rs(rs_pools(igrid_level)%pool,rs_grid,error)
-        IF (rs_grid%distributed) higher_grid_layout=rs_grid%group_dim 
-        CALL rs_pool_give_back_rs(rs_pools(igrid_level)%pool,rs_grid,error)
+        IF (rs_descs(igrid_level)%rs_desc%distributed) higher_grid_layout=rs_descs(igrid_level)%rs_desc%group_dim 
 
      END DO
-     pw_env%rs_pools => rs_pools
+     pw_env%rs_descs => rs_descs
 
      DEALLOCATE(radius,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -683,11 +684,15 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           print_section,'',error=error),cp_p_file)
 
      IF ( should_output ) THEN
-       CALL rs_pools_create_rs_vect(rs_pools,rs,error=error)
+       ALLOCATE(rs(ngrid_level),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO igrid_level=1,ngrid_level
+          CALL rs_grid_create(rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
           CALL rs_grid_print(rs(igrid_level)%rs_grid,iounit,error=error)
+          CALL rs_grid_release(rs(igrid_level)%rs_grid, error=error)
        END DO
-       CALL rs_pools_give_back_rs_vect(rs_pools,rs,error=error)
+       DEALLOCATE(rs,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
      CALL cp_print_key_finished_output(iounit,logger,print_section,&
          "",error=error)

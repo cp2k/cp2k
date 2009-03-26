@@ -13,10 +13,6 @@ MODULE qs_rho0_ggrid
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs
   USE cube_utils,                      ONLY: cube_info_type
   USE f77_blas
   USE input_constants,                 ONLY: tddfpt_singlet
@@ -63,7 +59,11 @@ MODULE qs_rho0_ggrid
                                              rho_atom_type
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_type,&
+                                             realspace_grid_descriptor_type,&
+                                             realspace_grid_descriptor_p_type,&
                                              rs2pw,&
+                                             rs_grid_create,&
+                                             rs_grid_release,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE termination,                     ONLY: stop_memory
@@ -110,9 +110,9 @@ MODULE qs_rho0_ggrid
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(cp_rs_pool_type), POINTER           :: pool
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: descs
+    TYPE(realspace_grid_descriptor_type), POINTER           :: desc
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -138,8 +138,8 @@ MODULE qs_rho0_ggrid
                     pw_env=pw_env,cell=cell,error=error)
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-    NULLIFY(pools,pw_pools)
-    CALL pw_env_get(pw_env=pw_env,rs_pools=pools,pw_pools=pw_pools,error=error)
+    NULLIFY(descs,pw_pools)
+    CALL pw_env_get(pw_env=pw_env,rs_descs=descs,pw_pools=pw_pools,error=error)
     cube_info => pw_env%cube_info
     auxbas_grid=pw_env%auxbas_grid
 
@@ -150,11 +150,11 @@ MODULE qs_rho0_ggrid
                         rho0_s_rs=rho0_s_rs)
 
     ! *** set up the rs grid at level igrid
-    NULLIFY(rs_grid,pool,pw_pool,coeff_rspace,coeff_gspace)
-    pool => pools(igrid)%pool
+    NULLIFY(rs_grid,desc,pw_pool,coeff_rspace,coeff_gspace)
+    desc => descs(igrid)%rs_desc
     pw_pool => pw_pools(igrid)%pool
 
-    CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(desc),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 
     IF(igrid /= auxbas_grid)  THEN
@@ -167,7 +167,7 @@ MODULE qs_rho0_ggrid
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
     END IF
-    CALL rs_pool_create_rs(pool,rs_grid,error=error)
+    CALL rs_grid_create(rs_grid, desc, error=error)
     CALL rs_grid_zero(rs_grid)
 
     nch_max  = ncoset(lmax0)
@@ -197,13 +197,13 @@ MODULE qs_rho0_ggrid
          iatom = atom_list(iat)
          ra(:) = pbc(particle_set(iatom)%r,cell)
          DO dir = 1,3
-            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_grid%npts(dir))
-            tp(dir) = MODULO ( tp(dir), rs_grid%npts(dir) )
-            tp(dir) = tp(dir) + rs_grid%lb(dir)
+            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_grid%desc%npts(dir))
+            tp(dir) = MODULO ( tp(dir), rs_grid%desc%npts(dir) )
+            tp(dir) = tp(dir) + rs_grid%desc%lb(dir)
          END DO
-         IF(rs_grid%parallel .AND. .NOT. rs_grid%distributed) THEN
+         IF(rs_grid%desc%parallel .AND. .NOT. rs_grid%desc%distributed) THEN
              ! replicated realspace grid, split the atoms up between procs
-             IF (MODULO(nat,rs_grid%group_size) == rs_grid % my_pos ) THEN
+             IF (MODULO(nat,rs_grid%desc%group_size) == rs_grid % desc % my_pos ) THEN
                 npme = npme + 1
                 cores (npme) = iat
              ENDIF
@@ -246,8 +246,7 @@ MODULE qs_rho0_ggrid
 
     IF(igrid /= auxbas_grid) THEN
       CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw,error=error)
-      CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
-
+      CALL rs_grid_release(rs_grid, error=error)
       CALL pw_zero(rho0_s_gs%pw)
       CALL pw_transfer(coeff_rspace%pw,coeff_gspace%pw)
       CALL pw_axpy(coeff_gspace%pw,rho0_s_gs%pw)
@@ -262,7 +261,7 @@ MODULE qs_rho0_ggrid
 
     ELSE
       CALL rs_pw_transfer(rs_grid,rho0_s_rs%pw,rs2pw,error=error)
-      CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
+      CALL rs_grid_release(rs_grid, error=error)
 
       tot_rs_int = pw_integrate_function(rho0_s_rs%pw,isign=-1)
 
@@ -378,9 +377,9 @@ MODULE qs_rho0_ggrid
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
-    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
+    TYPE(realspace_grid_descriptor_type), POINTER           :: rs_desc
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -441,17 +440,17 @@ MODULE qs_rho0_ggrid
                         norm_g0l_s=norm_l)
 
     ! *** set up of the potential on the multigrids
-    NULLIFY(rs_pools, pw_pools)
+    NULLIFY(rs_descs, pw_pools)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools, error=error)
 
     ! *** assign from pw_env
     auxbas_grid=pw_env%auxbas_grid
     cube_info => pw_env%cube_info
 
     ! *** Get the potential on the right grid
-    NULLIFY(rs_v,rs_pool,pw_pool,pw_aux,coeff_rspace,coeff_gspace)
-    rs_pool => rs_pools(igrid)%pool
+    NULLIFY(rs_v,rs_desc,pw_pool,pw_aux,coeff_rspace,coeff_gspace)
+    rs_desc => rs_descs(igrid)%rs_desc
     pw_pool => pw_pools(igrid)%pool
 
     ALLOCATE(coeff_gspace, STAT=istat)
@@ -506,7 +505,7 @@ MODULE qs_rho0_ggrid
                                         "coeff_gspace")
 
     ! *** set up the rs grid at level igrid
-    CALL rs_pool_create_rs(rs_pool,rs_v,error=error)
+    CALL rs_grid_create(rs_v, rs_desc, error=error)
     CALL rs_grid_zero(rs_v)
     CALL rs_pw_transfer(rs_v,coeff_rspace%pw,pw2rs,error=error)
 
@@ -565,13 +564,13 @@ MODULE qs_rho0_ggrid
          iatom = atom_list(iat)
          ra(:) = pbc(particle_set(iatom)%r,cell)
          DO dir = 1,3
-            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%npts(dir))
-            tp(dir) = MODULO ( tp(dir), rs_v%npts(dir) )
-            tp(dir) = tp(dir) + rs_v%lb(dir)
+            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%desc%npts(dir))
+            tp(dir) = MODULO ( tp(dir), rs_v%desc%npts(dir) )
+            tp(dir) = tp(dir) + rs_v%desc%lb(dir)
          END DO
-         IF(rs_v%parallel .AND. .NOT. rs_v%distributed) THEN
+         IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
              ! replicated realspace grid, split the atoms up between procs
-             IF (MODULO(nat,rs_v%group_size) == rs_v % my_pos ) THEN
+             IF (MODULO(nat,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
                 npme = npme + 1
                 cores (npme) = iat
              ENDIF
@@ -761,7 +760,7 @@ MODULE qs_rho0_ggrid
       END DO  ! j
     END DO  ! ikind
 
-    CALL rs_pool_give_back_rs(rs_pool,rs_v,error=error)
+    CALL rs_grid_release(rs_v, error=error)
 
     IF (ASSOCIATED(cores)) THEN
       DEALLOCATE (cores,STAT=istat)

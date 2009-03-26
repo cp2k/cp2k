@@ -104,7 +104,7 @@ CONTAINS
   IF (.NOT. failure) THEN
 
     IF(.NOT. my_kg_gpw) THEN
-      !set up pw_pools, rs_pools
+      !set up pw_pools
       CALL get_kg_env(kg_env=kg_env,rspw=rspw,error=error)
       IF (.NOT.ASSOCIATED(rspw)) THEN
          CALL kg_rspw_create(rspw,kg_env=kg_env,error=error)

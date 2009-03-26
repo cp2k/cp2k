@@ -90,7 +90,10 @@ MODULE library_tests
   USE realspace_grid_types,            ONLY: &
        init_input_type, pw2rs, realspace_grid_input_type, &
        realspace_grid_type, rs2pw, rs_grid_create, rs_grid_print, &
-       rs_grid_release, rs_grid_zero, rs_pw_transfer
+       rs_grid_release, rs_grid_zero, rs_pw_transfer, realspace_grid_descriptor_type, &
+                                             rs_grid_create_descriptor,&
+                                             rs_grid_release_descriptor
+
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -719,6 +722,7 @@ CONTAINS
     TYPE(pw_p_type)                          :: ca
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_type), POINTER       :: rs_grid
+    TYPE(realspace_grid_descriptor_type), POINTER       :: rs_desc
     TYPE(section_vals_type), POINTER         :: rs_grid_section
 
     CALL timeset(routineN,handle)
@@ -757,7 +761,9 @@ CONTAINS
 
     ! .. rs type
     NULLIFY(rs_grid)
-    CALL rs_grid_create(rs_grid,pw_grid=grid, input_settings=input_settings,error=error)
+    NULLIFY(rs_desc)
+    CALL rs_grid_create_descriptor(rs_desc,pw_grid=grid, input_settings=input_settings,error=error)
+    CALL rs_grid_create(rs_grid,rs_desc,error=error)
     CALL rs_grid_print(rs_grid,iw,error=error)
     CALL rs_grid_zero(rs_grid)
 
@@ -792,6 +798,7 @@ CONTAINS
 
     !cleanup 
     CALL rs_grid_release(rs_grid,error=error)
+    CALL rs_grid_release_descriptor(rs_desc, error=error)
     CALL pw_release ( ca%pw ,error=error)
     CALL pw_grid_release ( grid ,error=error)
     CALL cell_release(box,error=error)

@@ -19,9 +19,6 @@ MODULE scp_density_methods
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             rs_pools_create_rs_vect,&
-                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
@@ -55,7 +52,10 @@ MODULE scp_density_methods
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
                                              potential_pw2rs
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+                                             realspace_grid_descriptor_p_type,&
                                              rs2pw,&
+                                             rs_grid_create,&
+                                             rs_grid_release,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE scp_coeff_types,                 ONLY: aux_coeff_distributed,&
@@ -100,7 +100,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), POINTER         :: rs_pools( : )
+    TYPE(realspace_grid_descriptor_p_type), POINTER         :: rs_descs( : )
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -116,7 +116,7 @@ CONTAINS
     CALL timeset ( routineN,handle )
     NULLIFY(atomic_kind_set,gridlevel_info,scp_env)
     NULLIFY(pw_pools,cube_info)
-    NULLIFY(cube_info, rs_pools, pw_env, rspw, local_particles)
+    NULLIFY(cube_info, rs_descs, pw_env, rspw, local_particles)
     NULLIFY(particle_set, cell, dft_control)
 
     stat = 0
@@ -135,12 +135,12 @@ CONTAINS
                     dft_control = dft_control, error = error )
 
     CALL pw_env_get ( pw_env = pw_env, gridlevel_info=gridlevel_info, &
-                      rs_pools = rs_pools, pw_pools=pw_pools, cube_info = cube_info, &
+                      rs_descs = rs_descs, pw_pools=pw_pools, cube_info = cube_info, &
                       error = error )
 
 ! Compute SCP density
     CALL collocate_scp_density ( scp_env, atomic_kind_set, particle_set,        &
-                                 local_particles, cell, rs_pools, pw_pools,     &
+                                 local_particles, cell, rs_descs, pw_pools,     &
                                  cube_info, gridlevel_info,                     &
                                  dft_control % qs_control % eps_rho_rspace,     &
                                  error=error )
@@ -150,7 +150,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE collocate_scp_density( scp_env, atomic_kind_set, particle_set, &
-                                    local_particles, cell, rs_pools, pw_pools, &
+                                    local_particles, cell, rs_descs, pw_pools, &
                                     cube_info, gridlevel_info, eps_rho_rspace, error )
 
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -160,8 +160,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -221,8 +221,10 @@ CONTAINS
                               in_space = RECIPROCALSPACE, error=error)
 
     ! *** set up the rs multi-grids
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
     DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
@@ -324,7 +326,9 @@ CONTAINS
 
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rhop_r%pw,rs2pw,error=error)
-       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+       CALL rs_grid_release(rs_rho(1)%rs_grid,error=error)
+       DEALLOCATE (rs_rho,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
        CALL pw_fft_wrap(rhop_r%pw,rhop_g%pw)
        IF (rhop_r%pw%pw_grid%spherical) THEN ! rhop_g = rhop_r
           CALL pw_fft_wrap(rhop_g%pw,rhop_r%pw)
@@ -333,8 +337,10 @@ CONTAINS
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
                mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
+          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid,error=error)
        ENDDO
-       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+       DEALLOCATE (rs_rho,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
        CALL pw_zero(rhop_g%pw)
@@ -397,8 +403,8 @@ CONTAINS
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
@@ -414,7 +420,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(aux_basis_set,aux_coeff_set)
     NULLIFY(local_coeffs)
-    NULLIFY(rs_v, rs_pools, pw_pools)
+    NULLIFY(rs_v, rs_descs, pw_pools)
     NULLIFY(sphi_a,rpgfa,zeta,hab,pab,work)
     NULLIFY(la_max,la_min,npgfa,nsgfa,first_sgfa)
     NULLIFY(para_env, interp_section )
@@ -434,7 +440,7 @@ CONTAINS
     IF ( my_calculate_forces ) CALL get_scp_env ( scp_env, force = force, error = error )
 
     CALL pw_env_get ( pw_env = pw_env, auxbas_grid=auxbas_grid, &
-                      rs_pools = rs_pools, pw_pools=pw_pools, &
+                      rs_descs = rs_descs, pw_pools=pw_pools, &
                       cube_info = cube_info, gridlevel_info=gridlevel_info, &
                       error = error ) 
 
@@ -450,7 +456,11 @@ CONTAINS
     ! *** set up of the potential on the multigrids using the pw_env
     interp_section => section_vals_get_subs_vals(dft_section,"MGRID%INTERPOLATOR",&
          error=error)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v,error=error)
+    ALLOCATE (rs_v(SIZE(rs_descs)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+    DO i=1, SIZE(rs_v)
+      CALL rs_grid_create(rs_v(i)%rs_grid, rs_descs(i)%rs_desc, error=error) 
+    END DO
     CALL potential_pw2rs(rs_v,v_rspace,pw_env,interp_section,error)
 
 !   *** having the potential on the rs_multigrids, just integrate ...
@@ -584,7 +594,13 @@ CONTAINS
 
     END DO
 
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
+    IF (ASSOCIATED(rs_v)) THEN
+      DO i=1, SIZE(rs_v)
+        CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
+      END DO
+      DEALLOCATE (rs_v,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"rs_v") 
+    END IF
 
     !   *** Release work storage ***
 

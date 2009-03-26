@@ -18,7 +18,6 @@ MODULE qs_linres_epr_ownutils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -72,6 +71,7 @@ MODULE qs_linres_epr_ownutils
                                              rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_type
+  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -805,7 +805,7 @@ CONTAINS
     LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: scale_fac
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -822,7 +822,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    NULLIFY(cell, dft_control, pw_env, auxbas_rs_pool, auxbas_pw_pool, &
+    NULLIFY(cell, dft_control, pw_env, auxbas_rs_desc, auxbas_pw_pool, &
          rho_gspace, rho_rspace, pw_pools, particle_set)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
@@ -839,7 +839,7 @@ CONTAINS
 
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,&
                     auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
                     error=error)
     !

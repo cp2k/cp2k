@@ -21,7 +21,6 @@ MODULE qs_linres_nmr_shift
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -70,6 +69,7 @@ MODULE qs_linres_nmr_shift
                                              get_nmr_env,&
                                              jrho_atom_type,&
                                              nmr_env_type
+  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -111,7 +111,7 @@ CONTAINS
                                                 chemical_shift_nics, &
                                                 chemical_shift_nics_loc
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -130,7 +130,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
-         &  cell,dft_control,pw_env,auxbas_rs_pool,auxbas_pw_pool,jrho_gspace,&
+         &  cell,dft_control,pw_env,auxbas_rs_desc,auxbas_pw_pool,jrho_gspace,&
          &  pw_pools,particle_set)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
@@ -148,7 +148,7 @@ CONTAINS
                      error=error)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,&
          &          auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
          &          error=error)
     !

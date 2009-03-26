@@ -12,12 +12,6 @@ MODULE ewald_pw_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
-                                             rs_pool_create,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs,&
-                                             rs_pool_release,&
-                                             rs_pool_retain
   USE dg_types,                        ONLY: dg_create,&
                                              dg_release,&
                                              dg_retain,&
@@ -53,8 +47,14 @@ MODULE ewald_pw_types
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: init_input_type,&
                                              realspace_grid_input_type,&
+                                             realspace_grid_descriptor_type,&
                                              realspace_grid_type,&
-                                             rs_grid_print
+                                             rs_grid_print,&
+                                             rs_grid_create_descriptor,&
+                                             rs_grid_release_descriptor,&
+                                             rs_grid_release,&
+                                             rs_grid_retain_descriptor,&
+                                             rs_grid_create
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -75,7 +75,7 @@ MODULE ewald_pw_types
      INTEGER :: ref_count, id_nr
      TYPE ( pw_pool_type ), POINTER       :: pw_small_pool
      TYPE ( pw_pool_type ), POINTER       :: pw_big_pool
-     TYPE ( cp_rs_pool_type ), POINTER    :: rs_pool
+     TYPE ( realspace_grid_descriptor_type ), POINTER    :: rs_desc
      TYPE ( pw_poisson_type ), POINTER    :: poisson_env
      TYPE ( dg_type ), POINTER            :: dg
   END TYPE ewald_pw_type
@@ -127,7 +127,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        NULLIFY ( ewald_pw % pw_big_pool )
        NULLIFY ( ewald_pw % pw_small_pool )
-       NULLIFY ( ewald_pw % rs_pool )
+       NULLIFY ( ewald_pw % rs_desc )
        NULLIFY ( ewald_pw % poisson_env )
        CALL dg_create ( dg, error )
        ewald_pw % dg => dg
@@ -162,7 +162,7 @@ CONTAINS
        IF (ewald_pw%ref_count<1) THEN
           CALL pw_pool_release ( ewald_pw % pw_small_pool, error = error )
           CALL pw_pool_release ( ewald_pw % pw_big_pool, error = error )
-          CALL rs_pool_release ( ewald_pw % rs_pool, error = error )
+          CALL rs_grid_release_descriptor ( ewald_pw % rs_desc, error = error )
           CALL pw_poisson_release ( ewald_pw % poisson_env, error = error )
           CALL dg_release ( ewald_pw % dg, error )
           DEALLOCATE (  ewald_pw , stat = stat )
@@ -201,7 +201,7 @@ CONTAINS
                                                 cutoff_radius, epsilon, norm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
+    TYPE(realspace_grid_descriptor_type), POINTER   :: rs_desc
     TYPE(pw_grid_type), POINTER              :: pw_big_grid, pw_small_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -299,21 +299,22 @@ CONTAINS
           CALL pw_pool_retain ( ewald_pw % pw_small_pool ,error=error)
           CALL pw_pool_release ( pw_pool ,error=error)
           
-          NULLIFY ( rs_pool )
+          NULLIFY ( rs_desc )
           CALL init_input_type(input_settings,nsmax=MAXVAL ( pw_small_grid % npts(1:3) ),&
                                rs_grid_section=rs_grid_section,ilevel=1, &
                                higher_grid_layout=(/-1,-1,-1/),error=error)
-          CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,input_settings=input_settings,error=error)
+          CALL rs_grid_create_descriptor(rs_desc,pw_big_grid, input_settings, error)
           
-          CALL rs_pool_create_rs(rs_pool,rs,error=error)
+          CALL rs_grid_create(rs, rs_desc, error)
           CALL rs_grid_print(rs,output_unit,error=error)
-          CALL rs_pool_give_back_rs(rs_pool,rs,error=error)
+          CALL rs_grid_release(rs, error)
           
           CALL cp_print_key_finished_output(output_unit,logger,print_section,"",error=error)
 
-          ewald_pw%rs_pool => rs_pool
-          CALL rs_pool_retain ( ewald_pw % rs_pool ,error=error)
-          CALL rs_pool_release ( rs_pool ,error=error)
+          ewald_pw%rs_desc => rs_desc
+
+          CALL rs_grid_retain_descriptor ( ewald_pw % rs_desc, error)
+          CALL rs_grid_release_descriptor ( rs_desc, error)
           
           CALL pw_grid_release ( pw_small_grid, error )
           CALL pw_grid_release ( pw_big_grid, error )
@@ -337,21 +338,22 @@ CONTAINS
           CALL pw_pool_retain ( ewald_pw % pw_big_pool ,error=error)
           CALL pw_pool_release ( pw_pool ,error=error)
           
-          NULLIFY ( rs_pool )
+          NULLIFY ( rs_desc )
           CALL init_input_type(input_settings,nsmax=o_spline,&
                                rs_grid_section=rs_grid_section,ilevel=1, &
                                higher_grid_layout=(/-1,-1,-1/),error=error)
-          CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,input_settings=input_settings,error=error)
-          
-          CALL rs_pool_create_rs(rs_pool,rs,error=error)
+          CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings, error) 
+
+          CALL rs_grid_create(rs, rs_desc, error)
           CALL rs_grid_print(rs,output_unit,error=error)
-          CALL rs_pool_give_back_rs(rs_pool,rs,error=error)
+          CALL rs_grid_release(rs, error)
           CALL cp_print_key_finished_output(output_unit,logger,print_section,"",error=error)
-          
-          ewald_pw%rs_pool => rs_pool
-          CALL rs_pool_retain ( ewald_pw % rs_pool ,error=error)
-          CALL rs_pool_release ( rs_pool ,error=error)
-          
+
+          ewald_pw%rs_desc => rs_desc
+
+          CALL rs_grid_retain_descriptor ( ewald_pw % rs_desc, error)
+          CALL rs_grid_release_descriptor ( rs_desc, error)
+
           CALL pw_grid_release ( pw_big_grid, error )
        CASE ( do_ewald_none )
           ! No EWALD sums..
@@ -378,11 +380,11 @@ CONTAINS
 !> \brief get the ewald_pw environment to the correct program.
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_pw_get (ewald_pw, pw_big_pool, pw_small_pool, rs_pool, poisson_env, dg )
+  SUBROUTINE ewald_pw_get (ewald_pw, pw_big_pool, pw_small_pool, rs_desc, poisson_env, dg )
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
-    TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: rs_pool
+    TYPE(realspace_grid_descriptor_type), OPTIONAL, POINTER :: rs_desc
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
 
@@ -392,7 +394,7 @@ CONTAINS
     IF ( PRESENT ( poisson_env ) ) poisson_env => ewald_pw % poisson_env
     IF ( PRESENT ( pw_big_pool ) )  pw_big_pool => ewald_pw % pw_big_pool
     IF ( PRESENT ( pw_small_pool ) )  pw_small_pool => ewald_pw % pw_small_pool
-    IF ( PRESENT ( rs_pool ) )  rs_pool => ewald_pw % rs_pool
+    IF ( PRESENT ( rs_desc ) )  rs_desc => ewald_pw % rs_desc
     IF ( PRESENT ( dg ) )  dg => ewald_pw % dg
 
   END SUBROUTINE ewald_pw_get
@@ -403,12 +405,12 @@ CONTAINS
 !> \brief set the ewald_pw environment to the correct program.
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_pw_set (ewald_pw, pw_big_pool, pw_small_pool, rs_pool, dg,&
+  SUBROUTINE ewald_pw_set (ewald_pw, pw_big_pool, pw_small_pool, rs_desc, dg,&
        poisson_env, error )
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
-    TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: rs_pool
+    TYPE(realspace_grid_descriptor_type), OPTIONAL, POINTER :: rs_desc
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -426,10 +428,10 @@ CONTAINS
         CALL pw_pool_release ( ewald_pw % pw_small_pool ,error=error)
         ewald_pw % pw_small_pool => pw_small_pool
     ENDIF
-    IF ( PRESENT ( rs_pool ) )  THEN
-        CALL rs_pool_retain ( rs_pool ,error=error)
-        CALL rs_pool_release ( ewald_pw % rs_pool ,error=error)
-        ewald_pw % rs_pool => rs_pool
+    IF ( PRESENT ( rs_desc ) )  THEN
+        CALL rs_grid_retain_descriptor (rs_desc, error=error)
+        CALL rs_grid_release_descriptor (ewald_pw % rs_desc, error=error)
+        ewald_pw % rs_desc => rs_desc
     ENDIF
     IF ( PRESENT ( dg ) )  THEN
         CALL dg_retain ( dg ,error=error)

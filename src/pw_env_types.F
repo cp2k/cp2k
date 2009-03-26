@@ -10,10 +10,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE pw_env_types
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pools_dealloc,&
-                                             rs_pools_flush_cache
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
   USE f77_blas
@@ -27,6 +23,9 @@ MODULE pw_env_types
                                              pw_pool_type,&
                                              pw_pools_dealloc,&
                                              pw_pools_flush_cache
+  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_type,&
+                                             realspace_grid_descriptor_p_type,&
+                                             rs_grid_release_descriptor
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -42,7 +41,7 @@ MODULE pw_env_types
 ! *****************************************************************************
 !> \brief contained for different pw related things
 !> \param pw_pools pools for multigrids
-!> \param rs_pools pools for the realspace grids
+!> \param rs_descs descriptors for the realspace grids
 !> \param xc_pw_pool the pool used for xc calculation on grid (might be the
 !>        same as the finest, or finer still).
 !> \param gridlevel_info gaussian gridlevel info
@@ -51,7 +50,7 @@ MODULE pw_env_types
 !> 
 !>      readonly attributes
 !> \param auxbas_pw_pool a pool that allocates grids in the auxiliary basis
-!> \param auxbas_rs_pool real space grid in the auxiliary basis, be careful
+!> \param auxbas_rs_desc real space grid in the auxiliary basis, be careful
 !>        in parallel nsmax is choosen with multigrid in mind!
 !> \note
 !>      be careful in parallel nsmax for the rs_grids is choosen with
@@ -65,7 +64,7 @@ MODULE pw_env_types
      INTEGER :: ref_count
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
      TYPE(pw_pool_type), POINTER :: xc_pw_pool
-     TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
+     TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), POINTER :: rs_descs
      TYPE(gridlevel_info_type), POINTER :: gridlevel_info
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
      INTEGER :: auxbas_grid
@@ -85,7 +84,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
-     auxbas_pw_pool,auxbas_grid,rs_pools,auxbas_rs_pool,&
+     auxbas_pw_pool,auxbas_grid,rs_descs,auxbas_rs_desc,&
      xc_pw_pool, poisson_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -96,9 +95,9 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
       POINTER                                :: gridlevel_info
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: auxbas_pw_pool
     INTEGER, INTENT(out), OPTIONAL           :: auxbas_grid
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: rs_pools
-    TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rs_descs
+    TYPE(realspace_grid_descriptor_type), OPTIONAL, POINTER :: auxbas_rs_desc
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -114,14 +113,14 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
-     IF (PRESENT(rs_pools)) rs_pools => pw_env%rs_pools
+     IF (PRESENT(rs_descs)) rs_descs => pw_env%rs_descs
      IF (PRESENT(cube_info)) cube_info => pw_env%cube_info
      IF (PRESENT(gridlevel_info)) gridlevel_info => pw_env%gridlevel_info
      IF (PRESENT(auxbas_pw_pool)) THEN
         auxbas_pw_pool => pw_env%pw_pools(pw_env%auxbas_grid)%pool
      END IF
-     IF (PRESENT(auxbas_rs_pool)) THEN
-        auxbas_rs_pool => pw_env%rs_pools(pw_env%auxbas_grid)%pool
+     IF (PRESENT(auxbas_rs_desc)) THEN
+        auxbas_rs_desc => pw_env%rs_descs(pw_env%auxbas_grid)%rs_desc
      END IF
      IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
      IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
@@ -173,7 +172,7 @@ SUBROUTINE pw_env_release(pw_env, kg, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: igrid_level, stat
+    INTEGER                                  :: igrid_level, stat,i
     LOGICAL                                  :: failure, my_kg
 
   failure=.FALSE.
@@ -206,7 +205,13 @@ SUBROUTINE pw_env_release(pw_env, kg, error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         CALL pw_pool_release(pw_env%xc_pw_pool,error=error)
-        CALL rs_pools_dealloc(pw_env%rs_pools, error=error)
+        IF (ASSOCIATED(pw_env%rs_descs)) THEN
+          DO i=1, SIZE(pw_env%rs_descs)
+            CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc, error=error)
+          END DO
+          DEALLOCATE(pw_env%rs_descs, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         DEALLOCATE(pw_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -238,9 +243,6 @@ SUBROUTINE pw_env_flush_cache(pw_env,error)
   IF (.NOT. failure) THEN
      IF (ASSOCIATED(pw_env%pw_pools)) THEN
         CALL pw_pools_flush_cache(pw_env%pw_pools,error=error)
-     END IF
-     IF (ASSOCIATED(pw_env%rs_pools)) THEN
-        CALL rs_pools_flush_cache(pw_env%rs_pools, error=error)
      END IF
   END IF
 END SUBROUTINE pw_env_flush_cache

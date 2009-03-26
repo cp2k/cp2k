@@ -17,12 +17,6 @@ MODULE kg_density
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs,&
-                                             rs_pools_create_rs_vect,&
-                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_distributed,&
@@ -61,7 +55,11 @@ MODULE kg_density
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
+                                             realspace_grid_descriptor_p_type,&
+                                             realspace_grid_descriptor_type,&
                                              rs2pw,&
+                                             rs_grid_create,&
+                                             rs_grid_release,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE termination,                     ONLY: stop_memory,&
@@ -107,8 +105,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -126,7 +124,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(atomic_kind_set,atomic_kind,orb_basis_set,cell,dft_control,&
-            local_particles,particle_set,rs_rho,rspw,rs_pools,pw_pools,&
+            local_particles,particle_set,rs_rho,rspw,rs_descs,pw_pools,&
             mgrid_rspace,mgrid_gspace)
     NULLIFY(sphi_a,zeta,pab,work)
     NULLIFY(la_max,la_min,npgfa,nsgfa,first_sgfa)
@@ -145,7 +143,7 @@ CONTAINS
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
-    CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    CALL kg_rspw_get(rspw, rs_descs=rs_descs, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                               use_data = REALDATA3D,&
@@ -155,8 +153,10 @@ CONTAINS
                               in_space = RECIPROCALSPACE, error=error)
 
     ! *** set up the rs multi-grids
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
     DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
@@ -249,7 +249,9 @@ CONTAINS
 
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
-       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+       CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
+       DEALLOCATE (rs_rho,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
        CALL pw_transfer(rho%pw,rho_gspace%pw)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
           CALL pw_transfer(rho_gspace%pw,rho%pw)
@@ -258,8 +260,10 @@ CONTAINS
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
                mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
+          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
        ENDDO
-       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+       DEALLOCATE (rs_rho,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
        CALL pw_zero(rho_gspace%pw)
@@ -304,7 +308,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(cube_info_type), POINTER            :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -319,7 +323,7 @@ CONTAINS
 
     NULLIFY(atomic_kind,atomic_kind_set,cell,cube_info,dft_control,&
             local_particles,rspw,rs_rho,&
-            auxbas_rs_pool, auxbas_pw_pool,&
+            auxbas_rs_desc, auxbas_pw_pool,&
             pab,particle_set)
 
     ALLOCATE(pab(1,1),stat=istat)
@@ -333,12 +337,12 @@ CONTAINS
                     rspw=rspw,&
                     particle_set=particle_set,error=error)
     CALL kg_rspw_get(kg_rspw=rspw,&
-                    auxbas_rs_pool=auxbas_rs_pool,&
+                    auxbas_rs_desc=auxbas_rs_desc,&
                     auxbas_pw_pool=auxbas_pw_pool,&
                     error=error)
     cube_info=>rspw%cube_info(1)
 
-    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho,error=error)
+    CALL rs_grid_create(rs_rho,auxbas_rs_desc,error=error)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -374,7 +378,7 @@ CONTAINS
          use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
     CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
-    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
+    CALL rs_grid_release(rs_rho, error=error)
 
     total_rho = pw_integrate_function(rhoc_r%pw)
 
@@ -412,8 +416,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -434,7 +438,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,aux_basis_set,cell,dft_control,dyn_coeff_set,&
-            local_particles,local_coeffs,particle_set,rs_rho,rs_pools,pw_pools,rspw,&
+            local_particles,local_coeffs,particle_set,rs_rho,rs_descs,pw_pools,rspw,&
             mgrid_rspace,mgrid_gspace)
     NULLIFY(sphi_a,zeta,pab,work)
     NULLIFY(la_max,la_min,npgfa,nsgfa,first_sgfa)
@@ -454,7 +458,7 @@ CONTAINS
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
-    CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    CALL kg_rspw_get(rspw, rs_descs=rs_descs, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                               use_data = REALDATA3D,&
@@ -464,8 +468,10 @@ CONTAINS
                               in_space = RECIPROCALSPACE, error=error)
 
     ! *** set up the rs multi-grids
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
     DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
@@ -567,7 +573,9 @@ CONTAINS
 
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
-       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+       CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
+       DEALLOCATE (rs_rho,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
        CALL pw_transfer(rho%pw,rho_gspace%pw)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
           CALL pw_transfer(rho_gspace%pw,rho%pw)
@@ -576,8 +584,10 @@ CONTAINS
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
                mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
+          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
        ENDDO
-       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+       DEALLOCATE (rs_rho,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
        CALL pw_zero(rho_gspace%pw)
@@ -623,7 +633,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(kg_force_type), DIMENSION(:), &
@@ -636,7 +646,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,cell,dft_control,force,&
-            local_particles,particle_set,rspw,auxbas_rs_pool)
+            local_particles,particle_set,rspw,auxbas_rs_desc)
     NULLIFY(hab,pab)
 
     ALLOCATE(hab(1,1),pab(1,1),STAT=istat)
@@ -650,9 +660,9 @@ CONTAINS
                     local_particles=local_particles,&
                     particle_set=particle_set,&
                     rspw=rspw,error=error)
-    CALL kg_rspw_get(kg_rspw=rspw,auxbas_rs_pool=auxbas_rs_pool,error=error)
+    CALL kg_rspw_get(kg_rspw=rspw,auxbas_rs_desc=auxbas_rs_desc,error=error)
 
-    CALL rs_pool_create_rs(auxbas_rs_pool,rs_v,error=error)
+    CALL rs_grid_create(rs_v, auxbas_rs_desc, error=error)
     CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
 
     nkind = SIZE(atomic_kind_set)
@@ -702,7 +712,7 @@ CONTAINS
 
     END DO
 
-    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v,error=error)
+    CALL rs_grid_release(rs_v, error=error)
 
     DEALLOCATE(pab,hab,atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"hab,pab,atom_of_kind")
@@ -741,8 +751,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -764,7 +774,7 @@ CONTAINS
 
     NULLIFY(atomic_kind_set,atomic_kind,orb_basis_set,cell,dft_control,&
             local_particles,particle_set,rspw,force)
-    NULLIFY(rs_v,pw_pools,rs_pools,mgrid_rspace,mgrid_gspace)
+    NULLIFY(rs_v,pw_pools,rs_descs,mgrid_rspace,mgrid_gspace)
     NULLIFY(sphi_a,rpgfa,zeta,hab,pab,work)
     NULLIFY(la_max,la_min,npgfa,nsgfa,first_sgfa)
 
@@ -780,7 +790,7 @@ CONTAINS
 
     ! *** set up of the potential on the multigrids
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
-    CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    CALL kg_rspw_get(rspw, rs_descs=rs_descs, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                 use_data = REALDATA3D,&
@@ -821,10 +831,11 @@ CONTAINS
     END DO
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
 
-    CALL kg_rspw_get(rspw, rs_pools=rs_pools,error=error)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
-
+    CALL kg_rspw_get(rspw, rs_descs=rs_descs,error=error)
+    ALLOCATE (rs_v(gridlevel_info%ngrid_levels),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
     DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_create(rs_v(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
                            pw2rs,error=error)
     ENDDO
@@ -948,7 +959,13 @@ CONTAINS
 
     END DO
 
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
+    IF (ASSOCIATED(rs_v)) THEN
+      DO igrid_level=1,gridlevel_info%ngrid_levels
+        CALL rs_grid_release(rs_v(igrid_level)%rs_grid, error=error)
+      END DO
+      DEALLOCATE (rs_v,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+    END IF
 
 !   *** Release work storage ***
 
@@ -1000,8 +1017,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1026,7 +1043,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(atomic_kind_set,atomic_kind,aux_basis_set,cell,dft_control,dyn_coeff_set,&
             force,local_particles,local_coeffs,particle_set)
-    NULLIFY(rs_v,rspw,rs_pools,pw_pools,mgrid_rspace,mgrid_gspace)
+    NULLIFY(rs_v,rspw,rs_descs,pw_pools,mgrid_rspace,mgrid_gspace)
     NULLIFY(sphi_a,rpgfa,zeta,hab,pab,work)
     NULLIFY(atom_list,la_max,la_min,npgfa,nsgfa,first_sgfa)
 
@@ -1045,7 +1062,7 @@ CONTAINS
 
     ! *** set up of the potential on the multigrids
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
-    CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    CALL kg_rspw_get(rspw, rs_descs=rs_descs, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                 use_data = REALDATA3D,&
@@ -1086,10 +1103,12 @@ CONTAINS
     END DO
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
 
-    CALL kg_rspw_get(rspw, rs_pools=rs_pools,error=error)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v,error=error)
+    CALL kg_rspw_get(rspw, rs_descs=rs_descs,error=error)
 
+    ALLOCATE (rs_v(gridlevel_info%ngrid_levels),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
     DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_create(rs_v(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
                            pw2rs,error=error)
     ENDDO
@@ -1236,7 +1255,13 @@ CONTAINS
 
     END DO
 
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
+    IF (ASSOCIATED(rs_v)) THEN
+      DO igrid_level=1,gridlevel_info%ngrid_levels
+        CALL rs_grid_release(rs_v(igrid_level)%rs_grid, error=error)
+      END DO
+      DEALLOCATE (rs_v,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+    END IF
 
 !   *** Release work storage ***
 

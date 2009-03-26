@@ -59,11 +59,11 @@ CONTAINS
        atomic_kind => part(ipart)%atomic_kind
        CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=charge)
        IF (charge == 0.0_dp.AND.part(ipart)%shell_index==0) CYCLE
-       IF (rs % parallel) THEN
+       IF (rs % desc % parallel) THEN
           ! check if the rs grid is distributed or not
-          IF ( ALL ( rs % group_dim == 1 ) ) THEN
-             ndim = rs % group_size
-             npos = rs % my_pos
+          IF ( ALL ( rs % desc % group_dim == 1 ) ) THEN
+             ndim = rs % desc % group_size
+             npos = rs % desc % my_pos
              ! All processors work on the same grid
              IF ( MOD ( ipart, ndim ) == npos ) THEN
                 p1 = ipart

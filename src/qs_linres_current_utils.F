@@ -40,8 +40,6 @@ MODULE qs_linres_current_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             rs_pools_give_back_rs_vect
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
   USE input_constants,                 ONLY: current_gauge_atom,&
@@ -91,6 +89,8 @@ MODULE qs_linres_current_utils
   USE qs_operators_ao,                 ONLY: set_up_op_sm
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_types,                    ONLY: qs_rho_retain
+  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
+                                             rs_grid_release
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
@@ -1321,13 +1321,13 @@ CONTAINS
 
     INTEGER                                  :: i, idir, ispin, istat
     LOGICAL                                  :: failure
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(pw_env_type), POINTER               :: pw_env
 
     failure=.FALSE.
 
-    NULLIFY(pw_env,rs_pools)
+    NULLIFY(pw_env,rs_descs)
 
     IF(.NOT.failure) THEN
        current_env%ref_count = current_env%ref_count - 1
@@ -1469,10 +1469,14 @@ CONTAINS
           END IF
           ! give back the gauge
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-          CALL pw_env_get(pw_env,rs_pools=rs_pools,error=error)
+          CALL pw_env_get(pw_env,rs_descs=rs_descs,error=error)
           DO idir=1,3
              IF(ASSOCIATED(current_env%rs_gauge(idir)%rs)) THEN
-                CALL rs_pools_give_back_rs_vect(rs_pools,current_env%rs_gauge(idir)%rs,error=error)
+                DO i=1,SIZE(current_env%rs_gauge(idir)%rs)
+                  CALL rs_grid_release(current_env%rs_gauge(idir)%rs(i)%rs_grid, error=error)
+                END DO
+                DEALLOCATE(current_env%rs_gauge(idir)%rs,STAT=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              ENDIF
           ENDDO
           !
@@ -1481,7 +1485,11 @@ CONTAINS
 
           ! give back the buf
           IF(ASSOCIATED(current_env%rs_buf)) THEN
-             CALL rs_pools_give_back_rs_vect(rs_pools,current_env%rs_buf,error=error)
+             DO i=1,SIZE(current_env%rs_buf)
+               CALL rs_grid_release(current_env%rs_buf(i)%rs_grid, error=error)
+             END DO
+             DEALLOCATE(current_env%rs_buf,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           ENDIF
           
        END IF  ! ref count

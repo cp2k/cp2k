@@ -29,11 +29,6 @@ MODULE kg_gpw_pw_env_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             rs_pool_create,&
-                                             rs_pools_create_rs_vect,&
-                                             rs_pools_dealloc,&
-                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info,&
                                              init_cube_info
@@ -95,6 +90,11 @@ MODULE kg_gpw_pw_env_methods
   USE realspace_grid_types,            ONLY: init_input_type,&
                                              realspace_grid_input_type,&
                                              realspace_grid_p_type,&
+                                             realspace_grid_descriptor_p_type,&
+                                             rs_grid_create,&
+                                             rs_grid_create_descriptor,&
+                                             rs_grid_release,&
+                                             rs_grid_release_descriptor,&
                                              rs_grid_print
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -351,8 +351,8 @@ CONTAINS
                                                 ecut, hmat(3,3), rel_cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutoff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools_mol
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs_mol
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info_g
     TYPE(pw_grid_type), POINTER              :: pw_grid_g, pw_grid_mol, &
@@ -367,7 +367,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(cube_info_g,pw_pools_mol,rs_pools_mol)
+    NULLIFY(cube_info_g,pw_pools_mol,rs_descs_mol)
     NULLIFY(pw_pool_g,pw_grid_mol,ref_pw_grid_mol)
 
     CPPrecondition(ASSOCIATED(pw_mol),cp_failure_level,routineP,error,failure)
@@ -378,7 +378,13 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       CALL pw_pools_dealloc(pw_mol%pw_pools,error=error)
-      CALL rs_pools_dealloc(pw_mol%rs_pools,error=error)
+      IF (ASSOCIATED(pw_mol%rs_descs)) THEN
+        DO i=1,SIZE(pw_mol%rs_descs)
+          CALL rs_grid_release_descriptor(pw_mol%rs_descs(i)%rs_desc, error=error)
+        END DO
+        DEALLOCATE(pw_mol%rs_descs, STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
       IF (ASSOCIATED(pw_mol%gridlevel_info)) THEN
         CALL destroy_gaussian_gridlevel(pw_mol%gridlevel_info, error=error)
       ELSE
@@ -421,7 +427,7 @@ CONTAINS
       ! init pw_grids and pools
       ALLOCATE(pw_pools_mol(ngrid_level),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(rs_pools_mol(ngrid_level),STAT=istat)
+      ALLOCATE(rs_descs_mol(ngrid_level),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       IF (dft_control % qs_control % commensurate_mgrids) THEN
@@ -594,14 +600,13 @@ CONTAINS
       NULLIFY(pw_pools_mol(1)%pool)
       CALL pw_pool_create(pw_pools_mol(1)%pool,pw_grid=pw_grid_mol,error=error)
 
-     ! init rs_pools
+     ! init rs_descs
       drmin = MINVAL ( pw_grid_mol%dr )
       CALL init_input_type(input_settings,nsmax=-1,ilevel=1, &
                                higher_grid_layout=(/-1,-1,-1/),error=error)
 
-      NULLIFY(rs_pools_mol(1)%pool)
-      CALL rs_pool_create(rs_pools_mol(1)%pool,&
-            el_struct=pw_grid_mol,input_settings=input_settings,error=error)
+      NULLIFY(rs_descs_mol(1)%rs_desc)
+      CALL rs_grid_create_descriptor(rs_descs_mol(1)%rs_desc,pw_grid_mol,input_settings,error=error)
       CALL pw_grid_release(pw_grid_mol,error=error)
 
 ! And now the other grid levels if it is necessary
@@ -775,14 +780,13 @@ CONTAINS
            NULLIFY(pw_pools_mol(igrid_level)%pool)
            CALL pw_pool_create(pw_pools_mol(igrid_level)%pool,pw_grid=pw_grid_mol,error=error)
 
-        ! init rs_pools, kg_gpw is really only a serial code
+        ! init rs_descs, kg_gpw is really only a serial code
            drmin = MINVAL ( pw_grid_mol%dr )
            CALL init_input_type(input_settings,nsmax=-1,ilevel=1, &
                                higher_grid_layout=(/-1,-1,-1/),error=error)
 
-           NULLIFY(rs_pools_mol(igrid_level)%pool)
-           CALL rs_pool_create(rs_pools_mol(igrid_level)%pool,&
-               el_struct=pw_grid_mol,input_settings=input_settings,error=error)
+           NULLIFY(rs_descs_mol(igrid_level)%rs_desc)
+           CALL rs_grid_create_descriptor(rs_descs_mol(igrid_level)%rs_desc,pw_grid_mol, input_settings, error=error)
            CALL pw_grid_release(pw_grid_mol,error=error)
 
          END DO  ! igrid_level
@@ -798,17 +802,21 @@ CONTAINS
            print_section,"",error=error),cp_p_file)
  
       IF ( should_output ) THEN
-        CALL rs_pools_create_rs_vect(rs_pools_mol,rs,error=error)
+        ALLOCATE (rs(ngrid_level),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineP,"rs")
         DO igrid_level=1,ngrid_level
+           CALL rs_grid_create(rs(igrid_level)%rs_grid, rs_descs_mol(igrid_level)%rs_desc, error=error)
            CALL rs_grid_print(rs(igrid_level)%rs_grid,iounit,error=error)
-       END DO
-        CALL rs_pools_give_back_rs_vect(rs_pools_mol,rs,error=error)
+           CALL rs_grid_release(rs(igrid_level)%rs_grid, error=error)
+        END DO
+        DEALLOCATE (rs,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineP,"rs")
       END IF
       CALL cp_print_key_finished_output(iounit,logger,print_section,&
           "",error=error)
 
       pw_mol%pw_pools => pw_pools_mol
-      pw_mol%rs_pools => rs_pools_mol
+      pw_mol%rs_descs => rs_descs_mol
 
       ! init cube info
       ALLOCATE (pw_mol%cube_info(ngrid_level),STAT=istat)

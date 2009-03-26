@@ -42,12 +42,6 @@ MODULE qs_linres_current
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs,&
-                                             rs_pools_create_rs_vect,&
-                                             rs_pools_give_back_rs_vect
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE cube_utils,                      ONLY: cube_info_type
@@ -106,7 +100,11 @@ MODULE qs_linres_current
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
+                                             realspace_grid_descriptor_type,&
+                                             realspace_grid_descriptor_p_type,&
                                              rs_grid_mult_and_add,&
+                                             rs_grid_create,&
+                                             rs_grid_release,&
                                              rs_grid_zero
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
@@ -191,7 +189,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, psi_a_iB
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -215,7 +213,7 @@ CONTAINS
     !
     NULLIFY(jrho_rspace,jrho_gspace,logger,current_section,density_matrix0,density_matrix_a,&
          &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,&
-         &  particle_set,pw_env,auxbas_rs_pool,auxbas_pw_pool,&
+         &  particle_set,pw_env,auxbas_rs_desc,auxbas_pw_pool,&
          &  para_env,center_list,mo_coeff,psi_a_iB,&
          &  psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order)
 
@@ -461,11 +459,11 @@ CONTAINS
        IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
             &   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
           !
-          CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool,&
+          CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc,&
                &          auxbas_pw_pool=auxbas_pw_pool,&
                &          error=error)
           !
-          CALL rs_pool_create_rs(auxbas_rs_pool,rs,error=error)
+          CALL rs_grid_create(rs, auxbas_rs_desc, error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,use_data=REALDATA3D,&
                &                  in_space=REALSPACE,error=error)
           !
@@ -498,7 +496,7 @@ CONTAINS
           ENDDO
           !
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error)
-          CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
+          CALL rs_grid_release(rs, error=error)
        ENDIF ! current cube
        !
        ! Integrated current response checksum
@@ -578,7 +576,7 @@ CONTAINS
       iset_old, istat, itask, ithread, jatom, jatom_old, jkind, jkind_old, &
       jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, &
       na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, &
-      ntasks, nthread, sgfa, sgfb
+      ntasks, nthread, sgfa, sgfb, i
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -607,8 +605,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -634,7 +632,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, rs_rho, &
          sab_orb_neighbor_list, sab_orb_neighbor_node, atomic_kind_set, &
-         sab_orb, particle_set, rs_current, pw_env, rs_pools, para_env, &
+         sab_orb, particle_set, rs_current, pw_env, rs_descs, para_env, &
          dist_ab, set_radius_a, set_radius_b, la_max, la_min, lb_max, &
          lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, sphi_a, sphi_b, &
          zeta, zetb, first_sgfa, first_sgfb, dist_ab, tasks, workt, mat_a, &
@@ -698,16 +696,18 @@ CONTAINS
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
 
     ! *** set up the rs multi-grids and the gauge
     distributed_rs_grids=.FALSE.
-    CALL rs_pools_create_rs_vect(rs_pools, rs_current, error=error)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    ALLOCATE(rs_current(gridlevel_info%ngrid_levels), rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
+       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       IF(.NOT.ALL(rs_current(igrid_level)%rs_grid%perd == 1)) THEN
+       IF(.NOT.ALL(rs_current(igrid_level)%rs_grid%desc%perd == 1)) THEN
           distributed_rs_grids = .TRUE.
        ENDIF
     ENDDO
@@ -1285,7 +1285,13 @@ CONTAINS
     CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs,&
          interp_section=interp_section,error=error)
 
-    CALL rs_pools_give_back_rs_vect(rs_pools,rs_rho,error=error)
+    IF (ASSOCIATED(rs_rho)) THEN
+      DO i=1, SIZE(rs_rho)
+        CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
+      END DO
+      DEALLOCATE (rs_rho,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     CALL timestop(handle)
 
@@ -1303,15 +1309,15 @@ CONTAINS
 
     REAL(dp)                                 :: dbox(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: box_data
-    INTEGER                                  :: handle, igrid_level, nbox(3), gauge
+    INTEGER                                  :: handle, igrid_level, nbox(3), gauge, istat
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: box_ptr
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
+    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+      POINTER                                :: rs_descs
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge
 
     TYPE(box_type), DIMENSION(:,:,:), POINTER :: box
-    LOGICAL :: use_old_gauge_atom
+    LOGICAL :: use_old_gauge_atom, failure
 
     NULLIFY(rs_gauge,box)
 
@@ -1328,7 +1334,7 @@ CONTAINS
             pw_env=pw_env,&
             error=error)
        CALL pw_env_get(pw_env=pw_env,&
-            rs_pools=rs_pools,&
+            rs_descs=rs_descs,&
             error=error)
        !
        ! box the atoms
@@ -1339,10 +1345,17 @@ CONTAINS
        ENDIF
        !
        ! allocate and build the gauge
-       CALL rs_pools_create_rs_vect(rs_pools,rs_gauge(1)%rs,error=error)
-       CALL rs_pools_create_rs_vect(rs_pools,rs_gauge(2)%rs,error=error)
-       CALL rs_pools_create_rs_vect(rs_pools,rs_gauge(3)%rs,error=error)
+       ALLOCATE (rs_gauge(1)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (rs_gauge(2)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (rs_gauge(3)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO igrid_level = pw_env%gridlevel_info%ngrid_levels,1,-1
+          CALL rs_grid_create(rs_gauge(1)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+          CALL rs_grid_create(rs_gauge(2)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+          CALL rs_grid_create(rs_gauge(3)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+
           IF(use_old_gauge_atom) THEN
              CALL collocate_gauge(current_env,qs_env,&
                   &               rs_gauge(1)%rs(igrid_level)%rs_grid,&
@@ -1359,7 +1372,11 @@ CONTAINS
        ENDDO
        !
        ! allocate the buf
-       CALL rs_pools_create_rs_vect(rs_pools,current_env%rs_buf,error=error)
+       ALLOCATE (current_env%rs_buf(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO igrid_level = 1,pw_env%gridlevel_info%ngrid_levels
+         CALL rs_grid_create(current_env%rs_buf(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+       END DO
        !
        DEALLOCATE(box_ptr,box_data)
        CALL deallocate_box(box)
@@ -1488,10 +1505,10 @@ CONTAINS
            error=error)
       !
       natms = SIZE(particle_set,1)
-      dr(1) = rs_grid_x%dh(1,1)
-      dr(2) = rs_grid_x%dh(2,2)
-      dr(3) = rs_grid_x%dh(3,3)
-      lb(:) = rs_grid_x%lb(:)
+      dr(1) = rs_grid_x%desc%dh(1,1)
+      dr(2) = rs_grid_x%desc%dh(2,2)
+      dr(3) = rs_grid_x%desc%dh(3,3)
+      lb(:) = rs_grid_x%desc%lb(:)
       lb_local(:) = rs_grid_x%lb_local(:)
       grid_x => rs_grid_x%r(:,:,:)
       grid_y => rs_grid_y%r(:,:,:)
@@ -1889,10 +1906,10 @@ CONTAINS
            error=error)
       !
       natms = SIZE(particle_set,1)
-      dr(1) = rs_grid_x%dh(1,1)
-      dr(2) = rs_grid_x%dh(2,2)
-      dr(3) = rs_grid_x%dh(3,3)
-      lb(:) = rs_grid_x%lb(:)
+      dr(1) = rs_grid_x%desc%dh(1,1)
+      dr(2) = rs_grid_x%desc%dh(2,2)
+      dr(3) = rs_grid_x%desc%dh(3,3)
+      lb(:) = rs_grid_x%desc%lb(:)
       lb_local(:) = rs_grid_x%lb_local(:)
       grid_x => rs_grid_x%r(:,:,:)
       grid_y => rs_grid_y%r(:,:,:)

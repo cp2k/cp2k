@@ -74,7 +74,7 @@ CONTAINS
 
     zetp = zeta + zetb
     rp(:) = ra(:) + zetb/zetp*rab(:)
-    cube_center(:) = FLOOR(MATMUL(rs_grid%dh_inv,rp))
+    cube_center(:) = FLOOR(MATMUL(rs_grid%desc%dh_inv,rp))
 
   END SUBROUTINE compute_cube_center
 ! *****************************************************************************
