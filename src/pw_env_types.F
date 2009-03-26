@@ -23,8 +23,8 @@ MODULE pw_env_types
                                              pw_pool_type,&
                                              pw_pools_dealloc,&
                                              pw_pools_flush_cache
-  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
-                                             realspace_grid_descriptor_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                             realspace_grid_desc_type,&
                                              rs_grid_release_descriptor
 #include "cp_common_uses.h"
 
@@ -64,7 +64,7 @@ MODULE pw_env_types
      INTEGER :: ref_count
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
      TYPE(pw_pool_type), POINTER :: xc_pw_pool
-     TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), POINTER :: rs_descs
+     TYPE(realspace_grid_desc_p_type), DIMENSION(:), POINTER :: rs_descs
      TYPE(gridlevel_info_type), POINTER :: gridlevel_info
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
      INTEGER :: auxbas_grid
@@ -95,9 +95,9 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
       POINTER                                :: gridlevel_info
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: auxbas_pw_pool
     INTEGER, INTENT(out), OPTIONAL           :: auxbas_grid
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: rs_descs
-    TYPE(realspace_grid_descriptor_type), &
+    TYPE(realspace_grid_desc_type), &
       OPTIONAL, POINTER                      :: auxbas_rs_desc
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env

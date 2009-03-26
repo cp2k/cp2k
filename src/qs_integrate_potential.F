@@ -80,8 +80,8 @@ MODULE qs_integrate_potential
   USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: pw2rs,&
-                                             realspace_grid_descriptor_p_type,&
-                                             realspace_grid_descriptor_type,&
+                                             realspace_grid_desc_p_type,&
+                                             realspace_grid_desc_type,&
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_grid_create,&
@@ -151,8 +151,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: auxbas_rs_desc
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
 
@@ -348,7 +347,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ddv
     TYPE(real_matrix_type), POINTER          :: deltap, dh
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v

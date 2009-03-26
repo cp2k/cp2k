@@ -46,10 +46,10 @@ MODULE ewald_pw_types
                                              pw_pool_type
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: &
-       init_input_type, realspace_grid_descriptor_type, &
-       realspace_grid_input_type, realspace_grid_type, rs_grid_create, &
-       rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
-       rs_grid_release_descriptor, rs_grid_retain_descriptor
+       init_input_type, realspace_grid_desc_type, realspace_grid_input_type, &
+       realspace_grid_type, rs_grid_create, rs_grid_create_descriptor, &
+       rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
+       rs_grid_retain_descriptor
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -70,7 +70,7 @@ MODULE ewald_pw_types
      INTEGER :: ref_count, id_nr
      TYPE ( pw_pool_type ), POINTER       :: pw_small_pool
      TYPE ( pw_pool_type ), POINTER       :: pw_big_pool
-     TYPE ( realspace_grid_descriptor_type ), POINTER    :: rs_desc
+     TYPE ( realspace_grid_desc_type ), POINTER    :: rs_desc
      TYPE ( pw_poisson_type ), POINTER    :: poisson_env
      TYPE ( dg_type ), POINTER            :: dg
   END TYPE ewald_pw_type
@@ -200,8 +200,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: rs_desc
+    TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: poisson_section, &
@@ -380,7 +379,7 @@ CONTAINS
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
-    TYPE(realspace_grid_descriptor_type), &
+    TYPE(realspace_grid_desc_type), &
       OPTIONAL, POINTER                      :: rs_desc
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
@@ -407,7 +406,7 @@ CONTAINS
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
-    TYPE(realspace_grid_descriptor_type), &
+    TYPE(realspace_grid_desc_type), &
       OPTIONAL, POINTER                      :: rs_desc
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env

@@ -20,8 +20,8 @@ MODULE kg_rspw_types
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_dealloc
-  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
-                                             realspace_grid_descriptor_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                             realspace_grid_desc_type,&
                                              rs_grid_release_descriptor
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -42,7 +42,7 @@ MODULE kg_rspw_types
      TYPE(gridlevel_info_type),POINTER              :: gridlevel_info
      TYPE(cube_info_type), DIMENSION(:), POINTER    :: cube_info
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER    :: pw_pools
-     TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), POINTER :: rs_descs
+     TYPE(realspace_grid_desc_p_type), DIMENSION(:), POINTER :: rs_descs
      TYPE(pw_poisson_type), POINTER :: poisson_env
   END TYPE kg_rspw_type
 !-----------------------------------------------------------------------------!
@@ -61,11 +61,11 @@ SUBROUTINE kg_rspw_get(kg_rspw, cube_info, gridlevel_info,&
       POINTER                                :: gridlevel_info
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: auxbas_pw_pool
     INTEGER, INTENT(out), OPTIONAL           :: auxbas_grid
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: rs_descs
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
-    TYPE(realspace_grid_descriptor_type), &
+    TYPE(realspace_grid_desc_type), &
       OPTIONAL, POINTER                      :: auxbas_rs_desc
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error

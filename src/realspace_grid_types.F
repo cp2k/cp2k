@@ -44,9 +44,9 @@ MODULE realspace_grid_types
 
   PRIVATE
   PUBLIC :: realspace_grid_type,&
-            realspace_grid_descriptor_type,&
+            realspace_grid_desc_type,&
             realspace_grid_p_type,&
-            realspace_grid_descriptor_p_type,&
+            realspace_grid_desc_p_type,&
             realspace_grid_input_type
 
   PUBLIC :: rs_pw_transfer,&
@@ -79,7 +79,7 @@ MODULE realspace_grid_types
   END TYPE realspace_grid_input_type
 
 ! *****************************************************************************
-  TYPE realspace_grid_descriptor_type
+  TYPE realspace_grid_desc_type
      INTEGER :: grid_id                                  ! tag of the pw_grid
 
      TYPE(pw_grid_type), POINTER   :: pw                 ! the pw grid
@@ -121,11 +121,11 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (:), POINTER :: y2coord
      INTEGER, DIMENSION (:), POINTER :: z2coord
 
-  END TYPE realspace_grid_descriptor_type
+  END TYPE realspace_grid_desc_type
 
   TYPE realspace_grid_type
 
-     TYPE(realspace_grid_descriptor_type), POINTER :: desc
+     TYPE(realspace_grid_desc_type), POINTER :: desc
 
      INTEGER :: id_nr                                    ! unique identifier of rs
      INTEGER :: ref_count                                ! reference count
@@ -149,9 +149,9 @@ MODULE realspace_grid_types
      TYPE(realspace_grid_type), POINTER :: rs_grid
   END TYPE realspace_grid_p_type
 
-  TYPE realspace_grid_descriptor_p_type
-     TYPE(realspace_grid_descriptor_type), POINTER :: rs_desc
-  END TYPE realspace_grid_descriptor_p_type
+  TYPE realspace_grid_desc_p_type
+     TYPE(realspace_grid_desc_type), POINTER :: rs_desc
+  END TYPE realspace_grid_desc_p_type
 
 CONTAINS
 
@@ -246,8 +246,7 @@ CONTAINS
 !> \author JGH (18-Mar-2001)
 ! *****************************************************************************
   SUBROUTINE rs_grid_create_descriptor ( desc, pw_grid, input_settings, error)
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: desc
+    TYPE(realspace_grid_desc_type), POINTER  :: desc
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(realspace_grid_input_type), &
       INTENT(IN)                             :: input_settings
@@ -494,8 +493,7 @@ CONTAINS
 
   SUBROUTINE rs_grid_create ( rs, desc, error)
     TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: desc
+    TYPE(realspace_grid_desc_type), POINTER  :: desc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create', &
@@ -1760,8 +1758,7 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
   END SUBROUTINE rs_grid_retain
 
   SUBROUTINE rs_grid_retain_descriptor(rs_desc, error)
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: rs_desc
+    TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain_descriptor', &
@@ -1828,8 +1825,7 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
   END SUBROUTINE rs_grid_release
 
   SUBROUTINE rs_grid_release_descriptor(rs_desc,error)
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: rs_desc
+    TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release_descriptor', &

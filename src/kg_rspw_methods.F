@@ -50,7 +50,7 @@ MODULE kg_rspw_methods
                                              pw_pools_dealloc
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: &
-       init_input_type, realspace_grid_descriptor_p_type, &
+       init_input_type, realspace_grid_desc_p_type, &
        realspace_grid_input_type, realspace_grid_p_type, realspace_grid_type, &
        rs_grid_create, rs_grid_create_descriptor, rs_grid_print, &
        rs_grid_release, rs_grid_release_descriptor
@@ -138,7 +138,7 @@ END SUBROUTINE kg_rspw_create
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &

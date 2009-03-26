@@ -69,7 +69,7 @@ MODULE qs_linres_nmr_shift
                                              get_nmr_env,&
                                              jrho_atom_type,&
                                              nmr_env_type
-  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_type
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -123,8 +123,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: auxbas_rs_desc
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(section_vals_type), POINTER         :: nmr_section
 
     failure = .FALSE.

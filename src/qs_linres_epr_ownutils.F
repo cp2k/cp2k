@@ -71,7 +71,7 @@ MODULE qs_linres_epr_ownutils
                                              rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_type
-  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_type
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -817,8 +817,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: auxbas_rs_desc
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
 
     failure = .FALSE.
     CALL timeset(routineN,handle)

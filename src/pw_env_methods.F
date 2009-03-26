@@ -68,7 +68,7 @@ MODULE pw_env_methods
                                              rho0_mpole_type
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: &
-       init_input_type, realspace_grid_descriptor_p_type, &
+       init_input_type, realspace_grid_desc_p_type, &
        realspace_grid_input_type, realspace_grid_p_type, realspace_grid_type, &
        rs_grid_create, rs_grid_create_descriptor, rs_grid_print, &
        rs_grid_release, rs_grid_release_descriptor
@@ -181,7 +181,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &

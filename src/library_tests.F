@@ -88,7 +88,7 @@ MODULE library_tests
                                              pw_p_type,&
                                              pw_release
   USE realspace_grid_types,            ONLY: &
-       init_input_type, pw2rs, realspace_grid_descriptor_type, &
+       init_input_type, pw2rs, realspace_grid_desc_type, &
        realspace_grid_input_type, realspace_grid_type, rs2pw, rs_grid_create, &
        rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
        rs_grid_release_descriptor, rs_grid_zero, rs_pw_transfer
@@ -718,8 +718,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: box
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_p_type)                          :: ca
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: rs_desc
+    TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(section_vals_type), POINTER         :: rs_grid_section

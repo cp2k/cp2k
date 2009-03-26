@@ -88,7 +88,7 @@ MODULE kg_gpw_pw_env_methods
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
   USE realspace_grid_types,            ONLY: &
-       init_input_type, realspace_grid_descriptor_p_type, &
+       init_input_type, realspace_grid_desc_p_type, &
        realspace_grid_input_type, realspace_grid_p_type, rs_grid_create, &
        rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
        rs_grid_release_descriptor
@@ -354,7 +354,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools_mol
     TYPE(pw_pool_type), POINTER              :: pw_pool_g
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs_mol
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &

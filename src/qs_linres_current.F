@@ -98,8 +98,8 @@ MODULE qs_linres_current
   USE qs_operators_ao,                 ONLY: rRc_xyz_der_ao,&
                                              set_up_op_sm
   USE realspace_grid_cube,             ONLY: pw_to_cube
-  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
-                                             realspace_grid_descriptor_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                             realspace_grid_desc_type,&
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_grid_create,&
@@ -204,8 +204,7 @@ CONTAINS
                                                 density_matrix_a, &
                                                 density_matrix_ii, &
                                                 density_matrix_iii
-    TYPE(realspace_grid_descriptor_type), &
-      POINTER                                :: auxbas_rs_desc
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: current_section
 
@@ -622,7 +621,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltajp_a, deltajp_b, &
                                                 deltajp_c, deltajp_d, mat_a, &
                                                 mat_b, mat_c, mat_d
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_current, rs_rho
@@ -1312,7 +1311,7 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: box_data
     INTEGER                                  :: handle, igrid_level, nbox(3), gauge, istat
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: box_ptr
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
+    TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
       POINTER                                :: rs_descs
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge

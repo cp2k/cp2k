@@ -43,7 +43,7 @@ MODULE kg_gpw_collocate_den
                                              potential_pw2rs
   USE qs_modify_pab_block,             ONLY: FUNC_AB,&
                                              FUNC_DADB
-  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_create,&
                                              rs_grid_release,&
@@ -149,7 +149,7 @@ CONTAINS
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
     TYPE(lgrid_type)                         :: lgrid
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
@@ -658,7 +658,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v

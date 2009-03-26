@@ -89,7 +89,7 @@ MODULE qs_linres_current_utils
   USE qs_operators_ao,                 ONLY: set_up_op_sm
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_types,                    ONLY: qs_rho_retain
-  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              rs_grid_release
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
@@ -1322,7 +1322,7 @@ CONTAINS
     INTEGER                                  :: i, idir, ispin, istat
     LOGICAL                                  :: failure
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(realspace_grid_descriptor_p_type), &
+    TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
 
     failure=.FALSE.
