@@ -87,15 +87,11 @@ MODULE kg_gpw_pw_env_methods
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-  USE realspace_grid_types,            ONLY: init_input_type,&
-                                             realspace_grid_input_type,&
-                                             realspace_grid_p_type,&
-                                             realspace_grid_descriptor_p_type,&
-                                             rs_grid_create,&
-                                             rs_grid_create_descriptor,&
-                                             rs_grid_release,&
-                                             rs_grid_release_descriptor,&
-                                             rs_grid_print
+  USE realspace_grid_types,            ONLY: &
+       init_input_type, realspace_grid_descriptor_p_type, &
+       realspace_grid_input_type, realspace_grid_p_type, rs_grid_create, &
+       rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
+       rs_grid_release_descriptor
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -351,8 +347,6 @@ CONTAINS
                                                 ecut, hmat(3,3), rel_cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutoff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs_mol
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info_g
     TYPE(pw_grid_type), POINTER              :: pw_grid_g, pw_grid_mol, &
@@ -360,6 +354,8 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools_mol
     TYPE(pw_pool_type), POINTER              :: pw_pool_g
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs_mol
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs

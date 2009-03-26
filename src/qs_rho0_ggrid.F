@@ -57,15 +57,10 @@ MODULE qs_rho0_ggrid
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE realspace_grid_types,            ONLY: pw2rs,&
-                                             realspace_grid_type,&
-                                             realspace_grid_descriptor_type,&
-                                             realspace_grid_descriptor_p_type,&
-                                             rs2pw,&
-                                             rs_grid_create,&
-                                             rs_grid_release,&
-                                             rs_grid_zero,&
-                                             rs_pw_transfer
+  USE realspace_grid_types,            ONLY: &
+       pw2rs, realspace_grid_descriptor_p_type, &
+       realspace_grid_descriptor_type, realspace_grid_type, rs2pw, &
+       rs_grid_create, rs_grid_release, rs_grid_zero, rs_pw_transfer
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -110,9 +105,6 @@ MODULE qs_rho0_ggrid
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: descs
-    TYPE(realspace_grid_descriptor_type), POINTER           :: desc
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -124,6 +116,10 @@ MODULE qs_rho0_ggrid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: descs
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: desc
     TYPE(realspace_grid_type), POINTER       :: rs_grid
 
     CALL timeset(routineN,handle)
@@ -377,9 +373,6 @@ MODULE qs_rho0_ggrid
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
-    TYPE(realspace_grid_descriptor_type), POINTER           :: rs_desc
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -395,6 +388,10 @@ MODULE qs_rho0_ggrid
     TYPE(pw_pool_type), POINTER              :: pw_aux, pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rho_atom_coeff), DIMENSION(:), &

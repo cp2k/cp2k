@@ -51,8 +51,8 @@ MODULE scp_density_methods
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
                                              potential_pw2rs
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             realspace_grid_descriptor_p_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
+                                             realspace_grid_p_type,&
                                              rs2pw,&
                                              rs_grid_create,&
                                              rs_grid_release,&
@@ -100,7 +100,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_p_type), POINTER         :: rs_descs( : )
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -110,6 +109,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(realspace_grid_descriptor_p_type), &
+      POINTER                                :: rs_descs( : )
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(scp_rspw_type), POINTER             :: rspw
 
@@ -160,8 +161,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -403,14 +404,14 @@ CONTAINS
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(scp_force_type), DIMENSION(:), &

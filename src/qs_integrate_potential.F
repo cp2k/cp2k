@@ -80,10 +80,10 @@ MODULE qs_integrate_potential
   USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: pw2rs,&
-                                             realspace_grid_p_type,&
                                              realspace_grid_descriptor_p_type,&
-                                             realspace_grid_type,&
                                              realspace_grid_descriptor_type,&
+                                             realspace_grid_p_type,&
+                                             realspace_grid_type,&
                                              rs_grid_create,&
                                              rs_grid_release,&
                                              rs_pw_transfer
@@ -145,13 +145,14 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
 
@@ -292,13 +293,13 @@ CONTAINS
                                                 max_tasks = 3000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: atom_a, atom_b, bcol, brow, handle, iatom, iatom_new, &
+    INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, iatom_new, &
       iatom_old, idir, igrid_level, ikind, ikind_old, ilevel, ipgf, ipgf_new, &
       iset, iset_new, iset_old, istat, itask, ithread, jatom, jatom_new, &
       jatom_old, jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, &
       maxco, maxpgf, maxset, maxsgf_set, my_basis_set_id, n, na1, na2, natom, &
       nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, &
-      sgfa, sgfb, stat, i
+      sgfa, sgfb, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -332,8 +333,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -349,6 +348,8 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ddv
     TYPE(real_matrix_type), POINTER          :: deltap, dh
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section

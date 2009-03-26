@@ -102,15 +102,10 @@ MODULE qs_collocate_density
        prepare_diadib, prepare_diiadiib, prepare_dijadijb
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             realspace_grid_descriptor_p_type,&
-                                             realspace_grid_type,&
-                                             realspace_grid_descriptor_type,&
-                                             rs2pw,&
-                                             rs_grid_zero,&
-                                             rs_grid_create,&
-                                             rs_grid_release,&
-                                             rs_pw_transfer
+  USE realspace_grid_types,            ONLY: &
+       realspace_grid_descriptor_p_type, realspace_grid_descriptor_type, &
+       realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_create, &
+       rs_grid_release, rs_grid_zero, rs_pw_transfer
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              get_block_node,&
                                              real_matrix_type,&
@@ -190,8 +185,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -204,9 +197,10 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-
 
     NULLIFY(aux_basis_set, atomic_kind_set, atomic_kind, npgfa, cell, particle_set, &
             sphi_a, rs_rho, pw_env, cube_info, dft_control, rho_struct, atom_list, &
@@ -376,7 +370,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(cube_info_type)                     :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
@@ -384,6 +377,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rhoc_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     CALL timeset(routineN,handle)
@@ -541,8 +536,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -554,6 +547,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(real_matrix_type), POINTER          :: deltap
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
@@ -933,11 +928,11 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: bcol, brow, handle, iatom, iatom_old, idir, igrid_level, &
+    INTEGER :: bcol, brow, handle, i, iatom, iatom_old, idir, igrid_level, &
       ikind, ikind_old, ipgf, iset, iset_old, istat, itask, ithread, jatom, &
       jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, &
       maxset, maxsgf, maxsgf_set, my_basis_set_id, n, na1, na2, natoms, nb1, &
-      nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat, i
+      nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -963,8 +958,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -976,6 +969,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(real_matrix_type), POINTER          :: deltap
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
@@ -1372,8 +1367,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvector
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, sphi_a, work, zeta
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
@@ -1381,6 +1374,8 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(REALSPACE_GRID_P_TYPE), &
       DIMENSION(:), POINTER                  :: rs_rho
 
@@ -2858,15 +2853,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, igrid_level, &
-                                                interp_kind, ierr
+    INTEGER                                  :: handle, ierr, igrid_level, &
+                                                interp_kind
     LOGICAL                                  :: failure
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -2961,12 +2956,12 @@ CONTAINS
     INTEGER                                  :: handle, igrid_level, &
                                                 interp_kind
     LOGICAL                                  :: failure
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
 
     CALL timeset(routineN,handle)
     failure = .FALSE.

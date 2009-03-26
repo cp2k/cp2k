@@ -98,12 +98,12 @@ MODULE qs_linres_current
   USE qs_operators_ao,                 ONLY: rRc_xyz_der_ao,&
                                              set_up_op_sm
   USE realspace_grid_cube,             ONLY: pw_to_cube
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             realspace_grid_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
                                              realspace_grid_descriptor_type,&
-                                             realspace_grid_descriptor_p_type,&
-                                             rs_grid_mult_and_add,&
+                                             realspace_grid_p_type,&
+                                             realspace_grid_type,&
                                              rs_grid_create,&
+                                             rs_grid_mult_and_add,&
                                              rs_grid_release,&
                                              rs_grid_zero
   USE sparse_matrix_types,             ONLY: &
@@ -189,7 +189,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, psi_a_iB
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -205,6 +204,8 @@ CONTAINS
                                                 density_matrix_a, &
                                                 density_matrix_ii, &
                                                 density_matrix_iii
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: current_section
 
@@ -571,12 +572,12 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, curr_tasks, handle, iatom, iatom_old, idir2, &
-      igrid_level, iiB, iiiB, ikind, ikind_old, ilist, inode, ipgf, iset, &
-      iset_old, istat, itask, ithread, jatom, jatom_old, jkind, jkind_old, &
-      jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, &
-      na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, &
-      ntasks, nthread, sgfa, sgfb, i
+    INTEGER :: ab, bcol, brow, curr_tasks, handle, i, iatom, iatom_old, &
+      idir2, igrid_level, iiB, iiiB, ikind, ikind_old, ilist, inode, ipgf, &
+      iset, iset_old, istat, itask, ithread, jatom, jatom_old, jkind, &
+      jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
+      maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, &
+      nseta, nsetb, ntasks, nthread, sgfa, sgfb
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -605,8 +606,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -623,6 +622,8 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltajp_a, deltajp_b, &
                                                 deltajp_c, deltajp_d, mat_a, &
                                                 mat_b, mat_c, mat_d
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_current, rs_rho
     TYPE(realspaces_grid_p_type), &

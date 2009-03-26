@@ -111,7 +111,6 @@ CONTAINS
                                                 chemical_shift_nics, &
                                                 chemical_shift_nics_loc
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(realspace_grid_descriptor_type), POINTER           :: auxbas_rs_desc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -124,6 +123,8 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: auxbas_rs_desc
     TYPE(section_vals_type), POINTER         :: nmr_section
 
     failure = .FALSE.

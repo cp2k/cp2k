@@ -23,8 +23,8 @@ MODULE pw_env_types
                                              pw_pool_type,&
                                              pw_pools_dealloc,&
                                              pw_pools_flush_cache
-  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_type,&
-                                             realspace_grid_descriptor_p_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
+                                             realspace_grid_descriptor_type,&
                                              rs_grid_release_descriptor
 #include "cp_common_uses.h"
 
@@ -95,9 +95,10 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
       POINTER                                :: gridlevel_info
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: auxbas_pw_pool
     INTEGER, INTENT(out), OPTIONAL           :: auxbas_grid
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: rs_descs
-    TYPE(realspace_grid_descriptor_type), OPTIONAL, POINTER :: auxbas_rs_desc
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: rs_descs
+    TYPE(realspace_grid_descriptor_type), &
+      OPTIONAL, POINTER                      :: auxbas_rs_desc
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -172,7 +173,7 @@ SUBROUTINE pw_env_release(pw_env, kg, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: igrid_level, stat,i
+    INTEGER                                  :: i, igrid_level, stat
     LOGICAL                                  :: failure, my_kg
 
   failure=.FALSE.

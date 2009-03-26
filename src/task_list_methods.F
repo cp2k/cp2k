@@ -42,12 +42,12 @@ MODULE task_list_methods
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_descriptor_p_type,&
+                                             realspace_grid_p_type,&
                                              realspace_grid_type,&
-                                             realspace_grid_descriptor_p_type,&
                                              rs_grid_create,&
-                                             rs_grid_release,&
-                                             rs_grid_locate_rank
+                                             rs_grid_locate_rank,&
+                                             rs_grid_release
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              get_block_node,&
                                              real_matrix_type
@@ -97,9 +97,9 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, curr_tasks, handle, iatom, ikind, ilist, inode, jatom, &
+    INTEGER :: ab, curr_tasks, handle, i, iatom, ikind, ilist, inode, jatom, &
       jkind, maxpgf, maxset, my_basis_set_id, natoms, nkind, nlist, nnode, &
-      nseta, nsetb,i,stat
+      nseta, nsetb, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
     LOGICAL                                  :: failure, my_soft
@@ -111,8 +111,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -125,6 +123,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
 

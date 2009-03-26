@@ -65,16 +65,10 @@ MODULE qs_dftb_coulomb
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE realspace_grid_types,            ONLY: pw2rs,&
-                                             realspace_grid_p_type,&
-                                             realspace_grid_type,&
-                                             realspace_grid_descriptor_type,&
-                                             rs2pw,&
-                                             rs_grid_set_box,&
-                                             rs_grid_zero,&
-                                             rs_grid_create,&
-                                             rs_grid_release,&
-                                             rs_pw_transfer
+  USE realspace_grid_types,            ONLY: &
+       pw2rs, realspace_grid_descriptor_type, realspace_grid_p_type, &
+       realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, &
+       rs_grid_set_box, rs_grid_zero, rs_pw_transfer
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              first_block_node,&
                                              get_block_node,&
@@ -392,13 +386,14 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
-    TYPE(realspace_grid_descriptor_type), POINTER           :: rs_desc
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_type), POINTER                   :: phi_g, rhob_g, rhob_r
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: rs_desc
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden, rpot

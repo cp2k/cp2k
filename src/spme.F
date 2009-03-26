@@ -45,16 +45,10 @@ MODULE spme
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-  USE realspace_grid_types,            ONLY: pw2rs,&
-                                             realspace_grid_p_type,&
-                                             realspace_grid_type,&
-                                             realspace_grid_descriptor_type,&
-                                             rs2pw,&
-                                             rs_grid_set_box,&
-                                             rs_grid_create,&
-                                             rs_grid_release,&
-                                             rs_grid_zero,&
-                                             rs_pw_transfer
+  USE realspace_grid_types,            ONLY: &
+       pw2rs, realspace_grid_descriptor_type, realspace_grid_p_type, &
+       realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, &
+       rs_grid_set_box, rs_grid_zero, rs_pw_transfer
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -113,13 +107,14 @@ CONTAINS
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
-    TYPE(realspace_grid_descriptor_type), POINTER           :: rs_desc
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_type), POINTER                   :: phi_g, rhob_g, rhob_r
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: rs_desc
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden

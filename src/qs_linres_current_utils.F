@@ -1321,9 +1321,9 @@ CONTAINS
 
     INTEGER                                  :: i, idir, ispin, istat
     LOGICAL                                  :: failure
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
 
     failure=.FALSE.
 

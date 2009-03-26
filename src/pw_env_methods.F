@@ -67,17 +67,11 @@ MODULE pw_env_methods
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE qs_util,                         ONLY: exp_radius
-  USE realspace_grid_types,            ONLY: init_input_type,&
-                                             realspace_grid_input_type,&
-                                             realspace_grid_p_type,&
-                                             realspace_grid_descriptor_type,&
-                                             realspace_grid_descriptor_p_type,&
-                                             realspace_grid_type,&
-                                             rs_grid_print,&
-                                             rs_grid_create,&
-                                             rs_grid_create_descriptor,&
-                                             rs_grid_release,&
-                                             rs_grid_release_descriptor
+  USE realspace_grid_types,            ONLY: &
+       init_input_type, realspace_grid_descriptor_p_type, &
+       realspace_grid_input_type, realspace_grid_p_type, realspace_grid_type, &
+       rs_grid_create, rs_grid_create_descriptor, rs_grid_print, &
+       rs_grid_release, rs_grid_release_descriptor
   USE scp_environment_types,           ONLY: scp_environment_type
   USE scp_rspw_methods,                ONLY: maxradius_scp_init
   USE timings,                         ONLY: timeset,&
@@ -176,8 +170,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(cell_type), POINTER                 :: cell, cell_ref, my_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(realspace_grid_descriptor_p_type), DIMENSION(:), &
-      POINTER                                :: rs_descs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: aux_fit_basis_set, &
                                                 orb_basis_set, &
@@ -189,6 +181,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(realspace_grid_descriptor_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs

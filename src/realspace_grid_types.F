@@ -246,7 +246,8 @@ CONTAINS
 !> \author JGH (18-Mar-2001)
 ! *****************************************************************************
   SUBROUTINE rs_grid_create_descriptor ( desc, pw_grid, input_settings, error)
-    TYPE(realspace_grid_descriptor_type), POINTER :: desc
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: desc
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(realspace_grid_input_type), &
       INTENT(IN)                             :: input_settings
@@ -492,15 +493,16 @@ CONTAINS
   END SUBROUTINE rs_grid_create_descriptor
 
   SUBROUTINE rs_grid_create ( rs, desc, error)
-    TYPE(realspace_grid_type), POINTER :: rs
-    TYPE(realspace_grid_descriptor_type), POINTER :: desc
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: desc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER    :: stat, i
-    LOGICAL    :: failure
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
     ALLOCATE(rs,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1758,7 +1760,8 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
   END SUBROUTINE rs_grid_retain
 
   SUBROUTINE rs_grid_retain_descriptor(rs_desc, error)
-    TYPE(realspace_grid_descriptor_type), POINTER       :: rs_desc
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: rs_desc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain_descriptor', &
@@ -1825,7 +1828,8 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
   END SUBROUTINE rs_grid_release
 
   SUBROUTINE rs_grid_release_descriptor(rs_desc,error)
-    TYPE(realspace_grid_descriptor_type), POINTER       :: rs_desc
+    TYPE(realspace_grid_descriptor_type), &
+      POINTER                                :: rs_desc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release_descriptor', &
