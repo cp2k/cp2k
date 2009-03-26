@@ -56,7 +56,6 @@ MODULE environment
                                              print_kind_info
   USE machine,                         ONLY: flush_should_flush,&
                                              m_datum,&
-                                             m_flush,&
                                              m_flush_internal,&
                                              m_getcwd,&
                                              m_getlog,&
