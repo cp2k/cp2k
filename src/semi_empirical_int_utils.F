@@ -11,6 +11,7 @@ MODULE semi_empirical_int_utils
 
   USE f77_blas
   USE input_constants,                 ONLY: do_method_pchg,&
+                                             do_multipole_none,&
                                              do_se_IS_kdso_d
   USE kinds,                           ONLY: dp
   USE semi_empirical_int3_utils,       ONLY: charg_int_3,&
@@ -27,7 +28,6 @@ MODULE semi_empirical_int_utils
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
 #include "semi_empirical_int_debug.h"
 
   PRIVATE
@@ -65,7 +65,7 @@ CONTAINS
 
     res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                       se_int_control%integral_screening, se_int_control%shortrange,&
-                      itype, charg_int_nri, error)
+                      se_int_control%max_multipole, itype, charg_int_nri, error)
 
     ! Handle the 1/r^3 term
     IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
@@ -102,13 +102,13 @@ CONTAINS
 
     res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                       se_int_control%integral_screening, se_int_control%shortrange,&
-                      itype, dcharg_int_nri, error)
+                      se_int_control%max_multipole, itype, dcharg_int_nri, error)
 
     ! Handle the derivative of the Tapering term
     IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
        dfs = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-            se_int_control%integral_screening, .FALSE., itype, dcharg_int_nri_fs,&
-            error)
+            se_int_control%integral_screening, .FALSE., do_multipole_none, itype, &
+            dcharg_int_nri_fs, error)
        res = res + dfs*se_int_screen%dft
     END IF
 
@@ -131,14 +131,14 @@ CONTAINS
 !> \date 05.2008 [tlaino]
 ! *****************************************************************************
   FUNCTION ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-       iscreen, shortrange, itype, eval, error) RESULT(res)
+       iscreen, shortrange, max_multipole, itype, eval, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
     TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     INTEGER, INTENT(IN)                      :: iscreen
     LOGICAL, INTENT(IN)                      :: shortrange
-    INTEGER, INTENT(IN)                      :: itype
+    INTEGER, INTENT(IN)                      :: max_multipole, itype
     REAL(KIND=dp)                            :: eval
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -230,11 +230,13 @@ CONTAINS
        add = 0.0_dp
        fact_screen = 0.0_dp
        DO l1 = l1min, l1max
+          IF (l1 > max_multipole) CYCLE
           IF (l1 /= 0) THEN
              dij = sepi%cs(lij)*fact_ij
           END IF
           !
           DO l2 = l2min, l2max
+             IF (l2 > max_multipole) CYCLE
              IF (l2 /= 0) THEN
                 dkl = sepj%cs(lkl)*fact_kl
              END IF
@@ -882,7 +884,7 @@ CONTAINS
 
     res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                      se_int_control%integral_screening, se_int_control%shortrange,&
-                     itype, charg_int_ri, error)
+                     se_int_control%max_multipole, itype, charg_int_ri, error)
 
     ! Handle the 1/r^3 term
     IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
@@ -925,13 +927,13 @@ CONTAINS
 
     res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                      se_int_control%integral_screening, se_int_control%shortrange,&
-                     itype, dcharg_int_ri, error)
+                     se_int_control%max_multipole, itype, dcharg_int_ri, error)
 
     ! Handle the derivative of the Tapering term
     IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
        dfs = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-            se_int_control%integral_screening, .FALSE., itype, dcharg_int_ri_fs,&
-            error)
+            se_int_control%integral_screening, .FALSE., do_multipole_none, itype,&
+            dcharg_int_ri_fs, error)
        res = res + dfs*se_int_screen%dft
     END IF
 
@@ -959,14 +961,14 @@ CONTAINS
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
   FUNCTION ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-       iscreen, shortrange, itype, eval, error) RESULT(res)
+       iscreen, shortrange, max_multipole, itype, eval, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
     TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     INTEGER, INTENT(IN)                      :: iscreen
     LOGICAL, INTENT(IN)                      :: shortrange
-    INTEGER, INTENT(IN)                      :: itype
+    INTEGER, INTENT(IN)                      :: max_multipole, itype
     REAL(KIND=dp)                            :: eval
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -1056,11 +1058,13 @@ CONTAINS
        add = 0.0_dp
        fact_screen = 0.0_dp
        DO l1 = l1min, l1max
+          IF (l1 > max_multipole) CYCLE
           IF (l1 /= 0) THEN
              dij = sepi%cs(lij)
           END IF
           !
           DO l2 = l2min, l2max
+             IF (l2 > max_multipole) CYCLE
              IF (l2 /= 0) THEN
                 dkl = sepj%cs(lkl)
              END IF

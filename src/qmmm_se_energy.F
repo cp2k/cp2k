@@ -23,8 +23,8 @@ MODULE qmmm_se_energy
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_none, &
-       do_qmmm_swave, use_orb_basis_set
+       do_method_rm1, do_multipole_none, do_qmmm_coulomb, do_qmmm_gauss, &
+       do_qmmm_none, do_qmmm_swave, use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -140,7 +140,8 @@ CONTAINS
     anag = dft_control%qs_control%se_control%analytical_gradients
     ! Setup type for SE integral control 
     CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE.,do_ewald_r3=.FALSE.,&
-         integral_screening=dft_control%qs_control%se_control%integral_screening)
+         integral_screening=dft_control%qs_control%se_control%integral_screening,&
+         max_multipole=do_multipole_none)
 
     ! Allocate the core Hamiltonian matrix
     CALL allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)

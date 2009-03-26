@@ -364,13 +364,14 @@ SUBROUTINE create_ewald_section(section,error)
     CALL keyword_create(keyword, name="MAX_MULTIPOLE_EXPANSION",&
          description="Specify the maximum level of multipoles expansion used "//&
          " for the electrostatics.",&
-         usage="MAX_MULTIPOLE_EXPANSION",&
-         enum_c_vals=s2a("CHARGE","DIPOLE","QUADRUPOLE"),&
-         enum_desc=s2a("Use up to the Charge term", &
+         usage="MAX_MULTIPOLE_EXPANSION DIPOLE",&
+         enum_c_vals=s2a("NONE","CHARGE","DIPOLE","QUADRUPOLE"),&
+         enum_desc=s2a("No multipolar terms! Check the codes providing a zero contribution.",&
+                       "Use up to the Charge term", &
                        "Use up to the Dipole term",&
                        "Use up to the Quadrupole term"),&
-         enum_i_vals=(/ do_multipole_charge, do_multipole_dipole, do_multipole_quadrupole/),&
-         type_of_var=enum_t,error=error)
+         enum_i_vals=(/ do_multipole_none, do_multipole_charge, do_multipole_dipole,&
+         do_multipole_quadrupole/), type_of_var=enum_t, error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)   
     CALL section_add_subsection(section,subsection,error=error)

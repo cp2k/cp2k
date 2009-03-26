@@ -36,7 +36,9 @@ MODULE nddo_methods
   USE input_constants,                 ONLY: &
        do_ewald_ewald, do_method_am1, do_method_mndo, do_method_mndod, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1, do_se_IS_kdso, do_se_IS_kdso_d
+       do_method_rm1, do_multipole_charge, do_multipole_dipole, &
+       do_multipole_none, do_multipole_quadrupole, do_se_IS_kdso, &
+       do_se_IS_kdso_d
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -363,7 +365,8 @@ CONTAINS
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
     CALL setup_se_int_control_type(se_int_control, shortrange=se_control%do_ewald,&
-         do_ewald_r3=se_control%do_ewald_r3,integral_screening=se_control%integral_screening)
+         do_ewald_r3=se_control%do_ewald_r3,integral_screening=se_control%integral_screening,&
+         max_multipole=se_control%max_multipole)
 
     IF ( .NOT. failure ) THEN
        CALL get_qs_env(qs_env=qs_env,sab_2c=sab_2c,atomic_kind_set=atomic_kind_set,&
@@ -555,7 +558,8 @@ CONTAINS
        scp_nddo    =  se_control%scp
 
        CALL setup_se_int_control_type(se_int_control, shortrange=se_control%do_ewald,&
-            do_ewald_r3=se_control%do_ewald_r3, integral_screening=se_control%integral_screening)
+            do_ewald_r3=se_control%do_ewald_r3, integral_screening=se_control%integral_screening,&
+            max_multipole=se_control%max_multipole)
        IF (scp_nddo) CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
        
        nspins=dft_control%nspins
@@ -987,7 +991,22 @@ CONTAINS
        energy_glob  = 0.0_dp
        e_neut       = 0.0_dp
        e_self       = 0.0_dp
-       task         = .TRUE.
+       task         = .FALSE.
+       SELECT CASE(se_control%max_multipole)
+       CASE (do_multipole_none)
+          ! Do Nothing
+       CASE(do_multipole_charge)
+          task(1) = .TRUE.
+       CASE(do_multipole_dipole)
+          task    = .TRUE.
+          task(3) = .FALSE.
+       CASE(do_multipole_quadrupole)
+          task    = .TRUE.
+       CASE DEFAULT
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       
+       ! Build-up neighbor lists for real-space part of Ewald multipoles
        CALL list_control ( atomic_kind_set, particle_set, local_particles, &
             cell, se_nonbond_env, para_env, se_section, error=error)
 
@@ -1023,7 +1042,7 @@ CONTAINS
                 END IF
 
                 ! Nuclei
-                se_nddo_mpole%charge(iatom)                = se_kind_a%zeff
+                IF (task(1)) se_nddo_mpole%charge(iatom)   = se_kind_a%zeff
                 ! Electrons
                 size_1c_int = SIZE(se_kind_a%w_mpole)
                 DO jint = 1, size_1c_int
@@ -1034,19 +1053,19 @@ CONTAINS
                    IF (indi/=indj) fac = 2.0_dp
 
                    ! Charge
-                   IF (mpole%task(1)) THEN
+                   IF (mpole%task(1).AND.task(1)) THEN
                       se_nddo_mpole%charge(iatom)          = se_nddo_mpole%charge(iatom)   +&
                                                              fac*pa_block_a(indi,indj)*mpole%c
                    END IF
 
                    ! Dipole
-                   IF (mpole%task(2)) THEN
+                   IF (mpole%task(2).AND.task(2)) THEN
                       se_nddo_mpole%dipole(:,iatom)        = se_nddo_mpole%dipole(:,iatom) +&
                                                              fac*pa_block_a(indi,indj)*mpole%d(:)
                    END IF
                    
                    ! Quadrupole
-                   IF (mpole%task(3)) THEN
+                   IF (mpole%task(3).AND.task(3)) THEN
                       qsph = fac*mpole%qs * pa_block_a(indi,indj)
                       CALL quadrupole_sph_to_cart(qcart, qsph, error)
                       se_nddo_mpole%quadrupole(:,:,iatom)  = se_nddo_mpole%quadrupole(:,:,iatom) +&
@@ -1133,17 +1152,17 @@ CONTAINS
                    indj  =  se_orbital_pointer(mpole%indj)
 
                    ! Charge
-                   IF (mpole%task(1)) THEN
+                   IF (mpole%task(1).AND.task(1)) THEN
                       tmp   = tmp + mpole%c*se_nddo_mpole%efield0(iatom)
                    END IF
                    
                    ! Dipole
-                   IF (mpole%task(2)) THEN
+                   IF (mpole%task(2).AND.task(2)) THEN
                       tmp   = tmp - DOT_PRODUCT(mpole%d,se_nddo_mpole%efield1(:,iatom))
                    END IF
                    
                    ! Quadrupole
-                   IF (mpole%task(3)) THEN
+                   IF (mpole%task(3).AND.task(3)) THEN
                       tmp   = tmp - (1.0_dp/3.0_dp) * SUM(mpole%qc * RESHAPE(se_nddo_mpole%efield2(:,iatom),(/3,3/)))
                    END IF
                    
@@ -1152,7 +1171,7 @@ CONTAINS
                 END DO
 
                 ! Nuclear term and forces
-                enuc = enuc + se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
+                IF (task(1)) enuc = enuc + se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
                 IF(calculate_forces) THEN
                    atom_a   = atom_of_kind(iatom)
                    force_a  = forces_r(1:3,iatom) + forces_g(1:3,node)
@@ -1621,7 +1640,7 @@ CONTAINS
           integral_screening = do_se_IS_kdso
        END IF
        CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
-            integral_screening=integral_screening)
+            integral_screening=integral_screening, max_multipole=do_multipole_none)
 
        CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
 

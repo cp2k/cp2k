@@ -96,8 +96,8 @@ MODULE qs_environment
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_mndo, &
        do_method_mndod, do_method_pdg, do_method_pm3, do_method_pm6, &
-       do_method_pnnl, do_method_rm1, general_roks, restart_guess, &
-       use_aux_fit_basis_set, xc_vdw_fun_pairpot
+       do_method_pnnl, do_method_rm1, do_multipole_none, general_roks, &
+       restart_guess, use_aux_fit_basis_set, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -692,6 +692,8 @@ CONTAINS
           ! set new kind radius
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,subsys_section,error)
        END SELECT
+       ! Initialize to zero the max multipole to treat in the EWALD scheme..
+       se_control%max_multipole = do_multipole_none
        ! check for Ewald
        IF (se_control%do_ewald) THEN
           CALL ewald_env_create(ewald_env,para_env,error=error)
@@ -706,8 +708,10 @@ CONTAINS
                print_section=print_section,error=error)
           ! Initialize ewald grids
           CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
-          ! Setup the nonbond environment (real space part of Ewald)
-          CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
+          ! Setup the nonbond environment (real space part of Ewald) and the maximum
+          ! level of multipoles to be treated in the periodic SE scheme
+          CALL ewald_env_get(ewald_env, rcut=ewald_rcut, max_multipole=se_control%max_multipole,&
+               error=error)
           CALL section_vals_val_get(se_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
                r_val=verlet_skin,error=error)
           CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, nonbonded14=.FALSE.,&

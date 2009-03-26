@@ -85,6 +85,7 @@ MODULE cp_control_types
      LOGICAL               :: do_ewald, do_ewald_r3
      LOGICAL               :: scp
      INTEGER               :: integral_screening, periodic_type
+     INTEGER               :: max_multipole
      REAL(KIND = dp)       :: delta
      ! Parameters controlling the evaluation of the integrals
      REAL(KIND = dp)       :: cutoff_cou, taper_cou, range_cou

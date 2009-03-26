@@ -22,6 +22,7 @@ MODULE semi_empirical_int_ana
                                              do_method_pm3,&
                                              do_method_pm6,&
                                              do_method_undef,&
+                                             do_multipole_none,&
                                              do_se_IS_kdso_d
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: angstrom,&
@@ -389,7 +390,7 @@ CONTAINS
        ! Compute Integrals in diatomic frame
        rij  = SQRT(rij)
        CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
-            integral_screening=se_int_control%integral_screening)
+            integral_screening=se_int_control%integral_screening, max_multipole=do_multipole_none)
        CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,se_taper=se_taper,&
             se_int_control=se_int_control_off,lgrad=l_denuc,error=error)
        ! In case let's compute the short-range part of the (ss|ss) integral

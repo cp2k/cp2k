@@ -15,6 +15,7 @@ MODULE multipole_types
   USE f77_blas
   USE input_constants,                 ONLY: do_multipole_charge,&
                                              do_multipole_dipole,&
+                                             do_multipole_none,&
                                              do_multipole_quadrupole
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -94,6 +95,8 @@ CONTAINS
        NULLIFY(multipoles%dipoles)
        NULLIFY(multipoles%quadrupoles)
        SELECT CASE(max_multipole)
+       CASE(do_multipole_none)
+          ! Do nothing..
        CASE(do_multipole_charge)
           multipoles%task(1:1) = .TRUE.
        CASE(do_multipole_dipole)

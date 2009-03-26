@@ -18,7 +18,8 @@ MODULE semi_empirical_types
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
-       do_se_IS_kdso_d
+       do_multipole_charge, do_multipole_dipole, do_multipole_none, &
+       do_multipole_quadrupole, do_se_IS_kdso_d
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -118,6 +119,7 @@ MODULE semi_empirical_types
      LOGICAL                                  :: shortrange
      LOGICAL                                  :: do_ewald_r3
      INTEGER                                  :: integral_screening
+     INTEGER                                  :: max_multipole
   END TYPE se_int_control_type
 
 ! *****************************************************************************
@@ -511,14 +513,27 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! ***************************************************************************** 
   SUBROUTINE setup_se_int_control_type(se_int_control, shortrange, do_ewald_r3,&
-       integral_screening)
+       integral_screening, max_multipole)
     TYPE(se_int_control_type)                :: se_int_control
     LOGICAL, INTENT(IN)                      :: shortrange, do_ewald_r3
-    INTEGER, INTENT(IN)                      :: integral_screening
+    INTEGER, INTENT(IN)                      :: integral_screening, &
+                                                max_multipole
 
     se_int_control%shortrange         = shortrange
     se_int_control%do_ewald_r3        = do_ewald_r3
     se_int_control%integral_screening = integral_screening
+    ! This makes the assignment independent of the value of the different constants
+    SELECT CASE(max_multipole)
+    CASE (do_multipole_none)
+       se_int_control%max_multipole   = -1
+    CASE (do_multipole_charge)
+       se_int_control%max_multipole   =  0
+    CASE (do_multipole_dipole)
+       se_int_control%max_multipole   =  1
+    CASE (do_multipole_quadrupole)
+       se_int_control%max_multipole   =  2
+    END SELECT
+
   END SUBROUTINE setup_se_int_control_type
 
 ! *****************************************************************************

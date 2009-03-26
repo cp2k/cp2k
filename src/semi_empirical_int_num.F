@@ -20,7 +20,9 @@ MODULE semi_empirical_int_num
                                              do_method_pdg,&
                                              do_method_pm3,&
                                              do_method_pm6,&
-                                             do_method_undef,do_se_IS_kdso_d
+                                             do_method_undef,&
+                                             do_multipole_none,&
+                                             do_se_IS_kdso_d
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: angstrom,&
                                              evolt
@@ -37,15 +39,17 @@ MODULE semi_empirical_int_num
                                              rotmat_type,&
                                              se_int_control_type,&
                                              se_int_screen_type,&
+                                             se_taper_type,&
                                              semi_empirical_type,&
-                                             setup_se_int_control_type,&
-                                             se_taper_type
+                                             setup_se_int_control_type
   USE taper_types,                     ONLY: taper_eval
 #include "cp_common_uses.h"
-#include "semi_empirical_int_args.h"
+
   IMPLICIT NONE
 
   PRIVATE
+#include "semi_empirical_int_args.h"
+
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_num'
   PUBLIC :: rotint_num,      rotnuc_num,   corecore_num,&
@@ -551,7 +555,7 @@ CONTAINS
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
        CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
-            integral_screening=se_int_control%integral_screening)
+            integral_screening=se_int_control%integral_screening,max_multipole=do_multipole_none)
        CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,se_taper=se_taper,&
             se_int_control=se_int_control_off,error=error)
        ! In case let's compute the short-range part of the (ss|ss) integral
