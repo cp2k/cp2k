@@ -57,6 +57,7 @@ MODULE environment
   USE machine,                         ONLY: flush_should_flush,&
                                              m_datum,&
                                              m_flush,&
+                                             m_flush_internal,&
                                              m_getcwd,&
                                              m_getlog,&
                                              m_getpid,&
@@ -262,6 +263,7 @@ CONTAINS
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
             "CP2K| Input file name",&
             ADJUSTR(TRIM(input_file_name))
+       CALL m_flush_internal(my_output_unit)
     END IF
 
   END SUBROUTINE cp2k_init
@@ -894,8 +896,7 @@ CONTAINS
           DO l=38,LEN_TRIM(cwd),37
              WRITE (UNIT=iw,FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd),l+36))
           END DO
-
-          CALL m_flush(iw)
+          CALL m_flush_internal(iw)
        END IF
 
        CALL cp_print_key_finished_output(iw,logger,root_section,&
