@@ -213,3 +213,6 @@ CH-hfx-md-2.inp
 4H2O-mix-disk-ram.inp
 # numerics due to better hfx powell fits 
 4H2O-mix-disk-ram-on-the-fly.inp
+# numerics
+CH-hfx-md-2.inp
+CH-hfx-md.inp
