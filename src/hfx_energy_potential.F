@@ -1841,7 +1841,7 @@ MODULE hfx_energy_potential
     INTEGER(int_8), INTENT(IN)               :: N
     INTEGER(int_8)                           :: get_1D_idx
 
-    INTEGER                                  :: min_ij
+    INTEGER(int_8)                           :: min_ij
 
     min_ij = MIN(i,j)
     get_1D_idx = min_ij*N + MAX(i,j) - (min_ij-1)*min_ij/2 - N
