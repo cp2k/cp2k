@@ -568,7 +568,7 @@ CONTAINS
     CALL mpi_barrier ( group, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_barrier @ mp_sync" )
     t_end = m_walltime ( )
-    CALL add_perf(perf_id=4,count=1,time=t_end-t_start)
+    CALL add_perf(perf_id=5,count=1,time=t_end-t_start)
 #endif
 #if defined(__mp_timeset__)
     CALL timestop_mp(handle)
