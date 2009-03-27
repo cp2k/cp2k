@@ -22,7 +22,8 @@ MODULE hfx_screening_methods
                                              hfx_screen_coeff_type,&
                                              log_zero,&
                                              powell_min_log
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE machine,                         ONLY: default_output_unit
   USE mathconstants
   USE orbital_pointers
@@ -118,16 +119,18 @@ MODULE hfx_screening_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE update_pmax_mat(pmax_set, full_density, full_density_beta, natom, &
-                             max_set ,kind_of,basis_parameter, last_sgf_global, error)
+                             max_set ,kind_of,basis_parameter, last_sgf_global,&
+                             N_pmat, error)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
-    REAL(dp), DIMENSION(:, :), POINTER       :: full_density, &
+    REAL(dp), DIMENSION(:), POINTER          :: full_density, &
                                                 full_density_beta
     INTEGER, INTENT(IN)                      :: natom, max_set
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     INTEGER                                  :: last_sgf_global(0:natom)
+    INTEGER(int_8), INTENT(IN)               :: N_pmat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
@@ -172,8 +175,10 @@ MODULE hfx_screening_methods
                DO mb = 1,nsgfb(jset)
                   pb2 = mb+sgfb-1
                   pb = pb1 + pb2
-                  pmax_tmp=MAX(pmax_tmp,ABS(full_density(pb,pc)))
-                  IF( ASSOCIATED(full_density_beta) ) pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(pb,pc)))
+                  pmax_tmp=MAX(pmax_tmp,ABS(full_density(get_1d_idx(pb,pc,N_pmat))))
+                  IF( ASSOCIATED(full_density_beta) ) THEN
+                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(get_1d_idx(pb,pc,N_pmat))))
+                  END IF
                ENDDO
             ENDDO
             IF(pmax_tmp == 0.0_dp) THEN
@@ -763,5 +768,28 @@ MODULE hfx_screening_methods
      ENDDO
 
   END SUBROUTINE optimize_it
+
+! *****************************************************************************
+!> \brief Given a 2d index pair, this function returns a 1d index pair for
+!>        a symmetric upper triangle NxN matrix
+!>        The compiler should inline this function, therefore it appears in
+!>        several modules
+!> \param i,j 2d index
+!> \param N matrix size
+!> \par History
+!>      03.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  PURE FUNCTION get_1D_idx(i,j,N)
+    INTEGER, INTENT(IN)                      :: i, j
+    INTEGER(int_8), INTENT(IN)               :: N
+    INTEGER(int_8)                           :: get_1D_idx
+
+    INTEGER                                  :: min_ij
+
+    min_ij = MIN(i,j)
+    get_1D_idx = min_ij*N + MAX(i,j) - (min_ij-1)*min_ij/2 - N
+
+  END FUNCTION get_1D_idx
 
 END MODULE hfx_screening_methods

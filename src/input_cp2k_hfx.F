@@ -158,7 +158,7 @@ CONTAINS
             name="NBINS",&
             description="Number of bins per process used to group atom quartets.",&
             usage="NBINS 32",&
-            default_i_val=16,&
+            default_i_val=64,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

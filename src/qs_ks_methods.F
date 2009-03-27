@@ -76,7 +76,8 @@ MODULE qs_ks_methods
   USE kg_gpw_correction,               ONLY: kg_gpw_ekin_mol
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_p_type
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE mulliken,                        ONLY: mulliken_restraint
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -303,6 +304,7 @@ CONTAINS
 
     INTEGER :: adiabatic_functional, adiabatic_model, handle, ikind, irep, &
       ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
+    INTEGER(int_8)                           :: N_pmat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, explicit_potential, failure, gapw, gapw_xc, ionode, &
       my_kg_gpw, scp_dft, uniform_occupation, use_virial
@@ -697,10 +699,11 @@ CONTAINS
               
              !! Scale and add Fock matrix to KS matrix
              IF(do_hfx) THEN
+               N_pmat = rho%rho_ao(1)%matrix%nrow
                CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 1 ,&
-                                                    scale_dEx1, error)
+                                                    scale_dEx1, N_pmat, error)
                CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 2 ,&
-                                                    scale_dEx2, error)
+                                                    scale_dEx2, N_pmat, error)
              END IF
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)

@@ -55,7 +55,6 @@ MODULE hfx_energy_potential
   USE machine,                         ONLY: m_memory,&
                                              m_walltime
   USE mathconstants
-  USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_max,&
                                              mp_max_i8,&
                                              mp_sum,&
@@ -131,12 +130,12 @@ MODULE hfx_energy_potential
     INTEGER :: bin, buffer_left, buffer_size, buffer_start, cache_size, &
       current_counter, handle, handle_dist_ks, handle_getP, handle_load, &
       handle_main, i, i_thread, iatom, ikind, iset, iw, jatom, jkind, jset, &
-      katom, kkind, kset, latom, lkind, lset, ma, max_am, max_set, maxsgf, &
-      mb, mc, md, my_bin_size, my_istart, my_jstart, my_kstart, my_lstart, &
-      n_threads, natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, nints, nseta, &
-      nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, &
-      nsgfd_total, nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, &
-      pd, pd1, pd2, sgfa, sgfb, sgfc, sgfd, stat
+      katom, kkind, kset, latom, lkind, lset, max_am, max_set, maxsgf, mb, &
+      my_bin_size, my_istart, my_jstart, my_kstart, my_lstart, n_threads, &
+      natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, nints, nseta, nsetb, &
+      nsetc, nsetd, nsgf_max, nsgfa_total, nsgfb_total, nsgfc_total, &
+      nsgfd_total, nspins, pa, pa1, pb1, pc1, pd, pd1, sgfa, sgfb, sgfc, &
+      sgfd, stat
     INTEGER(int_8) :: estimate_to_store_int, mem_compression_counter, &
       mem_compression_counter_disk, mem_eris, mem_eris_disk, mem_max_val, &
       mem_maxvals, my_current_counter, my_original_cpu_id, n_processes, ncpu, &
@@ -152,14 +151,14 @@ MODULE hfx_energy_potential
       first_j_loop, first_k_loop, first_l_loop
     REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, &
       compression_factor, compression_factor_disk, ene_x_aa, ene_x_bb, &
-      eps_schwarz, eps_storage, fac, hf_fraction, ks_bc, ks_bd, ks_beta_bc, &
-      ks_beta_bd, max_contraction_val, max_val1, max_val2, p_bc, p_bd, &
-      p_beta_bc, p_beta_bd, pmax_entry, ra(3), rb(3), rc(3), rd(3), &
-      spherical_estimate, symm_fac, temp(3), tmp
+      eps_schwarz, eps_storage, fac, hf_fraction, max_contraction_val, &
+      max_val1, max_val2, pmax_entry, ra(3), rb(3), rc(3), rd(3), &
+      spherical_estimate, symm_fac, temp(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
-    REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
-      full_ks, full_ks_beta, max_contraction, sparse_block, sphi_a, sphi_b, &
-      sphi_c, sphi_d, zeta, zetb, zetc, zetd
+    REAL(dp), DIMENSION(:, :), POINTER       :: max_contraction, &
+                                                sparse_block, sphi_a, sphi_b, &
+                                                sphi_c, sphi_d, zeta, zetb, &
+                                                zetc, zetd
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -222,9 +221,14 @@ MODULE hfx_energy_potential
 
     INTEGER                                  :: max_pgf
     INTEGER(int_8)                           :: nanotime, time_1, time_2,memsize_before,memsize_after,&
-                                                max_val_memory, max_val_memory_tmp
+                                                max_val_memory, max_val_memory_tmp, N_pmat
     REAL(dp)                                 :: BD2, AC2, min_PQ2, max_val2_set
     TYPE(lib_int)                            :: private_lib
+    INTEGER                                  ::  nrow, ncol
+    REAL(dp), DIMENSION(:), POINTER          :: full_density, full_density_beta, full_ks,&
+                                                full_ks_beta
+    REAL(dp), DIMENSION(:), ALLOCATABLE      :: pbd_buf, pbc_buf, pad_buf, pac_buf,&
+                                                kbd_buf, kbc_buf, kad_buf, kac_buf
 
    
 
@@ -394,14 +398,16 @@ MODULE hfx_energy_potential
 
     !! precompute maximum nco and allocate scratch
     nco_max=0
-
+    nsgf_max=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
       nseta = basis_parameter(ikind)%nset
       npgfa => basis_parameter(ikind)%npgf
       la_max => basis_parameter(ikind)%lmax
+      nsgfa => basis_parameter(ikind)%nsgf
       DO iset = 1, nseta
          nco_max = MAX(nco_max,npgfa(iset)*ncoset(la_max(iset)))
+         nsgf_max = MAX(nsgf_max,nsgfa(iset))
       ENDDO
     ENDDO
     !! Allocate the arrays for the integrals. T1 is only used as a work array in the contraction using the DGEMM calls
@@ -411,6 +417,22 @@ MODULE hfx_energy_potential
     ALLOCATE(T1(nco_max**4),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     T1=0.0_dp
+    ALLOCATE(pbd_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pbc_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pad_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pac_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(kbd_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(kbc_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(kad_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(kac_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     nspins = qs_env%dft_control%nspins
 
@@ -438,14 +460,15 @@ MODULE hfx_energy_potential
       ENDDO
     ENDDO
 
+    N_pmat = rho%rho_ao(1)%matrix%nrow
     ! ** Reset storage counter given by MAX_MEMORY by subtracting all buffers
     ! ** Fock and density Matrices (shared)
-    subtr_size_mb = 2_int_8*rho%rho_ao(1)%matrix%nrow*rho%rho_ao(1)%matrix%ncol
+    subtr_size_mb = 2_int_8*N_pmat*(N_pmat+1)/2
     ! ** if non restricted ==> alpha/beta spin
     IF( nspins == 2) subtr_size_mb = subtr_size_mb * 2_int_8
     ! ** Initial P only MAX(alpha,beta) (shared)
     IF(do_p_screening) THEN 
-      subtr_size_mb = subtr_size_mb+max_set**2*INT(natom**2,KIND=int_8)
+      subtr_size_mb = subtr_size_mb+max_set**2*natom**2
     END IF
     ! ** primitive buffers (not shared by the threads)
     subtr_size_mb = subtr_size_mb + 2_int_8*nco_max**4*n_threads
@@ -597,19 +620,19 @@ MODULE hfx_energy_potential
     !! Get the full density from all the processors
     NULLIFY(full_density)
     NULLIFY(full_density_beta)
+    ALLOCATE(full_density(N_pmat*(N_pmat+1)/2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timeset(routineN//"_getP",handle_getP)
     CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, shm_number_of_p_entries,&
                           shm_is_assoc_atomic_block, natom, last_sgf_global, &
-                          kind_of, basis_parameter, error)   
+                          kind_of, basis_parameter, N_pmat, error)   
+
     IF(nspins == 2) THEN
+      ALLOCATE(full_density_beta(N_pmat*(N_pmat+1)/2),STAT=stat)
       CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, shm_number_of_p_entries,&
                             shm_is_assoc_atomic_block, natom, last_sgf_global, &
-                            kind_of, basis_parameter, error)
+                            kind_of, basis_parameter, N_pmat, error)
     END IF
-
-    CALL symmetrize_matrix(full_density,"upper_to_lower")
-    IF(nspins == 2) CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
-
 
     CALL timestop(handle_getP)
 
@@ -623,17 +646,20 @@ MODULE hfx_energy_potential
         CALL update_pmax_mat(actual_x_data%initial_p, &
                              full_density,full_density_beta,&
                              natom,max_set, kind_of, basis_parameter, &
-                             last_sgf_global, error)
+                             last_sgf_global, N_pmat, error)
       END IF
     END IF
 
     NULLIFY(full_ks, full_ks_beta)
-    ALLOCATE(actual_x_data%full_ks_alpha(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
+    nrow = rho%rho_ao(1)%matrix%nrow
+    ncol = rho%rho_ao(1)%matrix%ncol
+    ALLOCATE(actual_x_data%full_ks_alpha(N_pmat*(N_pmat+1)/2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     full_ks => actual_x_data%full_ks_alpha
     full_ks = 0.0_dp
+    
     IF(nspins==2) THEN
-      ALLOCATE(actual_x_data%full_ks_beta(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
+      ALLOCATE(actual_x_data%full_ks_beta(N_pmat*(N_pmat+1)/2),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       full_ks_beta => actual_x_data%full_ks_beta
       full_ks_beta = 0.0_dp
@@ -783,7 +809,7 @@ MODULE hfx_energy_potential
           IF(.NOT. first_k_loop) katom = 0
           DO WHILE(katom+1<=natom)
             katom = katom + 1
-            hash_idx =(iatom-1)*INT(natom**2,kind=int_8)+ (jatom-1) * natom + katom
+            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
             IF(MODULO(FNV64(hash_idx),n_processes)/=my_original_cpu_id-1) CYCLE
 
             ikind = kind_of(iatom)
@@ -1034,87 +1060,19 @@ MODULE hfx_energy_potential
                               buffer_left = buffer_left - buffer_size
                               buffer_start = buffer_start + buffer_size
                             END DO 
-                            i=1
-                            IF(nspins == 1) THEN
-                              DO md = 1,nsgfd(lset)
-                                pd2 = md+sgfd-1
-                                pd = pd1 + pd2
-                                DO mc = 1,nsgfc(kset)
-                                  pc2 = mc+sgfc-1
-                                  pc = pc1 + pc2
-                                  DO mb = 1,nsgfb(jset)
-                                    pb2 = mb+sgfb-1
-                                    pb = pb1 + pb2
-                                    ks_bd = 0.0_dp
-                                    ks_bc = 0.0_dp
-                                    p_bd = full_density(pb,pd)
-                                    p_bc = full_density(pb,pc)
-                                    DO ma = 1,nsgfa(iset)
-                                      pa2 = ma+sgfa-1
-                                      pa = pa1 + pa2
-                                      tmp = fac*symm_fac*T1(i)
-                                      i=i+1
-                                      ks_bc = ks_bc + tmp*full_density(pa,pd)
-                                      ks_bd = ks_bd + tmp*full_density(pa,pc)
-                                      !$OMP ATOMIC
-                                      full_ks(pa,pd) = full_ks(pa,pd)-tmp*p_bc
-                                      !$OMP ATOMIC
-                                      full_ks(pa,pc) = full_ks(pa,pc)-tmp*p_bd
-                                    END DO
-                                    !$OMP ATOMIC 
-                                    full_ks(pb,pd) = full_ks(pb,pd) - ks_bd
-                                    !$OMP ATOMIC
-                                    full_ks(pb,pc) = full_ks(pb,pc) - ks_bc
-                                  END DO
-                                END DO
-                              END DO
-                            ELSE
-                              DO md = 1,nsgfd(lset)
-                                pd2 = md+sgfd-1
-                                pd = pd1 + pd2
-                                DO mc = 1,nsgfc(kset)
-                                  pc2 = mc+sgfc-1
-                                  pc = pc1 + pc2
-                                  DO mb = 1,nsgfb(jset)
-                                    pb2 = mb+sgfb-1
-                                    pb = pb1 + pb2
-                                    ks_bd = 0.0_dp
-                                    ks_bc = 0.0_dp
-                                    p_bd = full_density(pb,pd)
-                                    p_bc = full_density(pb,pc)
-                                    ks_beta_bd = 0.0_dp
-                                    ks_beta_bc = 0.0_dp
-                                    p_beta_bd = full_density_beta(pb,pd)
-                                    p_beta_bc = full_density_beta(pb,pc)
-                                    DO ma = 1,nsgfa(iset)
-                                      pa2 = ma+sgfa-1
-                                      pa = pa1 + pa2
-                                      tmp = fac*symm_fac*T1(i)
-                                      i=i+1
-                                      ks_bc = ks_bc + tmp*full_density(pa,pd)
-                                      ks_bd = ks_bd + tmp*full_density(pa,pc)
-                                      !$OMP ATOMIC
-                                      full_ks(pa,pd) = full_ks(pa,pd)-tmp*p_bc
-                                      !$OMP ATOMIC
-                                      full_ks(pa,pc) = full_ks(pa,pc)-tmp*p_bd
-                                      ks_beta_bc = ks_beta_bc + tmp*full_density_beta(pa,pd)
-                                      ks_beta_bd = ks_beta_bd + tmp*full_density_beta(pa,pc)
-                                      !$OMP ATOMIC
-                                      full_ks_beta(pa,pd) = full_ks_beta(pa,pd)-tmp*p_beta_bc
-                                      !$OMP ATOMIC
-                                      full_ks_beta(pa,pc) = full_ks_beta(pa,pc)-tmp*p_beta_bd
-                                    END DO
-                                    !$OMP ATOMIC
-                                    full_ks(pb,pd) = full_ks(pb,pd) - ks_bd
-                                    !$OMP ATOMIC
-                                    full_ks(pb,pc) = full_ks(pb,pc) - ks_bc
-                                    !$OMP ATOMIC
-                                    full_ks_beta(pb,pd) = full_ks_beta(pb,pd) - ks_beta_bd
-                                    !$OMP ATOMIC
-                                    full_ks_beta(pb,pc) = full_ks_beta(pb,pc) - ks_beta_bc
-                                  END DO
-                                END DO
-                              END DO
+
+
+                            CALL update_fock_matrix(pa1, pb1, pc1, pd1, &
+                                                    nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                    sgfa, sgfb, sgfc, sgfd, fac, symm_fac, full_density, full_ks, &
+                                                    T1, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, kbc_buf, kad_buf, kac_buf, &
+                                                    N_pmat)
+                            IF( nspins == 2 ) THEN
+                              CALL update_fock_matrix(pa1, pb1, pc1, pd1, &
+                                                      nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                      sgfa, sgfb, sgfc, sgfd, fac, symm_fac, full_density_beta, full_ks_beta, &
+                                                      T1, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, kbc_buf, kad_buf, kac_buf, &
+                                                      N_pmat)
                             END IF
                           END IF
     
@@ -1208,12 +1166,10 @@ MODULE hfx_energy_potential
                             
                             IF(.NOT. buffer_overflow .AND. geometry_did_change) THEN
                               IF(.NOT.use_disk_storage) THEN
-!                                max_val_memory_tmp = memory_parameter%actual_memory_usage
                                 CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
                                                                    maxval_cache, maxval_container, &
                                                                    memory_parameter%actual_memory_usage, &
                                                                    use_disk_storage, max_val_memory, error)
-!                                max_val_memory = max_val_memory + memory_parameter%actual_memory_usage - max_val_memory_tmp
                               ELSE
                                 CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
                                                                    maxval_cache_disk, maxval_container_disk, &
@@ -1266,87 +1222,17 @@ MODULE hfx_energy_potential
                              END DO
                             END IF
                             !! Update Kohn-Sham matrix
-                            p_index=0 
-                            IF(nspins == 1) THEN
-                              DO md = 1,nsgfd(lset)
-                                pd2 = md+sgfd-1
-                                pd = pd1 + pd2
-                                DO mc = 1,nsgfc(kset)
-                                  pc2 = mc+sgfc-1
-                                  pc = pc1 + pc2
-                                  DO mb = 1,nsgfb(jset)
-                                    pb2 = mb+sgfb-1
-                                    pb = pb1 + pb2
-                                    ks_bd = 0.0_dp
-                                    ks_bc = 0.0_dp
-                                    p_bd = full_density(pb,pd)
-                                    p_bc = full_density(pb,pc)
-                                    DO ma = 1,nsgfa(iset)
-                                      pa2 = ma+sgfa-1
-                                      pa = pa1 + pa2
-                                      p_index=p_index+1
-                                      tmp = fac*symm_fac*primitive_integrals(p_index)
-                                      ks_bc = ks_bc + tmp*full_density(pa,pd)
-                                      ks_bd = ks_bd + tmp*full_density(pa,pc)
-                                      !$OMP ATOMIC 
-                                      full_ks(pa,pd) = full_ks(pa,pd)-tmp*p_bc
-                                      !$OMP ATOMIC
-                                      full_ks(pa,pc) = full_ks(pa,pc)-tmp*p_bd
-                                    END DO
-                                    !$OMP ATOMIC 
-                                    full_ks(pb,pd) = full_ks(pb,pd) - ks_bd
-                                    !$OMP ATOMIC
-                                    full_ks(pb,pc) = full_ks(pb,pc) - ks_bc
-                                  END DO
-                                END DO
-                              END DO
-                            ELSE
-                              DO md = 1,nsgfd(lset)
-                                pd2 = md+sgfd-1
-                                pd = pd1 + pd2
-                                DO mc = 1,nsgfc(kset)
-                                  pc2 = mc+sgfc-1
-                                  pc = pc1 + pc2
-                                  DO mb = 1,nsgfb(jset)
-                                    pb2 = mb+sgfb-1
-                                    pb = pb1 + pb2
-                                    ks_bd = 0.0_dp
-                                    ks_bc = 0.0_dp
-                                    p_bd = full_density(pb,pd)
-                                    p_bc = full_density(pb,pc)
-                                    ks_beta_bd = 0.0_dp
-                                    ks_beta_bc = 0.0_dp
-                                    p_beta_bd = full_density_beta(pb,pd)
-                                    p_beta_bc = full_density_beta(pb,pc)
-                                    DO ma = 1,nsgfa(iset)
-                                      pa2 = ma+sgfa-1
-                                      pa = pa1 + pa2
-                                      p_index=p_index+1
-                                      tmp = fac*symm_fac*primitive_integrals(p_index)
-                                      ks_bc = ks_bc + tmp*full_density(pa,pd)
-                                      ks_bd = ks_bd + tmp*full_density(pa,pc)
-                                      !$OMP ATOMIC
-                                      full_ks(pa,pd) = full_ks(pa,pd)-tmp*p_bc
-                                      !$OMP ATOMIC
-                                      full_ks(pa,pc) = full_ks(pa,pc)-tmp*p_bd
-                                      ks_beta_bc = ks_beta_bc + tmp*full_density_beta(pa,pd)
-                                      ks_beta_bd = ks_beta_bd + tmp*full_density_beta(pa,pc)
-                                      !$OMP ATOMIC
-                                      full_ks_beta(pa,pd) = full_ks_beta(pa,pd)-tmp*p_beta_bc
-                                      !$OMP ATOMIC
-                                      full_ks_beta(pa,pc) = full_ks_beta(pa,pc)-tmp*p_beta_bd
-                                    END DO
-                                    !$OMP ATOMIC
-                                    full_ks(pb,pd) = full_ks(pb,pd) - ks_bd
-                                    !$OMP ATOMIC
-                                    full_ks(pb,pc) = full_ks(pb,pc) - ks_bc
-                                    !$OMP ATOMIC
-                                    full_ks_beta(pb,pd) = full_ks_beta(pb,pd) - ks_beta_bd
-                                    !$OMP ATOMIC
-                                    full_ks_beta(pb,pc) = full_ks_beta(pb,pc) - ks_beta_bc
-                                  END DO
-                                END DO
-                              END DO
+                            CALL update_fock_matrix(pa1, pb1, pc1, pd1, &
+                                                    nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                    sgfa, sgfb, sgfc, sgfd, fac, symm_fac, full_density, full_ks, &
+                                                    primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
+                                                    kbc_buf, kad_buf, kac_buf, N_pmat)
+                            IF( nspins == 2 ) THEN
+                              CALL update_fock_matrix(pa1, pb1, pc1, pd1, &
+                                                      nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                      sgfa, sgfb, sgfc, sgfd, fac, symm_fac, full_density_beta, full_ks_beta, &
+                                                      primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
+                                                      kbc_buf, kad_buf, kac_buf, N_pmat)
                             END IF
                           END IF
                         END DO !lset
@@ -1415,8 +1301,8 @@ MODULE hfx_energy_potential
     ene_x_aa = 0.0_dp
     ene_x_bb = 0.0_dp
    
-    mb_size_p = SIZE(full_density,1)**2/1024/128
-    mb_size_f = SIZE(full_ks,1)**2/1024/128
+    mb_size_p = SIZE(full_density,1)/1024/128
+    mb_size_f = SIZE(full_ks,1)/1024/128
     IF( nspins == 2) THEN
       mb_size_f = mb_size_f * 2
       mb_size_p = mb_size_p * 2
@@ -1433,24 +1319,30 @@ MODULE hfx_energy_potential
     !! mb
     mb_size_buffers = mb_size_buffers /1024/128
 
-    DO pa=1,SIZE(full_ks,1)
-      DO pd=pa,SIZE(full_ks,2)
+
+    DO pa=1,N_pmat
+      DO pd=pa,N_pmat
         IF(pa/=pd) THEN
-          full_ks(pa,pd) = (full_ks(pa,pd) + full_ks(pd,pa))*0.5_dp
-          full_ks(pd,pa) = full_ks(pa,pd)
-          ene_x_aa = ene_x_aa + 2.0_dp * full_density(pa,pd)*full_ks(pa,pd)
-          IF(nspins==2) THEN
-            full_ks_beta(pa,pd) = (full_ks_beta(pa,pd) + &
-                                   full_ks_beta(pd,pa)) * 0.5_dp
-            full_ks_beta(pd,pa) = full_ks_beta(pa,pd) 
-            ene_x_bb = ene_x_bb + 2.0_dp * full_density_beta(pa,pd)*full_ks_beta(pa,pd)
-          END IF
+          full_ks(get_1d_idx(pa,pd,N_pmat)) = full_ks(get_1d_idx(pa,pd,N_pmat)) * 0.5_dp
+          ene_x_aa = ene_x_aa + 2.0_dp * full_density(get_1d_idx(pa,pd,N_pmat))*full_ks(get_1d_idx(pa,pd,N_pmat))
         ELSE
-          ene_x_aa = ene_x_aa + full_density(pa,pd)*full_ks(pa,pd)
-          IF(nspins==2) ene_x_bb = ene_x_bb + full_density_beta(pa,pd)*full_ks_beta(pa,pd)
+          ene_x_aa = ene_x_aa + full_density(get_1d_idx(pa,pd,N_pmat))*full_ks(get_1d_idx(pa,pd,N_pmat))
         END IF
       END DO
     END DO
+
+    IF( nspins == 2 ) THEN
+      DO pa=1,N_pmat
+        DO pd=pa,N_pmat
+          IF(pa/=pd) THEN
+            full_ks_beta(get_1d_idx(pa,pd,N_pmat)) = full_ks_beta(get_1d_idx(pa,pd,N_pmat)) * 0.5_dp
+            ene_x_bb = ene_x_bb + 2.0_dp * full_density_beta(get_1d_idx(pa,pd,N_pmat))*full_ks_beta(get_1d_idx(pa,pd,N_pmat))
+          ELSE
+            ene_x_bb = ene_x_bb + full_density_beta(get_1d_idx(pa,pd,N_pmat))*full_ks_beta(get_1d_idx(pa,pd,N_pmat))
+          END IF
+        END DO
+      END DO
+    END IF
 
     CALL timestop(handle_main)
     
@@ -1459,7 +1351,8 @@ MODULE hfx_energy_potential
       CALL timeset(routineN//"_dist_KS",handle_dist_ks)
       CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, shm_number_of_p_entries, &
                                 shm_is_assoc_atomic_block,&
-                                natom, last_sgf_global, kind_of, basis_parameter, error)
+                                natom, last_sgf_global, kind_of, basis_parameter, &
+                                N_pmat, error)
 
       NULLIFY(full_ks)
       DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
@@ -1467,7 +1360,8 @@ MODULE hfx_energy_potential
       IF(nspins == 2) THEN
         CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, shm_number_of_p_entries, &
                                   shm_is_assoc_atomic_block,&
-                                  natom, last_sgf_global, kind_of, basis_parameter, error)
+                                  natom, last_sgf_global, kind_of, basis_parameter, &
+                                  N_pmat, error)
         NULLIFY(full_ks_beta)
         DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1616,6 +1510,11 @@ MODULE hfx_energy_potential
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 !$OMP END MASTER
+    DEALLOCATE(pbd_buf, pbc_buf, pad_buf, pac_buf, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(kbd_buf,kbc_buf,kad_buf,kac_buf, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     DEALLOCATE(max_contraction, kind_of, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !
@@ -1925,5 +1824,191 @@ MODULE hfx_energy_potential
       END DO !j
     END DO !i
   END SUBROUTINE coulomb4_per
+
+! *****************************************************************************
+!> \brief Given a 2d index pair, this function returns a 1d index pair for
+!>        a symmetric upper triangle NxN matrix
+!>        The compiler should inline this function, therefore it appears in
+!>        several modules
+!> \param i,j 2d index
+!> \param N matrix size
+!> \par History
+!>      03.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  PURE FUNCTION get_1D_idx(i,j,N)
+    INTEGER, INTENT(IN)                      :: i, j
+    INTEGER(int_8), INTENT(IN)               :: N
+    INTEGER(int_8)                           :: get_1D_idx
+
+    INTEGER                                  :: min_ij
+
+    min_ij = MIN(i,j)
+    get_1D_idx = min_ij*N + MAX(i,j) - (min_ij-1)*min_ij/2 - N
+
+  END FUNCTION get_1D_idx
+
+! *****************************************************************************
+!> \brief This routine prefetches density/fock matrix elements and stores them
+!>        in cache friendly arrays. These buffers are then used to update the
+!>        fock matrix
+!> \param pa1, pb1, pc1, pd1 Offsets
+!> \param ma_max, mb_max, mc_max, md_max: Size of matrix blocks
+!> \param sgfa, sgfb sgfc, sgfd Offsets
+!> \param fac, symm_fac mulitplication factors (spin, symmetry)
+!> \param density upper triangular density matrix
+!> \param ks upper triangular fock matrix
+!> \param prim primitive integrals
+!> \param pbd, pbc, pad, pac buffers that will contain P(b,d), P(b,c) ...
+!> \param kbd, kbc, kad, kac buffers for KS(b,d), KS(b,c) ...
+!> \param N_pmat 1D size of density/fock matrix
+!> \par History
+!>      03.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+
+  SUBROUTINE update_fock_matrix(pa1, pb1, pc1, pd1, ma_max, mb_max, mc_max, md_max, &
+                                sgfa, sgfb, sgfc, sgfd, fac, symm_fac, density, ks, prim, &
+                                pbd, pbc, pad, pac, kbd, kbc, kad, kac, N_pmat)
+
+    INTEGER, INTENT(IN)                      :: pa1, pb1, pc1, pd1, ma_max, &
+                                                mb_max, mc_max, md_max, sgfa, &
+                                                sgfb, sgfc, sgfd
+    REAL(dp), INTENT(IN)                     :: fac, symm_fac
+    REAL(dp), DIMENSION(:)                   :: density, ks
+    REAL(dp), DIMENSION(ma_max*mb_max*mc_max&
+      *md_max), INTENT(IN)                   :: prim
+    REAL(dp), DIMENSION(*)                   :: pbd, pbc, pad, pac, kbd, kbc, &
+                                                kad, kac
+    INTEGER(int_8), INTENT(IN)               :: N_pmat
+
+    INTEGER                                  :: i, ma, mb, mc, md, p_index, &
+                                                pa, pa2, pb, pb2, pc, pc2, &
+                                                pd, pd2
+    REAL(dp)                                 :: ks_bc, ks_bd, p_bc, p_bd, tmp
+
+    i = 1
+    DO md=1,md_max
+      pd2 = md+sgfd-1
+      pd = pd1 + pd2
+      DO mb=1,mb_max
+        pb2 = mb+sgfb-1
+        pb = pb1 + pb2
+        pbd(i) = density(get_1d_idx(pb,pd,N_pmat))
+        i = i+1
+      END DO
+    END DO  
+    i = 1
+    DO mc=1,mc_max
+      pc2 = mc+sgfc-1
+      pc = pc1 + pc2
+      DO mb=1,mb_max
+        pb2 = mb+sgfb-1
+        pb = pb1 + pb2
+        pbc(i) = density(get_1d_idx(pb,pc,N_pmat))
+        i = i+1
+      END DO
+    END DO  
+    i = 1
+    DO md=1,md_max
+      pd2 = md+sgfd-1
+      pd = pd1 + pd2
+      DO ma=1,ma_max
+        pa2 = ma+sgfa-1
+        pa = pa1 + pa2
+        pad(i) = density(get_1d_idx(pa,pd,N_pmat))
+        i = i+1
+      END DO
+    END DO  
+    i = 1
+    DO mc=1,mc_max
+      pc2 = mc+sgfc-1
+      pc = pc1 + pc2
+      DO ma=1,ma_max
+        pa2 = ma+sgfa-1
+        pa = pa1 + pa2
+        pac(i) = density(get_1d_idx(pa,pc,N_pmat))
+        i = i+1
+      END DO
+    END DO  
+
+    kbd(1:mb_max*md_max) = 0.0_dp
+    kbc(1:mb_max*mc_max) = 0.0_dp
+    kad(1:ma_max*md_max) = 0.0_dp
+    kac(1:ma_max*mc_max) = 0.0_dp
+
+    p_index = 0
+    DO md = 1,md_max
+      DO mc = 1,mc_max
+        DO mb = 1,mb_max
+          ks_bd = 0.0_dp
+          ks_bc = 0.0_dp
+          p_bd = pbd((md-1)*mb_max+mb)
+          p_bc = pbc((mc-1)*mb_max+mb)
+          DO ma = 1,ma_max
+            p_index=p_index+1
+            tmp = fac*symm_fac*prim(p_index)
+            ks_bc = ks_bc + tmp* pad((md-1)*ma_max+ma)
+            ks_bd = ks_bd + tmp* pac((mc-1)*ma_max+ma)
+            kad((md-1)*ma_max+ma) =  kad((md-1)*ma_max+ma)-tmp*p_bc
+            kac((mc-1)*ma_max+ma) = kac((mc-1)*ma_max+ma)-tmp*p_bd
+          END DO
+          kbd((md-1)*mb_max+mb) = kbd((md-1)*mb_max+mb) - ks_bd
+          kbc((mc-1)*mb_max+mb)=kbc((mc-1)*mb_max+mb) - ks_bc
+        END DO
+      END DO
+    END DO
+
+
+    i = 1
+    DO md=1,md_max
+      pd2 = md+sgfd-1
+      pd = pd1 + pd2
+      DO mb=1,mb_max
+        pb2 = mb+sgfb-1
+        pb = pb1 + pb2
+        !$OMP ATOMIC
+        ks(get_1d_idx(pb,pd,N_pmat)) = ks(get_1d_idx(pb,pd,N_pmat)) + kbd(i)
+        i = i+1
+      END DO
+    END DO  
+    i = 1
+    DO mc=1,mc_max
+      pc2 = mc+sgfc-1
+      pc = pc1 + pc2
+      DO mb=1,mb_max
+        pb2 = mb+sgfb-1
+        pb = pb1 + pb2
+        !$OMP ATOMIC
+        ks(get_1d_idx(pb,pc,N_pmat)) = ks(get_1d_idx(pb,pc,N_pmat)) + kbc(i) 
+        i = i+1
+      END DO
+    END DO  
+    i = 1
+    DO md=1,md_max
+      pd2 = md+sgfd-1
+      pd = pd1 + pd2
+      DO ma=1,ma_max
+        pa2 = ma+sgfa-1
+        pa = pa1 + pa2
+        !$OMP ATOMIC
+        ks(get_1d_idx(pa,pd,N_pmat)) = ks(get_1d_idx(pa,pd,N_pmat)) + kad(i)
+        i = i+1
+      END DO
+    END DO  
+    i = 1
+    DO mc=1,mc_max
+      pc2 = mc+sgfc-1
+      pc = pc1 + pc2
+      DO ma=1,ma_max
+        pa2 = ma+sgfa-1
+        pa = pa1 + pa2
+        !$OMP ATOMIC
+        ks(get_1d_idx(pa,pc,N_pmat)) = ks(get_1d_idx(pa,pc,N_pmat)) + kac(i)
+        i = i+1
+      END DO
+    END DO  
+  END SUBROUTINE update_fock_matrix
+
 
 END MODULE hfx_energy_potential

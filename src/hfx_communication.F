@@ -16,7 +16,8 @@ MODULE hfx_communication
   USE f77_blas
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE mathconstants
   USE message_passing,                 ONLY: mp_isendrecv,&
                                              mp_waitall
@@ -61,10 +62,10 @@ MODULE hfx_communication
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, is_assoc_atomic_block,&
-                              natom, last_sgf_global, kind_of, basis_parameter, error)
+                              natom, last_sgf_global, kind_of, basis_parameter, N_pmat, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(dp), DIMENSION(:, :), POINTER       :: full_density
+    REAL(dp), DIMENSION(:), POINTER          :: full_density
     TYPE(real_matrix_type), POINTER          :: rho
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
@@ -73,13 +74,16 @@ MODULE hfx_communication
                                                 kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
+    INTEGER(int_8), INTENT(IN)               :: N_pmat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_full_density', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: data_from, dest, i, iatom, icpu, ikind, istat, jatom, jkind, &
-      mepos, ncol, ncpu, nrow, pa, pa1, pb, pb1, req(2), source
+    INTEGER                                  :: data_from, dest, i, iatom, &
+                                                icpu, ikind, istat, jatom, &
+                                                jkind, mepos, ncpu, pa, pa1, &
+                                                pb, pb1, req(2), source
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
@@ -88,11 +92,6 @@ MODULE hfx_communication
 
     failure = .FALSE.
 
-    nrow = rho%nrow
-    ncol = rho%ncol
-
-    ALLOCATE (full_density(nrow,ncol),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     full_density = 0.0_dp
     ALLOCATE(sendbuffer(number_of_p_entries),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -136,7 +135,7 @@ MODULE hfx_communication
           IF(is_assoc_atomic_block(iatom,jatom)-1 == MODULO(data_from,ncpu)) THEN
             DO pb = pb1+1, pb1+ basis_parameter(jkind)%nsgf_total 
               DO pa = pa1+1,pa1+ basis_parameter(ikind)%nsgf_total
-                full_density(pa,pb) = sendbuffer(i)
+                full_density(get_1d_idx(pa,pb,N_pmat)) = sendbuffer(i)
                 i = i + 1
               END DO
             END DO
@@ -174,10 +173,10 @@ MODULE hfx_communication
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, is_assoc_atomic_block,&
-                                  natom, last_sgf_global, kind_of, basis_parameter, error)
+                                  natom, last_sgf_global, kind_of, basis_parameter, N_pmat, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(dp), DIMENSION(:, :)                :: full_ks
+    REAL(dp), DIMENSION(:)                   :: full_ks
     TYPE(real_matrix_type), POINTER          :: ks_matrix
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
@@ -186,6 +185,7 @@ MODULE hfx_communication
                                                 kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
+    INTEGER(int_8), INTENT(IN)               :: N_pmat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_ks_matrix', &
@@ -225,7 +225,7 @@ MODULE hfx_communication
           IF(is_assoc_atomic_block(iatom,jatom)-1 == MODULO(data_to,ncpu)) THEN
             DO pb=pb1+1,pb1+ basis_parameter(jkind)%nsgf_total
               DO pa=pa1+1,pa1+ basis_parameter(ikind)%nsgf_total
-                sendbuffer(i) = sendbuffer(i) + full_ks(pa,pb)
+                sendbuffer(i) = sendbuffer(i) + full_ks(get_1d_idx(pa,pb,N_pmat))
                 i = i+1
               END DO
             END DO  
@@ -291,7 +291,7 @@ MODULE hfx_communication
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
-                                             scaling_factor, error)
+                                             scaling_factor, N_pmat, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -299,19 +299,20 @@ MODULE hfx_communication
       POINTER                                :: ks_matrix
     INTEGER, INTENT(IN)                      :: irep
     REAL(dp), INTENT(IN)                     :: scaling_factor
+    INTEGER(int_8), INTENT(IN)               :: N_pmat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'scale_and_add_fock_to_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iatom, ikind, istat, j, &
+    INTEGER                                  :: iatom, ikind, istat, j, &
                                                 natom, nspins, &
                                                 number_of_p_entries, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     INTEGER, DIMENSION(:, :), POINTER        :: is_assoc_atomic_block
     LOGICAL                                  :: failure
-    REAL(dp), DIMENSION(:, :), POINTER       :: full_ks
+    REAL(dp), DIMENSION(:), POINTER          :: full_ks
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(hfx_basis_type), DIMENSION(:), &
@@ -347,34 +348,29 @@ MODULE hfx_communication
       ikind = kind_of(iatom)
       last_sgf_global(iatom) = last_sgf_global(iatom-1)+ basis_parameter(ikind)%nsgf_total
     END DO
-
     full_ks => actual_x_data%full_ks_alpha
     IF(scaling_factor /= 1.0_dp ) THEN
-      DO j=1,SIZE(full_ks,2)
-        DO i=1,SIZE(full_ks,1)
-          full_ks(i,j) = full_ks(i,j) * scaling_factor
-        END DO
+      DO j=1,SIZE(full_ks,1)
+        full_ks(j) = full_ks(j) * scaling_factor
       END DO
     END IF
     CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, actual_x_data%number_of_p_entries, &
                               actual_x_data%is_assoc_atomic_block,&
-                              natom, last_sgf_global, kind_of, basis_parameter, error)
+                              natom, last_sgf_global, kind_of, basis_parameter, N_pmat, error)
     DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF(nspins == 2) THEN
       full_ks => actual_x_data%full_ks_beta
       IF(scaling_factor /= 1.0_dp ) THEN
-        DO j=1,SIZE(full_ks,2)
-          DO i=1,SIZE(full_ks,1)
-            full_ks(i,j) = full_ks(i,j) * scaling_factor
-          END DO
+        DO j=1,SIZE(full_ks,1)
+            full_ks(j) = full_ks(j) * scaling_factor
         END DO
       END IF
 
       CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(2)%matrix, actual_x_data%number_of_p_entries, &
                                 actual_x_data%is_assoc_atomic_block,&
-                                natom, last_sgf_global, kind_of, basis_parameter, error)
+                                natom, last_sgf_global, kind_of, basis_parameter, N_pmat, error)
       DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -383,5 +379,29 @@ MODULE hfx_communication
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE scale_and_add_fock_to_ks_matrix 
+
+! *****************************************************************************
+!> \brief Given a 2d index pair, this function returns a 1d index pair for
+!>        a symmetric upper triangle NxN matrix
+!>        The compiler should inline this function, therefore it appears in
+!>        several modules
+!> \param i,j 2d index
+!> \param N matrix size
+!> \par History
+!>      03.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  PURE FUNCTION get_1D_idx(i,j,N)
+    INTEGER, INTENT(IN)                      :: i, j
+    INTEGER(int_8), INTENT(IN)               :: N
+    INTEGER(int_8)                           :: get_1D_idx
+
+    INTEGER(int_8)                           :: min_ij
+
+    min_ij = MIN(i,j)
+    get_1D_idx = min_ij*N + MAX(i,j) - (min_ij-1)*min_ij/2 - N
+
+  END FUNCTION get_1D_idx
+
 
 END MODULE hfx_communication

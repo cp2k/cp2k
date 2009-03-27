@@ -38,7 +38,6 @@ MODULE hfx_derivatives
                                              int_8
   USE machine,                         ONLY: m_walltime
   USE mathconstants
-  USE mathlib,                         ONLY: symmetrize_matrix
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -106,12 +105,11 @@ MODULE hfx_derivatives
 
     INTEGER :: bin, coord, forces_map(4,2), handle, i, i_atom, i_thread, &
       iatom, ikind, iset, j_atom, jatom, jkind, jset, k_atom, katom, kkind, &
-      kset, l_atom, latom, lkind, lset, ma, max_am, max_set, maxsgf, mb, mc, &
-      md, my_bin_size, my_istart, my_jstart, my_kstart, my_lstart, n_threads, &
-      natom, nco_max, ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, &
-      nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, nspins, p_index, &
-      pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, sgfa, sgfb, &
-      sgfc, sgfd, stat
+      kset, l_atom, latom, lkind, lset, max_am, max_set, maxsgf, my_bin_size, &
+      my_istart, my_jstart, my_kstart, my_lstart, n_threads, natom, nco_max, &
+      ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, &
+      nsgfb_total, nsgfc_total, nsgfd_total, nspins, pa1, pb1, pc1, pd1, &
+      sgfa, sgfb, sgfc, sgfd, stat
     INTEGER(int_8)                           :: my_current_counter, &
                                                 my_original_cpu_id, &
                                                 n_processes, ncpu
@@ -129,13 +127,15 @@ MODULE hfx_derivatives
     REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, eps_schwarz, &
       fac, hf_fraction, max_contraction_val, max_val1, max_val2, &
       my_adiabatic_rescale_factor, omega2Inv, pmax_entry, ra(3), rb(3), &
-      rc(3), rd(3), symm_fac, temp(3), temp1, temp1b, temp2, temp3, temp3b
+      rc(3), rd(3), symm_fac, temp(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
-    REAL(dp), DIMENSION(:), POINTER          :: T1, T2
-    REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
-      max_contraction, sphi_a, sphi_b, sphi_c, sphi_d, zeta, zetb, zetc, zetd
+    REAL(dp), DIMENSION(:), POINTER          :: full_density, &
+                                                full_density_beta, T1, T2
+    REAL(dp), DIMENSION(:, :), POINTER       :: max_contraction, sphi_a, &
+                                                sphi_b, sphi_c, sphi_d, zeta, &
+                                                zetb, zetc, zetd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -170,7 +170,10 @@ MODULE hfx_derivatives
       DIMENSION(:,:), POINTER                :: screen_coeffs_kind, tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
     REAL(dp)                                 :: ln_10, B11(3), rab2, D11(3), rcd2, log10_eps_schwarz,&
                                                 log10_pmax, max_val2_set, pbc_B(3), pbc_D(3), log_2
-    INTEGER(int_8)                           :: hash_idx
+    INTEGER(int_8)                           :: hash_idx, N_pmat
+    INTEGER                                  :: nsgf_max
+    REAL(dp), DIMENSION(:), ALLOCATABLE      :: pbd_buf, pbc_buf, pad_buf, pac_buf, &
+                                                pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta
 
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
@@ -344,23 +347,29 @@ MODULE hfx_derivatives
       ENDDO
     ENDDO
 
+    N_pmat = rho%rho_ao(1)%matrix%nrow
+
+
+
 !$OMP MASTER
     NULLIFY(full_density)
     NULLIFY(full_density_beta)
+    ALLOCATE(full_density(N_pmat*(N_pmat+1)/2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !! Set pointer for is_assoc helper
     shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block 
     shm_number_of_p_entries = actual_x_data%number_of_p_entries
     !! Get the full density from all the processors
     CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, actual_x_data%number_of_p_entries,&
                           actual_x_data%is_assoc_atomic_block, natom, last_sgf_global, &
-                          kind_of, basis_parameter, error)   
+                          kind_of, basis_parameter, N_pmat, error)   
     IF(nspins == 2) THEN
+      ALLOCATE(full_density_beta(N_pmat*(N_pmat+1)/2),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, actual_x_data%number_of_p_entries,&
                            actual_x_data%is_assoc_atomic_block, natom, last_sgf_global, &
-                           kind_of, basis_parameter, error)
+                           kind_of, basis_parameter, N_pmat, error)
     END IF
-    CALL symmetrize_matrix(full_density,"upper_to_lower")
-    IF(nspins == 2) CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
 
     !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the
     !! matrix is initialized to 1.0
@@ -368,7 +377,7 @@ MODULE hfx_derivatives
       NULLIFY(shm_initial_p)
       shm_initial_p => actual_x_data%initial_p
       CALL update_pmax_mat(shm_initial_p, full_density,full_density_beta,natom, &
-                           max_set,  kind_of, basis_parameter, last_sgf_global, error)
+                           max_set,  kind_of, basis_parameter, last_sgf_global, N_pmat, error)
     END IF 
 
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
@@ -398,13 +407,16 @@ MODULE hfx_derivatives
 
     !! precompute maximum nco and allocate scratch
     nco_max=0
+    nsgf_max=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
       nseta = basis_parameter(ikind)%nset
       npgfa => basis_parameter(ikind)%npgf
       la_max => basis_parameter(ikind)%lmax
+      nsgfa => basis_parameter(ikind)%nsgf
       DO iset = 1, nseta
          nco_max = MAX(nco_max,npgfa(iset)*ncoset(la_max(iset)))
+         nsgf_max = MAX(nsgf_max, nsgfa(iset))
       ENDDO
     ENDDO
 
@@ -415,7 +427,26 @@ MODULE hfx_derivatives
     ALLOCATE(T1(nco_max**4),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     T1=0.0_dp
-    
+
+    ALLOCATE(pbd_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pbc_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pad_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pac_buf(nsgf_max**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF( nspins == 2 ) THEN
+      ALLOCATE(pbd_buf_beta(nsgf_max**2),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(pbc_buf_beta(nsgf_max**2),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(pad_buf_beta(nsgf_max**2),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(pac_buf_beta(nsgf_max**2),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
     !! Start caluclating integrals of the form (ab|cd) or (ij|kl)
     !! In order to do so, there is a main four-loop structre that takes into account the two symmetries
     !!
@@ -693,6 +724,18 @@ MODULE hfx_derivatives
                           END IF 
   
                           IF(cartesian_estimate<eps_schwarz) CYCLE
+                          CALL prefetch_density_matrix(pa1, pb1, pc1, pd1,&
+                                                       nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                       sgfa, sgfb, sgfc, sgfd, full_density, &
+                                                       pbd_buf, pbc_buf, pad_buf, pac_buf, N_pmat)
+                          IF( nspins == 2 ) THEN
+                            CALL prefetch_density_matrix(pa1, pb1, pc1, pd1,&
+                                                         nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                         sgfa, sgfb, sgfc, sgfd, full_density_beta, &
+                                                         pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, N_pmat)
+                          END IF
+
+
                           DO coord = 1,12
                             T2 => primitive_forces((coord-1)*ncoa*ncob*ncoc*ncod+1:coord*ncoa*ncob*ncoc*ncod)
                             CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
@@ -717,45 +760,15 @@ MODULE hfx_derivatives
                                        sphi_d(1,sgfd), SIZE(sphi_d,1),&
                                        0.0_dp, T2(1),&
                                        nsgfa(iset)*nsgfb(jset)*nsgfc(kset))
-                            p_index = 0
-                            DO md = 1,nsgfd(lset)
-                              pd2 = md+sgfd-1
-                              pd = pd1 + pd2
-                              DO mc = 1, nsgfc(kset)
-                                pc2 = mc+sgfc-1
-                                pc = pc1 + pc2
-                                DO mb = 1, nsgfb(jset)
-                                  pb2 = mb+sgfb-1
-                                  pb = pb1 + pb2
-                                  temp1 = full_density(pc,pb) * fac
-                                  IF( nspins == 2 ) temp1b = full_density_beta(pc,pb) * fac
-                                  DO ma = 1,nsgfa(iset) 
-                                    pa2 = ma+sgfa-1
-                                    pa = pa1 + pa2
-                                    temp3 = full_density(pb,pd) * fac
-                                    IF( nspins == 2 ) temp3b = full_density_beta(pb,pd) * fac
-                                    p_index = p_index + 1 
-                                    temp2 = temp1 * full_density(pa,pd) + temp3 * full_density(pa,pc)
 
-                                    !$OMP ATOMIC
-                                    force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1, &
-                                          forces_map((coord-1)/3 + 1,2)) = &
-                                    force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1, &
-                                          forces_map((coord-1)/3 + 1,2)) - &
-                                    temp2 * T2(p_index)
-                                    IF(nspins == 2) THEN
-                                      temp2 = temp1b*full_density_beta(pa,pd) + temp3b*full_density_beta(pa,pc)
-                                      !$OMP ATOMIC
-                                      force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1,&
-                                   forces_map((coord-1)/3 + 1,2)) = &
-                                      force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1,&
-                                            forces_map((coord-1)/3 + 1,2)) - &
-                                      temp2 * T2(p_index)
-                                    END IF 
-                                  END DO !ma
-                                END DO !mb
-                              END DO !mc
-                            END DO !md
+                            CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                               pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
+                                               T2, force, forces_map, coord)
+                            IF( nspins == 2 ) THEN
+                              CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                 pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
+                                                 T2, force, forces_map, coord)
+                            END IF
                           END DO !coord
                         END DO !lset
                       END DO !ksetm
@@ -792,6 +805,19 @@ MODULE hfx_derivatives
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(max_contraction,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(pbd_buf, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(pbc_buf, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(pad_buf, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(pac_buf, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF( nspins == 2 ) THEN
+      DEALLOCATE(pbd_buf_beta,pbc_buf_beta,pad_buf_beta,pac_buf_beta, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
  
     !
     ! this wraps to free_libint, but currently causes a segfault
@@ -800,9 +826,12 @@ MODULE hfx_derivatives
     ! CALL terminate_libderiv(deriv)
 
 !$OMP END PARALLEL
+
     DEALLOCATE(lib, deriv, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL timestop(handle)
+
   END SUBROUTINE derivatives_four_center
 
 
@@ -1109,5 +1138,153 @@ MODULE hfx_derivatives
       END DO !j
     END DO !i
   END SUBROUTINE forces4_periodic
+
+! *****************************************************************************
+!> \brief Given a 2d index pair, this function returns a 1d index pair for
+!>        a symmetric upper triangle NxN matrix
+!>        The compiler should inline this function, therefore it appears in
+!>        several modules
+!> \param i,j 2d index
+!> \param N matrix size
+!> \par History
+!>      03.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  PURE FUNCTION get_1D_idx(i,j,N)
+    INTEGER, INTENT(IN)                      :: i, j
+    INTEGER(int_8), INTENT(IN)               :: N
+    INTEGER(int_8)                           :: get_1D_idx
+
+    INTEGER(int_8)                           :: min_ij
+
+    min_ij = MIN(i,j)
+    get_1D_idx = min_ij*N + MAX(i,j) - (min_ij-1)*min_ij/2 - N
+
+  END FUNCTION get_1D_idx
+
+! *****************************************************************************
+!> \brief This routine prefetches density matrix elements, i.e. reshuffles the
+!>        data in a way that they can be accessed later on in a cache friendly
+!>        way
+!> \param pa1,pb1,pc1,pd1 offsets
+!> \param ma_max, mb_max, mc_max, md_max: Size of matrix blocks
+!> \param sgfa, sgfb, sgfc, sgfd offsets
+!> \param pbd, pbc, pad, pac buffers that will contain P(b,d), P(b,c) ...
+!> \param N_pmat linear Size of density matrix
+!> \par History
+!>      03.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  SUBROUTINE prefetch_density_matrix(pa1, pb1, pc1, pd1, ma_max, mb_max, mc_max, md_max, &
+                                     sgfa, sgfb, sgfc, sgfd, density, &
+                                     pbd, pbc, pad, pac, N_pmat)
+
+    INTEGER, INTENT(IN)                      :: pa1, pb1, pc1, pd1, ma_max, &
+                                                mb_max, mc_max, md_max, sgfa, &
+                                                sgfb, sgfc, sgfd
+    REAL(dp), DIMENSION(:)                   :: density
+    REAL(dp), DIMENSION(*)                   :: pbd, pbc, pad, pac
+    INTEGER(int_8), INTENT(IN)               :: N_pmat
+
+    INTEGER                                  :: i, ma, mb, mc, md, pa, pa2, &
+                                                pb, pb2, pc, pc2, pd, pd2
+
+    i = 1
+    DO md=1,md_max
+      pd2 = md+sgfd-1
+      pd = pd1 + pd2
+      DO mb=1,mb_max
+        pb2 = mb+sgfb-1
+        pb = pb1 + pb2
+        pbd(i) = density(get_1d_idx(pb,pd,N_pmat))
+        i = i+1
+      END DO
+    END DO
+    i = 1
+    DO mc=1,mc_max
+      pc2 = mc+sgfc-1
+      pc = pc1 + pc2
+      DO mb=1,mb_max
+        pb2 = mb+sgfb-1
+        pb = pb1 + pb2
+        pbc(i) = density(get_1d_idx(pb,pc,N_pmat))
+        i = i+1
+      END DO
+    END DO
+    i = 1
+    DO md=1,md_max
+      pd2 = md+sgfd-1
+      pd = pd1 + pd2
+      DO ma=1,ma_max
+        pa2 = ma+sgfa-1
+        pa = pa1 + pa2
+        pad(i) = density(get_1d_idx(pa,pd,N_pmat))
+        i = i+1
+      END DO
+    END DO
+    i = 1
+    DO mc=1,mc_max
+      pc2 = mc+sgfc-1
+      pc = pc1 + pc2
+      DO ma=1,ma_max
+        pa2 = ma+sgfa-1
+        pa = pa1 + pa2
+        pac(i) = density(get_1d_idx(pa,pc,N_pmat))
+        i = i+1
+      END DO
+    END DO
+  END SUBROUTINE prefetch_density_matrix
+
+! *****************************************************************************
+!> \brief This routine updates the forces using bufferd density matrices
+!> \param ma_max, mb_max, mc_max, md_max: Size of matrix blocks
+!> \param pbd, pbc, pad, pac buffers that will contain P(b,d), P(b,c) ...
+!> \param fac mulitplication factor (spin, symmetry)
+!> \param prim primitve forces
+!> \param force storage loacation for forces
+!> \param forces_map index table
+!> \param coord which of the 12 coords to be updated
+!> \par History
+!>      03.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  SUBROUTINE update_forces(ma_max, mb_max, mc_max, md_max, &
+                           pbd, pbc, pad, pac, fac, &
+                           prim, force, forces_map, coord)
+
+    INTEGER, INTENT(IN)                      :: ma_max, mb_max, mc_max, md_max
+    REAL(dp), DIMENSION(*), INTENT(IN)       :: pbd, pbc, pad, pac
+    REAL(dp), INTENT(IN)                     :: fac
+    REAL(dp), DIMENSION(ma_max*mb_max*mc_max&
+      *md_max), INTENT(IN)                   :: prim
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    INTEGER, INTENT(IN)                      :: forces_map(4,2), coord
+
+    INTEGER                                  :: ma, mb, mc, md, p_index
+    REAL(dp)                                 :: temp1, temp2, temp3
+
+    p_index = 0
+    DO md = 1,md_max
+      DO mc = 1,mc_max
+        DO mb = 1,mb_max
+          temp1 = pbc((mc-1)*mb_max+mb) * fac
+          DO ma = 1,ma_max
+            temp3 = pbd((md-1)*mb_max+mb) * fac
+            p_index = p_index + 1 
+            temp2 = temp1 * pad((md-1)*ma_max+ma) + &
+                    temp3 * pac((mc-1)*ma_max+ma)
+
+            !$OMP ATOMIC
+            force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1, &
+                  forces_map((coord-1)/3 + 1,2)) = &
+            force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1, &
+                  forces_map((coord-1)/3 + 1,2)) - &
+            temp2 * prim(p_index)
+          END DO !ma
+        END DO !mb
+      END DO !mc
+    END DO !md
+  END SUBROUTINE update_forces
 
 END MODULE hfx_derivatives
