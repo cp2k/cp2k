@@ -313,6 +313,7 @@ realclean: clean
 	-rm -f $(PROG)
 	-rm -f $(LIB1_ARCHIVE)
 	-rm -f $(LIB2_ARCHIVE)
+	-rm -f $(LIB_CP2K_ARCHIVE)
 #
 # really remove all build files not in CVS
 #
