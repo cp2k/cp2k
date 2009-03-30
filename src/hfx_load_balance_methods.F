@@ -29,6 +29,7 @@ MODULE hfx_load_balance_methods
   USE message_passing,                 ONLY: mp_isendrecv,&
                                              mp_max,&
                                              mp_sum,&
+                                             mp_sync,&
                                              mp_waitall
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
@@ -442,6 +443,9 @@ MODULE hfx_load_balance_methods
 !$OMP BARRIER
 
 !$OMP MASTER
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
+
       ALLOCATE(sendbuffer(nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(recbuffer(nbins*n_threads),STAT=stat)
@@ -532,6 +536,8 @@ MODULE hfx_load_balance_methods
         END DO
       END DO
 
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
       dest   = MODULO(mepos+1,ncpu)
       source = MODULO(mepos-1,ncpu)
       DO icpu = 0, ncpu-1
@@ -561,6 +567,9 @@ MODULE hfx_load_balance_methods
       ENDDO
       DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
 !$OMP END MASTER
 !$OMP BARRIER
       !! reorder the distribution according to the distribution vector
@@ -990,6 +999,9 @@ MODULE hfx_load_balance_methods
 
       sendbuffer = cost_matrix(mepos*nbins*n_threads+1:mepos*nbins*n_threads+nbins*n_threads)
 
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
+
       dest  =MODULO(mepos+1,ncpu)
       source=MODULO(mepos-1,ncpu)
       DO icpu = 0, ncpu-1
@@ -1008,6 +1020,8 @@ MODULE hfx_load_balance_methods
       ENDDO
       DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
 !$OMP END MASTER
 
 !$OMP BARRIER
@@ -1064,6 +1078,8 @@ MODULE hfx_load_balance_methods
         END DO
       END DO
 
+      ! sync before/after a ring of isendrecv
+      CALL mp_sync(para_env%group)
       dest   = MODULO(mepos+1,ncpu)
       source = MODULO(mepos-1,ncpu)
       DO icpu = 0, ncpu-1
@@ -1093,6 +1109,9 @@ MODULE hfx_load_balance_methods
       ENDDO
       DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ! sync before/after ring of isendrecv
+      ! this one is a magic sync that can speedup the above message passing by a factor of 100 on an XT5
+      CALL mp_sync(para_env%group)
 !$OMP END MASTER
 !$OMP BARRIER
       !! reorder the distribution according to the distribution vector
@@ -1282,6 +1301,8 @@ MODULE hfx_load_balance_methods
 
       dest  =MODULO(mepos+1,ncpu)
       source=MODULO(mepos-1,ncpu)
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
       DO icpu = 0, ncpu-1
         IF (icpu .NE. ncpu-1) THEN
           CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
@@ -1301,6 +1322,8 @@ MODULE hfx_load_balance_methods
       ENDDO
       DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
 !$OMP END MASTER
 !$OMP BARRIER
       !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
@@ -1359,6 +1382,8 @@ MODULE hfx_load_balance_methods
       END DO
       dest   = MODULO(mepos+1,ncpu)
       source = MODULO(mepos-1,ncpu)
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
       DO icpu = 0, ncpu-1
         IF (icpu .NE. ncpu-1) THEN
           CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
@@ -1384,6 +1409,8 @@ MODULE hfx_load_balance_methods
         sendbuffer=>recbuffer
         recbuffer=>swapbuffer
       ENDDO
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
       DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !$OMP END MASTER
@@ -1576,6 +1603,8 @@ MODULE hfx_load_balance_methods
 
       dest  =MODULO(mepos+1,ncpu)
       source=MODULO(mepos-1,ncpu)
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
       DO icpu = 0, ncpu-1
         IF (icpu .NE. ncpu-1) THEN
           CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
@@ -1593,6 +1622,8 @@ MODULE hfx_load_balance_methods
         sendbuffer=>recbuffer
         recbuffer=>swapbuffer
       ENDDO
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
       DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !$OMP END MASTER
@@ -1651,6 +1682,8 @@ MODULE hfx_load_balance_methods
       END DO
       dest   = MODULO(mepos+1,ncpu)
       source = MODULO(mepos-1,ncpu)
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
       DO icpu = 0, ncpu-1
         IF (icpu .NE. ncpu-1) THEN
           CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
@@ -1678,6 +1711,8 @@ MODULE hfx_load_balance_methods
       ENDDO
       DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ! sync before/after ring of isendrecv
+      CALL mp_sync(para_env%group)
 !$OMP END MASTER
 !$OMP BARRIER
       !! reorder the distribution according to the distribution vector

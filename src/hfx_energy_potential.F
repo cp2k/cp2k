@@ -723,10 +723,6 @@ MODULE hfx_energy_potential
 !$OMP END MASTER
 !$OMP BARRIER
 
-
-
- 
-
     !! Start caluclating integrals of the form (ab|cd) or (ij|kl)
     !! In order to do so, there is a main four-loop structre that takes into account the two symmetries
     !!

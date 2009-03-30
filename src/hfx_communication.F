@@ -20,6 +20,7 @@ MODULE hfx_communication
                                              int_8
   USE mathconstants
   USE message_passing,                 ONLY: mp_isendrecv,&
+                                             mp_sync,&
                                              mp_waitall
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
@@ -57,6 +58,9 @@ MODULE hfx_communication
 !>        see module cp_error_handling
 !> \note
 !>      - Communication with left/right node only
+!>        added a mp_sync before and after the ring of isendrecv. This *speed up* the
+!>        communication, and might protect against idle neighbors flooding a busy node
+!>        with messages [Joost]
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -115,6 +119,8 @@ MODULE hfx_communication
       END DO
     END DO
 
+    ! sync before/after a ring of isendrecv
+    CALL mp_sync(para_env%group)
     ncpu = para_env%num_pe
     mepos = para_env%mepos
     dest  =MODULO(mepos+1,ncpu)
@@ -151,6 +157,8 @@ MODULE hfx_communication
     ENDDO
     DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ! sync before/after a ring of isendrecv
+    CALL mp_sync(para_env%group)
 
   END SUBROUTINE get_full_density
 
@@ -213,6 +221,8 @@ MODULE hfx_communication
     dest  =MODULO(mepos+1,ncpu)
     source=MODULO(mepos-1,ncpu)
 
+    ! sync before/after a ring of isendrecv
+    CALL mp_sync(para_env%group)
     DO icpu = 1,ncpu
       i = 1
       data_to = mepos-icpu
@@ -241,6 +251,8 @@ MODULE hfx_communication
       sendbuffer=>recbuffer
       recbuffer=>swapbuffer
     ENDDO
+    ! sync before/after a ring of isendrecv
+    CALL mp_sync(para_env%group)
 
     i = 1
     DO iatom=1,ks_matrix%nblock_row
