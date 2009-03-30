@@ -20,6 +20,8 @@ MODULE hfx_communication
                                              int_8
   USE mathconstants
   USE message_passing,                 ONLY: mp_isendrecv,&
+                                             mp_max,&
+                                             mp_sum,&
                                              mp_sync,&
                                              mp_waitall
   USE orbital_pointers
@@ -32,12 +34,14 @@ MODULE hfx_communication
                                              real_block_node_type,&
                                              real_matrix_p_type,&
                                              real_matrix_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC get_full_density, distribute_ks_matrix, scale_and_add_fock_to_ks_matrix
+  PUBLIC get_full_density, distribute_ks_matrix, scale_and_add_fock_to_ks_matrix, get_is_assoc_atomic_block
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_communication'
 
 !***
@@ -415,5 +419,58 @@ MODULE hfx_communication
 
   END FUNCTION get_1D_idx
 
+! *****************************************************************************
+!> \brief create a local array that reflects the ks matrix sparsity
+!> \param para_en v
+!> \par History
+!>      11.2007 refactored [Joost VandeVondele]
+!> \notes
+!>      is_assoc_atomic_block returns the mpi rank + 1 for associated blocks,
+!>      zero for unassiated blocks
+!> \author Manuel Guidon
+! *****************************************************************************
+  SUBROUTINE get_is_assoc_atomic_block(matrix,basis_parameter,kind_of,&
+                    is_assoc_atomic_block,number_of_p_entries,para_env)
+
+    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(hfx_basis_type), DIMENSION(:)       :: basis_parameter
+    INTEGER, DIMENSION(:)                    :: kind_of
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: is_assoc_atomic_block
+    INTEGER, INTENT(OUT)                     :: number_of_p_entries
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_is_assoc_atomic_block', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iatom, ikind, jatom, &
+                                                jkind
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
+    TYPE(real_block_node_type), POINTER      :: block_node
+
+    CALL timeset(routineN,handle)
+
+    is_assoc_atomic_block = 0
+    number_of_p_entries = 0
+    DO iatom=1,matrix%nblock_row
+      block_node => first_block_node(matrix,iatom)
+      ikind = kind_of(iatom)
+      DO WHILE (ASSOCIATED(block_node))
+        CALL get_block_node(block_node=block_node,&
+                            block_col=jatom,&
+                            BLOCK=sparse_block)
+        jkind = kind_of(jatom)
+        is_assoc_atomic_block(iatom,jatom) = para_env%mepos + 1
+        is_assoc_atomic_block(jatom,iatom) = para_env%mepos + 1
+        number_of_p_entries =  number_of_p_entries + &
+              basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
+        block_node => next_block_node(block_node)
+      END DO
+    END DO
+    CALL mp_sum(is_assoc_atomic_block,para_env%group)
+    CALL mp_max(number_of_p_entries, para_env%group)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE get_is_assoc_atomic_block
 
 END MODULE hfx_communication

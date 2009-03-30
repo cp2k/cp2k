@@ -23,7 +23,8 @@ MODULE hfx_energy_potential
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: distribute_ks_matrix,&
-                                             get_full_density
+                                             get_full_density,&
+                                             get_is_assoc_atomic_block
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
                                              hfx_add_single_cache_element,&
                                              hfx_decompress_first_cache,&
@@ -55,8 +56,7 @@ MODULE hfx_energy_potential
   USE machine,                         ONLY: m_memory,&
                                              m_walltime
   USE mathconstants
-  USE message_passing,                 ONLY: mp_max,&
-                                             mp_max_i8,&
+  USE message_passing,                 ONLY: mp_max_i8,&
                                              mp_sum,&
                                              mp_sum_i8
   USE orbital_pointers
@@ -65,11 +65,7 @@ MODULE hfx_energy_potential
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: first_block_node,&
-                                             get_block_node,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -155,10 +151,9 @@ MODULE hfx_energy_potential
       max_val1, max_val2, pmax_entry, ra(3), rb(3), rc(3), rd(3), &
       spherical_estimate, symm_fac, temp(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
-    REAL(dp), DIMENSION(:, :), POINTER       :: max_contraction, &
-                                                sparse_block, sphi_a, sphi_b, &
-                                                sphi_c, sphi_d, zeta, zetb, &
-                                                zetc, zetd
+    REAL(dp), DIMENSION(:, :), POINTER       :: max_contraction, sphi_a, &
+                                                sphi_b, sphi_c, sphi_d, zeta, &
+                                                zetb, zetc, zetd
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -183,7 +178,6 @@ MODULE hfx_energy_potential
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_block_node_type), POINTER      :: block_node
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
     REAL(dp), DIMENSION(:, :, :, :), &
@@ -593,25 +587,8 @@ MODULE hfx_energy_potential
 !$OMP MASTER
     !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
     IF( geometry_did_change ) THEN
-      actual_x_data%is_assoc_atomic_block = 0
-      actual_x_data%number_of_p_entries = 0
-      DO iatom=1,ks_matrix(1)%matrix%nblock_row
-        block_node => first_block_node(ks_matrix(1)%matrix,iatom)
-        ikind = kind_of(iatom)
-        DO WHILE (ASSOCIATED(block_node))
-          CALL get_block_node(block_node=block_node,&
-                              block_col=jatom,&
-                              BLOCK=sparse_block)
-          jkind = kind_of(jatom)
-          actual_x_data%is_assoc_atomic_block(iatom,jatom) = para_env%mepos + 1
-          actual_x_data%is_assoc_atomic_block(jatom,iatom) = para_env%mepos + 1
-          actual_x_data%number_of_p_entries =  actual_x_data%number_of_p_entries + &
-                       basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
-          block_node => next_block_node(block_node)
-        END DO
-      END DO
-      CALL mp_sum(actual_x_data%is_assoc_atomic_block,para_env%group)
-      CALL mp_max(actual_x_data%number_of_p_entries, para_env%group)
+      CALL get_is_assoc_atomic_block(ks_matrix(1)%matrix,basis_parameter,kind_of,&
+                    actual_x_data%is_assoc_atomic_block,actual_x_data%number_of_p_entries ,para_env)
       shm_number_of_p_entries = actual_x_data%number_of_p_entries
       shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
     END IF
