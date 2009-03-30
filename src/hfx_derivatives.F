@@ -103,13 +103,13 @@ MODULE hfx_derivatives
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bin, coord, forces_map(4,2), handle, i, i_atom, i_thread, &
-      iatom, ikind, iset, j_atom, jatom, jkind, jset, k_atom, katom, kkind, &
-      kset, l_atom, latom, lkind, lset, max_am, max_set, maxsgf, my_bin_size, &
-      my_istart, my_jstart, my_kstart, my_lstart, n_threads, natom, nco_max, &
-      ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, &
-      nsgfb_total, nsgfc_total, nsgfd_total, nspins, pa1, pb1, pc1, pd1, &
-      sgfa, sgfb, sgfc, sgfd, stat
+    INTEGER :: bin, coord, forces_map(4,2), handle, handle_getP, handle_load, &
+      handle_main, i, i_atom, i_thread, iatom, ikind, iset, j_atom, jatom, &
+      jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, lkind, lset, &
+      max_am, max_set, maxsgf, my_bin_size, my_istart, my_jstart, my_kstart, &
+      my_lstart, n_threads, natom, nco_max, ncoa, ncob, ncoc, ncod, nseta, &
+      nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, &
+      nsgfd_total, nspins, pa1, pb1, pc1, pd1, sgfa, sgfb, sgfc, sgfd, stat
     INTEGER(int_8)                           :: my_current_counter, &
                                                 my_original_cpu_id, &
                                                 n_processes, ncpu
@@ -360,6 +360,7 @@ MODULE hfx_derivatives
     shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block 
     shm_number_of_p_entries = actual_x_data%number_of_p_entries
     !! Get the full density from all the processors
+    CALL timeset(routineN//"_getP",handle_getP)
     CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, actual_x_data%number_of_p_entries,&
                           actual_x_data%is_assoc_atomic_block, natom, last_sgf_global, &
                           kind_of, basis_parameter, N_pmat, error)   
@@ -370,6 +371,7 @@ MODULE hfx_derivatives
                            actual_x_data%is_assoc_atomic_block, natom, last_sgf_global, &
                            kind_of, basis_parameter, N_pmat, error)
     END IF
+    CALL timestop(handle_getP)
 
     !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the
     !! matrix is initialized to 1.0
@@ -391,6 +393,9 @@ MODULE hfx_derivatives
 !$OMP END MASTER
 !$OMP BARRIER
 
+!$OMP MASTER
+    CALL timeset(routineN//"_load",handle_load)
+!$OMP END MASTER
     !! Load balance the work
     IF( actual_x_data%b_first_load_balance_forces ) THEN
       CALL load_balance_forces(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
@@ -404,6 +409,9 @@ MODULE hfx_derivatives
                                       load_balance_parameter, &
                                       i_thread, n_threads, error)
     END IF
+!$OMP MASTER
+    CALL timestop(handle_load)
+!$OMP END MASTER
 
     !! precompute maximum nco and allocate scratch
     nco_max=0
@@ -486,6 +494,13 @@ MODULE hfx_derivatives
     !! Furthermore, the indices iatom, jatom, katom, latom have to be set to istart, jstart, kstart and
     !! lstart only the first time the loop is executed. All subsequent loops have to start with one or
     !! iatom and katom respectively. Therefore, we use flags like first_j_loop etc.
+
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timeset(routineN//"_main",handle_main)
+!$OMP END MASTER
+!$OMP BARRIER
+
     ncpu = para_env%num_pe
     n_processes = ncpu * n_threads
 !$OMP BARRIER
@@ -787,6 +802,10 @@ MODULE hfx_derivatives
       actual_x_data%distribution_forces(bin)%time_forces=bintime_stop-bintime_start
     END DO  !bin
  
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle_main)
+!$OMP END MASTER
 !$OMP BARRIER
     DEALLOCATE(last_sgf_global, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
