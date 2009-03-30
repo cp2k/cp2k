@@ -588,7 +588,7 @@ MODULE hfx_energy_potential
     !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
     IF( geometry_did_change ) THEN
       CALL get_is_assoc_atomic_block(ks_matrix(1)%matrix,basis_parameter,kind_of,&
-                    actual_x_data%is_assoc_atomic_block,actual_x_data%number_of_p_entries ,para_env)
+                    actual_x_data%is_assoc_atomic_block,actual_x_data%number_of_p_entries ,para_env, error)
       shm_number_of_p_entries = actual_x_data%number_of_p_entries
       shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
     END IF

@@ -23,7 +23,8 @@ MODULE hfx_communication
                                              mp_max,&
                                              mp_sum,&
                                              mp_sync,&
-                                             mp_waitall
+                                             mp_waitall,&
+          mp_allgather
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -430,7 +431,7 @@ MODULE hfx_communication
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE get_is_assoc_atomic_block(matrix,basis_parameter,kind_of,&
-                    is_assoc_atomic_block,number_of_p_entries,para_env)
+                    is_assoc_atomic_block,number_of_p_entries,para_env,error)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(hfx_basis_type), DIMENSION(:)       :: basis_parameter
@@ -438,19 +439,29 @@ MODULE hfx_communication
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: is_assoc_atomic_block
     INTEGER, INTENT(OUT)                     :: number_of_p_entries
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_is_assoc_atomic_block', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iatom, ikind, jatom, &
-                                                jkind
+                                                jkind, number_of_p_blocks, ibuf, itask, stat, icpu
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: buffer_in,buffer_out,rcount,rdispl
+    LOGICAL :: failure
+
+    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
     is_assoc_atomic_block = 0
     number_of_p_entries = 0
+    number_of_p_blocks = 0
+
+    !
+    ! count number_of_p_blocks and number_of_p_entries
+    !
     DO iatom=1,matrix%nblock_row
       block_node => first_block_node(matrix,iatom)
       ikind = kind_of(iatom)
@@ -459,15 +470,60 @@ MODULE hfx_communication
                             block_col=jatom,&
                             BLOCK=sparse_block)
         jkind = kind_of(jatom)
-        is_assoc_atomic_block(iatom,jatom) = para_env%mepos + 1
-        is_assoc_atomic_block(jatom,iatom) = para_env%mepos + 1
+        number_of_p_blocks = number_of_p_blocks + 1
         number_of_p_entries =  number_of_p_entries + &
               basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
         block_node => next_block_node(block_node)
       END DO
     END DO
-    CALL mp_sum(is_assoc_atomic_block,para_env%group)
     CALL mp_max(number_of_p_entries, para_env%group)
+    CALL mp_max(number_of_p_blocks, para_env%group)
+    !
+    ! send this info around, so we can construct is_assoc_atomic_block
+    ! pack all data in buffers and use allgatherv
+    !
+    ALLOCATE(buffer_in(3*number_of_p_blocks),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(buffer_out(3*number_of_p_blocks*para_env%num_pe),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(rcount(para_env%num_pe),rdispl(para_env%num_pe),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    buffer_in=0
+    ibuf=0
+
+    DO iatom=1,matrix%nblock_row
+      block_node => first_block_node(matrix,iatom)
+      DO WHILE (ASSOCIATED(block_node))
+        CALL get_block_node(block_node=block_node,&
+                            block_col=jatom,&
+                            BLOCK=sparse_block)
+
+        buffer_in(ibuf+1)=iatom
+        buffer_in(ibuf+2)=jatom
+        buffer_in(ibuf+3)=para_env%mepos + 1
+        ibuf=ibuf+3
+
+        block_node => next_block_node(block_node)
+      END DO
+    END DO
+
+    rcount=SIZE(buffer_in)
+    rdispl(1)=0
+    DO icpu=2,para_env%num_pe
+       rdispl(icpu)=rdispl(icpu-1)+rcount(icpu-1)
+    ENDDO
+    CALL mp_allgather(buffer_in,buffer_out,rcount,rdispl,para_env%group)
+
+    DO ibuf=0,number_of_p_blocks*para_env%num_pe*3-3,3
+       itask=buffer_out(ibuf+3)
+       IF (itask.NE.0) THEN
+           iatom=buffer_out(ibuf+1)
+           jatom=buffer_out(ibuf+2)
+           is_assoc_atomic_block(iatom,jatom)=itask
+           is_assoc_atomic_block(jatom,iatom)=itask
+       ENDIF
+    ENDDO
 
     CALL timestop(handle)
 
