@@ -3377,9 +3377,9 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE mp_allgatherv_iv(msgout,msgin,rcount,rdispl,gid)
-    INTEGER, INTENT(IN)                :: msgout( : )
-    INTEGER, INTENT(OUT)               :: msgin( : )
-    INTEGER, INTENT(IN)                :: rcount( : ), rdispl( : ), gid
+    INTEGER, INTENT(IN)                      :: msgout( : )
+    INTEGER, INTENT(OUT)                     :: msgin( : )
+    INTEGER, INTENT(IN)                      :: rcount( : ), rdispl( : ), gid
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgatherv_iv', &
       routineP = moduleN//':'//routineN

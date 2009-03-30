@@ -19,12 +19,11 @@ MODULE hfx_communication
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
-  USE message_passing,                 ONLY: mp_isendrecv,&
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_isendrecv,&
                                              mp_max,&
-                                             mp_sum,&
                                              mp_sync,&
-                                             mp_waitall,&
-          mp_allgather
+                                             mp_waitall
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -444,12 +443,14 @@ MODULE hfx_communication
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_is_assoc_atomic_block', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, ikind, jatom, &
-                                                jkind, number_of_p_blocks, ibuf, itask, stat, icpu
+    INTEGER                                  :: handle, iatom, ibuf, icpu, &
+                                                ikind, itask, jatom, jkind, &
+                                                number_of_p_blocks, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: buffer_in, buffer_out, &
+                                                rcount, rdispl
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: buffer_in,buffer_out,rcount,rdispl
-    LOGICAL :: failure
 
     failure=.FALSE.
 
