@@ -445,7 +445,8 @@ MODULE hfx_communication
 
     INTEGER                                  :: handle, iatom, ibuf, icpu, &
                                                 ikind, itask, jatom, jkind, &
-                                                number_of_p_blocks, stat
+                                                number_of_p_blocks, stat, &
+                                                tmp(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buffer_in, buffer_out, &
                                                 rcount, rdispl
     LOGICAL                                  :: failure
@@ -477,8 +478,10 @@ MODULE hfx_communication
         block_node => next_block_node(block_node)
       END DO
     END DO
-    CALL mp_max(number_of_p_entries, para_env%group)
-    CALL mp_max(number_of_p_blocks, para_env%group)
+    tmp=(/number_of_p_entries,number_of_p_blocks/)
+    CALL mp_max(tmp, para_env%group)
+    number_of_p_entries=tmp(1)
+    number_of_p_blocks=tmp(2)
     !
     ! send this info around, so we can construct is_assoc_atomic_block
     ! pack all data in buffers and use allgatherv
