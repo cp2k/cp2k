@@ -29,7 +29,8 @@ MODULE sparse_matrix_output
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix
-  USE message_passing,                 ONLY: mp_sum,&
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum,&
                                              mp_sync
   USE orbital_pointers,                ONLY: nso
   USE particle_types,                  ONLY: get_particle_set,&
@@ -368,8 +369,9 @@ CONTAINS
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
     CHARACTER(LEN=80)                        :: matrix_name, matrix_symmetry
-    INTEGER :: group, handle, ipe, mype, natom, nblock_sum, nblock_tot, &
-      nelement_sum, npe, nrow, output_unit, stat
+    INTEGER :: group, handle, ipe, mype, natom, nblock_max, nblock_sum, &
+      nblock_tot, nelement_max, nelement_sum, npe, nrow, output_unit, stat, &
+      tmp(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp)                            :: occupation
@@ -410,12 +412,25 @@ CONTAINS
                          nblock_row=natom,&
                          nrow=nrow)
 
-    ! XXXXXXXX should gather/scatter this on ionode
-    CALL mp_sum(nblock,group)
-    CALL mp_sum(nelement,group)
+    IF (full_output) THEN
+       ! XXXXXXXX should gather/scatter this on ionode
+       CALL mp_sum(nblock,group)
+       CALL mp_sum(nelement,group)
 
-    nblock_sum = SUM(nblock)
-    nelement_sum = SUM(nelement)
+       nblock_sum = SUM(nblock)
+       nelement_sum = SUM(nelement)
+    ELSE
+       nblock_sum = nblock(mype)
+       nblock_max = nblock(mype)
+       nelement_sum = nelement(mype)
+       nelement_max = nelement(mype)
+       tmp=(/nblock_sum,nelement_sum/)
+       CALL mp_sum(tmp,group)
+       nblock_sum=tmp(1) ; nelement_sum=tmp(2)
+       tmp=(/nblock_max,nelement_max/)
+       CALL mp_max(tmp,group)
+       nblock_max=tmp(1) ; nelement_max=tmp(2)
+    ENDIF
 
     IF (TRIM(matrix_symmetry) == "symmetric") THEN
       nblock_tot = natom*(natom + 1)/2
@@ -441,9 +456,9 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,T3,A,T50,I13)") "Number  of non-zero blocks:",nblock_sum
           WRITE (UNIT=output_unit,FMT="(T3,A,T57,F6.2)")"Percentage non-zero blocks:",occupation
           WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of blocks per CPU:",(nblock_sum+npe-1)/npe
-          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of blocks per CPU:",(MAXVAL(nblock))
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of blocks per CPU:",nblock_max
           WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of matrix elements per CPU:",(nelement_sum+npe-1)/npe
-          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of matrix elements per CPU:",(MAXVAL(nelement))
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of matrix elements per CPU:",nelement_max
        ENDIF
     END IF
 

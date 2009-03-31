@@ -989,7 +989,7 @@ CONTAINS
     END IF
     
     ! Print matrices if requested
-    CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, para_env, error)
+    CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, calculate_forces, para_env, error)
     CALL timestop(handle)
     
   END SUBROUTINE build_core_hamiltonian_matrix
@@ -998,11 +998,12 @@ CONTAINS
 !> \brief Possibly prints matrices after the construction of the Core 
 !>     Hamiltonian Matrix
 ! *****************************************************************************
-  SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, para_env, error)
+  SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, calculate_forces, para_env, error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, matrix_t, matrix_h
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1020,7 +1021,10 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     ! *** Print the distribution of the overlap matrix blocks ***
-    CALL write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
+    ! *** this duplicates causes duplicate printing at the force calc ***
+    IF (.NOT. calculate_forces) THEN
+       CALL write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
+    ENDIF
 
     ! *** Print the overlap integral matrix, if requested ***
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&

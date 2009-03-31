@@ -46,7 +46,8 @@ MODULE qs_neighbor_lists
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -3068,10 +3069,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
-    INTEGER                                  :: group, handle, iab, ikind, &
-                                                ilist, ipe, jkind, mype, n, &
-                                                nkind, nlist, nnode, npe, &
-                                                nsgf_a, nsgf_b, stat
+    INTEGER :: group, handle, iab, ikind, ilist, ipe, jkind, mype, n, &
+      nblock_max, nblock_sum, nelement_max, nelement_sum, nkind, nlist, &
+      nnode, npe, nsgf_a, nsgf_b, stat, tmp(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -3152,9 +3152,25 @@ CONTAINS
 
     END DO
 
-    ! XXXXXX gather/scatter
-    CALL mp_sum(nblock,group)
-    CALL mp_sum(nelement,group)
+    IF (full_output) THEN
+       ! XXXXXXXX should gather/scatter this on ionode
+       CALL mp_sum(nblock,group)
+       CALL mp_sum(nelement,group)
+
+       nblock_sum = SUM(nblock)
+       nelement_sum = SUM(nelement)
+    ELSE
+       nblock_sum = nblock(mype)
+       nblock_max = nblock(mype)
+       nelement_sum = nelement(mype)
+       nelement_max = nelement(mype)
+       tmp=(/nblock_sum,nelement_sum/)
+       CALL mp_sum(tmp,group)
+       nblock_sum=tmp(1) ; nelement_sum=tmp(2)
+       tmp=(/nblock_max,nelement_max/)
+       CALL mp_max(tmp,group)
+       nblock_max=tmp(1) ; nelement_max=tmp(2)
+    ENDIF
 
     IF (output_unit > 0) THEN
       IF (full_output) THEN
@@ -3167,12 +3183,12 @@ CONTAINS
            "Sum",SUM(nblock),SUM(nelement)
       ELSE
          WRITE (UNIT=output_unit,FMT="(/,T2,A)") "DISTRIBUTION OF THE NEIGHBOR LISTS"
-         WRITE (UNIT=output_unit,FMT="(/,T3,A,T50,I13)") "Total number of particle pairs:",SUM(nblock)
-         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Total number of matrix elements:",SUM(nelement)
-         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of particle pairs:",SUM(nblock)/npe
-         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of particle pairs:",MAXVAL(nblock)
-         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of matrix element:",SUM(nelement)/npe
-         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of matrix elements:",MAXVAL(nelement)
+         WRITE (UNIT=output_unit,FMT="(/,T3,A,T50,I13)") "Total number of particle pairs:",nblock_sum
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Total number of matrix elements:",nelement_sum
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of particle pairs:",(nblock_sum+npe-1)/npe
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of particle pairs:",nblock_max
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of matrix element:",(nelement_sum+npe-1)/npe
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of matrix elements:",nelement_max
       ENDIF
     END IF
 
