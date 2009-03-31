@@ -139,6 +139,7 @@ CONTAINS
     IF (ASSOCIATED(qs_energy)) THEN
       qs_energy%core = 0.0_dp
       qs_energy%core_overlap = 0.0_dp
+      qs_energy%core_overlap0 = 0.0_dp
       qs_energy%core_self = 0.0_dp
       qs_energy%repulsive = 0.0_dp
       qs_energy%dispersion = 0.0_dp
@@ -165,8 +166,8 @@ CONTAINS
         IF (istat /= 0) THEN
           CALL stop_memory(routineP,"qs_energy%ddapc_restraint",dp_size)
         END IF
-        qs_energy%ddapc_restraint(:) = 0.0_dp
       END IF
+      qs_energy%ddapc_restraint(:) = 0.0_dp
     ELSE
       CALL stop_program(routineP,"The qs_energy pointer is not associated "//&
                                  "and cannot be initialised")
@@ -219,6 +220,7 @@ CONTAINS
     IF (ASSOCIATED(qs_energy_in).AND.ASSOCIATED(qs_energy_out)) THEN
       qs_energy_out%core            = qs_energy_in%core
       qs_energy_out%core_overlap    = qs_energy_in%core_overlap
+      qs_energy_out%core_overlap0   = qs_energy_in%core_overlap0
       qs_energy_out%core_self       = qs_energy_in%core_self
       qs_energy_out%repulsive       = qs_energy_in%repulsive
       qs_energy_out%dispersion      = qs_energy_in%dispersion
