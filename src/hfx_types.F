@@ -138,6 +138,7 @@ MODULE hfx_types
 ! *****************************************************************************
   TYPE hfx_general_type
     REAL(dp)                                 :: fraction                 !! for hybrids
+    LOGICAL                                  :: treat_lsd_in_core
   END TYPE
 
 ! *****************************************************************************
@@ -364,6 +365,10 @@ MODULE hfx_types
         CALL section_vals_val_get(hfx_section, "FRACTION", r_val=real_val, i_rep_section=irep,error=error)
         actual_x_data%general_parameter%fraction = real_val
         actual_x_data%n_rep_hf = n_rep_hf  
+       
+        CALL section_vals_val_get(hfx_section, "TREAT_LSD_IN_CORE", l_val=logic_val, i_rep_section=irep,error=error)
+        actual_x_data%general_parameter%treat_lsd_in_core = logic_val
+
   
         !! MEMORY section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"MEMORY",i_rep_section=irep, error=error)

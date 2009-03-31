@@ -363,13 +363,13 @@ MODULE hfx_derivatives
     CALL timeset(routineN//"_getP",handle_getP)
     CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, actual_x_data%number_of_p_entries,&
                           actual_x_data%is_assoc_atomic_block, natom, last_sgf_global, &
-                          kind_of, basis_parameter, N_pmat, error)   
+                          kind_of, basis_parameter, N_pmat, get_max_vals_spin=.FALSE., error=error)
     IF(nspins == 2) THEN
       ALLOCATE(full_density_beta(N_pmat*(N_pmat+1)/2),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, actual_x_data%number_of_p_entries,&
                            actual_x_data%is_assoc_atomic_block, natom, last_sgf_global, &
-                           kind_of, basis_parameter, N_pmat, error)
+                           kind_of, basis_parameter, N_pmat, get_max_vals_spin=.FALSE., error=error)
     END IF
     CALL timestop(handle_getP)
 

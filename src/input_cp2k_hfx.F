@@ -76,6 +76,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="TREAT_LSD_IN_CORE",&
+            description="Determines how spin denisities are taken into account. "//&
+                        "If true, the beta spin density is included via a second in core call. "//&
+                        "If false, alpha and beta spins are done in one shot ",&
+            usage="TREAT_LSD_IN_CORE TRUE", default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="PW_HFX",&
             description="Compute the Hartree-Fock energy also in the plane wave basis."//&
                         "The value is ignored, and intended for debugging only.",&

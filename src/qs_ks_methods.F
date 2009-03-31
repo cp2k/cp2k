@@ -306,8 +306,9 @@ CONTAINS
       ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
     INTEGER(int_8)                           :: N_pmat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
-      do_ep, do_hfx, explicit_potential, failure, gapw, gapw_xc, ionode, &
-      my_kg_gpw, scp_dft, uniform_occupation, use_virial
+      do_ep, do_hfx, explicit_potential, failure, gapw, gapw_xc, &
+      hfx_treat_lsd_in_core, ionode, my_kg_gpw, scp_dft, uniform_occupation, &
+      use_virial
     REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
       adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
       scale_dEx2, total_energy_xc
@@ -396,6 +397,10 @@ CONTAINS
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
+    IF( do_hfx ) THEN
+      CALL section_vals_val_get(hfx_sections, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core,&
+                                i_rep_section=1,error=error) 
+    END IF
     adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
     CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
 
@@ -651,22 +656,48 @@ CONTAINS
          DO irep = 1,n_rep_hf
            IF( .NOT. do_adiabatic_rescaling) THEN
              IF( dft_control%do_wfn_fitting ) THEN
-               CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
-                                          qs_env%rho_aux_fit,hfx_sections,&
-                                          para_env,ks_env%s_mstruct_changed,irep,.TRUE.,error)
+               IF ( .NOT. hfx_treat_lsd_in_core ) THEN 
+                 CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
+                                            qs_env%rho_aux_fit,hfx_sections,&
+                                            para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
+                                            ispin=1, error=error)
+               ELSE
+                 DO ispin = 1,nspins
+                   CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
+                                              qs_env%rho_aux_fit,hfx_sections,&
+                                              para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
+                                              ispin=ispin, error=error)
+                 END DO
+               END IF
              ELSE
-               CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
-                                          para_env,ks_env%s_mstruct_changed,irep,.TRUE.,error)
+               IF ( .NOT. hfx_treat_lsd_in_core ) THEN
+                 CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
+                                            para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
+                                            ispin=1, error=error)
+               ELSE
+                 DO ispin = 1,nspins
+                   CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
+                                              para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
+                                              ispin=ispin, error=error)
+                 END DO
+               END IF
              END IF
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hfx_section,&
-                                            para_env, irep, error=error)
+                                              para_env, irep, error=error)
              END IF
            ELSE
-             !! we calculate everything but we do not add the potential in a first step
-             CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hfx_sections,&
-                                        para_env,ks_env%s_mstruct_changed,irep,.FALSE.,error)
+             IF( .NOT. hfx_treat_lsd_in_core ) THEN
+               !! we calculate everything but we do not add the potential in a first step
+               CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hfx_sections,&
+                                          para_env,ks_env%s_mstruct_changed,irep,.FALSE.,&
+                                          ispin=1, error=error)
+             ELSE
+               CALL cp_unimplemented_error(fromWhere=routineP, &
+                     message="HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids", &
+                     error=error, error_level=cp_failure_level)
+             END IF
              hf_energy(irep) = energy%ex
              !! If required, the calculation of the forces will be done later
            END IF
