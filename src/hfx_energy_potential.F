@@ -215,7 +215,7 @@ MODULE hfx_energy_potential
 
     INTEGER                                  :: max_pgf
     INTEGER(int_8)                           :: nanotime, time_1, time_2,memsize_before,memsize_after,&
-                                                max_val_memory, max_val_memory_tmp, N_pmat
+                                                max_val_memory, max_val_memory_tmp, N_pmat,tmp_i8(8)
     REAL(dp)                                 :: BD2, AC2, min_PQ2, max_val2_set
     TYPE(lib_int)                            :: private_lib
     INTEGER                                  ::  nrow, ncol
@@ -229,11 +229,12 @@ MODULE hfx_energy_potential
     CALL timeset(routineN,handle)
 
     CALL cite_reference(Guidon2008)
-    memsize_before=m_memory()
-    CALL mp_max_i8(memsize_before, para_env%group)
 
     logger => cp_error_get_logger(error)
+
     IF( geometry_did_change ) THEN
+      memsize_before=m_memory()
+      CALL mp_max_i8(memsize_before, para_env%group)
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
                                 extension=".scfLog",error=error)
       IF (iw>0) THEN
@@ -1354,14 +1355,17 @@ MODULE hfx_energy_potential
 
     !! Print some memeory information if this is the first step
     IF( geometry_did_change ) THEN
-      CALL mp_sum_i8(shm_storage_counter_integrals, para_env%group)
-      CALL mp_sum_i8(shm_neris_onthefly, para_env%group)
-      CALL mp_sum_i8(shm_neris_incore, para_env%group)
-      CALL mp_sum_i8(shm_neris_disk, para_env%group)
-      CALL mp_sum_i8(shm_neris_total, para_env%group)
-      CALL mp_sum_i8(shm_stor_count_int_disk, para_env%group)
-      CALL mp_sum_i8(shm_nprim_ints, para_env%group)
-      CALL mp_sum_i8(shm_stor_count_max_val, para_env%group)
+      tmp_i8(1:8)=(/shm_storage_counter_integrals,shm_neris_onthefly,shm_neris_incore,shm_neris_disk, &
+                    shm_neris_total,shm_stor_count_int_disk,shm_nprim_ints,shm_stor_count_max_val/)
+      CALL mp_sum_i8(tmp_i8,para_env%group)
+      shm_storage_counter_integrals=tmp_i8(1)
+      shm_neris_onthefly=tmp_i8(2)
+      shm_neris_incore=tmp_i8(3)
+      shm_neris_disk=tmp_i8(4)
+      shm_neris_total=tmp_i8(5)
+      shm_stor_count_int_disk=tmp_i8(6)
+      shm_nprim_ints=tmp_i8(7)
+      shm_stor_count_max_val=tmp_i8(8)
       CALL mp_max_i8(memsize_after, para_env%group)
       mem_eris = (shm_storage_counter_integrals+128*1024-1)/1024/128
       compression_factor = REAL(shm_neris_incore,dp)/REAL(shm_storage_counter_integrals,dp)
