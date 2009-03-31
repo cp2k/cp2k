@@ -126,7 +126,7 @@ MODULE message_passing
      MODULE PROCEDURE mp_sum_8i1, mp_sum_8iv
   END INTERFACE
   INTERFACE mp_max_i8
-     MODULE PROCEDURE mp_max_8i1
+     MODULE PROCEDURE mp_max_8i1, mp_max_8iv
   END INTERFACE
 
   INTERFACE mp_sum
@@ -2838,6 +2838,38 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_max_iv
+! *****************************************************************************
+  SUBROUTINE mp_max_8iv(msg,gid)
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_max_8iv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER, ALLOCATABLE                     :: res( : )
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_max_8iv" )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_MAX,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_8iv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_max_8iv
+
 ! *****************************************************************************
   SUBROUTINE mp_max_r(msg,gid)
     REAL(KIND=dp), INTENT(INOUT)             :: msg
