@@ -635,3 +635,13 @@ He3_multi_ddapc.inp
 h2o-otdiag.inp
 # Refactoring of qs_core_hamiltonian 
 h2o-otdiag-lsd.inp
+# speedup changes for core_ppl 
+spin_restraint.inp
+# speedup changes for core_ppl 
+NO2-EFG-1.inp
+# speedup changes for core_ppl 
+He3_multi_ddapc.inp
+# speedup changes for core_ppl 
+h2o-otdiag.inp
+# speedup changes for core_ppl 
+h2o-otdiag-lsd.inp

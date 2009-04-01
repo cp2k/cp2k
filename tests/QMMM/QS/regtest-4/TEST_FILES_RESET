@@ -176,3 +176,5 @@ crys_per_qmmm_spln.inp
 acn-qmmm-re.inp
 # Refactoring of qs_core_hamiltonian 
 acn-conn-1.inp
+# speedup changes for core_ppl 
+acn-conn-1.inp

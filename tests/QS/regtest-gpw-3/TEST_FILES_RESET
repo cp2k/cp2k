@@ -716,3 +716,13 @@ H2O-solv.inp
 # Refactoring of qs_core_hamiltonian 
 dynamics.inp
 H2O-ata.inp
+# speedup changes for core_ppl 
+H2O-bloechl.inp
+# speedup changes for core_ppl 
+H2O-bloechl-Spl.inp
+# speedup changes for core_ppl 
+H2O-bloechl-restraint.inp
+# speedup changes for core_ppl 
+H2O-solv.inp
+# speedup changes for core_ppl 
+dynamics.inp

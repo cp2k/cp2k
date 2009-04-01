@@ -52,3 +52,11 @@ CH_PBE_HOLE_T_C_LR_1.0.inp
 # LSD bug fix
 CH_PBE_HOLE_T_C_LR_1.0.inp
 CH_GV09_1.0.inp
+# speedup changes for core_ppl 
+CH_BeckeRoussel_R_1.0.inp
+# speedup changes for core_ppl 
+CH_LDA_HOLE_T_C_LR_1.0.inp
+# speedup changes for core_ppl 
+CH_PBE_HOLE_T_C_LR_1.0.inp
+# speedup changes for core_ppl 
+CH_GV09_1.0.inp

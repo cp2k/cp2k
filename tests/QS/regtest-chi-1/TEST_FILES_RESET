@@ -154,3 +154,7 @@ O2-uks-chi-gpw-2.inp
 O2-uks-chi-gpw-1.inp
 # merged linres and ot preconditioner
 O2-uks-chi-gpw-2.inp
+# speedup changes for core_ppl 
+O2-uks-chi-gpw-1.inp
+# speedup changes for core_ppl 
+O2-uks-chi-gpw-2.inp

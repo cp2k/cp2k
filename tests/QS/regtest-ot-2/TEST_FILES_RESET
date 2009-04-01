@@ -691,3 +691,25 @@ C_fermi.inp
 H2_trip.inp
 # Numerics
 C_fermi.inp
+# speedup changes for core_ppl 
+N3-2.inp
+# speedup changes for core_ppl 
+N3-3.inp
+# speedup changes for core_ppl 
+N3-4.inp
+# speedup changes for core_ppl 
+N3-5.inp
+# speedup changes for core_ppl 
+N3-6.inp
+# speedup changes for core_ppl 
+N3-7.inp
+# speedup changes for core_ppl 
+N3-8.inp
+# speedup changes for core_ppl 
+N3-9.inp
+# speedup changes for core_ppl 
+N3-10.inp
+# speedup changes for core_ppl 
+H2O.inp
+# speedup changes for core_ppl 
+C_fermi.inp
