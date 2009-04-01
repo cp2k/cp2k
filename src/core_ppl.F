@@ -73,9 +73,9 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, atom_c, handle, iab, iac, iatom, icol, ikind, &
       ilist, inode, irow, iset, jatom, jkind, jset, katom, kkind, kneighbor, &
-      last_jatom, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, maxsgf, &
-      natom, ncoa, ncob, nkind, nlist, nneighbor, nnode, nseta, nsetb, sgfa, &
-      sgfb, stat, maxnset
+      last_jatom, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, &
+      maxnset, maxsgf, natom, ncoa, ncob, nkind, nlist, nneighbor, nnode, &
+      nseta, nsetb, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -87,7 +87,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: ai_work, pab, hab
+      DIMENSION(:, :, :, :)                  :: ai_work, hab, pab
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, rab, rac, &
                                                 rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cexp_ppl, set_radius_a, &
@@ -134,7 +134,6 @@ CONTAINS
 
     ldsab = MAX(maxco,ncoset(maxlppl),maxsgf,maxlppl)
     ldai = ncoset(maxl+nder+1)
-!deb    ALLOCATE(hab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder),STAT=stat)
     ALLOCATE(hab(ldsab,ldsab,maxnset,maxnset),work(ldsab,ldsab*maxder),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=stat)
@@ -299,7 +298,6 @@ CONTAINS
                             sgfb = first_sgfb(1,jset)
                             IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
                             ! *** Calculate the GTH pseudo potential forces ***
-!deb                            hab(1:ncoa,1:ncob) = 0._dp
                             IF (calculate_forces) THEN
 
                                CALL overlap_ppl(&
@@ -344,22 +342,6 @@ CONTAINS
                                     rab,dab,rac,dac,rbc,dbc,&
                                     hab(:,:,iset,jset),0,0,.FALSE.,ai_work)
                             END IF
-!                           ! *** Contract PPL integrals
-!                           CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-!                                1.0_dp,hab(1,1),SIZE(hab,1),&
-!                                sphi_b(1,sgfb),SIZE(sphi_b,1),&
-!                                0.0_dp,work(1,1),SIZE(work,1))
-!                           IF (iatom <= jatom) THEN
-!                              CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-!                                   1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-!                                   work(1,1),SIZE(work,1),&
-!                                   1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
-!                           ELSE
-!                              CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-!                                   1.0_dp,work(1,1),SIZE(work,1),&
-!                                   sphi_a(1,sgfa),SIZE(sphi_a,1),&
-!                                   1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
-!                           END IF
                          END DO
                       END DO
                       sac_ppl_neighbor_node => next(sac_ppl_neighbor_node)
