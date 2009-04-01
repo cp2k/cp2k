@@ -48,6 +48,7 @@
 
 MODULE t_c_g0
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_bcast
 
  IMPLICIT NONE
  PUBLIC :: t_c_g0_n
@@ -1325,8 +1326,8 @@ SUBROUTINE t_c_g0_n(RES,use_gamma,R,T,NDERIV)
 END SUBROUTINE t_c_g0_n
 ! iunit contains the data file to initialize the table
 ! Nder is the number of derivatives that will actually be used
-SUBROUTINE init(Nder,iunit)
-    INTEGER, INTENT(IN)                      :: Nder, iunit
+SUBROUTINE init(Nder,iunit,mepos,group)
+    INTEGER, INTENT(IN)                      :: Nder, iunit, mepos, group
 
     INTEGER                                  :: I
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: chunk
@@ -1337,12 +1338,16 @@ SUBROUTINE init(Nder,iunit)
   IF(ALLOCATED(C0)) DEALLOCATE(C0)
   ! round up to a multiple of 32 to give some generous alignment for each C0
   ALLOCATE(C0(32*((31+(Nder+1)*(degree+1)*(degree+2)/2)/32),patches))
-  ALLOCATE(chunk((nderiv_max+1)*(degree+1)*(degree+2)/2))
-  DO I=1,patches
-     READ(iunit,*) chunk
-     C0(1:(Nder+1)*(degree+1)*(degree+2)/2,I)=chunk(1:(Nder+1)*(degree+1)*(degree+2)/2)
-  ENDDO
-  DEALLOCATE(chunk)
+  IF( mepos == 0 ) THEN
+    ALLOCATE(chunk((nderiv_max+1)*(degree+1)*(degree+2)/2))
+    DO I=1,patches
+       READ(iunit,*) chunk
+       C0(1:(Nder+1)*(degree+1)*(degree+2)/2,I)=chunk(1:(Nder+1)*(degree+1)*(degree+2)/2)
+    ENDDO
+    DEALLOCATE(chunk)
+  END IF
+  CALL mp_bcast(C0,0,group)
+
 END SUBROUTINE init 
 SUBROUTINE free()
   IF(ALLOCATED(C0)) DEALLOCATE(C0)

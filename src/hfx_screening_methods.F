@@ -157,7 +157,7 @@ MODULE hfx_screening_methods
       nsgfb => basis_parameter(jkind)%nsgf
       pb1 = last_sgf_global(jatom) - nsgfb_total
 
-      DO katom = 1,natom
+      DO katom = jatom,natom
         kkind = kind_of(katom)
         nsgfc_total = basis_parameter(kkind)%nsgf_total
         nsetc = basis_parameter(kkind)%nset
@@ -187,6 +187,17 @@ MODULE hfx_screening_methods
               pmax_tmp = LOG10(pmax_tmp)
             END IF
             pmax_set(jset,kset,jatom,katom) = pmax_tmp
+          END DO
+        END DO
+      END DO
+    END DO
+
+    ! ** Symmetrize the array
+    DO jatom=1,natom
+      DO katom=jatom,natom
+        DO jset=1,max_set
+          DO kset=1,max_set
+            pmax_set(kset,jset,katom,jatom) = pmax_set(jset,kset,jatom,katom)
           END DO
         END DO
       END DO

@@ -198,7 +198,7 @@ MODULE hfx_derivatives
       IF(l_max>init_t_c_g0_lmax) THEN
         unit_id = get_unit_number()
         OPEN(unit_id,FILE=qs_env%x_data(1,1)%potential_parameter%filename)
-        CALL init(l_max,unit_id)
+        CALL init(l_max, unit_id, para_env%mepos, para_env%group)
         CLOSE(unit_id)
         init_t_c_g0_lmax = l_max
       END IF

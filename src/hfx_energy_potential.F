@@ -265,10 +265,14 @@ MODULE hfx_energy_potential
 
     IF(qs_env%x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated) THEN
       IF(l_max>init_t_c_g0_lmax) THEN
-        unit_id = get_unit_number()
-        OPEN(unit_id,FILE=qs_env%x_data(1,1)%potential_parameter%filename)
-        CALL init(l_max,unit_id)
-        CLOSE(unit_id)
+        IF( para_env%mepos == 0 ) THEN
+          unit_id = get_unit_number()
+          OPEN(unit_id,FILE=qs_env%x_data(1,1)%potential_parameter%filename)
+        END IF
+        CALL init(l_max, unit_id, para_env%mepos, para_env%group)
+        IF(para_env%mepos == 0 ) THEN
+          CLOSE(unit_id)
+        END IF
         init_t_c_g0_lmax = l_max
       END IF
     CALL set_eps_cutoff(qs_env%x_data(1,1)%screening_parameter%eps_schwarz)

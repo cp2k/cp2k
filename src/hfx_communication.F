@@ -162,7 +162,7 @@ MODULE hfx_communication
         DO jatom=iatom,natom
           jkind =kind_of(jatom)
           pb1 = last_sgf_global(jatom) - basis_parameter(jkind)%nsgf_total
-          IF(is_assoc_atomic_block(iatom,jatom)-1 == MODULO(data_from,ncpu)) THEN
+          IF(is_assoc_atomic_block(jatom,iatom)-1 == MODULO(data_from,ncpu)) THEN
             DO pb = pb1+1, pb1+ basis_parameter(jkind)%nsgf_total 
               DO pa = pa1+1,pa1+ basis_parameter(ikind)%nsgf_total
                 full_density(get_1d_idx(pa,pb,N_pmat)) = sendbuffer(i)
@@ -262,7 +262,7 @@ MODULE hfx_communication
         DO jatom=iatom,natom
           jkind = kind_of(jatom)
           pb1 = last_sgf_global(jatom) - basis_parameter(jkind)%nsgf_total
-          IF(is_assoc_atomic_block(iatom,jatom)-1 == MODULO(data_to,ncpu)) THEN
+          IF(is_assoc_atomic_block(jatom,iatom)-1 == MODULO(data_to,ncpu)) THEN
             DO pb=pb1+1,pb1+ basis_parameter(jkind)%nsgf_total
               DO pa=pa1+1,pa1+ basis_parameter(ikind)%nsgf_total
                 !! ** We need to scale all non diagonal elements
