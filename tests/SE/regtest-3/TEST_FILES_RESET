@@ -32,3 +32,6 @@ LM-KSDO-D.inp
 Periclase.inp
 # bug fix
 LM-KSDO-D.inp
+# bug fix
+H2O-MNDO.inp
+O2.inp

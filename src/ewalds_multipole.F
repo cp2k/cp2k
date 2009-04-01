@@ -1398,8 +1398,8 @@ CONTAINS
       DIMENSION(:)                           :: summe_ef
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: summe_st
-    INTEGER :: gpt, group, handle, i, iparticle, iparticle_kind, &
-      iparticle_local, j, lp, mp, nnodes, node, np, nparticle_kind, &
+    INTEGER :: gpt, group, handle, iparticle, iparticle_kind, &
+      iparticle_local, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     LOGICAL                                  :: do_efield0, do_efield1, &
@@ -1531,7 +1531,8 @@ CONTAINS
           ! G=0 vector for dipole-dipole and charge-quadrupole
           energy = energy + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t,dipole_t)&
                           - (1.0_dp/9.0_dp)*q_t*trq_t
-          IF (debug_e_field_en.OR.(.NOT.debug_this_module)) THEN
+          ! Corrections for G=0 to potential, field and field gradient
+          IF (do_efield.AND.(debug_e_field_en.OR.(.NOT.debug_this_module))) THEN
              ! This term is important and may give problems if one is debugging
              ! VS finite differences since it comes from a residual integral in
              ! the complex plane (cannot be reproduced with finite differences)
@@ -1541,22 +1542,20 @@ CONTAINS
                 DO iparticle_local=1,nparticle_local
                    node = node + 1
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                   ! Corrections for G=0 to potential, field
-                   IF (do_efield) THEN
-                      ! Potential
-                      IF (do_efield0.AND.(ANY(task(3,:)))) THEN
-                         efield0(    iparticle) = efield0(    iparticle) - (1.0_dp/(18.0_dp))*trq_t
-                      END IF
-                      ! Electrostatic field
-                      IF (do_efield1.AND.(ANY(task(2,:)))) THEN
-                         efield1(1:3,iparticle) = efield1(1:3,iparticle) - (1.0_dp/6.0_dp)*(dipole_t(1:3)-dipoles(:,iparticle))
-                      END IF
-                      ! Electrostatic field gradients
-                      IF (do_efield2.AND.(ANY(task(1,:)))) THEN
-                         efield2(1,iparticle) = efield2(1,iparticle) - (1.0_dp/(18.0_dp))*(q_t-charges(  iparticle))
-                         efield2(5,iparticle) = efield2(5,iparticle) - (1.0_dp/(18.0_dp))*(q_t-charges(  iparticle))
-                         efield2(9,iparticle) = efield2(9,iparticle) - (1.0_dp/(18.0_dp))*(q_t-charges(  iparticle))
-                      END IF
+
+                   ! Potential
+                   IF (do_efield0) THEN
+                      efield0(    iparticle) = efield0(    iparticle)
+                   END IF
+                   ! Electrostatic field
+                   IF (do_efield1) THEN
+                      efield1(1:3,iparticle) = efield1(1:3,iparticle) - (1.0_dp/6.0_dp)*dipole_t(1:3)
+                   END IF
+                   ! Electrostatic field gradients
+                   IF (do_efield2) THEN
+                      efield2(1,iparticle) = efield2(1,iparticle) - (1.0_dp/(18.0_dp))*q_t
+                      efield2(5,iparticle) = efield2(5,iparticle) - (1.0_dp/(18.0_dp))*q_t
+                      efield2(9,iparticle) = efield2(9,iparticle) - (1.0_dp/(18.0_dp))*q_t
                    END IF
                 END DO
              END DO
@@ -1567,72 +1566,60 @@ CONTAINS
        factor = gauss * REAL(summe_ef(gpt) * CONJG(summe_ef(gpt)),KIND=dp)
        energy = energy + factor
 
-       node = 0
-       DO iparticle_kind = 1, nparticle_kind
-          nparticle_local = local_particles%n_el(iparticle_kind)
-          DO iparticle_local=1,nparticle_local
-             node = node + 1
-             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-             fac       = exp_igr%ex(lp,node)*exp_igr%ey(mp,node)*exp_igr%ez(np,node)
-             cnjg_fac  = CONJG(fac)
+       IF (do_forces.OR.do_efield) THEN
+          node = 0
+          DO iparticle_kind = 1, nparticle_kind
+             nparticle_local = local_particles%n_el(iparticle_kind)
+             DO iparticle_local=1,nparticle_local
+                node = node + 1
+                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                fac       = exp_igr%ex(lp,node)*exp_igr%ey(mp,node)*exp_igr%ez(np,node)
+                cnjg_fac  = CONJG(fac)
+                
+                ! Forces
+                IF (do_forces) THEN
+                   CALL get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges,&
+                        dipoles, quadrupoles, error)
 
-             ! Forces
-             IF (do_forces) THEN
-                CALL get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges,&
-                     dipoles, quadrupoles, error)
-                tmp      = gauss * AIMAG(summe_ef(gpt) * (cnjg_fac * CONJG(atm_factor)))
-                forces(1,node) = forces(1,node) + tmp * pw_grid%g(1,gpt)
-                forces(2,node) = forces(2,node) + tmp * pw_grid%g(2,gpt)
-                forces(3,node) = forces(3,node) + tmp * pw_grid%g(3,gpt)
-             END IF
-
-             ! Electric field
-             IF (do_efield) THEN
-                ! Potential
-                IF (do_efield0) THEN
-                   efield0(  iparticle) = efield0(  iparticle) + gauss *  REAL(fac*CONJG(summe_ef(gpt)),KIND=dp) 
+                   tmp      = gauss * AIMAG(summe_ef(gpt) * (cnjg_fac * CONJG(atm_factor)))
+                   forces(1,node) = forces(1,node) + tmp * pw_grid%g(1,gpt)
+                   forces(2,node) = forces(2,node) + tmp * pw_grid%g(2,gpt)
+                   forces(3,node) = forces(3,node) + tmp * pw_grid%g(3,gpt)
                 END IF
+                
                 ! Electric field
-                IF (do_efield1) THEN
-                   tmp = 0.0_dp
-                   IF (ANY(task(2,:))) THEN
-                      tmp = DOT_PRODUCT(dipoles(:,iparticle),pw_grid%g(:,gpt))
+                IF (do_efield) THEN
+                   ! Potential
+                   IF (do_efield0) THEN
+                      efield0(  iparticle) = efield0(  iparticle) + gauss *  REAL(fac*CONJG(summe_ef(gpt)),KIND=dp) 
                    END IF
-                   tmp = (AIMAG(fac*CONJG(summe_ef(gpt)))-tmp)*gauss
-                   efield1(1,iparticle) = efield1(1,iparticle) - tmp * pw_grid%g(1,gpt)
-                   efield1(2,iparticle) = efield1(2,iparticle) - tmp * pw_grid%g(2,gpt)
-                   efield1(3,iparticle) = efield1(3,iparticle) - tmp * pw_grid%g(3,gpt)
+                   ! Electric field
+                   IF (do_efield1) THEN
+                      tmp = AIMAG(fac*CONJG(summe_ef(gpt)))*gauss
+                      efield1(1,iparticle) = efield1(1,iparticle) - tmp * pw_grid%g(1,gpt)
+                      efield1(2,iparticle) = efield1(2,iparticle) - tmp * pw_grid%g(2,gpt)
+                      efield1(3,iparticle) = efield1(3,iparticle) - tmp * pw_grid%g(3,gpt)
+                   END IF
+                   ! Electric field gradient
+                   IF (do_efield2) THEN
+                      tmp_v(1) = REAL(fac*CONJG(summe_ef(gpt)),KIND=dp)*pw_grid%g(1,gpt)*gauss
+                      tmp_v(2) = REAL(fac*CONJG(summe_ef(gpt)),KIND=dp)*pw_grid%g(2,gpt)*gauss
+                      tmp_v(3) = REAL(fac*CONJG(summe_ef(gpt)),KIND=dp)*pw_grid%g(3,gpt)*gauss
+                      
+                      efield2(1,iparticle) = efield2(1,iparticle) + tmp_v(1) * pw_grid%g(1,gpt)
+                      efield2(2,iparticle) = efield2(2,iparticle) + tmp_v(1) * pw_grid%g(2,gpt)
+                      efield2(3,iparticle) = efield2(3,iparticle) + tmp_v(1) * pw_grid%g(3,gpt)
+                      efield2(4,iparticle) = efield2(4,iparticle) + tmp_v(2) * pw_grid%g(1,gpt)
+                      efield2(5,iparticle) = efield2(5,iparticle) + tmp_v(2) * pw_grid%g(2,gpt)
+                      efield2(6,iparticle) = efield2(6,iparticle) + tmp_v(2) * pw_grid%g(3,gpt)
+                      efield2(7,iparticle) = efield2(7,iparticle) + tmp_v(3) * pw_grid%g(1,gpt)
+                      efield2(8,iparticle) = efield2(8,iparticle) + tmp_v(3) * pw_grid%g(2,gpt)
+                      efield2(9,iparticle) = efield2(9,iparticle) + tmp_v(3) * pw_grid%g(3,gpt)
+                   END IF
                 END IF
-                ! Electric field gradient
-                IF (do_efield2) THEN
-                   tmp = 0.0_dp
-                   IF (ANY(task(1,:))) THEN
-                      tmp = -charges(iparticle)
-                   END IF
-                   IF (ANY(task(3,:))) THEN
-                      DO i = 1,3
-                         DO j = 1,3
-                            tmp = tmp + 1.0_dp/3.0_dp*quadrupoles(j,i,iparticle)*pw_grid%g(j,gpt)*pw_grid%g(i,gpt)
-                         END DO
-                      END DO
-                   END IF
-                   tmp_v(1) = (tmp + REAL(fac*CONJG(summe_ef(gpt)),KIND=dp))*pw_grid%g(1,gpt)*gauss
-                   tmp_v(2) = (tmp + REAL(fac*CONJG(summe_ef(gpt)),KIND=dp))*pw_grid%g(2,gpt)*gauss
-                   tmp_v(3) = (tmp + REAL(fac*CONJG(summe_ef(gpt)),KIND=dp))*pw_grid%g(3,gpt)*gauss
-
-                   efield2(1,iparticle) = efield2(1,iparticle) + tmp_v(1) * pw_grid%g(1,gpt)
-                   efield2(2,iparticle) = efield2(2,iparticle) + tmp_v(1) * pw_grid%g(2,gpt)
-                   efield2(3,iparticle) = efield2(3,iparticle) + tmp_v(1) * pw_grid%g(3,gpt)
-                   efield2(4,iparticle) = efield2(4,iparticle) + tmp_v(2) * pw_grid%g(1,gpt)
-                   efield2(5,iparticle) = efield2(5,iparticle) + tmp_v(2) * pw_grid%g(2,gpt)
-                   efield2(6,iparticle) = efield2(6,iparticle) + tmp_v(2) * pw_grid%g(3,gpt)
-                   efield2(7,iparticle) = efield2(7,iparticle) + tmp_v(3) * pw_grid%g(1,gpt)
-                   efield2(8,iparticle) = efield2(8,iparticle) + tmp_v(3) * pw_grid%g(2,gpt)
-                   efield2(9,iparticle) = efield2(9,iparticle) + tmp_v(3) * pw_grid%g(3,gpt)
-                END IF
-             END IF
+             END DO
           END DO
-       END DO
+       END IF
 
        ! Compute the virial P*V
        IF (do_stress) THEN
@@ -1822,7 +1809,7 @@ CONTAINS
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2
     REAL(KIND=dp) :: alpha, ch_qu_self, ch_qu_self_tmp, dipole_self, fac1, &
-      fac2, fac3, fac4, q, q_self, q_sum, qu_qu_self, qu_trace
+      fac2, fac3, fac4, q, q_self, q_sum, qu_qu_self
 
     CALL ewald_env_get ( ewald_env, ewald_type=ewald_type, alpha=alpha,&
          group=group, error=error)
@@ -1836,7 +1823,7 @@ CONTAINS
     ch_qu_self  = 0.0_dp
     qu_qu_self  = 0.0_dp
     fac1        = 2.0_dp*alpha*oorootpi
-    fac2        = (f23**2)*(alpha**3)*oorootpi
+    fac2        = 6.0_dp*(f23**2)*(alpha**3)*oorootpi
     fac3        = (2.0_dp*oorootpi)*f23*alpha**3
     fac4        = (4.0_dp*oorootpi)*f415*alpha**5
     DO iparticle_kind=1,SIZE(local_particles%n_el)
@@ -1848,7 +1835,7 @@ CONTAINS
              q = charges(iparticle)
              q_self = q_self + q*q
              q_sum  = q_sum  + q
-             ! Potential energy
+             ! Potential
              IF (do_efield0) THEN
                 efield0(  iparticle) = efield0(  iparticle) - q*fac1
              END IF
@@ -1856,15 +1843,15 @@ CONTAINS
              IF (task(1,3)) THEN
                 ! Charge - Quadrupole
                 ch_qu_self_tmp = 0.0_dp
-                qu_trace = 0.0_dp
                 DO i = 1,3
                    ch_qu_self_tmp = ch_qu_self_tmp + quadrupoles(i,i,iparticle) * q
-                   qu_trace       = qu_trace       + quadrupoles(i,i,iparticle)
                 END DO
                 ch_qu_self = ch_qu_self + ch_qu_self_tmp
-                ! Potential energy
-                IF (do_efield0) THEN
-                   efield0(  iparticle) = efield0(  iparticle) + fac2 * qu_trace
+                ! Electric Field Gradient
+                IF (do_efield2) THEN
+                   efield2(1,iparticle) = efield2(1,iparticle) + fac2*q
+                   efield2(5,iparticle) = efield2(5,iparticle) + fac2*q
+                   efield2(9,iparticle) = efield2(9,iparticle) + fac2*q
                 END IF
              END IF
           END IF
@@ -1873,6 +1860,12 @@ CONTAINS
              DO i = 1,3
                 dipole_self = dipole_self + dipoles(i,iparticle)**2
              END DO
+             ! Electric Field
+             IF (do_efield1) THEN
+                efield1(1,iparticle) = efield1(1,iparticle) + fac3 * dipoles(1,iparticle)
+                efield1(2,iparticle) = efield1(2,iparticle) + fac3 * dipoles(2,iparticle)
+                efield1(3,iparticle) = efield1(3,iparticle) + fac3 * dipoles(3,iparticle)
+             END IF
           END IF
           IF (ANY(task(3,:))) THEN
              ! Quadrupole - Quadrupole
@@ -1881,6 +1874,18 @@ CONTAINS
                    qu_qu_self = qu_qu_self + quadrupoles(j,i,iparticle)**2
                 END DO
              END DO
+             ! Electric Field Gradient
+             IF (do_efield2) THEN
+                efield2(1,iparticle) = efield2(1,iparticle) + fac4 * quadrupoles(1,1,iparticle)
+                efield2(2,iparticle) = efield2(2,iparticle) + fac4 * quadrupoles(2,1,iparticle)
+                efield2(3,iparticle) = efield2(3,iparticle) + fac4 * quadrupoles(3,1,iparticle)
+                efield2(4,iparticle) = efield2(4,iparticle) + fac4 * quadrupoles(1,2,iparticle)
+                efield2(5,iparticle) = efield2(5,iparticle) + fac4 * quadrupoles(2,2,iparticle)
+                efield2(6,iparticle) = efield2(6,iparticle) + fac4 * quadrupoles(3,2,iparticle)
+                efield2(7,iparticle) = efield2(7,iparticle) + fac4 * quadrupoles(1,3,iparticle)
+                efield2(8,iparticle) = efield2(8,iparticle) + fac4 * quadrupoles(2,3,iparticle)
+                efield2(9,iparticle) = efield2(9,iparticle) + fac4 * quadrupoles(3,3,iparticle)
+             END IF
           END IF
        END DO
     END DO

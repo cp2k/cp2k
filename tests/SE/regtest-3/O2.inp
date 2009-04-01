@@ -21,12 +21,16 @@
       &END
     &END QS
     &SCF
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-8
       SCF_GUESS ATOMIC
       &OT
         PRECONDITIONER FULL_SINGLE_INVERSE
         MINIMIZER DIIS
         N_DIIS 9
+      &END
+      &OUTER_SCF
+         EPS_SCF 1.0E-8
+         MAX_SCF 5
       &END
       &PRINT
          &RESTART OFF
@@ -40,7 +44,7 @@
         &END
         EWALD_TYPE ewald
         ALPHA  .5
-        GMAX   21
+        GMAX   41
       &END EWALD
     &END
   &END DFT
@@ -58,6 +62,8 @@
   PROJECT H2O
 #  RUN_TYPE ENERGY_FORCE
   RUN_TYPE DEBUG
+  FLUSH_SHOULD_FLUSH
 &END GLOBAL
 &DEBUG
+ DX 0.0001
 &END
