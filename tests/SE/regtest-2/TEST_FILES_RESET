@@ -223,3 +223,5 @@ zn_1w_debug.inp
 scan_zn_1w_cp2k.inp
 # numerics
 md.inp
+# numerics
+md.inp

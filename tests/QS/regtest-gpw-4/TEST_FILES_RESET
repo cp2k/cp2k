@@ -645,3 +645,6 @@ He3_multi_ddapc.inp
 h2o-otdiag.inp
 # speedup changes for core_ppl 
 h2o-otdiag-lsd.inp
+# speedup changes for core_ppl 
+H2-geo-4.inp
+H2O-meta_hydro.inp

@@ -191,3 +191,5 @@ H2O-uks-otcg.inp
 H2O-rks-otcg-mulliken.inp
 # speedup changes for core_ppl 
 H2O-uks-otcg-mulliken.inp
+# speedup changes for core_ppl 
+H2O-rks-diag.inp

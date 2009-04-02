@@ -506,3 +506,5 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 # speedup changes for core_ppl 
 He2_ddapc_constraint-4.inp
+# speedup changes for core_ppl 
+He2_none_full_all.inp

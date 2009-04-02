@@ -726,3 +726,5 @@ H2O-bloechl-restraint.inp
 H2O-solv.inp
 # speedup changes for core_ppl 
 dynamics.inp
+# speedup changes for core_ppl 
+H2O-ata.inp
