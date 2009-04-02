@@ -620,3 +620,5 @@ w2_qmmm-2.inp
 w2_qmmm-3.inp
 # merged linres and ot preconditioner
 no-gapw-gpw-1.inp
+#
+no-gapw-gpw-1.inp
