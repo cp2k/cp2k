@@ -468,6 +468,7 @@ CONTAINS
     ENDDO ! ikind
     !
     ! parallel sum up 
+    nbr_dbl = 0.0_dp
     DO ikind = 1 ,nkind
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -486,7 +487,6 @@ CONTAINS
        mepos  = para_env%mepos
        bo = get_limit(nat,num_pe,mepos)
        !
-       nbr_dbl = 0.0_dp
        ALLOCATE(zero_coeff(nsoctot,nsoctot),STAT=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        DO iat = 1,nat
