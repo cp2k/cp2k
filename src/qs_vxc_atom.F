@@ -31,7 +31,8 @@ MODULE qs_vxc_atom
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
-  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
+                                             harmonics_atom_type
   USE qs_linres_types,                 ONLY: nablavks_atom_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -906,8 +907,10 @@ CONTAINS
 
     INTEGER :: ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso2, &
       ispin, istat, l, ld, lmax12, lmax_expansion, lmin12, m1, m2, &
-      max_iso_not0, maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, &
-      size1
+      max_iso_not0, max_iso_not0_local, max_s_harm, maxl, maxso, n1, n2, na, &
+      ngau1, ngau2, nngau1, nr, nset, size1
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
@@ -940,6 +943,7 @@ CONTAINS
     my_CG => harmonics%my_CG
     max_iso_not0 = harmonics%max_iso_not0
     lmax_expansion = indso(1,max_iso_not0)
+    max_s_harm = harmonics%max_s_harm
 
     ALLOCATE (g1(nr),g2(nr),gg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -959,6 +963,9 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "vx",na*nr*dp_size)
 
+    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
     NULLIFY (int_hh,int_ss)
 
     CALL get_rho_atom(rho_atom=rho_atom,ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
@@ -970,6 +977,9 @@ CONTAINS
       n1 = nsoset(lmax(iset1))
       m2 = 0
       DO iset2 = 1,nset
+         CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                max_s_harm,lmax_expansion,cg_list,cg_n_list,max_iso_not0_local,error)
+         CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,error,failure)
 
         n2 = nsoset(lmax(iset2))
         DO ipgf1  = 1,npgf(iset1)
@@ -1017,24 +1027,24 @@ CONTAINS
 
               matso_h = 0.0_dp
               matso_s = 0.0_dp
-              DO iso = 1,harmonics%max_iso_not0
-                DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                  iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                  iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-                  l = indso(1,iso1) + indso(1,iso2)
+              DO iso = 1,max_iso_not0_local
+                 DO icg = 1,cg_n_list(iso)
+                    iso1 = cg_list(1,icg,iso)
+                    iso2 = cg_list(2,icg,iso)
+                    l = indso(1,iso1) + indso(1,iso2)
 
-                  CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
-                  DO ia = 1,na
-                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
+                    DO ia = 1,na
+                       matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
                             gVg_h(ia,l)*&
                             my_CG(iso1,iso2,iso)*&
                             harmonics%slm(ia,iso)
-                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
+                       matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
                             gVg_s(ia,l)*&
                             my_CG(iso1,iso2,iso)*&
                             harmonics%slm(ia,iso)
-                  END DO
-                END DO
+                    END DO
+                 END DO
               END DO
 
 !             Write in the global matrix
@@ -1062,6 +1072,9 @@ CONTAINS
    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h")
 
+   DEALLOCATE(cg_list,cg_n_list,STAT=istat)
+   CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
   END SUBROUTINE gaVxcgb_noGC
 
 ! *****************************************************************************
@@ -1079,9 +1092,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gaVxcgb_GC', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso2, &
-      ispin, istat, l, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, &
-      maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, size1
+    INTEGER :: dmax_iso_not0, dmax_iso_not0_local, ia, ic, icg, ipgf1, ipgf2, &
+      ir, iset1, iset2, iso, iso1, iso2, ispin, istat, l, lmax12, &
+      lmax_expansion, lmin12, m1, m2, max_iso_not0, max_iso_not0_local, &
+      max_s_harm, maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, &
+      size1
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dcg_n_list
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dcg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rad, urad
@@ -1118,7 +1135,9 @@ CONTAINS
     my_CG => harmonics%my_CG
     my_CG_dxyz => harmonics%my_CG_dxyz
     max_iso_not0 = harmonics%max_iso_not0
+    dmax_iso_not0 = harmonics%dmax_iso_not0
     lmax_expansion = indso(1,max_iso_not0)
+    max_s_harm = harmonics%max_s_harm
 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1130,6 +1149,9 @@ CONTAINS
     ALLOCATE(gVXGg_h(3,na,0:2*maxl),gVXGg_s(3,na,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gVXCg_h,gVXCg_s",12*na*maxl*dp_size)
+    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
+             dcg_list(2,nsoset(maxl)**2,max_s_harm),dcg_n_list(max_s_harm),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     NULLIFY(int_hh,int_ss)
 
@@ -1146,47 +1168,53 @@ CONTAINS
     g2 = 0.0_dp
     m1 = 0
     DO iset1 = 1,nset
-      n1 = nsoset(lmax(iset1))
-      m2 = 0
-      DO iset2 = 1,nset
+       n1 = nsoset(lmax(iset1))
+       m2 = 0
+       DO iset2 = 1,nset
+          CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                 max_s_harm,lmax_expansion,cg_list,cg_n_list,max_iso_not0_local,error)
+          CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,error,failure)
+          CALL get_none0_cg_list(my_CG_dxyz,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                 max_s_harm,lmax_expansion,dcg_list,dcg_n_list,dmax_iso_not0_local,error)
+          CPPrecondition(dmax_iso_not0_local.LE.dmax_iso_not0,cp_failure_level,routineP,error,failure)
 
-        n2 = nsoset(lmax(iset2))
-        DO ipgf1  = 1,npgf(iset1)
-          ngau1  = n1*(ipgf1-1)+m1
-          size1  = nsoset(lmax(iset1))-nsoset(lmin(iset1)-1)
-          nngau1 = nsoset(lmin(iset1)-1)+ngau1
+          n2 = nsoset(lmax(iset2))
+          DO ipgf1  = 1,npgf(iset1)
+             ngau1  = n1*(ipgf1-1)+m1
+             size1  = nsoset(lmax(iset1))-nsoset(lmin(iset1)-1)
+             nngau1 = nsoset(lmin(iset1)-1)+ngau1
 
-          g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
-          DO ipgf2 = 1,npgf(iset2)
-            ngau2 = n2*(ipgf2-1)+m2
+             g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
+             DO ipgf2 = 1,npgf(iset2)
+                ngau2 = n2*(ipgf2-1)+m2
 
-            g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))
-            lmin12 = lmin(iset1)+lmin(iset2)
-            lmax12 = lmax(iset1)+lmax(iset2)
+                g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))
+                lmin12 = lmin(iset1)+lmin(iset2)
+                lmax12 = lmax(iset1)+lmax(iset2)
+
+                !test reduce expansion local densities
+                IF(lmin12 .LE. lmax_expansion) THEN
+
+                   gg = 0.0_dp
+                   dgg = 0.0_dp
+
+                   IF (lmin12 == 0) THEN
+                      gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
+                   ELSE
+                      gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
+                   END IF
 
 !test reduce expansion local densities
-       IF(lmin12 .LE. lmax_expansion) THEN
+                   IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
 
-            gg = 0.0_dp
-            dgg = 0.0_dp
-
-            IF (lmin12 == 0) THEN
-              gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
-            ELSE
-              gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
-            END IF
-
-!test reduce expansion local densities
-            IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
-
-            DO l=lmin12+1,lmax12
-              gg(1:nr,l) = grid_atom%rad(1:nr)*gg(:,l-1)
-              dgg(1:nr,l-1) = dgg(1:nr,l-1) -2.0_dp*(zet(ipgf1,iset1)+ &
-                             zet(ipgf2,iset2))*gg(1:nr,l)
-            END DO
-            dgg(1:nr,lmax12) = dgg(1:nr,lmax12) -2.0_dp*(zet(ipgf1,iset1)+ &
-                             zet(ipgf2,iset2))*grid_atom%rad(1:nr)*&
-                             gg(1:nr,lmax12)
+                   DO l=lmin12+1,lmax12
+                      gg(1:nr,l) = grid_atom%rad(1:nr)*gg(:,l-1)
+                      dgg(1:nr,l-1) = dgg(1:nr,l-1) -2.0_dp*(zet(ipgf1,iset1)+ &
+                           zet(ipgf2,iset2))*gg(1:nr,l)
+                   END DO
+                   dgg(1:nr,lmax12) = dgg(1:nr,lmax12) -2.0_dp*(zet(ipgf1,iset1)+ &
+                        zet(ipgf2,iset2))*grid_atom%rad(1:nr)*&
+                        gg(1:nr,lmax12)
 
               gVXCg_h = 0.0_dp
               gVXCg_s = 0.0_dp
@@ -1195,110 +1223,117 @@ CONTAINS
 
 !             Cross Term
               DO l = lmin12,lmax12
-                DO ia = 1,na
-                  DO ir = 1,nr
-                     gVXCg_h(ia,l) = gVXCg_h(ia,l) + &
+                 DO ia = 1,na
+                    DO ir = 1,nr
+                       gVXCg_h(ia,l) = gVXCg_h(ia,l) + &
                             gg(ir,l) * vxc_h(ia,ir,ispin)+&
                             dgg(ir,l)*&
-                           (vxg_h(1,ia,ir,ispin)*harmonics%a(1,ia)+&
+                            (vxg_h(1,ia,ir,ispin)*harmonics%a(1,ia)+&
                             vxg_h(2,ia,ir,ispin)*harmonics%a(2,ia)+&
                             vxg_h(3,ia,ir,ispin)*harmonics%a(3,ia))
 
-                     gVXCg_s(ia,l) = gVXCg_s(ia,l) + &
+                       gVXCg_s(ia,l) = gVXCg_s(ia,l) + &
                             gg(ir,l) * vxc_s(ia,ir,ispin)+&
                             dgg(ir,l)*&
-                           (vxg_s(1,ia,ir,ispin)*harmonics%a(1,ia)+&
+                            (vxg_s(1,ia,ir,ispin)*harmonics%a(1,ia)+&
                             vxg_s(2,ia,ir,ispin)*harmonics%a(2,ia)+&
                             vxg_s(3,ia,ir,ispin)*harmonics%a(3,ia))
 
-                     urad = grid_atom%oorad2l(ir,1)
+                       urad = grid_atom%oorad2l(ir,1)
 
-                     gVXGg_h(1,ia,l) = gVXGg_h(1,ia,l) + &
-                                    vxg_h(1,ia,ir,ispin)*&
-                                    gg(ir,l)*urad
+                       gVXGg_h(1,ia,l) = gVXGg_h(1,ia,l) + &
+                            vxg_h(1,ia,ir,ispin)*&
+                            gg(ir,l)*urad
 
-                     gVXGg_h(2,ia,l) = gVXGg_h(2,ia,l) + &
-                                    vxg_h(2,ia,ir,ispin)*&
-                                    gg(ir,l)*urad
+                       gVXGg_h(2,ia,l) = gVXGg_h(2,ia,l) + &
+                            vxg_h(2,ia,ir,ispin)*&
+                            gg(ir,l)*urad
 
-                     gVXGg_h(3,ia,l) = gVXGg_h(3,ia,l) + &
-                                    vxg_h(3,ia,ir,ispin)*&
-                                    gg(ir,l)*urad
+                       gVXGg_h(3,ia,l) = gVXGg_h(3,ia,l) + &
+                            vxg_h(3,ia,ir,ispin)*&
+                            gg(ir,l)*urad
 
-                     gVXGg_s(1,ia,l) = gVXGg_s(1,ia,l) + &
-                                    vxg_s(1,ia,ir,ispin)*&
-                                    gg(ir,l)*urad
+                       gVXGg_s(1,ia,l) = gVXGg_s(1,ia,l) + &
+                            vxg_s(1,ia,ir,ispin)*&
+                            gg(ir,l)*urad
 
-                     gVXGg_s(2,ia,l) = gVXGg_s(2,ia,l) + &
-                                    vxg_s(2,ia,ir,ispin)*&
-                                    gg(ir,l)*urad
+                       gVXGg_s(2,ia,l) = gVXGg_s(2,ia,l) + &
+                            vxg_s(2,ia,ir,ispin)*&
+                            gg(ir,l)*urad
 
-                     gVXGg_s(3,ia,l) = gVXGg_s(3,ia,l) + &
-                                    vxg_s(3,ia,ir,ispin)*&
-                                    gg(ir,l)*urad
+                       gVXGg_s(3,ia,l) = gVXGg_s(3,ia,l) + &
+                            vxg_s(3,ia,ir,ispin)*&
+                            gg(ir,l)*urad
 
-                  ENDDO ! ir
-                ENDDO ! ia
+                    ENDDO ! ir
+                 ENDDO ! ia
               ENDDO  ! l
 
               matso_h = 0.0_dp
               matso_s = 0.0_dp
-              DO iso = 1,harmonics%max_iso_not0
-                DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                  iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                  iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-                  l = indso(1,iso1) + indso(1,iso2)
+              DO iso = 1,max_iso_not0_local
+                 DO icg = 1,cg_n_list(iso)
+                    iso1 = cg_list(1,icg,iso)
+                    iso2 = cg_list(2,icg,iso)
+
+                    l = indso(1,iso1) + indso(1,iso2)
 
 !test reduce expansion local densities
                     CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
-               IF(.NOT. failure) THEN
+                    IF(.NOT. failure) THEN
 
-                  DO ia = 1,na
-                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
-                                         gVXCg_h(ia,l)*&
-                                         harmonics%slm(ia,iso)*&
-                                         my_CG(iso1,iso2,iso)
-                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
-                                         gVXCg_s(ia,l)*&
-                                         harmonics%slm(ia,iso)*&
-                                         my_CG(iso1,iso2,iso)
-                  END DO ! ia
+                       DO ia = 1,na
+                          matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
+                                               gVXCg_h(ia,l)*&
+                                               harmonics%slm(ia,iso)*&
+                                               my_CG(iso1,iso2,iso)
+                          matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
+                                               gVXCg_s(ia,l)*&
+                                               harmonics%slm(ia,iso)*&
+                                               my_CG(iso1,iso2,iso)
+                       END DO ! ia
 
 !test reduce expansion local densities
-               END IF ! failure
+                    END IF ! failure
 
-                END DO
-                DO icg = 1,harmonics%ncg_dxyz(iso,iset1,iset2)
-                  iso1 = harmonics%ind_cg_a_dxyz(icg,iso,iset1,iset2)
-                  iso2 = harmonics%ind_cg_b_dxyz(icg,iso,iset1,iset2)
-                  l = indso(1,iso1) + indso(1,iso2)
+                 END DO
+
+              END DO ! iso
+
+
+              DO iso = 1,dmax_iso_not0_local
+                 DO icg = 1,dcg_n_list(iso)
+                    iso1 = dcg_list(1,icg,iso)
+                    iso2 = dcg_list(2,icg,iso)
+
+                    l = indso(1,iso1) + indso(1,iso2)
 !test reduce expansion local densities
                     CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
-               IF(.NOT. failure) THEN
+                    IF(.NOT. failure) THEN
 
-                  DO ia = 1,na
-                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
-                            (gVXGg_h(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
-                             gVXGg_h(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
-                             gVXGg_h(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
-                             harmonics%slm(ia,iso)
+                       DO ia = 1,na
+                          matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
+                               (gVXGg_h(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
+                                gVXGg_h(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
+                                gVXGg_h(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
+                                harmonics%slm(ia,iso)
 
-                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
-                            (gVXGg_s(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
-                             gVXGg_s(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
-                             gVXGg_s(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
-                             harmonics%slm(ia,iso)
+                          matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
+                               (gVXGg_s(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
+                                gVXGg_s(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
+                                gVXGg_s(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
+                                harmonics%slm(ia,iso)
 
-                  END DO ! ia
+                       END DO ! ia
 
 !test reduce expansion local densities
-               END IF ! failure
+                    END IF ! failure
 
-                END DO ! icg
+                 END DO ! icg
               END DO ! iso
 
 !test reduce expansion local densities
-            END IF ! lmax_expansion
+           END IF ! lmax_expansion
 
 !             Write in the global matrix
               DO ic = nsoset(lmin(iset2)-1)+1,nsoset(lmax(iset2))
@@ -1320,7 +1355,9 @@ CONTAINS
 
     DEALLOCATE(g1,g2,gg,dgg,matso_h,matso_s,gVXCg_h,gVXCg_s,gVXGg_h,gVXGg_s,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                     "g1,g2,gg,matso_h,matso_s,gVXCg_s,gVXCg_h,gVXGg_h,gVXGg_s")
+         "g1,g2,gg,matso_h,matso_s,gVXCg_s,gVXCg_h,gVXGg_h,gVXGg_s")
+    DEALLOCATE(cg_list,cg_n_list,dcg_list,dcg_n_list,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE gaVxcgb_GC
 
@@ -1335,10 +1372,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dgaVtaudgb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dmax_iso_not0, ic, icg, ipgf1, ipgf2, iset1, iset2, iso, iso1, &
-      iso2, ispin, istat, l1, l2, lmax12, lmax_expansion, lmin12, m1, m2, &
-      max_iso_not0, maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, &
-      size1
+    INTEGER :: dmax_iso_not0_local, ic, icg, ipgf1, ipgf2, iset1, iset2, iso, &
+      iso1, iso2, ispin, istat, l1, l2, lmax12, lmax_expansion, lmin12, m1, &
+      m2, max_iso_not0, max_iso_not0_local, max_s_harm, maxl, maxso, n1, n2, &
+      na, ngau1, ngau2, nngau1, nr, nset, size1
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dcg_n_list
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dcg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dd, g1, g2, gg, gr, ww
@@ -1369,10 +1408,15 @@ CONTAINS
     my_dCG => harmonics%my_dCG
     max_iso_not0 = harmonics%max_iso_not0
     lmax_expansion = indso(1,max_iso_not0)
+    max_s_harm = harmonics%max_s_harm
 
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
     ALLOCATE(g1(nr),g2(nr),gg(nr),dd(nr),gr(nr),ww(na),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
+             dcg_list(2,nsoset(maxl)**2,max_s_harm),dcg_n_list(max_s_harm),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE(matso_h(nsoset(maxl),nsoset(maxl)),&
@@ -1391,6 +1435,12 @@ CONTAINS
         n1 = nsoset(lmax(iset1))
         m2 = 0
         DO iset2 = 1,nset
+           CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                  max_s_harm,lmax_expansion,cg_list,cg_n_list,max_iso_not0_local,error)
+           CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,error,failure)
+           CALL get_none0_cg_list(my_dCG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                  max_s_harm,lmax_expansion,dcg_list,dcg_n_list,dmax_iso_not0_local,error)
+
           n2 = nsoset(lmax(iset2))
           DO ipgf1  = 1,npgf(iset1)
             ngau1  = n1*(ipgf1-1)+m1
@@ -1406,59 +1456,62 @@ CONTAINS
               matso_h = 0.0_dp
               matso_s = 0.0_dp
               IF(lmin12 .LE. lmax_expansion) THEN
-                DO iso = 1,harmonics%max_iso_not0
-                  DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                    iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                    iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-                    l1 = indso(1,iso1)
-                    l2 = indso(1,iso2)
-                    m1 = indso(2,iso1)
-                    m2 = indso(2,iso2)
-                    IF (l1+l2 > 0) THEN
-                      gg(1:nr) = g1(1:nr)*g2(1:nr) * grid_atom%rad2l(1:nr,l1+l2)
-                    ELSE
-                      gg(1:nr) = g1(1:nr)*g2(1:nr)
-                    END IF
-                    ! dr
-                    dd(1:nr) = REAL(l1*l2,dp)/grid_atom%rad2(1:nr) - &
-                               2._dp*REAL(l1,dp)*zet(ipgf2,iset2) - &
-                               2._dp*REAL(l2,dp)*zet(ipgf1,iset1) + &
-                               4._dp*zet(ipgf1,iset1)*zet(ipgf2,iset2)*grid_atom%rad2(1:nr)
-                    gr(1:nr) = dd(1:nr) * gg(1:nr)
-                    ww(1:na) = harmonics%slm(1:na,iso)
-                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + my_CG(iso1,iso2,iso)*&
-                       DOT_PRODUCT(ww(1:na),MATMUL(vtau_h(1:na,1:nr,ispin),gr(1:nr)))
-                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_CG(iso1,iso2,iso)*&
-                       DOT_PRODUCT(ww(1:na),MATMUL(vtau_s(1:na,1:nr,ispin),gr(1:nr)))
-                    ! dphi
-                    gr(1:nr) = gg(1:nr)/grid_atom%rad2(1:nr)
-                    ww(1:na) = harmonics%slm(1:na,iso)*grid_atom%usin_theta(1:na)**2
-                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + REAL(m1*m2,dp)*my_CG(iso1,iso2,iso)*&
-                       DOT_PRODUCT(ww(1:na),MATMUL(vtau_h(1:na,1:nr,ispin),gr(1:nr)))
-                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + REAL(m1*m2,dp)*my_CG(iso1,iso2,iso)*&
-                       DOT_PRODUCT(ww(1:na),MATMUL(vtau_s(1:na,1:nr,ispin),gr(1:nr)))
-                  END DO
-                END DO
+                 DO iso = 1,max_iso_not0_local
+                    DO icg = 1,cg_n_list(iso)
+                       iso1 = cg_list(1,icg,iso)
+                       iso2 = cg_list(2,icg,iso)
+
+                       l1 = indso(1,iso1)
+                       l2 = indso(1,iso2)
+                       m1 = indso(2,iso1)
+                       m2 = indso(2,iso2)
+                       IF (l1+l2 > 0) THEN
+                          gg(1:nr) = g1(1:nr)*g2(1:nr) * grid_atom%rad2l(1:nr,l1+l2)
+                       ELSE
+                          gg(1:nr) = g1(1:nr)*g2(1:nr)
+                       END IF
+                       ! dr
+                       dd(1:nr) = REAL(l1*l2,dp)/grid_atom%rad2(1:nr) - &
+                            2._dp*REAL(l1,dp)*zet(ipgf2,iset2) - &
+                            2._dp*REAL(l2,dp)*zet(ipgf1,iset1) + &
+                            4._dp*zet(ipgf1,iset1)*zet(ipgf2,iset2)*grid_atom%rad2(1:nr)
+                       gr(1:nr) = dd(1:nr) * gg(1:nr)
+                       ww(1:na) = harmonics%slm(1:na,iso)
+                       matso_h(iso1,iso2) = matso_h(iso1,iso2) + my_CG(iso1,iso2,iso)*&
+                            DOT_PRODUCT(ww(1:na),MATMUL(vtau_h(1:na,1:nr,ispin),gr(1:nr)))
+                       matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_CG(iso1,iso2,iso)*&
+                            DOT_PRODUCT(ww(1:na),MATMUL(vtau_s(1:na,1:nr,ispin),gr(1:nr)))
+                       ! dphi
+                       gr(1:nr) = gg(1:nr)/grid_atom%rad2(1:nr)
+                       ww(1:na) = harmonics%slm(1:na,iso)*grid_atom%usin_theta(1:na)**2
+                       matso_h(iso1,iso2) = matso_h(iso1,iso2) + REAL(m1*m2,dp)*my_CG(iso1,iso2,iso)*&
+                            DOT_PRODUCT(ww(1:na),MATMUL(vtau_h(1:na,1:nr,ispin),gr(1:nr)))
+                       matso_s(iso1,iso2) = matso_s(iso1,iso2) + REAL(m1*m2,dp)*my_CG(iso1,iso2,iso)*&
+                            DOT_PRODUCT(ww(1:na),MATMUL(vtau_s(1:na,1:nr,ispin),gr(1:nr)))
+                    END DO
+                 END DO
               END IF
               ! dtheta
-              DO iso = 1,harmonics%dmax_iso_not0
-                DO icg = 1,harmonics%ndcg(iso,iset1,iset2)
-                  iso1 = harmonics%ind_dcg_a(icg,iso,iset1,iset2)
-                  iso2 = harmonics%ind_dcg_b(icg,iso,iset1,iset2)
-                  l1 = indso(1,iso1)
-                  l2 = indso(1,iso2)
-                  IF (l1+l2 > 0) THEN
-                    gg(1:nr) = g1(1:nr)*g2(1:nr) * grid_atom%rad2l(1:nr,l1+l2)
-                  ELSE
-                    gg(1:nr) = g1(1:nr)*g2(1:nr)
-                  END IF
-                  gr(1:nr) = gg(1:nr)/grid_atom%rad2(1:nr)
-                  ww(1:na) = harmonics%slm(1:na,iso)
-                  matso_h(iso1,iso2) = matso_h(iso1,iso2) + my_dCG(iso1,iso2,iso)*&
-                     DOT_PRODUCT(ww(1:na),MATMUL(vtau_h(1:na,1:nr,ispin),gr(1:nr)))
-                  matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_dCG(iso1,iso2,iso)*&
-                     DOT_PRODUCT(ww(1:na),MATMUL(vtau_s(1:na,1:nr,ispin),gr(1:nr)))
-                END DO
+
+              DO iso = 1,dmax_iso_not0_local
+                 DO icg = 1,dcg_n_list(iso)
+                    iso1 = dcg_list(1,icg,iso)
+                    iso2 = dcg_list(2,icg,iso)
+
+                    l1 = indso(1,iso1)
+                    l2 = indso(1,iso2)
+                    IF (l1+l2 > 0) THEN
+                       gg(1:nr) = g1(1:nr)*g2(1:nr) * grid_atom%rad2l(1:nr,l1+l2)
+                    ELSE
+                       gg(1:nr) = g1(1:nr)*g2(1:nr)
+                    END IF
+                    gr(1:nr) = gg(1:nr)/grid_atom%rad2(1:nr)
+                    ww(1:na) = harmonics%slm(1:na,iso)
+                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + my_dCG(iso1,iso2,iso)*&
+                         DOT_PRODUCT(ww(1:na),MATMUL(vtau_h(1:na,1:nr,ispin),gr(1:nr)))
+                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_dCG(iso1,iso2,iso)*&
+                         DOT_PRODUCT(ww(1:na),MATMUL(vtau_s(1:na,1:nr,ispin),gr(1:nr)))
+                 END DO
               END DO
 
               ! Write in the global matrix
@@ -1482,6 +1535,8 @@ CONTAINS
     DEALLOCATE(matso_h,matso_s,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(g1,g2,gg,dd,gr,ww,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(cg_list,cg_n_list,dcg_list,dcg_n_list,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     vtau_h = 2._dp*vtau_h

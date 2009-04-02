@@ -39,7 +39,8 @@ MODULE qs_rho0_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_grid_atom,                    ONLY: grid_atom_type
-  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
+                                             harmonics_atom_type
   USE qs_local_rho_types,              ONLY: allocate_rhoz,&
                                              calculate_rhoz,&
                                              local_rho_type,&
@@ -76,24 +77,29 @@ MODULE qs_rho0_methods
  CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE  calculate_mpole_gau(mp_gau,orb_basis,harmonics,nchannels,nsotot)
+  SUBROUTINE  calculate_mpole_gau(mp_gau,orb_basis,harmonics,nchannels,nsotot,error)
 
     TYPE(mpole_gau_overlap)                  :: mp_gau
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     INTEGER, INTENT(IN)                      :: nchannels, nsotot
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_mpole_gau', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, icg, ig1, ig2, ipgf1, &
-                                                ipgf2, iset1, iset2, iso, &
-                                                iso1, iso2, l, l1, l2, m1, &
-                                                m2, maxso, n1, n2, nset
+    INTEGER :: handle, icg, ig1, ig2, ipgf1, ipgf2, iset1, iset2, iso, iso1, &
+      iso2, istat, l, l1, l2, llmax, m1, m2, max_iso_not0_local, max_s_harm, &
+      maxl, maxso, n1, n2, nset
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: zet1, zet2
     REAL(dp), DIMENSION(:, :), POINTER       :: zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
+
+    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -103,41 +109,57 @@ MODULE qs_rho0_methods
 
     CALL get_gto_basis_set(gto_basis_set = orb_basis, &
                                lmax=lmax,lmin=lmin,maxso=maxso,&
-                               npgf=npgf,nset=nset,zet=zet)
+                               npgf=npgf,nset=nset,zet=zet,maxl=maxl)
+
+    max_s_harm = harmonics%max_s_harm
+    llmax = harmonics%llmax
+
+    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     my_CG => harmonics%my_CG
 
     m1 = 0
     DO iset1 = 1,nset
-      n1 = nsoset(lmax(iset1))
-      DO ipgf1 = 1,npgf(iset1)
-        zet1 = zet(ipgf1,iset1)
-        m2 = 0
-        DO iset2 = 1,nset
-          n2 = nsoset(lmax(iset2))
-          DO ipgf2 = 1,npgf(iset2)
-            zet2 = zet(ipgf2,iset2)
+       m2 = 0
+       DO iset2 = 1,nset
 
-            DO iso = 1,nchannels
-              l = indso(1,iso)
-              DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                 iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                 iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-                 l1 = indso(1,iso1)
-                 l2 = indso(1,iso2)
-                 ig1 = iso1 + n1*(ipgf1-1) + m1
-                 ig2 = iso2 + n2*(ipgf2-1) + m2
+          CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                 max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
 
-                 mp_gau%Qlm_gg(ig1,ig2,iso) = fourpi/(2._dp*l+1._dp)*&
-                        my_CG(iso1,iso2,iso)*gaussint_sph(zet1+zet2,l+l1+l2)
-              END DO  ! icg
-            END DO  ! iso
+          n1 = nsoset(lmax(iset1))
+          DO ipgf1 = 1,npgf(iset1)
+             zet1 = zet(ipgf1,iset1)
 
-          END DO  ! ipgf2
+             n2 = nsoset(lmax(iset2))
+             DO ipgf2 = 1,npgf(iset2)
+                zet2 = zet(ipgf2,iset2)
+
+                DO iso = 1,MIN(nchannels,max_iso_not0_local)
+                   l = indso(1,iso)
+                   DO icg = 1,cg_n_list(iso)
+                      iso1 = cg_list(1,icg,iso)
+                      iso2 = cg_list(2,icg,iso)
+
+                      l1 = indso(1,iso1)
+                      l2 = indso(1,iso2)
+                      ig1 = iso1 + n1*(ipgf1-1) + m1
+                      ig2 = iso2 + n2*(ipgf2-1) + m2
+
+                      mp_gau%Qlm_gg(ig1,ig2,iso) = fourpi/(2._dp*l+1._dp)*&
+                           my_CG(iso1,iso2,iso)*gaussint_sph(zet1+zet2,l+l1+l2)
+                   END DO  ! icg
+                END DO  ! iso
+
+             END DO  ! ipgf2
+          END DO ! ipgf1
           m2 = m2 + maxso
         END DO  ! iset2
-      END DO ! ipgf1
       m1 = m1 + maxso
     END DO  ! iset1
+
+    DEALLOCATE(cg_list,cg_n_list,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
   END SUBROUTINE calculate_mpole_gau
@@ -459,7 +481,7 @@ MODULE qs_rho0_methods
       IF(paw_atom) THEN
 !        Calculate multipoles given by the product of 2 primitives Qlm_gg
          CALL calculate_mpole_gau(rho0_mpole%mp_gau(ikind),&
-                                  orb_basis,harmonics,nchan_s,nsotot)
+                                  orb_basis,harmonics,nchan_s,nsotot,error)
       END IF
 
 !     Calculate the core density rhoz

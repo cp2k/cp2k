@@ -34,7 +34,8 @@ MODULE  hartree_local_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_grid_atom,                    ONLY: grid_atom_type
-  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
+                                             harmonics_atom_type
   USE qs_local_rho_types,              ONLY: rhoz_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
@@ -223,9 +224,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2), handle, iat, iatom, icg, ikind, ipgf1, ipgf2, ir, is1, &
-      is2, iset1, iset2, iso, iso1, iso2, ispin, istat, l_ang, lmax0, lmax_0, &
-      m1, m2, max_iso, max_iso_not0, max_nr, maxso, mepos, n1, n2, nat, &
-      nchan_0, nkind, nr, nset, nsotot, nspins, num_pe
+      is2, iset1, iset2, iso, iso1, iso2, ispin, istat, l_ang, llmax, lmax0, &
+      lmax_0, m1, m2, max_iso, max_iso_not0, max_iso_not0_local, max_nr, &
+      max_s_harm, maxl, maxso, mepos, n1, n2, nat, nchan_0, nkind, nr, nset, &
+      nsotot, nspins, num_pe
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, my_periodic, &
                                                 my_tddft, paw_atom
@@ -354,7 +358,6 @@ CONTAINS
          ALLOCATE(Vh1_s(nr,nchan_0),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-
          NULLIFY(rrad_z,my_CG)
 !         my_CG  => harmonics%my_CG
 
@@ -440,8 +443,11 @@ CONTAINS
        ELSEIF(paw_atom) THEN
 !===========    PAW   ===============
          CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
-              maxso=maxso,npgf=npgf,&
+              maxso=maxso,npgf=npgf,maxl=maxl,&
               nset=nset,zet=zet)
+
+         max_s_harm = harmonics%max_s_harm
+         llmax = harmonics%llmax
 
          nsotot = maxso*nset
          CALL reallocate(gsph,1,max_nr,1,nsotot)
@@ -457,6 +463,8 @@ CONTAINS
          ALLOCATE(aVh1b_ss(nsotot,nsotot),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(aVh1b_00(nsotot,nsotot),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
          NULLIFY(Qlm_gg,g0_h)
@@ -586,18 +594,23 @@ CONTAINS
    
             m1 = 0
             DO iset1 = 1,nset
-               n1 = nsoset(lmax(iset1))
-               DO ipgf1  = 1,npgf(iset1)
-                  m2 = 0
-                  DO iset2 = 1,nset !iset1,nset
+               m2 = 0
+               DO iset2 = 1,nset !iset1,nset
+                  CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                         max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
+
+                  n1 = nsoset(lmax(iset1))
+                  DO ipgf1  = 1,npgf(iset1)
                      n2 = nsoset(lmax(iset2))
                      DO ipgf2  = 1,npgf(iset2)
                         !               with contributions to  V1_s*rho0
+
                         DO iso = 1,nchan_0
                            l_ang = indso(1,iso)
-                           DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                              is1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                              is2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
+                           DO icg = 1,cg_n_list(iso)
+                              is1 = cg_list(1,icg,iso)
+                              is2 = cg_list(2,icg,iso)
+
                               iso1 = is1 + n1*(ipgf1-1) + m1
                               iso2 = is2 + n2*(ipgf2-1) + m2
                               gVg_h = 0.0_dp
@@ -622,10 +635,13 @@ CONTAINS
                            END DO  !icg
                         END DO  ! iso
                         !               without contributions to  V1_s*rho0
+
+
                         DO iso = nchan_0+1,max_iso_not0
-                           DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                              is1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                              is2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
+                           DO icg = 1,cg_n_list(iso)
+                              is1 = cg_list(1,icg,iso)
+                              is2 = cg_list(2,icg,iso)
+
                               iso1 = is1 + n1*(ipgf1-1) + m1
                               iso2    = is2 + n2*(ipgf2-1) + m2
                               gVg_h = 0.0_dp
@@ -646,9 +662,9 @@ CONTAINS
                            END DO  !icg
                         END DO  ! iso
                      END DO  ! ipgf2
-                     m2 = m2 + maxso
-                  END DO  ! iset2
-               END DO  ! ipgf1
+                  END DO  ! ipgf1
+                  m2 = m2 + maxso
+               END DO  ! iset2
                m1 = m1 + maxso
             END DO  !iset1
    
@@ -703,6 +719,9 @@ CONTAINS
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(Vh1_h,Vh1_s, STAT=istat) 
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(cg_list,cg_n_list,STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
       ELSE
            CYCLE
       END IF  ! paw

@@ -35,16 +35,11 @@ MODULE qs_harmonics_atom
 
 ! *****************************************************************************
   TYPE harmonics_atom_type
-     INTEGER                                :: max_s_harm, &
+     INTEGER                                :: max_s_harm,llmax, &
                                                max_iso_not0, &
                                                dmax_iso_not0, &
-                                               maxcg, dmaxcg, maxcg_d,&
-                                               maxcg_da, ngrid
-     INTEGER, DIMENSION(:,:,:), POINTER     :: ncg,ndcg,ncg_dxyz,ncg_dxyz_asym
-     INTEGER, DIMENSION(:,:,:,:), POINTER   :: ind_cg_a,ind_cg_b
-     INTEGER, DIMENSION(:,:,:,:), POINTER   :: ind_dcg_a,ind_dcg_b
-     INTEGER, DIMENSION(:,:,:,:), POINTER   :: ind_cg_a_dxyz,ind_cg_b_dxyz
-     INTEGER, DIMENSION(:,:,:,:), POINTER   :: ind_cg_a_dxyz_asym,ind_cg_b_dxyz_asym
+                                               damax_iso_not0, &
+                                               ngrid
      REAL(dp), DIMENSION(:,:),    POINTER   :: a, slm
      REAL(dp), DIMENSION(:,:,:),  POINTER   :: dslm, dslm_dxyz
      REAL(dp), DIMENSION(:,:,:),  POINTER   :: my_CG, my_dCG
@@ -58,11 +53,16 @@ MODULE qs_harmonics_atom
 
   PUBLIC :: allocate_harmonics_atom, &
             create_harmonics_atom, &
-            deallocate_harmonics_atom
+            deallocate_harmonics_atom,&
+            get_none0_cg_list
 
   ! *** Public data types ***
 
   PUBLIC :: harmonics_atom_type
+
+  INTERFACE get_none0_cg_list
+     MODULE PROCEDURE get_none0_cg_list3,get_none0_cg_list4
+  END INTERFACE
 
 CONTAINS
 
@@ -88,34 +88,20 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     harmonics%max_s_harm=0
+    harmonics%llmax=0
     harmonics%max_iso_not0=0
     harmonics%dmax_iso_not0=0
-    harmonics%maxcg=0
-    harmonics%dmaxcg=0
-    harmonics%maxcg_d=0
-    harmonics%maxcg_da=0
+    harmonics%damax_iso_not0=0
     harmonics%ngrid=0
 
-    NULLIFY(harmonics%ind_cg_a)
-    NULLIFY(harmonics%ind_cg_b)
-    NULLIFY(harmonics%ind_dcg_a)
-    NULLIFY(harmonics%ind_dcg_b)
-    NULLIFY(harmonics%ind_cg_a_dxyz)
-    NULLIFY(harmonics%ind_cg_b_dxyz)
     NULLIFY(harmonics%slm)
     NULLIFY(harmonics%dslm)
     NULLIFY(harmonics%dslm_dxyz)
     NULLIFY(harmonics%slm_int)
-    NULLIFY(harmonics%ncg)
-    NULLIFY(harmonics%ndcg)
-    NULLIFY(harmonics%ncg_dxyz)
     NULLIFY(harmonics%my_CG)
     NULLIFY(harmonics%my_dCG)
     NULLIFY(harmonics%my_CG_dxyz)
     NULLIFY(harmonics%my_CG_dxyz_asym)
-    NULLIFY(harmonics%ncg_dxyz_asym)
-    NULLIFY(harmonics%ind_cg_a_dxyz_asym)
-    NULLIFY(harmonics%ind_cg_b_dxyz_asym)
     NULLIFY(harmonics%a)
 
   END SUBROUTINE allocate_harmonics_atom
@@ -138,36 +124,6 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(harmonics)) THEN 
 
-       IF(ASSOCIATED(harmonics%ind_cg_a)) THEN
-          DEALLOCATE (harmonics%ind_cg_a,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       IF(ASSOCIATED(harmonics%ind_cg_b)) THEN
-          DEALLOCATE (harmonics%ind_cg_b,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       IF(ASSOCIATED(harmonics%ind_dcg_a)) THEN
-          DEALLOCATE (harmonics%ind_dcg_a,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       IF(ASSOCIATED(harmonics%ind_dcg_b)) THEN
-          DEALLOCATE (harmonics%ind_dcg_b,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       IF(ASSOCIATED(harmonics%ind_cg_a_dxyz)) THEN
-          DEALLOCATE (harmonics%ind_cg_a_dxyz,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       IF(ASSOCIATED(harmonics%ind_cg_b_dxyz)) THEN
-          DEALLOCATE (harmonics%ind_cg_b_dxyz,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
        IF(ASSOCIATED(harmonics%slm)) THEN
           DEALLOCATE (harmonics%slm,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -185,19 +141,6 @@ CONTAINS
 
        IF(ASSOCIATED(harmonics%slm_int)) THEN
           DEALLOCATE (harmonics%slm_int,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       IF(ASSOCIATED(harmonics%ncg)) THEN
-          DEALLOCATE (harmonics%ncg,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-       IF(ASSOCIATED(harmonics%ndcg)) THEN
-          DEALLOCATE (harmonics%ndcg,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-       IF(ASSOCIATED(harmonics%ncg_dxyz)) THEN
-          DEALLOCATE (harmonics%ncg_dxyz,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
 
@@ -220,16 +163,6 @@ CONTAINS
           DEALLOCATE (harmonics%my_CG_dxyz_asym,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
-       IF(ASSOCIATED(harmonics%ncg_dxyz_asym)) THEN
-          DEALLOCATE (harmonics%ncg_dxyz_asym,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-       IF(ASSOCIATED(harmonics%ind_cg_b_dxyz_asym)) THEN
-          DEALLOCATE (harmonics%ind_cg_a_dxyz_asym,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE (harmonics%ind_cg_b_dxyz_asym,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
 
        IF(ASSOCIATED(harmonics%a)) THEN
           DEALLOCATE (harmonics%a,STAT=stat)
@@ -248,8 +181,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE create_harmonics_atom(harmonics,orb_basis,my_CG,na,&
-       llmax,max_s_harm,ll,wa,azi,cos_azi,pol,cos_pol,cotan_azi,&
-       do_dxyz_asym)
+       llmax,max_s_harm,ll,wa,azi,cos_azi,pol,cos_pol,cotan_azi,error)
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
@@ -257,17 +189,14 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: na, llmax, max_s_harm, ll
     REAL(dp), DIMENSION(:), INTENT(IN)       :: wa, azi, cos_azi, pol, &
                                                 cos_pol, cotan_azi
-    LOGICAL, INTENT(IN)                      :: do_dxyz_asym
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dmax_iso_not0, dmaxcg, handle, i, ia, ic, incg, incg_d, &
-      incg_da, indcg, is, is1, is2, iso, iso1, iso2, iso_mm, iso_mm1, &
-      iso_mp1, l, l1, l2, lx, ly, lz, m, m1, m2, max_iso_not0, maxcg, &
-      maxcg_d, maxcg_da, maxl, maxs, mm, n, nset
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: ind_cg_a, ind_cg_a_d, ind_cg_a_da, &
-      ind_cg_b, ind_cg_b_d, ind_cg_b_da, ind_dcg_a, ind_dcg_b
+    INTEGER :: damax_iso_not0, dmax_iso_not0, handle, i, ia, ic, is, is1, &
+      is2, iso, iso1, iso2, iso_mm, iso_mm1, iso_mp1, itmp, l, l1, l2, lx, &
+      ly, lz, m, m1, m2, max_iso_not0, maxl, maxs, n, nset
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin
     REAL(dp)                                 :: abs_m, cosmp1, drx, dry, drz, &
                                                 int1, int2, int3, l_r, m_r, &
@@ -285,15 +214,15 @@ CONTAINS
             maxl=maxl,nset=nset)
 
        harmonics%max_s_harm = max_s_harm
+       harmonics%llmax = llmax
        harmonics%ngrid = na
        maxs = nsoset(maxl)
 
        NULLIFY(harmonics%my_CG,harmonics%my_CG_dxyz)
        CALL reallocate(harmonics%my_CG,1,maxs,1,maxs,1,max_s_harm)
        CALL reallocate(harmonics%my_CG_dxyz,1,3,1,maxs,1,maxs,1,max_s_harm)
-       IF(do_dxyz_asym) THEN
-          CALL reallocate(harmonics%my_CG_dxyz_asym,1,3,1,maxs,1,maxs,1,max_s_harm)
-       END IF
+       CALL reallocate(harmonics%my_CG_dxyz_asym,1,3,1,maxs,1,maxs,1,max_s_harm)
+
        DO i = 1,max_s_harm
           DO is1 = 1, maxs
              harmonics%my_CG(1:maxs,is1,i) =  my_CG(1:maxs,is1,i)
@@ -305,12 +234,6 @@ CONTAINS
        CALL reallocate(harmonics%slm,1,na,1,max_s_harm)
        CALL reallocate(harmonics%dslm,1,2,1,na,1,max_s_harm)
        CALL reallocate(harmonics%dslm_dxyz,1,3,1,na,1,max_s_harm)
-       CALL reallocate(harmonics%ncg,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ndcg,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ncg_dxyz,1,max_s_harm,1,nset,1,nset)
-       IF(do_dxyz_asym) THEN
-          CALL reallocate(harmonics%ncg_dxyz_asym,1,max_s_harm,1,nset,1,nset)
-       END IF
        CALL reallocate(harmonics%a,1,3,1,na)
        CALL reallocate(y,1,na)
        CALL reallocate(dy,1,3,1,na)
@@ -447,42 +370,40 @@ CONTAINS
        ! Y(l1m1) * d(Y(l2m2))/dx -  d(Y(l1m1))/dx * Y(l2m2)
        ! Y(l1m1) * d(Y(l2m2))/dy -  d(Y(l1m1))/dy * Y(l2m2)
        ! Y(l1m1) * d(Y(l2m2))/dz -  d(Y(l1m1))/dz * Y(l2m2)
-       IF(do_dxyz_asym) THEN
-          harmonics%my_CG_dxyz_asym = 0.0_dp
-          DO iso1 = 1,maxs
-             DO iso2 = 1,maxs
-                DO iso = 1,max_s_harm
-                   rx = 0.0_dp
-                   drx = 0.0_dp
-                   ry = 0.0_dp
-                   dry = 0.0_dp
-                   rz = 0.0_dp
-                   drz = 0.0_dp
-                   DO ia = 1,na
-                      rx = rx + wa(ia)*slm(ia,iso)*&
-                           (-dslm_dxyz(1,ia,iso1)*slm(ia,iso2)+&
-                           slm(ia,iso1)*dslm_dxyz(1,ia,iso2))
-                      drx = drx + wa(ia)*slm(ia,iso)
-                      ry = ry + wa(ia)*slm(ia,iso)*&
-                           (-dslm_dxyz(2,ia,iso1)*slm(ia,iso2)+&
-                           slm(ia,iso1)*dslm_dxyz(2,ia,iso2))
-                      dry = dry + wa(ia)*slm(ia,iso)
-                      rz = rz + wa(ia)*slm(ia,iso)*&
-                           (-dslm_dxyz(3,ia,iso1)*slm(ia,iso2)+&
-                           slm(ia,iso1)*dslm_dxyz(3,ia,iso2))
-                      drz = drz + wa(ia)*slm(ia,iso)
-                   END DO
+       harmonics%my_CG_dxyz_asym = 0.0_dp
+       DO iso1 = 1,maxs
+          DO iso2 = 1,maxs
+             DO iso = 1,max_s_harm
+                rx = 0.0_dp
+                drx = 0.0_dp
+                ry = 0.0_dp
+                dry = 0.0_dp
+                rz = 0.0_dp
+                drz = 0.0_dp
+                DO ia = 1,na
+                   rx = rx + wa(ia)*slm(ia,iso)*&
+                        (-dslm_dxyz(1,ia,iso1)*slm(ia,iso2)+&
+                        slm(ia,iso1)*dslm_dxyz(1,ia,iso2))
+                   drx = drx + wa(ia)*slm(ia,iso)
+                   ry = ry + wa(ia)*slm(ia,iso)*&
+                        (-dslm_dxyz(2,ia,iso1)*slm(ia,iso2)+&
+                        slm(ia,iso1)*dslm_dxyz(2,ia,iso2))
+                   dry = dry + wa(ia)*slm(ia,iso)
+                   rz = rz + wa(ia)*slm(ia,iso)*&
+                        (-dslm_dxyz(3,ia,iso1)*slm(ia,iso2)+&
+                        slm(ia,iso1)*dslm_dxyz(3,ia,iso2))
+                   drz = drz + wa(ia)*slm(ia,iso)
+                END DO
 
-                   harmonics%my_CG_dxyz_asym(1,iso1,iso2,iso)=rx
+                harmonics%my_CG_dxyz_asym(1,iso1,iso2,iso)=rx
 
-                   harmonics%my_CG_dxyz_asym(2,iso1,iso2,iso)=ry
+                harmonics%my_CG_dxyz_asym(2,iso1,iso2,iso)=ry
 
-                   harmonics%my_CG_dxyz_asym(3,iso1,iso2,iso)=rz
+                harmonics%my_CG_dxyz_asym(3,iso1,iso2,iso)=rz
 
-                END DO  ! iso
-             END DO  ! iso2
-          END DO  ! iso1
-       END IF
+             END DO  ! iso
+          END DO  ! iso2
+       END DO  ! iso1
 
        ! Calculate the derivatives of the harmonics with respect of the 2 angles
        ! the first angle is acos(lebedev_grid(ll)%r(3))
@@ -588,160 +509,45 @@ CONTAINS
        END DO
 
        !   *** Assign indexes for the non null CG coefficients ***      
-       mm = nsoset(maxl)*nsoset(maxl)
-       ALLOCATE (ind_cg_a(mm),ind_dcg_a(mm),ind_cg_a_d(mm),ind_cg_a_da(mm))
-       ALLOCATE (ind_cg_b(mm),ind_dcg_b(mm),ind_cg_b_d(mm),ind_cg_b_da(mm))
-
-       NULLIFY(harmonics%ind_cg_a,harmonics%ind_cg_b)
-       NULLIFY(harmonics%ind_dcg_a,harmonics%ind_dcg_b)
-       NULLIFY(harmonics%ind_cg_a_dxyz,harmonics%ind_cg_b_dxyz)
-       NULLIFY(harmonics%ind_cg_a_dxyz_asym,harmonics%ind_cg_b_dxyz_asym)
-       CALL reallocate(harmonics%ind_cg_a,1,mm,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ind_cg_b,1,mm,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ind_dcg_a,1,mm,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ind_dcg_b,1,mm,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ind_cg_a_dxyz,1,mm,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ind_cg_b_dxyz,1,mm,1,max_s_harm,1,nset,1,nset)
-       IF(do_dxyz_asym) THEN
-          CALL reallocate(harmonics%ind_cg_a_dxyz_asym,1,mm,1,max_s_harm,1,nset,1,nset)
-          CALL reallocate(harmonics%ind_cg_b_dxyz_asym,1,mm,1,max_s_harm,1,nset,1,nset)
-       END IF
-
-       maxcg = 0
-       dmaxcg = 0
-       maxcg_d = 0
-       maxcg_da = 0
        max_iso_not0 = 0
        dmax_iso_not0 = 0
+       damax_iso_not0 =  0
        DO is1 = 1,nset
           DO is2 = 1,nset
              DO iso = 1,max_s_harm
-                incg = 0
-                indcg = 0
-                incg_d = 0
-                incg_da = 0
-                ind_cg_a = 0
-                ind_cg_b = 0
-                ind_dcg_a = 0
-                ind_dcg_b = 0
-                ind_cg_a_d = 0
-                ind_cg_b_d = 0
-                ind_cg_a_da = 0
-                ind_cg_b_da = 0
-                DO l1 = lmin(is1),lmax(is1)
-                   DO iso1 = nsoset(l1-1)+1,nsoset(l1)
-                      DO l2 = lmin(is2), lmax(is2)
-                         IF(l1+l2 > llmax) CYCLE
-                         DO iso2 = nsoset(l2-1)+1,nsoset(l2)
-                            IF(ABS(my_CG(iso1,iso2,iso)) > 1.E-8_dp) THEN
-                               incg = incg + 1
-                               ind_cg_a(incg) = iso1
-                               ind_cg_b(incg) = iso2
-                               max_iso_not0 = MAX(max_iso_not0,iso)
-                            END IF
-                            IF(ABS(harmonics%my_dCG(iso1,iso2,iso)) > 1.E-8_dp) THEN
-                               indcg = indcg + 1
-                               ind_dcg_a(indcg) = iso1
-                               ind_dcg_b(indcg) = iso2
-                               dmax_iso_not0 = MAX(dmax_iso_not0,iso)
-                            END IF
-                            rx = ABS(harmonics%my_CG_dxyz(1,iso1,iso2,iso))+&
-                                 ABS(harmonics%my_CG_dxyz(2,iso1,iso2,iso))+&
-                                 ABS(harmonics%my_CG_dxyz(3,iso1,iso2,iso))
-                            IF(rx > 1.E-8_dp) THEN
-                               incg_d = incg_d + 1
-                               ind_cg_a_d(incg_d) = iso1
-                               ind_cg_b_d(incg_d) = iso2
-                            END IF
-                            IF(do_dxyz_asym) THEN
-                               rx = ABS(harmonics%my_CG_dxyz_asym(1,iso1,iso2,iso))+&
-                                    ABS(harmonics%my_CG_dxyz_asym(2,iso1,iso2,iso))+&
-                                    ABS(harmonics%my_CG_dxyz_asym(3,iso1,iso2,iso))
-                               IF(rx > 1.E-8_dp) THEN
-                                  incg_da = incg_da + 1
-                                  ind_cg_a_da(incg_da) = iso1
-                                  ind_cg_b_da(incg_da) = iso2
-                               END IF
-                            END IF
-                         END DO
-                      END DO
-                   END DO
-                END DO
-                maxcg = MAX(maxcg,incg)
-                dmaxcg = MAX(dmaxcg,indcg)
-                maxcg_d = MAX(maxcg_d,incg_d)
-                maxcg_da = MAX(maxcg_da,incg_da)
-
-                harmonics%ind_cg_a(1:incg,iso,is1,is2) = ind_cg_a(1:incg)
-                harmonics%ind_cg_b(1:incg,iso,is1,is2) = ind_cg_b(1:incg)
-                harmonics%ncg(iso,is1,is2) = incg 
-
-                harmonics%ind_dcg_a(1:indcg,iso,is1,is2) = ind_dcg_a(1:indcg)
-                harmonics%ind_dcg_b(1:indcg,iso,is1,is2) = ind_dcg_b(1:indcg)
-                harmonics%ndcg(iso,is1,is2) = indcg 
-
-                harmonics%ind_cg_a_dxyz(1:incg_d,iso,is1,is2) = ind_cg_a_d(1:incg_d)
-                harmonics%ind_cg_b_dxyz(1:incg_d,iso,is1,is2) = ind_cg_b_d(1:incg_d)
-                harmonics%ncg_dxyz(iso,is1,is2) = incg_d
-
-                IF(do_dxyz_asym) THEN
-                   harmonics%ind_cg_a_dxyz_asym(1:incg_da,iso,is1,is2) = &
-                        ind_cg_a_da(1:incg_da)
-                   harmonics%ind_cg_b_dxyz_asym(1:incg_da,iso,is1,is2) = &
-                        ind_cg_b_da(1:incg_da)
-                   harmonics%ncg_dxyz_asym(iso,is1,is2) = incg_da
-                END IF
-
+                CALL get_none0_cg_list(harmonics%my_CG,&
+                                       lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
+                                       max_s_harm,llmax,max_iso_not0=itmp,error=error)
+                max_iso_not0 = MAX(max_iso_not0,itmp)
+                CALL get_none0_cg_list(harmonics%my_dCG,&
+                                       lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
+                                       max_s_harm,llmax,max_iso_not0=itmp,error=error)
+                dmax_iso_not0 = MAX(dmax_iso_not0,itmp)
+                CALL get_none0_cg_list(harmonics%my_CG_dxyz_asym,&
+                                       lmin(is1),lmax(is1),lmin(is2),lmax(is2),&
+                                       max_s_harm,llmax,max_iso_not0=itmp,error=error)
+                damax_iso_not0 = MAX(damax_iso_not0,itmp)
              END DO
           END DO ! is2
        END DO ! is1
-       harmonics%maxcg =  maxcg
-       harmonics%dmaxcg =  dmaxcg
-       harmonics%maxcg_d =  maxcg_d
-       harmonics%maxcg_da =  maxcg_da
        harmonics%max_iso_not0 = max_iso_not0
        harmonics%dmax_iso_not0 = dmax_iso_not0
-       DEALLOCATE(ind_cg_a)
-       DEALLOCATE(ind_cg_b)
-       DEALLOCATE(ind_dcg_a)
-       DEALLOCATE(ind_dcg_b)
-       DEALLOCATE(ind_cg_a_d)
-       DEALLOCATE(ind_cg_b_d)
-       DEALLOCATE(ind_cg_a_da)
-       DEALLOCATE(ind_cg_b_da)
+       harmonics%damax_iso_not0 = damax_iso_not0
+
        DEALLOCATE(y,dy,dc)
 
-       !dbg
-       !      ALLOCATE(ss(na,max_s_harm,max_s_harm))
-       !      ss = 0.0_dp
-       !      DO is1 = 1,nset
-       !        DO is2 = 1,nset
-       !          DO iso = 1,max_iso_not0
-       !            DO i = 1,harmonics%ncg_dxyz(iso,is1,is2)
-       !              iso1 = harmonics%ind_cg_a_dxyz(i,iso,is1,is2)
-       !              iso2 = harmonics%ind_cg_b_dxyz(i,iso,is1,is2)
-       !              l1 = indso(1,iso1) + indso(1,iso2)
-       !   DO iso1 = 1,maxs
-       !   DO iso2 = 1,maxs
-       !              ss(1:na,iso1,iso2) = ss(1:na,iso1,iso2)+&
-       !                        harmonics%my_CG_dxyz(2,iso1,iso2,iso)*slm(1:na,iso)
-       !              ss(1:na,iso1,iso2) = ss(1:na,iso1,iso2)+&
-       !                            my_CG(iso1,iso2,iso)*slm(1:na,iso)
-       !            END DO
-       !   END DO
-       !   END DO
-       !          END DO
-       !        END DO
-       !      END DO 
-       !          iso1 = 6
-       !          iso2 = 8
-       !          DO ia = 1,na
-       !            rx = dslm_dxyz(2,ia,iso1)*slm(ia,iso2)+slm(ia,iso1)*dslm_dxyz(2,ia,iso2)
-       !             rx = slm(ia,iso1)*slm(ia,iso2)
-       !            WRITE(*,*) ia,rx,ss(ia,iso1,iso2)
-       !          END DO
-       !  DEALLOCATE(ss)
-       !  stop 'ss'
+       !write(*,*) 'max_iso_not0',max_iso_not0,'dmax_iso_not0',dmax_iso_not0,'damax_iso_not0',damax_iso_not0
+       !l=0
+       !l=l+SIZE(harmonics%slm)
+       !l=l+SIZE(harmonics%dslm)
+       !l=l+SIZE(harmonics%dslm_dxyz)
+       !l=l+SIZE(harmonics%slm_int)
+       !l=l+SIZE(harmonics%my_CG)
+       !l=l+SIZE(harmonics%my_dCG)
+       !l=l+SIZE(harmonics%my_CG_dxyz)
+       !l=l+SIZE(harmonics%my_CG_dxyz_asym)
+       !l=l+SIZE(harmonics%a)
+       !write(*,*) 'nbr_dbl=',l
 
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -751,5 +557,109 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE  create_harmonics_atom
+
+
+  SUBROUTINE get_none0_cg_list4(cgc,lmin1,lmax1,lmin2,lmax2,max_s_harm,llmax,&
+                                list,n_list,max_iso_not0,error)
+
+    REAL(dp), DIMENSION(:, :, :, :), &
+      INTENT(IN)                             :: cgc
+    INTEGER, INTENT(IN)                      :: lmin1, lmax1, lmin2, lmax2, &
+                                                max_s_harm, llmax
+    INTEGER, DIMENSION(:, :, :), &
+      INTENT(OUT), OPTIONAL                  :: list
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: n_list
+    INTEGER, INTENT(OUT)                     :: max_iso_not0
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_none0_cg_list4', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iso, iso1, iso2, l1, l2, nlist
+    LOGICAL                                  :: failure
+
+    CPPrecondition(nsoset(lmax1).LE.SIZE(cgc,2),cp_failure_level,routineP,error,failure)
+    CPPrecondition(nsoset(lmax2).LE.SIZE(cgc,3),cp_failure_level,routineP,error,failure)
+    CPPrecondition(max_s_harm.LE.SIZE(cgc,4),cp_failure_level,routineP,error,failure)
+    IF(PRESENT(n_list).AND.PRESENT(list)) THEN
+       CPPrecondition(max_s_harm.LE.SIZE(list,3),cp_failure_level,routineP,error,failure)
+    ENDIF
+    max_iso_not0 = 0
+    IF(PRESENT(n_list).AND.PRESENT(list)) n_list = 0
+    DO iso = 1,max_s_harm
+       nlist = 0
+       DO l1 = lmin1,lmax1
+          DO iso1 = nsoset(l1-1)+1,nsoset(l1)
+             DO l2 = lmin2,lmax2
+                IF(l1+l2 > llmax) CYCLE
+                DO iso2 = nsoset(l2-1)+1,nsoset(l2)
+                   IF(ABS(cgc(1,iso1,iso2,iso))+&
+                      ABS(cgc(2,iso1,iso2,iso))+&
+                      ABS(cgc(3,iso1,iso2,iso)) > 1.E-8_dp ) THEN
+                      nlist = nlist + 1
+                      IF(PRESENT(n_list).AND.PRESENT(list)) THEN
+                         list(1,nlist,iso) = iso1
+                         list(2,nlist,iso) = iso2
+                      ENDIF
+                      max_iso_not0 = MAX(max_iso_not0,iso)
+                   ENDIF
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDDO
+       IF(PRESENT(n_list).AND.PRESENT(list)) n_list(iso) = nlist
+    ENDDO
+  END SUBROUTINE get_none0_cg_list4
+
+  SUBROUTINE get_none0_cg_list3(cgc,lmin1,lmax1,lmin2,lmax2,max_s_harm,llmax,&
+                                list,n_list,max_iso_not0,error)
+
+    REAL(dp), DIMENSION(:, :, :), INTENT(IN) :: cgc
+    INTEGER, INTENT(IN)                      :: lmin1, lmax1, lmin2, lmax2, &
+                                                max_s_harm, llmax
+    INTEGER, DIMENSION(:, :, :), &
+      INTENT(OUT), OPTIONAL                  :: list
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: n_list
+    INTEGER, INTENT(OUT)                     :: max_iso_not0
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_none0_cg_list3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iso, iso1, iso2, l1, l2, nlist
+    LOGICAL                                  :: failure
+
+    CPPrecondition(nsoset(lmax1).LE.SIZE(cgc,1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(nsoset(lmax2).LE.SIZE(cgc,2),cp_failure_level,routineP,error,failure)
+    CPPrecondition(max_s_harm.LE.SIZE(cgc,3),cp_failure_level,routineP,error,failure)
+    IF(PRESENT(n_list).AND.PRESENT(list)) THEN
+       CPPrecondition(max_s_harm.LE.SIZE(list,3),cp_failure_level,routineP,error,failure)
+    ENDIF
+    max_iso_not0 = 0
+    IF(PRESENT(n_list).AND.PRESENT(list)) n_list = 0
+    DO iso = 1,max_s_harm
+       nlist = 0
+       DO l1 = lmin1,lmax1
+          DO iso1 = nsoset(l1-1)+1,nsoset(l1)
+             DO l2 = lmin2, lmax2
+                IF(l1+l2 > llmax) CYCLE
+                DO iso2 = nsoset(l2-1)+1,nsoset(l2)
+                   IF(ABS(cgc(iso1,iso2,iso)) > 1.E-8_dp ) THEN
+                      nlist = nlist + 1
+                      IF(PRESENT(n_list).AND.PRESENT(list)) THEN
+                         list(1,nlist,iso) = iso1
+                         list(2,nlist,iso) = iso2
+                      ENDIF
+                      max_iso_not0 = MAX(max_iso_not0,iso)
+                   ENDIF
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDDO
+       IF(PRESENT(n_list).AND.PRESENT(list)) n_list(iso) = nlist
+    ENDDO
+  END SUBROUTINE get_none0_cg_list3
 
 END MODULE qs_harmonics_atom

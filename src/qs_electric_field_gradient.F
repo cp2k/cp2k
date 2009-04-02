@@ -62,7 +62,8 @@ MODULE qs_electric_field_gradient
                                              qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_grid_atom,                    ONLY: grid_atom_type
-  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
+                                             harmonics_atom_type
   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -457,8 +458,10 @@ CONTAINS
 
     INTEGER :: i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, iset1, iset2, iso, &
       iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, l, &
-      l_iso, m1s, m2s, m_iso, max_iso_not0, maxl, maxso, mepos, n1s, n2s, &
-      nset, num_pe, size1, size2
+      l_iso, llmax, m1s, m2s, m_iso, max_iso_not0, max_iso_not0_local, &
+      max_s_harm, maxl, maxso, mepos, n1s, n2s, nset, num_pe, size1, size2
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, o2nindex
     LOGICAL                                  :: failure
@@ -486,6 +489,8 @@ CONTAINS
     CALL get_paw_proj_set(paw_proj_set=paw_proj,o2nindex=o2nindex)
 
     max_iso_not0 = harmonics%max_iso_not0
+    max_s_harm = harmonics%max_s_harm
+    llmax = harmonics%llmax
 
     ! Distribute the atoms of this kind
     num_pe = para_env%num_pe
@@ -496,24 +501,28 @@ CONTAINS
 
     ALLOCATE(CPC_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     m1s = 0
-
     DO iset1 = 1,nset
-      n1s = nsoset(lmax(iset1))
-      DO ipgf1  = 1,npgf(iset1)
+       m2s = 0
+       DO iset2 = 1,nset
+          CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                 max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
+          CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,error,failure)
 
-        iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
-        iso1_last  = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
-        size1 = iso1_last - iso1_first + 1
-        iso1_first = o2nindex(iso1_first)
-        iso1_last  = o2nindex(iso1_last)
-        i1 = iso1_last - iso1_first + 1
-        CPPrecondition(size1==i1,cp_failure_level,routineP,error,failure)
-        i1 = nsoset(lmin(iset1)-1)+1
+          n1s = nsoset(lmax(iset1))
+          DO ipgf1  = 1,npgf(iset1)
+             iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
+             iso1_last  = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
+             size1 = iso1_last - iso1_first + 1
+             iso1_first = o2nindex(iso1_first)
+             iso1_last  = o2nindex(iso1_last)
+             i1 = iso1_last - iso1_first + 1
+             CPPrecondition(size1==i1,cp_failure_level,routineP,error,failure)
+             i1 = nsoset(lmin(iset1)-1)+1
 
-        m2s = 0
-        DO iset2 = 1,nset
           n2s=nsoset(lmax(iset2))
           DO ipgf2 = 1,npgf(iset2)
             iso2_first = nsoset(lmin(iset2)-1)+1+n2s*(ipgf2-1)+m2s
@@ -528,17 +537,17 @@ CONTAINS
             zet12 = zet(ipgf1,iset1)+zet(ipgf2,iset2)
 
             vgg = 0.0_dp
-
-            DO iso = 1,max_iso_not0
+            
+            DO iso = 1,max_iso_not0_local
                l_iso = indso(1,iso)
                IF ( l_iso /= 2 ) CYCLE
-               DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                 iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                 iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-                 l = indso(1,iso1) + indso(1,iso2)
-                 IF ( MOD(l,2) == 0 .AND. l > 0 ) THEN
-                   vgg(l/2) = fourpi/10._dp * fac(l-2) / zet12**(l/2)
-                 END IF
+               DO icg = 1,cg_n_list(iso)
+                  iso1 = cg_list(1,icg,iso)
+                  iso2 = cg_list(2,icg,iso)
+                  l = indso(1,iso1) + indso(1,iso2)
+                  IF ( MOD(l,2) == 0 .AND. l > 0 ) THEN
+                     vgg(l/2) = fourpi/10._dp * fac(l-2) / zet12**(l/2)
+                  END IF
                END DO
             END DO
 
@@ -556,36 +565,36 @@ CONTAINS
                   CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) - &
                   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
               ENDDO ! i
-
-              DO iso = 1,max_iso_not0
-                l_iso = indso(1,iso)
-                m_iso = indso(2,iso)
-                IF ( l_iso /= 2 ) CYCLE
-                DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                  iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                  iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-
-                  l = indso(1,iso1) + indso(1,iso2)
-                  IF ( MOD(l,2) == 0 .AND. l > 0 ) THEN
-                    vlimit(iatom,m_iso) = vlimit(iatom,m_iso) +&
-                      vgg(l/2)*CPC_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
-                  END IF
-                ENDDO  ! icg
+              
+              DO iso = 1,max_iso_not0_local
+                 l_iso = indso(1,iso)
+                 m_iso = indso(1,iso)
+                 IF ( l_iso /= 2 ) CYCLE
+                 DO icg = 1,cg_n_list(iso)
+                    iso1 = cg_list(1,icg,iso)
+                    iso2 = cg_list(2,icg,iso)
+                    l = indso(1,iso1) + indso(1,iso2)
+                    IF ( MOD(l,2) == 0 .AND. l > 0 ) THEN
+                       vlimit(iatom,m_iso) = vlimit(iatom,m_iso) +&
+                            vgg(l/2)*CPC_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                    END IF
+                 ENDDO  ! icg
               ENDDO  ! iso
 
             ENDDO  ! iat
 
           ENDDO ! ipgf2
+          ENDDO   ! ipgf1
           m2s = m2s+maxso
-
-        ENDDO  ! iset2
-      ENDDO   ! ipgf1
-      m1s = m1s+maxso
+       ENDDO  ! iset2
+       m1s = m1s+maxso
     ENDDO    ! iset1
 
     CALL mp_sum(vlimit,para_env%group)
 
     DEALLOCATE(CPC_sphere,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(cg_list,cg_n_list,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE vlimit_atom

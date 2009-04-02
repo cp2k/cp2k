@@ -170,3 +170,5 @@ CO_xastpxfh_locall.inp
 CO_xastpxfh.inp
 # updated all electron integrals 
 CO_xastpxfh_locall.inp
+# spherical harmonics reduce mem usage
+CO_xastpxfh.inp

@@ -349,3 +349,9 @@ Ne-hybrid-MCY3.inp
 Ne-hybrid-MCY3.inp
 Ne-hybrid-rcam-b3lyp.inp
 Li-hybrid-rcam-b3lyp.inp
+# spherical harmonics reduce mem usage
+Li-hybrid-rcam-b3lyp.inp
+# spherical harmonics reduce mem usage
+Ne-hybrid-rcam-b3lyp.inp
+# spherical harmonics reduce mem usage
+Ne-hybrid-MCY3.inp

@@ -36,7 +36,8 @@ MODULE qs_linres_atom_current
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
-  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
+                                             harmonics_atom_type
   USE qs_linres_op,                    ONLY: fac_vecp,&
                                              set_vecp,&
                                              set_vecp_rev
@@ -101,14 +102,15 @@ CONTAINS
     INTEGER :: bo(2), handle, iab, iac, iat, iatom, ibc, idir2, ii, iii, &
       ikind, ilist, inode, ispin, istat, jatom, jkind, kac, katom, kbc, &
       kkind, max_gau, max_nsgf, mepos, n_cont_a, n_cont_b, nat, natom, nkind, &
-      nlist, nnode, nsatbas, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe
+      nlist, nnode, nsatbas, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe, &
+      output_unit
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
     LOGICAL :: dista, distab, distb, failure, is_not_associated, paw_atom, &
       sgf_soft_only_a, sgf_soft_only_b
     REAL(dp)                                 :: eps_cpc, hard_radius_a, &
                                                 hard_radius_b, hard_radius_c, &
-                                                jmax, rab(3), rbc(3)
+                                                jmax, nbr_dbl, rab(3), rbc(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, b_matrix, c_matrix, &
                                                 d_matrix
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: CPC, PC1
@@ -118,6 +120,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -483,6 +486,7 @@ CONTAINS
        mepos  = para_env%mepos
        bo = get_limit(nat,num_pe,mepos)
        !
+       nbr_dbl = 0.0_dp
        ALLOCATE(zero_coeff(nsoctot,nsoctot),STAT=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        DO iat = 1,nat
@@ -542,6 +546,7 @@ CONTAINS
                 zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
              ENDIF
              CALL mp_sum(tmp_coeff,para_env%group)
+             nbr_dbl = nbr_dbl+8.0_dp*REAL(SIZE(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef),dp)
           ENDDO ! ispin
        ENDDO ! iat
        !
@@ -549,6 +554,13 @@ CONTAINS
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        !
     ENDDO ! ikind
+    !
+    !
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_unit_nr(logger)
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(A,E8.2)') 'calculate_jrho_atom_coeff: nbr_dbl=',nbr_dbl
+    ENDIF
     !
     ! clean up
     DEALLOCATE(a_matrix,b_matrix,c_matrix,d_matrix,PC1,CPC,a_block,b_block,c_block,d_block,&
@@ -570,11 +582,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i1, i2, iat, iatom, icg, ikind, ipgf1, ipgf2, ir, &
-      iset1, iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, &
-      iso2_last, ispin, istat, l, l_iso, lmax12, lmax_expansion, lmin12, m1s, &
-      m2s, max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, na, natom, &
+    INTEGER :: damax_iso_not0, damax_iso_not0_local, handle, i1, i2, iat, &
+      iatom, icg, ikind, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, &
+      iso1_first, iso1_last, iso2, iso2_first, iso2_last, ispin, istat, l, &
+      l_iso, llmax, lmax12, lmax_expansion, lmin12, m1s, m2s, m_iso, &
+      max_iso_not0, max_iso_not0_local, max_max_iso_not0, max_nso, &
+      max_s_harm, maxl, maxlgto, maxso, mepos, n1s, n2s, na, natom, &
       natom_tot, nkind, nr, nset, nspins, num_pe, size1, size2
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dacg_n_list
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dacg_list
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, &
                                                 o2nindex
@@ -620,6 +636,9 @@ CONTAINS
          &          dft_control=dft_control,&
          &          para_env=para_env,&
          &          error=error)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
+
     !
     CALL get_current_env(current_env=current_env,&
          &           jrho1_atom_set=jrho1_atom_set,&
@@ -663,7 +682,10 @@ CONTAINS
        nr = grid_atom%nr
        na = grid_atom%ng_sphere
        max_iso_not0 = harmonics%max_iso_not0
-       lmax_expansion = indso(1,max_iso_not0)
+       max_max_iso_not0 = MAX(harmonics%max_iso_not0,harmonics%damax_iso_not0)
+       lmax_expansion = indso(1,max_max_iso_not0)
+       max_s_harm = harmonics%max_s_harm
+       llmax = harmonics%llmax
        !
        ! Distribute the atoms of this kind
        num_pe = para_env%num_pe
@@ -680,6 +702,8 @@ CONTAINS
             &   cjc_h_block(max_nso,max_nso),cjc_s_block(max_nso,max_nso),&
             &   cjc_ii_h_block(max_nso,max_nso),cjc_ii_s_block(max_nso,max_nso),&
             &   cjc_iii_h_block(max_nso,max_nso),cjc_iii_s_block(max_nso,max_nso),&
+            &   cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
+            &   dacg_list(2,nsoset(maxl)**2,max_s_harm),dacg_n_list(max_s_harm),&
             &   gauge_h(nr),gauge_s(nr),STAT=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        !
@@ -710,21 +734,27 @@ CONTAINS
        !
        m1s = 0
        DO iset1 = 1,nset
-          n1s = nsoset(lmax(iset1))
-          DO ipgf1  = 1,npgf(iset1)
-             iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
-             iso1_last  = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
-             size1 = iso1_last - iso1_first + 1
-             iso1_first = o2nindex(iso1_first)
-             iso1_last  = o2nindex(iso1_last)
-             i1 = iso1_last - iso1_first + 1
-             CPPrecondition(size1==i1,cp_failure_level,routineP,error,failure)
-             i1 = nsoset(lmin(iset1)-1)+1
-             !
-             g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
-             !
-             m2s = 0
-             DO iset2 = 1,nset
+          m2s = 0
+          DO iset2 = 1,nset
+             CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                    max_s_harm,lmax_expansion,cg_list,cg_n_list,max_iso_not0_local,error)
+             CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,error,failure)
+             CALL get_none0_cg_list(my_CG_dxyz_asym,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                    max_s_harm,lmax_expansion,dacg_list,dacg_n_list,damax_iso_not0_local,error)
+
+             n1s = nsoset(lmax(iset1))
+             DO ipgf1 = 1,npgf(iset1)
+                iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
+                iso1_last  = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
+                size1 = iso1_last - iso1_first + 1
+                iso1_first = o2nindex(iso1_first)
+                iso1_last  = o2nindex(iso1_last)
+                i1 = iso1_last - iso1_first + 1
+                CPPrecondition(size1==i1,cp_failure_level,routineP,error,failure)
+                i1 = nsoset(lmin(iset1)-1)+1
+                !
+                g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
+                !
                 n2s=nsoset(lmax(iset2))
                 DO ipgf2 = 1,npgf(iset2)
                    iso2_first = nsoset(lmin(iset2)-1)+1+n2s*(ipgf2-1)+m2s
@@ -837,7 +867,8 @@ CONTAINS
                          ! Allocation radial functions
                          jrho1_atom => jrho1_atom_set(iatom)
                          IF(.NOT.ASSOCIATED(jrho1_atom%jrho_a_h(ispin)%r_coef)) THEN
-                            CALL allocate_jrho_atom_rad(jrho1_atom,ispin,nr,na,max_iso_not0,error=error)
+                            CALL allocate_jrho_atom_rad(jrho1_atom,ispin,nr,na,&
+                                 max_max_iso_not0,error=error)
                             is_set_to_0(iatom,ispin) = .TRUE.
                          ELSE
                             IF(.NOT.is_set_to_0(iatom,ispin)) THEN
@@ -869,16 +900,17 @@ CONTAINS
                          Fr_b_s_iii => jrho1_atom%jrho_b_s_iii(ispin)%r_coef
                          !------------------------------------------------------------------
                          !
-                         DO iso = 1,max_iso_not0
+                         DO iso = 1,max_iso_not0_local
                             l_iso = indso(1,iso) ! not needed
+                            m_iso = indso(2,iso) ! not needed
                             !
-                            DO icg = 1,harmonics%ncg(iso,iset1,iset2)
+                            DO icg = 1,cg_n_list(iso)
                                !
-                               iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                               iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
+                               iso1 = cg_list(1,icg,iso)
+                               iso2 = cg_list(2,icg,iso)
+                               !
                                IF(.NOT.(iso2>0.AND.iso1>0))THEN
-                                  WRITE(*,*) 'iso1=',iso1
-                                  WRITE(*,*) 'iso2=',iso2
+                                  WRITE(*,*) 'iso1=',iso1,' iso2=',iso2,' iso=',iso,' icg=',icg
                                   WRITE(*,*) '.... will stop!'
                                ENDIF
                                CPPrecondition(iso2>0.AND.iso1>0,cp_failure_level,routineP,error,failure)
@@ -887,6 +919,7 @@ CONTAINS
                                IF(l.GT.lmax_expansion.OR.l.LT..0) THEN
                                   WRITE(*,*) 'calculate_jrho_atom_rad: 1 l',l
                                   WRITE(*,*) 'calculate_jrho_atom_rad: 1 lmax_expansion',lmax_expansion
+                                  WRITE(*,*) '.... will stop!'
                                ENDIF
                                CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                                !------------------------------------------------------------------
@@ -978,18 +1011,19 @@ CONTAINS
                                !------------------------------------------------------------------
                             ENDDO !icg
                             !
+                         ENDDO  ! iso
+                         !
+                         !
+                         DO iso = 1,damax_iso_not0_local
+                            l_iso = indso(1,iso) ! not needed
+                            m_iso = indso(2,iso) ! not needed
                             !
-                            DO icg = 1,harmonics%ncg_dxyz_asym(iso,iset1,iset2)
+                            DO icg = 1,dacg_n_list(iso)
                                !
-                               iso1 = harmonics%ind_cg_a_dxyz_asym(icg,iso,iset1,iset2)
-                               iso2 = harmonics%ind_cg_b_dxyz_asym(icg,iso,iset1,iset2)
+                               iso1 = dacg_list(1,icg,iso)
+                               iso2 = dacg_list(2,icg,iso)
                                !
                                IF(.NOT.(iso2>0.AND.iso1>0))THEN
-                                  WRITE(*,*) 'harmonics%ncg_dxyz_asym'
-                                  WRITE(*,*) 'harmonics%ncg_dxyz_asym',harmonics%ncg_dxyz_asym(iso,iset1,iset2)
-                                  WRITE(*,*) 'harmonics%ncg_dxyz',harmonics%ncg_dxyz(iso,iset1,iset2)
-                                  WRITE(*,*) 'size(indso,1)=',SIZE(indso,1),' size(indso,2)=',SIZE(indso,2)
-                                  WRITE(*,*) 'ubound(indso,2)=',UBOUND(indso,2)
                                   WRITE(*,*) 'iso1=',iso1,' iso2=',iso2,' iso=',iso,' icg=',icg
                                   WRITE(*,*) '.... will stop!'
                                ENDIF
@@ -997,13 +1031,9 @@ CONTAINS
                                !
                                l = indso(1,iso1) + indso(1,iso2)
                                IF(l.GT.lmax_expansion) THEN
-                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 indso',LBOUND(indso,2),UBOUND(indso,2)
-                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 iso2',iso2
-                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 iso1',iso1
-                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 indso(1,iso1)',indso(1,iso1)
-                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 indso(1,iso2)',indso(1,iso2)
-                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 l',l
-                                  WRITE(*,*) 'calculate_jrho_atom_rad: 2 lmax_expansion',lmax_expansion
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 1 l',l
+                                  WRITE(*,*) 'calculate_jrho_atom_rad: 1 lmax_expansion',lmax_expansion
+                                  WRITE(*,*) '.... will stop!'
                                ENDIF
                                CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                                !------------------------------------------------------------------
@@ -1081,15 +1111,15 @@ CONTAINS
                    !------------------------------------------------------------------
                    ! 
                 ENDDO !ipgf2
-                m2s = m2s+maxso
-             ENDDO ! iset2
-          ENDDO ! ipgf1
+             ENDDO ! ipgf1
+             m2s = m2s+maxso
+          ENDDO ! iset2
           m1s = m1s+maxso
        ENDDO ! iset1
        !
        DEALLOCATE(cjc0_h_block,cjc0_s_block,cjc_h_block,cjc_s_block,cjc_ii_h_block,cjc_ii_s_block,&
             &     cjc_iii_h_block,cjc_iii_s_block,g1,g2,gg,gg_lm1,dgg_1,gauge_h,gauge_s,&
-            &     STAT=istat)
+            &     cg_list,cg_n_list,dacg_list,dacg_n_list,STAT=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDDO ! ikind
     !
@@ -1119,7 +1149,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, idir2, iiB, iiiB, ir, &
-                                                iso, max_iso_not0, na, nr, istat
+                                                iso, max_max_iso_not0, na, nr, istat
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rad_part, scale
     REAL(dp), DIMENSION(:, :), POINTER :: a, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
@@ -1166,7 +1196,7 @@ CONTAINS
     !
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
-    max_iso_not0 = harmonics%max_iso_not0
+    max_max_iso_not0 = MAX(harmonics%max_iso_not0,harmonics%damax_iso_not0)
     ALLOCATE(g(3,nr,na),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !------------------------------------------------------------------
@@ -1210,7 +1240,7 @@ CONTAINS
     CALL get_gauge()
     !
     DO ir = 1,nr
-       DO iso = 1,max_iso_not0
+       DO iso = 1,max_max_iso_not0
           DO ia = 1,na
              IF(do_igaim) THEN
                 !------------------------------------------------------------------
@@ -1276,7 +1306,7 @@ CONTAINS
       DO ir = 1,nr
       DO ia = 1,na
          DO ixyz = 1,3
-            g  (ixyz,ir,ia) = 0.0_dp
+            g(ixyz,ir,ia) = 0.0_dp
          ENDDO
          point(1) = r(ir) * a(1,ia)
          point(2) = r(ir) * a(2,ia)

@@ -49,7 +49,8 @@ MODULE qs_rho0_ggrid
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
+                                             harmonics_atom_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
@@ -355,9 +356,13 @@ MODULE qs_rho0_ggrid
 
     INTEGER :: auxbas_grid, dir, handle, iat, iatom, ic, icg, ico, ig1, ig2, &
       igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, ispin, &
-      istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, m1, m2, maxso, &
-      n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, nspins, nthread, tp(3)
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, lmax, npgf
+      istat, ithread, j, l0_ikind, llmax, lmax0, lshell, lx, ly, lz, m1, m2, &
+      max_iso_not0_local, max_s_harm, maxl, maxso, n1, n2, nat, nch_ik, &
+      nch_max, ncurr, npme, nset, nspins, nthread, tp(3)
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, lmax, lmin, &
+                                                npgf
     LOGICAL                                  :: failure, my_tddft, paw_atom
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
                                                 force_tmp(3), r_V0, ra(3), &
@@ -543,13 +548,19 @@ MODULE qs_rho0_ggrid
                           rpgf0_s=rpgf0_s,r_V0hmV0s=r_V0)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                             lmax=lmax, maxso=maxso,&
+                             lmax=lmax, lmin=lmin,&
+                             maxso=maxso,maxl=maxl,&
                              nset=nset, npgf=npgf)
 
 !     Initialize the local KS integrals
 
       nch_ik = ncoset(l0_ikind)
       pab = 1.0_dp
+      max_s_harm = harmonics%max_s_harm
+      llmax = harmonics%llmax
+
+      ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       CALL reallocate ( cores, 1, nat )
       npme = 0
@@ -670,41 +681,45 @@ MODULE qs_rho0_ggrid
 
           m1 = 0
           DO iset1 = 1,nset
-            n1 = nsoset(lmax(iset1))
-            DO ipgf1 = 1,npgf(iset1)
-              m2 = 0
-              DO iset2 = 1,nset
-                n2 = nsoset(lmax(iset2))
-                DO ipgf2 = 1,npgf(iset2)
 
-                  DO iso = 1,nsoset(l0_ikind)
-                    DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                      iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                      iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-                      ig1 = iso1 + n1*(ipgf1-1) + m1
-                      ig2 = iso2 + n2*(ipgf2-1) + m2
+             m2 = 0
+             DO iset2 = 1,nset
+                CALL get_none0_cg_list(harmonics%my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                       max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
+                n1 = nsoset(lmax(iset1))
+                DO ipgf1 = 1,npgf(iset1)
+                   n2 = nsoset(lmax(iset2))
+                   DO ipgf2 = 1,npgf(iset2)
 
-                      ! sum up the contribution
+                      DO iso = 1,MIN(nsoset(l0_ikind),max_iso_not0_local)
+                         DO icg = 1,cg_n_list(iso)
+                            iso1 = cg_list(1,icg,iso)
+                            iso2 = cg_list(2,icg,iso)
 
-                      DO ispin = 1,nspins
+                            ig1 = iso1 + n1*(ipgf1-1) + m1
+                            ig2 = iso2 + n2*(ipgf2-1) + m2
 
-                        int_local_h(ispin)%r_coef(ig1,ig2) = &
-                                  int_local_h(ispin)%r_coef(ig1,ig2) + &
-                                  Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+                            ! sum up the contribution
 
-                        int_local_s(ispin)%r_coef(ig1,ig2) = &
-                                  int_local_s(ispin)%r_coef(ig1,ig2) + &
-                                  Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
-                      END DO
+                            DO ispin = 1,nspins
 
-                    END DO  ! icg
-                  END DO  ! iso
+                               int_local_h(ispin)%r_coef(ig1,ig2) = &
+                                    int_local_h(ispin)%r_coef(ig1,ig2) + &
+                                    Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
 
-                END DO  ! ipgf2
+                               int_local_s(ispin)%r_coef(ig1,ig2) = &
+                                    int_local_s(ispin)%r_coef(ig1,ig2) + &
+                                    Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+                            END DO
+
+                         END DO  ! icg
+                      END DO  ! iso
+
+                   END DO  ! ipgf2
+                END DO ! ipgf1
                 m2 = m2 + maxso
-              END DO  ! iset2
-            END DO ! ipgf1
-            m1 = m1 + maxso
+             END DO  ! iset2
+             m1 = m1 + maxso
           END DO  ! iset1
 
           force(ikind)%g0s_Vh_elec(1:3,iat) =  force(ikind)%g0s_Vh_elec(1:3,iat) + &
@@ -712,47 +727,54 @@ MODULE qs_rho0_ggrid
 
         ELSE
 
-          m1 = 0
-          DO iset1 = 1,nset
-            n1 = nsoset(lmax(iset1))
-            DO ipgf1 = 1,npgf(iset1)
+           m1 = 0
+           DO iset1 = 1,nset
               m2 = 0
               DO iset2 = 1,nset
-                n2 = nsoset(lmax(iset2))
-                DO ipgf2 = 1,npgf(iset2)
+                 CALL get_none0_cg_list(harmonics%my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                        max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
+                 n1 = nsoset(lmax(iset1))
+                 DO ipgf1 = 1,npgf(iset1)
+                    n2 = nsoset(lmax(iset2))
+                    DO ipgf2 = 1,npgf(iset2)
 
-                  DO iso = 1,nsoset(l0_ikind)
-                    DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                      iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                      iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
-                      ig1 = iso1 + n1*(ipgf1-1) + m1
-                      ig2 = iso2 + n2*(ipgf2-1) + m2
-                      ! sum up the contribution
+                       DO iso = 1,MIN(nsoset(l0_ikind),max_iso_not0_local)
+                          DO icg = 1,cg_n_list(iso)
+                             iso1 = cg_list(1,icg,iso)
+                             iso2 = cg_list(2,icg,iso)
 
-                      DO ispin = 1,nspins
+                             ig1 = iso1 + n1*(ipgf1-1) + m1
+                             ig2 = iso2 + n2*(ipgf2-1) + m2
+                             ! sum up the contribution
 
-                        int_local_h(ispin)%r_coef(ig1,ig2) = &
-                                  int_local_h(ispin)%r_coef(ig1,ig2) + &
-                                  Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+                             DO ispin = 1,nspins
 
-                        int_local_s(ispin)%r_coef(ig1,ig2) = &
-                                  int_local_s(ispin)%r_coef(ig1,ig2) + &
-                                  Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
-                      END DO
+                                int_local_h(ispin)%r_coef(ig1,ig2) = &
+                                     int_local_h(ispin)%r_coef(ig1,ig2) + &
+                                     Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
 
-                    END DO  ! icg
-                  END DO  ! iso
+                                int_local_s(ispin)%r_coef(ig1,ig2) = &
+                                     int_local_s(ispin)%r_coef(ig1,ig2) + &
+                                     Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
+                             END DO
 
-                END DO  ! ipgf2
-                m2 = m2 + maxso
+                          END DO  ! icg
+                       END DO  ! iso
+
+                    END DO  ! ipgf2
+                 END DO ! ipgf1
+                 m2 = m2 + maxso
               END DO  ! iset2
-            END DO ! ipgf1
-            m1 = m1 + maxso
-          END DO  ! iset1
+              m1 = m1 + maxso
+           END DO  ! iset1
 
         END IF
 
       END DO  ! j
+
+      DEALLOCATE(cg_list,cg_n_list,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     END DO  ! ikind
 
     CALL rs_grid_release(rs_v, error=error)

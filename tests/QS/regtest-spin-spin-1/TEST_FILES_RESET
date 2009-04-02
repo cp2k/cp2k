@@ -8,3 +8,5 @@ nh3-issc-op-1.inp
 ch4-gapw-issc-2.inp
 # merged linres and ot preconditioner
 no-gapw-issc-1.inp
+# spherical harmonics reduce mem usage
+no-gapw-issc-1.inp

@@ -74,3 +74,5 @@ NO2-ROKS.inp
 H2-pbe-restart-rerun.inp
 # Refactoring of qs_core_hamiltonian 
 C-levelshift.inp
+# spherical harmonics reduce mem usage
+H2-pbe-restart-rerun.inp
