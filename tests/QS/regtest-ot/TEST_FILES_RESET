@@ -508,3 +508,5 @@ sic_ddapc_rt.inp
 He2_ddapc_constraint-4.inp
 # speedup changes for core_ppl 
 He2_none_full_all.inp
+# 
+He2_none_full_single.inp

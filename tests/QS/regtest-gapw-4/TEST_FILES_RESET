@@ -172,3 +172,5 @@ CO_xastpxfh.inp
 CO_xastpxfh_locall.inp
 # spherical harmonics reduce mem usage
 CO_xastpxfh.inp
+# 
+CO_xastpxfh_locall.inp
