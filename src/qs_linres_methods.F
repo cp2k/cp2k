@@ -46,6 +46,7 @@ MODULE qs_linres_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
+  USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_bcast
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              make_preconditioner
@@ -68,7 +69,6 @@ MODULE qs_linres_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE machine,                         ONLY: m_flush
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
