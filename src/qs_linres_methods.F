@@ -68,6 +68,7 @@ MODULE qs_linres_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE machine,                         ONLY: m_flush
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -163,6 +164,7 @@ CONTAINS
                   localized_wfn_control%centers_set(ispin)%array(4,istate)
           END DO
        END DO
+       CALL m_flush(output_unit)
     END IF
 
   END SUBROUTINE linres_localize
@@ -390,12 +392,14 @@ CONTAINS
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T5,I5,T22,A3,T37,L1,T49,1E8.2,T60,F20.10)")&
                   iter,linres_control%flag,restart,MAXVAL(alpha),norm_res
+             CALL m_flush(output_unit)
           ENDIF
        ENDIF
        !
        IF(linres_control%converged) THEN
           IF(output_unit>0) THEN
              WRITE(output_unit,"(/,T2,A,I4,A,/)") "The linear solver converged in ",iter," iterations."
+             CALL m_flush(output_unit)
           ENDIF
           EXIT iteration
        ENDIF
@@ -405,6 +409,7 @@ CONTAINS
           IF(output_unit>0) THEN
              WRITE (output_unit,"(/,T2,A/)")&
                   "The linear solver didnt converge! Maximum number of iterations reached."
+             CALL m_flush(output_unit)
           ENDIF
           linres_control%converged = .FALSE.
        ENDIF
