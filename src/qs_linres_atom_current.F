@@ -546,7 +546,8 @@ CONTAINS
                 zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
              ENDIF
              CALL mp_sum(tmp_coeff,para_env%group)
-             nbr_dbl = nbr_dbl+8.0_dp*REAL(SIZE(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef),dp)
+             IF(ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef)) &
+                  nbr_dbl = nbr_dbl+8.0_dp*REAL(SIZE(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef),dp)
           ENDDO ! ispin
        ENDDO ! iat
        !
@@ -682,7 +683,8 @@ CONTAINS
        nr = grid_atom%nr
        na = grid_atom%ng_sphere
        max_iso_not0 = harmonics%max_iso_not0
-       max_max_iso_not0 = MAX(harmonics%max_iso_not0,harmonics%damax_iso_not0)
+       damax_iso_not0 = harmonics%damax_iso_not0
+       max_max_iso_not0 = MAX(max_iso_not0,damax_iso_not0)
        lmax_expansion = indso(1,max_max_iso_not0)
        max_s_harm = harmonics%max_s_harm
        llmax = harmonics%llmax
@@ -741,6 +743,7 @@ CONTAINS
              CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,error,failure)
              CALL get_none0_cg_list(my_CG_dxyz_asym,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                     max_s_harm,lmax_expansion,dacg_list,dacg_n_list,damax_iso_not0_local,error)
+             CPPrecondition(damax_iso_not0_local.LE.damax_iso_not0,cp_failure_level,routineP,error,failure)
 
              n1s = nsoset(lmax(iset1))
              DO ipgf1 = 1,npgf(iset1)
