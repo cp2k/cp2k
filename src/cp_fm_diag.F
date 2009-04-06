@@ -67,7 +67,7 @@ CONTAINS
     INTEGER, DIMENSION(9)                    :: descm, descv
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eig
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -84,6 +84,7 @@ CONTAINS
     n = matrix%matrix_struct%nrow_global
     nmo = SIZE(eigenvalues,1)
     ALLOCATE(eig(n), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     m => matrix%local_data
 
@@ -556,9 +557,9 @@ CONTAINS
     info = 0
 !    CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
 
-    if(info>0) THEN
-      write(*,*) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO 
-    end if
+    IF(info>0) THEN
+      WRITE(*,*) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO 
+    END IF
     CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
 
     ! Release work storage
