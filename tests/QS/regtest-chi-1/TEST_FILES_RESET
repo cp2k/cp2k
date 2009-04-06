@@ -158,3 +158,6 @@ O2-uks-chi-gpw-2.inp
 O2-uks-chi-gpw-1.inp
 # speedup changes for core_ppl 
 O2-uks-chi-gpw-2.inp
+#syevd
+O2-uks-chi-gpw-1.inp
+O2-uks-chi-gpw-2.inp

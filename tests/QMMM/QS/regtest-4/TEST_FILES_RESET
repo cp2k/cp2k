@@ -178,3 +178,5 @@ acn-qmmm-re.inp
 acn-conn-1.inp
 # speedup changes for core_ppl 
 acn-conn-1.inp
+#syevd
+acn-conn-1.inp

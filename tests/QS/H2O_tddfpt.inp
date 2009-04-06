@@ -27,11 +27,7 @@
       RES_ETYPE SINGLETS
       RESTARTS 2
       &XC
-        &XC_FUNCTIONAL
-          &PBEC
-          &END PBEC
-          &PBEX
-          &END PBEX
+        &XC_FUNCTIONAL  PBE
         &END XC_FUNCTIONAL
       &END XC
     &END TDDFPT

@@ -10,3 +10,5 @@ ch4-gapw-issc-2.inp
 no-gapw-issc-1.inp
 # spherical harmonics reduce mem usage
 no-gapw-issc-1.inp
+#syevd
+no-gapw-issc-1.inp 

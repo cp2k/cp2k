@@ -648,3 +648,6 @@ h2o-otdiag-lsd.inp
 # speedup changes for core_ppl 
 H2-geo-4.inp
 H2O-meta_hydro.inp
+#syevd
+NO2-EFG-1.inp
+H2O-meta_hydro.inp

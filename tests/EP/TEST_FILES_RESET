@@ -60,3 +60,5 @@ Ar-ep.inp
 Ar2.inp
 # New initial guess ATOMIC 
 3H2O-ep.inp
+# syevd
+3H2O-ep.inp

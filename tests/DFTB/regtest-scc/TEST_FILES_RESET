@@ -132,3 +132,5 @@ ch2o-3.inp
 ch2o-5.inp
 # ASPC reset 
 h2o_hb_corr.inp
+#syevd
+co.inp

@@ -580,3 +580,5 @@ hcn_ts_r.inp
 hcn_ts_r.inp
 # speedup changes for core_ppl 
 hcn_ts_r.inp
+#syevd
+H2-pbe-restart-run.inp

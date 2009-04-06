@@ -713,3 +713,15 @@ N3-10.inp
 H2O.inp
 # speedup changes for core_ppl 
 C_fermi.inp
+# syevd
+C_fermi.inp
+#syevd
+N3-2.inp
+N3-3.inp
+N3-4.inp
+N3-5.inp
+N3-6.inp
+N3-7.inp
+N3-8.inp
+N3-9.inp
+N3-10.inp
