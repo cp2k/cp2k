@@ -79,8 +79,6 @@ MODULE scf_control_types
 !> \param eps_scf whanted error on the whole scf
 !> \param level_shift amount of level shift
 !> \param p_mix how to mix the new and old densities in non diss iterations
-!> \param work_syevx real to control the amount of temporary memory needed
-!>        by lapack syevx
 !> \param eps_lumos error on the lumos calculated at the end of the scf
 !> \param max_iter_lumus maxumum number of iterations used to calculate
 !>        the lumos at the end of the scf
@@ -131,7 +129,7 @@ MODULE scf_control_types
     TYPE(diagonalization_type)            :: diagonalization
     INTEGER                               :: density_guess, mixing_method
     REAL(KIND=dp)                         :: eps_eigval,eps_scf,eps_scf_hist,&
-                                             level_shift,work_syevx,&
+                                             level_shift,&
                                              eps_lumos,eps_diis
     INTEGER                               :: max_iter_lumos, max_diis, nmixing
     INTEGER                               :: max_scf,nrow_block,max_scf_hist,&
@@ -190,7 +188,6 @@ CONTAINS
       scf_control%nrow_block = 32
       scf_control%ncol_block = 32
       scf_control%nmixing = 2
-      scf_control%work_syevx = 1.0_dp
       scf_control%use_cholesky = .TRUE.
       scf_control%use_diag = .TRUE.
       scf_control%use_ot = .FALSE.
@@ -395,8 +392,6 @@ CONTAINS
        CALL section_vals_val_get(scf_section,"level_shift",r_val=scf_control%level_shift,error=error)
        CALL section_vals_val_get(scf_section,"max_diis",i_val=scf_control%max_diis,error=error)
        CALL section_vals_val_get(scf_section,"max_scf",i_val=scf_control%max_scf,error=error)
-       CALL section_vals_val_get(scf_section,"work_syevx",r_val=scf_control%work_syevx,error=error)
-       scf_control%work_syevx = MIN(MAX(0.0_dp,scf_control%work_syevx),1.0_dp)
  
        ! Diagonaliztion section
        IF ( scf_control%use_diag ) THEN
@@ -603,7 +598,6 @@ CONTAINS
                   "eps_scf_history:   ",scf_control%eps_scf_hist,&
                   "eps_diis:          ",scf_control%eps_diis,&
                   "eps_eigval:        ",scf_control%eps_eigval,&
-                  "work_syevx:        ",scf_control%work_syevx,&
                   "level_shift [a.u.]:",scf_control%level_shift
              IF ( SUM(scf_control%added_mos) > 0 ) THEN
                WRITE (UNIT=output_unit,FMT="(T25,A,T71,2I5)")&

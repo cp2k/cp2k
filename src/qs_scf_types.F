@@ -79,7 +79,7 @@ END TYPE qs_outer_scf_type
 TYPE qs_scf_env_type
    TYPE(qs_outer_scf_type) :: outer_scf
    INTEGER :: ref_count, id_nr, print_count, iter_count
-   INTEGER :: nelectron, method, mixing_method, npulay, nbroy, mixing_ncall
+   INTEGER :: nelectron, method, mixing_method, npulay, nbroy, mixing_ncall, nskip_mixing
    REAL(KIND = dp) :: broy_w0, iter_param, iter_delta, p_mix_alpha, &
                       p_mix_beta, pulay_alpha
    REAL(KIND = dp) , DIMENSION(:,:), POINTER :: pulay_matrix
@@ -139,6 +139,7 @@ CONTAINS
        scf_env%iter_method=""
        scf_env%print_iter_line=.TRUE.
        scf_env%skip_mixing=.FALSE.
+       scf_env%nskip_mixing = 0
 
        scf_env%method= -1
        scf_env%mixing_method = -1

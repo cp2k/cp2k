@@ -4147,12 +4147,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="WORK_SYEVX",&
-            description="limit the memory usage of SYEVX to a fraction of the maximum size",&
-            usage="work_syevx 0.8", default_r_val=1.0_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="MAX_SCF",&
             description="Maximum number of SCF iteration to be performed for one optimization",&
             usage="MAX_SCF 200", default_i_val=50,error=error)

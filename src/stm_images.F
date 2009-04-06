@@ -177,7 +177,7 @@ CONTAINS
        DEALLOCATE(evals,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
      END IF
-     IF(ANY(stm_biases<0.0_dp)) THEN
+     IF(ANY(stm_biases>0.0_dp)) THEN
 
        CPPrecondition(ASSOCIATED(unoccupied_orbs),cp_failure_level,routineP,error,failure)
        CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g,&

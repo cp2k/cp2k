@@ -174,7 +174,7 @@ CONTAINS
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: Atilde_ij, convergence, tmp, &
                                                 tmp2
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_difference
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_difference, evals_tmp
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evals
     TYPE(cp_fm_p_type)                       :: Atilde, Us
@@ -239,6 +239,8 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE(evals(max_kv, 0:max_kv), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(evals_tmp(max_kv), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE(b(max_kv,nspins), Ab(max_kv,nspins), &
@@ -410,7 +412,9 @@ CONTAINS
        !--------------------!
        ! diagonalize Atilde !
        !--------------------!
-       CALL cp_fm_syevd(Atilde%matrix, Us%matrix, evals(:,iter),error=error)
+       evals_tmp(:) = evals(:,iter)
+       CALL cp_fm_syevd(Atilde%matrix, Us%matrix, evals_tmp(:),error=error)
+       evals(:,iter) =  evals_tmp(:)
 
        !-------------------!
        ! check convergence !
@@ -508,7 +512,7 @@ CONTAINS
                CALL cp_fm_release(Sb(i,spin)%matrix,error=error)
        END DO
     END DO
-    DEALLOCATE(b, Ab, Sb, evals, evals_difference, must_improve, kv_fm_struct, stat=stat)
+    DEALLOCATE(b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(X, R, b, Ab, Sb, kv_fm_struct)
 

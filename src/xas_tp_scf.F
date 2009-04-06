@@ -327,7 +327,6 @@ CONTAINS
                   mos(ispin)%mo_set,ortho,scf_work2,&
                   do_level_shift,scf_control%level_shift,&
                   use_cholesky=use_cholesky,&
-                  work_syevx=scf_control%work_syevx,&
                   use_jacobi=use_jacobi,&
                   jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                   error=error)

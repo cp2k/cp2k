@@ -42,6 +42,7 @@ MODULE cp_fm_diag
   PUBLIC :: cp_fm_block_jacobi,&
             cp_fm_power, &
             cp_fm_syevd, &
+            cp_fm_syevr, &
             cp_fm_syevx
 
 CONTAINS
@@ -62,10 +63,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, istat, liwork, &
-                                                lwork, mypcol, myprow, n
+                                                lwork, mypcol, myprow, n, nmo
     INTEGER, DIMENSION(9)                    :: descm, descv
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eig
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -80,10 +82,8 @@ CONTAINS
     myprow = context%mepos(1)
     mypcol = context%mepos(2)
     n = matrix%matrix_struct%nrow_global
-    IF (SIZE(eigenvalues,1) < n) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Incorrect size for eigenvalue array")
-    END IF
+    nmo = SIZE(eigenvalues,1)
+    ALLOCATE(eig(n), STAT=istat)
 
     m => matrix%local_data
 
@@ -103,7 +103,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work",dp_size)
 
-    CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
+    CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
                  work(1),lwork,iwork(1),liwork,info)
 
     ! look here for a PDORMTR warning :-)
@@ -120,7 +120,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "lwork",lwork*dp_size)
 
-    CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
+    CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
                  work(1),lwork,iwork(1),liwork,info)
 
 #else
@@ -143,13 +143,20 @@ CONTAINS
     ALLOCATE(iwork(liwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "iwork",liwork*int_size)
-    CALL dsyevd('V','U', n, m(1,1), n, eigenvalues(1), work(1), lwork, iwork(1), liwork, info)
+    CALL dsyevd('V','U', n, m(1,1), n, eig(1), work(1), lwork, iwork(1), liwork, info)
     CALL cp_fm_to_fm(matrix,eigenvectors,error=error)
 #endif
+
 
     IF (info /= 0) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "Matrix diagonalization failed")
+    END IF
+
+    IF (SIZE(eigenvalues,1) > n) THEN
+      eigenvalues(1:n) = eig(1:n)
+    ELSE
+      eigenvalues(1:nmo) = eig(1:nmo)
     END IF
 
     DEALLOCATE (iwork,STAT=istat)
@@ -158,6 +165,10 @@ CONTAINS
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work")
+
+    DEALLOCATE (eig,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "eig")
 
     CALL timestop(handle)
 
@@ -421,6 +432,195 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE cp_fm_syevx
+
+! *****************************************************************************
+!> \brief  computes selected eigenvalues and, optionally, eigenvectors of 
+!>        a real symmetric matrix A distributed in 2D blockcyclic format by 
+!>       calling the recommended sequence of ScaLAPACK routines. 
+!>          
+!> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
+!>          subsets of eigenvalues/vectors can be selected by
+!>          specifying a range of values or a range of indices for the desired eigenvalues.
+! *****************************************************************************
+  SUBROUTINE cp_fm_syevr(matrix,eigenvectors,eigenvalues,ilow,iup,error)
+
+    TYPE(cp_fm_type), POINTER                    :: matrix
+    TYPE(cp_fm_type), POINTER, OPTIONAL          :: eigenvectors
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
+    INTEGER, INTENT(IN), OPTIONAL                :: ilow,iup
+    TYPE(cp_error_type), INTENT(inout)  :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevr",&
+                                   routineP = moduleN//":"//routineN
+    REAL(KIND = dp), PARAMETER  :: orfac = -1.0_dp,&
+                                   vl = 0.0_dp,&
+                                   vu = 0.0_dp
+
+    CHARACTER(LEN=1)                           :: job_type
+    INTEGER :: handle, ilow_local, info, istat, iup_local, lwork, liwork, m, mypcol,myprow, n, neig, nb, nz
+    INTEGER, DIMENSION(9) :: desca,descz,descb
+    INTEGER, DIMENSION(:), ALLOCATABLE  :: ifail, iwork
+    LOGICAL :: failure, ionode, needs_evecs
+    REAL(dp) :: abstol
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: w, work
+    REAL(dp), DIMENSION(:,:), POINTER :: a, z
+
+    TYPE(cp_blacs_env_type), POINTER           :: context
+    TYPE(cp_logger_type), POINTER              :: logger
+
+    REAL(KIND = dp), EXTERNAL :: dlamch
+
+#if defined(__SCALAPACK)
+#else
+    INTEGER, EXTERNAL  :: ilaenv
+#endif
+
+    ! -------------------------------------------------------------------------
+
+    ! by default all
+    n = matrix%matrix_struct%nrow_global
+    neig=n
+    iup_local = n
+    ilow_local = 1
+    IF (PRESENT(ilow) .AND. PRESENT(iup)) THEN
+        neig=iup-ilow+1
+        iup_local = iup
+        ilow_local = ilow
+    END IF
+    IF (neig <= 0) RETURN
+
+    CALL timeset(routineN,handle)
+
+    failure =.FALSE.
+    needs_evecs=PRESENT(eigenvectors)
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    n = matrix%matrix_struct%nrow_global
+
+    ! set scalapack job type
+    IF (needs_evecs) THEN
+       job_type="V"
+    ELSE
+       job_type="N"
+    ENDIF
+
+    context =>  matrix%matrix_struct%context
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+
+    ALLOCATE(w(n), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    eigenvalues(:) = 0.0_dp
+
+#if defined(__SCALAPACK)
+
+    IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END IF
+
+    a => matrix%local_data
+    desca(:) = matrix%matrix_struct%descriptor(:)
+
+    IF (needs_evecs) THEN
+      z => eigenvectors%local_data
+      descz(:) = eigenvectors%matrix_struct%descriptor(:)
+    ELSE
+      ! z will not be referenced
+      z => matrix%local_data
+      descz=desca
+    ENDIF
+
+    ! First Call: Determine the needed work_space
+    lwork = -1
+    ALLOCATE(work(5*n), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iwork(6*n), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+!    CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
+    lwork = INT(work(1))
+    liwork = iwork(1)
+    IF(lwork>SIZE(work,1)) THEN
+      DEALLOCATE(work,STAT=istat)
+      ALLOCATE(work(lwork),STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(liwork>SIZE(iwork,1)) THEN
+      DEALLOCATE(iwork,STAT=istat)
+      ALLOCATE(iwork(liwork),STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    !Second call: solve the eigenvalue problem
+    info = 0
+!    CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
+
+    if(info>0) THEN
+      write(*,*) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO 
+    end if
+    CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
+
+    ! Release work storage
+    DEALLOCATE (iwork,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (work,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+#else
+
+    a => matrix%local_data
+    IF (needs_evecs) THEN
+       z => eigenvectors%local_data
+    ELSE
+       ! z will not be referenced
+       z => matrix%local_data
+    ENDIF
+
+    ! Get the optimal work storage size
+
+    nb = MAX(ilaenv(1,"DSYTRD","U",n,-1,-1,-1),&
+             ilaenv(1,"DORMTR","U",n,-1,-1,-1))
+
+    lwork = MAX((nb + 3)*n,8*n)+n ! sun bug fix
+    liwork = 5*n
+
+    ALLOCATE (ifail(n),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ifail = 0
+
+    ALLOCATE (iwork(liwork),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (work(lwork),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! target the most accurate calculation of the eigenvalues
+    abstol = 2.0_dp*dlamch("S")
+
+    info = 0
+    CALL dsyevx(job_type,"I","U",n,a(1,1),n,vl,vu,ilow_local,iup_local,abstol,m,w,z(1,1),n,work(1),lwork,&
+                iwork(1),ifail(1),info)
+
+    ! Error handling
+    CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
+
+    ! Release work storage
+    DEALLOCATE (iwork,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (work,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+#endif
+
+    eigenvalues(ilow_local:iup_local) = w(ilow_local:iup_local)
+    DEALLOCATE (w,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+
+  END SUBROUTINE cp_fm_syevr
+
 ! *****************************************************************************
   SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,error)
 

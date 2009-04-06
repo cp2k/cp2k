@@ -19,8 +19,7 @@ MODULE qs_scf_methods
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
-                                             cp_fm_syevd,&
-                                             cp_fm_syevx
+                                             cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
@@ -104,8 +103,7 @@ CONTAINS
     my_invert=.FALSE.
     IF (PRESENT(invert)) my_invert=invert
     my_p_mix = scf_env%p_mix_alpha
-    IF (diis .OR. scf_env%skip_mixing) THEN
-        scf_env%skip_mixing = .FALSE.
+    IF (diis .OR. scf_env%iter_count<scf_env%nskip_mixing) THEN
         my_p_mix = 1.0_dp
     END IF
 
@@ -147,7 +145,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,&
-                         level_shift,use_cholesky,work_syevx,use_jacobi,&
+                         level_shift,use_cholesky,use_jacobi,&
                          jacobi_threshold,error)
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -155,7 +153,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift
     LOGICAL, INTENT(INOUT)                   :: use_cholesky
-    REAL(KIND=dp), INTENT(IN)                :: work_syevx
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -198,11 +195,9 @@ CONTAINS
           use_cholesky = .FALSE.
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
           CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
-       ELSE IF (nmo==nao) THEN
-          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
        ELSE
-          CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx,error=error)
+          ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
+          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
        END IF
 
@@ -231,11 +226,8 @@ CONTAINS
           END DO
        END IF
 
-       IF (nmo == nao) THEN
-         CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
-       ELSE
-         CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx,error)
-       END IF
+       ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
+       CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
                        mo_coeff,error=error)
@@ -252,13 +244,13 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,do_level_shift,&
-                                level_shift,work_syevx,error)
+                                level_shift,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: work
     LOGICAL, INTENT(IN)                      :: do_level_shift
-    REAL(KIND=dp), INTENT(IN)                :: level_shift, work_syevx
+    REAL(KIND=dp), INTENT(IN)                :: level_shift
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'simple_eigensolver', &
@@ -296,11 +288,9 @@ CONTAINS
     ALLOCATE(eigvals(nao),STAT=istat)
     IF (istat.NE.0) CALL stop_memory("simple_eigensolver","eigvals",nao)
 
-    IF ( REAL(nmo,dp)/REAL(nao,dp) < ratio ) THEN
-      CALL cp_fm_syevx(matrix_ks,work,eigvals,nmo,work_syevx,error)
-    ELSE
-      CALL cp_fm_syevd(matrix_ks,work,eigvals,error)
-    END IF
+    ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
+    CALL cp_fm_syevd(matrix_ks,work,eigvals,error)
+
     mo_eigenvalues(1:nmo) = eigvals(1:nmo)
     CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
 

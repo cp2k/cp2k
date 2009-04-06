@@ -381,7 +381,6 @@ CPSourceFileRef,&
                                   work=work2,&
                                   do_level_shift=.FALSE.,&
                                   level_shift=0.0_dp,&
-                                  work_syevx=scf_control%work_syevx,&
                                   error=error)
        ELSE
           CALL eigensolver(matrix_ks=work1(ispin)%matrix,&
@@ -391,7 +390,6 @@ CPSourceFileRef,&
                            do_level_shift=.FALSE.,&
                            level_shift=0.0_dp,&
                            use_cholesky=scf_control%use_cholesky,&
-                           work_syevx=scf_control%work_syevx,&
                            use_jacobi=.FALSE.,&
                            jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                            error=error)
@@ -817,7 +815,6 @@ CPSourceFileRef,&
                           do_level_shift=.FALSE., &
                           level_shift=scf_control%level_shift, &
                           use_cholesky=scf_control%use_cholesky,&
-                          work_syevx=scf_control%work_syevx, &
                           use_jacobi=.FALSE.,&
                           jacobi_threshold=scf_control%diagonalization%jacobi_threshold, &
                           error=error)

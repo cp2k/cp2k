@@ -300,7 +300,6 @@ CONTAINS
 !           "p_mix:             ",scf_control%p_mix,&
 !           "G-space mixing a:  ",scf_control%gspace_mixing_a,&
 !           "G-space mixing b:  ",scf_control%gspace_mixing_b,&
-!           "work_syevx:        ",scf_control%work_syevx,&
 !           "level_shift [a.u.]:",scf_control%level_shift,&
 !           "added MOs          ",scf_control%added_mos
 !

@@ -1332,7 +1332,6 @@ CONTAINS
     CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k,error=error)
     CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1,error=error)
     CALL cp_fm_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,error=error)
-    ! CALL cp_fm_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,k,1.0_dp)
     DO i=1,k
        qs_ot_env%evals(i)=MAX(0.0_dp,qs_ot_env%evals(i))
     ENDDO
