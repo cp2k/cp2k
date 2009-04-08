@@ -52,10 +52,14 @@ MODULE qs_linres_op
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
-                                             rmc_x_p_xyz_ao
+                                             rmc_x_p_xyz_ao,&
+                                             set_up_op_sm
   USE qs_spin_orbit,                   ONLY: build_pso_matrix
-  USE sparse_matrix_types,             ONLY: checksum_matrix,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             checksum_matrix,&
+                                             deallocate_matrix_set,&
                                              real_matrix_p_type,&
+                                             replicate_matrix_structure,&
                                              set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -64,7 +68,7 @@ MODULE qs_linres_op
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: current_operators,issc_operators,fac_vecp,ind_m2,set_vecp,set_vecp_rev
+  PUBLIC :: current_operators,issc_operators,fac_vecp,ind_m2,set_vecp,set_vecp_rev,fm_scale_by_pbc_AC
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_op'
 
@@ -123,8 +127,10 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_p_ao, op_rmd_ao
+      POINTER                                :: op_ao
     TYPE(section_vals_type), POINTER         :: lr_section
+
+!, op_p_ao
 
     CALL timeset(routineN,handle)
 
@@ -133,8 +139,8 @@ CONTAINS
     NULLIFY(atomic_kind_set,cell,dft_control,linres_control,&
          &  logger,particle_set,lr_section,fm_work1,&
          &  basisfun_center,centers_set,center_list,p_psi0,&
-         &  rxp_psi0,op_p_ao,op_rmd_ao,vecbuf_c0,psi0_order,&
-         &  mo_coeff)
+         &  rxp_psi0,vecbuf_c0,psi0_order,&
+         &  mo_coeff,op_ao)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,&
@@ -161,7 +167,7 @@ CONTAINS
     CALL get_current_env(current_env=current_env, nao=nao, centers_set=centers_set,&
                          center_list=center_list,basisfun_center=basisfun_center, &
                          nbr_center=nbr_center,p_psi0=p_psi0, rxp_psi0=rxp_psi0,&
-                         op_p_ao=op_p_ao, op_rmd_ao=op_rmd_ao, psi0_order=psi0_order,&
+                         psi0_order=psi0_order,&
                          nstates=nstates,error=error)
 
     ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
@@ -184,6 +190,16 @@ CONTAINS
     !    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,error=error)
     !************************************************************
     !
+
+    CALL allocate_matrix_set(op_ao,3,error=error)
+    CALL set_up_op_sm(op_ao(1)%matrix,qs_env,symmetry="none",name="op_ao",error=error)
+    DO idir=2,3
+       CALL replicate_matrix_structure(op_ao(1)%matrix,op_ao(idir)%matrix,&
+            & "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none",&
+            & error=error)
+       CALL set_matrix(op_ao(idir)%matrix,0.0_dp)
+    ENDDO
+
     chk(:) = 0.0_dp
     DO ispin = 1,nspins
        mo_coeff => psi0_order(ispin)%matrix
@@ -192,20 +208,20 @@ CONTAINS
        CALL cp_fm_set_all(p_psi0(ispin,2)%matrix,0.0_dp,error=error)
        CALL cp_fm_set_all(p_psi0(ispin,3)%matrix,0.0_dp,error=error)
        DO icenter = 1,nbr_center(ispin)
-          CALL set_matrix(op_rmd_ao(1)%matrix,0.0_dp)
-          CALL set_matrix(op_rmd_ao(2)%matrix,0.0_dp)
-          CALL set_matrix(op_rmd_ao(3)%matrix,0.0_dp)
-          CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,&
+          CALL set_matrix(op_ao(1)%matrix,0.0_dp)
+          CALL set_matrix(op_ao(2)%matrix,0.0_dp)
+          CALL set_matrix(op_ao(3)%matrix,0.0_dp)
+          CALL rmc_x_p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,&
                &              wancen=centers_set(ispin)%array(1:3,icenter),&
                &              error=error)
           !
           ! accumulate checksums
-          chk(1) = chk(1)+checksum_matrix(op_rmd_ao(1)%matrix,para_env)
-          chk(2) = chk(2)+checksum_matrix(op_rmd_ao(2)%matrix,para_env)
-          chk(3) = chk(3)+checksum_matrix(op_rmd_ao(3)%matrix,para_env)
+          chk(1) = chk(1)+checksum_matrix(op_ao(1)%matrix,para_env)
+          chk(2) = chk(2)+checksum_matrix(op_ao(2)%matrix,para_env)
+          chk(3) = chk(3)+checksum_matrix(op_ao(3)%matrix,para_env)
           DO idir = 1,3
              CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-             CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
+             CALL cp_sm_fm_multiply(op_ao(idir)%matrix,mo_coeff,&
                   &                 rxp_psi0(ispin,idir)%matrix,ncol=nmo,&
                   &                 alpha=-1.0_dp,error=error)
              DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
@@ -220,6 +236,8 @@ CONTAINS
        CALL cp_fm_to_fm(p_psi0(ispin,3)%matrix,rxp_psi0(ispin,3)%matrix,error)
     ENDDO
     !
+    CALL deallocate_matrix_set(op_ao,error=error)
+    !
     ! print checksums
     IF(output_unit>0) THEN
        WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum L_x =',chk(1)
@@ -228,12 +246,21 @@ CONTAINS
     ENDIF
     !
     ! Calculate the px py pz operators
-    CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+    CALL allocate_matrix_set(op_ao,3,error=error)
+    CALL set_up_op_sm(op_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="op_ao",error=error)
+    DO idir=2,3
+       CALL replicate_matrix_structure(op_ao(1)%matrix,op_ao(idir)%matrix,&
+            & "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="antisymmetric",&
+            & error=error)
+       CALL set_matrix(op_ao(idir)%matrix,0.0_dp)
+    ENDDO
+
+    CALL p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,error=error)
     !
     ! print checksums
-    chk(1) = checksum_matrix(op_p_ao(1)%matrix,para_env)
-    chk(2) = checksum_matrix(op_p_ao(2)%matrix,para_env)
-    chk(3) = checksum_matrix(op_p_ao(3)%matrix,para_env)
+    chk(1) = checksum_matrix(op_ao(1)%matrix,para_env)
+    chk(2) = checksum_matrix(op_ao(2)%matrix,para_env)
+    chk(3) = checksum_matrix(op_ao(3)%matrix,para_env)
     IF(output_unit>0) THEN
        WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_x =',chk(1)
        WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_y =',chk(2)
@@ -245,11 +272,13 @@ CONTAINS
          mo_coeff => psi0_order(ispin)%matrix
          nmo = nstates(ispin)
          CALL cp_fm_set_all(p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,mo_coeff,&
+         CALL cp_sm_fm_multiply(op_ao(idir)%matrix,mo_coeff,&
               &                 p_psi0(ispin,idir)%matrix,ncol=nmo,&
               &                 alpha=-1.0_dp,error=error)
       END DO
     END DO
+    !
+    CALL deallocate_matrix_set(op_ao,error=error)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
@@ -327,13 +356,13 @@ CONTAINS
 
           !Add the second term to the idir component
           CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-          CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
+          CALL cp_sm_fm_multiply(op_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
                fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)
           CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
                1.0_dp, fm_work1,error=error)
           
           CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-          CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
+          CALL cp_sm_fm_multiply(op_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
                fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)
           CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
                -1.0_dp,fm_work1,error=error)
@@ -586,6 +615,78 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_vecp_rev
+
+
+! *****************************************************************************
+!> \brief scale a matrix as a_ij = a_ij * pbc(rc(:,j),ra(:,i))(ixyz)
+!> \author vw
+! *****************************************************************************
+  SUBROUTINE fm_scale_by_pbc_AC(matrix,ra,rc,cell,ixyz,error)
+    TYPE(cp_fm_type), POINTER                 :: matrix
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(in) :: ra,rc
+    INTEGER, INTENT(IN)                       :: ixyz
+    TYPE(cell_type), POINTER                  :: cell
+    TYPE(cp_error_type), INTENT(INOUT)        :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_operators', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                   :: icol_global, icol_local, irow_local, &
+         mypcol, myprow, n, ncol_global, npcol, nprow, nrow_global, irow_global, &
+         nrow_local, ncol_local, nrow_block, ncol_block, m, handle
+    REAL(KIND=dp)                             :: rra(3),rrc(3),dist(3)
+    REAL(KIND=dp), DIMENSION(:, :), POINTER   :: a
+#if defined(__SCALAPACK)
+    INTEGER, EXTERNAL                          :: indxl2g
+#endif
+
+    CALL timeset(routineN,handle)
+
+    myprow=matrix%matrix_struct%context%mepos(1)
+    mypcol=matrix%matrix_struct%context%mepos(2)
+    nprow=matrix%matrix_struct%context%num_pe(1)
+    npcol=matrix%matrix_struct%context%num_pe(2)
+
+    nrow_block = matrix%matrix_struct%nrow_block
+    ncol_block = matrix%matrix_struct%ncol_block
+    nrow_global =matrix%matrix_struct%nrow_global
+    ncol_global =matrix%matrix_struct%ncol_global
+    nrow_local = matrix%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
+
+    n=SIZE(rc,2)
+    m=SIZE(ra,2)
+
+    a => matrix%local_data
+#if defined(__SCALAPACK)
+    DO icol_local=1,ncol_local
+       icol_global = indxl2g(icol_local,ncol_block,mypcol,&
+            matrix%matrix_struct%first_p_pos(2),npcol)
+       IF(icol_global.GT.n) CYCLE
+       rrc = rc(:,icol_global)
+       DO irow_local=1,nrow_local
+          irow_global = indxl2g(irow_local,nrow_block,myprow,&
+               matrix%matrix_struct%first_p_pos(1),nprow)
+          IF(irow_global.GT.m) CYCLE
+          rra = ra(:,irow_global)
+          dist = pbc(rrc,rra,cell)
+          a(irow_local,icol_local) = a(irow_local,icol_local) * dist(ixyz)
+       ENDDO
+    ENDDO
+#else
+    DO icol_local=1,MIN(n,ncol_global)
+       rrc = rc(:,icol_local)
+       DO irow_local=1,MIN(m,nrow_global)
+          rra = ra(:,irow_local)
+          dist = pbc(rrc,rra,cell)
+          a(irow_local,icol_local) = a(irow_local,icol_local) * dist(ixyz)
+       ENDDO
+    ENDDO
+#endif
+
+    CALL timestop(handle)
+
+  END SUBROUTINE fm_scale_by_pbc_AC
 
 END MODULE qs_linres_op
 

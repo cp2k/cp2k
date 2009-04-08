@@ -86,7 +86,8 @@ MODULE qs_linres_current_utils
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_operators_ao,                 ONLY: set_up_op_sm
+  USE qs_operators_ao,                 ONLY: p_xyz_ao,&
+                                             set_up_op_sm
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_types,                    ONLY: qs_rho_retain
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
@@ -94,6 +95,7 @@ MODULE qs_linres_current_utils
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
+                                             real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
   USE termination,                     ONLY: stop_program
@@ -148,6 +150,8 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: op_p_ao
     TYPE(section_vals_type), POINTER         :: current_section, lr_section, &
                                                 print_key
 
@@ -158,7 +162,7 @@ CONTAINS
          &  logger, mpools, psi1,h1_psi0, vecbuf_dklxp0, mo_coeff,para_env, &
          &  fm_work_ii, fm_work_iii, tmp_fm_struct, dkl_vec_ii,dkl_vec_iii, &
          &  list_cubes, statetrueindex, centers_set, center_list, psi1_p, psi1_rxp, psi1_D, &
-         &  p_psi0, rxp_psi0, psi0_order)
+         &  p_psi0, rxp_psi0, psi0_order, op_p_ao)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -212,6 +216,20 @@ CONTAINS
           CALL cp_fm_create(h1_psi0(ispin)%matrix,tmp_fm_struct,error=error)
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
        ENDDO
+       !
+       ! rebuild the linear momentum matrices
+       CALL allocate_matrix_set(op_p_ao,3,error=error)
+       CALL set_up_op_sm(op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="OP_P",error=error)
+       CALL set_matrix(op_p_ao(1)%matrix,0.0_dp)
+       DO idir = 2,3
+          CALL replicate_matrix_structure(op_p_ao(1)%matrix,op_p_ao(idir)%matrix,&
+               & "current_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
+               & target_symmetry="antisymmetric",error=error)
+          CALL set_matrix(op_p_ao(idir)%matrix,0.0_dp)
+       ENDDO
+       !
+       CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+       !
     ENDIF
     !
     ! set response to zero
@@ -316,6 +334,8 @@ CONTAINS
     !
     ! operator D
     IF(current_env%full) THEN
+       !
+       !
        DO ispin = 1,nspins
           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
           DO idir = 1,3
@@ -399,7 +419,7 @@ CONTAINS
                 !
                 ! Apply the p_iii operator
                 ! fm_work_iii = -p_iii * (dk-dl)_ii * C0
-                CALL cp_sm_fm_multiply(current_env%op_p_ao(iii)%matrix,fm_work_ii(ispin)%matrix,&
+                CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,fm_work_ii(ispin)%matrix,&
                      &                 fm_work_iii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
                      &                 error=error)
                 !
@@ -414,7 +434,7 @@ CONTAINS
                 !
                 ! Apply the p_ii operator
                 ! fm_work_ii = -p_ii * (dk-dl)_iii * C0
-                CALL cp_sm_fm_multiply(current_env%op_p_ao(ii)%matrix,fm_work_iii(ispin)%matrix,&
+                CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,fm_work_iii(ispin)%matrix,&
                      &                 fm_work_ii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
                      &                 error=error)
                 !
@@ -480,6 +500,7 @@ CONTAINS
     !
     ! clean up
     IF(current_env%full) THEN
+       CALL deallocate_matrix_set(op_p_ao,error=error)
        DO ispin = 1,nspins
           CALL cp_fm_release(psi1(ispin)%matrix,error=error)
           CALL cp_fm_release(h1_psi0(ispin)%matrix,error=error)
@@ -1207,35 +1228,6 @@ CONTAINS
        CALL cp_fm_struct_release(tmp_fm_struct,error=error)
     ENDDO
     !
-    ! px py pz operator acting on the atomic orbitals
-    CALL allocate_matrix_set(current_env%op_p_ao,3,error=error)
-    CALL set_up_op_sm(current_env%op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",&
-         &            name="OP_P",error=error)
-    CALL set_matrix(current_env%op_p_ao(1)%matrix,0.0_dp)
-    DO idir = 2,3
-       CALL replicate_matrix_structure(current_env%op_p_ao(1)%matrix, &
-            &                          current_env%op_p_ao(idir)%matrix,&
-            &                          "current_env%op_p_ao"//"-"//TRIM(&
-            &                          ADJUSTL(cp_to_string(idir))),&
-            &                          target_symmetry="antisymmetric",&
-            &                          error=error)
-       CALL set_matrix(current_env%op_p_ao(idir)%matrix,0.0_dp)
-    ENDDO
-
-    CALL allocate_matrix_set(current_env%op_rmd_ao,3,error=error)
-    CALL set_up_op_sm(current_env%op_rmd_ao(1)%matrix,qs_env,symmetry="none",&
-         &            name="OP_RMD",error=error)
-    CALL set_matrix(current_env%op_rmd_ao(1)%matrix,0.0_dp)
-    DO idir = 2,3
-       CALL replicate_matrix_structure(current_env%op_rmd_ao(1)%matrix, &
-            &                          current_env%op_rmd_ao(idir)%matrix,&
-            &                          "current_env%op_rmd_ao"//&
-            &                          "-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-            &                          target_symmetry="none",error=error)
-       CALL set_matrix(current_env%op_rmd_ao(idir)%matrix,0.0_dp)
-    ENDDO
-    !
-    !
     ! If the current density on the grid needs to be stored
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
     ALLOCATE(current_env%jrho1_set(3),STAT=istat)
@@ -1415,14 +1407,6 @@ CONTAINS
           IF(ASSOCIATED(current_env%list_cubes)) THEN
              DEALLOCATE(current_env%list_cubes,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          !op_p_ao
-          IF(ASSOCIATED(current_env%op_p_ao)) THEN
-             CALL deallocate_matrix_set(current_env%op_p_ao,error=error)
-          END IF
-          !op_rmd_ao
-          IF(ASSOCIATED(current_env%op_rmd_ao)) THEN
-             CALL deallocate_matrix_set(current_env%op_rmd_ao,error=error)
           END IF
           ! Current density on the grid
           IF(ASSOCIATED(current_env%jrho1_set)) THEN

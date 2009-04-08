@@ -74,10 +74,6 @@ MODULE qs_linres_types
 !>                    already calculated: used for restart
 !> \param centers_set centers of the maximally localized psi0
 !> \param spreads_set spreads of the maximally localized psi0 
-!> \param op_p_ao sparse matrixes for the px, py and pz operator 
-!>                    in the contracted basis set representation 
-!> \param op_rmd_ao sparse matrixes used to construct the (r-d)xp operator
-!>                    in the contracted basis set representation
 !> \param p_psi 0      : full matrixes, operator p applied to psi0
 !> \param rxp_psi 0    : full matrixes, operator (r-d)xp applied to psi0
 !> \param psi 1_p      : response wavefunctions to the perturbation given by 
@@ -115,7 +111,6 @@ MODULE qs_linres_types
      TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0
      TYPE(jrho_atom_type),    DIMENSION(:  ), POINTER :: jrho1_atom_set
      TYPE(qs_rho_p_type),     DIMENSION(:  ), POINTER :: jrho1_set
-     TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: op_p_ao,op_rmd_ao
      TYPE(realspace_grid_p_type),DIMENSION(:),POINTER :: rs_buf
      TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge
      !
@@ -329,8 +324,6 @@ CONTAINS
        NULLIFY(current_env%rxp_psi0)
        NULLIFY(current_env%jrho1_atom_set)
        NULLIFY(current_env%jrho1_set)
-       NULLIFY(current_env%op_p_ao)
-       NULLIFY(current_env%op_rmd_ao)
        NULLIFY(current_env%rs_gauge)
        NULLIFY(current_env%rs_buf)
        NULLIFY(current_env%selected_states_on_atom_list)
@@ -428,7 +421,7 @@ CONTAINS
   SUBROUTINE get_current_env(current_env,simple_done,simple_converged,full_done,ref_count,nao,&
        &                     nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
        &                     nbr_center,center_list,centers_set,psi1_p,psi1_rxp,psi1_D,p_psi0,&
-       &                     rxp_psi0,jrho1_atom_set,jrho1_set,op_p_ao,op_rmd_ao,chi_tensor,&
+       &                     rxp_psi0,jrho1_atom_set,jrho1_set,chi_tensor,&
        &                     chi_tensor_loc,gauge_atom_radius,rs_gauge,use_old_gauge_atom,&
        &                     chi_pbc,psi0_order,error)
     
@@ -457,8 +450,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: jrho1_atom_set
     TYPE(qs_rho_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jrho1_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
     REAL(dp), INTENT(OUT), OPTIONAL          :: chi_tensor(3,3,2), &
                                                 chi_tensor_loc(3,3,2), &
                                                 gauge_atom_radius
@@ -505,8 +496,6 @@ CONTAINS
        IF(PRESENT(rxp_psi0        )) rxp_psi0              => current_env%rxp_psi0
        IF(PRESENT(jrho1_atom_set  )) jrho1_atom_set        => current_env%jrho1_atom_set
        IF(PRESENT(jrho1_set       )) jrho1_set             => current_env%jrho1_set
-       IF(PRESENT(op_rmd_ao       )) op_rmd_ao             => current_env%op_rmd_ao
-       IF(PRESENT(op_p_ao         )) op_p_ao               => current_env%op_p_ao
        IF(PRESENT(rs_gauge        )) rs_gauge              => current_env%rs_gauge
        IF(PRESENT(psi0_order      )) psi0_order            => current_env%psi0_order
        IF(PRESENT(chi_pbc         )) chi_pbc               =  current_env%chi_pbc
