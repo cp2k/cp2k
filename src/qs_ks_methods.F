@@ -764,7 +764,8 @@ CONTAINS
 
        ! ***  Single atom contributions ***
        IF (.NOT. just_energy) THEN
-          IF (calculate_forces .AND. .NOT. gapw) THEN
+!          IF (calculate_forces .AND. .NOT. gapw) THEN
+          IF (calculate_forces ) THEN
              IF (do_ep) THEN
                 CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_r%pw,&
                      use_data=REALDATA3D,in_space=REALSPACE,error=error)

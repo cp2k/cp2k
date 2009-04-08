@@ -134,7 +134,7 @@ CONTAINS
                                                 ierr, ikind, j, &
                                                 natom_of_kind, npme, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: use_virial
+    LOGICAL                                  :: paw_atom, skip_fcore, use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
@@ -157,103 +157,115 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(pw_env,auxbas_rs_desc,hab,pab,cores)
-    ALLOCATE(hab(1,1),pab(1,1),STAT=ierr)
-    IF(ierr/=0) CALL stop_memory("integrate_v_core_rspace","hab,pab",1)
-
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
-    CALL rs_grid_create(rs_v, auxbas_rs_desc, error=error)
-
-    CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
-
-    CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
-         cell=cell,&
-         dft_control=dft_control,&
-         particle_set=particle_set,&
-         para_env=para_env,pw_env=pw_env,&
-         force=force,virial=virial,error=error)
-
-    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-
-    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
-    DO ikind=1,SIZE(atomic_kind_set)
-
-       atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            natom=natom_of_kind,&
-            atom_list=atom_list,&
-            alpha_core_charge=alpha_core_charge,&
-            ccore_charge=ccore_charge)
-
-       pab(1,1) = -ccore_charge
+    !If gapw, check for gpw kinds
+    skip_fcore = .FALSE.
+    IF(qs_env%dft_control%qs_control%gapw) THEN
+      IF(.NOT. qs_env%dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
+    END IF
       
-       IF (alpha_core_charge == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
-
-       CALL reallocate ( cores, 1, natom_of_kind )
-       npme = 0
-       cores = 0
-
-       DO iatom = 1, natom_of_kind
-          atom_a = atom_list(iatom)
-          ra(:) = pbc(particle_set(atom_a)%r,cell)
-          DO dir =1,3
-             tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%desc%npts(dir))
-             tp(dir) = MODULO ( tp(dir), rs_v%desc%npts(dir) )
-             tp(dir) = tp(dir) + rs_v%desc%lb(dir)
-          END DO
-          IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
-              ! replicated realspace grid, split the atoms up between procs
-              IF (MODULO(natom_of_kind,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
-                 npme = npme + 1
-                 cores (npme) = iatom
-              ENDIF
-           ELSE
-              npme = npme + 1
-              cores (npme) = iatom
-           ENDIF
-       END DO
-       
-      DO j=1,npme
-
-        iatom = cores(j)
-        atom_a = atom_list(iatom)
-        ra(:) = pbc(particle_set(atom_a)%r,cell)
-        hab(1,1) = 0.0_dp
-        force_a(:) = 0.0_dp
-        force_b(:) = 0.0_dp
-        IF (use_virial) THEN
-          my_virial_a = 0.0_dp
-          my_virial_b = 0.0_dp
-        END IF
-
-        CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
-             0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
-             rs_v,cell,pw_env%cube_info(1),hab,pab=pab,o1=0,o2=0,&
-             eps_gvg_rspace=eps_rho_rspace,&
-             calculate_forces=.TRUE.,force_a=force_a,&
-             force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-             my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
-
-        force(ikind)%rho_core(:,iatom) =&
-          force(ikind)%rho_core(:,iatom) + force_a(:)
-
-        IF (use_virial) THEN
-          virial%pv_virial = virial%pv_virial + my_virial_a
-        END IF
-     END DO
-
-    END DO
-
-    CALL rs_grid_release(rs_v, error=error)
-
-    DEALLOCATE(hab,pab,cores,STAT=ierr)
-    IF(ierr /= 0) CALL stop_memory("integrate_v_core_rspace",&
-                  "hab,pab,cores")
-
+    IF(.NOT. skip_fcore) THEN 
+        NULLIFY(pw_env,auxbas_rs_desc,hab,pab,cores)
+        ALLOCATE(hab(1,1),pab(1,1),STAT=ierr)
+        IF(ierr/=0) CALL stop_memory("integrate_v_core_rspace","hab,pab",1)
+     
+        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+        CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
+        CALL rs_grid_create(rs_v, auxbas_rs_desc, error=error)
+     
+        CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
+     
+        CALL get_qs_env(qs_env=qs_env,&
+             atomic_kind_set=atomic_kind_set,&
+             cell=cell,&
+             dft_control=dft_control,&
+             particle_set=particle_set,&
+             para_env=para_env,pw_env=pw_env,&
+             force=force,virial=virial,error=error)
+     
+        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+     
+        eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+     
+        DO ikind=1,SIZE(atomic_kind_set)
+     
+           atomic_kind => atomic_kind_set(ikind)
+     
+           CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                natom=natom_of_kind,&
+                 paw_atom=paw_atom, &
+                atom_list=atom_list,&
+                alpha_core_charge=alpha_core_charge,&
+                ccore_charge=ccore_charge)
+     
+           IF(paw_atom) THEN 
+                force(ikind)%rho_core(:,:) =  0.0_dp
+                CYCLE
+           END IF
+           pab(1,1) = -ccore_charge
+          
+           IF (alpha_core_charge == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
+     
+           CALL reallocate ( cores, 1, natom_of_kind )
+           npme = 0
+           cores = 0
+     
+           DO iatom = 1, natom_of_kind
+              atom_a = atom_list(iatom)
+              ra(:) = pbc(particle_set(atom_a)%r,cell)
+              DO dir =1,3
+                 tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%desc%npts(dir))
+                 tp(dir) = MODULO ( tp(dir), rs_v%desc%npts(dir) )
+                 tp(dir) = tp(dir) + rs_v%desc%lb(dir)
+              END DO
+              IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
+                  ! replicated realspace grid, split the atoms up between procs
+                  IF (MODULO(natom_of_kind,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
+                     npme = npme + 1
+                     cores (npme) = iatom
+                  ENDIF
+               ELSE
+                  npme = npme + 1
+                  cores (npme) = iatom
+               ENDIF
+           END DO
+           
+          DO j=1,npme
+     
+            iatom = cores(j)
+            atom_a = atom_list(iatom)
+            ra(:) = pbc(particle_set(atom_a)%r,cell)
+            hab(1,1) = 0.0_dp
+            force_a(:) = 0.0_dp
+            force_b(:) = 0.0_dp
+            IF (use_virial) THEN
+              my_virial_a = 0.0_dp
+              my_virial_b = 0.0_dp
+            END IF
+     
+            CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
+                 0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
+                 rs_v,cell,pw_env%cube_info(1),hab,pab=pab,o1=0,o2=0,&
+                 eps_gvg_rspace=eps_rho_rspace,&
+                 calculate_forces=.TRUE.,force_a=force_a,&
+                 force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
+                 my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+     
+            force(ikind)%rho_core(:,iatom) =&
+              force(ikind)%rho_core(:,iatom) + force_a(:)
+     
+            IF (use_virial) THEN
+              virial%pv_virial = virial%pv_virial + my_virial_a
+            END IF
+         END DO
+     
+        END DO
+     
+        CALL rs_grid_release(rs_v, error=error)
+     
+        DEALLOCATE(hab,pab,cores,STAT=ierr)
+        IF(ierr /= 0) CALL stop_memory("integrate_v_core_rspace",&
+                      "hab,pab,cores")
+    END IF
     CALL timestop(handle)
 
   END SUBROUTINE integrate_v_core_rspace
