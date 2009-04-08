@@ -44,3 +44,6 @@ CH3-trunc-1.inp
 CH3-trunc-auto-md.inp
 # numerics due to better hfx powell fits 
 CH3-coul-0.inp
+#gapw + gpw force_tho_core: bug fix
+H2O-trunc-auto-md.inp
+CH3-trunc-auto-md.inp
