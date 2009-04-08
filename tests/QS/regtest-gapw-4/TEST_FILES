@@ -21,3 +21,5 @@ H2O_Hnopaw_pp.inp 1
 H_hf_gapw_forcepaw.inp  1
 H_hf_gapw_nopaw.inp  1
 H_hf_gapw_nopaw_full.inp  1
+# mixed GPW/GAPW run forces
+H2O_Onopaw_gop.inp 1

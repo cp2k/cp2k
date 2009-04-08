@@ -1,0 +1,88 @@
+&GLOBAL
+  PROJECT  h2o_nopaw_gop
+  RUN_TYPE GEO_OPT
+  PRINT_LEVEL low
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ./POTENTIAL
+    &MGRID
+      NGRIDS 5
+      CUTOFF 280
+    &END MGRID
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER MT
+    &END
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      &PRINT
+        &RESTART
+           &EACH 
+             MD 1 
+             QS_SCF 0
+           &END
+           ADD_LAST NUMERIC
+        &END
+      &END
+      SCF_GUESS atomic
+      MAX_SCF 10
+      EPS_SCF 1.0E-4
+      &OT 
+        MINIMIZER DIIS
+        N_DIIS 7
+        PRECONDITIONER FULL_ALL
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+O  0.000000    0.000000    0.117226
+H  0.000000    0.757136   -0.468906
+H  0.000000   -0.757136   -0.468906
+    &END COORD
+    &KIND H
+      &BASIS
+# 6-31G* Hydrogen
+  2
+  1  0  0  3  1
+       18.7311369600   0.0334946043
+        2.8253943650   0.2347269535
+        0.6401216923   0.8137573262
+  2  0  0  1  1
+        0.1612777588   1.0000000000
+      &END BASIS
+      POTENTIAL ALL
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-BLYP-q6
+      GPW_TYPE
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+
+
+&MOTION
+
+  &GEO_OPT
+    MAX_ITER 2
+    OPTIMIZER BFGS
+  &END GEO_OPT
+
+&END MOTION
+
+
