@@ -60,7 +60,8 @@ MODULE qs_initial_guess
                                              wfn_restart_file_name
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              simple_eigensolver
-  USE qs_scf_types,                    ONLY: qs_scf_env_type, ot_diag_method_nr
+  USE qs_scf_types,                    ONLY: ot_diag_method_nr,&
+                                             qs_scf_env_type
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_environment_types,           ONLY: scp_environment_type

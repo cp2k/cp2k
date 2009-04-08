@@ -84,8 +84,8 @@ MODULE qs_scf
                                              harris_energy_correction,&
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
-       broy_mix, broy_mix_new, core_guess, debug_run, densities_guess, diag_ot, &
-       diag_standard, direct_p_mix, general_roks, high_spin_roks, &
+       broy_mix, broy_mix_new, core_guess, debug_run, densities_guess, &
+       diag_ot, diag_standard, direct_p_mix, general_roks, high_spin_roks, &
        history_guess, kerker_mix, no_mix, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
@@ -100,7 +100,7 @@ MODULE qs_scf
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE message_passing,                 ONLY: mp_min                                             
+  USE message_passing,                 ONLY: mp_min
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
                                              kcalmol
@@ -166,10 +166,10 @@ MODULE qs_scf
   USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
   USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
   USE qs_scf_types,                    ONLY: &
-       broyden_mixing_nr,  broyden_mixing_new_nr, direct_mixing_nr, general_diag_method_nr, &
-       gspace_mixing_nr, no_mixing_nr, ot_diag_method_nr, ot_method_nr, &
-       pulay_mixing_nr, qs_scf_env_type, scf_env_create, scf_env_release, &
-       special_diag_method_nr
+       broyden_mixing_new_nr, broyden_mixing_nr, direct_mixing_nr, &
+       general_diag_method_nr, gspace_mixing_nr, no_mixing_nr, &
+       ot_diag_method_nr, ot_method_nr, pulay_mixing_nr, qs_scf_env_type, &
+       scf_env_create, scf_env_release, special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
                                              wfi_update
@@ -426,8 +426,8 @@ CONTAINS
     LOGICAL :: diis_step, energy_only, exit_inner_loop, failure, gapw, &
       gapw_xc, harris_energy, harris_flag, has_unit_metric, &
       outer_loop_converged, scp_dft, scp_nddo, use_jacobi, use_virial
-    REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
-    REAL(KIND=dp)                            :: delta_rhog, delta_rhog_p
+    REAL(KIND=dp)                            :: delta_rhog, delta_rhog_p, &
+                                                outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -1111,7 +1111,7 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: diis_step
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: ispin, nmo, homo
+    INTEGER                                  :: homo, ispin, nmo
     LOGICAL                                  :: do_level_shift
     REAL(kind=dp)                            :: diis_error, eps_iter
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -2646,7 +2646,8 @@ CPSourceFileRef)
                                                 ng, nmo, nspin, output_unit
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 orthogonal_wf
-    REAL(dp)                                 :: bconst, beta, fdamp, g2min, kmin
+    REAL(dp)                                 :: bconst, beta, fdamp, g2min, &
+                                                kmin
     REAL(dp), DIMENSION(:), POINTER          :: g2
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2773,7 +2774,7 @@ CPSourceFileRef)
                       bconst = qs_env%scf_env%broy_store%bconst
                       g2min = 1.E30_dp
                       DO ig = 1,ng
-                        IF(g2(ig)>1.E-10_dp) g2min =  min(g2min,g2(ig))
+                        IF(g2(ig)>1.E-10_dp) g2min =  MIN(g2min,g2(ig))
                       END DO
                       CALL mp_min(g2min,qs_env%para_env%group)
                       fdamp = (bconst-1.0_dp)*g2min

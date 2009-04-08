@@ -134,7 +134,8 @@ CONTAINS
                                                 ierr, ikind, j, &
                                                 natom_of_kind, npme, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: paw_atom, skip_fcore, use_virial
+    LOGICAL                                  :: paw_atom, skip_fcore, &
+                                                use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra

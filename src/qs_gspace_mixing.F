@@ -38,7 +38,8 @@ MODULE qs_gspace_mixing
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: cp_sm_mix
-  USE qs_scf_types,                    ONLY: cp_1d_z_p_type, qs_scf_env_type
+  USE qs_scf_types,                    ONLY: cp_1d_z_p_type,&
+                                             qs_scf_env_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
                                              get_matrix_info,&
@@ -347,16 +348,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: cc_mix
-    INTEGER                                  :: handle, i, ib, ibb, ig, ispin, &
-                                                istat, jb, nb, nb1, nbuffer, &
-                                                ng, ng_tot, ngpts, nspin
+    INTEGER                                  :: handle, i, ib, ibb, ig, &
+                                                ispin, istat, jb, nb, nb1, &
+                                                nbuffer, ng, ng_tot, ngpts, &
+                                                nspin
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha_kerker, alpha_pulay, &
-                                                beta, f_mix, inv_err, norm, norm_c_inv, vol
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ev, alpha_c
+                                                beta, f_mix, inv_err, norm, &
+                                                norm_c_inv, vol
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: alpha_c, ev
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b, c, c_inv
     REAL(dp), DIMENSION(:), POINTER          :: g2
-
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env%res_buffer),cp_failure_level,routineP,error,failure)
@@ -459,12 +461,12 @@ CONTAINS
         CALL diamat_all(b(1:nb1,1:nb1),ev(1:nb1),error=error)
         CALL invert_matrix(c,c_inv,inv_err,error=error)
         alpha_c = 0.0_dp
-        do i = 1,nb
+        DO i = 1,nb
           DO jb=1,nb
             alpha_c(i) =  alpha_c(i) + c_inv(jb,i)
             norm_c_inv = norm_c_inv + c_inv(jb,i)
           END DO
-        end do
+        END DO
         alpha_c(1:nb) = alpha_c(1:nb)/norm_c_inv
 
         a(1:nb1,1:nb1) = b(1:nb1,1:nb1)
@@ -546,7 +548,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: c, g
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b
     REAL(dp), DIMENSION(:), POINTER          :: g2
-
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env%res_buffer),cp_failure_level,routineP,error,failure)
@@ -702,20 +703,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'broyden_mixing_new', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: res_rho, res_rho_p, delta_res_p, tmp
+    COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: delta_res_p, res_rho, &
+                                                res_rho_p, tmp
     INTEGER                                  :: handle, ib, ibb, ig, ispin, &
-                                                istat, jb, kb, kkb, nb, nbuffer, &
-                                                ng, nspin
+                                                istat, jb, kb, kkb, nb, &
+                                                nbuffer, ng, nspin
     LOGICAL                                  :: failure, skip_bq
-    REAL(dp)                                 :: alpha, beta, delta, delta_p, norm, norm_ig, &
-                                                f_mix, inv_err, imp, imp_j, &
-                                                rep, rep_j, vol, wc, wmax
+    REAL(dp)                                 :: alpha, beta, delta, delta_p, &
+                                                f_mix, imp, imp_j, inv_err, &
+                                                norm, norm_ig, rep, rep_j, &
+                                                vol, wc, wmax
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b, bq
     REAL(dp), DIMENSION(:), POINTER          :: p_metric
-    REAL(dp), DIMENSION(:,:), POINTER        :: fmat,gmat,smat,weight
-    TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: tmp_z
-    TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: delta_res, u_vec, z_vec
-
+    REAL(dp), DIMENSION(:, :), POINTER       :: fmat, gmat, smat, weight
+    TYPE(cp_1d_z_p_type), DIMENSION(:), &
+      POINTER                                :: tmp_z
+    TYPE(cp_1d_z_p_type), DIMENSION(:, :), &
+      POINTER                                :: delta_res, u_vec, z_vec
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env%rhoin_buffer),cp_failure_level,routineP,error,failure)
@@ -796,10 +800,10 @@ CONTAINS
          delta_p = delta_p +norm_ig * p_metric(ig)
       END DO
       CALL mp_sum(delta,para_env%group)
-      delta = sqrt(delta)
+      delta = SQRT(delta)
       delta = delta
       CALL mp_sum(delta_p,para_env%group)
-      delta_p = sqrt(delta_p)
+      delta_p = SQRT(delta_p)
       delta_p = delta_p
 
       delta_rhog = delta_rhog + delta
@@ -828,7 +832,7 @@ CONTAINS
           norm = norm + norm_ig*p_metric(ig) 
         END DO
         CALL mp_sum(norm, para_env%group)
-        norm = 1.0_dp/sqrt(norm)
+        norm = 1.0_dp/SQRT(norm)
         delta_res(ib-1, ispin)%cc(:) = delta_res(ib-1, ispin)%cc(:)*norm 
         delta_res_p(:) = delta_res_p(:)*norm 
 
@@ -844,7 +848,7 @@ CONTAINS
           gmat(jb,ib-1) = 0.0_dp 
           gmat(ib-1,jb) = 0.0_dp 
 
-          Do ig = 1,ng
+          DO ig = 1,ng
             rep_j = REAL(delta_res(jb, ispin)%cc(ig),dp) 
             imp_j = AIMAG(delta_res(jb, ispin)%cc(ig)) 
            ! < DR_{j} | DR_{i-1} >
@@ -899,7 +903,7 @@ CONTAINS
 
         bq = 0.0_dp
         ! Broyden second method requires also bq (NYI) 
-        skip_bq = .true.
+        skip_bq = .TRUE.
         DO jb = 1,ib-1
           skip_bq = skip_bq .AND. (weight(jb,ispin)>scf_env%broy_store%wmax) 
           DO kb = 1, ib - 2
@@ -911,7 +915,7 @@ CONTAINS
           bq(jb,jb) = 1.0_dp + bq(jb,jb)
         END DO
 
-        if(.NOT. skip_bq) THEN
+        IF(.NOT. skip_bq) THEN
            ! in this case the old z_vec is needed 
            ! a temporary array is needed to store the new one
            ALLOCATE(tmp_z(ib-1),STAT=istat)
@@ -924,7 +928,7 @@ CONTAINS
           IF(.NOT. skip_bq) THEN
             ! sum_{kb} bq(jb,kb) * z_vec_{kb,iter-2}
             ! added only for small weights
-            do kb = 1,ib-2
+            DO kb = 1,ib-2
                IF(weight(kb,ispin) >=(10._dp*scf_env%broy_store%wmax))  CYCLE
                DO ig = 1,ng
                  tmp(ig) = tmp(ig) + bq(jb,kb)*z_vec(kb,ispin)%cc(ig)
@@ -961,9 +965,9 @@ CONTAINS
         DO jb =1,ib-1
           norm = 0.0_dp
           DO ig= 1,ng
-            rep_j = real(delta_res(jb,ispin)%cc(ig),dp)
+            rep_j = REAL(delta_res(jb,ispin)%cc(ig),dp)
             imp_j = AIMAG(delta_res(jb,ispin)%cc(ig))
-            rep = real(res_rho_p(ig),dp)
+            rep = REAL(res_rho_p(ig),dp)
             imp = AIMAG(res_rho_p(ig))
             norm = norm + rep_j*rep + imp_j*imp
           END DO
