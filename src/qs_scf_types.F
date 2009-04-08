@@ -42,13 +42,13 @@ MODULE qs_scf_types
                                 ot_method_nr=10
   INTEGER, PARAMETER, PUBLIC :: no_mixing_nr=0, direct_mixing_nr=1,&
                                  gspace_mixing_nr=2, pulay_mixing_nr=3,&
-                                 broyden_mixing_nr=4
+                                 broyden_mixing_nr=4, broyden_mixing_new_nr=5
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
   PUBLIC :: qs_scf_env_type,qs_outer_scf_type
   PUBLIC :: scf_env_retain, scf_env_release, scf_env_create, scf_env_did_change
-  PUBLIC :: cp_1d_z_p_type
+  PUBLIC :: cp_1d_z_p_type, broyden_storage_type
 
 ! *****************************************************************************
 !> \brief wrapper for temporary and cached objects used in the scf iteration
@@ -75,6 +75,16 @@ END TYPE qs_outer_scf_type
      COMPLEX(dp), DIMENSION(:), POINTER :: cc
   END TYPE cp_1d_z_p_type
 
+  TYPE broyden_storage_type
+     INTEGER :: nbuffer, p_metric_method
+     REAL(dp) :: bconst, wc, wmax
+     REAL(dp), DIMENSION(:), POINTER :: p_metric
+     REAL(dp), DIMENSION(:,:), POINTER :: weight
+     REAL(dp), DIMENSION(:,:,:), POINTER :: fmat, gmat, smat
+     TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: last_res
+     TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: delta_res, u_vec, z_vec
+  END TYPE broyden_storage_type
+
 ! *****************************************************************************
 TYPE qs_scf_env_type
    TYPE(qs_outer_scf_type) :: outer_scf
@@ -87,6 +97,7 @@ TYPE qs_scf_env_type
    COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
    LOGICAL :: print_iter_line, skip_mixing
    REAL(KIND=dp), DIMENSION(:), POINTER :: kerker_factor
+   TYPE(broyden_storage_type), POINTER :: broy_store
    TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: broy_last_res
    TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: drho_buffer, rhoin_buffer, res_buffer
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
@@ -139,13 +150,13 @@ CONTAINS
        scf_env%iter_method=""
        scf_env%print_iter_line=.TRUE.
        scf_env%skip_mixing=.FALSE.
-       scf_env%nskip_mixing = 0
 
        scf_env%method= -1
        scf_env%mixing_method = -1
        scf_env%p_mix_alpha=1.0_dp
        scf_env%p_mix_beta=1.0_dp
        scf_env%pulay_alpha=0.0_dp
+       scf_env%nskip_mixing = 0
 
        scf_env%outer_scf%iter_count=0
        NULLIFY(scf_env%outer_scf%variables, &
@@ -162,6 +173,7 @@ CONTAINS
        NULLIFY(scf_env%res_buffer)
        NULLIFY(scf_env%drho_buffer)
        NULLIFY(scf_env%broy_last_res)
+       NULLIFY(scf_env%broy_store)
 
     END IF
 
@@ -360,6 +372,54 @@ SUBROUTINE scf_env_release(scf_env,error)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
            END DO
            DEALLOCATE(scf_env%broy_last_res,STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+
+        IF (ASSOCIATED(scf_env%broy_store)) THEN
+
+           DEALLOCATE(scf_env%broy_store%p_metric, STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           DEALLOCATE(scf_env%broy_store%weight, STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           DEALLOCATE(scf_env%broy_store%fmat, STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           DEALLOCATE(scf_env%broy_store%smat, STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           DEALLOCATE(scf_env%broy_store%gmat, STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           DO i = 1,SIZE(scf_env%broy_store%delta_res,2)
+             DO j = 1,SIZE(scf_env%broy_store%delta_res,1)
+               DEALLOCATE(scf_env%broy_store%delta_res(j,i)%cc, STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END DO
+           END DO
+           DEALLOCATE(scf_env%broy_store%delta_res,STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           DO i = 1,SIZE(scf_env%broy_store%last_res,1)
+             DEALLOCATE(scf_env%broy_store%last_res(i)%cc, STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END DO
+           DEALLOCATE(scf_env%broy_store%last_res,STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           DO i = 1,SIZE(scf_env%broy_store%u_vec,2)
+             DO j = 1,SIZE(scf_env%broy_store%u_vec,1)
+               DEALLOCATE(scf_env%broy_store%u_vec(j,i)%cc, STAT=stat)
+               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END DO
+           END DO
+           DEALLOCATE(scf_env%broy_store%u_vec,STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+           DO i = 1,SIZE(scf_env%broy_store%z_vec,2)
+             DO j = 1,SIZE(scf_env%broy_store%z_vec,1)
+               DEALLOCATE(scf_env%broy_store%z_vec(j,i)%cc, STAT=stat)
+               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END DO
+           END DO
+           DEALLOCATE(scf_env%broy_store%z_vec,STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+           DEALLOCATE(scf_env%broy_store,STAT=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
 

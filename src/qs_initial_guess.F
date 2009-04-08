@@ -60,7 +60,7 @@ MODULE qs_initial_guess
                                              wfn_restart_file_name
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              simple_eigensolver
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type, ot_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_environment_types,           ONLY: scp_environment_type
@@ -298,7 +298,7 @@ CPSourceFileRef,&
              CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
              CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
                   id_nr=j,multiplicity=dft_control%multiplicity,scp=scp, scp_env=scp_env,&
-                  dft_section=dft_section,error=error)
+                  dft_section=dft_section, error=error)
           
              DO ispin=1,nspin
                 IF (scf_control%level_shift /= 0.0_dp) THEN
@@ -458,13 +458,13 @@ CPSourceFileRef,&
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
-          IF (scf_control%use_ot) THEN
+          IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN
              IF (dft_control%restricted.AND.(ispin == 2)) THEN
                 CALL mo_set_restrict(mo_array,error=error)
              ELSE
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                 mo_coeff=mo_coeff,&
-                                nmo=nmo)
+                                nmo=nmo, nao=nao, homo=homo)
                 CALL cp_fm_init_random(mo_coeff,nmo,error=error)
                 CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
                 ! multiply times PS
@@ -479,7 +479,7 @@ CPSourceFileRef,&
                 IF (ortho_basis) THEN
                    CALL make_basis_simple(mo_coeff,nmo,error=error)
                 ELSE
-                   CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+                   CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
                 END IF
              END IF
 
@@ -504,7 +504,7 @@ CPSourceFileRef,&
        
        DEALLOCATE (kind_of,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
+
     ELSE IF (density_guess == mopac_guess) THEN
 
        group = qs_env%para_env%group

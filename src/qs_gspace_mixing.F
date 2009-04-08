@@ -38,7 +38,7 @@ MODULE qs_gspace_mixing
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: cp_sm_mix
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_scf_types,                    ONLY: cp_1d_z_p_type, qs_scf_env_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
                                              get_matrix_info,&
@@ -55,7 +55,8 @@ MODULE qs_gspace_mixing
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gspace_mixing'
 
-  PUBLIC :: broyden_mixing, gmix_potential_only, gspace_density_mixing, pulay_mixing, self_consistency_check
+  PUBLIC :: broyden_mixing, broyden_mixing_new, gmix_potential_only, &
+            gspace_density_mixing, pulay_mixing, self_consistency_check
 
 CONTAINS
 
@@ -224,10 +225,6 @@ CONTAINS
        DO ig=1,ng
 !          rhog%pw%cc(ig) = rhog%pw%cc(ig) *  (1.0_dp-a_mix)*g2(ig)/(g2(ig)+b_mix*b_mix)
           rhog%pw%cc(ig) = rhog%pw%cc(ig) *  g2(ig)/(g2(ig)+b_mix*b_mix)
-!dbg
- !         rhog%pw%cc(ig) = rhog%pw%cc(ig) *  (1.0_dp-a_mix)
-!          rhog%pw%cc(ig) = rhog%pw%cc(ig)
-!dbg
        ENDDO  
        CALL pw_transfer ( rhog%pw, kerker_pot_rspace%pw)
        
@@ -296,7 +293,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(dp), DIMENSION(:), POINTER       :: cc_new
-    INTEGER                                  :: ig, ispin, ng, nspin
+    INTEGER                                  :: handle, ig, ispin, ng, nspin
     LOGICAL                                  :: failure
     REAL(dp)                                 :: f_mix
     REAL(dp), DIMENSION(:), POINTER          :: g2
@@ -304,6 +301,13 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env%rhoin_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_env%kerker_factor),cp_failure_level,routineP,error,failure)
+    IF(scf_env%iter_count < scf_env%nskip_mixing) THEN
+      ! skip mixing
+      RETURN
+    END IF
+
+    CALL timeset(routineN,handle)
+
     NULLIFY(cc_new, g2)
 
     nspin = SIZE(rho%rho_g,1)
@@ -318,6 +322,8 @@ CONTAINS
          scf_env%rhoin_buffer(1,ispin)%cc(ig) = cc_new(ig)
       END DO
     END DO
+
+    CALL timestop(handle)
 
   END SUBROUTINE  gmix_potential_only
 
@@ -341,21 +347,27 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: cc_mix
-    INTEGER                                  :: handle, ib, ibb, ig, ispin, &
+    INTEGER                                  :: handle, i, ib, ibb, ig, ispin, &
                                                 istat, jb, nb, nb1, nbuffer, &
                                                 ng, ng_tot, ngpts, nspin
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha_kerker, alpha_pulay, &
-                                                beta, f_mix, norm, vol
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ev
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b
+                                                beta, f_mix, inv_err, norm, norm_c_inv, vol
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ev, alpha_c
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b, c, c_inv
     REAL(dp), DIMENSION(:), POINTER          :: g2
 
-    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env%res_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_env%rhoin_buffer),cp_failure_level,routineP,error,failure)
+
+    IF(scf_env%iter_count < scf_env%nskip_mixing) THEN
+      ! skip mixing
+      RETURN
+    END IF
+
+    CALL timeset(routineN,handle)
 
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(scf_env%res_buffer(1,1)%cc)
@@ -381,6 +393,16 @@ CONTAINS
     ALLOCATE(b(nb1,nb1), STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     b=0.0_dp
+    ALLOCATE(c(nb,nb), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    c=0.0_dp
+    ALLOCATE(c_inv(nb,nb), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    c_inv=0.0_dp
+    ALLOCATE(alpha_c(nb), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    alpha_c=0.0_dp
+    norm_c_inv = 0.0_dp
     ALLOCATE(ev(nb1), STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ev=0.0_dp
@@ -429,11 +451,21 @@ CONTAINS
       ELSE
 
         b(1:nb,1:nb) = scf_env%pulay_matrix(1:nb, 1:nb)
+        c(1:nb,1:nb) = b(1:nb,1:nb)
         b(nb1,1:nb)  = 1.0_dp
         b(1:nb,nb1)  = 1.0_dp
         b(nb1,nb1)   = 0.0_dp
 
         CALL diamat_all(b(1:nb1,1:nb1),ev(1:nb1),error=error)
+        CALL invert_matrix(c,c_inv,inv_err,error=error)
+        alpha_c = 0.0_dp
+        do i = 1,nb
+          DO jb=1,nb
+            alpha_c(i) =  alpha_c(i) + c_inv(jb,i)
+            norm_c_inv = norm_c_inv + c_inv(jb,i)
+          END DO
+        end do
+        alpha_c(1:nb) = alpha_c(1:nb)/norm_c_inv
 
         a(1:nb1,1:nb1) = b(1:nb1,1:nb1)
         DO jb = 1,nb1
@@ -444,12 +476,12 @@ CONTAINS
           END IF
         END DO
         ev(1:nb) = MATMUL(a(1:nb,1:nb1),b(nb1,1:nb1))
-
         cc_mix = CMPLX(0._dp,0._dp,KIND=dp) 
         DO jb = 1,nb
           DO ig = 1,ng
           !   cc_mix(ig) = cc_mix(ig) +  ev(jb) * scf_env%rhoin_buffer(jb,ispin)%cc(ig)
-           cc_mix(ig) = cc_mix(ig) +  ev(jb) * (scf_env%rhoin_buffer(jb,ispin)%cc(ig) +scf_env%res_buffer(jb,ispin)%cc(ig))
+!           cc_mix(ig) = cc_mix(ig) +  ev(jb) * (scf_env%rhoin_buffer(jb,ispin)%cc(ig) +scf_env%res_buffer(jb,ispin)%cc(ig))
+           cc_mix(ig) = cc_mix(ig) +  alpha_c(jb) * (scf_env%rhoin_buffer(jb,ispin)%cc(ig) +scf_env%res_buffer(jb,ispin)%cc(ig))
           END DO
         END DO
         scf_env%rhoin_buffer(ibb,ispin)%cc = CMPLX(0._dp,0._dp,KIND=dp)
@@ -515,12 +547,18 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b
     REAL(dp), DIMENSION(:), POINTER          :: g2
 
-    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env%res_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_env%rhoin_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_env%drho_buffer),cp_failure_level,routineP,error,failure)
+
+    IF(scf_env%iter_count < scf_env%nskip_mixing) THEN
+      ! skip mixing
+      RETURN
+    END IF
+
+    CALL timeset(routineN,handle)
 
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(scf_env%res_buffer(1,1)%cc)
@@ -538,8 +576,10 @@ CONTAINS
 
     ib = MODULO(scf_env%mixing_ncall,nbuffer) + 1
     scf_env%mixing_ncall = scf_env%mixing_ncall + 1
+ !   ib = MIN(scf_env%mixing_ncall,nbuffer)
     nb = MIN(scf_env%mixing_ncall,nbuffer)
     ibb = MODULO(scf_env%mixing_ncall,nbuffer) + 1
+  !  ibb = MIN(scf_env%mixing_ncall+1,nbuffer)
 
     ALLOCATE(a(ib-1,ib-1), STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -632,6 +672,14 @@ CONTAINS
           scf_env%rhoin_buffer(ibb,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
         END DO
 
+!!        IF(scf_env%mixing_ncall>=nbuffer) THEN
+!          DO jb = 1,nbuffer - 1
+!             scf_env%rhoin_buffer(jb,ispin)%cc(:) = scf_env%rhoin_buffer(jb+1,ispin)%cc(:)
+!             scf_env%drho_buffer(jb,ispin)%cc(:) = scf_env%drho_buffer(jb+1,ispin)%cc(:)
+!             scf_env%res_buffer(jb,ispin)%cc(:) = scf_env%res_buffer(jb+1,ispin)%cc(:)
+!          END DO 
+!        END IF
+
       END IF
 
     END DO
@@ -642,5 +690,326 @@ CONTAINS
     CALL timestop(handle)
 
  END SUBROUTINE broyden_mixing
+
+ SUBROUTINE broyden_mixing_new(scf_env, rho, para_env, delta_rhog, delta_rhog_p, error)
+
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(dp), INTENT(OUT)                    :: delta_rhog, delta_rhog_p
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'broyden_mixing_new', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: res_rho, res_rho_p, delta_res_p, tmp
+    INTEGER                                  :: handle, ib, ibb, ig, ispin, &
+                                                istat, jb, kb, kkb, nb, nbuffer, &
+                                                ng, nspin
+    LOGICAL                                  :: failure, skip_bq
+    REAL(dp)                                 :: alpha, beta, delta, delta_p, norm, norm_ig, &
+                                                f_mix, inv_err, imp, imp_j, &
+                                                rep, rep_j, vol, wc, wmax
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b, bq
+    REAL(dp), DIMENSION(:), POINTER          :: p_metric
+    REAL(dp), DIMENSION(:,:), POINTER        :: fmat,gmat,smat,weight
+    TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: tmp_z
+    TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: delta_res, u_vec, z_vec
+
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(scf_env%rhoin_buffer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(scf_env%broy_store),cp_failure_level,routineP,error,failure)
+
+    IF(scf_env%iter_count < scf_env%nskip_mixing) THEN
+      ! skip mixing
+      RETURN
+    END IF
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(delta_res, u_vec, z_vec)
+    nspin = SIZE(rho%rho_g,1)
+    ng = SIZE(scf_env%rhoin_buffer(1,1)%cc)
+    vol = rho%rho_g(1)%pw%pw_grid%vol
+
+    alpha=scf_env%p_mix_alpha
+    beta=scf_env%p_mix_beta
+    wc = scf_env%broy_store%wc
+    wmax = scf_env%broy_store%wmax
+    nbuffer = scf_env%nbroy
+
+    scf_env%mixing_ncall = scf_env%mixing_ncall + 1
+    ib = MIN(scf_env%mixing_ncall,nbuffer) 
+    nb = MIN(scf_env%mixing_ncall,nbuffer)
+    ibb = MIN(scf_env%mixing_ncall+1,nbuffer)
+
+    ALLOCATE(res_rho(ng), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(res_rho_p(ng), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF(ib>1) THEN
+      ALLOCATE(a(ib-1,ib-1), STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      a=0.0_dp
+      ALLOCATE(b(ib-1,ib-1), STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      b=0.0_dp
+      ALLOCATE(bq(ib-1,ib-1), STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      bq=0.0_dp
+      ALLOCATE(tmp(ng), STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(delta_res_p(ng),STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    p_metric => scf_env%broy_store%p_metric
+    weight => scf_env%broy_store%weight
+    CPPrecondition(ASSOCIATED(scf_env%broy_store%delta_res),cp_failure_level,routineP,error,failure)
+    delta_res => scf_env%broy_store%delta_res
+    CPPrecondition(ASSOCIATED(scf_env%broy_store%u_vec),cp_failure_level,routineP,error,failure)
+    u_vec => scf_env%broy_store%u_vec
+    CPPrecondition(ASSOCIATED(scf_env%broy_store%z_vec),cp_failure_level,routineP,error,failure)
+    z_vec => scf_env%broy_store%z_vec
+
+
+    delta_rhog = 0.0_dp
+    delta_rhog_p = 0.0_dp
+
+    DO ispin = 1,nspin
+ 
+      fmat => scf_env%broy_store%fmat(:,:,ispin)
+      smat => scf_env%broy_store%smat(:,:,ispin)
+      gmat => scf_env%broy_store%gmat(:,:,ispin)
+
+      delta = 0.0_dp
+      delta_p = 0.0_dp
+      ! Residual at this step R_i(G) (rho_out(G)-rho_in(G))
+      ! Residual multiplied by the metrics RP_i(G) = (rho_out(G)-rho_in(G)) * P(G)
+      ! Delta is the norm of the residual, measures how far we are from convergence
+      DO ig = 1,ng
+         res_rho(ig) = rho%rho_g(ispin)%pw%cc(ig) - scf_env%rhoin_buffer(ib,ispin)%cc(ig)
+         res_rho_p(ig) = res_rho(ig)*p_metric(ig)
+         norm_ig = REAL(res_rho(ig),dp)*REAL(res_rho(ig),dp)+AIMAG(res_rho(ig))*AIMAG(res_rho(ig))
+         delta = delta + norm_ig
+         delta_p = delta_p +norm_ig * p_metric(ig)
+      END DO
+      CALL mp_sum(delta,para_env%group)
+      delta = sqrt(delta)
+      delta = delta
+      CALL mp_sum(delta_p,para_env%group)
+      delta_p = sqrt(delta_p)
+      delta_p = delta_p
+
+      delta_rhog = delta_rhog + delta
+      delta_rhog_p = delta_rhog_p + delta_p
+
+      weight(ib,ispin) = scf_env%broy_store%wc
+      IF(wc< 0.0_dp) weight(ib,ispin) = 0.01_dp*ABS(wc)/(delta_p*delta_p)
+      IF(weight(ib,ispin)==0.0_dp) weight(ib,ispin) = 100.0_dp
+      IF(weight(ib,ispin)<1.0_dp) weight(ib,ispin) = 1.0_dp
+
+      IF(ib==1) THEN
+        ! Simple Kerker damping : linear mixing rho(G) = rho_in(G) - alpha k(G)*(rho_out(G)-rho_in(G))
+        DO ig = 1,ng
+          f_mix = alpha*scf_env%kerker_factor(ig)
+          rho%rho_g(ispin)%pw%cc(ig) = scf_env%rhoin_buffer(ib,ispin)%cc(ig) + f_mix*res_rho(ig)
+          scf_env%rhoin_buffer(ibb,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+        END DO
+      ELSE
+        norm = 0.0_dp
+        ! Difference of residuals DR_{i-1)} (G) = R_i(G) - R_{i-1}(G)
+        DO ig = 1,ng
+          delta_res(ib-1, ispin)%cc(ig) = res_rho(ig) - scf_env%broy_store%last_res(ispin)%cc(ig)
+          delta_res_p(ig) = p_metric(ig) * (res_rho(ig) - scf_env%broy_store%last_res(ispin)%cc(ig))
+          norm_ig = REAL(delta_res(ib-1, ispin)%cc(ig),dp)*REAL(delta_res(ib-1, ispin)%cc(ig),dp) + &
+                    AIMAG(delta_res(ib-1, ispin)%cc(ig)) * AIMAG(delta_res(ib-1, ispin)%cc(ig)) 
+          norm = norm + norm_ig*p_metric(ig) 
+        END DO
+        CALL mp_sum(norm, para_env%group)
+        norm = 1.0_dp/sqrt(norm)
+        delta_res(ib-1, ispin)%cc(:) = delta_res(ib-1, ispin)%cc(:)*norm 
+        delta_res_p(:) = delta_res_p(:)*norm 
+
+        ! Vector U_{i-1}(G) =  Drho_{i-1} + k(G)  * DR_{i-1}(G)
+        DO ig = 1,ng
+          tmp(ig) = (scf_env%rhoin_buffer(ib,ispin)%cc(ig) - scf_env%rhoin_buffer(ib-1,ispin)%cc(ig))*norm 
+          u_vec(ib-1,ispin)%cc(ig) = (tmp(ig) + scf_env%kerker_factor(ig) * delta_res(ib-1, ispin)%cc(ig))
+        END DO
+
+        DO jb = 1,ib-1
+          fmat(jb,ib-1) = 0.0_dp 
+          smat(jb,ib-1) = 0.0_dp 
+          gmat(jb,ib-1) = 0.0_dp 
+          gmat(ib-1,jb) = 0.0_dp 
+
+          Do ig = 1,ng
+            rep_j = REAL(delta_res(jb, ispin)%cc(ig),dp) 
+            imp_j = AIMAG(delta_res(jb, ispin)%cc(ig)) 
+           ! < DR_{j} | DR_{i-1} >
+            rep = REAL(delta_res_p(ig),dp)
+            imp = AIMAG(delta_res_p(ig))
+            fmat(jb,ib-1) = fmat(jb,ib-1) + rep_j*rep + imp_j*imp
+
+           ! < DR_{j} | K | DR_{i-1} >
+            rep = REAL(delta_res(ib-1,ispin)%cc(ig),dp)*scf_env%kerker_factor(ig)
+            imp = AIMAG(delta_res(ib-1,ispin)%cc(ig))*scf_env%kerker_factor(ig)
+            smat(jb,ib-1) = smat(jb,ib-1) + rep_j*rep + imp_j*imp
+
+           ! < DR_{j} | U_{i-1} > = < DR_{j} | J_{i-1} - K | DR_{i-i} >
+            rep = REAL(u_vec(ib-1,ispin)%cc(ig),dp)
+            imp = AIMAG(u_vec(ib-1,ispin)%cc(ig))
+            gmat(jb,ib-1) = gmat(jb,ib-1) - rep_j*rep + imp_j*imp
+
+         END DO
+
+         gmat(ib-1,jb) = 0.0_dp
+         ! < U_{j} | DR_{i-1} >
+         DO ig = 1,ng
+            rep_j = REAL(u_vec(jb,ispin)%cc(ig),dp)
+            imp_j = AIMAG(u_vec(jb,ispin)%cc(ig))
+            rep = REAL(delta_res(ib-1,ispin)%cc(ig),dp)
+            imp = AIMAG(delta_res(ib-1,ispin)%cc(ig))
+            gmat(ib-1,jb) = gmat(ib-1,jb) - rep_j*rep + imp_j*imp
+          END DO
+
+        END DO
+        CALL mp_sum(fmat(1:ib-1,ib-1),para_env%group) 
+        CALL mp_sum(smat(1:ib-1,ib-1),para_env%group) 
+        CALL mp_sum(gmat(1:ib-1,ib-1),para_env%group) 
+        CALL mp_sum(gmat(ib-1,1:ib-2),para_env%group)
+
+        fmat(ib-1,ib-1) = 1.0_dp
+
+        DO jb = 1,ib-2
+          fmat(ib-1,jb) = fmat(jb,ib-1) 
+          smat(ib-1,jb) = smat(jb,ib-1)
+        ENDDO
+
+        DO jb = 1,ib-1
+          a(jb,jb) = 1.0_dp + weight(jb,ispin)*weight(jb,ispin)*fmat(jb,jb)          
+          DO kb = 1,jb-1
+             a(jb,kb) = weight(jb,ispin)*weight(kb,ispin)*fmat(jb,kb)
+             a(kb,jb) = weight(jb,ispin)*weight(kb,ispin)*fmat(kb,jb)
+          ENDDO
+        END DO
+        CALL invert_matrix(a,b,inv_err,error=error)
+
+
+        bq = 0.0_dp
+        ! Broyden second method requires also bq (NYI) 
+        skip_bq = .true.
+        DO jb = 1,ib-1
+          skip_bq = skip_bq .AND. (weight(jb,ispin)>scf_env%broy_store%wmax) 
+          DO kb = 1, ib - 2
+            bq(jb,kb) = 0.0_dp
+            DO kkb = 1, ib-1
+              bq(jb,kb) = bq(jb,kb) - weight(jb,ispin)*weight(kkb,ispin)*b(jb,kkb)*fmat(kkb,kb)
+            END DO
+          END DO
+          bq(jb,jb) = 1.0_dp + bq(jb,jb)
+        END DO
+
+        if(.NOT. skip_bq) THEN
+           ! in this case the old z_vec is needed 
+           ! a temporary array is needed to store the new one
+           ALLOCATE(tmp_z(ib-1),STAT=istat)
+           DO jb = 1,ib-1
+             ALLOCATE(tmp_z(jb)%cc(ng),STAT=istat)
+           END DO 
+        END IF
+        DO jb = 1,ib-1
+          tmp(:) = CMPLX(0.0_dp,0.0_dp)
+          IF(.NOT. skip_bq) THEN
+            ! sum_{kb} bq(jb,kb) * z_vec_{kb,iter-2}
+            ! added only for small weights
+            do kb = 1,ib-2
+               IF(weight(kb,ispin) >=(10._dp*scf_env%broy_store%wmax))  CYCLE
+               DO ig = 1,ng
+                 tmp(ig) = tmp(ig) + bq(jb,kb)*z_vec(kb,ispin)%cc(ig)
+               END DO
+            END DO  ! kb
+          END IF
+
+           ! sum_{kb} w(jb)*w(kb)*b(jb,kb) * u_vec_{kb}
+          DO kb = 1,ib-1
+             DO ig = 1,ng
+                tmp(ig) = tmp(ig) + weight(kb,ispin)*weight(jb,ispin)*b(jb,kb)*u_vec(kb,ispin)%cc(ig) 
+             END DO
+          END DO
+
+          ! store the new z_vec(jb)
+          IF(skip_bq .OR. (weight(jb,ispin) >=(10._dp*scf_env%broy_store%wmax))) THEN
+             z_vec(jb,ispin)%cc(:) = tmp(:)
+          ELSE
+             ! temporary array: old z_vec may still be needed
+             tmp_z(jb)%cc(:) = tmp(:) 
+          END IF
+        END DO !jb
+
+        IF(.NOT. skip_bq ) THEN
+          DO jb = 1,ib-1
+             IF (weight(jb,ispin) < (10._dp*scf_env%broy_store%wmax))  z_vec(jb,ispin)%cc(:) = tmp_z(jb)%cc(:)
+             DEALLOCATE(tmp_z(jb)%cc,STAT=istat)
+          END DO
+          DEALLOCATE(tmp_z,STAT=istat)
+        END IF
+
+        ! Overwrite the density i reciprocal space
+        rho%rho_g(ispin)%pw%cc(:) = CMPLX(0.0_dp,0.0_dp)
+        DO jb =1,ib-1
+          norm = 0.0_dp
+          DO ig= 1,ng
+            rep_j = real(delta_res(jb,ispin)%cc(ig),dp)
+            imp_j = AIMAG(delta_res(jb,ispin)%cc(ig))
+            rep = real(res_rho_p(ig),dp)
+            imp = AIMAG(res_rho_p(ig))
+            norm = norm + rep_j*rep + imp_j*imp
+          END DO
+          CALL mp_sum(norm,para_env%group)
+          ! Subtract |Z_jb)><DR_jb|P|R_{iter}> 
+          DO ig = 1,ng
+            rho%rho_g(ispin)%pw%cc(ig) = rho%rho_g(ispin)%pw%cc(ig) - norm * z_vec(jb,ispin)%cc(ig) 
+          END DO
+        END DO
+
+        DO ig = 1,ng
+          f_mix = alpha*scf_env%kerker_factor(ig)
+          rho%rho_g(ispin)%pw%cc(ig) =rho%rho_g(ispin)%pw%cc(ig) + scf_env%rhoin_buffer(ib,ispin)%cc(ig) + f_mix*res_rho(ig)
+          scf_env%rhoin_buffer(ibb,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+        END DO
+      END IF  ! ib
+
+      scf_env%broy_store%last_res(ispin)%cc(:) = res_rho(:)
+      IF(scf_env%mixing_ncall>=nbuffer) THEN
+          DO jb = 1,nbuffer - 2
+             scf_env%rhoin_buffer(jb,ispin)%cc(:) = scf_env%rhoin_buffer(jb+1,ispin)%cc(:)
+             scf_env%broy_store%delta_res(jb,ispin)%cc(:) = scf_env%broy_store%delta_res(jb+1,ispin)%cc(:)
+             scf_env%broy_store%u_vec(jb,ispin)%cc(:) = scf_env%broy_store%u_vec(jb+1,ispin)%cc(:)
+             scf_env%broy_store%z_vec(jb,ispin)%cc(:) = scf_env%broy_store%z_vec(jb+1,ispin)%cc(:)
+             DO kb = 1, nbuffer - 2
+                scf_env%broy_store%fmat(kb,jb,ispin) = scf_env%broy_store%fmat(kb+1,jb+1,ispin) 
+                scf_env%broy_store%smat(kb,jb,ispin) = scf_env%broy_store%smat(kb+1,jb+1,ispin) 
+                scf_env%broy_store%gmat(kb,jb,ispin) = scf_env%broy_store%gmat(kb+1,jb+1,ispin) 
+             END DO
+          END DO 
+          scf_env%rhoin_buffer(nbuffer-1,ispin)%cc(:) = scf_env%rhoin_buffer(nbuffer,ispin)%cc(:)
+          scf_env%broy_store%weight(nbuffer-1,ispin) =  scf_env%broy_store%weight(nbuffer,ispin)
+       END IF
+
+    END DO  ! ispin
+    IF(ib>1) THEN
+      DEALLOCATE(a,b,bq, STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(delta_res_p,tmp, STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    DEALLOCATE(res_rho,res_rho_p, STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+ END SUBROUTINE broyden_mixing_new
 
 END MODULE qs_gspace_mixing

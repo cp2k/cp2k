@@ -84,7 +84,7 @@ MODULE qs_scf
                                              harris_energy_correction,&
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
-       broy_mix, core_guess, debug_run, densities_guess, diag_ot, &
+       broy_mix, broy_mix_new, core_guess, debug_run, densities_guess, diag_ot, &
        diag_standard, direct_p_mix, general_roks, high_spin_roks, &
        history_guess, kerker_mix, no_mix, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
@@ -100,6 +100,7 @@ MODULE qs_scf
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE message_passing,                 ONLY: mp_min                                             
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
                                              kcalmol
@@ -119,6 +120,7 @@ MODULE qs_scf
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_gspace_mixing,                ONLY: broyden_mixing,&
+                                             broyden_mixing_new,&
                                              gmix_potential_only,&
                                              pulay_mixing,&
                                              self_consistency_check
@@ -164,7 +166,7 @@ MODULE qs_scf
   USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
   USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
   USE qs_scf_types,                    ONLY: &
-       broyden_mixing_nr, direct_mixing_nr, general_diag_method_nr, &
+       broyden_mixing_nr,  broyden_mixing_new_nr, direct_mixing_nr, general_diag_method_nr, &
        gspace_mixing_nr, no_mixing_nr, ot_diag_method_nr, ot_method_nr, &
        pulay_mixing_nr, qs_scf_env_type, scf_env_create, scf_env_release, &
        special_diag_method_nr
@@ -223,7 +225,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: max_scf_tmp, output_unit
+    INTEGER                                  :: max_scf_tmp, output_unit, stat
     LOGICAL                                  :: converged, failure, ionode, &
                                                 outer_scf_loop, should_stop
     LOGICAL, SAVE                            :: first_step_flag = .TRUE.
@@ -286,43 +288,40 @@ CONTAINS
                   routineP,"OT or DIAGONALIZATION have to be set",error,failure)
           END IF
 
-
           SELECT CASE(scf_control%mixing_method)
           CASE(no_mix)
              scf_env%mixing_method=no_mixing_nr
              scf_env%p_mix_alpha = 1.0_dp
           CASE(direct_p_mix) 
              scf_env%mixing_method=direct_mixing_nr
-
              CALL section_vals_val_get(scf_section,"MIXING%ALPHA",r_val=scf_env%p_mix_alpha,error=error)
           CASE(kerker_mix)
              scf_env%mixing_method=gspace_mixing_nr
              CALL section_vals_val_get(scf_section,"MIXING%ALPHA",r_val=scf_env%p_mix_alpha,error=error)
              CALL section_vals_val_get(scf_section,"MIXING%BETA",r_val=scf_env%p_mix_beta,error=error)
-             IF(scf_env%p_mix_beta==0.0_dp) THEN
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"Kerker mixing: choose BETA /= 0.0",error,failure)
-             END IF
           CASE(pulay_mix)
              scf_env%mixing_method=pulay_mixing_nr
              CALL section_vals_val_get(scf_section,"MIXING%ALPHA",r_val=scf_env%p_mix_alpha,error=error)
              CALL section_vals_val_get(scf_section,"MIXING%BETA",r_val=scf_env%p_mix_beta,error=error)
              CALL section_vals_val_get(scf_section,"MIXING%NPULAY",i_val=scf_env%npulay,error=error)
              CALL section_vals_val_get(scf_section,"MIXING%PULAY_ALPHA",r_val=scf_env%pulay_alpha,error=error)
-             IF(scf_env%p_mix_beta==0.0_dp) THEN
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"Pulay mixing: choose BETA /= 0.0",error,failure)
-             END IF
           CASE(broy_mix)
              scf_env%mixing_method=broyden_mixing_nr
              CALL section_vals_val_get(scf_section,"MIXING%ALPHA",r_val=scf_env%p_mix_alpha,error=error)
              CALL section_vals_val_get(scf_section,"MIXING%BETA",r_val=scf_env%p_mix_beta,error=error)
              CALL section_vals_val_get(scf_section,"MIXING%NBROYDEN",i_val=scf_env%nbroy,error=error)
              CALL section_vals_val_get(scf_section,"MIXING%BROY_W0",r_val=scf_env%broy_w0,error=error)
-             IF(scf_env%p_mix_beta==0.0_dp) THEN
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"Broyden mixing: choose BETA /= 0.0",error,failure)
-             END IF
+          CASE(broy_mix_new)
+             scf_env%mixing_method=broyden_mixing_new_nr
+             CALL section_vals_val_get(scf_section,"MIXING%ALPHA",r_val=scf_env%p_mix_alpha,error=error)
+             CALL section_vals_val_get(scf_section,"MIXING%BETA",r_val=scf_env%p_mix_beta,error=error)
+             CALL section_vals_val_get(scf_section,"MIXING%NBROYDEN",i_val=scf_env%nbroy,error=error)
+             ALLOCATE (scf_env%broy_store,STAT=stat)
+             scf_env%broy_store%nbuffer = scf_env%nbroy
+             CALL section_vals_val_get(scf_section,"MIXING%BROY_WREF",r_val=scf_env%broy_store%wc,error=error)
+             CALL section_vals_val_get(scf_section,"MIXING%BROY_WMAX",r_val=scf_env%broy_store%wmax,error=error)
+             scf_env%broy_store%bconst = 20.0_dp
+             scf_env%broy_store%p_metric_method=1
           CASE DEFAULT        
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"Unknown mixing method",error,failure)
@@ -338,6 +337,13 @@ CONTAINS
              IF(output_unit>0)  WRITE(output_unit,*) "WARNING running with g-space mixing and eps_diis>eps_scf",&
                    "For Delta_P below eps_diis, the diis algorithm is started and g-space mixing is no longer  performed"
             END IF
+            IF(scf_env%p_mix_beta==0.0_dp) THEN
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                     routineP,"Mixing employing the Kerker damping factor: choose BETA /= 0.0",error,failure)
+            END IF
+          END IF
+          IF(scf_env%mixing_method>0) THEN
+            CALL section_vals_val_get(scf_section,"MIXING%NSKIP",i_val=scf_env%nskip_mixing,error=error)
           END IF
 
        END IF
@@ -421,6 +427,7 @@ CONTAINS
       gapw_xc, harris_energy, harris_flag, has_unit_metric, &
       outer_loop_converged, scp_dft, scp_nddo, use_jacobi, use_virial
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
+    REAL(KIND=dp)                            :: delta_rhog, delta_rhog_p
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -692,12 +699,8 @@ CONTAINS
              CALL scf_env_density_mixing(scf_env%p_mix_new,&
                   scf_env, scf_env%iter_delta, qs_env=qs_env, &
                   diis=diis_step, error=error)
-          CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr)
+          CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,broyden_mixing_new_nr)
 !             !matrix formulation of gspace mixing using the Kerker damping
-!             CALL gspace_density_mixing(qs_env,scf_env,scf_env%p_mix_new,&
-!                 delta= scf_env%iter_delta,&
-!                 eps_scf=scf_control%eps_scf,diis=diis_step, error=error)
-!          CASE(pulay_mixing_nr,broyden_mixing_nr)
              ! Compute the difference p_out-p_in
              CALL self_consistency_check(qs_env,scf_env,scf_env%p_mix_new,&
                   delta= scf_env%iter_delta, error=error)
@@ -778,6 +781,7 @@ CONTAINS
                 CASE(pulay_mixing_nr)
                    !
                 CASE(broyden_mixing_nr)
+                CASE(broyden_mixing_new_nr)
                 END SELECT
              ENDIF
 
@@ -843,6 +847,11 @@ CONTAINS
             CALL pulay_mixing(scf_env, rho, qs_env%para_env, error)
           ELSEIF(scf_env%mixing_method==broyden_mixing_nr .AND. .NOT. diis_step) THEN
             CALL broyden_mixing(scf_env, rho, qs_env%para_env, error)
+          ELSEIF(scf_env%mixing_method==broyden_mixing_new_nr .AND. .NOT. diis_step) THEN
+            CALL broyden_mixing_new(scf_env, rho, qs_env%para_env, delta_rhog, delta_rhog_p, error)
+ !dbg
+ !    write(*,*)  'delta rhog ', delta_rhog, delta_rhog_p
+ !dbg
           END IF
           CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
           ! *** SCP
@@ -939,6 +948,12 @@ CONTAINS
                       ((scf_control%density_guess == core_guess).OR.&
                        (scf_env%iter_count > 1)))
 
+    IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
+      use_jacobi = .TRUE.
+    ELSE
+      use_jacobi = .FALSE.
+    END IF
+
     IF (diis_step) THEN
       scf_env%iter_param = diis_error
       IF (use_jacobi) THEN
@@ -979,12 +994,6 @@ CONTAINS
       END SELECT
     END IF
 
-    IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
-      use_jacobi = .TRUE.
-    ELSE
-      use_jacobi = .FALSE.
-    END IF
-
     scf_env%iter_delta = 0.0_dp
 
     DO ispin=1,SIZE(matrix_ks)
@@ -1004,7 +1013,6 @@ CONTAINS
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
                                     scf_env%p_mix_new(ispin)%matrix,&
                                     error=error)
-
     END DO ! ispin
 
   END SUBROUTINE qs_scf_loop_do_general_diag
@@ -1103,7 +1111,7 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: diis_step
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: ispin, nmo
+    INTEGER                                  :: ispin, nmo, homo
     LOGICAL                                  :: do_level_shift
     REAL(kind=dp)                            :: diis_error, eps_iter
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1152,7 +1160,7 @@ CONTAINS
     scf_env%iter_delta = 0.0_dp
 
     DO ispin=1,SIZE(matrix_ks)
-       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo)
+       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo,homo=homo)
        CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix,&
                            matrix_s=matrix_s(1)%matrix,&
                            matrix_c=mo_coeff,&
@@ -2216,8 +2224,8 @@ CPSourceFileRef)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_check_i_alloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, ispin, nao, &
-                                                nhistory, nrow_block, &
+    INTEGER                                  :: handle, homo, i, ispin, nao, &
+                                                nbroy, nhistory, nrow_block, &
                                                 nvariables, stat
     LOGICAL                                  :: failure, &
                                                 gth_potential_present, &
@@ -2504,30 +2512,86 @@ CPSourceFileRef)
        END IF
 !   *** allocate kerker buffer ***
        IF (scf_env%mixing_method==gspace_mixing_nr) THEN
-         ALLOCATE(scf_env%rhoin_buffer(1,dft_control%nspins), STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF(.NOT. ASSOCIATED(scf_env%rhoin_buffer)) THEN
+           ALLOCATE(scf_env%rhoin_buffer(1,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         END IF
        END IF
 !   *** allocate pulay buffer ***
        IF (scf_env%mixing_method==pulay_mixing_nr) THEN
          scf_env%mixing_ncall = 0
-         ALLOCATE(scf_env%pulay_matrix(scf_env%npulay,scf_env%npulay),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(scf_env%rhoin_buffer(scf_env%npulay,dft_control%nspins), STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(scf_env%res_buffer(scf_env%npulay,dft_control%nspins), STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF(.NOT. ASSOCIATED(scf_env%pulay_matrix)) THEN
+           ALLOCATE(scf_env%pulay_matrix(scf_env%npulay,scf_env%npulay),STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%rhoin_buffer(scf_env%npulay,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%res_buffer(scf_env%npulay,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DO ispin = 1,dft_control%nspins
+           DO i = 1,scf_env%npulay
+              NULLIFY(scf_env%rhoin_buffer(i,ispin)%cc)
+              NULLIFY(scf_env%res_buffer(i,ispin)%cc)
+           END DO
+           END DO
+         END IF
        END IF
 !   *** allocate broyden buffer ***
        IF (scf_env%mixing_method==broyden_mixing_nr) THEN
          scf_env%mixing_ncall = 0
-         ALLOCATE(scf_env%rhoin_buffer(scf_env%nbroy,dft_control%nspins), STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(scf_env%res_buffer(scf_env%nbroy,dft_control%nspins), STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(scf_env%drho_buffer(scf_env%nbroy,dft_control%nspins), STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(scf_env%broy_last_res(dft_control%nspins), STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF(.NOT. ASSOCIATED(scf_env%rhoin_buffer)) THEN
+           ALLOCATE(scf_env%rhoin_buffer(scf_env%nbroy,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%res_buffer(scf_env%nbroy,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%drho_buffer(scf_env%nbroy,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%broy_last_res(dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DO ispin = 1,dft_control%nspins
+           DO i = 1,scf_env%nbroy
+              NULLIFY(scf_env%rhoin_buffer(i,ispin)%cc)
+              NULLIFY(scf_env%res_buffer(i,ispin)%cc)
+              NULLIFY(scf_env%drho_buffer(i,ispin)%cc)
+           END DO
+              NULLIFY(scf_env%broy_last_res(ispin)%cc)
+           END DO
+         END IF
+       END IF
+!   *** allocate broyden buffer ***
+       IF (scf_env%mixing_method==broyden_mixing_new_nr) THEN
+         scf_env%mixing_ncall = 0
+         nbroy = scf_env%nbroy 
+         IF(.NOT. ASSOCIATED(scf_env%rhoin_buffer)) THEN
+           ALLOCATE(scf_env%rhoin_buffer(nbroy,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%broy_store%last_res(dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%broy_store%delta_res(nbroy-1,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%broy_store%u_vec(nbroy-1,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%broy_store%z_vec(nbroy-1,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%broy_store%weight(nbroy,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%broy_store%fmat(nbroy-1,nbroy-1,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%broy_store%smat(nbroy-1,nbroy-1,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(scf_env%broy_store%gmat(nbroy-1,nbroy-1,dft_control%nspins), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DO ispin = 1,dft_control%nspins
+           DO i = 1,nbroy
+              NULLIFY(scf_env%rhoin_buffer(i,ispin)%cc)
+           END DO
+           DO i = 1,nbroy-1
+              NULLIFY(scf_env%broy_store%delta_res(i,ispin)%cc)
+              NULLIFY(scf_env%broy_store%u_vec(i,ispin)%cc)
+              NULLIFY(scf_env%broy_store%z_vec(i,ispin)%cc)
+           END DO
+           NULLIFY(scf_env%broy_store%last_res(ispin)%cc)
+           END DO
+         END IF
        END IF
     END IF
 
@@ -2582,7 +2646,7 @@ CPSourceFileRef)
                                                 ng, nmo, nspin, output_unit
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 orthogonal_wf
-    REAL(dp)                                 :: beta
+    REAL(dp)                                 :: bconst, beta, fdamp, g2min, kmin
     REAL(dp), DIMENSION(:), POINTER          :: g2
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2632,34 +2696,46 @@ CPSourceFileRef)
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,error=error)
           IF (.NOT.(qs_env%scf_control%density_guess==densities_guess)) THEN
             CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+            CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
+                 error=error)
+          END IF
+       END IF
             IF(qs_env%scf_env%mixing_method>1) THEN
                nspin = SIZE(qs_env%rho%rho_g) 
                ng = SIZE(qs_env%rho%rho_g(1)%pw%pw_grid%gsq,1)
-               ALLOCATE(qs_env%scf_env%kerker_factor(ng),STAT=istat)
-               CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+               IF(.NOT. ASSOCIATED(qs_env%scf_env%kerker_factor)) THEN
+                 ALLOCATE(qs_env%scf_env%kerker_factor(ng),STAT=istat)
+                 CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+               END IF
                g2 =>qs_env%rho%rho_g(1)%pw%pw_grid%gsq
                beta = qs_env%scf_env%p_mix_beta
+               kmin = 0.1_dp
                DO ig =1,ng
-                 qs_env%scf_env%kerker_factor(ig) = g2(ig)/(g2(ig)+beta*beta) 
+                 qs_env%scf_env%kerker_factor(ig) = MAX(g2(ig)/(g2(ig)+beta*beta),kmin)
                END DO
                IF (qs_env%scf_env%mixing_method==gspace_mixing_nr) THEN
                   DO ispin = 1,nspin
+                  IF(.NOT. ASSOCIATED(qs_env%scf_env%rhoin_buffer(1,1)%cc)) THEN
                      ALLOCATE(qs_env%scf_env%rhoin_buffer(1,ispin)%cc(ng),STAT=istat)
                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                     qs_env%scf_env%rhoin_buffer(1,ispin)%cc(1:ng) = qs_env%rho%rho_g(ispin)%pw%cc(1:ng)
+                  END IF
+                  qs_env%scf_env%rhoin_buffer(1,ispin)%cc(1:ng) = qs_env%rho%rho_g(ispin)%pw%cc(1:ng)
                   END DO
                ELSEIF(qs_env%scf_env%mixing_method==pulay_mixing_nr) THEN
                    DO ispin = 1,nspin
-                      DO ib = 1,qs_env%scf_env%npulay
-                         ALLOCATE(qs_env%scf_env%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)  
-                         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                         ALLOCATE(qs_env%scf_env%res_buffer(ib,ispin)%cc(ng),STAT=istat)  
-                         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END DO
+                      IF(.NOT. ASSOCIATED(qs_env%scf_env%rhoin_buffer(1,1)%cc)) THEN
+                        DO ib = 1,qs_env%scf_env%npulay
+                           ALLOCATE(qs_env%scf_env%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)  
+                           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                           ALLOCATE(qs_env%scf_env%res_buffer(ib,ispin)%cc(ng),STAT=istat)  
+                           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                        END DO
+                      END IF
                       qs_env%scf_env%rhoin_buffer(1,ispin)%cc(1:ng) = qs_env%rho%rho_g(ispin)%pw%cc(1:ng)
                    END DO
                ELSEIF(qs_env%scf_env%mixing_method==broyden_mixing_nr) THEN
                   DO ispin = 1,nspin
+                    IF(.NOT. ASSOCIATED(qs_env%scf_env%rhoin_buffer(1,1)%cc)) THEN
                     DO ib = 1,qs_env%scf_env%nbroy
                       ALLOCATE(qs_env%scf_env%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)  
                       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -2670,14 +2746,48 @@ CPSourceFileRef)
                     END DO
                     ALLOCATE(qs_env%scf_env%broy_last_res(ispin)%cc(ng),STAT=istat)  
                     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                    END IF
+                    qs_env%scf_env%rhoin_buffer(1,ispin)%cc(1:ng) = qs_env%rho%rho_g(ispin)%pw%cc(1:ng)
+                  END DO
+               ELSEIF(qs_env%scf_env%mixing_method==broyden_mixing_new_nr) THEN
+       CPPrecondition(ASSOCIATED(qs_env%scf_env%broy_store),cp_failure_level,routineP,error,failure)
+                  DO ispin = 1,nspin
+                  IF(.NOT. ASSOCIATED(qs_env%scf_env%rhoin_buffer(1,1)%cc)) THEN
+                    DO ib = 1,qs_env%scf_env%nbroy-1
+                      ALLOCATE(qs_env%scf_env%broy_store%delta_res(ib,ispin)%cc(ng),STAT=istat)  
+                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                      ALLOCATE(qs_env%scf_env%broy_store%u_vec(ib,ispin)%cc(ng),STAT=istat)  
+                       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                      ALLOCATE(qs_env%scf_env%broy_store%z_vec(ib,ispin)%cc(ng),STAT=istat)  
+                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                      ALLOCATE(qs_env%scf_env%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)  
+                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                    END DO
+                    ALLOCATE(qs_env%scf_env%rhoin_buffer(qs_env%scf_env%nbroy,ispin)%cc(ng),STAT=istat)  
+                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                    ALLOCATE(qs_env%scf_env%broy_store%last_res(ispin)%cc(ng),STAT=istat)  
+                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                    ALLOCATE(qs_env%scf_env%broy_store%p_metric(ng),STAT=istat)
+                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                    IF(qs_env%scf_env%broy_store%p_metric_method==1) THEN
+                      bconst = qs_env%scf_env%broy_store%bconst
+                      g2min = 1.E30_dp
+                      DO ig = 1,ng
+                        IF(g2(ig)>1.E-10_dp) g2min =  min(g2min,g2(ig))
+                      END DO
+                      CALL mp_min(g2min,qs_env%para_env%group)
+                      fdamp = (bconst-1.0_dp)*g2min
+                    ELSEIF(qs_env%scf_env%broy_store%p_metric_method==2) THEN
+                      fdamp = beta*beta
+                    END IF
+                    DO ig = 1,ng
+                      qs_env%scf_env%broy_store%p_metric(ig) = (g2(ig)+fdamp)/MAX(g2(ig),1.E-10_dp)
+                    END DO
+                    END IF
                     qs_env%scf_env%rhoin_buffer(1,ispin)%cc(1:ng) = qs_env%rho%rho_g(ispin)%pw%cc(1:ng)
                   END DO
                END IF
             END IF
-            CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
-                 error=error)
-          END IF
-       END IF
 ! *** SCP
        IF ( qs_env % dft_control % scp ) THEN
          CALL update_rhoscp ( qs_env = qs_env, error = error )
