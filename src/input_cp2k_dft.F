@@ -7095,12 +7095,13 @@ CONTAINS
                           repeats=.FALSE.,&
                           usage="METHOD KERKER_MIXING",&
                           default_i_val=direct_p_mix,&
-                          enum_c_vals=s2a("NONE","DIRECT_P_MIXING","KERKER_MIXING","PULAY_MIXING","BROYDEN_MIXING"),&
-                          enum_i_vals=(/no_mix,direct_p_mix,kerker_mix,pulay_mix,broy_mix/),&
+                          enum_c_vals=s2a("NONE","DIRECT_P_MIXING","KERKER_MIXING","PULAY_MIXING",&
+                          "BROYDEN_MIXING","BROYDEN_MIXING_NEW"),&
+                          enum_i_vals=(/no_mix,direct_p_mix,kerker_mix,pulay_mix,broy_mix,broy_mix_new/),&
                           enum_desc=s2a("No mixing is applied",&
                              "Direct mixing of new and old density matrices",&
                              "Mixing of the potential in reciprocal space using the Kerker damping",&
-                             "Pulay mixing","Broyden mixing"),&
+                             "Pulay mixing","Broyden mixing","Broyden mixing second version" ),&
                           error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -7149,7 +7150,8 @@ CONTAINS
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="NMIXING",&
-            description="Minimal number of density mixing (should be greater than 0)",&
+            description="Minimal number of density mixing (should be greater than 0),"//&
+            "before starting DIIS",&
             usage="NMIXING 1", default_i_val=2,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -7176,6 +7178,38 @@ CONTAINS
                           default_r_val=0.01_dp,&
                           usage="BROY_W0 0.03",&
                           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="BROY_WREF",&
+                          description="",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=100.0_dp,&
+                          usage="BROY_WREF 0.2",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="BROY_WMAX",&
+                          description="",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=30.0_dp,&
+                          usage="BROY_WMAX 10.",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NSKIP",&
+            description="Number of initial iteration for which the mixing is skipped",&
+            usage="NSKIP", default_i_val=0,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
