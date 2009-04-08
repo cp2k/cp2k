@@ -2515,6 +2515,9 @@ CPSourceFileRef)
          IF(.NOT. ASSOCIATED(scf_env%rhoin_buffer)) THEN
            ALLOCATE(scf_env%rhoin_buffer(1,dft_control%nspins), STAT=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DO ispin = 1,dft_control%nspins
+            NULLIFY(scf_env%rhoin_buffer(1,ispin)%cc)
+           END DO 
          END IF
        END IF
 !   *** allocate pulay buffer ***
