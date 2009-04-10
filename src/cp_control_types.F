@@ -82,7 +82,7 @@ MODULE cp_control_types
      LOGICAL               :: orthogonal_basis
      LOGICAL               :: analytical_gradients
      LOGICAL               :: force_kdsod_EX
-     LOGICAL               :: do_ewald, do_ewald_r3
+     LOGICAL               :: do_ewald, do_ewald_r3, do_ewald_gks
      LOGICAL               :: scp
      INTEGER               :: integral_screening, periodic_type
      INTEGER               :: max_multipole

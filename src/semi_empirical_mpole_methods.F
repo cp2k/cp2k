@@ -64,6 +64,19 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(6, 0:2)         :: amn
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
+    INTEGER, PARAMETER :: Nb=     4
+    INTEGER, PARAMETER :: Nm=     Nb+Nb*(Nb-1)/2
+    INTEGER, PARAMETER, DIMENSION(Nb,Nb) :: M=RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+
+    INTEGER       :: nr
+    REAL(KIND=dp) :: ZS,ZP
+    REAL(KIND=dp), DIMENSION(Nm)     :: M0
+    REAL(KIND=dp), DIMENSION(Nm,3)   :: M1
+    REAL(KIND=dp), DIMENSION(Nm,3,3) :: M2
+
+    INTEGER       :: mu,k,k1,k2
+    REAL(KIND=dp) :: zb,zt,ws,wp
+
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(mpoles),cp_failure_level,routineP,error,failure)
     ! If there are atomic orbitals proceed with the expansion in multipoles
@@ -72,6 +85,47 @@ CONTAINS
        ndim   = natorb*(natorb+1)/2
        CALL semi_empirical_mpole_p_create(mpoles, ndim, error)
        
+       M0(:)=     0.0_dp
+       M1(:,:)=   0.0_dp
+       M2(:,:,:)= 0.0_dp
+
+       do mu=1,Nb
+         M0(M(mu,mu))= 1.0_dp
+       enddo
+
+       ZS=se_parameter%sto_exponents(0)
+       ZP=se_parameter%sto_exponents(1)
+       nr=se_parameter%nr
+
+       IF (ZP > 0._dp) THEN
+         zt=sqrt(ZS*ZP)
+         zb=0.5_dp*(ZS+ZP)
+         do k=1,3
+           M1(M(1,1+k),k)=(zt/zb)**(2*nr+1)*real(2*nr+1,dp)/(2.0*zb*sqrt(3.0_dp))
+         enddo
+  
+         ws=real((2*nr+2)*(2*nr+1),dp)/(24.0_dp*ZS**2)
+         do k=1,3
+           M2(M(1,1),k,k)= ws
+         enddo
+         wp=real((2*nr+2)*(2*nr+1),dp)/(40.0_dp*ZP**2)
+         do k1=1,3
+           do k2=1,3
+             if(k1 == k2)then
+               M2(M(1+k1,1+k1),k2,k2)= 3.0_dp*wp
+             else
+               M2(M(1+k1,1+k1),k2,k2)= wp
+             endif
+           enddo
+         enddo
+         M2(M(1+1,1+2),1,2)= wp
+         M2(M(1+1,1+2),2,1)= wp
+         M2(M(1+2,1+3),2,3)= wp
+         M2(M(1+2,1+3),3,2)= wp
+         M2(M(1+3,1+1),3,1)= wp
+         M2(M(1+3,1+1),1,3)= wp
+       ENDIF
+
        ! Fill in information on multipole expansion due to atomic orbitals charge 
        ! distribution
        NULLIFY(mpole)
@@ -128,9 +182,29 @@ CONTAINS
                 CALL quadrupole_sph_to_cart(mpole%qc, mpole%qs, error)
                 mpole%task(3)= .TRUE.
              END IF
+
           END DO
        END DO
     END IF
+
+    ! no d-function for Schenter type integrals
+    IF (natorb>0.AND.natorb<=4) THEN
+       DO i = 1, natorb
+          DO j = 1, i
+             ind1 = indexa(se_map_alm(i),se_map_alm(j))
+             ind2 = indexb(i,j)
+             mpole => mpoles(ind2)%mpole
+             !Schenter definition
+             mpole%cs = HUGE(0.0_dp)
+             mpole%ds = HUGE(0.0_dp)
+             mpole%qq = HUGE(0.0_dp)
+             mpole%cs      = -M0(M(i,j))
+             mpole%ds(:)   = -M1(M(i,j),:)
+             mpole%qq(:,:) = -3._dp*M2(M(i,j),:,:)
+          END DO
+       END DO
+    END IF
+
   END SUBROUTINE semi_empirical_mpole_p_setup
 
 ! *****************************************************************************

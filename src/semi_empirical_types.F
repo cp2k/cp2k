@@ -34,6 +34,8 @@ MODULE semi_empirical_types
                                              taper_release,&
                                              taper_type
   USE termination,                     ONLY: stop_program
+  USE pw_pool_types,                   ONLY: pw_pool_type
+  USE dg_types,                        ONLY: dg_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -115,11 +117,19 @@ MODULE semi_empirical_types
 !> \brief  Ewald control type (for periodic SE)
 !> \author Teodoro Laino [tlaino]  - 12.2008
 ! *****************************************************************************
+  TYPE ewald_gks_type
+     REAL(KIND=dp)                            :: alpha
+     TYPE(dg_type), POINTER                   :: dg
+     TYPE(pw_pool_type), POINTER              :: pw_pool
+  END TYPE ewald_gks_type
+
   TYPE se_int_control_type
      LOGICAL                                  :: shortrange
      LOGICAL                                  :: do_ewald_r3
+     LOGICAL                                  :: do_ewald_gks
      INTEGER                                  :: integral_screening
      INTEGER                                  :: max_multipole
+     TYPE(ewald_gks_type)                     :: ewald_gks
   END TYPE se_int_control_type
 
 ! *****************************************************************************
@@ -156,6 +166,7 @@ MODULE semi_empirical_types
             se_taper_type,&
             se_taper_release,&
             se_taper_create
+  PUBLIC :: ewald_gks_type
 
 CONTAINS
 
@@ -533,6 +544,9 @@ CONTAINS
     CASE (do_multipole_quadrupole)
        se_int_control%max_multipole   =  2
     END SELECT
+
+    se_int_control%do_ewald_gks       = .FALSE.
+    NULLIFY(se_int_control%ewald_gks%dg,se_int_control%ewald_gks%pw_pool)
 
   END SUBROUTINE setup_se_int_control_type
 

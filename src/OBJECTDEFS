@@ -573,6 +573,7 @@ OBJECTS_GENERIC =\
  semi_empirical_int_ana.o\
  semi_empirical_int_arrays.o\
  semi_empirical_int_debug.o\
+ semi_empirical_int_gks.o\
  semi_empirical_int_num.o\
  semi_empirical_int_utils.o\
  semi_empirical_int3_utils.o\

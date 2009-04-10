@@ -28,7 +28,8 @@ MODULE nddo_methods
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE ewald_pw_types,                  ONLY: ewald_pw_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_get,&
+                                             ewald_pw_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE f77_blas
   USE fist_neighbor_list_control,      ONLY: list_control
@@ -38,7 +39,7 @@ MODULE nddo_methods
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
        do_method_rm1, do_multipole_charge, do_multipole_dipole, &
        do_multipole_none, do_multipole_quadrupole, do_se_IS_kdso, &
-       do_se_IS_kdso_d
+       do_se_IS_kdso_d, do_se_lr_ewald_gks
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -350,6 +351,8 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
 
     failure  = .FALSE.
     enuclear = 0.0_dp
@@ -367,6 +370,14 @@ CONTAINS
     CALL setup_se_int_control_type(se_int_control, shortrange=se_control%do_ewald,&
          do_ewald_r3=se_control%do_ewald_r3,integral_screening=se_control%integral_screening,&
          max_multipole=se_control%max_multipole)
+    IF(se_control%do_ewald_gks) THEN
+      se_int_control%do_ewald_gks = .TRUE.
+      se_int_control%shortrange = .TRUE.
+      CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+      CALL ewald_env_get (ewald_env, alpha=se_int_control%ewald_gks%alpha, error=error)
+      CALL ewald_pw_get (ewald_pw, pw_big_pool=se_int_control%ewald_gks%pw_pool, &
+                         dg=se_int_control%ewald_gks%dg)
+    END IF
 
     IF ( .NOT. failure ) THEN
        CALL get_qs_env(qs_env=qs_env,sab_2c=sab_2c,atomic_kind_set=atomic_kind_set,&
@@ -425,7 +436,6 @@ CONTAINS
                          CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
                               se_int_control=se_int_control, se_taper=se_taper, error=error)
                          enuclear = enuclear + enuc
-
                          ! Residual integral (1/R^3) correction
                          IF (se_int_control%do_ewald_r3) THEN
                             r2inv = 1.0_dp/dr1
@@ -539,6 +549,8 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -560,6 +572,15 @@ CONTAINS
        CALL setup_se_int_control_type(se_int_control, shortrange=se_control%do_ewald,&
             do_ewald_r3=se_control%do_ewald_r3, integral_screening=se_control%integral_screening,&
             max_multipole=se_control%max_multipole)
+       IF(se_control%do_ewald_gks) THEN
+         se_int_control%do_ewald_gks = .TRUE.
+         se_int_control%shortrange = .TRUE.
+         CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+         CALL ewald_env_get (ewald_env, alpha=se_int_control%ewald_gks%alpha, error=error)
+         CALL ewald_pw_get (ewald_pw, pw_big_pool=se_int_control%ewald_gks%pw_pool, &
+                            dg=se_int_control%ewald_gks%dg)
+       END IF
+
        IF (scp_nddo) CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
        
        nspins=dft_control%nspins
@@ -1617,6 +1638,8 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -1641,6 +1664,7 @@ CONTAINS
        END IF
        CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
             integral_screening=integral_screening, max_multipole=do_multipole_none)
+!deb        integral_screening=integral_screening, max_multipole=se_control%max_multipole)
 
        CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
 

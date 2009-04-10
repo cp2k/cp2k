@@ -2301,16 +2301,17 @@ CONTAINS
        CALL keyword_create(keyword, name="PERIODIC",&
             description="Specifies the type of treatment for the electrostatic long-range part "//&
             "in semi-empirical calculations.",&
-            usage="PERIODIC (NONE|EWALD|EWALD_R3)",&
-            enum_c_vals=s2a("NONE","EWALD","EWALD_R3"),&
-            enum_i_vals=(/ do_se_lr_none, do_se_lr_ewald, do_se_lr_ewald_r3/),&
+            usage="PERIODIC (NONE|EWALD|EWALD_R3|EWALD_GKS)",&
+            enum_c_vals=s2a("NONE","EWALD","EWALD_R3","EWALD_GKS"),&
+            enum_i_vals=(/ do_se_lr_none, do_se_lr_ewald, do_se_lr_ewald_r3, do_se_lr_ewald_gks/),&
             enum_desc=s2a("The long-range part is not explicitly treaten. The interaction "//&
             "depends uniquely on the Cutoffs used for the calculation.",&
             "Enables the usage of Multipoles Ewald summation schemes. The short-range part "//&
             "is tapered according the value of RC_COULOMB.",&
             "Enables the usage of Multipoles Ewald summation schemes together with a long-range "//&
             "treatment for the 1/R^3 term, deriving from the short-range component. This option "//&
-            "is active only for K-DSO integral screening type."),&
+            "is active only for K-DSO integral screening type.",&
+            "Use Ewald directly in Coulomb integral evaluation, works only with Slater screening"),&
             default_i_val=do_se_lr_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

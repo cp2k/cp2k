@@ -1308,37 +1308,39 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
     CALL timeset(routineN,handle)
 
     IF (output_unit>0) THEN
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+       IF(.NOT.(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb)) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
             "Total electronic density (r-space): ",&
             accurate_sum(rho%tot_rho_r),&
             accurate_sum(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
             qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
-       IF(gapw) THEN
-          tot1_h =  qs_charges%total_rho1_hard(1)
-          tot1_s =  qs_charges%total_rho1_soft(1)
-          DO ispin=2,dft_control%nspins
-            tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
-            tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
-          END DO
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-                "Hard and soft densities (Lebedev):",&
-                tot1_h, tot1_s
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-               accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s ,&
-               "Total charge density (r-space):      ",&
-               accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s &
-               + qs_charges%total_rho_core_rspace,&
-               "Total Rho_soft + Rho0_soft (g-space):",&
-               qs_charges%total_rho_gspace
-       ELSE
-         WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-            "Total charge density (r-space):     ",&
-            accurate_sum(rho%tot_rho_r)+&
-            qs_charges%total_rho_core_rspace,&
-            "Total charge density (g-space):     ",qs_charges%total_rho_gspace
+         IF(gapw) THEN
+            tot1_h =  qs_charges%total_rho1_hard(1)
+            tot1_s =  qs_charges%total_rho1_soft(1)
+            DO ispin=2,dft_control%nspins
+              tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+              tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
+            END DO
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+                  "Hard and soft densities (Lebedev):",&
+                  tot1_h, tot1_s
+            WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+                 "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
+                 accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s ,&
+                 "Total charge density (r-space):      ",&
+                 accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s &
+                 + qs_charges%total_rho_core_rspace,&
+                 "Total Rho_soft + Rho0_soft (g-space):",&
+                 qs_charges%total_rho_gspace
+         ELSE
+           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+              "Total charge density (r-space):     ",&
+              accurate_sum(rho%tot_rho_r)+&
+              qs_charges%total_rho_core_rspace,&
+              "Total charge density (g-space):     ",qs_charges%total_rho_gspace
+         END IF
        END IF
        IF (dft_control%qs_control%semi_empirical) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&

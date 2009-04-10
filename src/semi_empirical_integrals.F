@@ -18,6 +18,7 @@ MODULE semi_empirical_integrals
                                              hfx_get_mult_cache_elements
   USE kinds,                           ONLY: dp,&
                                              int_8
+  USE input_constants,                 ONLY: do_se_IS_slater
   USE memory_utilities,                ONLY: reallocate
   USE semi_empirical_int_ana,          ONLY: corecore_ana,&
                                              rotint_ana,&
@@ -28,6 +29,11 @@ MODULE semi_empirical_integrals
                                              drotnuc_num,&
                                              rotint_num,&
                                              rotnuc_num
+  USE semi_empirical_int_gks,          ONLY: corecore_gks,&
+                                             drotint_gks,&
+                                             drotnuc_gks,&
+                                             rotint_gks,&
+                                             rotnuc_gks
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
   USE semi_empirical_types,            ONLY: se_int_control_type,&
                                              se_taper_type,&
@@ -85,10 +91,14 @@ CONTAINS
              buffer_overflow = .FALSE.
           END IF
           ! Compute Integrals
-          IF (anag) THEN
-             CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+          IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+            CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
           ELSE
-             CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+            IF (anag) THEN
+               CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+            ELSE
+               CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+            END IF
           END IF
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
@@ -161,18 +171,26 @@ CONTAINS
                 store_int_env%memory_parameter%actual_memory_usage = memory_usage + nints
              END IF
           ELSE
-             IF (anag) THEN
-                CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+             IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+               CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
              ELSE
-                CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+                IF (anag) THEN
+                   CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+                ELSE
+                   CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+                END IF
              END IF
           END IF
        END IF
     ELSE
-       IF (anag) THEN
-          CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+       IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+          CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
        ELSE
-          CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+          IF (anag) THEN
+             CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+          ELSE
+             CALL rotint_num (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+          END IF
        END IF
     END IF
   END SUBROUTINE rotint
@@ -228,12 +246,17 @@ CONTAINS
              buffer_overflow = .FALSE.
           END IF
           ! Compute Integrals
-          IF (anag) THEN
-             CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                  se_int_control=se_int_control, se_taper=se_taper, error=error)
+          IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+             CALL rotnuc_gks (sepi,sepj,rij,e1b=e1b,e2a=e2a,&
+                  se_int_control=se_int_control,se_taper=se_taper,error=error)
           ELSE
-             CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                  se_int_control=se_int_control, se_taper=se_taper, error=error)    
+             IF (anag) THEN
+                CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                     se_int_control=se_int_control, se_taper=se_taper, error=error)
+             ELSE
+                CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                     se_int_control=se_int_control, se_taper=se_taper, error=error)    
+             END IF
           END IF
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
@@ -311,22 +334,32 @@ CONTAINS
              IF (PRESENT(e1b)) e1b(1:nints_1) = w(        1:nints_1)
              IF (PRESENT(e2a)) e2a(1:nints_2) = w(nints_1+1:nints  )
           ELSE
-             IF (anag) THEN
-                CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+             IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+                CALL rotnuc_gks (sepi,sepj,rij,e1b=e1b,e2a=e2a,&
                      se_int_control=se_int_control, se_taper=se_taper, error=error)
              ELSE
-                CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                     se_int_control=se_int_control, se_taper=se_taper, error=error)    
+                IF (anag) THEN
+                   CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                        se_int_control=se_int_control, se_taper=se_taper, error=error)
+                ELSE
+                   CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                        se_int_control=se_int_control, se_taper=se_taper, error=error)    
+                END IF
              END IF
           END IF
        END IF
     ELSE
-       IF (anag) THEN
-          CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+       IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+          CALL rotnuc_gks (sepi,sepj,rij,e1b=e1b,e2a=e2a,&
                se_int_control=se_int_control, se_taper=se_taper, error=error)
        ELSE
-          CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-               se_int_control=se_int_control, se_taper=se_taper, error=error)    
+          IF (anag) THEN
+             CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                  se_int_control=se_int_control, se_taper=se_taper, error=error)
+          ELSE
+             CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                  se_int_control=se_int_control, se_taper=se_taper, error=error)    
+          END IF
        END IF
     END IF
 
@@ -353,12 +386,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore', &
       routineP = moduleN//':'//routineN
 
-    IF (anag) THEN
-       CALL corecore_ana (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
+    IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+       CALL corecore_gks (sepi,sepj,rij,enuc=enuc,se_int_control=se_int_control,&
             se_taper=se_taper, error=error)
     ELSE
-       CALL corecore_num (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
-            se_taper=se_taper, error=error)
+       IF (anag) THEN
+          CALL corecore_ana (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
+               se_taper=se_taper, error=error)
+       ELSE
+          CALL corecore_num (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
+               se_taper=se_taper, error=error)
+       END IF
     END IF
 
   END SUBROUTINE corecore
@@ -382,10 +420,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'drotint', &
       routineP = moduleN//':'//routineN
 
-    IF (anag) THEN
-       CALL  rotint_ana(sepi,sepj,rij,dw=dw,   se_int_control=se_int_control,se_taper=se_taper,error=error)
+    IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+       CALL  drotint_gks(sepi,sepj,rij,dw=dw,se_int_control=se_int_control,se_taper=se_taper,error=error)
     ELSE
-       CALL drotint_num(sepi,sepj,rij,dw,delta,se_int_control=se_int_control,se_taper=se_taper,error=error)
+       IF (anag) THEN
+          CALL  rotint_ana(sepi,sepj,rij,dw=dw,   se_int_control=se_int_control,se_taper=se_taper,error=error)
+       ELSE
+          CALL drotint_num(sepi,sepj,rij,dw,delta,se_int_control=se_int_control,se_taper=se_taper,error=error)
+       END IF
     END IF
 
   END SUBROUTINE drotint
@@ -410,12 +452,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc', &
       routineP = moduleN//':'//routineN
 
-    IF (anag) THEN
-       CALL rotnuc_ana  (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
-            se_int_control=se_int_control,se_taper=se_taper,error=error)
+    IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+          CALL drotnuc_gks (sepi, sepj, rij, de1b=de1b, de2a=de2a,&
+               se_int_control=se_int_control,se_taper=se_taper,error=error)
     ELSE
-       CALL drotnuc_num (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
-            delta=delta,se_int_control=se_int_control,se_taper=se_taper,error=error)
+       IF (anag) THEN
+          CALL rotnuc_ana  (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
+               se_int_control=se_int_control,se_taper=se_taper,error=error)
+       ELSE
+          CALL drotnuc_num (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
+               delta=delta,se_int_control=se_int_control,se_taper=se_taper,error=error)
+       END IF
     END IF
 
   END SUBROUTINE drotnuc
@@ -439,12 +486,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore', &
       routineP = moduleN//':'//routineN
 
-    IF (anag) THEN
-       CALL corecore_ana (sepi,sepj,rij,denuc=denuc,itype=itype,se_int_control=se_int_control,&
+    IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
+       CALL corecore_gks (sepi,sepj,rij,denuc=denuc,se_int_control=se_int_control,&
             se_taper=se_taper, error=error)
     ELSE
-       CALL dcorecore_num (sepi,sepj,rij,denuc=denuc,delta=delta,itype=itype,&
-            se_int_control=se_int_control,se_taper=se_taper, error=error)
+       IF (anag) THEN
+          CALL corecore_ana (sepi,sepj,rij,denuc=denuc,itype=itype,se_int_control=se_int_control,&
+               se_taper=se_taper, error=error)
+       ELSE
+          CALL dcorecore_num (sepi,sepj,rij,denuc=denuc,delta=delta,itype=itype,&
+               se_int_control=se_int_control,se_taper=se_taper, error=error)
+       END IF
     END IF
 
   END SUBROUTINE dcorecore

@@ -45,3 +45,6 @@ dimer.inp          3
 dimer2.inp          3
 dimer3.inp          3
 dimer4.inp          3
+# GKS INTEGRALS
+h2o_gks.inp        3
+h2o_gks_p.inp      3

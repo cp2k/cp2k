@@ -695,7 +695,7 @@ CONTAINS
        ! Initialize to zero the max multipole to treat in the EWALD scheme..
        se_control%max_multipole = do_multipole_none
        ! check for Ewald
-       IF (se_control%do_ewald) THEN
+       IF (se_control%do_ewald .OR. se_control%do_ewald_gks) THEN
           CALL ewald_env_create(ewald_env,para_env,error=error)
           poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
           CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)

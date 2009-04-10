@@ -216,7 +216,8 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: do_se_lr_none=0,&
                                               do_se_lr_ewald=1,&
-                                              do_se_lr_ewald_r3=2
+                                              do_se_lr_ewald_r3=2,&
+                                              do_se_lr_ewald_gks=3
 
   INTEGER, PARAMETER, PUBLIC               :: rsgrid_distributed=0,&
                                               rsgrid_replicated=1,&
