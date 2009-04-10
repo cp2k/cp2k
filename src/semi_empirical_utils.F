@@ -290,10 +290,6 @@ CONTAINS
           CALL mndo_default_parameter(sep,z,do_method_mndod,error)
        CASE (do_method_pnnl)
           CALL pnnl_default_parameter(sep,z,error)
-!          ! Not yet implemented..
-!          CALL cp_unimplemented_error(fromWhere=routineP, &
-!               message="PNNL SE type not yet fully implemented !!", &
-!               error=error, error_level=cp_fatal_level)
        CASE (do_method_pchg)
           CALL pcharge_default_parameter(sep,z,error)
        CASE DEFAULT

@@ -1662,7 +1662,6 @@ CONTAINS
        END IF
        CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
             integral_screening=integral_screening, max_multipole=do_multipole_none)
-!deb        integral_screening=integral_screening, max_multipole=se_control%max_multipole)
 
        CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
 
