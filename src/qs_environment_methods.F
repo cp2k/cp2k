@@ -22,7 +22,9 @@ MODULE qs_environment_methods
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
   USE f77_blas
-  USE input_constants,                 ONLY: use_aux_fit_basis_set
+  USE input_constants,                 ONLY: do_ppl_analytic,&
+                                             do_ppl_grid,&
+                                             use_aux_fit_basis_set
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
@@ -35,13 +37,16 @@ MODULE qs_environment_methods
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_release
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_rho_core
+  USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
+                                             calculate_rho_core
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -235,7 +240,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: do_ppl, failure
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
@@ -277,7 +282,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     IF(dft_control%qs_control%gapw) THEN
       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
       IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-!          *** updates rho core ***
+        ! *** updates rho core ***
         CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
         CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
         CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -291,6 +296,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
           DEALLOCATE(qs_env%rho_core)
         ENDIF
       ENDIF
+      ! force analytic ppl calculation
+      dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
       !??
     ELSE IF(dft_control%qs_control%dftb) THEN
@@ -303,6 +310,17 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       IF (.NOT. failure) THEN
          CALL calculate_rho_core(qs_env%rho_core, &
               qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
+      END IF
+    END IF
+
+    ! calculate local pseudopotential on grid
+    do_ppl = dft_control%qs_control%do_ppl_method==do_ppl_grid
+    IF ( do_ppl ) THEN
+      CPPrecondition(ASSOCIATED(qs_env%vppl),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
+      CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+      IF (.NOT. failure) THEN
+         CALL calculate_ppl_grid(qs_env%vppl,qs_env,error=error)
       END IF
     END IF
 
@@ -387,7 +405,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
-    TYPE(pw_p_type), POINTER                 :: rho_core
+    TYPE(pw_p_type), POINTER                 :: rho_core, vppl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,handle)
@@ -440,6 +458,25 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
               use_data=COMPLEXDATA1D, error=error)
          rho_core%pw%in_space=RECIPROCALSPACE
          CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+      END IF
+    END IF
+
+    ! reallocate vppl (realspace grid of local pseudopotential
+    IF (dft_control%qs_control%do_ppl_method==do_ppl_grid) THEN
+      NULLIFY(vppl)
+      CALL get_qs_env(qs_env,pw_env=new_pw_env,vppl=vppl,error=error)
+      IF (ASSOCIATED(vppl)) THEN
+         CALL pw_release(vppl%pw,error=error)
+         DEALLOCATE(vppl,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      ENDIF
+      ALLOCATE(vppl,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF (.NOT.failure) THEN
+         CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+         CALL pw_pool_create_pw(auxbas_pw_pool, vppl%pw, use_data=REALDATA3D, error=error)
+         vppl%pw%in_space=REALSPACE
+         CALL set_qs_env(qs_env,vppl=vppl,error=error)
       END IF
     END IF
 
@@ -497,56 +534,5 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_rho
-
-! *****************************************************************************
-!> \brief Updates rho_core (the grid with the core charge)
-!> \param qs_env the environement whose rho core has to be updated
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      10.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE qs_env_update_rho_core(qs_env,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_update_rho_core', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), POINTER                 :: rho_core
-    TYPE(qs_charges_type), POINTER           :: qs_charges
-
-    CALL timeset(routineN,handle)
-    failure=.FALSE.
-    CALL get_qs_env(qs_env, dft_control=dft_control,&
-         pw_env=pw_env, rho_core=rho_core,&
-         qs_charges=qs_charges,error=error)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
-    IF(dft_control%qs_control%gapw) THEN
-      IF(dft_control%qs_control%gapw_control%nopaw_as_gpw ) THEN
-        CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
-        IF (.NOT. failure) THEN
-           CALL calculate_rho_core(rho_core, &
-              qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.TRUE.,error=error)
-        END IF
-      ELSE
-        qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
-      END IF
-    ELSEIF(.NOT. dft_control%qs_control%gapw) THEN
-      CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
-      IF (.NOT. failure) THEN
-         CALL calculate_rho_core(rho_core, &
-            qs_charges%total_rho_core_rspace,qs_env,error=error)
-      END IF
-    END IF
-    CALL timestop(handle)
-
-END SUBROUTINE qs_env_update_rho_core
 
 END MODULE qs_environment_methods

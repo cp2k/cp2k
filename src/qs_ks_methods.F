@@ -63,9 +63,10 @@ MODULE qs_ks_methods
   USE hfx_derivatives,                 ONLY: derivatives_four_center
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE input_constants,                 ONLY: &
-       do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, sic_ad, sic_eo, &
-       sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, &
-       sic_none, use_aux_fit_basis_set, use_orb_basis_set, xc_none
+       do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_ppl_grid, &
+       sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
+       sic_mauri_us, sic_none, use_aux_fit_basis_set, use_orb_basis_set, &
+       xc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -78,6 +79,7 @@ MODULE qs_ks_methods
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kinds,                           ONLY: dp,&
                                              int_8
+  USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_restraint
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -115,7 +117,8 @@ MODULE qs_ks_methods
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
-  USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
+  USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
+                                             integrate_v_core_rspace,&
                                              integrate_v_rspace
   USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_restraint,&
                                              qs_ks_mulliken_restraint,&
@@ -306,14 +309,14 @@ CONTAINS
       ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
     INTEGER(int_8)                           :: N_pmat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
-      do_ep, do_hfx, explicit_potential, failure, gapw, gapw_xc, &
+      do_ep, do_hfx, do_ppl, explicit_potential, failure, gapw, gapw_xc, &
       hfx_treat_lsd_in_core, ionode, my_kg_gpw, scp_dft, uniform_occupation, &
       use_virial
     REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
       adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
       scale_dEx2, total_energy_xc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
-    REAL(KIND=dp)                            :: ddapc_order_p, &
+    REAL(KIND=dp)                            :: ddapc_order_p, ecore_ppl, &
                                                 mulliken_order_p, s2_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
@@ -336,6 +339,7 @@ CONTAINS
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
                                                 v_tau_rspace_aux_fit
+    TYPE(pw_p_type), POINTER                 :: vppl_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -425,6 +429,16 @@ CONTAINS
     gapw_xc = dft_control%qs_control%gapw_xc
     IF(gapw_xc .AND. gapw) CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                            " GAPW and GAPW_XC are not compatible",error,failure)
+    IF((gapw_xc .OR. gapw) .AND. use_virial) &
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Virial for GAPW not debugged!!", &
+            error=error, error_level=cp_warning_level)
+
+    do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
+    IF ( do_ppl ) THEN
+      CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
+      CALL get_qs_env ( qs_env = qs_env, vppl = vppl_rspace, error = error )
+    END IF
 
     IF(gapw_xc) THEN
       CPPrecondition(ASSOCIATED(rho_xc),cp_failure_level,routineP,error,failure)
@@ -762,6 +776,13 @@ CONTAINS
          END SELECT            
        END IF
 
+       IF(do_ppl .AND. calculate_forces)THEN
+          CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
+          DO ispin=1,nspins
+            CALL integrate_ppl_rspace(rho%rho_r(ispin),qs_env,error=error)
+          END DO
+       END IF
+
        ! ***  Single atom contributions ***
        IF (.NOT. just_energy) THEN
 !          IF (calculate_forces .AND. .NOT. gapw) THEN
@@ -866,6 +887,11 @@ CONTAINS
                   IF(qs_env%dft_control%qs_control%becke_restraint)THEN
                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
                           +becke%becke_pot%pw%cr3d*qs_env%dft_control%qs_control%becke_control%strength
+                  END IF
+                  IF(do_ppl)THEN
+                    CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
+                    v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
+                      vppl_rspace%pw%cr3d*vppl_rspace%pw%pw_grid%dvol
                   END IF
                   ! the electrostatic sic contribution
                   SELECT CASE (dft_control%sic_method_id)
@@ -1158,6 +1184,16 @@ CONTAINS
        ! adds s2_restraint energy and orbital derivatives
        CALL qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
             mo_array,energy,calculate_forces, just_energy,error)
+
+       IF ( do_ppl ) THEN
+         ! update core energy for grid based local pseudopotential
+         ecore_ppl = 0._dp
+         DO ispin=1,nspins
+           ecore_ppl = ecore_ppl+SUM(vppl_rspace%pw%cr3d*rho%rho_r(ispin)%pw%cr3d)*vppl_rspace%pw%pw_grid%dvol
+         END DO
+         CALL mp_sum(ecore_ppl,para_env%group)
+         energy%core = energy%core+ecore_ppl
+       END IF
 
        ! sum all energy terms to obtain the total energy
        energy%total = energy%core_overlap + energy%core_self + &

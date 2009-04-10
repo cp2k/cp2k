@@ -1265,7 +1265,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: failure, found, is_ok, match, &
                                                 read_from_input
-    REAL(KIND=dp)                            :: alpha, r
+    REAL(KIND=dp)                            :: alpha, ci, r, rc2
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: hprj_ppnl
     TYPE(cp_parser_type), POINTER            :: parser
@@ -1404,15 +1404,15 @@ CONTAINS
 
              DO i=1,n
                 IF (read_from_input) THEN
-                   READ(line_att,*)potential%cexp_ppl(i)
+                   READ(line_att,*) ci
                    CALL remove_word(line_att)
                 ELSE
-                   CALL parser_get_object(parser,potential%cexp_ppl(i),error=error)
+                   CALL parser_get_object(parser,ci,error=error)
                    istr=LEN_TRIM(line_att)+1
-                   WRITE(line_att(istr:),'(E24.16)')potential%cexp_ppl(i)
+                   WRITE(line_att(istr:),'(E24.16)') ci
                 END IF
-                potential%cexp_ppl(i) = (2.0_dp*potential%alpha_ppl)**(i - 1)*&
-                     potential%cexp_ppl(i)
+                rc2 = (2.0_dp*potential%alpha_ppl)
+                potential%cexp_ppl(i) = rc2**(i - 1)*ci
              END DO
 
              IF (.NOT.read_from_input) THEN

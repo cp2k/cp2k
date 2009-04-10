@@ -504,6 +504,10 @@ CPSourceFileRef,&
        qs_control%pw_grid_opt%fullspace = .FALSE.
     END SELECT
 
+    !   Method for PPL calculation
+    CALL  section_vals_val_get(qs_section,"CORE_PPL",i_val=itmp,error=error)
+    qs_control%do_ppl_method=itmp
+
     CALL section_vals_val_get(qs_section,"PW_GRID_LAYOUT",i_vals=tmplist,error=error)
     qs_control%pw_grid_opt%distribution_layout=tmplist
     CALL section_vals_val_get(qs_section,"PW_GRID_BLOCKED",i_val=qs_control%pw_grid_opt%blocked,error=error)

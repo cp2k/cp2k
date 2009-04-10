@@ -235,6 +235,7 @@ MODULE cp_control_types
     LOGICAL                                       :: becke_restraint
     LOGICAL                                       :: et_coupling_calc
     LOGICAL                                       :: s2_restraint
+    INTEGER                                       :: do_ppl_method
     INTEGER                                       :: wf_interpolation_method_nr
     INTEGER                                       :: wf_extrapolation_order
     REAL(KIND = dp)                               :: cutoff

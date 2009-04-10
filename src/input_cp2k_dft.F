@@ -2001,6 +2001,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CORE_PPL",&
+            description="Specifies the method used to calculate the local pseudopotential contribution.",&
+            usage="CORE_PPL ANALYTIC",&
+            enum_c_vals=s2a("ANALYTIC","GRID"),&
+            enum_desc=s2a("Analytic integration of integrals",&
+                          "Numerical integration on real space grid. Lumped together with core charge"),&
+            enum_i_vals=(/ do_ppl_analytic, do_ppl_grid/), &
+            default_i_val=do_ppl_analytic, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL create_distribution_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)

@@ -93,6 +93,7 @@ MODULE qs_core_hamiltonian
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
   USE input_constants,                 ONLY: diag_ot,&
+                                             do_ppl_analytic,&
                                              linear_response_run,&
                                              rel_none
   USE input_section_types,             ONLY: section_vals_val_get
@@ -144,15 +145,6 @@ MODULE qs_core_hamiltonian
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_hamiltonian'
 
-  ! *** Local types ***
-! *****************************************************************************
-  TYPE vppl_type
-     REAL(KIND = dp)                          :: alpha_ppl,ppl_radius
-     REAL(KIND = dp), DIMENSION(:), POINTER   :: cexp_ppl,r2
-     REAL(KIND = dp), DIMENSION(:,:), POINTER :: r
-     INTEGER, DIMENSION(:), POINTER           :: neighbor
-  END TYPE vppl_type
-  
   PUBLIC :: build_core_hamiltonian_matrix
 
 CONTAINS
@@ -414,6 +406,8 @@ CONTAINS
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
        CALL create_oce_set(oce,error=error)
        CALL allocate_oce_set(oce,natom,nkind,maxder,error=error)
+       ! force analytic ppl calcuation for GAPW methods
+       qs_env%dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ENDIF
     
     DEALLOCATE (first_sgf,STAT=stat)
@@ -925,8 +919,10 @@ CONTAINS
 
     ! *** compute the ppl contribution to the core hamiltonian ***
     IF (ppl_present) THEN
-      CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+      IF(qs_env%dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
+        CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
+      END IF
     END IF
     ! *** compute the nucelar attraction contribution to the core hamiltonian ***
     IF (all_potential_present) THEN

@@ -249,6 +249,7 @@ MODULE qs_environment_types
 !> \param blacs_env parallel environement needed by scalapack (full matrixes)
 !> \param rho_core a grid with the charges of the cores of the atoms in the
 !>        reciprocal (g) space
+!> \param vppl a realspace grid with the local pseudopotential
 !> \param qs_charges an object where to put the charges that are present on
 !>        the various grids
 !> \param ks_env environement for the calculation of the Kohn Sham matrix
@@ -337,6 +338,7 @@ MODULE qs_environment_types
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
     TYPE(pw_p_type), POINTER                              :: rho_core
+    TYPE(pw_p_type), POINTER                              :: vppl
     TYPE(qs_charges_type), POINTER                        :: qs_charges
     TYPE(qs_ks_env_type), POINTER                         :: ks_env
     TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
@@ -405,7 +407,7 @@ CONTAINS
        matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,matrix_dv,& 
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
-       rho_core, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr,local_particles,&
+       vppl, rho_core, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr,local_particles,&
        local_molecules, distribution_2d,molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,tddfpt_control,&
@@ -465,7 +467,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
-    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_core
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: vppl, rho_core
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
     TYPE(qs_ks_qmmm_env_type), OPTIONAL, &
       POINTER                                :: ks_qmmm_env
@@ -608,6 +610,7 @@ CONTAINS
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
     IF (PRESENT(rel_control)) rel_control => qs_env%rel_control  
     IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
+    IF (PRESENT(vppl)) vppl => qs_env%vppl
     IF (PRESENT(qs_charges)) qs_charges => qs_env%qs_charges
     IF (PRESENT(ks_env)) ks_env => qs_env%ks_env
     IF (PRESENT(ks_qmmm_env)) ks_qmmm_env => qs_env%ks_qmmm_env
@@ -748,6 +751,7 @@ CONTAINS
     NULLIFY (qs_env%rel_control) 
     NULLIFY (qs_env%qs_charges)
     NULLIFY (qs_env%rho_core)
+    NULLIFY (qs_env%vppl)
     NULLIFY (qs_env%ks_env)
     NULLIFY (qs_env%ks_qmmm_env)
     NULLIFY (qs_env%wf_history)
@@ -819,7 +823,7 @@ CONTAINS
        sab_2c,sac_3c,sbc_3c,sab_scp,sab_vdw,energy,force,harris_env,matrix_h,matrix_ks,&
        matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
        matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,& 
-       rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,rho_core,ks_env,& 
+       rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,ks_env,& 
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,&
@@ -862,7 +866,7 @@ CONTAINS
     TYPE(rel_control_type), OPTIONAL, &
       POINTER                                :: rel_control
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
-    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_core
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: vppl, rho_core
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
     TYPE(qs_ks_qmmm_env_type), OPTIONAL, &
       POINTER                                :: ks_qmmm_env
@@ -1062,6 +1066,7 @@ CONTAINS
     END IF
     IF (PRESENT(kinetic)) qs_env%kinetic => kinetic
     IF (PRESENT(rho_core)) qs_env%rho_core => rho_core
+    IF (PRESENT(vppl)) qs_env%vppl => vppl
     IF (PRESENT(qs_charges)) THEN
        CALL qs_charges_retain(qs_charges,error=error)
        CALL qs_charges_release(qs_env%qs_charges,error=error)
@@ -1506,6 +1511,10 @@ CONTAINS
           IF (ASSOCIATED(qs_env%rho_core)) THEN
              CALL pw_release(qs_env%rho_core%pw,error=error)
              DEALLOCATE(qs_env%rho_core)
+          ENDIF
+          IF (ASSOCIATED(qs_env%vppl)) THEN
+             CALL pw_release(qs_env%vppl%pw,error=error)
+             DEALLOCATE(qs_env%vppl)
           ENDIF
           CALL qs_charges_release(qs_env%qs_charges, error=error)
           CALL qs_ks_release(qs_env%ks_env, error=error)

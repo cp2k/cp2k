@@ -210,6 +210,9 @@ MODULE input_constants
                                               do_method_pchg=15,&
                                               do_method_pnnl=16
 
+  INTEGER, PARAMETER, PUBLIC               :: do_ppl_analytic=0,&
+                                              do_ppl_grid=1
+
   INTEGER, PARAMETER, PUBLIC               :: do_se_IS_kdso=0,&
                                               do_se_IS_kdso_d=1,&
                                               do_se_IS_slater=2

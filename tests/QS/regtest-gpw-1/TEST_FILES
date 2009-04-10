@@ -42,3 +42,6 @@ h2o_dip_iso.inp    17
 H2-inpp.inp        0
 # vdW correction
 vdW_PP_GRIMME.inp  33
+# core_ppl on grid
+core_ppl_1.inp     1
+core_ppl_2.inp     1

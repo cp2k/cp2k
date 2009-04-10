@@ -18,6 +18,7 @@ MODULE kg_environment_methods
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
   USE f77_blas
+  USE input_constants,                 ONLY: do_ppl_analytic
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              set_kg_env
@@ -228,6 +229,9 @@ CONTAINS
        CALL calculate_rho_core(qs_env%rho_core, &
             qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
     END IF
+
+    ! don't allow for numeric ppl calculation
+    dft_control%qs_control%do_ppl_method=do_ppl_analytic
 
     ! *** tell ks_env ***
     IF (ASSOCIATED(qs_env%ks_env)) THEN
