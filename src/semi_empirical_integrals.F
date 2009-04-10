@@ -16,24 +16,24 @@ MODULE semi_empirical_integrals
   USE f77_blas
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
                                              hfx_get_mult_cache_elements
+  USE input_constants,                 ONLY: do_se_IS_slater
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE input_constants,                 ONLY: do_se_IS_slater
   USE memory_utilities,                ONLY: reallocate
   USE semi_empirical_int_ana,          ONLY: corecore_ana,&
                                              rotint_ana,&
                                              rotnuc_ana
+  USE semi_empirical_int_gks,          ONLY: corecore_gks,&
+                                             drotint_gks,&
+                                             drotnuc_gks,&
+                                             rotint_gks,&
+                                             rotnuc_gks
   USE semi_empirical_int_num,          ONLY: corecore_num,&
                                              dcorecore_num,&
                                              drotint_num,&
                                              drotnuc_num,&
                                              rotint_num,&
                                              rotnuc_num
-  USE semi_empirical_int_gks,          ONLY: corecore_gks,&
-                                             drotint_gks,&
-                                             drotnuc_gks,&
-                                             rotint_gks,&
-                                             rotnuc_gks
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
   USE semi_empirical_types,            ONLY: se_int_control_type,&
                                              se_taper_type,&

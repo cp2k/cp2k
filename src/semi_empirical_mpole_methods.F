@@ -54,28 +54,22 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_p_setup', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
+    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
     REAL(KIND=dp), DIMENSION(9), PARAMETER :: &
       loc_index = (/1,2,2,2,3,3,3,3,3/)
 
-    INTEGER                                  :: a, b, i, ind1, ind2, j, &
-                                                natorb, ndim
+    INTEGER                                  :: a, b, i, ind1, ind2, j, k, &
+                                                k1, k2, mu, natorb, ndim, nr
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dlm, tmp
+    REAL(KIND=dp)                            :: dlm, tmp, wp, ws, zb, ZP, ZS, &
+                                                zt
     REAL(KIND=dp), DIMENSION(6, 0:2)         :: amn
+    REAL(KIND=dp), DIMENSION(Nm)             :: M0
+    REAL(KIND=dp), DIMENSION(Nm, 3)          :: M1
+    REAL(KIND=dp), DIMENSION(Nm, 3, 3)       :: M2
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
-
-    INTEGER, PARAMETER :: Nb=     4
-    INTEGER, PARAMETER :: Nm=     Nb+Nb*(Nb-1)/2
-    INTEGER, PARAMETER, DIMENSION(Nb,Nb) :: M=RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
-
-    INTEGER       :: nr
-    REAL(KIND=dp) :: ZS,ZP
-    REAL(KIND=dp), DIMENSION(Nm)     :: M0
-    REAL(KIND=dp), DIMENSION(Nm,3)   :: M1
-    REAL(KIND=dp), DIMENSION(Nm,3,3) :: M2
-
-    INTEGER       :: mu,k,k1,k2
-    REAL(KIND=dp) :: zb,zt,ws,wp
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(mpoles),cp_failure_level,routineP,error,failure)
@@ -89,35 +83,35 @@ CONTAINS
        M1(:,:)=   0.0_dp
        M2(:,:,:)= 0.0_dp
 
-       do mu=1,Nb
+       DO mu=1,Nb
          M0(M(mu,mu))= 1.0_dp
-       enddo
+       ENDDO
 
        ZS=se_parameter%sto_exponents(0)
        ZP=se_parameter%sto_exponents(1)
        nr=se_parameter%nr
 
        IF (ZP > 0._dp) THEN
-         zt=sqrt(ZS*ZP)
+         zt=SQRT(ZS*ZP)
          zb=0.5_dp*(ZS+ZP)
-         do k=1,3
-           M1(M(1,1+k),k)=(zt/zb)**(2*nr+1)*real(2*nr+1,dp)/(2.0*zb*sqrt(3.0_dp))
-         enddo
+         DO k=1,3
+           M1(M(1,1+k),k)=(zt/zb)**(2*nr+1)*REAL(2*nr+1,dp)/(2.0*zb*SQRT(3.0_dp))
+         ENDDO
   
-         ws=real((2*nr+2)*(2*nr+1),dp)/(24.0_dp*ZS**2)
-         do k=1,3
+         ws=REAL((2*nr+2)*(2*nr+1),dp)/(24.0_dp*ZS**2)
+         DO k=1,3
            M2(M(1,1),k,k)= ws
-         enddo
-         wp=real((2*nr+2)*(2*nr+1),dp)/(40.0_dp*ZP**2)
-         do k1=1,3
-           do k2=1,3
-             if(k1 == k2)then
+         ENDDO
+         wp=REAL((2*nr+2)*(2*nr+1),dp)/(40.0_dp*ZP**2)
+         DO k1=1,3
+           DO k2=1,3
+             IF(k1 == k2)THEN
                M2(M(1+k1,1+k1),k2,k2)= 3.0_dp*wp
-             else
+             ELSE
                M2(M(1+k1,1+k1),k2,k2)= wp
-             endif
-           enddo
-         enddo
+             ENDIF
+           ENDDO
+         ENDDO
          M2(M(1+1,1+2),1,2)= wp
          M2(M(1+1,1+2),2,1)= wp
          M2(M(1+2,1+3),2,3)= wp

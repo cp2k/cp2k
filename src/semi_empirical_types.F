@@ -14,6 +14,7 @@ MODULE semi_empirical_types
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE dg_types,                        ONLY: dg_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
@@ -26,6 +27,7 @@ MODULE semi_empirical_types
   USE physcon,                         ONLY: angstrom,&
                                              evolt,&
                                              kcalmol
+  USE pw_pool_types,                   ONLY: pw_pool_type
   USE semi_empirical_expns3_types,     ONLY: semi_empirical_expns3_p_type,&
                                              semi_empirical_expns3_release
   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_p_release,&
@@ -34,8 +36,6 @@ MODULE semi_empirical_types
                                              taper_release,&
                                              taper_type
   USE termination,                     ONLY: stop_program
-  USE pw_pool_types,                   ONLY: pw_pool_type
-  USE dg_types,                        ONLY: dg_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

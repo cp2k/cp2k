@@ -19,25 +19,19 @@ MODULE semi_empirical_int_gks
   USE dg_types,                        ONLY: dg_get,&
                                              dg_type
   USE erf_fn,                          ONLY: erfc
-  USE ewald_environment_types,         ONLY: ewald_env_get,&
-                                             ewald_environment_type
-  USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                             ewald_pw_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
   USE input_constants,                 ONLY: do_multipole_quadrupole
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE semi_empirical_int_arrays,       ONLY: rij_threshold
   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             setup_se_int_control_type,&
-                                             se_int_control_type,&
-                                             se_taper_type
+  USE semi_empirical_types,            ONLY: se_int_control_type,&
+                                             se_taper_type,&
+                                             semi_empirical_type,&
+                                             setup_se_int_control_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -218,17 +212,17 @@ CONTAINS
   SUBROUTINE makeCoul(RAB,sepi,sepj,Coul,se_int_control,error)
     REAL(kind=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    REAL(kind=dp), DIMENSION(Nm, Nm)         :: Coul
     TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    REAL(kind=dp), DIMENSION(Nm, Nm)         :: Coul
 
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
       M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
-    LOGICAL                                  :: shortrange
     INTEGER                                  :: i, imA, imB, j, jint, k1, k2, &
                                                 k3, k4, size_1c_int
+    LOGICAL                                  :: shortrange
     REAL(kind=dp) :: a2, ACOULA, ACOULB, d1, d1f(3), d2, d2f(3,3), d3, &
       d3f(3,3,3), d4, d4f(3,3,3,3), f, rr, tmp, w, w0, w1, w2, w3, w4, w5
     REAL(kind=dp), DIMENSION(3)              :: v
@@ -396,20 +390,19 @@ CONTAINS
   END SUBROUTINE makeCoul
 
   SUBROUTINE makedCoul(RAB,sepi,sepj,dCoul,se_int_control,error)
-    INTEGER, PARAMETER                       :: Nb = 4, &
-                                                Nm = Nb+Nb*(Nb-1)/2
+    REAL(kind=dp), DIMENSION(3)              :: RAB
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     REAL(kind=dp), DIMENSION(Nm, Nm, 3)      :: dCoul
-    TYPE(semi_empirical_type), POINTER       :: sepj, sepi
-    REAL(kind=dp), DIMENSION(3)              :: RAB
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
       M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
-    LOGICAL                                  :: shortrange
     INTEGER                                  :: i, imA, imB, j, jint, k1, k2, &
                                                 k3, k4, k5, size_1c_int
+    LOGICAL                                  :: shortrange
     REAL(kind=dp) :: a2, ACOULA, ACOULB, d1, d1f(3), d2, d2f(3,3), d3, &
       d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, rr, tmp, w, w0, &
       w1, w2, w3, w4, w5, w6
@@ -685,61 +678,34 @@ CONTAINS
   END SUBROUTINE corecore_gks
 
   SUBROUTINE makeCoulE(RAB,sepi,sepj,Coul,se_int_control,error)
-    INTEGER, PARAMETER :: Nb=     4
-    INTEGER, PARAMETER :: Nm=     Nb+Nb*(Nb-1)/2
-    INTEGER, PARAMETER, DIMENSION(Nb,Nb) :: M=RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
-
     REAL(KIND=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(KIND=dp), DIMENSION(Nm,Nm)          :: Coul
-    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
     TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    REAL(KIND=dp), DIMENSION(Nm, Nm)         :: Coul
 
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
-    REAL(KIND=dp)                            :: alpha
+    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
-    TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(dg_type), POINTER                   :: dg
-    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    INTEGER                                  :: gpt, i, imA, imB, j, jint, &
+                                                k1, k2, k3, k4, lp, mp, np, &
+                                                size_1c_int
+    INTEGER, DIMENSION(:, :), POINTER        :: bds
+    REAL(KIND=dp) :: a2, ACOULA, ACOULB, alpha, cc, d1, d1f(3), d2, d2f(3,3), &
+      d3, d3f(3,3,3), d4, d4f(3,3,3,3), f, ff, kr, kr2, r1, r2, r3, r5, r7, &
+      r9, rr, ss, w, w0, w1, w2, w3, w4, w5
+    REAL(KIND=dp), DIMENSION(3)              :: kk, v
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
+    REAL(KIND=dp), DIMENSION(Nm)             :: M0A, M0B
+    REAL(KIND=dp), DIMENSION(Nm, 3)          :: M1A, M1B
+    REAL(KIND=dp), DIMENSION(Nm, 3, 3)       :: M2A, M2B
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    INTEGER, DIMENSION(:, :), POINTER        :: bds
-
-    INTEGER                                  :: gpt,lp,mp,np
-
+    TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
-    integer :: size_1c_int,jint
-
-    REAL(KIND=dp), DIMENSION(Nm)          :: M0A,M0B
-    REAL(KIND=dp), DIMENSION(Nm,3)        :: M1A,M1B
-    REAL(KIND=dp), DIMENSION(Nm,3,3)      :: M2A,M2B
-    REAL(KIND=dp)                         :: ACOULA,ACOULB
-    LOGICAL :: shortrange
-
-    INTEGER           :: imA,imB
-    INTEGER           :: k1,k2,k3,k4
-
-    REAL(KIND=dp) :: w,w0,w1,w2,w3,w4,w5
-    REAL(KIND=dp) :: a2
-    REAL(KIND=dp) :: rr
-    REAL(KIND=dp), DIMENSION(3) :: v
-
-    REAL(KIND=dp) :: d1,d2,d3,d4
-    REAL(KIND=dp) :: f
-    REAL(KIND=dp) :: d1f(3)
-    REAL(KIND=dp) :: d2f(3,3)
-    REAL(KIND=dp) :: d3f(3,3,3)
-    REAL(KIND=dp) :: d4f(3,3,3,3)
-
-    INTEGER :: i,j
-
-    REAL(KIND=dp) :: r1,r2,r3,r5,r7,r9
-    REAL(KIND=dp) :: kr,kr2
-    REAL(KIND=dp) :: ss,cc
-    REAL(KIND=dp), DIMENSION(3) :: kk
-    REAL(KIND=dp) :: ff
 
     alpha = se_int_control%ewald_gks%alpha
     pw_pool => se_int_control%ewald_gks%pw_pool
@@ -752,29 +718,29 @@ CONTAINS
     Coul(:,:)=   0.0_dp
 
       size_1c_int = SIZE(sepi%w_mpole)
-      do jint = 1, size_1c_int
+      DO jint = 1, size_1c_int
         mpole => sepi%w_mpole(jint)%mpole
         i=mpole%indi
         j=mpole%indj
         M0A(M(i,j))=     -mpole%cs
         M1A(M(i,j),:)=   -mpole%ds(:)
         M2A(M(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
-      enddo
+      ENDDO
       ACOULA= sepi%acoul
 
       size_1c_int = SIZE(sepj%w_mpole)
-      do jint = 1, size_1c_int
+      DO jint = 1, size_1c_int
         mpole => sepj%w_mpole(jint)%mpole
         i=mpole%indi
         j=mpole%indj
         M0B(M(i,j))=     -mpole%cs
         M1B(M(i,j),:)=   -mpole%ds(:)
         M2B(M(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
-      enddo
+      ENDDO
       ACOULB= sepj%acoul
 
       v(:)=RAB(:)
-      rr=sqrt(dot_product(v(:),v(:)))
+      rr=SQRT(DOT_PRODUCT(v(:),v(:)))
 
       r1=1.0_dp/rr
       r2=r1*r1
@@ -786,7 +752,7 @@ CONTAINS
       a2=0.5_dp*(1.0_dp/ACOULA+1.0_dp/ACOULB)
 
       w0= a2*rr
-      w=  exp(-w0)
+      w=  EXP(-w0)
       w1= (1.0_dp+0.5_dp*w0)
       w2= (w1+0.5_dp*w0+0.5_dp*w0**2)
       w3= (w2+w0**3/6.0_dp)
@@ -803,7 +769,7 @@ CONTAINS
       kr=  alpha*rr
       kr2= kr*kr
       w0=  1.0_dp-erfc(kr)
-      w1=  2.0_dp*oorootpi*exp(-kr2)
+      w1=  2.0_dp*oorootpi*EXP(-kr2)
       w2=  w1*kr
 
 
@@ -819,32 +785,32 @@ CONTAINS
       d3f(:,:,:)=   0.0_dp
       d4f(:,:,:,:)= 0.0_dp
 
-      do k1=1,3
+      DO k1=1,3
         d1f(k1)=d1f(k1)+v(k1)*d1
-      enddo
-      do k1=1,3
-        do k2=1,3
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
           d2f(k1,k2)=d2f(k1,k2)+v(k1)*v(k2)*d2 
-        enddo
+        ENDDO
         d2f(k1,k1)=d2f(k1,k1)+ d1 
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
             d3f(k1,k2,k3)=d3f(k1,k2,k3)+v(k1)*v(k2)*v(k3)*d3 
-          enddo
+          ENDDO
           w=v(k1)*d2
           d3f(k1,k2,k2)=d3f(k1,k2,k2)+w
           d3f(k2,k1,k2)=d3f(k2,k1,k2)+w
           d3f(k2,k2,k1)=d3f(k2,k2,k1)+w
-        enddo
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
-            do k4=1,3
+        ENDDO
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
+            DO k4=1,3
               d4f(k1,k2,k3,k4)=d4f(k1,k2,k3,k4)+v(k1)*v(k2)*v(k3)*v(k4)*d4 
-            enddo
+            ENDDO
             w=v(k1)*v(k2)*d3
             d4f(k1,k2,k3,k3)=d4f(k1,k2,k3,k3)+w
             d4f(k1,k3,k2,k3)=d4f(k1,k3,k2,k3)+w
@@ -852,47 +818,47 @@ CONTAINS
             d4f(k1,k3,k3,k2)=d4f(k1,k3,k3,k2)+w
             d4f(k3,k1,k3,k2)=d4f(k3,k1,k3,k2)+w
             d4f(k3,k3,k1,k2)=d4f(k3,k3,k1,k2)+w
-          enddo
+          ENDDO
           d4f(k1,k1,k2,k2)=d4f(k1,k1,k2,k2)+d2
           d4f(k1,k2,k1,k2)=d4f(k1,k2,k1,k2)+d2
           d4f(k1,k2,k2,k1)=d4f(k1,k2,k2,k1)+d2
-        enddo
-      enddo
+        ENDDO
+      ENDDO
 
-      do imA=1,Nm
-        do imB=1,Nm
+      DO imA=1,Nm
+        DO imB=1,Nm
 
          w=   M0A(imA)*M0B(imB)*f
-         do k1=1,3
+         DO k1=1,3
            w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d1f(k1)
-         enddo
-         do k1=1,3
-           do k2=1,3
+         ENDDO
+         DO k1=1,3
+           DO k2=1,3
              w=w+(  M2A(imA,k1,k2)*M0B(imB)-M1A(imA,k1)*M1B(imB,k2)+M0A(imA)*M2B(imB,k1,k2) )*d2f(k1,k2)
-           enddo
-         enddo
-         do k1=1,3
-           do k2=1,3
-             do k3=1,3
+           ENDDO
+         ENDDO
+         DO k1=1,3
+           DO k2=1,3
+             DO k3=1,3
                w=w+( -M2A(imA,k1,k2)*M1B(imB,k3)+M1A(imA,k1)*M2B(imB,k2,k3) )*d3f(k1,k2,k3)
-             enddo
-           enddo
-         enddo
+             ENDDO
+           ENDDO
+         ENDDO
 
-         do k1=1,3
-           do k2=1,3
-             do k3=1,3
-               do k4=1,3
+         DO k1=1,3
+           DO k2=1,3
+             DO k3=1,3
+               DO k4=1,3
                  w=w+ M2A(imA,k1,k2)*M2B(imB,k3,k4)*d4f(k1,k2,k3,k4)
-               enddo
-             enddo
-           enddo
-         enddo
+               ENDDO
+             ENDDO
+           ENDDO
+         ENDDO
 
          Coul(imA,imB)=Coul(imA,imB)+w
 
-        enddo
-      enddo
+        ENDDO
+      ENDDO
 
     v(:)=RAB(:)
 
@@ -915,139 +881,111 @@ CONTAINS
        kk(:)=pw_grid%g(:,gpt)
        ff = 2.0_dp * fourpi * rho0(lp,mp,np)**2 * pw_grid%vol / pw_grid%gsq(gpt)
 
-      kr=dot_product(kk(:),v(:))
-      cc=cos(kr)
-      ss=sin(kr)
+      kr=DOT_PRODUCT(kk(:),v(:))
+      cc=COS(kr)
+      ss=SIN(kr)
 
       f=f+cc*ff
-      do k1=1,3
+      DO k1=1,3
         d1f(k1)=d1f(k1)-kk(k1)*ss*ff
-      enddo
-      do k1=1,3
-        do k2=1,3
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
           d2f(k1,k2)=d2f(k1,k2)-kk(k1)*kk(k2)*cc*ff
-        enddo
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
+        ENDDO
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
             d3f(k1,k2,k3)=d3f(k1,k2,k3)+kk(k1)*kk(k2)*kk(k3)*ss*ff
-          enddo
-        enddo
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
-            do k4=1,3
+          ENDDO
+        ENDDO
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
+            DO k4=1,3
               d4f(k1,k2,k3,k4)=d4f(k1,k2,k3,k4)+kk(k1)*kk(k2)*kk(k3)*kk(k4)*cc*ff
-            enddo
-          enddo
-        enddo
-      enddo
+            ENDDO
+          ENDDO
+        ENDDO
+      ENDDO
 
-    enddo
+    ENDDO
 
-      do imA=1,Nm
-        do imB=1,Nm
+      DO imA=1,Nm
+        DO imB=1,Nm
 
          w=   M0A(imA)*M0B(imB)*f
-         do k1=1,3
+         DO k1=1,3
            w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d1f(k1)
-         enddo
-         do k1=1,3
-           do k2=1,3
+         ENDDO
+         DO k1=1,3
+           DO k2=1,3
              w=w+(  M2A(imA,k1,k2)*M0B(imB)-M1A(imA,k1)*M1B(imB,k2)+M0A(imA)*M2B(imB,k1,k2) )*d2f(k1,k2)
-           enddo
-         enddo
-         do k1=1,3
-           do k2=1,3
-             do k3=1,3
+           ENDDO
+         ENDDO
+         DO k1=1,3
+           DO k2=1,3
+             DO k3=1,3
                w=w+( -M2A(imA,k1,k2)*M1B(imB,k3)+M1A(imA,k1)*M2B(imB,k2,k3) )*d3f(k1,k2,k3)
-             enddo
-           enddo
-         enddo
+             ENDDO
+           ENDDO
+         ENDDO
 
-         do k1=1,3
-           do k2=1,3
-             do k3=1,3
-               do k4=1,3
+         DO k1=1,3
+           DO k2=1,3
+             DO k3=1,3
+               DO k4=1,3
                  w=w+ M2A(imA,k1,k2)*M2B(imB,k3,k4)*d4f(k1,k2,k3,k4)
-               enddo
-             enddo
-           enddo
-         enddo
+               ENDDO
+             ENDDO
+           ENDDO
+         ENDDO
 
          Coul(imA,imB)=Coul(imA,imB)+w
 
-        enddo
-      enddo
+        ENDDO
+      ENDDO
 
-      do imA=1,Nm
-        do imB=1,Nm
+      DO imA=1,Nm
+        DO imB=1,Nm
           w= -M0A(imA)*M0B(imB)*0.25_dp*fourpi/(pw_grid%vol*alpha**2)
           Coul(imA,imB)=Coul(imA,imB)+w
-        enddo
-      enddo
+        ENDDO
+      ENDDO
 
-  end subroutine makeCoulE
+  END SUBROUTINE makeCoulE
 
-  subroutine makedCoulE(RAB,sepi,sepj,dCoul,se_int_control,error)
-    integer, parameter :: Nb=     4
-    integer, parameter :: Nm=     Nb+Nb*(Nb-1)/2
-
+  SUBROUTINE makedCoulE(RAB,sepi,sepj,dCoul,se_int_control,error)
     REAL(KIND=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(KIND=dp), DIMENSION(Nm,Nm,3)        :: dCoul
-    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
     TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    REAL(KIND=dp), DIMENSION(Nm, Nm, 3)      :: dCoul
 
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
-    REAL(KIND=dp)                            :: alpha
-    TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(dg_type), POINTER                   :: dg
-    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+
+    INTEGER                                  :: gpt, i, imA, imB, j, jint, &
+                                                k1, k2, k3, k4, k5, lp, mp, &
+                                                np, size_1c_int
+    INTEGER, DIMENSION(:, :), POINTER        :: bds
+    REAL(KIND=dp) :: a2, ACOULA, ACOULB, alpha, cc, d1, d1f(3), d2, d2f(3,3), &
+      d3, d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, ff, kr, kr2, &
+      r1, r11, r2, r3, r5, r7, r9, rr, ss, w, w0, w1, w2, w3, w4, w5, w6
+    REAL(KIND=dp), DIMENSION(3)              :: kk, v
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
+    REAL(kind=dp), DIMENSION(Nm)             :: M0A, M0B
+    REAL(kind=dp), DIMENSION(Nm, 3)          :: M1A, M1B
+    REAL(kind=dp), DIMENSION(Nm, 3, 3)       :: M2A, M2B
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    INTEGER, DIMENSION(:, :), POINTER        :: bds
-
-    INTEGER                                  :: gpt,lp,mp,np
-
-    integer, parameter, dimension(Nb,Nb) :: M=reshape( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
-
-
+    TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
-    integer :: size_1c_int,jint
-
-    real(kind=dp), dimension(Nm)          :: M0A,M0B
-    real(kind=dp), dimension(Nm,3)        :: M1A,M1B
-    real(kind=dp), dimension(Nm,3,3)      :: M2A,M2B
-    real(kind=dp)                         :: ACOULA,ACOULB
-
-    integer           :: imA,imB
-    integer           :: k1,k2,k3,k4,k5
-
-    real(kind=dp) :: w,w0,w1,w2,w3,w4,w5,w6
-    real(kind=dp) :: a2
-    real(kind=dp) :: rr
-    real(kind=dp), dimension(3) :: v
-
-    real(kind=dp) :: d1,d2,d3,d4,d5
-    real(kind=dp) :: f
-    real(kind=dp) :: d1f(3)
-    real(kind=dp) :: d2f(3,3)
-    real(kind=dp) :: d3f(3,3,3)
-    real(kind=dp) :: d4f(3,3,3,3)
-    real(kind=dp) :: d5f(3,3,3,3,3)
-
-    integer           :: i,j
-
-    real(kind=dp) :: r1,r2,r3,r5,r7,r9,r11
-    real(kind=dp) :: kr,kr2
-    real(kind=dp) :: ss,cc
-    real(kind=dp), dimension(3) :: kk
-    real(kind=dp) :: ff
 
     alpha = se_int_control%ewald_gks%alpha
     pw_pool => se_int_control%ewald_gks%pw_pool
@@ -1060,29 +998,29 @@ CONTAINS
     dCoul(:,:,:)=   0.0_dp
 
       size_1c_int = SIZE(sepi%w_mpole)
-      do jint = 1, size_1c_int
+      DO jint = 1, size_1c_int
         mpole => sepi%w_mpole(jint)%mpole
         i=mpole%indi
         j=mpole%indj
         M0A(M(i,j))=     -mpole%cs
         M1A(M(i,j),:)=   -mpole%ds(:)
         M2A(M(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
-      enddo
+      ENDDO
       ACOULA= sepi%acoul
 
       size_1c_int = SIZE(sepj%w_mpole)
-      do jint = 1, size_1c_int
+      DO jint = 1, size_1c_int
         mpole => sepj%w_mpole(jint)%mpole
         i=mpole%indi
         j=mpole%indj
         M0B(M(i,j))=     -mpole%cs
         M1B(M(i,j),:)=   -mpole%ds(:)
         M2B(M(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
-      enddo
+      ENDDO
       ACOULB= sepj%acoul
 
       v(:)=RAB(:)
-      rr=sqrt(dot_product(v(:),v(:)))
+      rr=SQRT(DOT_PRODUCT(v(:),v(:)))
 
       a2=0.5_dp*(1.0_dp/ACOULA+1.0_dp/ACOULB)
 
@@ -1095,7 +1033,7 @@ CONTAINS
       r11=r9*r2
 
       w0= a2*rr
-      w=  exp(-w0)
+      w=  EXP(-w0)
       w1= (1.0_dp+0.5_dp*w0)
       w2= (w1+0.5_dp*w0+0.5_dp*w0**2)
       w3= (w2+w0**3/6.0_dp)
@@ -1113,7 +1051,7 @@ CONTAINS
       kr=  alpha*rr
       kr2= kr*kr
       w0=  1.0_dp-erfc(kr)
-      w1=  2.0_dp*oorootpi*exp(-kr2)
+      w1=  2.0_dp*oorootpi*EXP(-kr2)
       w2=  w1*kr
 
       f=f          -w0*r1
@@ -1129,32 +1067,32 @@ CONTAINS
       d4f(:,:,:,:)=   0.0_dp
       d5f(:,:,:,:,:)= 0.0_dp
 
-      do k1=1,3
+      DO k1=1,3
         d1f(k1)=d1f(k1)+v(k1)*d1
-      enddo
-      do k1=1,3
-        do k2=1,3
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
           d2f(k1,k2)=d2f(k1,k2)+v(k1)*v(k2)*d2 
-        enddo
+        ENDDO
         d2f(k1,k1)=d2f(k1,k1)+ d1 
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
             d3f(k1,k2,k3)=d3f(k1,k2,k3)+v(k1)*v(k2)*v(k3)*d3 
-          enddo
+          ENDDO
           w=v(k1)*d2
           d3f(k1,k2,k2)=d3f(k1,k2,k2)+w
           d3f(k2,k1,k2)=d3f(k2,k1,k2)+w
           d3f(k2,k2,k1)=d3f(k2,k2,k1)+w
-        enddo
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
-            do k4=1,3
+        ENDDO
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
+            DO k4=1,3
               d4f(k1,k2,k3,k4)=d4f(k1,k2,k3,k4)+v(k1)*v(k2)*v(k3)*v(k4)*d4 
-            enddo
+            ENDDO
             w=v(k1)*v(k2)*d3
             d4f(k1,k2,k3,k3)=d4f(k1,k2,k3,k3)+w
             d4f(k1,k3,k2,k3)=d4f(k1,k3,k2,k3)+w
@@ -1162,19 +1100,19 @@ CONTAINS
             d4f(k1,k3,k3,k2)=d4f(k1,k3,k3,k2)+w
             d4f(k3,k1,k3,k2)=d4f(k3,k1,k3,k2)+w
             d4f(k3,k3,k1,k2)=d4f(k3,k3,k1,k2)+w
-          enddo
+          ENDDO
           d4f(k1,k1,k2,k2)=d4f(k1,k1,k2,k2)+d2
           d4f(k1,k2,k1,k2)=d4f(k1,k2,k1,k2)+d2
           d4f(k1,k2,k2,k1)=d4f(k1,k2,k2,k1)+d2
-        enddo
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
-            do k4=1,3
-              do k5=1,3
+        ENDDO
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
+            DO k4=1,3
+              DO k5=1,3
                 d5f(k1,k2,k3,k4,k5)=d5f(k1,k2,k3,k4,k5)+v(k1)*v(k2)*v(k3)*v(k4)*v(k5)*d5 
-              enddo
+              ENDDO
               w=v(k1)*v(k2)*v(k3)*d4
               d5f(k1,k2,k3,k4,k4)=d5f(k1,k2,k3,k4,k4)+w
               d5f(k1,k2,k4,k3,k4)=d5f(k1,k2,k4,k3,k4)+w
@@ -1186,7 +1124,7 @@ CONTAINS
               d5f(k1,k4,k4,k2,k3)=d5f(k1,k4,k4,k2,k3)+w
               d5f(k4,k1,k4,k2,k3)=d5f(k4,k1,k4,k2,k3)+w
               d5f(k4,k4,k1,k2,k3)=d5f(k4,k4,k1,k2,k3)+w
-            enddo
+            ENDDO
             w=v(k1)*d3
             d5f(k1,k2,k2,k3,k3)=d5f(k1,k2,k2,k3,k3)+w
             d5f(k1,k2,k3,k2,k3)=d5f(k1,k2,k3,k2,k3)+w
@@ -1203,46 +1141,46 @@ CONTAINS
             d5f(k2,k2,k3,k3,k1)=d5f(k2,k2,k3,k3,k1)+w
             d5f(k2,k3,k2,k3,k1)=d5f(k2,k3,k2,k3,k1)+w
             d5f(k2,k3,k3,k2,k1)=d5f(k2,k3,k3,k2,k1)+w
-          enddo
-        enddo
-      enddo
+          ENDDO
+        ENDDO
+      ENDDO
 
-      do k5=1,3
-      do imA=1,Nm
-        do imB=1,Nm
+      DO k5=1,3
+      DO imA=1,Nm
+        DO imB=1,Nm
 
          w=   M0A(imA)*M0B(imB)*d1f(k5)
-         do k1=1,3
+         DO k1=1,3
            w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d2f(k1,k5)
-         enddo
-         do k1=1,3
-           do k2=1,3
+         ENDDO
+         DO k1=1,3
+           DO k2=1,3
              w=w+(  M2A(imA,k1,k2)*M0B(imB)-M1A(imA,k1)*M1B(imB,k2)+M0A(imA)*M2B(imB,k1,k2) )*d3f(k1,k2,k5)
-           enddo
-         enddo
-         do k1=1,3
-           do k2=1,3
-             do k3=1,3
+           ENDDO
+         ENDDO
+         DO k1=1,3
+           DO k2=1,3
+             DO k3=1,3
                w=w+( -M2A(imA,k1,k2)*M1B(imB,k3)+M1A(imA,k1)*M2B(imB,k2,k3) )*d4f(k1,k2,k3,k5)
-             enddo
-           enddo
-         enddo
+             ENDDO
+           ENDDO
+         ENDDO
 
-         do k1=1,3
-           do k2=1,3
-             do k3=1,3
-               do k4=1,3
+         DO k1=1,3
+           DO k2=1,3
+             DO k3=1,3
+               DO k4=1,3
                  w=w+ M2A(imA,k1,k2)*M2B(imB,k3,k4)*d5f(k1,k2,k3,k4,k5)
-               enddo
-             enddo
-           enddo
-         enddo
+               ENDDO
+             ENDDO
+           ENDDO
+         ENDDO
 
          dCoul(imA,imB,k5)=dCoul(imA,imB,k5)+w
 
-        enddo
-      enddo
-      enddo
+        ENDDO
+      ENDDO
+      ENDDO
 
     v(:)=RAB(:)
 
@@ -1266,85 +1204,85 @@ CONTAINS
        kk(:)=pw_grid%g(:,gpt)
        ff = 2.0_dp * fourpi * rho0(lp,mp,np)**2 * pw_grid%vol / pw_grid%gsq(gpt)
 
-      kr=dot_product(kk(:),v(:))
-      cc=cos(kr)
-      ss=sin(kr)
+      kr=DOT_PRODUCT(kk(:),v(:))
+      cc=COS(kr)
+      ss=SIN(kr)
 
       f=f+cc*ff
-      do k1=1,3
+      DO k1=1,3
         d1f(k1)=d1f(k1)-kk(k1)*ss*ff
-      enddo
-      do k1=1,3
-        do k2=1,3
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
           d2f(k1,k2)=d2f(k1,k2)-kk(k1)*kk(k2)*cc*ff
-        enddo
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
+        ENDDO
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
             d3f(k1,k2,k3)=d3f(k1,k2,k3)+kk(k1)*kk(k2)*kk(k3)*ss*ff
-          enddo
-        enddo
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
-            do k4=1,3
+          ENDDO
+        ENDDO
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
+            DO k4=1,3
               d4f(k1,k2,k3,k4)=d4f(k1,k2,k3,k4)+kk(k1)*kk(k2)*kk(k3)*kk(k4)*cc*ff
-            enddo
-          enddo
-        enddo
-      enddo
-      do k1=1,3
-        do k2=1,3
-          do k3=1,3
-            do k4=1,3
-              do k5=1,3
+            ENDDO
+          ENDDO
+        ENDDO
+      ENDDO
+      DO k1=1,3
+        DO k2=1,3
+          DO k3=1,3
+            DO k4=1,3
+              DO k5=1,3
                 d5f(k1,k2,k3,k4,k5)=d5f(k1,k2,k3,k4,k5)-kk(k1)*kk(k2)*kk(k3)*kk(k4)*kk(k5)*ss*ff
-              enddo
-            enddo
-          enddo
-        enddo
-      enddo
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDDO
+      ENDDO
 
-    enddo
+    ENDDO
 
-      do k5=1,3
-      do imA=1,Nm
-        do imB=1,Nm
+      DO k5=1,3
+      DO imA=1,Nm
+        DO imB=1,Nm
 
          w=   M0A(imA)*M0B(imB)*d1f(k5)
-         do k1=1,3
+         DO k1=1,3
            w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d2f(k1,k5)
-         enddo
-         do k1=1,3
-           do k2=1,3
+         ENDDO
+         DO k1=1,3
+           DO k2=1,3
              w=w+(  M2A(imA,k1,k2)*M0B(imB)-M1A(imA,k1)*M1B(imB,k2)+M0A(imA)*M2B(imB,k1,k2) )*d3f(k1,k2,k5)
-           enddo
-         enddo
-         do k1=1,3
-           do k2=1,3
-             do k3=1,3
+           ENDDO
+         ENDDO
+         DO k1=1,3
+           DO k2=1,3
+             DO k3=1,3
                w=w+( -M2A(imA,k1,k2)*M1B(imB,k3)+M1A(imA,k1)*M2B(imB,k2,k3) )*d4f(k1,k2,k3,k5)
-             enddo
-           enddo
-         enddo
+             ENDDO
+           ENDDO
+         ENDDO
 
-         do k1=1,3
-           do k2=1,3
-             do k3=1,3
-               do k4=1,3
+         DO k1=1,3
+           DO k2=1,3
+             DO k3=1,3
+               DO k4=1,3
                  w=w+ M2A(imA,k1,k2)*M2B(imB,k3,k4)*d5f(k1,k2,k3,k4,k5)
-               enddo
-             enddo
-           enddo
-         enddo
+               ENDDO
+             ENDDO
+           ENDDO
+         ENDDO
 
          dCoul(imA,imB,k5)=dCoul(imA,imB,k5)+w
 
-        enddo
-      enddo
-      enddo
+        ENDDO
+      ENDDO
+      ENDDO
 
   END SUBROUTINE makedCoulE
 

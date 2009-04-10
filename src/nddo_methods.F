@@ -39,7 +39,7 @@ MODULE nddo_methods
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
        do_method_rm1, do_multipole_charge, do_multipole_dipole, &
        do_multipole_none, do_multipole_quadrupole, do_se_IS_kdso, &
-       do_se_IS_kdso_d, do_se_lr_ewald_gks
+       do_se_IS_kdso_d
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -337,6 +337,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_2c
     TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list
@@ -351,8 +353,6 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
 
     failure  = .FALSE.
     enuclear = 0.0_dp
@@ -532,6 +532,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_2c
     TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list
@@ -549,8 +551,6 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -1638,8 +1638,6 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
