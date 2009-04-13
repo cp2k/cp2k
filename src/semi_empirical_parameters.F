@@ -49,7 +49,7 @@ MODULE semi_empirical_parameters
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
-  USE physcon,                         ONLY: kcalmol
+  USE physcon,                         ONLY: kcalmol,evolt
   USE semi_empirical_par_utils,        ONLY: calpar,&
                                              convert_param_to_cp2k,&
                                              valence_electrons
@@ -719,11 +719,11 @@ CONTAINS
     CASE (1)
        !Hydrogen
        sep%defined          = .TRUE.
-       sep%alp              =   3.32315003_dp
-       sep%beta(0)          =  -6.0701386_dp
+       sep%alp              =   3.323150026265647_dp
+       sep%beta(0)          =  -6.070138572957370_dp
        sep%beta(1)          =   0.0_dp
-       sep%sto_exponents(0) =   1.22064396_dp
-       sep%sto_exponents(1) =   1.351278_dp
+       sep%sto_exponents(0) =   1.220643961907751_dp
+       sep%sto_exponents(1) =   1.351277996861119_dp
        sep%uss              =  -11.185667_dp
        sep%upp              =   1000000.0_dp
        sep%gss              =   14.794208_dp
@@ -732,11 +732,11 @@ CONTAINS
        sep%gp2              =   0.0_dp
        sep%hsp              =   0.0_dp
        sep%ass              =   1.0e-16_dp
-       sep%asp              =   3.35579263_dp
-       sep%app              =   0.03941681_dp
-       sep%de               =   20.064114_dp/27.21_dp
+       sep%asp              =   3.355792629670590_dp
+       sep%app              =   0.03941680815458009_dp
+       sep%de               =   20.06411392885370_dp/evolt
        sep%nr               =   1
-       sep%acoul            =   16.273685_dp/27.21_dp
+       sep%acoul            =   16.27368453086666_dp/evolt
        ! This parameterization explicitly supports 
        ! p-orbitals for H. So by default we turn them
        ! on for this element.
@@ -746,22 +746,22 @@ CONTAINS
        sep%defined          = .TRUE.
        sep%uss              = -79.081852_dp
        sep%upp              = -72.59032_dp
-       sep%beta(0)          = -40.626544_dp
-       sep%beta(1)          = -28.39468_dp
-       sep%sto_exponents(0) =   3.81465098_dp
-       sep%sto_exponents(1) =   2.44649724_dp
-       sep%alp              =   2.98004291_dp
+       sep%beta(0)          = -40.62654394990248_dp
+       sep%beta(1)          = -28.39467965792422_dp
+       sep%sto_exponents(0) =   3.814650982832301_dp
+       sep%sto_exponents(1) =   2.446497244623426_dp
+       sep%alp              =   2.980042911001686_dp
        sep%gss              =  15.75576_dp
        sep%gsp              =  10.62116_dp
        sep%gpp              =  13.654016_dp
        sep%gp2              =  12.406095_dp
        sep%hsp              =   0.593883_dp
        sep%ass              =  1.0e-16_dp
-       sep%asp              =  3.58355448_dp
-       sep%app              =  0.000860052_dp
-       sep%de               =  7.159002_dp/27.21_dp
+       sep%asp              =  3.583554483196465_dp
+       sep%app              =  0.0008605218877175237_dp
+       sep%de               =  7.159002319741392_dp/evolt
        sep%nr               =  2
-       sep%acoul            =  16.223618_dp/27.21_dp
+       sep%acoul            =  16.22361790703965_dp/evolt
     END SELECT
     ! Finalize parameters for the element
     CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
