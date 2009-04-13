@@ -2824,6 +2824,8 @@ MODULE dkh_main
                                                 ove, pev1tp, pVpt, revt, &
                                                 sinv, vt
 
+      IF (dkh_order.lt.0) RETURN     
+
 !CAW  pp: p^2-values (in momentum-space), stored as matrix!!
 !-----------------------------------------------------------------------
 !     Define velocity of light
@@ -2924,28 +2926,32 @@ MODULE dkh_main
 !     Calculate even1 in T-basis
 !-----------------------------------------------------------------------
  
-      CALL even1_a(n,ev1t,vt,pvpt,aa,rr)
+      IF (dkh_order.ge.1) THEN       
+        CALL even1_a(n,ev1t,vt,pvpt,aa,rr)
 
 !----------------------------------------------------------------------
 !     Transform even1 back to position space
 !----------------------------------------------------------------------
 
-      CALL dgemm("N","N",n,n,n,1.0_dp,revt,n,ev1t,n,0.0_dp,aux,n)
-      CALL dgemm("N","T",n,n,n,1.0_dp,aux,n,revt,n,0.0_dp,ev1,n)  
+        CALL dgemm("N","N",n,n,n,1.0_dp,revt,n,ev1t,n,0.0_dp,aux,n)
+        CALL dgemm("N","T",n,n,n,1.0_dp,aux,n,revt,n,0.0_dp,ev1,n)  
+      END IF
 
 !-----------------------------------------------------------------------
 !     Calculate even2 in T-basis
 !-----------------------------------------------------------------------
 
-      CALL even2c_a (n,ev2t,vt,pvpt,aa,rr,tt,e)
+      IF (dkh_order.ge.2) THEN       
+        CALL even2c_a (n,ev2t,vt,pvpt,aa,rr,tt,e)
 
 !-----------------------------------------------------------------------
 !     Transform even2 back to position space
 !-----------------------------------------------------------------------
 
-      aux=0.0_dp
-      CALL dgemm("N","N",n,n,n,1.0_dp,revt,n,ev2t,n,0.0_dp,aux,n)
-      CALL dgemm("N","T",n,n,n,1.0_dp,aux,n,revt,n,0.0_dp,ev2,n)
+        aux=0.0_dp
+        CALL dgemm("N","N",n,n,n,1.0_dp,revt,n,ev2t,n,0.0_dp,aux,n)
+        CALL dgemm("N","T",n,n,n,1.0_dp,aux,n,revt,n,0.0_dp,ev2,n)
+      END IF
 
 !-----------------------------------------------------------------------
 !     Calculate even3 in T-basis, only if requested
@@ -2978,16 +2984,24 @@ MODULE dkh_main
         END IF
       END IF
           
+      IF (dkh_order.ge.4) THEN       
+        stop "DKH 4"
+      END IF
 !-----------------------------------------------------------------------
 !     Calculate v in position space
 !-----------------------------------------------------------------------
 
-      CALL mat_add(v,1.0_dp,ev1,1.0_dp,ev2,n)
+      IF(dkh_order.ge.1) THEN
+        CALL mat_add2(v,0.0_dp,1.0_dp,ev1,n)
+      END IF
+      IF(dkh_order.ge.2) THEN
+        CALL mat_add2(v,1.0_dp,1.0_dp,ev2,n)
+      END IF
       IF(dkh_order.ge.3) THEN
         CALL mat_add2(v,1.0_dp,1.0_dp,ev3,n)
-        IF(dkh_order.ge.4) THEN
-          CALL mat_add2(v,1.0_dp,1.0_dp,ev4,n)
-        END IF
+      END IF
+      IF(dkh_order.ge.4) THEN
+        CALL mat_add2(v,1.0_dp,1.0_dp,ev4,n)
       END IF
 
 !-----------------------------------------------------------------------

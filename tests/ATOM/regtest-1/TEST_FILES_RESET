@@ -3,6 +3,9 @@ Al.inp
 # bug fix B97
 K.inp
 Pu.inp
-# coorect B97 call
+# corect B97 call
 K.inp
 Pu.inp
+# DKH(0) and DKH(1)
+La.inp
+Cm.inp
