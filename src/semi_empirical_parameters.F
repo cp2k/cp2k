@@ -49,7 +49,8 @@ MODULE semi_empirical_parameters
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
-  USE physcon,                         ONLY: kcalmol,evolt
+  USE physcon,                         ONLY: evolt,&
+                                             kcalmol
   USE semi_empirical_par_utils,        ONLY: calpar,&
                                              convert_param_to_cp2k,&
                                              valence_electrons
