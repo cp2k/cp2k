@@ -71,7 +71,24 @@ CONTAINS
     ! Coulomb Cutoff Taper
     CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",explicit=explicit1,error=error)
     CALL section_vals_val_get(se_section,"COULOMB%RC_TAPER",explicit=explicit2,error=error)
-    IF ((.NOT.explicit1).AND.(ALL(cell%perd==0))) THEN
+    IF ((.NOT.explicit1).AND.se_control%do_ewald_gks) THEN
+       rc = MAX(0.25*plane_distance(1,0,0,cell),&
+                0.25*plane_distance(0,1,0,cell),&
+                0.25*plane_distance(0,0,1,cell))
+       IF (rc /= se_control%cutoff_cou) THEN
+          IF (output_unit>0) THEN
+             WRITE(output_unit,*)
+             WRITE(output_unit,'(A,T37,A)')     " SEMIEMPIRICAL|",&
+                  " Coulomb Integral cutoff/taper was redefined"
+             WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| Old value [a.u.]",&
+                  se_control%cutoff_cou
+             WRITE(output_unit,'(A,T71,F10.3)') " SEMIEMPIRICAL| New value [a.u.]",rc
+             WRITE(output_unit,*)
+          END IF
+       END IF
+                           se_control%cutoff_cou = rc
+       IF (.NOT.explicit2) se_control%taper_cou  = rc
+    ELSE IF ((.NOT.explicit1).AND.(ALL(cell%perd==0))) THEN
        rc = MAX(plane_distance(1,0,0,cell),&
                 plane_distance(0,1,0,cell),&
                 plane_distance(0,0,1,cell))

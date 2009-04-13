@@ -346,3 +346,5 @@ dimer3.inp
 dimer4.inp
 # numerics
 geom.inp
+# numerics
+h2o_gks.inp
