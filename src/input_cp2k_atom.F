@@ -82,11 +82,12 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RUN_TYPE",&
-            description="Type of run that you want to perform [ENERGY,...] ",&
+            description="Type of run that you want to perform "//&
+                "[ENERGY,BASIS_OPTIMIZATION,PSEUDOPOTENTIAL_OPTIMIZATION,,...] ",&
             usage="RUN_TYPE ENERGY",&
             default_i_val=atom_energy_run,&
-            enum_c_vals=s2a("NONE","ENERGY"),&
-            enum_i_vals=(/atom_no_run, atom_energy_run/),&
+            enum_c_vals=s2a("NONE","ENERGY","BASIS_OPTIMIZATION","PSEUDOPOTENTIAL_OPTIMIZATION"),&
+            enum_i_vals=(/atom_no_run, atom_energy_run, atom_basis_run, atom_pseudo_run/),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -164,6 +165,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_potential_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_powell_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -718,6 +723,56 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
     END IF
   END SUBROUTINE create_basis_section
+
+! *****************************************************************************
+!> \brief Creates the &POWELL section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_powell_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_powell_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="powell",&
+            description="Section defines basic parameters for Powell optimization",&
+            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="ACCURACY",&
+            description="Final accuracy requested in optimization (RHOEND)",&
+            usage="ACCURACY 0.00001",&
+            default_r_val=1.e-6_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="STEP_SIZE",&
+            description="Initial step size for search algorithm (RHOBEG)",&
+            usage="STEP_SIZE 0.005",&
+            default_r_val=0.005_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_FUN",&
+            description="Maximum number of function evaluations",&
+            usage="MAX_FUN 1000",&
+            default_i_val=5000,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_powell_section
 
 ! *****************************************************************************
 

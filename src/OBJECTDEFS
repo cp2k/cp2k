@@ -17,12 +17,15 @@ OBJECTS_GENERIC =\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
  atoms_input.o\
+ atom_basis.o\
  atom_electronic_structure.o\
+ atom_energy.o\
  atom_fit.o\
  atom_kind_orbitals.o\
  atom_operators.o\
  atom_optimization.o\
  atom_output.o\
+ atom_pseudo.o\
  atom_types.o\
  atom_utils.o\
  atom_xc.o\

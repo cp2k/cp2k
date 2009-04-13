@@ -55,10 +55,10 @@ CONTAINS
        WRITE(optstate%unit,*) "POWELL| Too many steps"
        optstate%state = -1
     CASE (4)
-       WRITE(optstate%unit,*) " POWELL| Error in trust region"
+       WRITE(optstate%unit,*) "POWELL| Error in trust region"
        optstate%state = -1
     CASE (5)
-       WRITE(optstate%unit,*) " POWELL| N out of range"
+       WRITE(optstate%unit,*) "POWELL| N out of range"
        optstate%state = -1
     CASE (6,7)
        optstate%state = -1

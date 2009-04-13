@@ -166,15 +166,21 @@ CONTAINS
     WRITE(iw,'(/,A)') TRIM(title)
     SELECT CASE (atom_basis%basis_type)
       CASE (GTO_BASIS)
-        WRITE(iw,'(/," ",21("*"),A,21("*"))') " Uncontracted Gaussian Type Orbitals "
+        IF ( atom_basis%geometrical ) THEN
+          WRITE(iw,'(/," ",21("*"),A,22("*"))') " Geometrical Gaussian Type Orbitals "
+          WRITE(iw,'(A,F15.8,T47,A,F10.5,/)') " Initial exponent:",atom_basis%aval,&
+                " Proportionality factor:",atom_basis%cval
+        ELSE
+          WRITE(iw,'(/," ",21("*"),A,21("*"))') " Uncontracted Gaussian Type Orbitals "
+        END IF
         IF ( atom_basis%nbas(0) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
-                        " s Exponents: ",(atom_basis%am(i,0),i=1,atom_basis%nbas(0))
+                          " s Exponents: ",(atom_basis%am(i,0),i=1,atom_basis%nbas(0))
         IF ( atom_basis%nbas(1) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
-                        " p Exponents: ",(atom_basis%am(i,1),i=1,atom_basis%nbas(1))
+                          " p Exponents: ",(atom_basis%am(i,1),i=1,atom_basis%nbas(1))
         IF ( atom_basis%nbas(2) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
-                        " d Exponents: ",(atom_basis%am(i,2),i=1,atom_basis%nbas(2))
+                          " d Exponents: ",(atom_basis%am(i,2),i=1,atom_basis%nbas(2))
         IF ( atom_basis%nbas(3) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
-                        " f Exponents: ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
+                          " f Exponents: ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
         WRITE(iw,'(" ",79("*"))')
       CASE (CGTO_BASIS)
         WRITE(iw,'(/," ",22("*"),A,22("*"))') " Contracted Gaussian Type Orbitals "

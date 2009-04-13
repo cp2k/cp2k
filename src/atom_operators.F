@@ -187,22 +187,24 @@ CONTAINS
           DO l=0,3
             n = integrals%n(l)
             m = basis%nprim(l)
-            ALLOCATE (omat(m,m),STAT=ierr)
-            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-
-            CALL  sg_overlap ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
-            CALL contract2(integrals%ovlp(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
-            CALL  sg_kinetic ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
-            CALL contract2(integrals%kin(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
-            IF ( PRESENT(potential) ) THEN
-              IF ( potential%confinement ) THEN
-                CALL  sg_conf ( omat(1:m,1:m), potential%rcon, potential%ncon/2, &
-                                l, basis%am(1:m,l), basis%am(1:m,l) )
-                CALL contract2(integrals%conf(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
+            IF (n>0 .AND. m>0) THEN
+              ALLOCATE (omat(m,m),STAT=ierr)
+              CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+  
+              CALL  sg_overlap ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
+              CALL contract2(integrals%ovlp(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
+              CALL  sg_kinetic ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
+              CALL contract2(integrals%kin(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
+              IF ( PRESENT(potential) ) THEN
+                IF ( potential%confinement ) THEN
+                  CALL  sg_conf ( omat(1:m,1:m), potential%rcon, potential%ncon/2, &
+                                  l, basis%am(1:m,l), basis%am(1:m,l) )
+                  CALL contract2(integrals%conf(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
+                END IF
               END IF
+              DEALLOCATE (omat,STAT=ierr)
+              CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
             END IF
-            DEALLOCATE (omat,STAT=ierr)
-            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
           END DO
           IF ( integrals%eri_coulomb ) THEN
             ll = 0
@@ -417,31 +419,35 @@ CONTAINS
               DO l=0,3
                 n = integrals%n(l)
                 m = basis%nprim(l)
-                ALLOCATE (omat(m,m),spmat(n,5),xmat(m),STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-
-                omat = 0._dp
-                CALL sg_erf ( omat(1:m,1:m), l, alpha, basis%am(1:m,l), basis%am(1:m,l) )
-                omat(1:m,1:m) = -potential%gth_pot%zion*omat(1:m,1:m)
-                CALL contract2(integrals%core(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
-                DO i=1,potential%gth_pot%ncl
+                IF(n>0 .AND. m>0) THEN
+                  ALLOCATE (omat(m,m),spmat(n,5),xmat(m),STAT=ierr)
+                  CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+  
                   omat = 0._dp
-                  CALL sg_gpot ( omat(1:m,1:m), i-1, potential%gth_pot%rc, l, basis%am(1:m,l), basis%am(1:m,l) )
-                  omat(1:m,1:m) = potential%gth_pot%cl(i)*omat(1:m,1:m)
-                  CALL contract2add(integrals%core(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
-                END DO
+                  CALL sg_erf ( omat(1:m,1:m), l, alpha, basis%am(1:m,l), basis%am(1:m,l) )
+                  omat(1:m,1:m) = -potential%gth_pot%zion*omat(1:m,1:m)
+                  CALL contract2(integrals%core(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
+                  DO i=1,potential%gth_pot%ncl
+                    omat = 0._dp
+                    CALL sg_gpot ( omat(1:m,1:m), i-1, potential%gth_pot%rc, l, basis%am(1:m,l), basis%am(1:m,l) )
+                    omat(1:m,1:m) = potential%gth_pot%cl(i)*omat(1:m,1:m)
+                    CALL contract2add(integrals%core(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
+                  END DO
 
-                spmat = 0._dp
-                k = potential%gth_pot%nl(l)
-                DO i=1,k
-                  CALL sg_proj_ol ( xmat(1:m), l, basis%am(1:m,l), i-1, potential%gth_pot%rcnl(l) )
-                  spmat(1:n,i) = MATMUL(TRANSPOSE(basis%cm(1:m,1:n,l)),xmat(1:m))
-                END DO
-                integrals%hnl(1:n,1:n,l) = MATMUL(spmat(1:n,1:k),&
-                    MATMUL(potential%gth_pot%hnl(1:k,1:k,l),TRANSPOSE(spmat(1:n,1:k))))
-
-                DEALLOCATE (omat,spmat,xmat,STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+                  spmat = 0._dp
+                  k = potential%gth_pot%nl(l)
+                  DO i=1,k
+                    CALL sg_proj_ol ( xmat(1:m), l, basis%am(1:m,l), i-1, potential%gth_pot%rcnl(l) )
+                    spmat(1:n,i) = MATMUL(TRANSPOSE(basis%cm(1:m,1:n,l)),xmat(1:m))
+                  END DO
+                  IF(k>0) THEN
+                    integrals%hnl(1:n,1:n,l) = MATMUL(spmat(1:n,1:k),&
+                      MATMUL(potential%gth_pot%hnl(1:k,1:k,l),TRANSPOSE(spmat(1:n,1:k))))
+                  END IF
+  
+                  DEALLOCATE (omat,spmat,xmat,STAT=ierr)
+                  CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+                END IF
               END DO
             CASE DEFAULT
               CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)

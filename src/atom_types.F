@@ -71,6 +71,9 @@ MODULE atom_types
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: dbf        !derivatives (num)
     REAL(KIND=dp)                                 :: eps_eig
     TYPE(grid_atom_type),POINTER                  :: grid
+    LOGICAL                                       :: geometrical
+    REAL(KIND=dp)                                 :: aval, cval
+    INTEGER, DIMENSION(0:3)                       :: start
   END TYPE atom_basis_type
 
 !> Provides all information about a pseudopotential
@@ -288,6 +291,11 @@ CONTAINS
     CALL create_grid_atom(basis%grid,ngp,1,1,quadtype)
     basis%grid%nr = ngp
 
+    basis%geometrical = .FALSE.
+    basis%aval  = 0._dp
+    basis%cval  = 0._dp
+    basis%start = 0
+
     CALL section_vals_val_get(basis_section,"BASIS_TYPE",i_val=basistype,error=error)
     CALL section_vals_val_get(basis_section,"EPS_EIGENVALUE",r_val=basis%eps_eig,error=error)
     SELECT CASE (basistype)
@@ -411,6 +419,12 @@ CONTAINS
              basis%am(i,l) = aval * cval**(ll)
            END DO
          END DO
+
+         basis%geometrical = .TRUE.
+         basis%aval = aval
+         basis%cval = cval
+         basis%start = starti
+
          ! initialize basis function on a radial grid
          nr = basis%grid%nr
          m  = MAXVAL(basis%nbas)

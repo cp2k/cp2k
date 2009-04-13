@@ -117,7 +117,9 @@ MODULE input_constants
                                                    
   ! Run Types of Atom Code                         
   INTEGER, PARAMETER, PUBLIC               :: atom_no_run=1,&
-                                              atom_energy_run=2
+                                              atom_energy_run=2,&
+                                              atom_basis_run=3,&
+                                              atom_pseudo_run=4
 
   ! Integral types in Atom Code
   INTEGER, PARAMETER, PUBLIC               :: do_analytic=1,&
