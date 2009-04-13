@@ -613,10 +613,18 @@ CPSourceFileRef,&
                     CASE (1) ! s-basis
                       pdiag(isgfa   ) = (zeff         - yy)*0.5_dp*maxocc
                     CASE (4) ! sp-basis
-                      pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                      pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                      pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                      pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                      IF (z == 1 ) THEN
+                        ! special case: hydrogen with sp basis
+                        pdiag(isgfa   ) = (zeff         - yy)*0.5_dp*maxocc
+                        pdiag(isgfa+ 1) = 0._dp
+                        pdiag(isgfa+ 2) = 0._dp
+                        pdiag(isgfa+ 3) = 0._dp
+                      ELSE
+                        pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                        pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                      END IF
                     CASE (9) ! spd-basis
                       IF (z < 21 .OR. z > 30 .AND. z < 39 .OR. z > 48 .AND. z < 57) THEN
                          !   Main Group Element:  The "d" shell is formally empty.
