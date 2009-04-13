@@ -4,14 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Analytical derivatives of Integrals for semi-empirical methods
-!> \author Teodoro Laino - Zurich University 04.2007 [tlaino]
-!> \par History
-!>      23.11.2007 jhu   short range version of integrals
-!>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
-!>                 for computing integrals
-!>      Teodoro Laino (05.2008) [tlaino] - University of Zurich : analytical
-!>                 derivatives for d-orbitals
+!> \brief Integral GKS scheme
 ! *****************************************************************************
 MODULE semi_empirical_int_gks
 
@@ -36,7 +29,6 @@ MODULE semi_empirical_int_gks
 
   IMPLICIT NONE
   PRIVATE
-#include "semi_empirical_int_debug.h"
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_gks'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
