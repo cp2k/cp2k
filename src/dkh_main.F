@@ -2985,7 +2985,7 @@ MODULE dkh_main
       END IF
           
       IF (dkh_order.ge.4) THEN       
-        stop "DKH 4"
+        STOP "DKH 4"
       END IF
 !-----------------------------------------------------------------------
 !     Calculate v in position space
