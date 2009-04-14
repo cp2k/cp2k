@@ -1,0 +1,52 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD PNNL
+      &SE
+        INTEGRAL_SCREENING  SLATER
+        PERIODIC EWALD
+      &END
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-8
+      MAX_SCF 20
+       &OT T
+         PRECONDITIONER FULL_ALL
+         MINIMIZER CG   
+         LINESEARCH 3PNT
+       &END OT
+       &OUTER_SCF T
+         EPS_SCF 1.0E-8
+         MAX_SCF 20
+       &END OUTER_SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+    &POISSON
+      &EWALD
+        EWALD_TYPE EWALD
+        ALPHA  0.5
+        GMAX 41 41 41
+        &MULTIPOLES
+           MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END
+      &END EWALD
+    &END POISSON
+  &END DFT
+  &SUBSYS
+    &CELL
+         ABC     20.    20.    20.
+    &END CELL
+    &COORD
+  O         2.5484684372        0.0951686445        1.3760152337
+  H         2.5185519068        0.1469943764        0.4327712422
+  H         2.0984743607        0.8745672024        1.6669476451
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT ee
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+
