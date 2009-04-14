@@ -682,20 +682,26 @@ CPSourceFileRef,&
             i_val=qs_control%se_control%periodic_type,error=error)
        SELECT CASE(qs_control%se_control%periodic_type)
        CASE(do_se_lr_none)
-          qs_control%se_control%do_ewald    = .FALSE.
-          qs_control%se_control%do_ewald_r3 = .FALSE.
+          qs_control%se_control%do_ewald     = .FALSE.
+          qs_control%se_control%do_ewald_r3  = .FALSE.
           qs_control%se_control%do_ewald_gks = .FALSE.
        CASE(do_se_lr_ewald)
-          qs_control%se_control%do_ewald    = .TRUE.
-          qs_control%se_control%do_ewald_r3 = .FALSE.
+          qs_control%se_control%do_ewald     = .TRUE.
+          qs_control%se_control%do_ewald_r3  = .FALSE.
           qs_control%se_control%do_ewald_gks = .FALSE.
        CASE(do_se_lr_ewald_gks)
-          qs_control%se_control%do_ewald    = .FALSE.
-          qs_control%se_control%do_ewald_r3 = .FALSE.
+          qs_control%se_control%do_ewald     = .FALSE.
+          qs_control%se_control%do_ewald_r3  = .FALSE.
           qs_control%se_control%do_ewald_gks = .TRUE.
+          CALL cp_assert(qs_control%method_id==do_method_pnnl,&
+               cp_fatal_level,cp_assertion_failed,routineP,&
+               "A periodic semi-empirical calculation was requested with a long-range  "//&
+               "summation on the single integral evaluation. This scheme is supported  "//&
+               "only by the PNNL parameterization.",&
+               error=error,failure=failure)
        CASE(do_se_lr_ewald_r3)
-          qs_control%se_control%do_ewald    = .TRUE.
-          qs_control%se_control%do_ewald_r3 = .TRUE.
+          qs_control%se_control%do_ewald     = .TRUE.
+          qs_control%se_control%do_ewald_r3  = .TRUE.
           qs_control%se_control%do_ewald_gks = .FALSE.
           CALL cp_assert(qs_control%se_control%integral_screening==do_se_IS_kdso,&
                cp_fatal_level,cp_assertion_failed,routineP,&
@@ -719,7 +725,7 @@ CPSourceFileRef,&
             qs_control %method_id == do_method_pdg  .OR. &
             qs_control %method_id == do_method_pm3  .OR. &
             qs_control %method_id == do_method_pm6  .OR. &
-            qs_control %method_id == do_method_pnnl  .OR. &
+            qs_control %method_id == do_method_pnnl .OR. &
             qs_control %method_id == do_method_rm1  ) THEN
           qs_control%se_control%orthogonal_basis=.TRUE.
        END IF
