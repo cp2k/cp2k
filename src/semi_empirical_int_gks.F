@@ -250,9 +250,9 @@ CONTAINS
        mpole => sepi%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0A(indexb(i,j))=     -mpole%c
-       M1A(indexb(i,j),:)=   -mpole%d(:)
-       M2A(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0A(indexb(i,j))=     -mpole%cs
+       M1A(indexb(i,j),:)=   -mpole%ds(:)
+       M2A(indexb(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
     ENDDO
     ACOULA= sepi%acoul
 
@@ -261,9 +261,9 @@ CONTAINS
        mpole => sepj%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0B(indexb(i,j))=     -mpole%c
-       M1B(indexb(i,j),:)=   -mpole%d(:)
-       M2B(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0B(indexb(i,j))=     -mpole%cs
+       M1B(indexb(i,j),:)=   -mpole%ds(:)
+       M2B(indexb(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
     ENDDO
     ACOULB= sepj%acoul
 
@@ -432,9 +432,9 @@ CONTAINS
        mpole => sepi%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0A(indexb(i,j))=     -mpole%c
-       M1A(indexb(i,j),:)=   -mpole%d(:)
-       M2A(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0A(indexb(i,j))=     -mpole%cs
+       M1A(indexb(i,j),:)=   -mpole%ds(:)
+       M2A(indexb(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
     ENDDO
     ACOULA= sepi%acoul
 
@@ -443,9 +443,9 @@ CONTAINS
        mpole => sepj%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0B(indexb(i,j))=     -mpole%c
-       M1B(indexb(i,j),:)=   -mpole%d(:)
-       M2B(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0B(indexb(i,j))=     -mpole%cs
+       M1B(indexb(i,j),:)=   -mpole%ds(:)
+       M2B(indexb(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
     ENDDO
     ACOULB= sepj%acoul
 
@@ -666,6 +666,14 @@ CONTAINS
           IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoul,se_int_control_off,error)
           CALL makeCoulE(rijv,sepi,sepj,CoulE,se_int_control,error)
           IF (l_denuc) CALL makedCoulE(rijv,sepi,sepj,dCoulE,se_int_control,error)
+       ELSE IF(se_int_control%do_ewald) THEN
+          CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE.,&
+            do_ewald_r3=.FALSE., integral_screening=se_int_control%integral_screening,&
+            max_multipole=do_multipole_quadrupole)
+          CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control_off,error)
+          IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoul,se_int_control_off,error)
+          CALL makeCoul(rijv,sepi,sepj,CoulE,se_int_control,error)
+          IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoulE,se_int_control,error)
        ELSE
           CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control,error)
           CoulE = Coul
@@ -733,9 +741,9 @@ CONTAINS
        mpole => sepi%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0A(indexb(i,j))=     -mpole%c
-       M1A(indexb(i,j),:)=   -mpole%d(:)
-       M2A(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0A(indexb(i,j))=     -mpole%cs
+       M1A(indexb(i,j),:)=   -mpole%ds(:)
+       M2A(indexb(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
     ENDDO
     ACOULA= sepi%acoul
 
@@ -744,9 +752,9 @@ CONTAINS
        mpole => sepj%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0B(indexb(i,j))=     -mpole%c
-       M1B(indexb(i,j),:)=   -mpole%d(:)
-       M2B(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0B(indexb(i,j))=     -mpole%cs
+       M1B(indexb(i,j),:)=   -mpole%ds(:)
+       M2B(indexb(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
     ENDDO
     ACOULB= sepj%acoul
 
@@ -1010,9 +1018,9 @@ CONTAINS
        mpole => sepi%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0A(indexb(i,j))=     -mpole%c
-       M1A(indexb(i,j),:)=   -mpole%d(:)
-       M2A(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0A(indexb(i,j))=     -mpole%cs
+       M1A(indexb(i,j),:)=   -mpole%ds(:)
+       M2A(indexb(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
     ENDDO
     ACOULA= sepi%acoul
 
@@ -1021,9 +1029,9 @@ CONTAINS
        mpole => sepj%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0B(indexb(i,j))=     -mpole%c
-       M1B(indexb(i,j),:)=   -mpole%d(:)
-       M2B(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0B(indexb(i,j))=     -mpole%cs
+       M1B(indexb(i,j),:)=   -mpole%ds(:)
+       M2B(indexb(i,j),:,:)= -mpole%qq(:,:)/3.0_dp
     ENDDO
     ACOULB= sepj%acoul
 

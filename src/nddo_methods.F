@@ -359,6 +359,7 @@ CONTAINS
     CALL setup_se_int_control_type(se_int_control, shortrange=se_control%do_ewald,&
          do_ewald_r3=se_control%do_ewald_r3,integral_screening=se_control%integral_screening,&
          max_multipole=se_control%max_multipole)
+    se_int_control%do_ewald = se_control%do_ewald
     IF(se_control%do_ewald_gks) THEN
       se_int_control%do_ewald_gks = .TRUE.
       se_int_control%shortrange = .TRUE.
@@ -561,6 +562,7 @@ CONTAINS
        CALL setup_se_int_control_type(se_int_control, shortrange=se_control%do_ewald,&
             do_ewald_r3=se_control%do_ewald_r3, integral_screening=se_control%integral_screening,&
             max_multipole=se_control%max_multipole)
+       se_int_control%do_ewald = se_control%do_ewald
        IF(se_control%do_ewald_gks) THEN
          se_int_control%do_ewald_gks = .TRUE.
          se_int_control%shortrange = .TRUE.

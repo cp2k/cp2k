@@ -125,6 +125,7 @@ MODULE semi_empirical_types
 
   TYPE se_int_control_type
      LOGICAL                                  :: shortrange
+     LOGICAL                                  :: do_ewald
      LOGICAL                                  :: do_ewald_r3
      LOGICAL                                  :: do_ewald_gks
      INTEGER                                  :: integral_screening
@@ -545,6 +546,7 @@ CONTAINS
        se_int_control%max_multipole   =  2
     END SELECT
 
+    se_int_control%do_ewald           = .FALSE.
     se_int_control%do_ewald_gks       = .FALSE.
     NULLIFY(se_int_control%ewald_gks%dg,se_int_control%ewald_gks%pw_pool)
 
