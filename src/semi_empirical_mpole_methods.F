@@ -215,6 +215,15 @@ CONTAINS
                 ! Quadrupole
                 mpole%task(3) = .TRUE.
                 mpole%qc      = -3._dp*M2(M(i,j),1:3,1:3)
+
+                IF (debug_this_module) THEN
+                   WRITE(*,'(A,2I6,A)')"Orbitals ",i,j,&
+                        " ("//label_print_orb(i)//","//label_print_orb(j)//")"
+                   IF(mpole%task(1)) WRITE(*,'(9F12.6)')mpole%c
+                   IF(mpole%task(2)) WRITE(*,'(9F12.6)')mpole%d
+                   IF(mpole%task(3)) WRITE(*,'(9F12.6)')mpole%qc
+                   WRITE(*,*)
+                END IF
              END DO
           END DO
        END SELECT
