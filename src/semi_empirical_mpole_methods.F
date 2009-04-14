@@ -56,9 +56,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_p_setup', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
     REAL(KIND=dp), DIMENSION(9), PARAMETER :: &
       loc_index = (/1,2,2,2,3,3,3,3,3/)
 
@@ -69,10 +66,10 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dlm, tmp, wp, ws, zb, ZP, ZS, &
                                                 zt
+    REAL(KIND=dp), DIMENSION(45)             :: M0
+    REAL(KIND=dp), DIMENSION(45, 3)          :: M1
+    REAL(KIND=dp), DIMENSION(45, 3, 3)       :: M2
     REAL(KIND=dp), DIMENSION(6, 0:2)         :: amn
-    REAL(KIND=dp), DIMENSION(Nm)             :: M0
-    REAL(KIND=dp), DIMENSION(Nm, 3)          :: M1
-    REAL(KIND=dp), DIMENSION(Nm, 3, 3)       :: M2
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     failure = .FALSE.
@@ -162,8 +159,8 @@ CONTAINS
           M1 = 0.0_dp
           M2 = 0.0_dp
 
-          DO mu=1,Nb
-             M0(M(mu,mu))= 1.0_dp
+          DO mu=1,se_parameter%natorb
+             M0(indexb(mu,mu))= 1.0_dp
           ENDDO
 
           ZS=se_parameter%sto_exponents(0)
@@ -174,29 +171,29 @@ CONTAINS
              zt=SQRT(ZS*ZP)
              zb=0.5_dp*(ZS+ZP)
              DO k=1,3
-                M1(M(1,1+k),k)=(zt/zb)**(2*nr+1)*REAL(2*nr+1,dp)/(2.0*zb*SQRT(3.0_dp))
+                M1(indexb(1,1+k),k)=(zt/zb)**(2*nr+1)*REAL(2*nr+1,dp)/(2.0*zb*SQRT(3.0_dp))
              ENDDO
 
              ws=REAL((2*nr+2)*(2*nr+1),dp)/(24.0_dp*ZS**2)
              DO k=1,3
-                M2(M(1,1),k,k)= ws
+                M2(indexb(1,1),k,k)= ws
              ENDDO
              wp=REAL((2*nr+2)*(2*nr+1),dp)/(40.0_dp*ZP**2)
              DO k1=1,3
                 DO k2=1,3
                    IF(k1 == k2)THEN
-                      M2(M(1+k1,1+k1),k2,k2)= 3.0_dp*wp
+                      M2(indexb(1+k1,1+k1),k2,k2)= 3.0_dp*wp
                    ELSE
-                      M2(M(1+k1,1+k1),k2,k2)= wp
+                      M2(indexb(1+k1,1+k1),k2,k2)= wp
                    ENDIF
                 ENDDO
              ENDDO
-             M2(M(1+1,1+2),1,2)= wp
-             M2(M(1+1,1+2),2,1)= wp
-             M2(M(1+2,1+3),2,3)= wp
-             M2(M(1+2,1+3),3,2)= wp
-             M2(M(1+3,1+1),3,1)= wp
-             M2(M(1+3,1+1),1,3)= wp
+             M2(indexb(1+1,1+2),1,2)= wp
+             M2(indexb(1+1,1+2),2,1)= wp
+             M2(indexb(1+2,1+3),2,3)= wp
+             M2(indexb(1+2,1+3),3,2)= wp
+             M2(indexb(1+3,1+1),3,1)= wp
+             M2(indexb(1+3,1+1),1,3)= wp
           ENDIF
 
           DO i = 1, natorb
@@ -208,13 +205,13 @@ CONTAINS
                 mpole%indj = j
                 ! Charge
                 mpole%task(1) = .TRUE.
-                mpole%c       = -M0(M(i,j))
+                mpole%c       = -M0(indexb(i,j))
                 ! Dipole
                 mpole%task(2) = .TRUE.
-                mpole%d       = -M1(M(i,j),1:3)
+                mpole%d       = -M1(indexb(i,j),1:3)
                 ! Quadrupole
                 mpole%task(3) = .TRUE.
-                mpole%qc      = -3._dp*M2(M(i,j),1:3,1:3)
+                mpole%qc      = -3._dp*M2(indexb(i,j),1:3,1:3)
 
                 IF (debug_this_module) THEN
                    WRITE(*,'(A,2I6,A)')"Orbitals ",i,j,&

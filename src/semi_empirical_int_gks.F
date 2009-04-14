@@ -4,7 +4,13 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Integral GKS scheme
+!> \brief Integral GKS scheme: The order of the integrals in makeCoul reflects
+!>        the standard order by MOPAC
+!> \par History
+!>      Teodoro Laino [tlaino] - 04.2009 : Adapted size arrays to d-orbitals and
+!>                               get rid of the alternative ordering. Using the
+!>                               CP2K one.
+!>      Teodoro Laino [tlaino] - 04.2009 : Skip nullification (speed-up)
 ! *****************************************************************************
 MODULE semi_empirical_int_gks
 
@@ -19,7 +25,8 @@ MODULE semi_empirical_int_gks
                                              oorootpi
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
-  USE semi_empirical_int_arrays,       ONLY: rij_threshold
+  USE semi_empirical_int_arrays,       ONLY: indexb,&
+                                             rij_threshold
   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
   USE semi_empirical_types,            ONLY: se_int_control_type,&
                                              se_taper_type,&
@@ -46,13 +53,12 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+    CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_gks', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, mu, nu
     REAL(KIND=dp), DIMENSION(3)              :: rab
-    REAL(kind=dp), DIMENSION(Nm, Nm)         :: Coul
+    REAL(kind=dp), DIMENSION(45, 45)         :: Coul
 
     rab= -rij
 
@@ -66,7 +72,7 @@ CONTAINS
     DO mu = 1, sepi%natorb
        DO nu = 1, mu
           i = i + 1
-          e1b(i)= -Coul(M(mu,nu),1)*sepj%zeff
+          e1b(i)= -Coul(i,1)*sepj%zeff
        END DO
     END DO
 
@@ -74,7 +80,7 @@ CONTAINS
     DO mu = 1, sepj%natorb
        DO nu = 1, mu
           i = i + 1
-          e2a(i)= -Coul(1,M(mu,nu))*sepi%zeff
+          e2a(i)= -Coul(1,i)*sepi%zeff
        END DO
     END DO
 
@@ -89,13 +95,13 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+    CHARACTER(len=*), PARAMETER :: routineN = 'rotint_gks', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, lam, mu, nu, sig
+    INTEGER                                  :: i, ind1, ind2, lam, mu, nu, &
+                                                sig
     REAL(KIND=dp), DIMENSION(3)              :: rab
-    REAL(kind=dp), DIMENSION(Nm, Nm)         :: Coul
+    REAL(kind=dp), DIMENSION(45, 45)         :: Coul
 
     rab= -rij
 
@@ -105,13 +111,17 @@ CONTAINS
        CALL makeCoul(rab,sepi,sepj,Coul,se_int_control,error)
     END IF
 
-    i = 0
+    i    = 0
+    ind1 = 0
     DO mu = 1, sepi%natorb
        DO nu = 1, mu
+          ind1 = ind1 + 1
+          ind2 = 0
           DO lam = 1, sepj%natorb
              DO sig = 1, lam
-                i = i + 1
-                w(i)= Coul(M(mu,nu),M(lam,sig))
+                i    = i + 1
+                ind2 = ind2 + 1
+                w(i) = Coul(ind1,ind2)
              END DO
           END DO
        END DO
@@ -128,13 +138,12 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+    CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc_gks', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, mu, nu
     REAL(KIND=dp), DIMENSION(3)              :: rab
-    REAL(kind=dp), DIMENSION(Nm, Nm, 3)      :: dCoul
+    REAL(kind=dp), DIMENSION(45, 45, 3)      :: dCoul
 
     rab= -rij
 
@@ -148,7 +157,9 @@ CONTAINS
     DO mu = 1, sepi%natorb
        DO nu = 1, mu
           i = i + 1
-          de1b(:,i)=  dCoul(M(mu,nu),1,:)*sepj%zeff
+          de1b(1,i)=  dCoul(i,1,1)*sepj%zeff
+          de1b(2,i)=  dCoul(i,1,2)*sepj%zeff
+          de1b(3,i)=  dCoul(i,1,3)*sepj%zeff
        END DO
     END DO
 
@@ -156,7 +167,9 @@ CONTAINS
     DO mu = 1, sepj%natorb
        DO nu = 1, mu
           i = i + 1
-          de2a(:,i)=  dCoul(1,M(mu,nu),:)*sepi%zeff
+          de2a(1,i)=  dCoul(1,i,1)*sepi%zeff
+          de2a(2,i)=  dCoul(1,i,2)*sepi%zeff
+          de2a(3,i)=  dCoul(1,i,3)*sepi%zeff
        END DO
     END DO
 
@@ -171,13 +184,13 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+    CHARACTER(len=*), PARAMETER :: routineN = 'drotint_gks', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, lam, mu, nu, sig
+    INTEGER                                  :: i, ind1, ind2, lam, mu, nu, &
+                                                sig
     REAL(KIND=dp), DIMENSION(3)              :: rab
-    REAL(kind=dp), DIMENSION(Nm, Nm, 3)      :: dCoul
+    REAL(kind=dp), DIMENSION(45, 45, 3)      :: dCoul
 
     rab= -rij
 
@@ -187,13 +200,19 @@ CONTAINS
        CALL makedCoul(rab,sepi,sepj,dCoul,se_int_control,error)
     END IF
 
-    i = 0
+    i    = 0
+    ind1 = 0
     DO mu = 1, sepi%natorb
        DO nu = 1, mu
+          ind1 = ind1 + 1
+          ind2 = 0
           DO lam = 1, sepj%natorb
              DO sig = 1, lam
                 i = i + 1
-                dw(:,i)=  -dCoul(M(mu,nu),M(lam,sig),:)
+                ind2 = ind2 + 1
+                dw(1,i)=  -dCoul(ind1,ind2,1)
+                dw(2,i)=  -dCoul(ind1,ind2,2)
+                dw(3,i)=  -dCoul(ind1,ind2,3)
              END DO
           END DO
        END DO
@@ -204,37 +223,36 @@ CONTAINS
   SUBROUTINE makeCoul(RAB,sepi,sepj,Coul,se_int_control,error)
     REAL(kind=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(kind=dp), DIMENSION(45, 45), &
+      INTENT(OUT)                            :: Coul
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    REAL(kind=dp), DIMENSION(Nm, Nm)         :: Coul
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+    CHARACTER(len=*), PARAMETER :: routineN = 'makeCoul', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, imA, imB, j, jint, k1, k2, &
-                                                k3, k4, size_1c_int
+    INTEGER                                  :: i, iA, iB, imA, imB, j, jA, &
+                                                jB, jint, k1, k2, k3, k4, &
+                                                size_1c_int
     LOGICAL                                  :: shortrange
     REAL(kind=dp) :: a2, ACOULA, ACOULB, d1, d1f(3), d2, d2f(3,3), d3, &
       d3f(3,3,3), d4, d4f(3,3,3,3), f, rr, tmp, w, w0, w1, w2, w3, w4, w5
     REAL(kind=dp), DIMENSION(3)              :: v
-    REAL(kind=dp), DIMENSION(Nm)             :: M0A, M0B
-    REAL(kind=dp), DIMENSION(Nm, 3)          :: M1A, M1B
-    REAL(kind=dp), DIMENSION(Nm, 3, 3)       :: M2A, M2B
+    REAL(kind=dp), DIMENSION(45)             :: M0A, M0B
+    REAL(kind=dp), DIMENSION(45, 3)          :: M1A, M1B
+    REAL(kind=dp), DIMENSION(45, 3, 3)       :: M2A, M2B
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     shortrange = se_int_control%shortrange
-
-    Coul(:,:)=   0.0_dp
 
     size_1c_int = SIZE(sepi%w_mpole)
     DO jint = 1, size_1c_int
        mpole => sepi%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0A(M(i,j))=     -mpole%c
-       M1A(M(i,j),:)=   -mpole%d(:)
-       M2A(M(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0A(indexb(i,j))=     -mpole%c
+       M1A(indexb(i,j),:)=   -mpole%d(:)
+       M2A(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
     ENDDO
     ACOULA= sepi%acoul
 
@@ -243,9 +261,9 @@ CONTAINS
        mpole => sepj%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0B(M(i,j))=     -mpole%c
-       M1B(M(i,j),:)=   -mpole%d(:)
-       M2B(M(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0B(indexb(i,j))=     -mpole%c
+       M1B(indexb(i,j),:)=   -mpole%d(:)
+       M2B(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
     ENDDO
     ACOULB= sepj%acoul
 
@@ -320,62 +338,64 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DO imA=1,Nm
-       DO imB=1,Nm
+    imA = 0
+    DO iA = 1, sepi%natorb
+       DO jA = 1, iA
+          imA = imA + 1
 
-          w=   M0A(imA)*M0B(imB)*f
-          DO k1=1,3
-             w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d1f(k1)
-          ENDDO
-          DO k1=1,3
-             DO k2=1,3
-                w=w+(  M2A(imA,k1,k2)*M0B(imB)-M1A(imA,k1)*M1B(imB,k2)+M0A(imA)*M2B(imB,k1,k2) )*d2f(k1,k2)
-             ENDDO
-          ENDDO
-          DO k1=1,3
-             DO k2=1,3
-                DO k3=1,3
-                   w=w+( -M2A(imA,k1,k2)*M1B(imB,k3)+M1A(imA,k1)*M2B(imB,k2,k3) )*d3f(k1,k2,k3)
+          imB = 0
+          DO iB = 1, sepj%natorb
+             DO jB = 1, iB
+                imB = imB + 1
+
+                w=   M0A(imA)*M0B(imB)*f
+                DO k1=1,3
+                   w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d1f(k1)
                 ENDDO
-             ENDDO
-          ENDDO
-
-          DO k1=1,3
-             DO k2=1,3
-                DO k3=1,3
-                   DO k4=1,3
-                      w=w+ M2A(imA,k1,k2)*M2B(imB,k3,k4)*d4f(k1,k2,k3,k4)
+                DO k1=1,3
+                   DO k2=1,3
+                      w=w+(  M2A(imA,k1,k2)*M0B(imB)-M1A(imA,k1)*M1B(imB,k2)+M0A(imA)*M2B(imB,k1,k2) )*d2f(k1,k2)
                    ENDDO
                 ENDDO
+                DO k1=1,3
+                   DO k2=1,3
+                      DO k3=1,3
+                         w=w+( -M2A(imA,k1,k2)*M1B(imB,k3)+M1A(imA,k1)*M2B(imB,k2,k3) )*d3f(k1,k2,k3)
+                      ENDDO
+                   ENDDO
+                ENDDO
+
+                DO k1=1,3
+                   DO k2=1,3
+                      DO k3=1,3
+                         DO k4=1,3
+                            w=w+ M2A(imA,k1,k2)*M2B(imB,k3,k4)*d4f(k1,k2,k3,k4)
+                         ENDDO
+                      ENDDO
+                   ENDDO
+                ENDDO
+
+                IF     ( imA==1 .AND.  imB==1  )  THEN
+                   tmp=M2A(imA,1,1)*M2B(imB,1,1)  
+                   tmp=tmp*a2**4
+                   w=w -tmp*EXP(-w0)/rr
+                ELSE IF( imA==1 .AND. (iB==jB) )  THEN
+                   tmp=M2A(imA,1,1)*M2B(imB,iB-1,iB-1)/3.0_dp
+                   tmp=tmp*a2**4
+                   w=w -tmp*EXP(-w0)/rr
+                ELSE IF( (iA==jA) .AND. imB==1 )  THEN
+                   tmp=M2A(imA,iA-1,iA-1)*M2B(imB,1,1)/3.0_dp  
+                   tmp=tmp*a2**4
+                   w=w -tmp*EXP(-w0)/rr
+                ELSE IF( (iA==jA) .AND. (iB==jB) )THEN
+                   tmp=M2A(imA,iA-1,iA-1)*M2B(imB,iB-1,iB-1)/9.0_dp
+                   tmp=tmp*a2**4
+                   w=w -tmp*EXP(-w0)/rr
+                ENDIF
+
+                Coul(imA,imB)=w
              ENDDO
           ENDDO
-
-          IF( imA==1 .AND. imB==1 )THEN
-             tmp=M2A(imA,1,1)*M2B(imB,1,1)  
-             tmp=tmp*a2**4
-             w=w -tmp*EXP(-w0)/rr
-          ENDIF
-
-          IF( imA==1 .AND. (imB>=5 .AND. imB<=7) )THEN
-             tmp=M2A(imA,1,1)*M2B(imB,imB-4,imB-4)/3.0_dp
-             tmp=tmp*a2**4
-             w=w -tmp*EXP(-w0)/rr
-          ENDIF
-
-          IF( (imA>=5 .AND. imA<=7) .AND. imB==1 )THEN
-             tmp=M2A(imA,imA-4,imA-4)*M2B(imB,1,1)/3.0_dp  
-             tmp=tmp*a2**4
-             w=w -tmp*EXP(-w0)/rr
-          ENDIF
-
-          IF( (imA>=5 .AND. imA<=7) .AND. (imB>=5 .AND. imB<=7) )THEN
-             tmp=M2A(imA,imA-4,imA-4)*M2B(imB,imB-4,imB-4)/9.0_dp
-             tmp=tmp*a2**4
-             w=w -tmp*EXP(-w0)/rr
-          ENDIF
-
-          Coul(imA,imB)=Coul(imA,imB)+w
-
        ENDDO
     ENDDO
 
@@ -384,38 +404,37 @@ CONTAINS
   SUBROUTINE makedCoul(RAB,sepi,sepj,dCoul,se_int_control,error)
     REAL(kind=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(kind=dp), DIMENSION(45, 45, 3), &
+      INTENT(OUT)                            :: dCoul
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    REAL(kind=dp), DIMENSION(Nm, Nm, 3)      :: dCoul
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+    CHARACTER(len=*), PARAMETER :: routineN = 'makedCoul', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, imA, imB, j, jint, k1, k2, &
-                                                k3, k4, k5, size_1c_int
+    INTEGER                                  :: i, iA, iB, imA, imB, j, jA, &
+                                                jB, jint, k1, k2, k3, k4, k5, &
+                                                size_1c_int
     LOGICAL                                  :: shortrange
     REAL(kind=dp) :: a2, ACOULA, ACOULB, d1, d1f(3), d2, d2f(3,3), d3, &
       d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, rr, tmp, w, w0, &
       w1, w2, w3, w4, w5, w6
     REAL(kind=dp), DIMENSION(3)              :: v
-    REAL(kind=dp), DIMENSION(Nm)             :: M0A, M0B
-    REAL(kind=dp), DIMENSION(Nm, 3)          :: M1A, M1B
-    REAL(kind=dp), DIMENSION(Nm, 3, 3)       :: M2A, M2B
+    REAL(kind=dp), DIMENSION(45)             :: M0A, M0B
+    REAL(kind=dp), DIMENSION(45, 3)          :: M1A, M1B
+    REAL(kind=dp), DIMENSION(45, 3, 3)       :: M2A, M2B
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     shortrange = se_int_control%shortrange
-
-    dCoul(:,:,:)=   0.0_dp
 
     size_1c_int = SIZE(sepi%w_mpole)
     DO jint = 1, size_1c_int
        mpole => sepi%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0A(M(i,j))=     -mpole%c
-       M1A(M(i,j),:)=   -mpole%d(:)
-       M2A(M(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0A(indexb(i,j))=     -mpole%c
+       M1A(indexb(i,j),:)=   -mpole%d(:)
+       M2A(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
     ENDDO
     ACOULA= sepi%acoul
 
@@ -424,9 +443,9 @@ CONTAINS
        mpole => sepj%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0B(M(i,j))=     -mpole%c
-       M1B(M(i,j),:)=   -mpole%d(:)
-       M2B(M(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0B(indexb(i,j))=     -mpole%c
+       M1B(indexb(i,j),:)=   -mpole%d(:)
+       M2B(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
     ENDDO
     ACOULB= sepj%acoul
 
@@ -544,62 +563,65 @@ CONTAINS
     ENDDO
 
     DO k5=1,3
-       DO imA=1,Nm
-          DO imB=1,Nm
 
-             w=   M0A(imA)*M0B(imB)*d1f(k5)
-             DO k1=1,3
-                w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d2f(k1,k5)
-             ENDDO
-             DO k1=1,3
-                DO k2=1,3
-                   w=w+(  M2A(imA,k1,k2)*M0B(imB)-M1A(imA,k1)*M1B(imB,k2)+M0A(imA)*M2B(imB,k1,k2) )*d3f(k1,k2,k5)
-                ENDDO
-             ENDDO
-             DO k1=1,3
-                DO k2=1,3
-                   DO k3=1,3
-                      w=w+( -M2A(imA,k1,k2)*M1B(imB,k3)+M1A(imA,k1)*M2B(imB,k2,k3) )*d4f(k1,k2,k3,k5)
+       imA = 0
+       DO iA = 1, sepi%natorb
+          DO jA = 1, iA
+             imA = imA + 1
+
+             imB = 0
+             DO iB = 1, sepj%natorb
+                DO jB = 1, iB
+                   imB = imB + 1
+
+                   w=   M0A(imA)*M0B(imB)*d1f(k5)
+                   DO k1=1,3
+                      w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d2f(k1,k5)
                    ENDDO
-                ENDDO
-             ENDDO
-
-             DO k1=1,3
-                DO k2=1,3
-                   DO k3=1,3
-                      DO k4=1,3
-                         w=w+ M2A(imA,k1,k2)*M2B(imB,k3,k4)*d5f(k1,k2,k3,k4,k5)
+                   DO k1=1,3
+                      DO k2=1,3
+                         w=w+(  M2A(imA,k1,k2)*M0B(imB)-M1A(imA,k1)*M1B(imB,k2)+M0A(imA)*M2B(imB,k1,k2) )*d3f(k1,k2,k5)
                       ENDDO
                    ENDDO
+                   DO k1=1,3
+                      DO k2=1,3
+                         DO k3=1,3
+                            w=w+( -M2A(imA,k1,k2)*M1B(imB,k3)+M1A(imA,k1)*M2B(imB,k2,k3) )*d4f(k1,k2,k3,k5)
+                         ENDDO
+                      ENDDO
+                   ENDDO
+
+                   DO k1=1,3
+                      DO k2=1,3
+                         DO k3=1,3
+                            DO k4=1,3
+                               w=w+ M2A(imA,k1,k2)*M2B(imB,k3,k4)*d5f(k1,k2,k3,k4,k5)
+                            ENDDO
+                         ENDDO
+                      ENDDO
+                   ENDDO
+
+                   IF     ( imA==1 .AND. imB==1 )    THEN
+                      tmp=M2A(imA,1,1)*M2B(imB,1,1)  
+                      tmp=tmp*(1.0_dp+w0)*a2**4
+                      w=w +v(k5)*tmp*EXP(-w0)/rr**3
+                   ELSE IF( imA==1 .AND. (iB==jB) )  THEN
+                      tmp=M2A(imA,1,1)*M2B(imB,iB-1,iB-1)/3.0_dp
+                      tmp=tmp*(1.0_dp+w0)*a2**4
+                      w=w +v(k5)*tmp*EXP(-w0)/rr**3
+                   ELSE IF( (iA==jA) .AND. imB==1 )  THEN
+                      tmp=M2A(imA,iA-1,iA-1)*M2B(imB,1,1)/3.0_dp  
+                      tmp=tmp*(1.0_dp+w0)*a2**4
+                      w=w +v(k5)*tmp*EXP(-w0)/rr**3
+                   ELSE IF( (iA==jA) .AND. (iB==jB) )THEN
+                      tmp=M2A(imA,iA-1,iA-1)*M2B(imB,iB-1,iB-1)/9.0_dp
+                      tmp=tmp*(1.0_dp+w0)*a2**4
+                      w=w +v(k5)*tmp*EXP(-w0)/rr**3
+                   ENDIF
+
+                   dCoul(imA,imB,k5)=w
                 ENDDO
              ENDDO
-
-             IF( imA==1 .AND. imB==1 )THEN
-                tmp=M2A(imA,1,1)*M2B(imB,1,1)  
-                tmp=tmp*(1.0_dp+w0)*a2**4
-                w=w +v(k5)*tmp*EXP(-w0)/rr**3
-             ENDIF
-
-             IF( imA==1 .AND. (imB>=5 .AND. imB<=7) )THEN
-                tmp=M2A(imA,1,1)*M2B(imB,imB-4,imB-4)/3.0_dp
-                tmp=tmp*(1.0_dp+w0)*a2**4
-                w=w +v(k5)*tmp*EXP(-w0)/rr**3
-             ENDIF
-
-             IF( (imA>=5 .AND. imA<=7) .AND. imB==1 )THEN
-                tmp=M2A(imA,imA-4,imA-4)*M2B(imB,1,1)/3.0_dp  
-                tmp=tmp*(1.0_dp+w0)*a2**4
-                w=w +v(k5)*tmp*EXP(-w0)/rr**3
-             ENDIF
-
-             IF( (imA>=5 .AND. imA<=7) .AND. (imB>=5 .AND. imB<=7) )THEN
-                tmp=M2A(imA,imA-4,imA-4)*M2B(imB,imB-4,imB-4)/9.0_dp
-                tmp=tmp*(1.0_dp+w0)*a2**4
-                w=w +v(k5)*tmp*EXP(-w0)/rr**3
-             ENDIF
-
-             dCoul(imA,imB,k5)=dCoul(imA,imB,k5)+w
-
           ENDDO
        ENDDO
     ENDDO
@@ -618,13 +640,12 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_gks', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
 
     LOGICAL                                  :: failure, l_denuc, l_enuc
     REAL(dp)                                 :: alpi, alpj, dscale, rij, &
                                                 scale, zz
-    REAL(kind=dp), DIMENSION(Nm, Nm)         :: Coul, CoulE
-    REAL(kind=dp), DIMENSION(Nm, Nm, 3)      :: dCoul, dCoulE
+    REAL(kind=dp), DIMENSION(45, 45)         :: Coul, CoulE
+    REAL(kind=dp), DIMENSION(45, 45, 3)      :: dCoul, dCoulE
     TYPE(se_int_control_type)                :: se_int_control_off
 
     failure = .FALSE.
@@ -672,13 +693,13 @@ CONTAINS
   SUBROUTINE makeCoulE(RAB,sepi,sepj,Coul,se_int_control,error)
     REAL(KIND=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), DIMENSION(45, 45), &
+      INTENT(OUT)                            :: Coul
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    REAL(KIND=dp), DIMENSION(Nm, Nm)         :: Coul
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+    CHARACTER(len=*), PARAMETER :: routineN = 'makeCoulE', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: gpt, i, imA, imB, j, jint, &
                                                 k1, k2, k3, k4, lp, mp, np, &
@@ -688,11 +709,11 @@ CONTAINS
       d3, d3f(3,3,3), d4, d4f(3,3,3,3), f, ff, kr, kr2, r1, r2, r3, r5, r7, &
       r9, rr, ss, w, w0, w1, w2, w3, w4, w5
     REAL(KIND=dp), DIMENSION(3)              :: kk, v
+    REAL(KIND=dp), DIMENSION(45)             :: M0A, M0B
+    REAL(KIND=dp), DIMENSION(45, 3)          :: M1A, M1B
+    REAL(KIND=dp), DIMENSION(45, 3, 3)       :: M2A, M2B
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
-    REAL(KIND=dp), DIMENSION(Nm)             :: M0A, M0B
-    REAL(KIND=dp), DIMENSION(Nm, 3)          :: M1A, M1B
-    REAL(KIND=dp), DIMENSION(Nm, 3, 3)       :: M2A, M2B
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -707,16 +728,14 @@ CONTAINS
     pw_grid => pw_pool%pw_grid
     bds     => pw_grid%bounds
 
-    Coul(:,:)=   0.0_dp
-
     size_1c_int = SIZE(sepi%w_mpole)
     DO jint = 1, size_1c_int
        mpole => sepi%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0A(M(i,j))=     -mpole%c
-       M1A(M(i,j),:)=   -mpole%d(:)
-       M2A(M(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0A(indexb(i,j))=     -mpole%c
+       M1A(indexb(i,j),:)=   -mpole%d(:)
+       M2A(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
     ENDDO
     ACOULA= sepi%acoul
 
@@ -725,9 +744,9 @@ CONTAINS
        mpole => sepj%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0B(M(i,j))=     -mpole%c
-       M1B(M(i,j),:)=   -mpole%d(:)
-       M2B(M(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0B(indexb(i,j))=     -mpole%c
+       M1B(indexb(i,j),:)=   -mpole%d(:)
+       M2B(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
     ENDDO
     ACOULB= sepj%acoul
 
@@ -817,8 +836,8 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DO imA=1,Nm
-       DO imB=1,Nm
+    DO imA=1, sepi%natorb*(sepi%natorb+1)/2
+       DO imB=1, sepj%natorb*(sepj%natorb+1)/2
 
           w=   M0A(imA)*M0B(imB)*f
           DO k1=1,3
@@ -847,8 +866,7 @@ CONTAINS
              ENDDO
           ENDDO
 
-          Coul(imA,imB)=Coul(imA,imB)+w
-
+          Coul(imA,imB)=w
        ENDDO
     ENDDO
 
@@ -905,8 +923,8 @@ CONTAINS
 
     ENDDO
 
-    DO imA=1,Nm
-       DO imB=1,Nm
+    DO imA=1, sepi%natorb*(sepi%natorb+1)/2
+       DO imB=1, sepj%natorb*(sepj%natorb+1)/2
 
           w=   M0A(imA)*M0B(imB)*f
           DO k1=1,3
@@ -940,8 +958,8 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DO imA=1,Nm
-       DO imB=1,Nm
+    DO imA=1, sepi%natorb*(sepi%natorb+1)/2
+       DO imB=1, sepj%natorb*(sepj%natorb+1)/2
           w= -M0A(imA)*M0B(imB)*0.25_dp*fourpi/(pw_grid%vol*alpha**2)
           Coul(imA,imB)=Coul(imA,imB)+w
        ENDDO
@@ -952,13 +970,13 @@ CONTAINS
   SUBROUTINE makedCoulE(RAB,sepi,sepj,dCoul,se_int_control,error)
     REAL(KIND=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), DIMENSION(45, 45, 3), &
+      INTENT(OUT)                            :: dCoul
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    REAL(KIND=dp), DIMENSION(Nm, Nm, 3)      :: dCoul
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+    CHARACTER(len=*), PARAMETER :: routineN = 'makedCoulE', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: gpt, i, imA, imB, j, jint, &
                                                 k1, k2, k3, k4, k5, lp, mp, &
@@ -968,11 +986,11 @@ CONTAINS
       d3, d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, ff, kr, kr2, &
       r1, r11, r2, r3, r5, r7, r9, rr, ss, w, w0, w1, w2, w3, w4, w5, w6
     REAL(KIND=dp), DIMENSION(3)              :: kk, v
+    REAL(kind=dp), DIMENSION(45)             :: M0A, M0B
+    REAL(kind=dp), DIMENSION(45, 3)          :: M1A, M1B
+    REAL(kind=dp), DIMENSION(45, 3, 3)       :: M2A, M2B
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
-    REAL(kind=dp), DIMENSION(Nm)             :: M0A, M0B
-    REAL(kind=dp), DIMENSION(Nm, 3)          :: M1A, M1B
-    REAL(kind=dp), DIMENSION(Nm, 3, 3)       :: M2A, M2B
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -987,16 +1005,14 @@ CONTAINS
     pw_grid => pw_pool%pw_grid
     bds     => pw_grid%bounds
 
-    dCoul(:,:,:)=   0.0_dp
-
     size_1c_int = SIZE(sepi%w_mpole)
     DO jint = 1, size_1c_int
        mpole => sepi%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0A(M(i,j))=     -mpole%c
-       M1A(M(i,j),:)=   -mpole%d(:)
-       M2A(M(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0A(indexb(i,j))=     -mpole%c
+       M1A(indexb(i,j),:)=   -mpole%d(:)
+       M2A(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
     ENDDO
     ACOULA= sepi%acoul
 
@@ -1005,9 +1021,9 @@ CONTAINS
        mpole => sepj%w_mpole(jint)%mpole
        i=mpole%indi
        j=mpole%indj
-       M0B(M(i,j))=     -mpole%c
-       M1B(M(i,j),:)=   -mpole%d(:)
-       M2B(M(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
+       M0B(indexb(i,j))=     -mpole%c
+       M1B(indexb(i,j),:)=   -mpole%d(:)
+       M2B(indexb(i,j),:,:)= -mpole%qc(:,:)/3.0_dp
     ENDDO
     ACOULB= sepj%acoul
 
@@ -1138,9 +1154,8 @@ CONTAINS
     ENDDO
 
     DO k5=1,3
-       DO imA=1,Nm
-          DO imB=1,Nm
-
+       DO imA=1, sepi%natorb*(sepi%natorb+1)/2
+          DO imB=1, sepj%natorb*(sepj%natorb+1)/2
              w=   M0A(imA)*M0B(imB)*d1f(k5)
              DO k1=1,3
                 w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d2f(k1,k5)
@@ -1168,7 +1183,7 @@ CONTAINS
                 ENDDO
              ENDDO
 
-             dCoul(imA,imB,k5)=dCoul(imA,imB,k5)+w
+             dCoul(imA,imB,k5)=w
 
           ENDDO
        ENDDO
@@ -1240,9 +1255,8 @@ CONTAINS
     ENDDO
 
     DO k5=1,3
-       DO imA=1,Nm
-          DO imB=1,Nm
-
+       DO imA=1, sepi%natorb*(sepi%natorb+1)/2
+          DO imB=1, sepj%natorb*(sepj%natorb+1)/2
              w=   M0A(imA)*M0B(imB)*d1f(k5)
              DO k1=1,3
                 w=w+(  M1A(imA,k1)*M0B(imB)-M0A(imA)*M1B(imB,k1) )*d2f(k1,k5)
