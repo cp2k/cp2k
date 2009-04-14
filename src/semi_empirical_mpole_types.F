@@ -31,10 +31,6 @@ MODULE semi_empirical_mpole_types
      REAL(KIND=dp), DIMENSION(3)              :: d
      REAL(KIND=dp), DIMENSION(3,3)            :: qc ! quadrupole cartesian
      REAL(KIND=dp), DIMENSION(5)              :: qs ! quadrupole spherical
-
-     REAL(KIND=dp)                            :: cs
-     REAL(KIND=dp), DIMENSION(3)              :: ds
-     REAL(KIND=dp), DIMENSION(3,3)            :: qq ! uncontracted cartesian
   END TYPE semi_empirical_mpole_type
 
 ! *****************************************************************************
@@ -146,9 +142,6 @@ CONTAINS
     mpole%d    = HUGE(0.0_dp)
     mpole%qc   = HUGE(0.0_dp)
     mpole%qs   = HUGE(0.0_dp)
-    mpole%cs   = HUGE(0.0_dp)
-    mpole%ds   = HUGE(0.0_dp)
-    mpole%qq   = HUGE(0.0_dp)
   END SUBROUTINE semi_empirical_mpole_create
 
 ! *****************************************************************************

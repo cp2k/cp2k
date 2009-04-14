@@ -206,19 +206,15 @@ CONTAINS
                 mpole => mpoles(ind2)%mpole
                 mpole%indi = i
                 mpole%indj = j
-                !Schenter definition
-                mpole%cs = HUGE(0.0_dp)
-                mpole%ds = HUGE(0.0_dp)
-                mpole%qq = HUGE(0.0_dp)
                 ! Charge
                 mpole%task(1) = .TRUE.
-                mpole%cs      = -M0(M(i,j))
+                mpole%c       = -M0(M(i,j))
                 ! Dipole
                 mpole%task(2) = .TRUE.
-                mpole%ds(:)   = -M1(M(i,j),:)
+                mpole%d       = -M1(M(i,j),1:3)
                 ! Quadrupole
                 mpole%task(3) = .TRUE.
-                mpole%qq(:,:) = -3._dp*M2(M(i,j),:,:)
+                mpole%qc      = -3._dp*M2(M(i,j),1:3,1:3)
              END DO
           END DO
        END SELECT
