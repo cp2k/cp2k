@@ -351,3 +351,5 @@ h2o_gks.inp
 # new parameters
 h2o_gks.inp
 h2o_gks_p.inp
+# numerics
+h2o_gks_p.inp

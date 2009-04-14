@@ -66,9 +66,9 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dlm, tmp, wp, ws, zb, ZP, ZS, &
                                                 zt
+    REAL(KIND=dp), DIMENSION(3, 3, 45)       :: M2
+    REAL(KIND=dp), DIMENSION(3, 45)          :: M1
     REAL(KIND=dp), DIMENSION(45)             :: M0
-    REAL(KIND=dp), DIMENSION(45, 3)          :: M1
-    REAL(KIND=dp), DIMENSION(45, 3, 3)       :: M2
     REAL(KIND=dp), DIMENSION(6, 0:2)         :: amn
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
@@ -170,29 +170,29 @@ CONTAINS
              zt=SQRT(ZS*ZP)
              zb=0.5_dp*(ZS+ZP)
              DO k=1,3
-                M1(indexb(1,1+k),k)=(zt/zb)**(2*nr+1)*REAL(2*nr+1,dp)/(2.0*zb*SQRT(3.0_dp))
+                M1(k, indexb(1,1+k))=(zt/zb)**(2*nr+1)*REAL(2*nr+1,dp)/(2.0*zb*SQRT(3.0_dp))
              ENDDO
 
              ws=REAL((2*nr+2)*(2*nr+1),dp)/(24.0_dp*ZS**2)
              DO k=1,3
-                M2(indexb(1,1),k,k)= ws
+                M2(k,k,indexb(1,1))= ws
              ENDDO
              wp=REAL((2*nr+2)*(2*nr+1),dp)/(40.0_dp*ZP**2)
              DO k1=1,3
                 DO k2=1,3
                    IF(k1 == k2)THEN
-                      M2(indexb(1+k1,1+k1),k2,k2)= 3.0_dp*wp
+                      M2(k2,k2,indexb(1+k1,1+k1))= 3.0_dp*wp
                    ELSE
-                      M2(indexb(1+k1,1+k1),k2,k2)= wp
+                      M2(k2,k2,indexb(1+k1,1+k1))= wp
                    ENDIF
                 ENDDO
              ENDDO
-             M2(indexb(1+1,1+2),1,2)= wp
-             M2(indexb(1+1,1+2),2,1)= wp
-             M2(indexb(1+2,1+3),2,3)= wp
-             M2(indexb(1+2,1+3),3,2)= wp
-             M2(indexb(1+3,1+1),3,1)= wp
-             M2(indexb(1+3,1+1),1,3)= wp
+             M2(1,2,indexb(1+1,1+2))= wp
+             M2(2,1,indexb(1+1,1+2))= wp
+             M2(2,3,indexb(1+2,1+3))= wp
+             M2(3,2,indexb(1+2,1+3))= wp
+             M2(3,1,indexb(1+3,1+1))= wp
+             M2(1,3,indexb(1+3,1+1))= wp
           ENDIF
 
           DO i = 1, natorb
@@ -205,10 +205,9 @@ CONTAINS
                 ! Charge
                 mpole%cs      = -M0(indexb(i,j))
                 ! Dipole
-                mpole%ds      = -M1(indexb(i,j),1:3)
+                mpole%ds      = -M1(1:3, indexb(i,j))
                 ! Quadrupole
-                mpole%qq      = -3._dp*M2(indexb(i,j),1:3,1:3)
-
+                mpole%qq      = -3._dp*M2(1:3,1:3, indexb(i,j))
                 IF (debug_this_module) THEN
                    WRITE(*,'(A,2I6,A)')"Orbitals ",i,j,&
                         " ("//label_print_orb(i)//","//label_print_orb(j)//")"
