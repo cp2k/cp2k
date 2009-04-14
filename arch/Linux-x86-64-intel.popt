@@ -20,7 +20,8 @@ LD       = mpif90
 AR       = ar -r
 DFLAGS   = -D__INTEL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK -D__FFTW3
 CPPFLAGS = 
-FCFLAGS  = $(DFLAGS) -I$(INTEL_INC) -O3 -xW -funroll-loops -fpp -free
+FCFLAGS  = $(DFLAGS) -I$(INTEL_INC) -O3 -xW -heap-arrays 64 -funroll-loops -fpp -free
+FCFLAGS2 = $(DFLAGS) -I$(INTEL_INC) -O1 -xW -heap-arrays 64 -fpp -free
 LDFLAGS  = $(FCFLAGS) -I$(INTEL_INC)
 LIBS     = $(INTEL_LIB)/libscalapack.a \
            $(INTEL_LIB)/libblacs_init.a \
@@ -30,3 +31,8 @@ LIBS     = $(INTEL_LIB)/libscalapack.a \
            $(INTEL_LIB)/libfftw3.a
 
 OBJECTS_ARCHITECTURE = machine_intel.o
+
+
+graphcon.o: graphcon.F
+	$(FC) -c $(FCFLAGS2) $<
+
