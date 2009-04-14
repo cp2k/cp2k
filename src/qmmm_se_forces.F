@@ -125,7 +125,7 @@ CONTAINS
        delta= dft_control%qs_control%se_control%delta
        ! Setup SE integral control type
        CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
-            integral_screening=dft_control%qs_control%se_control%integral_screening,&
+            do_ewald_gks=.FALSE., integral_screening=dft_control%qs_control%se_control%integral_screening,&
             max_multipole=do_multipole_none)
 
        ! Create a fake semi-empirical type to handle the classical atom

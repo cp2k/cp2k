@@ -658,22 +658,19 @@ CONTAINS
 
        rij  = SQRT(rij)
 
-       IF(se_int_control%do_ewald_gks) THEN
-          CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE.,&
-               do_ewald_r3=.FALSE., integral_screening=se_int_control%integral_screening,&
+       IF(se_int_control%shortrange) THEN
+          CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
+               do_ewald_gks=.FALSE., integral_screening=se_int_control%integral_screening,&
                max_multipole=do_multipole_quadrupole)
           CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control_off,error)
           IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoul,se_int_control_off,error)
-          CALL makeCoulE(rijv,sepi,sepj,CoulE,se_int_control,error)
-          IF (l_denuc) CALL makedCoulE(rijv,sepi,sepj,dCoulE,se_int_control,error)
-       ELSE IF(se_int_control%do_ewald) THEN
-          CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE.,&
-            do_ewald_r3=.FALSE., integral_screening=se_int_control%integral_screening,&
-            max_multipole=do_multipole_quadrupole)
-          CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control_off,error)
-          IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoul,se_int_control_off,error)
-          CALL makeCoul(rijv,sepi,sepj,CoulE,se_int_control,error)
-          IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoulE,se_int_control,error)
+          IF (se_int_control%do_ewald_gks) THEN
+             CALL makeCoulE(rijv,sepi,sepj,CoulE,se_int_control,error)
+             IF (l_denuc) CALL makedCoulE(rijv,sepi,sepj,dCoulE,se_int_control,error)
+          ELSE
+             CALL makeCoul(rijv,sepi,sepj,CoulE,se_int_control,error)
+             IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoulE,se_int_control,error)
+          END IF
        ELSE
           CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control,error)
           CoulE = Coul

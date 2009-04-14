@@ -356,17 +356,15 @@ CONTAINS
     ! Parameters
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
-    CALL setup_se_int_control_type(se_int_control, shortrange=se_control%do_ewald,&
-         do_ewald_r3=se_control%do_ewald_r3,integral_screening=se_control%integral_screening,&
+    CALL setup_se_int_control_type(se_int_control,do_ewald_r3=se_control%do_ewald_r3,&
+         do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
+         shortrange=(se_control%do_ewald.OR.se_control%do_ewald_gks),&
          max_multipole=se_control%max_multipole)
-    se_int_control%do_ewald = se_control%do_ewald
     IF(se_control%do_ewald_gks) THEN
-      se_int_control%do_ewald_gks = .TRUE.
-      se_int_control%shortrange = .TRUE.
-      CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
-      CALL ewald_env_get (ewald_env, alpha=se_int_control%ewald_gks%alpha, error=error)
-      CALL ewald_pw_get (ewald_pw, pw_big_pool=se_int_control%ewald_gks%pw_pool, &
-                         dg=se_int_control%ewald_gks%dg)
+       CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+       CALL ewald_env_get (ewald_env, alpha=se_int_control%ewald_gks%alpha, error=error)
+       CALL ewald_pw_get (ewald_pw, pw_big_pool=se_int_control%ewald_gks%pw_pool, &
+            dg=se_int_control%ewald_gks%dg)
     END IF
 
     IF ( .NOT. failure ) THEN
@@ -559,13 +557,11 @@ CONTAINS
        anag        =  se_control%analytical_gradients
        scp_nddo    =  se_control%scp
 
-       CALL setup_se_int_control_type(se_int_control, shortrange=se_control%do_ewald,&
-            do_ewald_r3=se_control%do_ewald_r3, integral_screening=se_control%integral_screening,&
+       CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
+            do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
+            shortrange=(se_control%do_ewald.OR.se_control%do_ewald_gks),&
             max_multipole=se_control%max_multipole)
-       se_int_control%do_ewald = se_control%do_ewald
        IF(se_control%do_ewald_gks) THEN
-         se_int_control%do_ewald_gks = .TRUE.
-         se_int_control%shortrange = .TRUE.
          CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
          CALL ewald_env_get (ewald_env, alpha=se_int_control%ewald_gks%alpha, error=error)
          CALL ewald_pw_get (ewald_pw, pw_big_pool=se_int_control%ewald_gks%pw_pool, &
@@ -1657,7 +1653,7 @@ CONTAINS
           integral_screening = do_se_IS_kdso
        END IF
        CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
-            integral_screening=integral_screening, max_multipole=do_multipole_none)
+            do_ewald_gks=.FALSE., integral_screening=integral_screening, max_multipole=do_multipole_none)
 
        CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
 
