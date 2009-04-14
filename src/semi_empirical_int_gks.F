@@ -10,21 +10,21 @@ MODULE semi_empirical_int_gks
 
   USE dg_rho0_types,                   ONLY: dg_rho0_type
   USE dg_types,                        ONLY: dg_get,&
-       dg_type
+                                             dg_type
   USE erf_fn,                          ONLY: erfc
   USE f77_blas
   USE input_constants,                 ONLY: do_multipole_quadrupole
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
-       oorootpi
+                                             oorootpi
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE semi_empirical_int_arrays,       ONLY: rij_threshold
   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
   USE semi_empirical_types,            ONLY: se_int_control_type,&
-       se_taper_type,&
-       semi_empirical_type,&
-       setup_se_int_control_type
+                                             se_taper_type,&
+                                             semi_empirical_type,&
+                                             setup_se_int_control_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -41,14 +41,14 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(45), INTENT(OUT), &
-         OPTIONAL                               :: e1b, e2a
+      OPTIONAL                               :: e1b, e2a
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-         M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
     INTEGER                                  :: i, mu, nu
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -84,14 +84,14 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(2025), INTENT(OUT), &
-         OPTIONAL                               :: w
+      OPTIONAL                               :: w
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-         M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
     INTEGER                                  :: i, lam, mu, nu, sig
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -123,14 +123,14 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 45), &
-         INTENT(OUT), OPTIONAL                  :: de1b, de2a
+      INTENT(OUT), OPTIONAL                  :: de1b, de2a
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-         M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
     INTEGER                                  :: i, mu, nu
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -166,14 +166,14 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 2025), &
-         INTENT(OUT)                            :: dw
+      INTENT(OUT)                            :: dw
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-         M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
     INTEGER                                  :: i, lam, mu, nu, sig
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -210,13 +210,13 @@ CONTAINS
     REAL(kind=dp), DIMENSION(Nm, Nm)         :: Coul
 
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-         M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
     INTEGER                                  :: i, imA, imB, j, jint, k1, k2, &
-         k3, k4, size_1c_int
+                                                k3, k4, size_1c_int
     LOGICAL                                  :: shortrange
     REAL(kind=dp) :: a2, ACOULA, ACOULB, d1, d1f(3), d2, d2f(3,3), d3, &
-         d3f(3,3,3), d4, d4f(3,3,3,3), f, rr, tmp, w, w0, w1, w2, w3, w4, w5
+      d3f(3,3,3), d4, d4f(3,3,3,3), f, rr, tmp, w, w0, w1, w2, w3, w4, w5
     REAL(kind=dp), DIMENSION(3)              :: v
     REAL(kind=dp), DIMENSION(Nm)             :: M0A, M0B
     REAL(kind=dp), DIMENSION(Nm, 3)          :: M1A, M1B
@@ -390,14 +390,14 @@ CONTAINS
     REAL(kind=dp), DIMENSION(Nm, Nm, 3)      :: dCoul
 
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-         M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
     INTEGER                                  :: i, imA, imB, j, jint, k1, k2, &
-         k3, k4, k5, size_1c_int
+                                                k3, k4, k5, size_1c_int
     LOGICAL                                  :: shortrange
     REAL(kind=dp) :: a2, ACOULA, ACOULB, d1, d1f(3), d2, d2f(3,3), d3, &
-         d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, rr, tmp, w, w0, &
-         w1, w2, w3, w4, w5, w6
+      d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, rr, tmp, w, w0, &
+      w1, w2, w3, w4, w5, w6
     REAL(kind=dp), DIMENSION(3)              :: v
     REAL(kind=dp), DIMENSION(Nm)             :: M0A, M0B
     REAL(kind=dp), DIMENSION(Nm, 3)          :: M1A, M1B
@@ -611,18 +611,18 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), INTENT(OUT), OPTIONAL          :: enuc
     REAL(dp), DIMENSION(3), INTENT(OUT), &
-         OPTIONAL                               :: denuc
+      OPTIONAL                               :: denuc
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_gks', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: Nb = 4, Nm = Nb+Nb*(Nb-1)/2
 
     LOGICAL                                  :: failure, l_denuc, l_enuc
     REAL(dp)                                 :: alpi, alpj, dscale, rij, &
-         scale, zz
+                                                scale, zz
     REAL(kind=dp), DIMENSION(Nm, Nm)         :: Coul, CoulE
     REAL(kind=dp), DIMENSION(Nm, Nm, 3)      :: dCoul, dCoulE
     TYPE(se_int_control_type)                :: se_int_control_off
@@ -678,18 +678,18 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(Nm, Nm)         :: Coul
 
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-         M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
     INTEGER                                  :: gpt, i, imA, imB, j, jint, &
-         k1, k2, k3, k4, lp, mp, np, &
-         size_1c_int
+                                                k1, k2, k3, k4, lp, mp, np, &
+                                                size_1c_int
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     REAL(KIND=dp) :: a2, ACOULA, ACOULB, alpha, cc, d1, d1f(3), d2, d2f(3,3), &
-         d3, d3f(3,3,3), d4, d4f(3,3,3,3), f, ff, kr, kr2, r1, r2, r3, r5, r7, &
-         r9, rr, ss, w, w0, w1, w2, w3, w4, w5
+      d3, d3f(3,3,3), d4, d4f(3,3,3,3), f, ff, kr, kr2, r1, r2, r3, r5, r7, &
+      r9, rr, ss, w, w0, w1, w2, w3, w4, w5
     REAL(KIND=dp), DIMENSION(3)              :: kk, v
     REAL(KIND=dp), DIMENSION(:, :, :), &
-         POINTER                                :: rho0
+      POINTER                                :: rho0
     REAL(KIND=dp), DIMENSION(Nm)             :: M0A, M0B
     REAL(KIND=dp), DIMENSION(Nm, 3)          :: M1A, M1B
     REAL(KIND=dp), DIMENSION(Nm, 3, 3)       :: M2A, M2B
@@ -958,18 +958,18 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(Nm, Nm, 3)      :: dCoul
 
     INTEGER, DIMENSION(Nb, Nb), PARAMETER :: &
-         M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
+      M = RESHAPE( (/1,2,3,4,2,5,8,10,3,8,6,9,4,10,9,7/) , (/4,4/) )
 
     INTEGER                                  :: gpt, i, imA, imB, j, jint, &
-         k1, k2, k3, k4, k5, lp, mp, &
-         np, size_1c_int
+                                                k1, k2, k3, k4, k5, lp, mp, &
+                                                np, size_1c_int
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     REAL(KIND=dp) :: a2, ACOULA, ACOULB, alpha, cc, d1, d1f(3), d2, d2f(3,3), &
-         d3, d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, ff, kr, kr2, &
-         r1, r11, r2, r3, r5, r7, r9, rr, ss, w, w0, w1, w2, w3, w4, w5, w6
+      d3, d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, ff, kr, kr2, &
+      r1, r11, r2, r3, r5, r7, r9, rr, ss, w, w0, w1, w2, w3, w4, w5, w6
     REAL(KIND=dp), DIMENSION(3)              :: kk, v
     REAL(KIND=dp), DIMENSION(:, :, :), &
-         POINTER                                :: rho0
+      POINTER                                :: rho0
     REAL(kind=dp), DIMENSION(Nm)             :: M0A, M0B
     REAL(kind=dp), DIMENSION(Nm, 3)          :: M1A, M1B
     REAL(kind=dp), DIMENSION(Nm, 3, 3)       :: M2A, M2B
