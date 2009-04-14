@@ -361,6 +361,7 @@ OBJECTS_GENERIC =\
  mulliken.o\
  multipole_types.o\
  nddo_methods.o\
+ nddo_methods_dbg.o\
  neb_io.o\
  neb_methods.o\
  neb_md_utils.o\

@@ -94,14 +94,16 @@ MODULE nddo_methods
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
   PRIVATE
+#include "nddo_methods_dbg.h"
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nddo_methods'
-  LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
-  LOGICAL, PARAMETER, PRIVATE          :: debug_coulomb_lr  = .FALSE.
+  LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
+  LOGICAL, PARAMETER, PRIVATE          :: debug_energy_coulomb_lr = .FALSE.
+  LOGICAL, PARAMETER, PRIVATE          :: info_coulomb_lr         = .FALSE.
   
-  PUBLIC :: build_nddo_fock_matrix, se_core_core_interaction
+  PUBLIC :: build_nddo_fock_matrix, se_core_core_interaction,&
+            build_fock_matrix_coulomb_lr
 
 CONTAINS
 
@@ -193,17 +195,14 @@ CONTAINS
             store_int_env,error)
        CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
 
+       ! Debug statements
+       IF (debug_energy_coulomb_lr.AND.se_control%do_ewald) THEN
+          CALL dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p,&
+                                     calculate_forces, para_env, error)
+       END IF
+
        ! Long Range Electrostatic
        IF (se_control%do_ewald) THEN
-          ! Debug statements
-          IF (debug_coulomb_lr) THEN
-             ! Zero structures only for debugging purpose
-             energy%hartree = 0.0_dp
-             DO ispin = 1, nspins
-                CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
-             END DO
-          END IF
-
           ! Evaluate Coulomb Long-Range
           CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,matrix_p,energy,calculate_forces,error)
 
@@ -218,12 +217,8 @@ CONTAINS
        DO ispin=1,nspins
           CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
                para_env=para_env,error=error)
-          energy%hartree = energy%hartree + ecoul
 
-          ! Debug statements
-          IF (debug_coulomb_lr) THEN
-             WRITE(*,*)ispin,"ECOUL ",ecoul
-          END IF
+          energy%hartree = energy%hartree + ecoul
        END DO
 
        ! Compute the SCP Hartree energy and polarization energy and update ks_scp
@@ -240,15 +235,9 @@ CONTAINS
           !       in KS_SCP as a*ks_scp
        END IF
 
-       ! Debug statements
-       IF (debug_coulomb_lr) THEN
-          WRITE(*,*)"TOTAL ENE",0.5_dp*energy%hartree
-          STOP
-       END IF
-
        ! QM/MM
        IF (qs_env%qmmm) THEN
-          DO ispin=1,nspins
+          DO ispin = 1, nspins
              ! If QM/MM sumup the 1el Hamiltonian
              CALL cp_sm_scale_and_add(matrix_a=ks_matrix(ispin)%matrix,&
                                       matrix_b=qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
@@ -1093,6 +1082,11 @@ CONTAINS
                                                              qcart
                    END IF
                 END DO
+                ! Print some info about charge, dipole and quadrupole (debug purpose only)
+                IF (info_coulomb_lr) THEN
+                   WRITE(*,'(I5,F12.6,5X,3F12.6,5X,9F12.6)')iatom, se_nddo_mpole%charge(iatom),&
+                        se_nddo_mpole%dipole(:,iatom),  se_nddo_mpole%quadrupole(:,:,iatom)
+                END IF
              END DO
           END DO
           CALL mp_sum(se_nddo_mpole%charge, para_env%group)
@@ -1137,7 +1131,7 @@ CONTAINS
           CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
 
           ! Debug Statements
-          IF (debug_coulomb_lr) THEN
+          IF (info_coulomb_lr) THEN
              CALL mp_sum(energy_glob,para_env%group)
              WRITE(*,*)"TOTAL ENERGY AFTER EWALD:",energy_local+ energy_glob+ e_neut+ e_self,&
                   energy_local, energy_glob, e_neut, e_self
@@ -1208,7 +1202,7 @@ CONTAINS
        energy%core_overlap = energy%core_overlap0 + 0.5_dp*enuc
 
        ! Debug Statements
-       IF (debug_coulomb_lr) THEN
+       IF (info_coulomb_lr) THEN
           WRITE(*,*)"ENUC: ",enuc*0.5_dp
        END IF
 

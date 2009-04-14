@@ -29,7 +29,7 @@ MODULE semi_empirical_mpole_methods
   PRIVATE
 
 ! *** Global parameters ***
-
+  LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_mpole_methods'
 
   PUBLIC :: semi_empirical_mpole_p_setup,&
@@ -60,6 +60,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(9), PARAMETER :: &
       loc_index = (/1,2,2,2,3,3,3,3,3/)
 
+    CHARACTER(LEN=3), DIMENSION(9) :: label_print_orb = (/"  s"," px"," py",&
+      " pz","dx2","dzx","dz2","dzy","dxy"/)
     INTEGER                                  :: a, b, i, ind1, ind2, j, k, &
                                                 k1, k2, mu, natorb, ndim, nr
     LOGICAL                                  :: failure
@@ -177,6 +179,14 @@ CONTAINS
                 mpole%task(3)= .TRUE.
              END IF
 
+             IF (debug_this_module) THEN
+                WRITE(*,'(A,2I6,A)')"Orbitals ",i,j,&
+                     " ("//label_print_orb(i)//","//label_print_orb(j)//")"
+                IF(mpole%task(1)) WRITE(*,'(9F12.6)')mpole%c
+                IF(mpole%task(2)) WRITE(*,'(9F12.6)')mpole%d
+                IF(mpole%task(3)) WRITE(*,'(9F12.6)')mpole%qc
+                WRITE(*,*)
+             END IF
           END DO
        END DO
     END IF
@@ -218,12 +228,18 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
+    ! Notation
+    !          qs(1) - d3z2-r2
+    !          qs(2) - dzx 
+    !          qs(3) - dzy 
+    !          qs(4) - dx2-y2 
+    !          qs(5) - dxy
     ! Cartesian components
-    qcart(1,1) =    qsph(4) - qsph(1) * 0.5_dp
-    qcart(2,1) =    qsph(5)
-    qcart(3,1) =    qsph(2)
-    qcart(2,2) = - (qsph(4) + qsph(1) * 0.5_dp)
-    qcart(3,2) =    qsph(3)
+    qcart(1,1) =   (qsph(4) - qsph(1) / SQRT(3.0_dp))*SQRT(3.0_dp)/2.0_dp
+    qcart(2,1) =    qsph(5)*SQRT(3.0_dp)/2.0_dp
+    qcart(3,1) =    qsph(2)*SQRT(3.0_dp)/2.0_dp
+    qcart(2,2) = - (qsph(4) + qsph(1) / SQRT(3.0_dp))*SQRT(3.0_dp)/2.0_dp
+    qcart(3,2) =    qsph(3)*SQRT(3.0_dp)/2.0_dp
     qcart(3,3) =    qsph(1)
     ! Symmetrize tensor
     qcart(1,2) = qcart(2,1)
