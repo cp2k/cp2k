@@ -635,6 +635,14 @@ CPSourceFileRef,&
        ! Integral Screening
        CALL section_vals_val_get(se_section,"INTEGRAL_SCREENING",&
             i_val=qs_control%se_control%integral_screening,error=error)
+       IF (qs_control%method_id==do_method_pnnl) THEN
+          CALL cp_assert((qs_control%se_control%integral_screening==do_se_IS_slater),&
+               cp_warning_level,cp_assertion_failed,routineP,&
+               "PNNL semi-empirical parameterization supports only the Slater type "//&
+               "integral scheme. Revert to Slater and continue the calculation.",&
+               error=error,failure=failure)          
+          qs_control%se_control%integral_screening = do_se_IS_slater
+       END IF
        ! Coulomb
        CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",&
             r_val=qs_control%se_control%cutoff_cou,error=error)
