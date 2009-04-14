@@ -329,7 +329,7 @@ CPSourceFileRef,&
     CALL setup_1c_2el_int(sep, error)
     
     ! Fill multipolar expansion of atomic orbitals charge distributions
-    CALL semi_empirical_mpole_p_setup(sep%w_mpole, sep, error)
+    CALL semi_empirical_mpole_p_setup(sep%w_mpole, sep, method, error)
 
     ! Get the value of the size of CORE integral array
     sep%core_size = 0
