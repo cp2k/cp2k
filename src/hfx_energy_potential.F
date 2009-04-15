@@ -834,7 +834,7 @@ MODULE hfx_energy_potential
           IF(.NOT. first_k_loop) katom = 0
           DO WHILE(katom+1<=natom)
             katom = katom + 1
-            hash_idx =(iatom-1)*natom**2+ (jatom-1) * natom + katom
+            hash_idx =(iatom-1)*INT(natom,KIND=int_8)**2+ (jatom-1) * natom + katom
             IF(MODULO(FNV64(hash_idx),n_processes)/=my_original_cpu_id-1) CYCLE
 
             ikind = kind_of(iatom)
