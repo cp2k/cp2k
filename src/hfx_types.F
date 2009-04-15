@@ -960,7 +960,13 @@ MODULE hfx_types
       DEALLOCATE(x_data%neighbor_cells,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       IF(x_data%periodic_parameter%number_of_shells == do_hfx_auto_shells ) THEN 
-        IF(total_number_of_cells == 0) total_number_of_cells = 1
+        ! if only the central unit cell is needed we need to take care manually
+        ! to avoid undefined cell info
+        IF(total_number_of_cells == 0) THEN
+            total_number_of_cells = 1
+            tmp_neighbor_cells(1)%cell=0
+            tmp_neighbor_cells(1)%cell_r=0
+        ENDIF
         ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         x_data%neighbor_cells(1:total_number_of_cells) = tmp_neighbor_cells(1:total_number_of_cells)
