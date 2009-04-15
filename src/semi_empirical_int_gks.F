@@ -47,6 +47,9 @@ MODULE semi_empirical_int_gks
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief Computes the electron-nuclei integrals
+! *****************************************************************************
   SUBROUTINE rotnuc_gks (sepi,sepj,rij,e1b,e2a,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
@@ -89,6 +92,9 @@ CONTAINS
 
   END SUBROUTINE rotnuc_gks
 
+! *****************************************************************************
+!> \brief Computes the electron-electron integrals
+! *****************************************************************************
   SUBROUTINE rotint_gks (sepi,sepj,rij,w,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
@@ -132,6 +138,9 @@ CONTAINS
 
   END SUBROUTINE rotint_gks
 
+! *****************************************************************************
+!> \brief Computes the derivatives of the electron-nuclei integrals
+! *****************************************************************************
   SUBROUTINE drotnuc_gks(sepi,sepj,rij,de1b,de2a,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
@@ -178,6 +187,9 @@ CONTAINS
 
   END SUBROUTINE drotnuc_gks
 
+! *****************************************************************************
+!> \brief Computes the derivatives of the electron-electron integrals
+! *****************************************************************************
   SUBROUTINE drotint_gks(sepi,sepj,rij,dw,se_int_control,se_taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
@@ -223,6 +235,9 @@ CONTAINS
 
   END SUBROUTINE drotint_gks
 
+! *****************************************************************************
+!> \brief Computes the primitives of the integrals (non-periodic case)
+! *****************************************************************************
   SUBROUTINE makeCoul(RAB,sepi,sepj,Coul,se_int_control,error)
     REAL(kind=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -234,41 +249,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'makeCoul', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iA, iB, imA, imB, j, jA, &
-                                                jB, jint, k1, k2, k3, k4, &
-                                                size_1c_int
-    LOGICAL                                  :: shortrange
+    INTEGER                                  :: iA, iB, imA, imB, jA, jB, k1, &
+                                                k2, k3, k4
+    LOGICAL                                  :: do_it, shortrange
     REAL(kind=dp) :: a2, ACOULA, ACOULB, d1, d1f(3), d2, d2f(3,3), d3, &
       d3f(3,3,3), d4, d4f(3,3,3,3), f, rr, tmp, w, w0, w1, w2, w3, w4, w5
     REAL(kind=dp), DIMENSION(3)              :: v
     REAL(kind=dp), DIMENSION(3, 3, 45)       :: M2A, M2B
     REAL(kind=dp), DIMENSION(3, 45)          :: M1A, M1B
     REAL(kind=dp), DIMENSION(45)             :: M0A, M0B
-    TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     shortrange = se_int_control%shortrange
-
-    size_1c_int = SIZE(sepi%w_mpole)
-    DO jint = 1, size_1c_int
-       mpole => sepi%w_mpole(jint)%mpole
-       i=mpole%indi
-       j=mpole%indj
-       M0A(indexb(i,j))        = -mpole%cs
-       M1A(1:3,indexb(i,j))    = -mpole%ds(1:3)
-       M2A(1:3,1:3,indexb(i,j))= -mpole%qq(1:3,1:3)/3.0_dp
-    ENDDO
-    ACOULA= sepi%acoul
-
-    size_1c_int = SIZE(sepj%w_mpole)
-    DO jint = 1, size_1c_int
-       mpole => sepj%w_mpole(jint)%mpole
-       i=mpole%indi
-       j=mpole%indj
-       M0B(indexb(i,j))        = -mpole%cs
-       M1B(1:3,indexb(i,j))    = -mpole%ds(1:3)
-       M2B(1:3,1:3,indexb(i,j))= -mpole%qq(1:3,1:3)/3.0_dp
-    ENDDO
-    ACOULB= sepj%acoul
+    CALL get_se_slater_multipole(sepi, M0A, M1A, M2A, ACOULA)
+    CALL get_se_slater_multipole(sepj, M0B, M1B, M2B, ACOULB)
 
     v(1)=RAB(1)
     v(2)=RAB(2)
@@ -337,24 +330,24 @@ CONTAINS
                    ENDDO
                 ENDDO
 
+                do_it = .FALSE.
                 IF     ( imA==1 .AND.  imB==1  )  THEN
-                   tmp=M2A(1,1,imA)*M2B(1,1,imB)  
-                   tmp=tmp*a2**4
-                   w=w -tmp*EXP(-w0)/rr
+                   tmp=M2A(1,1,imA)*M2B(1,1,imB)
+                   do_it = .TRUE.
                 ELSE IF( imA==1 .AND. (iB==jB) )  THEN
                    tmp=M2A(1,1,imA)*M2B(iB-1,iB-1,imB)/3.0_dp
-                   tmp=tmp*a2**4
-                   w=w -tmp*EXP(-w0)/rr
+                   do_it = .TRUE.
                 ELSE IF( (iA==jA) .AND. imB==1 )  THEN
                    tmp=M2A(iA-1,iA-1,imA)*M2B(1,1,imB)/3.0_dp  
-                   tmp=tmp*a2**4
-                   w=w -tmp*EXP(-w0)/rr
+                   do_it = .TRUE.
                 ELSE IF( (iA==jA) .AND. (iB==jB) )THEN
                    tmp=M2A(iA-1,iA-1,imA)*M2B(iB-1,iB-1,imB)/9.0_dp
-                   tmp=tmp*a2**4
-                   w=w -tmp*EXP(-w0)/rr
+                   do_it = .TRUE.
                 ENDIF
-
+                IF (do_it) THEN
+                   tmp=tmp*(a2**4)*EXP(-w0)/rr
+                   w=w-tmp
+                END IF
                 Coul(imA,imB)=w
              ENDDO
           ENDDO
@@ -363,7 +356,10 @@ CONTAINS
 
   END SUBROUTINE makeCoul
 
-
+! *****************************************************************************
+!> \brief Computes the derivatives of the primitives of the integrals 
+!>        (non-periodic case)
+! *****************************************************************************
   SUBROUTINE makedCoul(RAB,sepi,sepj,dCoul,se_int_control,error)
     REAL(kind=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -375,10 +371,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'makedCoul', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iA, iB, imA, imB, j, jA, &
-                                                jB, jint, k1, k2, k3, k4, &
-                                                size_1c_int
-    LOGICAL                                  :: shortrange
+    INTEGER                                  :: iA, iB, imA, imB, jA, jB, k1, &
+                                                k2, k3, k4
+    LOGICAL                                  :: do_it, shortrange
     REAL(kind=dp) :: a2, ACOULA, ACOULB, d1, d1f(3), d2, d2f(3,3), d3, &
       d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, rr, tmp, w, w0, &
       w1, w2, w3, w4, w5, w6
@@ -386,31 +381,10 @@ CONTAINS
     REAL(kind=dp), DIMENSION(3, 3, 45)       :: M2A, M2B
     REAL(kind=dp), DIMENSION(3, 45)          :: M1A, M1B
     REAL(kind=dp), DIMENSION(45)             :: M0A, M0B
-    TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     shortrange = se_int_control%shortrange
-
-    size_1c_int = SIZE(sepi%w_mpole)
-    DO jint = 1, size_1c_int
-       mpole => sepi%w_mpole(jint)%mpole
-       i=mpole%indi
-       j=mpole%indj
-       M0A(indexb(i,j))         = -mpole%cs
-       M1A(1:3,indexb(i,j))     = -mpole%ds(1:3)
-       M2A(1:3,1:3,indexb(i,j)) = -mpole%qq(1:3,1:3)/3.0_dp
-    ENDDO
-    ACOULA= sepi%acoul
-
-    size_1c_int = SIZE(sepj%w_mpole)
-    DO jint = 1, size_1c_int
-       mpole => sepj%w_mpole(jint)%mpole
-       i=mpole%indi
-       j=mpole%indj
-       M0B(indexb(i,j))         = -mpole%cs
-       M1B(1:3,indexb(i,j))     = -mpole%ds(1:3)
-       M2B(1:3,1:3,indexb(i,j)) = -mpole%qq(1:3,1:3)/3.0_dp
-    ENDDO
-    ACOULB= sepj%acoul
+    CALL get_se_slater_multipole(sepi, M0A, M1A, M2A, ACOULA)
+    CALL get_se_slater_multipole(sepj, M0B, M1B, M2B, ACOULB)
 
     v(1)=RAB(1)
     v(2)=RAB(2)
@@ -455,19 +429,31 @@ CONTAINS
              DO jB = 1, iB
                 imB = imB + 1
                 
-                wv=   M0A(imA)*M0B(imB)*d1f(1:3)
+                tmp  = M0A(imA)*M0B(imB)
+                wv(1)= tmp*d1f(1)
+                wv(2)= tmp*d1f(2)
+                wv(3)= tmp*d1f(3)
                 DO k1=1,3
-                   wv=wv+(  M1A(k1,imA)*M0B(imB)-M0A(imA)*M1B(k1,imB) )*d2f(k1,1:3)
+                   tmp = M1A(k1,imA)*M0B(imB)-M0A(imA)*M1B(k1,imB)
+                   wv(1)=wv(1)+tmp*d2f(1,k1)
+                   wv(2)=wv(2)+tmp*d2f(2,k1)
+                   wv(3)=wv(3)+tmp*d2f(3,k1)
                 ENDDO
                 DO k2=1,3
                    DO k1=1,3
-                      wv=wv+(  M2A(k1,k2,imA)*M0B(imB)-M1A(k1,imA)*M1B(k2,imB)+M0A(imA)*M2B(k1,k2,imB) )*d3f(1:3,k1,k2)
+                      tmp = M2A(k1,k2,imA)*M0B(imB)-M1A(k1,imA)*M1B(k2,imB)+M0A(imA)*M2B(k1,k2,imB)
+                      wv(1)=wv(1)+tmp*d3f(1,k1,k2)
+                      wv(2)=wv(2)+tmp*d3f(2,k1,k2)
+                      wv(3)=wv(3)+tmp*d3f(3,k1,k2)
                    ENDDO
                 ENDDO
                 DO k3=1,3
                    DO k2=1,3
                       DO k1=1,3
-                         wv=wv+( -M2A(k1,k2,imA)*M1B(k2,imB)+M1A(k1,imA)*M2B(k2,k3,imB) )*d4f(1:3,k1,k2,k3)
+                         tmp = -M2A(k1,k2,imA)*M1B(k2,imB)+M1A(k1,imA)*M2B(k2,k3,imB)
+                         wv(1)=wv(1)+tmp*d4f(1,k1,k2,k3)
+                         wv(2)=wv(2)+tmp*d4f(2,k1,k2,k3)
+                         wv(3)=wv(3)+tmp*d4f(3,k1,k2,k3)
                       ENDDO
                    ENDDO
                 ENDDO
@@ -476,31 +462,39 @@ CONTAINS
                    DO k3=1,3
                       DO k2=1,3
                          DO k1=1,3
-                            wv=wv+ M2A(k1,k2,imA)*M2B(k3,k4,imB)*d5f(1:3,k1,k2,k3,k4)
+                            tmp = M2A(k1,k2,imA)*M2B(k3,k4,imB)
+                            wv(1)=wv(1)+ tmp*d5f(1,k1,k2,k3,k4)
+                            wv(2)=wv(2)+ tmp*d5f(2,k1,k2,k3,k4)
+                            wv(3)=wv(3)+ tmp*d5f(3,k1,k2,k3,k4)
                          ENDDO
                       ENDDO
                    ENDDO
                 ENDDO
-                
+
+                do_it = .FALSE.
                 IF     ( imA==1 .AND. imB==1 )    THEN
                    tmp=M2A(1,1,imA)*M2B(1,1,imB)  
-                   tmp=tmp*(1.0_dp+w0)*a2**4
-                   wv=wv +v(1:3)*tmp*EXP(-w0)/rr**3
+                   do_it = .TRUE.
                 ELSE IF( imA==1 .AND. (iB==jB) )  THEN
                    tmp=M2A(1,1,imA)*M2B(iB-1,iB-1,imB)/3.0_dp
-                   tmp=tmp*(1.0_dp+w0)*a2**4
-                   wv=wv +v(1:3)*tmp*EXP(-w0)/rr**3
+                   do_it = .TRUE.
                 ELSE IF( (iA==jA) .AND. imB==1 )  THEN
                    tmp=M2A(iA-1,iA-1,imA)*M2B(1,1,imB)/3.0_dp  
-                   tmp=tmp*(1.0_dp+w0)*a2**4
-                   wv=wv +v(1:3)*tmp*EXP(-w0)/rr**3
+                   do_it = .TRUE.
                 ELSE IF( (iA==jA) .AND. (iB==jB) )THEN
                    tmp=M2A(iA-1,iA-1,imA)*M2B(iB-1,iB-1,imB)/9.0_dp
-                   tmp=tmp*(1.0_dp+w0)*a2**4
-                   wv=wv +v(1:3)*tmp*EXP(-w0)/rr**3
+                   do_it = .TRUE.
                 ENDIF
-                
-                dCoul(1:3,imA,imB)=wv
+                IF (do_it) THEN
+                   tmp=tmp*((1.0_dp+w0)*a2**4)*EXP(-w0)/rr**3
+                   wv(1)=wv(1) +v(1)*tmp
+                   wv(2)=wv(2) +v(2)*tmp
+                   wv(3)=wv(3) +v(3)*tmp
+                END IF
+
+                dCoul(1,imA,imB)=wv(1)
+                dCoul(2,imA,imB)=wv(2)
+                dCoul(3,imA,imB)=wv(3)
              ENDDO
           ENDDO
        ENDDO
@@ -508,6 +502,9 @@ CONTAINS
 
   END SUBROUTINE makedCoul
 
+! *****************************************************************************
+!> \brief Computes nuclei-nuclei interactions
+! *****************************************************************************
   SUBROUTINE corecore_gks (sepi,sepj,rijv,enuc,denuc,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
@@ -569,12 +566,17 @@ CONTAINS
        END IF
        IF (l_denuc) THEN
           dscale= -alpi*EXP(-alpi*rij)-alpj*EXP(-alpj*rij)
-          denuc(:)= zz*dCoulE(:,1,1)+dscale*(rijv(:)/rij)*zz*Coul(1,1)+scale*zz*dCoul(:,1,1)
+          denuc(1)= zz*dCoulE(1,1,1)+dscale*(rijv(1)/rij)*zz*Coul(1,1)+scale*zz*dCoul(1,1,1)
+          denuc(2)= zz*dCoulE(2,1,1)+dscale*(rijv(2)/rij)*zz*Coul(1,1)+scale*zz*dCoul(2,1,1)
+          denuc(3)= zz*dCoulE(3,1,1)+dscale*(rijv(3)/rij)*zz*Coul(1,1)+scale*zz*dCoul(3,1,1)
        END IF
 
     ENDIF
   END SUBROUTINE corecore_gks
 
+! *****************************************************************************
+!> \brief Computes the primitives of the integrals (periodic case)
+! *****************************************************************************
   SUBROUTINE makeCoulE(RAB,sepi,sepj,Coul,se_int_control,error)
     REAL(KIND=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -586,9 +588,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'makeCoulE', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: gpt, i, imA, imB, j, jint, &
-                                                k1, k2, k3, k4, lp, mp, np, &
-                                                size_1c_int
+    INTEGER                                  :: gpt, imA, imB, k1, k2, k3, &
+                                                k4, lp, mp, np
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     REAL(KIND=dp) :: a2, ACOULA, ACOULB, alpha, cc, d1, d1f(3), d2, d2f(3,3), &
       d3, d3f(3,3,3), d4, d4f(3,3,3,3), f, ff, kr, kr2, r1, r2, r3, r5, r7, &
@@ -603,7 +604,6 @@ CONTAINS
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     alpha = se_int_control%ewald_gks%alpha
     pw_pool => se_int_control%ewald_gks%pw_pool
@@ -613,27 +613,8 @@ CONTAINS
     pw_grid => pw_pool%pw_grid
     bds     => pw_grid%bounds
 
-    size_1c_int = SIZE(sepi%w_mpole)
-    DO jint = 1, size_1c_int
-       mpole => sepi%w_mpole(jint)%mpole
-       i=mpole%indi
-       j=mpole%indj
-       M0A(indexb(i,j))         = -mpole%cs
-       M1A(1:3,indexb(i,j))     = -mpole%ds(1:3)
-       M2A(1:3,1:3,indexb(i,j)) = -mpole%qq(1:3,1:3)/3.0_dp
-    ENDDO
-    ACOULA= sepi%acoul
-
-    size_1c_int = SIZE(sepj%w_mpole)
-    DO jint = 1, size_1c_int
-       mpole => sepj%w_mpole(jint)%mpole
-       i=mpole%indi
-       j=mpole%indj
-       M0B(indexb(i,j))         = -mpole%cs
-       M1B(1:3,indexb(i,j))     = -mpole%ds(1:3)
-       M2B(1:3,1:3,indexb(i,j)) = -mpole%qq(1:3,1:3)/3.0_dp
-    ENDDO
-    ACOULB= sepj%acoul
+    CALL get_se_slater_multipole(sepi, M0A, M1A, M2A, ACOULA)
+    CALL get_se_slater_multipole(sepj, M0B, M1B, M2B, ACOULB)
 
     v(1)=RAB(1)
     v(2)=RAB(2)
@@ -736,7 +717,7 @@ CONTAINS
        kk(:)=pw_grid%g(:,gpt)
        ff = 2.0_dp * fourpi * rho0(lp,mp,np)**2 * pw_grid%vol / pw_grid%gsq(gpt)
 
-       kr=DOT_PRODUCT(kk(:),v(:))
+       kr=DOT_PRODUCT(kk,v)
        cc=COS(kr)
        ss=SIN(kr)
 
@@ -812,6 +793,10 @@ CONTAINS
 
   END SUBROUTINE makeCoulE
 
+! *****************************************************************************
+!> \brief Computes the derivatives of the primitives of the integrals 
+!>        (periodic case)
+! *****************************************************************************
   SUBROUTINE makedCoulE(RAB,sepi,sepj,dCoul,se_int_control,error)
     REAL(KIND=dp), DIMENSION(3)              :: RAB
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -823,13 +808,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'makedCoulE', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: gpt, i, imA, imB, j, jint, &
-                                                k1, k2, k3, k4, k5, lp, mp, &
-                                                np, size_1c_int
+    INTEGER                                  :: gpt, imA, imB, k1, k2, k3, &
+                                                k4, k5, lp, mp, np
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     REAL(KIND=dp) :: a2, ACOULA, ACOULB, alpha, cc, d1, d1f(3), d2, d2f(3,3), &
       d3, d3f(3,3,3), d4, d4f(3,3,3,3), d5, d5f(3,3,3,3,3), f, ff, kr, kr2, &
-      r1, r11, r2, r3, r5, r7, r9, rr, ss, w, w0, w1, w2, w3, w4, w5, w6
+      r1, r11, r2, r3, r5, r7, r9, rr, ss, tmp, w, w0, w1, w2, w3, w4, w5, w6
     REAL(KIND=dp), DIMENSION(3)              :: kk, v, wv
     REAL(kind=dp), DIMENSION(3, 3, 45)       :: M2A, M2B
     REAL(kind=dp), DIMENSION(3, 45)          :: M1A, M1B
@@ -840,7 +824,6 @@ CONTAINS
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     alpha = se_int_control%ewald_gks%alpha
     pw_pool => se_int_control%ewald_gks%pw_pool
@@ -850,32 +833,13 @@ CONTAINS
     pw_grid => pw_pool%pw_grid
     bds     => pw_grid%bounds
 
-    size_1c_int = SIZE(sepi%w_mpole)
-    DO jint = 1, size_1c_int
-       mpole => sepi%w_mpole(jint)%mpole
-       i=mpole%indi
-       j=mpole%indj
-       M0A(indexb(i,j))         = -mpole%cs
-       M1A(1:3,indexb(i,j))     = -mpole%ds(1:3)
-       M2A(1:3,1:3,indexb(i,j)) = -mpole%qq(1:3,1:3)/3.0_dp
-    ENDDO
-    ACOULA= sepi%acoul
-
-    size_1c_int = SIZE(sepj%w_mpole)
-    DO jint = 1, size_1c_int
-       mpole => sepj%w_mpole(jint)%mpole
-       i=mpole%indi
-       j=mpole%indj
-       M0B(indexb(i,j))         = -mpole%cs
-       M1B(1:3,indexb(i,j))     = -mpole%ds(1:3)
-       M2B(1:3,1:3,indexb(i,j)) = -mpole%qq(1:3,1:3)/3.0_dp
-    ENDDO
-    ACOULB= sepj%acoul
+    CALL get_se_slater_multipole(sepi, M0A, M1A, M2A, ACOULA)
+    CALL get_se_slater_multipole(sepj, M0B, M1B, M2B, ACOULB)
 
     v(1)=RAB(1)
     v(2)=RAB(2)
     v(3)=RAB(3)
-    rr=SQRT(DOT_PRODUCT(v(:),v(:)))
+    rr=SQRT(DOT_PRODUCT(v,v))
 
     a2=0.5_dp*(1.0_dp/ACOULA+1.0_dp/ACOULB)
 
@@ -920,19 +884,33 @@ CONTAINS
 
     DO imA=1, sepi%natorb*(sepi%natorb+1)/2
        DO imB=1, sepj%natorb*(sepj%natorb+1)/2
-          wv=   M0A(imA)*M0B(imB)*d1f(1:3)
+
+          tmp = M0A(imA)*M0B(imB)
+          wv(1)=   tmp*d1f(1)
+          wv(2)=   tmp*d1f(2)
+          wv(3)=   tmp*d1f(3)
+
           DO k1=1,3
-             wv=wv+(  M1A(k1,imA)*M0B(imB)-M0A(imA)*M1B(k1,imB) )*d2f(1:3,k1)
+             tmp = M1A(k1,imA)*M0B(imB)-M0A(imA)*M1B(k1,imB)
+             wv(1)=wv(1)+tmp*d2f(1,k1)
+             wv(2)=wv(2)+tmp*d2f(2,k1)
+             wv(3)=wv(3)+tmp*d2f(3,k1)
           ENDDO
           DO k2=1,3
              DO k1=1,3
-                wv=wv+(  M2A(k1,k2,imA)*M0B(imB)-M1A(k1,imA)*M1B(k2,imB)+M0A(imA)*M2B(k1,k2,imB) )*d3f(1:3,k1,k2)
+                tmp = M2A(k1,k2,imA)*M0B(imB)-M1A(k1,imA)*M1B(k2,imB)+M0A(imA)*M2B(k1,k2,imB)
+                wv(1)=wv(1)+tmp*d3f(1,k1,k2)
+                wv(2)=wv(2)+tmp*d3f(2,k1,k2)
+                wv(3)=wv(3)+tmp*d3f(3,k1,k2)
              ENDDO
           ENDDO
           DO k3=1,3
              DO k2=1,3
                 DO k1=1,3
-                   wv=wv+( -M2A(k1,k2,imA)*M1B(k3,imB)+M1A(k1,imA)*M2B(k2,k3,imB) )*d4f(1:3,k1,k2,k3)
+                   tmp = -M2A(k1,k2,imA)*M1B(k3,imB)+M1A(k1,imA)*M2B(k2,k3,imB)
+                   wv(1)=wv(1)+tmp*d4f(1,k1,k2,k3)
+                   wv(2)=wv(2)+tmp*d4f(2,k1,k2,k3)
+                   wv(3)=wv(3)+tmp*d4f(3,k1,k2,k3)
                 ENDDO
              ENDDO
           ENDDO
@@ -941,13 +919,18 @@ CONTAINS
              DO k3=1,3
                 DO k2=1,3
                    DO k1=1,3
-                      wv=wv+ M2A(k1,k2,imA)*M2B(k3,k4,imB)*d5f(1:3,k1,k2,k3,k4)
+                      tmp = M2A(k1,k2,imA)*M2B(k3,k4,imB)
+                      wv(1)=wv(1)+ tmp*d5f(1,k1,k2,k3,k4)
+                      wv(2)=wv(2)+ tmp*d5f(2,k1,k2,k3,k4)
+                      wv(3)=wv(3)+ tmp*d5f(3,k1,k2,k3,k4)
                    ENDDO
                 ENDDO
              ENDDO
           ENDDO
           
-          dCoul(1:3,imA,imB)=wv
+          dCoul(1,imA,imB)=wv(1)
+          dCoul(2,imA,imB)=wv(2)
+          dCoul(3,imA,imB)=wv(3)
        ENDDO
     ENDDO
 
@@ -975,7 +958,7 @@ CONTAINS
        kk(:)=pw_grid%g(:,gpt)
        ff = 2.0_dp * fourpi * rho0(lp,mp,np)**2 * pw_grid%vol / pw_grid%gsq(gpt)
 
-       kr=DOT_PRODUCT(kk(:),v(:))
+       kr=DOT_PRODUCT(kk,v)
        cc=COS(kr)
        ss=SIN(kr)
 
@@ -983,22 +966,22 @@ CONTAINS
        DO k1=1,3
           d1f(k1)=d1f(k1)-kk(k1)*ss*ff
        ENDDO
-       DO k1=1,3
-          DO k2=1,3
-             d2f(k1,k2)=d2f(k1,k2)-kk(k1)*kk(k2)*cc*ff
-          ENDDO
-       ENDDO
        DO k2=1,3
           DO k1=1,3
-             DO k3=1,3
-                d3f(k1,k2,k3)=d3f(k1,k2,k3)+kk(k1)*kk(k2)*kk(k3)*ss*ff
-             ENDDO
+             d2f(k1,k2)=d2f(k1,k2)-kk(k1)*kk(k2)*cc*ff
           ENDDO
        ENDDO
        DO k3=1,3
           DO k2=1,3
              DO k1=1,3
-                DO k4=1,3
+                d3f(k1,k2,k3)=d3f(k1,k2,k3)+kk(k1)*kk(k2)*kk(k3)*ss*ff
+             ENDDO
+          ENDDO
+       ENDDO
+       DO k4=1,3
+          DO k3=1,3
+             DO k2=1,3
+                DO k1=1,3
                    d4f(k1,k2,k3,k4)=d4f(k1,k2,k3,k4)+kk(k1)*kk(k2)*kk(k3)*kk(k4)*cc*ff
                 ENDDO
              ENDDO
@@ -1015,24 +998,35 @@ CONTAINS
              ENDDO
           ENDDO
        ENDDO
-
     ENDDO
 
     DO imA=1, sepi%natorb*(sepi%natorb+1)/2
        DO imB=1, sepj%natorb*(sepj%natorb+1)/2
-          wv=   M0A(imA)*M0B(imB)*d1f(1:3)
+          tmp = M0A(imA)*M0B(imB)
+          wv(1)=   tmp*d1f(1)
+          wv(2)=   tmp*d1f(2)
+          wv(3)=   tmp*d1f(3)
           DO k1=1,3
-             wv=wv+(  M1A(k1,imA)*M0B(imB)-M0A(imA)*M1B(k1,imB) )*d2f(1:3,k1)
+             tmp = M1A(k1,imA)*M0B(imB)-M0A(imA)*M1B(k1,imB)
+             wv(1)=wv(1)+tmp*d2f(1,k1)
+             wv(2)=wv(2)+tmp*d2f(2,k1)
+             wv(3)=wv(3)+tmp*d2f(3,k1)
           ENDDO
           DO k2=1,3
              DO k1=1,3
-                wv=wv+(  M2A(k1,k2,imA)*M0B(imB)-M1A(k1,imA)*M1B(k2,imB)+M0A(imA)*M2B(k1,k2,imB) )*d3f(1:3,k1,k2)
+                tmp = M2A(k1,k2,imA)*M0B(imB)-M1A(k1,imA)*M1B(k2,imB)+M0A(imA)*M2B(k1,k2,imB)
+                wv(1)=wv(1)+tmp*d3f(1,k1,k2)
+                wv(2)=wv(2)+tmp*d3f(2,k1,k2)
+                wv(3)=wv(3)+tmp*d3f(3,k1,k2)
              ENDDO
           ENDDO
           DO k3=1,3
              DO k2=1,3
                 DO k1=1,3
-                   wv=wv+( -M2A(k1,k2,imA)*M1B(k3,imB)+M1A(k1,imA)*M2B(k2,k3,imB) )*d4f(1:3,k1,k2,k3)
+                   tmp = -M2A(k1,k2,imA)*M1B(k3,imB)+M1A(k1,imA)*M2B(k2,k3,imB)
+                   wv(1)=wv(1)+tmp*d4f(1,k1,k2,k3)
+                   wv(2)=wv(2)+tmp*d4f(2,k1,k2,k3)
+                   wv(3)=wv(3)+tmp*d4f(3,k1,k2,k3)
                 ENDDO
              ENDDO
           ENDDO
@@ -1041,18 +1035,27 @@ CONTAINS
              DO k3=1,3
                 DO k2=1,3
                    DO k1=1,3
-                      wv=wv+ M2A(k1,k2,imA)*M2B(k3,k4,imB)*d5f(1:3,k1,k2,k3,k4)
+                      tmp =  M2A(k1,k2,imA)*M2B(k3,k4,imB)
+                      wv(1)=wv(1)+tmp*d5f(1,k1,k2,k3,k4)
+                      wv(2)=wv(2)+tmp*d5f(2,k1,k2,k3,k4)
+                      wv(3)=wv(3)+tmp*d5f(3,k1,k2,k3,k4)
                    ENDDO
                 ENDDO
              ENDDO
           ENDDO
 
-          dCoul(1:3,imA,imB)=dCoul(1:3,imA,imB)+wv
+          dCoul(1,imA,imB)=dCoul(1,imA,imB)+wv(1)
+          dCoul(2,imA,imB)=dCoul(2,imA,imB)+wv(2)
+          dCoul(3,imA,imB)=dCoul(3,imA,imB)+wv(3)
        ENDDO
     ENDDO
 
   END SUBROUTINE makedCoulE
 
+! *****************************************************************************
+!> \brief Builds the tensor for the evaluation of the integrals with the
+!>        cartesian multipoles
+! *****************************************************************************
   SUBROUTINE  build_d_tensor_gks(d1f, d2f, d3f, d4f, d5f, v, d1, d2, d3, d4, d5)
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: d1f
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -1157,5 +1160,48 @@ CONTAINS
        ENDDO
     END IF
   END SUBROUTINE build_d_tensor_gks
+
+! *****************************************************************************
+!> \brief Retrieves the multipole for the Slater integral evaluation
+! *****************************************************************************
+  SUBROUTINE get_se_slater_multipole(sepi, M0, M1, M2, ACOUL)
+    TYPE(semi_empirical_type), POINTER       :: sepi
+    REAL(kind=dp), DIMENSION(45), &
+      INTENT(OUT)                            :: M0
+    REAL(kind=dp), DIMENSION(3, 45), &
+      INTENT(OUT)                            :: M1
+    REAL(kind=dp), DIMENSION(3, 3, 45), &
+      INTENT(OUT)                            :: M2
+    REAL(KIND=dp), INTENT(OUT)               :: ACOUL
+
+    INTEGER                                  :: i, j, jint, size_1c_int
+    TYPE(semi_empirical_mpole_type), POINTER :: mpole
+
+    NULLIFY(mpole)
+    size_1c_int = SIZE(sepi%w_mpole)
+    DO jint = 1, size_1c_int
+       mpole => sepi%w_mpole(jint)%mpole
+       i=mpole%indi
+       j=mpole%indj
+       M0(indexb(i,j))    = -mpole%cs
+
+       M1(1,indexb(i,j))  = -mpole%ds(1)
+       M1(2,indexb(i,j))  = -mpole%ds(2)
+       M1(3,indexb(i,j))  = -mpole%ds(3)
+
+       M2(1,1,indexb(i,j))= -mpole%qq(1,1)/3.0_dp
+       M2(2,1,indexb(i,j))= -mpole%qq(2,1)/3.0_dp
+       M2(3,1,indexb(i,j))= -mpole%qq(3,1)/3.0_dp
+
+       M2(1,2,indexb(i,j))= -mpole%qq(1,2)/3.0_dp
+       M2(2,2,indexb(i,j))= -mpole%qq(2,2)/3.0_dp
+       M2(3,2,indexb(i,j))= -mpole%qq(3,2)/3.0_dp
+
+       M2(1,3,indexb(i,j))= -mpole%qq(1,3)/3.0_dp
+       M2(2,3,indexb(i,j))= -mpole%qq(2,3)/3.0_dp
+       M2(3,3,indexb(i,j))= -mpole%qq(3,3)/3.0_dp
+    ENDDO
+    ACOUL = sepi%acoul
+  END SUBROUTINE get_se_slater_multipole
 
 END MODULE semi_empirical_int_gks
