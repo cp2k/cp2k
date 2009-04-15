@@ -353,9 +353,9 @@ MODULE hfx_communication
       routineN = 'scale_and_add_fock_to_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ikind, istat, j, &
-                                                natom, nspins, &
-                                                number_of_p_entries, stat
+    INTEGER                                  :: iatom, ikind, istat, natom, &
+                                                nspins, number_of_p_entries, &
+                                                stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     INTEGER, DIMENSION(:, :), POINTER        :: is_assoc_atomic_block
     LOGICAL                                  :: failure
@@ -397,9 +397,7 @@ MODULE hfx_communication
     END DO
     full_ks => actual_x_data%full_ks_alpha
     IF(scaling_factor /= 1.0_dp ) THEN
-      DO j=1,SIZE(full_ks,1)
-        full_ks(j) = full_ks(j) * scaling_factor
-      END DO
+       full_ks = full_ks * scaling_factor
     END IF
     CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, actual_x_data%number_of_p_entries, &
                               actual_x_data%is_assoc_atomic_block,&
@@ -410,9 +408,7 @@ MODULE hfx_communication
     IF(nspins == 2) THEN
       full_ks => actual_x_data%full_ks_beta
       IF(scaling_factor /= 1.0_dp ) THEN
-        DO j=1,SIZE(full_ks,1)
-            full_ks(j) = full_ks(j) * scaling_factor
-        END DO
+         full_ks = full_ks * scaling_factor
       END IF
 
       CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(2)%matrix, actual_x_data%number_of_p_entries, &

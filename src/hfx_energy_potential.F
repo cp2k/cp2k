@@ -1331,8 +1331,8 @@ MODULE hfx_energy_potential
     ene_x_aa = 0.0_dp
     ene_x_bb = 0.0_dp
    
-    mb_size_p = SIZE(full_density,1)/1024/128
-    mb_size_f = SIZE(full_ks,1)/1024/128
+    mb_size_p = N_pmat*(N_pmat+1)/2 /1024/128
+    mb_size_f = N_pmat*(N_pmat+1)/2 /1024/128
     IF (.NOT. treat_lsd_in_core ) THEN
       IF( nspins == 2) THEN
         mb_size_f = mb_size_f * 2
