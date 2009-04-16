@@ -109,8 +109,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(scp_energy_type), POINTER           :: energy
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(scp_force_type), &
-             DIMENSION(:),POINTER            :: force
+    TYPE(scp_force_type), DIMENSION(:), &
+      POINTER                                :: force
 
     CALL timeset(routineN,handle)
     output_unit = -1

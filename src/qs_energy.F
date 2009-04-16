@@ -59,9 +59,6 @@ MODULE qs_energy
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE scp_dispersion,                  ONLY: scp_qs_dispersion
-  USE scp_energy_types,                ONLY: scp_energy_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -142,8 +139,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb
-    TYPE(scp_energy_type), POINTER           :: scp_energy_loc
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
     CALL timeset(routineN,handle)
