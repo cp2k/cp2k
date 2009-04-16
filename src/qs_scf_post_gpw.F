@@ -264,7 +264,9 @@ CONTAINS
           END DO
           unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%KINETIC_ENERGY",&
                extension=".Log",error=error)
-          WRITE (unit_nr,'(T3,A,T55,F25.14)') "Electronic kinetic energy:",e_kin
+          IF (unit_nr>0) THEN
+             WRITE (unit_nr,'(T3,A,T55,F25.14)') "Electronic kinetic energy:",e_kin
+          ENDIF
           CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%KINETIC_ENERGY", error=error)
        END IF
