@@ -50,10 +50,12 @@ MODULE qs_linres_current_utils
                                              current_orb_center_common,&
                                              current_orb_center_wannier,&
                                              ot_precond_full_all
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_lval,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -122,12 +124,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_response', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: my_pos
     INTEGER :: handle, i, icenter, idir, ii, iii, ispin, ist_true, istat, &
       istate, j, jcenter, jstate, max_nbr_center, max_states, nao, &
       nbr_center(2), ncubes, nmo, nspins, nstates(2), output_unit
     INTEGER, DIMENSION(:), POINTER           :: list_cubes
     INTEGER, DIMENSION(:, :, :), POINTER     :: statetrueindex
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: append_cube, failure, ionode
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
     REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
@@ -289,10 +292,17 @@ CONTAINS
             &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
           ncubes = SIZE(list_cubes,1)
           print_key => section_vals_get_subs_vals(current_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
+          append_cube = section_get_lval(current_section,"PRINT%RESPONSE_FUNCTION_CUBES%APPEND",error=error)
+          my_pos = "REWIND"
+          IF(append_cube) THEN
+            my_pos = "APPEND"
+          END IF
+          !
+
           DO ispin = 1,nspins
              CALL qs_print_cubes(qs_env,psi1_ptr(ispin)%matrix,ncubes,list_cubes,&
                   centers_set(ispin)%array,print_key,'psi1_p',&
-                  idir=idir,ispin=ispin,error=error)
+                  idir=idir,ispin=ispin,file_position=my_pos,error=error)
           ENDDO ! ispin
        ENDIF ! print response functions
        !
@@ -320,10 +330,11 @@ CONTAINS
             &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
           ncubes = SIZE(list_cubes,1)
           print_key => section_vals_get_subs_vals(current_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
+
           DO ispin = 1,nspins
              CALL qs_print_cubes(qs_env,psi1_ptr(ispin)%matrix,ncubes,list_cubes,&
                   centers_set(ispin)%array,print_key,'psi1_rxp',&
-                  idir=idir,ispin=ispin,error=error)
+                  idir=idir,ispin=ispin,file_position=my_pos, error=error)
           ENDDO ! ispin
        ENDIF ! print response functions
        !
@@ -479,7 +490,7 @@ CONTAINS
              DO ispin = 1,nspins
                 CALL qs_print_cubes(qs_env,psi1_D(ispin,idir)%matrix,&
                      ncubes,list_cubes,centers_set(ispin)%array,print_key,'psi1_D',&
-                      idir=idir,ispin=ispin,error=error)
+                      idir=idir,ispin=ispin, file_position=my_pos,error=error)
              ENDDO
           ENDIF ! print response functions
           !

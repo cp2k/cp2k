@@ -27,7 +27,8 @@ MODULE stm_images
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE particle_list_types,             ONLY: particle_list_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -97,7 +98,7 @@ CONTAINS
     INTEGER                                  :: handle, irep, ispin, istat, &
                                                 n_rep, nspin, output_unit
     INTEGER, DIMENSION(:), POINTER           :: stm_th_torb
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: append_cube, failure, ionode
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: evals
@@ -127,6 +128,8 @@ CONTAINS
 
      CALL get_qs_env(qs_env, mos=mos,rho=rho, pw_env=pw_env,&
             error=error)
+     CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%APPEND",&
+          l_val=append_cube,error=error)
      CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%STM_BIAS",&
           r_vals=stm_biases,error=error)
      CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%TH_TORB", &
@@ -171,7 +174,8 @@ CONTAINS
           evals(ispin)%array=>mo_eigenvalues
        ENDDO
        CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
-                    stm_biases, .TRUE. ,stm_th_torb,  particles, ionode, output_unit,  error)
+                    stm_biases, .TRUE. ,stm_th_torb,  particles, ionode,&
+                    output_unit, append_cube,  error=error)
        DEALLOCATE(mo_arrays,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(evals,STAT=istat)
@@ -182,7 +186,7 @@ CONTAINS
        CPPrecondition(ASSOCIATED(unoccupied_orbs),cp_failure_level,routineP,error,failure)
        CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g,&
                      unoccupied_orbs, unoccupied_evals, stm_biases, .FALSE. ,&
-                     stm_th_torb,  particles, ionode, output_unit,  error)
+                     stm_th_torb,  particles, ionode, output_unit, append_cube,  error)
      END IF
 
      CALL deallocate_matrix(stm_density_ao,error=error)
@@ -206,7 +210,8 @@ CONTAINS
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
-                       stm_biases, do_negative, stm_th_torb, particles, ionode, output_unit,  error)
+                       stm_biases, do_negative, stm_th_torb, particles, ionode,&
+                       output_unit, append_cube,  error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -217,11 +222,12 @@ CONTAINS
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       INTENT(IN)                             :: evals
     REAL(KIND=dp), DIMENSION(:), POINTER     :: stm_biases
-    LOGICAL                                  :: do_negative
+    LOGICAL, INTENT(IN)                      :: do_negative
     INTEGER, DIMENSION(:), POINTER           :: stm_th_torb
     TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL                                  :: ionode
-    INTEGER                                  :: output_unit
+    LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, INTENT(IN)                      :: append_cube
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), DIMENSION(0:9), PARAMETER :: torb_string = (/"  s"," px"&
@@ -230,6 +236,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=80)                        :: filename, oname, title
+    CHARACTER(LEN=default_string_length)     :: my_pos
     INTEGER                                  :: handle, i, ibias, iorb, &
                                                 ispin, istates, nstates, &
                                                 state_start, unit_nr
@@ -262,6 +269,7 @@ CONTAINS
        ELSE
           e_start=+HUGE(0.0_dp)
        ENDIF
+!FIX IT:  this should be  the Fermi energy
        DO ispin=1,SIZE(mo_arrays)
           IF (do_negative) THEN
              e_start=MAX(e_start,MAXVAL(evals(ispin)%array)) ! HOMO
@@ -307,6 +315,7 @@ CONTAINS
        ENDDO
 
        ! assume integer occupation, and construct the density matrix
+       !FIX IT: the correct occupation numbers should be used
        alpha=1.0_dp
        IF (SIZE(mo_arrays)==1) alpha=2.0_dp
        CALL set_matrix(stm_density_ao,0.0_dp)
@@ -323,8 +332,14 @@ CONTAINS
          oname = torb_string(iorb)
 !         fname = "STM_"//TRIM(torb_string(iorb)) 
          WRITE(filename,'(a4,I2.2,a1,I5.5)')"STM_d",iorb,"_",ibias
+         my_pos = "REWIND"
+         IF (append_cube) THEN
+           my_pos = "APPEND"
+         END IF
+
          unit_nr=cp_print_key_unit_nr(logger,dft_section,"PRINT%MO_CUBES",extension=".cube",&
-              middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+              middle_name=TRIM(filename),file_position=my_pos, file_action="WRITE",&
+              log_filename=.FALSE.,error=error)
          WRITE(title,*) "STM cube ",ibias,"wfn deriv. ",iorb," at bias ",stm_biases(ibias)
          CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
              stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&

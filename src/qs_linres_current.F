@@ -46,6 +46,7 @@ MODULE qs_linres_current
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
   USE input_section_types,             ONLY: section_get_ivals,&
+                                             section_get_lval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
@@ -169,10 +170,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_current', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: ext, filename
+    CHARACTER(LEN=default_path_length)       :: ext, filename, my_pos
     INTEGER :: handle, idir, iiB, iiiB, ispin, istat, istate, j, jstate, nao, &
       natom, nmo, nspins, nstates(2), output_unit, unit_nr
-    LOGICAL                                  :: failure, gapw, ionode
+    LOGICAL                                  :: append_cube, failure, gapw, &
+                                                ionode
     REAL(dp)                                 :: dk(3), jrho_tot_G(3,3), &
                                                 jrho_tot_R(3,3), maxocc, &
                                                 scale_fac
@@ -437,6 +439,11 @@ CONTAINS
        ! Cube files 
        IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
             &   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
+          append_cube = section_get_lval(current_section,"PRINT%CURRENT_CUBES%APPEND",error=error)
+          my_pos = "REWIND"
+          IF(append_cube) THEN
+            my_pos = "APPEND"
+          END IF
           !
           CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc,&
                &          auxbas_pw_pool=auxbas_pw_pool,&
@@ -464,7 +471,7 @@ CONTAINS
              WRITE(ext,'(a2,a1,a2,a1,a5)')  "iB",ACHAR(iB+119),"_d",ACHAR(idir+119),".cube"
              unit_nr=cp_print_key_unit_nr(logger,current_section,"PRINT%CURRENT_CUBES",&
                   &                       extension=TRIM(ext),middle_name=TRIM(filename),&
-                  &                       log_filename=.FALSE.,file_position="REWIND",&
+                  &                       log_filename=.FALSE.,file_position=my_pos,&
                   &                       error=error)
              
              CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&

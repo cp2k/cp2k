@@ -762,6 +762,12 @@ CONTAINS
          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
     
@@ -1161,6 +1167,12 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="STM_BIAS",&
             description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
                         "Orbital densities are summed according to the bias energy."//&
@@ -1257,6 +1269,13 @@ CONTAINS
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -1274,6 +1293,12 @@ CONTAINS
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -1290,6 +1315,12 @@ CONTAINS
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -6003,6 +6034,12 @@ CONTAINS
             n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -6303,6 +6340,12 @@ CONTAINS
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -6334,6 +6377,12 @@ CONTAINS
             n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -6451,6 +6500,12 @@ CONTAINS
             n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -6629,6 +6684,12 @@ CONTAINS
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -6686,6 +6747,12 @@ CONTAINS
             n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 

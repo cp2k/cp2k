@@ -53,6 +53,7 @@ MODULE qs_loc_methods
        op_loc_pipek, state_loc_list
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_ivals,&
+                                             section_get_lval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -599,11 +600,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: my_pos
     INTEGER :: dim_op, handle, i, imo, imoloc, ir, ispin, istat, istate, j, &
       jstate, l_spin, lb, loc_method, my_nspins, n_rep, nao, ncubes, nmo, &
       nmosub, s_spin, ub
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, list_cubes
-    LOGICAL                                  :: failure, ionode, &
+    LOGICAL                                  :: append_cube, failure, ionode, &
                                                 list_cubes_setup
     LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(dp), DIMENSION(6)                   :: weights
@@ -817,8 +819,14 @@ CONTAINS
 
           ! Real call for dumping the cube files
           print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CUBES",error=error)
+          append_cube= section_get_lval(print_loc_section,"WANNIER_CUBES%APPEND",error=error)
+          my_pos = "REWIND"
+          IF (append_cube) THEN
+            my_pos = "APPEND"
+          END IF
+
           CALL qs_print_cubes(qs_env,moloc_coeff(ispin)%matrix,ncubes,list_cubes,centers,&
-               print_key,"loc",ispin=ispin,error=error)
+               print_key,"loc",ispin=ispin,file_position=my_pos,error=error)
 
           DEALLOCATE(centers,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -847,7 +855,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,&
-       print_key,root,ispin,idir,state0,error)
+       print_key,root,ispin,idir,state0,file_position,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -858,6 +866,8 @@ CONTAINS
     CHARACTER(LEN=*)                         :: root
     INTEGER, INTENT(IN), OPTIONAL            :: ispin, idir
     INTEGER, OPTIONAL                        :: state0
+    CHARACTER(LEN=default_string_length), &
+      OPTIONAL                               :: file_position
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_print_cubes', &
@@ -865,7 +875,7 @@ CONTAINS
     CHARACTER, DIMENSION(3), PARAMETER       :: labels = (/'x','y','z'/)
 
     CHARACTER                                :: label
-    CHARACTER(LEN=default_path_length)       :: file_tmp, filename
+    CHARACTER(LEN=default_path_length)       :: file_tmp, filename, my_pos
     CHARACTER(LEN=default_string_length)     :: title
     INTEGER                                  :: handle, ia, ie, istate, &
                                                 ivector, my_ispin, my_state0, &
@@ -912,6 +922,11 @@ CONTAINS
        label=labels(idir)
     END IF
 
+    my_pos = "REWIND"
+    IF(PRESENT(file_position)) THEN
+      my_pos = file_position
+    END IF
+
     DO istate = 1, nstates
        ivector = state_list(istate) - my_state0
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,cell=cell,&
@@ -936,7 +951,7 @@ CONTAINS
 
        ! Using the print_key tools to open the file with the proper name
        unit_out_c = cp_print_key_unit_nr(logger,print_key,"",middle_name=filename,&
-            extension=".cube",log_filename=.FALSE.,error=error)
+            extension=".cube",file_position=my_pos,log_filename=.FALSE.,error=error)
        IF(SIZE(centers,1)==6) THEN
           WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom

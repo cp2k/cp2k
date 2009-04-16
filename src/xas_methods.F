@@ -47,7 +47,8 @@ MODULE xas_methods
        xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, &
        xas_dscf, xas_scf_general, xas_tp_fh, xas_tp_hh, xas_tp_xfh, &
        xas_tp_xhh, xes_tp_val
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_lval,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -1003,7 +1004,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: homo, i, istat, output_unit
-    LOGICAL                                  :: failure, ionode, length
+    LOGICAL                                  :: append_cube, failure, ionode, &
+                                                length
     REAL(dp)                                 :: rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: all_evals
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
@@ -1084,8 +1086,9 @@ CONTAINS
 
       IF(BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
         "PRINT%CLS_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+        append_cube= section_get_lval(xas_section,"PRINT%CLS_FUNCTION_CUBES%APPEND",error=error)
         CALL xas_print_cubes(xas_control,qs_env,xas_section,mos,all_vectors,iter,&
-             iatom,error=error)
+             iatom,append_cube,error=error)
       END IF
 
     END IF  ! failure
@@ -1201,7 +1204,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE  xas_print_cubes(xas_control,qs_env,xas_section,&
-              mos,all_vectors,iter,iatom,error)
+              mos,all_vectors,iter,iatom,append_cube, error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1210,12 +1213,13 @@ CONTAINS
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: all_vectors
     INTEGER, INTENT(IN)                      :: iter, iatom
+    LOGICAL, INTENT(IN)                      :: append_cube
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_print_cubes', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: my_mittle
+    CHARACTER(LEN=default_string_length)     :: my_mittle, my_pos
     INTEGER                                  :: homo, istat, istate0, nspins, &
                                                 nstates
     LOGICAL                                  :: failure
@@ -1241,8 +1245,13 @@ CONTAINS
     istate0 = homo
     IF(xas_control%emission) istate0 = 0
 
+    my_pos = "REWIND"
+    IF (append_cube) THEN
+      my_pos = "APPEND"
+    END IF
+
     CALL qs_print_cubes(qs_env,all_vectors,nstates,xas_control%list_cubes,&
-         centers,print_key,my_mittle,state0=istate0,error=error)
+         centers,print_key,my_mittle,state0=istate0,file_position=my_pos,error=error)
 
     DEALLOCATE(centers,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

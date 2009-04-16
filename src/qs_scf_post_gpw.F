@@ -849,10 +849,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_occ_cubes', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: filename, title
+    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube, title
     INTEGER                                  :: handle, ivector, &
                                                 my_basis_set_id, nhomo, &
                                                 unit_nr
+    LOGICAL                                  :: append_cube
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -871,6 +872,11 @@ CPSourceFileRef,&
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
          error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error)) THEN
        nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
+       append_cube = section_get_lval(dft_section,"PRINT%MO_CUBES%APPEND",error=error)
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+          my_pos_cube="APPEND"
+       END IF
        IF (nhomo==-1) nhomo=homo
        DO ivector=MAX(1,homo-nhomo+1),homo
           CALL get_qs_env(qs_env=qs_env,&
@@ -883,7 +889,7 @@ CPSourceFileRef,&
                cell,dft_control,particle_set,pw_env ,basis_set_id=my_basis_set_id, error=error)
           WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",ivector,"_",ispin
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",extension=".cube",&
-               middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+               middle_name=TRIM(filename),file_position=my_pos_cube,log_filename=.FALSE.,error=error)
           WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
           CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
                stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
@@ -919,8 +925,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_unocc_cubes', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: filename, title
+    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube, title
     INTEGER                                  :: handle, ivector, unit_nr
+    LOGICAL                                  :: append_cube
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -933,6 +940,11 @@ CPSourceFileRef,&
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",error=error),cp_p_file)&
          .AND.  section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error) ) THEN
        NULLIFY(atomic_kind_set, particle_set, pw_env, cell)
+       append_cube = section_get_lval(dft_section,"PRINT%MO_CUBES%APPEND",error=error)
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+          my_pos_cube="APPEND"
+       END IF
        DO ivector=1,nlumos
           CALL get_qs_env(qs_env=qs_env,&
                           atomic_kind_set=atomic_kind_set,&
@@ -944,7 +956,7 @@ CPSourceFileRef,&
                cell, dft_control, particle_set, pw_env, error=error)
           WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",homo+ivector,"_",ispin
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",extension=".cube",&
-               middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+               middle_name=TRIM(filename),file_position=my_pos_cube,log_filename=.FALSE.,error=error)
           WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
           CALL pw_to_cube(wf_r%pw, unit_nr, ionode, title, particles=particles,&
                stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
@@ -1380,10 +1392,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     INTEGER                                  :: handle, homo, ispin, iw, nmo, &
                                                 output_unit, unit_nr
-    LOGICAL                                  :: all_equal, failure, ionode, &
+    LOGICAL                                  :: all_equal, append_cube, &
+                                                failure, ionode, &
                                                 print_total_density
     REAL(KIND=dp) :: maxocc, q_max, rho_hard, rho_soft, rho_total, &
       rho_total_rspace, s_square, s_square_ideal, total_abs_spin_dens, udvol, &
@@ -1526,6 +1539,12 @@ CPSourceFileRef,&
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%TOT_DENSITY_CUBE", error=error),cp_p_file)) THEN
           NULLIFY(rho_core,rho0_s_gs)
+          append_cube = section_get_lval(input,"DFT%PRINT%TOT_DENSITY_CUBE%APPEND",error=error)
+          my_pos_cube="REWIND"
+          IF(append_cube) THEN
+            my_pos_cube="APPEND"
+          END IF
+
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho_core=rho_core,&
                rho0_s_gs=rho0_s_gs,error=error)
           CALL pw_env_get(pw_env, error=error)
@@ -1545,7 +1564,8 @@ CPSourceFileRef,&
           END DO
           filename = "TOTAL_DENSITY"
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%TOT_DENSITY_CUBE",&
-               extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+               extension=".cube",middle_name=TRIM(filename),file_position=my_pos_cube,&
+               log_filename=.FALSE.,error=error)
           CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"TOTAL DENSITY",&
                particles=particles,&
                stride=section_get_ivals(dft_section,"PRINT%TOT_DENSITY_CUBE%STRIDE",error=error),&
@@ -1562,6 +1582,11 @@ CPSourceFileRef,&
                                     keyword_name="PRINT%E_DENSITY_CUBE%TOTAL_DENSITY",&
                                     l_val=print_total_density,&
                                     error=error)
+          append_cube = section_get_lval(input,"DFT%PRINT%E_DENSITY_CUBE%APPEND",error=error)
+          my_pos_cube="REWIND"
+          IF(append_cube) THEN
+            my_pos_cube="APPEND"
+          END IF
           IF (dft_control%qs_control%gapw.AND.print_total_density) THEN
              ! Print total electronic density
              CALL get_qs_env(qs_env=qs_env,&
@@ -1604,7 +1629,7 @@ CPSourceFileRef,&
              filename = "TOTAL_ELECTRON_DENSITY"
              unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                             extension=".cube",middle_name=TRIM(filename),&
-                                            log_filename=.FALSE.,error=error)
+                                            file_position=my_pos_cube,log_filename=.FALSE.,error=error)
              IF (ionode) THEN
                 INQUIRE (UNIT=unit_nr,NAME=filename)
                 WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
@@ -1642,7 +1667,7 @@ CPSourceFileRef,&
                 filename = "TOTAL_SPIN_DENSITY"
                 unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                                extension=".cube",middle_name=TRIM(filename),&
-                                               log_filename=.FALSE.,error=error)
+                                               file_position=my_pos_cube,log_filename=.FALSE.,error=error)
                 IF (ionode) THEN
                    INQUIRE (UNIT=unit_nr,NAME=filename)
                    WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
@@ -1681,7 +1706,7 @@ CPSourceFileRef,&
                 filename = "ELECTRON_DENSITY"
                 unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                                extension=".cube",middle_name=TRIM(filename),&
-                                               log_filename=.FALSE.,error=error)
+                                               file_position=my_pos_cube,log_filename=.FALSE.,error=error)
                 IF (ionode) THEN
                    INQUIRE (UNIT=unit_nr,NAME=filename)
                    WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
@@ -1698,7 +1723,7 @@ CPSourceFileRef,&
                 filename = "SPIN_DENSITY"
                 unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                                extension=".cube",middle_name=TRIM(filename),&
-                                               log_filename=.FALSE.,error=error)
+                                               file_position=my_pos_cube,log_filename=.FALSE.,error=error)
                 IF (ionode) THEN
                    INQUIRE (UNIT=unit_nr,NAME=filename)
                    WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
@@ -1717,7 +1742,7 @@ CPSourceFileRef,&
                 filename = "ELECTRON_DENSITY"
                 unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                                extension=".cube",middle_name=TRIM(filename),&
-                                               log_filename=.FALSE.,error=error)
+                                               file_position=my_pos_cube,log_filename=.FALSE.,error=error)
                 IF (ionode) THEN
                    INQUIRE (UNIT=unit_nr,NAME=filename)
                    WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
@@ -1738,10 +1763,16 @@ CPSourceFileRef,&
        ! Print the hartree potential
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
+
+          append_cube = section_get_lval(input,"DFT%PRINT%V_HARTREE_CUBE%APPEND",error=error)
+          my_pos_cube="REWIND"
+          IF(append_cube) THEN
+            my_pos_cube="APPEND"
+          END IF
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, error=error)
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
-               extension=".cube",middle_name="v_hartree",error=error)
+               extension=".cube",middle_name="v_hartree",file_position=my_pos_cube,error=error)
           udvol = 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol
           CALL pw_scale(qs_env%ks_env%v_hartree_rspace%pw,udvol)
 
