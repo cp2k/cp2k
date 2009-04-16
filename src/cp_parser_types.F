@@ -273,7 +273,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        ! Rewind units
-       REWIND(parser%input_unit) 
+       IF (parser%input_unit>0) REWIND(parser%input_unit) 
        ! Restore initial settings
        parser%input_line_number = 0
        parser%icol=0
