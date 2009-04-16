@@ -208,8 +208,10 @@ CONTAINS
        ! energy info at the end of the SCF
        CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
 
-       IF ( dft_control%scp .AND. dft_control%scp_control%dispersion ) THEN
-          CALL scp_qs_dispersion ( qs_env, calc_forces, error )
+       IF ( dft_control%scp ) THEN
+          IF(dft_control%scp_control%dispersion ) THEN
+             CALL scp_qs_dispersion ( qs_env, calc_forces, error )
+          END IF
        END IF
 
     END IF
