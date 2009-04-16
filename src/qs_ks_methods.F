@@ -1211,6 +1211,7 @@ CONTAINS
        IF (scp_dft) THEN
          CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
          energy % total = energy % total + scp_energy % e_scp_total
+         energy % total = energy % total + scp_energy % e_scp_disp
        ENDIF 
 ! **** SCP
 

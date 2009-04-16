@@ -58,6 +58,10 @@ MODULE qs_energy
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
+  USE scp_dispersion,                  ONLY: scp_qs_dispersion
+  USE scp_energy_types,                ONLY: scp_energy_type
+  USE scp_environment_types,           ONLY: get_scp_env,&
+                                             scp_environment_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -134,9 +138,12 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb
+    TYPE(scp_energy_type), POINTER           :: scp_energy_loc
+    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
     CALL timeset(routineN,handle)
@@ -196,14 +203,15 @@ CONTAINS
        CALL calculate_ecore_self(qs_env,error=error)
        CALL calculate_ecore_overlap(qs_env, para_env, &
                                       calculate_forces=.FALSE.,error=error)
-    END IF
 
- 
-    ! Add possible pair potential dispersion energy - Evaluate first so we can print
-    ! energy info at the end of the SCF
-    IF ( .NOT. dft_control%qs_control%semi_empirical .AND. &
-         .NOT. dft_control%qs_control%dftb ) THEN
+       ! Add possible pair potential dispersion energy - Evaluate first so we can print
+       ! energy info at the end of the SCF
        CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
+
+       IF ( dft_control%scp .AND. dft_control%scp_control%dispersion ) THEN
+          CALL scp_qs_dispersion ( qs_env, calc_forces, error )
+       END IF
+
     END IF
 
     ! *** Perform a SCF run ***

@@ -32,6 +32,7 @@ MODULE scp_environment
   USE scp_environment_types,           ONLY: scp_environment_type,&
                                              set_scp_env
   USE scp_force_types,                 ONLY: allocate_scp_force,&
+                                             init_scp_force,&
                                              scp_force_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
@@ -120,6 +121,7 @@ CONTAINS
       CALL allocate_scp_force(force,natom_of_kind)
       DEALLOCATE (natom_of_kind,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL init_scp_force(force)
 
       ! set the scp_env
       CALL set_scp_env (scp_env=scp_env,energy=energy,force=force,error=error)
