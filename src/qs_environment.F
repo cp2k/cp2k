@@ -708,10 +708,12 @@ CONTAINS
                print_section=print_section,error=error)
           ! Initialize ewald grids
           CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
-          ! Setup the nonbond environment (real space part of Ewald) and the maximum
-          ! level of multipoles to be treated in the periodic SE scheme
-          CALL ewald_env_get(ewald_env, rcut=ewald_rcut, max_multipole=se_control%max_multipole,&
-               error=error)
+          ! Setup the nonbond environment (real space part of Ewald) 
+          CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
+          ! Setup the maximum level of multipoles to be treated in the periodic SE scheme
+          IF (se_control%do_ewald) THEN
+             CALL ewald_env_get(ewald_env, max_multipole=se_control%max_multipole, error=error)
+          ENDIF
           CALL section_vals_val_get(se_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
                r_val=verlet_skin,error=error)
           CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, nonbonded14=.FALSE.,&

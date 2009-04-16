@@ -22,7 +22,7 @@ MODULE semi_empirical_int_gks
                                              dg_type
   USE erf_fn,                          ONLY: erfc
   USE f77_blas
-  USE input_constants,                 ONLY: do_multipole_quadrupole
+  USE input_constants,                 ONLY: do_multipole_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi
@@ -538,7 +538,7 @@ CONTAINS
        IF(se_int_control%shortrange) THEN
           CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
                do_ewald_gks=.FALSE., integral_screening=se_int_control%integral_screening,&
-               max_multipole=do_multipole_quadrupole)
+               max_multipole=do_multipole_none)
           CALL makeCoul(rijv,sepi,sepj,Coul,se_int_control_off,error)
           IF (l_denuc) CALL makedCoul(rijv,sepi,sepj,dCoul,se_int_control_off,error)
           IF (se_int_control%do_ewald_gks) THEN
