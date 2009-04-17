@@ -58,11 +58,8 @@ MODULE qs_energy
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
-  USE scp_dispersion,                  ONLY: scp_qs_dispersion,&
-                                             scp_nddo_dispersion
-  USE scp_energy_types,                ONLY: scp_energy_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type
+  USE scp_dispersion,                  ONLY: scp_nddo_dispersion,&
+                                             scp_qs_dispersion
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop

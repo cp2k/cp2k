@@ -16,7 +16,7 @@ MODULE  scp_dispersion
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
-  USE cp_control_types,                ONLY: dft_control_type, &    
+  USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,&
@@ -34,22 +34,21 @@ MODULE  scp_dispersion
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE semi_empirical_integrals,        ONLY: drotint,&
-                                             rotint
-  USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
-  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
-  USE semi_empirical_types,            ONLY: get_se_param,&
-                                             semi_empirical_type, &
-                                             se_taper_type,&
-                                             se_int_control_type, &
-                                             setup_se_int_control_type
-  USE semi_empirical_utils,            ONLY: finalize_se_taper,&
-                                             get_se_type,&
-                                             initialize_se_taper
   USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
   USE scp_force_types,                 ONLY: scp_force_type
+  USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
+  USE semi_empirical_integrals,        ONLY: drotint,&
+                                             rotint
+  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             se_int_control_type,&
+                                             se_taper_type,&
+                                             semi_empirical_type,&
+                                             setup_se_int_control_type
+  USE semi_empirical_utils,            ONLY: finalize_se_taper,&
+                                             initialize_se_taper
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -80,19 +79,17 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'scp_nddo_dispersion'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scp_nddo_dispersion'
 
-    INTEGER                                  :: ab,output_unit, nkind, natom, handle, &
-                                                ikind, jkind, natorb_a, &
-                                                natorb_b, nlist, nnode, istat, &
-                                                iatom, jatom, i_atom, j_atom, inode, ilist, &
-                                                screening
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
-    LOGICAL                                  :: forces, ionode, defined, switch
-    LOGICAL                                  :: old_store_int, anag
-
-    REAL(kind=dp)                            :: e_scp, de_a, de_b, disp_factor, &
-                                                force_ab ( 3 ), rab ( 3 ), rab2, dab
+    INTEGER :: ab, handle, i_atom, iatom, ikind, ilist, inode, istat, j_atom, &
+      jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, nnode, &
+      output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    LOGICAL                                  :: anag, defined, forces, &
+                                                ionode, old_store_int, switch
+    REAL(kind=dp)                            :: dab, de_a, de_b, disp_factor, &
+                                                e_scp, force_ab( 3 ), &
+                                                rab( 3 ), rab2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -107,16 +104,16 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(scp_energy_type), POINTER           :: energy
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(scp_energy_type), POINTER           :: energy
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(se_int_control_type)                :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
-    TYPE(se_taper_type), POINTER             :: se_taper
-    TYPE(se_int_control_type)                :: se_int_control
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
+    TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
     CALL timeset(routineN,handle)
     output_unit = -1
@@ -720,12 +717,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
     REAL(KIND=dp), INTENT(IN)                :: factor
-    REAL(KIND=dp), INTENT(INOUT)             :: edisp
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(se_taper_type), POINTER             :: se_taper
+    REAL(KIND=dp), INTENT(INOUT)             :: edisp
     TYPE(cp_error_type), INTENT(inout)       :: error
-
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_disp_2C', &
       routineP = moduleN//':'//routineN
@@ -733,11 +729,11 @@ CONTAINS
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, aa, bb, irij(3), ass_a, asp_a, app_a, &
-                                                ass_b, asp_b, app_b, ascp_a ( 9, 9 ), ascp_b ( 9, 9 )
+    REAL(KIND=dp)                            :: aa, app_a, app_b, &
+                                                ascp_a( 9, 9 ), &
+                                                ascp_b( 9, 9 ), asp_a, asp_b, &
+                                                ass_a, ass_b, bb, irij(3)
     REAL(KIND=dp), DIMENSION(2025)           :: w
-
-    real(kind=dp) :: tmp1,tmp2
 
     failure = .FALSE.    
     CALL get_se_param(sepi, ass = ass_a, asp = asp_a, app = app_a )
@@ -822,12 +818,13 @@ CONTAINS
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: aa, bb, tmp
+    REAL(KIND=dp)                            :: aa, app_a, app_b, &
+                                                ascp_a( 9, 9 ), &
+                                                ascp_b( 9, 9 ), asp_a, asp_b, &
+                                                ass_a, ass_b, bb
+    REAL(KIND=dp), DIMENSION(2025)           :: w
     REAL(KIND=dp), DIMENSION(3)              :: a, irij
     REAL(KIND=dp), DIMENSION(3, 2025)        :: dw
-    REAL(KIND=dp), DIMENSION(2025)           :: w
-    REAL(KIND=dp)                            :: ass_a, asp_a, app_a, &
-                                                ass_b, asp_b, app_b, ascp_a ( 9, 9 ), ascp_b ( 9, 9 )
 
     failure = .FALSE.
     CALL get_se_param(sepi, ass = ass_a, asp = asp_a, app = app_a )
