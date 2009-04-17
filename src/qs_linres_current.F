@@ -134,6 +134,11 @@ MODULE qs_linres_current
      INTEGER :: n
      REAL(dp), POINTER, DIMENSION(:,:) :: r
   END TYPE box_type
+  REAL(dp), DIMENSION(3, 3, 3),PARAMETER  :: Levi_Civita = RESHAPE((/&
+       0.0_dp, 0.0_dp,0.0_dp,0.0_dp,0.0_dp,-1.0_dp, 0.0_dp,1.0_dp,0.0_dp,&
+       0.0_dp, 0.0_dp,1.0_dp,0.0_dp,0.0_dp, 0.0_dp,-1.0_dp,0.0_dp,0.0_dp,&
+       0.0_dp,-1.0_dp,0.0_dp,1.0_dp,0.0_dp, 0.0_dp, 0.0_dp,0.0_dp,0.0_dp/),(/3,3,3/))
+
 
 CONTAINS
 
@@ -2095,7 +2100,6 @@ CONTAINS
          DEALLOCATE(box)
       ENDIF
     END SUBROUTINE deallocate_box
-
   END SUBROUTINE current_set_gauge
 
 
@@ -2106,7 +2110,28 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi', &
+    INTEGER                                  :: nbr_center(2), nspins
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    IF(current_env%full) THEN
+       write(*,*) 'current_build_chi_many_centers'
+       CALL current_build_chi_many_centers(current_env,qs_env,iB,error)
+    ELSE
+       CALL current_build_chi_one_center(current_env,qs_env,iB,error)
+    ENDIF
+
+  END SUBROUTINE current_build_chi
+
+
+  SUBROUTINE current_build_chi_many_centers(current_env,qs_env,iB,error)
+    !
+    TYPE(current_env_type)                   :: current_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iB
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'current_build_chi_many_centers', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, &
@@ -2481,10 +2506,12 @@ CONTAINS
        DO idir = 1,3
           current_env%chi_tensor(idir,iB,ispin) = current_env%chi_tensor(idir,iB,ispin)+&
                &                                  chi(idir)
-          !IF (output_unit>0) THEN
-          !   WRITE(output_unit,'(A,E12.6)') ' analytic \int j_'//ACHAR(119+idir)//ACHAR(119+iB)//&
-          !        &                         '(r) d^3r = ',int_current(idir)
-          !ENDIF
+          IF (output_unit>0) THEN
+             !WRITE(output_unit,'(A,E12.6)') ' chi_'//ACHAR(119+idir)//ACHAR(119+iB)//&
+             !     &                         ' = ',chi(idir)
+             !WRITE(output_unit,'(A,E12.6)') ' analytic \int j_'//ACHAR(119+idir)//ACHAR(119+iB)//&
+             !     &                         '(r) d^3r = ',int_current(idir)
+          ENDIF
        ENDDO
        !
     ENDDO ! ispin
@@ -2513,6 +2540,318 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE current_build_chi
+  END SUBROUTINE current_build_chi_many_centers
+
+
+  SUBROUTINE current_build_chi_one_center(current_env,qs_env,iB,error)
+    !
+    TYPE(current_env_type)                   :: current_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iB
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_one_center', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, jdir, jjdir, kdir, &
+      max_states, nao, nbr_center(2), nmo, nspins, nstates(2), output_unit
+    LOGICAL                                  :: chi_pbc, failure, gapw, ionode
+    REAL(dp)                                 :: chi(3), contrib, dk(3), &
+                                                int_current(3), maxocc
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_2d_i_p_type), DIMENSION(:), &
+      POINTER                                :: center_list
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      POINTER                                :: centers_set
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: psi0_order
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: psi1_D, psi1_p, psi1_rxp
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: buf, mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: op_mom_ao, op_p_ao
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_mom_der_ao
+
+    failure = .FALSE.
+    !
+    CALL timeset(routineN,handle)
+    !
+    NULLIFY(dft_control,mos,para_env,mo_coeff,op_mom_ao,&
+         &  op_mom_der_ao,center_list,centers_set,&
+         &  op_p_ao,psi1_p,psi1_rxp,psi1_D,buf,cell,psi0_order)
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit= cp_logger_get_default_unit_nr(logger)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         &          dft_control=dft_control,&
+         &          mos=mos,&
+         &          para_env=para_env,&
+         &          cell=cell,&
+         &          error=error)
+
+    nspins = dft_control%nspins
+    gapw = dft_control%qs_control%gapw
+
+    CALL get_current_env(current_env=current_env,&
+         &               chi_pbc=chi_pbc,&
+         &               nao=nao,&
+         &               nbr_center=nbr_center,&
+         &               center_list=center_list,&
+         &               centers_set=centers_set,&
+         &               psi1_p=psi1_p,&
+         &               psi1_rxp=psi1_rxp,&
+         &               psi1_D=psi1_D,&
+         &               nstates=nstates,&
+         &               psi0_order=psi0_order,&
+         &               error=error)
+    !
+    max_states = MAXVAL(nstates(1:nspins))
+    !
+    ! Allocate sparse matrices for dipole, quadrupole and their derivatives => 9x3
+    ! Remember the derivatives are antisymmetric
+    CALL allocate_matrix_set(op_mom_ao,9,error=error)
+    CALL allocate_matrix_set(op_mom_der_ao,9,3,error=error)
+    CALL set_up_op_sm(op_mom_ao(1)%matrix,qs_env,symmetry="none",&
+         &            name="op_mom",error=error)
+    DO idir2=1,3
+       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
+            &                          op_mom_der_ao(1,idir2)%matrix,&
+            &                          "op_mom_der_ao"//"-"//TRIM(&
+            &                          ADJUSTL(cp_to_string(idir2))),&
+            &                          target_symmetry="none",&
+            &                          error=error)
+       CALL set_matrix(op_mom_der_ao(1,idir2)%matrix,0.0_dp)
+    ENDDO
+
+    DO idir = 2,SIZE(op_mom_ao,1)
+       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
+            &                          op_mom_ao(idir)%matrix,&
+            &                          "op_mom_ao"//"-"//TRIM(&
+            &                          ADJUSTL(cp_to_string(idir))),&
+            &                          target_symmetry="none",&
+            &                          error=error)
+       CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
+       DO idir2=1,3
+          CALL replicate_matrix_structure(op_mom_ao(1)%matrix,&
+               &                          op_mom_der_ao(idir,idir2)%matrix,&
+               &                          "op_mom_der_ao"//"-"//TRIM(&
+               &                          ADJUSTL(cp_to_string(idir*idir2))),&
+               &                          target_symmetry="none",&
+               &                          error=error)
+          CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
+       ENDDO
+    ENDDO
+    !
+    CALL allocate_matrix_set(op_p_ao,3,error=error)
+    CALL set_up_op_sm(op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="op_p_ao",error=error)
+    DO idir=2,3
+       CALL replicate_matrix_structure(op_p_ao(1)%matrix,op_p_ao(idir)%matrix,&
+            & "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="antisymmetric",&
+            & error=error)
+       CALL set_matrix(op_p_ao(idir)%matrix,0.0_dp)
+    ENDDO
+    !
+    !
+    ! Allocate full matrices for only one vector
+    mo_coeff => psi0_order(1)%matrix
+    NULLIFY(tmp_fm_struct)
+    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+         &                   ncol_global=max_states,para_env=para_env,&
+         &                   context=mo_coeff%matrix_struct%context,&
+         &                   error=error)
+    CALL cp_fm_create(buf,tmp_fm_struct,error=error)
+    CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+    !
+    !
+    !
+    ! recompute the linear momentum matrices
+    CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+    !
+    !
+    ! get iiB and iiiB
+    CALL set_vecp(iB,iiB,iiiB)
+    DO ispin = 1,nspins
+       !
+       CPPostcondition(nbr_center(ispin)==1,cp_failure_level,routineP,error,failure)
+       !
+       ! get ground state MOS
+       nmo = nstates(ispin)
+       mo_coeff => psi0_order(ispin)%matrix
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=maxocc)
+       !
+       ! Initialize the temporary vector chi
+       chi = 0.0_dp
+       int_current = 0.0_dp
+       !
+       !
+       ! Get the Wannier center of the istate-th ground state orbital
+       dk(1:3) = centers_set(ispin)%array(1:3,1)
+       !
+       ! Compute the multipole integrals for the state istate,
+       ! using as reference center the corresponding Wannier center
+       DO idir = 1,9
+          CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
+          DO idir2 = 1,3
+             CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
+          ENDDO
+       ENDDO
+       CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
+            &              minimum_image=.FALSE.,soft=gapw,error=error)
+       !
+       !
+       ! Multuply left and right by the appropriate coefficients and sum into the
+       ! correct component of the chi tensor using the appropriate multiplicative factor
+       ! (don't forget the occupation number)
+       ! Loop over the cartesian components of the tensor
+       ! The loop over the components of the external field is external, thereby
+       ! only one column of the chi tensor is computed here
+       DO idir = 1,3
+          !
+          ! 
+          !
+          ! term: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
+          IF(.NOT.chi_pbc) THEN
+             CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,mo_coeff,&
+                  &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+             DO jdir = 1,3
+                DO kdir = 1,3
+                   IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
+                   CALL cp_fm_trace(buf,psi1_rxp(ispin,iB)%matrix,contrib,error=error)
+                   chi(kdir) = chi(kdir) - Levi_Civita(kdir,jdir,idir) * 2.0_dp * dk(jdir) * contrib
+                ENDDO
+             ENDDO
+          ENDIF
+          !
+          !
+          !
+          ! term: 2[C0| (r-dk)_ii |d_iii(C1(rxp-D))]-2[C0| (r-dk)_iii |d_ii(C1(rxp-D))]
+          ! and
+          ! term: -dk_ii * 2[C0|(r-dk)_iiB | d_iii(C1(piiiB))] +
+          !       +dk_iii * 2[C0|(r-dk)_iiB | d_ii(C1(piiiB))]
+          ! and
+          ! term: +dk_ii * 2[C0|(r-dk)_iiiB | d_iii(C1(piiB))] +
+          !       -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
+          DO jdir = 1,3
+             CALL cp_sm_fm_multiply(op_mom_der_ao(jdir,idir)%matrix,mo_coeff,&
+                  &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+             DO kdir = 1,3
+                IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
+                CALL cp_fm_trace(buf,psi1_rxp(ispin,iB)%matrix,contrib,error=error)
+                chi(kdir) = chi(kdir) - Levi_Civita(kdir,jdir,idir) * 2.0_dp * contrib
+             ENDDO
+             !
+             IF(.NOT.chi_pbc) THEN
+                IF(jdir.EQ.iiB) THEN
+                   DO jjdir = 1,3
+                      DO kdir = 1,3
+                         IF(Levi_Civita(kdir,jjdir,idir).EQ.0.0_dp) CYCLE
+                         CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib,error=error)
+                         chi(kdir) = chi(kdir) + Levi_Civita(kdir,jjdir,idir) * 2.0_dp * dk(jjdir) * contrib
+                      ENDDO
+                   ENDDO
+                ENDIF
+                !
+                IF(jdir.EQ.iiiB) THEN
+                   DO jjdir = 1,3
+                      DO kdir = 1,3
+                         IF(Levi_Civita(kdir,jjdir,idir).EQ.0.0_dp) CYCLE
+                         CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib,error=error)
+                         chi(kdir) = chi(kdir) - Levi_Civita(kdir,jjdir,idir) * 2.0_dp * dk(jjdir) * contrib
+                      ENDDO
+                   ENDDO
+                ENDIF
+             ENDIF
+          ENDDO
+          !
+          !
+          !
+          ! term1: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] +
+          !        +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))]
+          ! and
+          ! term1: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] +
+          !        -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
+          ! HERE THERE IS ONE EXTRA MULTIPLY
+          DO jdir = 1,3
+             CALL cp_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiB),idir)%matrix,mo_coeff,&
+                  &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+             DO kdir = 1,3
+                IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
+                CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib,error=error)
+                chi(kdir) = chi(kdir) + Levi_Civita(kdir,jdir,idir) * 2.0_dp * contrib
+             ENDDO
+             !
+             CALL cp_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiiB),idir)%matrix,mo_coeff,&
+                  &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+             DO kdir = 1,3
+                IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
+                CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib,error=error)
+                chi(kdir) = chi(kdir) - Levi_Civita(kdir,jdir,idir) * 2.0_dp * contrib
+             ENDDO
+          ENDDO
+          !
+          !
+          !
+          ! term2: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] +
+          !        +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))]
+          ! and
+          ! term2: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] +
+          !        -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
+          CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,mo_coeff,&
+               &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+          DO jdir = 1,3
+             DO kdir = 1,3
+                IF(Levi_Civita(kdir,idir,jdir).EQ.0.0_dp) CYCLE
+                IF(iiB==jdir) THEN
+                   CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib,error=error)
+                   chi(kdir) = chi(kdir) + Levi_Civita(kdir,idir,jdir) * contrib
+                ENDIF
+             ENDDO
+          ENDDO
+          !
+          DO jdir = 1,3
+             DO kdir = 1,3
+                IF(Levi_Civita(kdir,idir,jdir).EQ.0.0_dp) CYCLE
+                IF(iiiB==jdir) THEN
+                   CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib,error=error)
+                   chi(kdir) = chi(kdir) - Levi_Civita(kdir,idir,jdir) * contrib
+                ENDIF
+                !
+             ENDDO
+          ENDDO
+          !
+          !
+          !
+          !
+       ENDDO ! idir
+       !
+       DO idir = 1,3
+          current_env%chi_tensor(idir,iB,ispin) = current_env%chi_tensor(idir,iB,ispin)+&
+               &                                  maxocc * chi(idir)
+          IF (output_unit>0) THEN
+             !WRITE(output_unit,'(A,E12.6)') ' chi_'//ACHAR(119+idir)//ACHAR(119+iB)//&
+             !     &                         ' = ',maxocc * chi(idir)
+          ENDIF
+       ENDDO
+       !
+    ENDDO ! ispin
+    !
+    ! deallocate the sparse matrices
+    CALL deallocate_matrix_set(op_mom_ao,error=error)
+    CALL deallocate_matrix_set(op_mom_der_ao,error=error)
+    CALL deallocate_matrix_set(op_p_ao,error=error)
+    CALL cp_fm_release(buf,error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE current_build_chi_one_center
 
 END MODULE qs_linres_current

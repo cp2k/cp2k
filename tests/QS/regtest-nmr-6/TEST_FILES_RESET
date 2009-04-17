@@ -637,3 +637,19 @@ no-gapw-1.inp
 no-gapw-1-distributed.inp
 no-gapw-1-replicated.inp
 no-gapw-gpw-1.inp
+# reduce memory need for chi
+ch4-gapw-2.inp
+# reduce memory need for chi
+ch4-gapw-5.inp
+# reduce memory need for chi
+w2_qmmm-3.inp
+# reduce memory need for chi
+ch4-gapw-gpw-1.inp
+# reduce memory need for chi
+no-gapw-gpw-1.inp
+# reduce memory need for chi
+h2-gapw-1.inp
+# reduce memory need for chi
+ch3m-gapw-1.inp
+# reduce memory need for chi
+ch3p-gapw-1.inp

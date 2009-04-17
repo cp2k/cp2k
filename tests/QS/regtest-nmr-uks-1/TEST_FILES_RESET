@@ -543,3 +543,5 @@ O2-UKS-NMR-9.inp
 O2-UKS-NMR-10.inp
 O2-UKS-NMR-11.inp
 O2-UKS-NMR-12.inp
+# reduce memory need for chi
+O2-UKS-NMR-4.inp

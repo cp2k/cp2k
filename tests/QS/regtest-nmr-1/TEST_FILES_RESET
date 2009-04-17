@@ -469,3 +469,5 @@ H2O-NMR-6.inp
 H2O-NMR-12.inp
 # merged linres and ot preconditioner
 H2O-NMR-9.inp
+# reduce memory need for chi
+H2O-NMR-4.inp

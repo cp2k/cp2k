@@ -616,8 +616,8 @@ CPSourceFileRef,&
     a => matrix_a%local_data
     b => matrix_b%local_data
 
-    nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
-    ncol_local = matrix_b%matrix_struct%ncol_locals(mypcol)
+    nrow_local = MIN(matrix_a%matrix_struct%nrow_locals(myprow),matrix_b%matrix_struct%nrow_locals(myprow))
+    ncol_local = MIN(matrix_a%matrix_struct%ncol_locals(mypcol),matrix_b%matrix_struct%ncol_locals(mypcol))
 
     ! cries for an accurate_dot_product
     trace = accurate_sum(a(1:nrow_local,1:ncol_local) * &

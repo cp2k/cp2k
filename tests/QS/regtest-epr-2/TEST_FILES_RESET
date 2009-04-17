@@ -113,3 +113,5 @@ NO2-EPR-1.inp
 NO2-EPR-2.inp
 # merged linres and ot preconditioner
 NO2-EPR-3.inp
+# reduce memory need for chi
+NO2-EPR-2.inp
