@@ -711,8 +711,9 @@ CONTAINS
        IF(rst_unit>0) WRITE(rst_unit) ivec,nspins,nao
 
        DO ispin=1,nspins
-          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-          CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,error=error)
+          !CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+          !CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,error=error)
+          CALL cp_fm_get_info(vec(ispin)%matrix,ncol_global=nmo,error=error)
 
           IF(rst_unit>0) WRITE(rst_unit) nmo
 
