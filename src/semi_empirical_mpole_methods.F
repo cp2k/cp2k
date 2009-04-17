@@ -166,6 +166,11 @@ CONTAINS
           ZP=se_parameter%sto_exponents(1)
           nr=se_parameter%nr
 
+          ws=REAL((2*nr+2)*(2*nr+1),dp)/(24.0_dp*ZS**2)
+          DO k=1,3
+             M2(k,k,indexb(1,1))= ws
+          ENDDO
+
           IF (ZP > 0._dp) THEN
              zt=SQRT(ZS*ZP)
              zb=0.5_dp*(ZS+ZP)
@@ -173,10 +178,6 @@ CONTAINS
                 M1(k, indexb(1,1+k))=(zt/zb)**(2*nr+1)*REAL(2*nr+1,dp)/(2.0*zb*SQRT(3.0_dp))
              ENDDO
 
-             ws=REAL((2*nr+2)*(2*nr+1),dp)/(24.0_dp*ZS**2)
-             DO k=1,3
-                M2(k,k,indexb(1,1))= ws
-             ENDDO
              wp=REAL((2*nr+2)*(2*nr+1),dp)/(40.0_dp*ZP**2)
              DO k1=1,3
                 DO k2=1,3
