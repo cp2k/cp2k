@@ -779,7 +779,7 @@ CONTAINS
     END DO
 
     IF (distributed_grids .AND. pab_required) THEN
-        CALL distribute_matrix (rs_v(1)%rs_grid, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
+        CALL distribute_matrix (rs_v, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
     ENDIF
 
     ithread = 0
@@ -1178,13 +1178,13 @@ CONTAINS
        ! Reconstruct H matrix if using distributed RS grids
        ! note send and recv direction reversed WRT collocate
        scatter = .FALSE.
-       CALL distribute_matrix (rs_v(1)%rs_grid, dh, atom_pair_recv, atom_pair_send,&
+       CALL distribute_matrix (rs_v, dh, atom_pair_recv, atom_pair_send,&
             natom, scatter, error, h%matrix)
        CALL deallocate_matrix ( dh ,error=error)
 
        IF (has_dv) THEN
           DO idir=1,3
-             CALL distribute_matrix (rs_v(1)%rs_grid, ddv(idir)%matrix,&
+             CALL distribute_matrix (rs_v, ddv(idir)%matrix,&
                   atom_pair_recv, atom_pair_send, &
                   natom, scatter, error, matrix_dv(idir)%matrix)
           END DO

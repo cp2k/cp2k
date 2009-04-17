@@ -975,13 +975,13 @@ CONTAINS
             .FALSE. , error)
 
     IF (distributed_rs_grids) THEN
-        CALL distribute_matrix (rs_current(1)%rs_grid, deltajp_a, atom_pair_send, atom_pair_recv, &
+        CALL distribute_matrix (rs_current, deltajp_a, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
-        CALL distribute_matrix (rs_current(1)%rs_grid, deltajp_b, atom_pair_send, atom_pair_recv, &
+        CALL distribute_matrix (rs_current, deltajp_b, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
-        CALL distribute_matrix (rs_current(1)%rs_grid, deltajp_c, atom_pair_send, atom_pair_recv, &
+        CALL distribute_matrix (rs_current, deltajp_c, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
-        IF(do_igaim) CALL distribute_matrix (rs_current(1)%rs_grid, deltajp_d, atom_pair_send, atom_pair_recv, &
+        IF(do_igaim) CALL distribute_matrix (rs_current, deltajp_d, atom_pair_send, atom_pair_recv, &
              natom, scatter=.TRUE., error=error)
     ENDIF
 

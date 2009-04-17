@@ -23,9 +23,9 @@ MODULE realspace_grid_types
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: det_3x3
   USE message_passing,                 ONLY: &
-       mp_alltoall, mp_cart_coords, mp_cart_create, mp_cart_shift, &
-       mp_comm_dup, mp_comm_free, mp_environ, mp_irecv, mp_isend, &
-       mp_isendrecv, mp_max, mp_min, mp_sum, mp_sync, mp_waitall, mp_waitany
+       mp_alltoall, mp_comm_dup, mp_comm_free, mp_environ, mp_irecv, &
+       mp_isend, mp_isendrecv, mp_max, mp_min, mp_sum, mp_sync, mp_waitall, &
+       mp_waitany
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
@@ -58,6 +58,7 @@ MODULE realspace_grid_types
             rs_grid_retain_descriptor,&
             rs_grid_release,&
             rs_grid_release_descriptor,&
+            rs_grid_reorder_ranks, &
             rs_grid_print, &
             rs_grid_locate_rank, &
             rs_grid_mult_and_add,&
@@ -121,6 +122,11 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (:), POINTER :: y2coord
      INTEGER, DIMENSION (:), POINTER :: z2coord
 
+     INTEGER                :: my_virtual_pos
+     INTEGER, DIMENSION (3) :: virtual_group_coor
+
+     INTEGER, DIMENSION(:), ALLOCATABLE :: virtual2real, real2virtual
+
   END TYPE realspace_grid_desc_type
 
   TYPE realspace_grid_type
@@ -139,8 +145,6 @@ MODULE realspace_grid_types
 
      INTEGER, DIMENSION (:), POINTER :: px,py,pz         ! index translators
      REAL(KIND=dp), DIMENSION ( :, :, : ),POINTER :: r   ! the grid
-
-     INTEGER, DIMENSION(:), ALLOCATABLE :: virtual2real, real2virtual
 
   END TYPE realspace_grid_type
 
@@ -239,7 +243,8 @@ CONTAINS
   END FUNCTION rs_grid_locate_rank
 
 ! *****************************************************************************
-!> \brief Determine the setup of real space grids
+!> \brief Determine the setup of real space grids - this is divided up into the
+!>        creation of a descriptor and the actual grid itself (see rs_grid_create) 
 !> \par History
 !>      JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
 !>      Iain Bethune (05-Sep-2008) : modified cut heuristic (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
@@ -284,6 +289,7 @@ CONTAINS
     desc % orthorhombic = pw_grid%orthorhombic
     desc % grid_id = pw_grid % id_nr
     desc % ref_count = 1
+
     IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
        ! The corresponding group has dimension 1
        ! All operations will be done localy
@@ -385,7 +391,9 @@ CONTAINS
        END IF
 
        desc % group_dim (:) = n_slices(:)
-
+       CALL mp_comm_dup( pw_grid % para % group , desc % group )
+       CALL mp_environ(desc % group_size, desc % my_pos, desc % group )
+ 
        IF ( ALL (n_slices == 1 ) ) THEN
           ! CASE 1 : only one slice: we do not need overlapping regions and special
           !          recombination of the total density
@@ -393,10 +401,18 @@ CONTAINS
           desc % border = 0
           desc % parallel = .TRUE.
           desc % distributed = .FALSE.
-          CALL mp_comm_dup( pw_grid % para % group , desc % group )
-          CALL mp_environ(desc % group_size, desc % my_pos, desc % group )
           desc % group_head = pw_grid % para % group_head
           desc % group_coor ( : ) = 0
+          desc % my_virtual_pos = 0
+
+          ALLOCATE ( desc % virtual2real ( 0 : desc % group_size - 1) )
+          ALLOCATE ( desc % real2virtual ( 0 : desc % group_size - 1) )
+          ! Start with no reordering
+          DO i=0, desc % group_size - 1
+            desc % virtual2real(i) = i
+            desc % real2virtual(i) = i
+          END DO
+
        ELSE
           ! CASE 2 : general case
           ! periodicity is no longer enforced arbritary  directions
@@ -411,17 +427,12 @@ CONTAINS
           ! we are going parallel on the real space grid
           desc % parallel = .TRUE.
           desc % distributed = .TRUE.
-          ! the new cartesian group - ensure this is NOT rank-reordered
-          CALL mp_cart_create ( pw_grid % para % group, 3, &
-               desc % group_dim, desc % group_coor, desc % group )
-          CALL mp_environ(desc % group_size, desc % my_pos, desc % group )
-          ! for output would be needed to have this pw_grid % para % group_head
-          desc % group_head = ALL ( desc % group_coor == 0 )
+          desc % group_head = ( desc % my_pos == 0 )
 
           ! set up global info about the distribution
           ALLOCATE( desc % rank2coord(3,0:desc % group_size-1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE( desc % coord2rank(0:desc % group_dim(1),0:desc % group_dim(2),0:desc % group_dim(3)),STAT=stat)
+          ALLOCATE( desc % coord2rank(0:desc % group_dim(1)-1,0:desc % group_dim(2)-1,0:desc % group_dim(3)-1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE( desc % lb_global(3,0:desc % group_size-1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -435,7 +446,16 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           DO i=0, desc% group_size - 1
-             CALL mp_cart_coords(desc % group, i, desc % rank2coord(:,i) )
+             ! Calculate coordinates in a row-major order (to be SMP-friendly)
+             desc % rank2coord(1,i) = i / ( desc % group_dim(2) * desc % group_dim(3) )
+             desc % rank2coord(2,i) = MODULO (i, desc % group_dim(2) * desc % group_dim(3) ) &
+                                      / desc % group_dim(3)
+             desc % rank2coord(3,i) = MODULO (i, desc % group_dim(3))
+
+             IF (i == desc% my_pos ) THEN
+               desc % group_coor = desc % rank2coord(:,i)
+             END IF
+
              desc % coord2rank(desc % rank2coord(1,i),desc % rank2coord(2,i),desc % rank2coord(3,i))=i
              ! the lb_global and ub_global correspond to lb_real and ub_real of each task
              desc % lb_global(:,i) = desc % lb
@@ -470,7 +490,7 @@ CONTAINS
              ENDDO
           ENDDO
 
-          ! an upper bound for the number of neighbodesc the border is overlapping with
+          ! an upper bound for the number of neighbours the border is overlapping with
           DO dir=1,3
              desc % neighbours(dir) = 0
              IF (n_slices(dir).GT.1) THEN
@@ -483,8 +503,18 @@ CONTAINS
              ENDIF
           ENDDO
 
-       END IF
+          ALLOCATE ( desc % virtual2real ( 0 : desc % group_size - 1) )
+          ALLOCATE ( desc % real2virtual ( 0 : desc % group_size - 1) )
+          ! Start with no reordering
+          DO i=0, desc % group_size - 1
+            desc % virtual2real(i) = i
+            desc % real2virtual(i) = i
+          END DO
 
+          desc % my_virtual_pos = desc % real2virtual(desc % my_pos)
+          desc % virtual_group_coor( : ) = desc % rank2coord(:, desc % my_virtual_pos)
+
+       END IF
     END IF
 
     CALL timestop(handle)
@@ -499,8 +529,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
 
     ALLOCATE(rs,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -511,15 +543,6 @@ CONTAINS
     rs % desc => desc
     CALL rs_grid_retain_descriptor(rs % desc, error)
 
-    ALLOCATE ( rs % virtual2real ( 0 : rs % desc % group_size - 1) )
-    ALLOCATE ( rs % real2virtual ( 0 : rs % desc % group_size - 1) )
-    ! Start with no rank reordering
-    DO i=0, rs % desc % group_size - 1
-      rs % virtual2real(i) = i
-      rs % real2virtual(i) = i
-    END DO
-
-    
     IF ( desc % pw % para % mode == PW_MODE_LOCAL ) THEN
        ! The corresponding group has dimension 1
        ! All operations will be done localy
@@ -543,8 +566,8 @@ CONTAINS
     ELSE
           ! CASE 2 : general case
           ! extract some more derived quantities about the local grid
-          rs % lb_real = desc % lb_global ( :, rs % virtual2real(desc % my_pos) )
-          rs % ub_real = desc % ub_global ( :, rs % virtual2real(desc % my_pos) )
+          rs % lb_real = desc % lb_global ( :, desc % my_virtual_pos )
+          rs % ub_real = desc % ub_global ( :, desc % my_virtual_pos )
           rs % lb_local = rs % lb_real - desc % border * ( 1 - desc % perd )
           rs % ub_local = rs % ub_real + desc % border * ( 1 - desc % perd )
           rs % npts_local = rs % ub_local - rs % lb_local +1
@@ -564,7 +587,71 @@ CONTAINS
     ALLOCATE ( rs % pz ( desc % npts ( 3 ) ), STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    CALL timestop(handle)
+
   END SUBROUTINE rs_grid_create
+
+! *****************************************************************************
+!> \brief Defines a new ordering of ranks on this realspace grid, recalculating
+!>        the data bounds and reallocating the grid.  As a result, each MPI process
+!>        now has a real rank (i.e. it's rank in the MPI communicator from the pw grid)
+!>        and a virtual rank (the rank of the process where the data now owned by this
+!>        process would reside in an ordinary cartesian distribution).
+!>        NB. This operation destroys any data already on the grid!
+!>        the desc%real2virtual and desc%virtual2real arrays can be used to map
+!>        a physical rank to the 'rank' of data owned by that process and vice versa
+!> \par History
+!>        04-2009 created [Iain Bethune]
+!>          (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+! *****************************************************************************
+  SUBROUTINE rs_grid_reorder_ranks(rs, real2virtual, error)
+
+    TYPE(realspace_grid_type), POINTER       :: rs
+    INTEGER, DIMENSION(:), INTENT(IN)        :: real2virtual
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_reorder_ranks', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, stat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+
+    rs%desc%real2virtual = real2virtual
+
+    DO i=0, rs % desc % group_size - 1
+      rs % desc % virtual2real(rs % desc % real2virtual(i)) = i
+    END DO
+
+    rs % desc % my_virtual_pos = rs % desc % real2virtual(rs%desc%my_pos)
+
+    ! recalculate the local bounds (only needed in distributed case)
+
+    IF ( .NOT. ALL (rs % desc % group_dim == 1 ) ) THEN
+          ! extract some more derived quantities about the local grid
+          rs % lb_real = rs % desc % lb_global ( :, rs % desc % my_virtual_pos )
+          rs % ub_real = rs % desc % ub_global ( :, rs % desc % my_virtual_pos )
+          rs % lb_local = rs % lb_real - rs % desc % border * ( 1 - rs % desc % perd )
+          rs % ub_local = rs % ub_real + rs % desc % border * ( 1 - rs % desc % perd )
+          rs % npts_local = rs % ub_local - rs % lb_local +1
+          rs % ngpts_local = PRODUCT ( rs % npts_local )
+          rs % desc % virtual_group_coor( : ) = rs % desc % rank2coord(:, rs % desc % my_virtual_pos)
+    END IF
+
+    ! Resize the grid so it can hold the data required on this rank
+
+    DEALLOCATE ( rs % r, STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE ( rs % r (rs % lb_local(1):rs % ub_local(1), &
+                       rs % lb_local(2):rs % ub_local(2), &
+                       rs % lb_local(3):rs % ub_local(3)), STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+ 
+  END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief Print information on grids to output
@@ -869,6 +956,8 @@ CONTAINS
 !>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      10.2008 added non-blocking communication [Iain Bethune] 
 !>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+!>      4.2009 added support for rank-reordering on the grid [Iain Bethune] 
+!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir,error)
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -931,20 +1020,19 @@ CONTAINS
 
                 ! need to take into account the possible varying widths of neighbouring cells
                 ! offset_up and offset_down hold the real size of the neighbouring cells
-                position = MODULO ( rs % desc % group_coor (idir) - n_shifts, rs % desc % group_dim (idir))
+                position = MODULO ( rs % desc % virtual_group_coor (idir) - n_shifts, rs % desc % group_dim (idir))
                 neighbours = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), position )
                 dshifts(n_shifts) = dshifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 ) 
 
-                position = MODULO ( rs % desc % group_coor (idir) + n_shifts, rs % desc % group_dim (idir))
+                position = MODULO ( rs % desc % virtual_group_coor (idir) + n_shifts, rs % desc % group_dim (idir))
                 neighbours = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), position )
                 ushifts(n_shifts) = ushifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 )
-
 
                 ! The border data has to be send/received from the neighbours
                 ! First we calculate the source and destination processes for the shift
                 ! We do both shifts at once to allow for more overlap of communication and buffer packing/unpacking
 
-                CALL mp_cart_shift ( rs % desc % group, idir -1, -1 * n_shifts, source_down, dest_down )
+                CALL cart_shift ( rs, idir, -1 * n_shifts, source_down, dest_down)
 
                 lb_send_down ( : ) = rs % lb_local ( : )
                 lb_recv_down ( : ) = rs % lb_local ( : )
@@ -981,7 +1069,6 @@ CONTAINS
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 CALL mp_irecv (recv_buf_3d_down, source_down, rs % desc % group, req(1))
 
-
                 ! now allocate, pack and send the send buffer
                 nn = PRODUCT ( ub_send_down - lb_send_down + 1 )
                 ALLOCATE ( send_buf_3d_down ( lb_send_down(1):ub_send_down(1), &
@@ -991,11 +1078,10 @@ CONTAINS
                 send_buf_3d_down = rs % r ( lb_send_down(1):ub_send_down(1), &
                      lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) )
 
-
                 CALL mp_isend (send_buf_3d_down, dest_down, rs % desc % group, req(3))
 
                 ! Now for the other direction
-                CALL mp_cart_shift ( rs % desc % group, idir -1 , n_shifts, source_up, dest_up )
+                CALL cart_shift (rs, idir, n_shifts, source_up, dest_up )
 
                 lb_send_up ( : ) = rs % lb_local ( : )
                 lb_recv_up ( : ) = rs % lb_local ( : )
@@ -1050,11 +1136,9 @@ CONTAINS
 
                 DO i=1,2
 
-
                    CALL mp_waitany (req(1:2),completed)
 
                    IF ( completed .EQ. 1 ) THEN
-
 
                       ! only some procs may need later shifts
                       IF(ub_recv_down(idir).GE.lb_recv_down(idir))THEN
@@ -1069,7 +1153,6 @@ CONTAINS
                       DEALLOCATE( recv_buf_3d_down, STAT=stat)
                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    ELSE
-
 
                       ! only some procs may need later shifts
                       IF(ub_recv_up(idir).GE.lb_recv_up(idir))THEN
@@ -1156,10 +1239,12 @@ CONTAINS
 
        ! find the processors that should hold our data
        ! should be part of the rs grid type
+       ! this is a loop over real ranks (i.e. the in-order cartesian ranks)
        DO i = 0, rs % desc % group_size -1
 
-          CALL mp_cart_coords(rs % desc % group, i, coords)
-          !calculate the real rs grid points on each processor
+          coords(:) = rs % desc % rank2coord ( : , rs % desc % real2virtual(i))
+          !calculate the rs grid points on each processor
+          !coords is the part of the grid that rank i actually holds
           DO idir = 1,3
              pos (:) = get_limit ( rs % desc %  npts ( idir ), rs % desc % group_dim ( idir ), coords(idir) )
              pos (:) = pos (:) - rs % desc %  npts (idir) / 2 - 1
@@ -1339,14 +1424,15 @@ CONTAINS
 
        ! find the processors that should hold our data
        ! should be part of the rs grid type
-
+       ! this is a loop over real ranks (i.e. the in-order cartesian ranks)
        DO i = 0, pw % pw_grid % para % group_size -1
 
-          CALL mp_cart_coords(rs % desc % group, i, coords)
+          coords(:) = rs % desc % rank2coord ( : , rs % desc % real2virtual(i))
           !calculate the real rs grid points on each processor
+          !coords is the part of the grid that rank i actually holds
           DO idir = 1,3
-             pos (:) = get_limit ( rs %  desc % npts ( idir ), rs % desc % group_dim ( idir ), coords(idir) )
-             pos (:) = pos (:) - rs % desc %  npts (idir) / 2 - 1
+             pos (:) = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), coords(idir) )
+             pos (:) = pos (:) - rs % desc % npts (idir) / 2 - 1
              lb_send(idir) = pos(1)
              ub_send(idir) = pos(2)                
           ENDDO
@@ -1423,7 +1509,6 @@ CONTAINS
 
        ! do the communication
 
-
        CALL mp_alltoall(send_buf, send_sizes, send_disps, recv_buf, recv_sizes, recv_disps, rs % desc % group)
 
        ! do unpacking
@@ -1478,11 +1563,11 @@ CONTAINS
                 ! need to take into account the possible varying widths of neighbouring cells
                 ! ushifts and dshifts hold the real size of the neighbouring cells
 
-                position = MODULO ( rs % desc % group_coor (idir) - n_shifts, rs % desc % group_dim (idir))
+                position = MODULO ( rs % desc % virtual_group_coor (idir) - n_shifts, rs % desc % group_dim (idir))
                 neighbours = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), position )
                 dshifts(n_shifts) = dshifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 ) 
 
-                position = MODULO ( rs % desc % group_coor (idir) + n_shifts, rs % desc % group_dim (idir))
+                position = MODULO ( rs % desc % virtual_group_coor (idir) + n_shifts, rs % desc % group_dim (idir))
                 neighbours = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), position )
                 ushifts(n_shifts) = ushifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 )
 
@@ -1490,7 +1575,7 @@ CONTAINS
                 ! First we calculate the source and destination processes for the shift
                 ! The first shift is "downwards"
 
-                CALL mp_cart_shift ( rs % desc % group, idir -1, -1 * n_shifts, source_down, dest_down )
+                CALL cart_shift (rs, idir, -1 * n_shifts, source_down, dest_down )
 
                 lb_send_down ( : ) = rs % lb_local ( : )
                 ub_send_down ( : ) = rs % ub_local ( : )
@@ -1543,7 +1628,7 @@ CONTAINS
 
                 ! Now for the other direction
 
-                CALL mp_cart_shift ( rs % desc % group, idir -1 , n_shifts, source_up, dest_up )
+                CALL cart_shift ( rs, idir, n_shifts, source_up, dest_up )
 
                 lb_send_up ( : ) = rs % lb_local ( : )
                 ub_send_up ( : ) = rs % ub_local ( : )
@@ -1581,6 +1666,7 @@ CONTAINS
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
                 ! recv buffer is now ready, so post the recieve
+
                 CALL mp_irecv (recv_buf_3d_up, source_up, rs % desc % group, req(2))
 
                 ! now allocate,pack and send the send buffer
@@ -1757,6 +1843,15 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     END IF
   END SUBROUTINE rs_grid_retain
 
+! *****************************************************************************
+!> \brief retains the given rs grid descriptor (see doc/ReferenceCounting.html)
+!> \param rs_grid the grid to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2009 created [Iain Bethune]
+!>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+! *****************************************************************************
   SUBROUTINE rs_grid_retain_descriptor(rs_desc, error)
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1774,7 +1869,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
        rs_desc%ref_count=rs_desc%ref_count+1
     END IF
   END SUBROUTINE rs_grid_retain_descriptor
-
 
 ! *****************************************************************************
 !> \brief releases the given rs grid (see doc/ReferenceCounting.html)
@@ -1813,10 +1907,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE ( rs_grid % pz , STAT=stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE ( rs_grid % virtual2real, STAT=stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE ( rs_grid % real2virtual, STAT=stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(rs_grid, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -1824,6 +1914,15 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     NULLIFY(rs_grid)
   END SUBROUTINE rs_grid_release
 
+! *****************************************************************************
+!> \brief releases the given rs grid descriptor (see doc/ReferenceCounting.html)
+!> \param rs_grid the rs grid to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2009 created [Iain Bethune]
+!>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+! *****************************************************************************
   SUBROUTINE rs_grid_release_descriptor(rs_desc,error)
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1863,6 +1962,11 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE ( rs_desc % z2coord , STAT=stat )
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE ( rs_desc % virtual2real, STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE ( rs_desc % real2virtual, STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
           ENDIF
 
           DEALLOCATE(rs_desc, stat=stat)
@@ -1872,5 +1976,31 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     NULLIFY(rs_desc)
   END SUBROUTINE rs_grid_release_descriptor
 
-END MODULE realspace_grid_types
+! *****************************************************************************
+!> \brief emulates the function of an MPI_cart_shift operation, but the shift is
+!>        done in virtual coordinates, and the corresponding real ranks are returned 
+!> \par History
+!>      04.2009 created [Iain Bethune]
+!>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+! *****************************************************************************
+  SUBROUTINE cart_shift ( rs_grid, dir, disp, source, dest )
 
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    INTEGER, INTENT(IN)                      :: dir, disp
+    INTEGER, INTENT(OUT)                     :: source, dest
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cart_shift', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER, DIMENSION(3)                    :: shift_coords
+
+    shift_coords = rs_grid % desc % virtual_group_coor
+    shift_coords(dir) = MODULO ( shift_coords(dir) + disp , rs_grid % desc % group_dim(dir) )
+    dest = rs_grid % desc % virtual2real(rs_grid % desc % coord2rank(shift_coords(1), shift_coords(2), shift_coords(3)))
+    shift_coords = rs_grid % desc % virtual_group_coor
+    shift_coords(dir) = MODULO ( shift_coords(dir) - disp , rs_grid % desc % group_dim(dir) )
+    source = rs_grid % desc % virtual2real(rs_grid % desc % coord2rank(shift_coords(1), shift_coords(2), shift_coords(3)))
+
+  END SUBROUTINE
+
+END MODULE realspace_grid_types

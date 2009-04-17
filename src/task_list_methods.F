@@ -384,7 +384,8 @@ CONTAINS
    
                 CALL pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
                           rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,la_max(iset),lb_max(jset),&
-                          rs_rho(igrid_level)%rs_grid,igrid_level,cube_center,lb_cube,ub_cube,error)
+                          rs_rho(igrid_level)%rs_grid,igrid_level,gridlevel_info%ngrid_levels,cube_center,&
+                          lb_cube,ub_cube,error)
 
              END DO loop_jpgf
 
@@ -512,7 +513,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
                           rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,la_max,lb_max,&
-                          rs_grid,igrid_level,cube_center,lb_cube,ub_cube,error)
+                          rs_grid,igrid_level,n_levels,cube_center,lb_cube,ub_cube,error)
 
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -523,7 +524,7 @@ CONTAINS
                                                 ipgf, jpgf, natoms, maxset, &
                                                 maxpgf, la_max, lb_max
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    INTEGER, INTENT(IN)                      :: igrid_level
+    INTEGER, INTENT(IN)                      :: igrid_level, n_levels
     INTEGER, DIMENSION(3), INTENT(IN)        :: cube_center, lb_cube, ub_cube
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -544,11 +545,11 @@ CONTAINS
 
        ! finds the node(s) that need to process this task
        ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks
-       CALL rs_find_node(rs_grid,cube_center, &
+       CALL rs_find_node(rs_grid,igrid_level,n_levels,cube_center, &
             ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks,error=error)
 
     ELSE
-       tasks(1,ntasks) = rs_grid%desc%my_pos
+       tasks(1,ntasks) = encode_rank(rs_grid % desc % my_pos, igrid_level, n_levels)
        tasks(4,ntasks) = 0
        tasks(6,ntasks) = 0
        added_tasks = 1
@@ -568,7 +569,7 @@ CONTAINS
 
     DO j= 1, added_tasks
 
-       tasks (2,ntasks-added_tasks+j) = rs_grid % desc % my_pos
+       tasks (2,ntasks-added_tasks+j) = encode_rank(rs_grid % desc % my_pos, igrid_level, n_levels)
        tasks (5,ntasks-added_tasks+j) = cost
 
        !encode the atom pairs and basis info as a single long integer
@@ -934,7 +935,7 @@ CONTAINS
   SUBROUTINE compute_load_list(list,rs_rho,tasks,ntasks,natoms, maxset,maxpgf, create_list, error)
     INTEGER, DIMENSION(:, :, 0:)             :: list
     TYPE(realspace_grid_p_type), &
-      DIMENSION(:)                           :: rs_rho
+      DIMENSION(:), POINTER                  :: rs_rho
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER                                  :: ntasks, natoms, maxset, maxpgf
@@ -997,7 +998,9 @@ CONTAINS
        ALLOCATE(all_dests(nshort))
        DEALLOCATE(index)
        ALLOCATE(INDEX(nshort))
-       all_dests=tasks(1,itask_start:itask_stop)
+       DO i=1,nshort
+         all_dests(i)=decode_rank(tasks(1,itask_start + i - 1), SIZE(rs_rho))
+       ENDDO
        CALL sort(all_dests,nshort,index)
        ndest_pair=1
        DO i=2,nshort
@@ -1009,53 +1012,13 @@ CONTAINS
 
        DO itask=itask_start,itask_stop
 
-          dest=tasks(1,itask) ! notice that dest can be changed
+          dest=decode_rank(tasks(1,itask), SIZE(rs_rho)) ! notice that dest can be changed
           CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
           ipair=(iatom-1)*natom8+(jatom-1)
 
           SELECT CASE(tasks(4,itask))
           CASE(0)
-            IF (.FALSE.) THEN
-               ! set the dest to the one with lowest distributed load
-               dest=all_dests(1)
-               DO iopt=2,ndest_pair
-                  IF (loads(dest)>loads(all_dests(iopt))) dest=all_dests(iopt)
-               ENDDO
-
-               ! set rank to the one with the lowest distributed load, but not dest if possible
-               ! pick a feasible
-               rank=dest
-               DO iopt=1,maxdest
-                  IF (list(1,iopt,dest)==dest .OR. list(1,iopt,dest)>ncpu-1) CYCLE
-                  IF (ANY(all_dests(1:ndest_pair).EQ.list(1,iopt,dest))) THEN
-                     rank=list(1,iopt,dest)
-                  ENDIF
-               ENDDO
-               ! an optimal one
-               DO iopt=1,maxdest
-                  IF (list(1,iopt,dest)==dest .OR. list(1,iopt,dest)>ncpu-1) CYCLE
-                  IF (ANY(all_dests(1:ndest_pair).EQ.list(1,iopt,dest))) THEN
-                     IF (loads(rank)>loads(list(1,iopt,dest))) rank=list(1,iopt,dest)
-                  ENDIF
-               ENDDO
-               li=list_index(list,rank,dest)
-               IF (create_list) THEN
-                  list(2,li,dest)=list(2,li,dest)+tasks(5,itask)
-               ELSE
-                  IF (list(1,li,dest)==dest) THEN
-                      tasks(1,itask)=dest
-                  ELSE
-                    IF (list(2,li,dest)>=tasks(5,itask)) THEN
-                        list(2,li,dest)=list(2,li,dest)-tasks(5,itask)
-                        tasks(1,itask)=list(1,li,dest)
-                    ELSE
-                        tasks(1,itask)=dest
-                    ENDIF
-                  ENDIF
-               ENDIF
-            ELSE
                ! just ignore these replicated tasks   
-            ENDIF
           CASE(1)
             bit_pattern=tasks(6,itask)
             nopt=0
@@ -1115,13 +1078,13 @@ CONTAINS
                list(2,li,dest)=list(2,li,dest)+tasks(5,itask)
             ELSE
                IF (list(1,li,dest)==dest) THEN
-                   tasks(1,itask)=dest
+                   tasks(1,itask)=encode_rank(dest, ilevel, SIZE(rs_rho))
                ELSE
                  IF (list(2,li,dest)>=tasks(5,itask)) THEN
                      list(2,li,dest)=list(2,li,dest)-tasks(5,itask)
-                     tasks(1,itask)=list(1,li,dest)
+                     tasks(1,itask)=encode_rank(list(1,li,dest), ilevel, SIZE(rs_rho))
                  ELSE
-                     tasks(1,itask)=dest
+                     tasks(1,itask)=encode_rank(dest, ilevel, SIZE(rs_rho))
                  ENDIF
                ENDIF
             ENDIF
@@ -1131,13 +1094,13 @@ CONTAINS
                list(2,li,dest)=list(2,li,dest)+tasks(5,itask)
             ELSE
                IF (list(1,li,dest)==dest) THEN
-                   tasks(1,itask)=dest
+                   tasks(1,itask)=encode_rank(dest, ilevel, SIZE(rs_rho))
                ELSE
                  IF (list(2,li,dest)>=tasks(5,itask)) THEN
                      list(2,li,dest)=list(2,li,dest)-tasks(5,itask)
-                     tasks(1,itask)=list(1,li,dest)
+                     tasks(1,itask)=encode_rank(list(1,li,dest), ilevel, SIZE(rs_rho))
                  ELSE
-                     tasks(1,itask)=dest
+                     tasks(1,itask)=encode_rank(dest, ilevel, SIZE(rs_rho))
                  ENDIF
                ENDIF
             ENDIF
@@ -1261,7 +1224,7 @@ CONTAINS
   SUBROUTINE get_current_loads(loads, rs_rho, ntasks, tasks, skip_distributed, error)
     INTEGER(kind=int_8), DIMENSION(:)        :: loads
     TYPE(realspace_grid_p_type), &
-      DIMENSION(:)                           :: rs_rho
+      DIMENSION(:), POINTER                  :: rs_rho
     INTEGER                                  :: ntasks
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -1319,7 +1282,8 @@ CONTAINS
     send_buf_i=0
     DO i = 1, ntasks
        IF (skip_distributed .AND. tasks(4,i)==0) CYCLE
-       send_buf_i( tasks(1,i)+1 ) = send_buf_i( tasks(1,i)+1 ) + tasks(5,i)
+       send_buf_i( decode_rank(tasks(1,i), SIZE(rs_rho))+1 ) = &
+       send_buf_i( decode_rank(tasks(1,i), SIZE(rs_rho))+1 ) + tasks(5,i)
     END DO
     CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
     total_cost_local = SUM(recv_buf_i)
@@ -1353,21 +1317,21 @@ CONTAINS
 !>      none
 !> \author MattW 21/11/2007
 ! *****************************************************************************
-  SUBROUTINE load_balance_replicated ( rs_rho, ntasks, tasks, error)
+  SUBROUTINE load_balance_replicated ( rs_rho, ntasks, tasks, natoms,maxset,maxpgf, error)
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
     INTEGER                                  :: ntasks
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
+    INTEGER, INTENT(IN)                      :: natoms, maxset, maxpgf
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'load_balance_replicated', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, no_overloaded, &
-                                                no_underloaded, &
-                                                proc_receiving, stat
+    INTEGER :: handle, i, iatom, ilevel, ipgf, iset, j, jatom, jpgf, jset, &
+      no_overloaded, no_underloaded, proc_receiving, stat
     INTEGER(KIND=int_8)                      :: average_cost, cost_task_rep, &
                                                 count, offset, &
                                                 total_cost_global
@@ -1437,7 +1401,7 @@ CONTAINS
     ! but only those tasks which have not yet been assigned
     cost_task_rep = 0
     DO i = 1, ntasks
-       IF(tasks(4,i) .EQ. 0 .AND. tasks(1,i)==tasks(2,i) ) THEN
+       IF(tasks(4,i) .EQ. 0 .AND. decode_rank(tasks(1,i),SIZE(rs_rho))==decode_rank(tasks(2,i), SIZE(rs_rho)) ) THEN
           cost_task_rep = cost_task_rep + tasks(5,i)
        ENDIF
     ENDDO
@@ -1485,11 +1449,12 @@ CONTAINS
        ! offset now contains minus the number of tasks proc_receiving requires
        ! we fill this up by adjusting the destination of tasks on the replicated grid, then move to next most underloaded proc
        DO j = 1, ntasks
-          IF (tasks(4,j) .EQ. 0 .AND. tasks(1,j)==tasks(2,j) ) THEN
+          IF (tasks(4,j) .EQ. 0 .AND. decode_rank(tasks(1,j),SIZE(rs_rho))==decode_rank(tasks(2,j),SIZE(rs_rho)) ) THEN
              !just avoid sending to non existing procs due to integer truncation in the computation of the average
              IF(proc_receiving .GT. no_underloaded) EXIT
              ! set new destination
-             tasks (1,j) = INDEX ( proc_receiving ) - 1
+             CALL int2pair(tasks(3,j),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+             tasks (1,j) = encode_rank( INDEX ( proc_receiving ) - 1, ilevel, SIZE(rs_rho))
              offset = offset + tasks(5,j)
              count = count + tasks(5,j)
              IF(count .GE. load_imbalance (rs%desc%my_pos + 1 ) ) EXIT
@@ -1545,8 +1510,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_local_tasks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, k, l, stat, &
-                                                task_dim
+    INTEGER                                  :: handle, i, j, k, l, rank, &
+                                                stat, task_dim
     INTEGER(kind=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_disps, recv_sizes, &
@@ -1584,7 +1549,8 @@ CONTAINS
     ! fill send buffer, now counting how many tasks will be send
     send_buf_i=0
     DO i = 1, ntasks
-       send_buf_i( tasks(1,i)+1 ) = send_buf_i( tasks(1,i)+1 ) + 1 
+       rank = rs_rho(decode_level(tasks(1,i), SIZE(rs_rho)))%rs_grid%desc%virtual2real(decode_rank(tasks(1,i), SIZE(rs_rho)))
+       send_buf_i( rank+1 ) = send_buf_i( rank+1 ) + 1 
     END DO
 
     CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
@@ -1623,7 +1589,7 @@ CONTAINS
     send_buf_i = 0
     send_sizes = 0
     DO j = 1,ntasks
-       i = tasks(1,j)+1
+       i = rs_rho(decode_level(tasks(1,j), SIZE(rs_rho)))%rs_grid%desc%virtual2real(decode_rank(tasks(1,j), SIZE(rs_rho))) +1
        DO k=1,task_dim
           send_buf_i(send_disps(i)+send_sizes(i)+k)=tasks(k,j)
        ENDDO
@@ -1671,7 +1637,7 @@ CONTAINS
     !do packing
     send_sizes = 0
     DO j = 1,ntasks
-       i = tasks(1,j)+1
+       i = rs_rho(decode_level(tasks(1,j), SIZE(rs_rho)))%rs_grid%desc%virtual2real(decode_rank(tasks(1,j), SIZE(rs_rho))) +1
        DO k=1,task_dim
           send_buf_r(send_disps(i)+send_sizes(i)+k)=rval(k,j)
        ENDDO
@@ -1772,7 +1738,7 @@ CONTAINS
        CALL load_balance_distributed(tasks, ntasks, rs_rho, natoms, maxset,maxpgf, error)
 
        ! adjusting the replicated task to improve the load balance
-       CALL load_balance_replicated(rs_rho, ntasks, tasks, error)
+       CALL load_balance_replicated(rs_rho, ntasks, tasks, natoms,maxset,maxpgf, error)
 
        ! given a list of tasks, this will do the needed reshuffle so that all tasks will be local
        CALL create_local_tasks ( rs_rho, ntasks, tasks, rval, ntasks_recv, tasks_recv, rval_recv, error)
@@ -1792,7 +1758,7 @@ CONTAINS
        ALLOCATE(atom_pair_send(ntasks),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","atom_pair_send",rs%desc%group_size)
        CALL get_atom_pair ( atom_pair_send, tasks, send=.TRUE.,&
-            symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf )
+            symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, rs_rho=rs_rho )
  
        ! natom_send=SIZE(atom_pair_send)
        ! CALL mp_sum(natom_send,rs%desc%group)
@@ -1804,7 +1770,7 @@ CONTAINS
        ALLOCATE(atom_pair_recv(ntasks_recv),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","atom_pair_recv",rs%desc%group_size)
        CALL get_atom_pair ( atom_pair_recv, tasks_recv, send=.FALSE.,&
-            symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf )
+            symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, rs_rho=rs_rho )
 
        ! cleanup, at this point we  don't need the original tasks & rvals anymore
        DEALLOCATE(tasks,STAT=stat)
@@ -1859,7 +1825,7 @@ CONTAINS
   END SUBROUTINE distribute_tasks
 
 ! *****************************************************************************
-SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, symmetric, natoms, maxset, maxpgf)
+SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, symmetric, natoms, maxset, maxpgf, rs_rho)
 
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair
@@ -1867,6 +1833,8 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, symmetric, natoms, maxset,
       POINTER                                :: my_tasks
     LOGICAL                                  :: send, symmetric
     INTEGER                                  :: natoms, maxset, maxpgf
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_rho
 
     INTEGER                                  :: acol, arow, i, iatom, ilevel, &
                                                 ipgf, iset, j, jatom, jpgf, &
@@ -1895,9 +1863,15 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, symmetric, natoms, maxset,
         acol = jatom
      ENDIF
      IF ( send ) THEN
-        atom_pair(i) = my_tasks(1,i)*natom8*natom8+(arow-1)*natom8 + (acol-1)
+        ! If sending, we need to use the 'real rank' as the pair has to be sent to the process which
+        ! actually has the correct part of the rs_grid to do the mapping
+        atom_pair(i) = rs_rho(ilevel)%rs_grid%desc%virtual2real(decode_rank(my_tasks(1,i),SIZE(rs_rho))) &
+                        *natom8*natom8+(arow-1)*natom8 + (acol-1)
      ELSE
-        atom_pair(i) = my_tasks(2,i)*natom8*natom8+(arow-1)*natom8 + (acol-1)
+        ! If we are recieving, then no conversion is needed as the rank is that of the process with the
+        ! required matrix block, and the ordering of the rs grid is irrelevant
+        atom_pair(i) = decode_rank(my_tasks(2,i),SIZE(rs_rho)) &
+                        *natom8*natom8+(arow-1)*natom8 + (acol-1)
      ENDIF
   ENDDO
 
@@ -1926,9 +1900,10 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, symmetric, natoms, maxset,
 END SUBROUTINE get_atom_pair
 
 ! *****************************************************************************
-SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, scatter, error, hmat )
+SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, natoms, scatter, error, hmat )
 
-    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_grids
     TYPE(real_matrix_type), POINTER          :: pmat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_send, atom_pair_recv
@@ -1948,8 +1923,11 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
                                                 send_disps, send_sizes
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
+    TYPE(realspace_grid_type), POINTER       :: rs
 
   CALL timeset(routineN,handle)
+
+  rs => rs_grids(1)%rs_grid
 
   ! allocate local arrays
   ALLOCATE(send_sizes(rs%desc%group_size),STAT=stat)
@@ -2126,9 +2104,10 @@ END SUBROUTINE distribute_matrix
 !>      10.2008 rewritten [Joost VandeVondele]
 !> \author MattW
 ! *****************************************************************************
-SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_tasks,error)
+  SUBROUTINE rs_find_node(rs_grid,igrid_level,n_levels,cube_center,ntasks,tasks,lb_cube,ub_cube,added_tasks,error)
 
     TYPE(realspace_grid_type), POINTER       :: rs_grid
+    INTEGER, INTENT(IN)                      :: igrid_level, n_levels
     INTEGER, DIMENSION(3), INTENT(IN)        :: cube_center
     INTEGER, INTENT(INOUT)                   :: ntasks
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -2162,7 +2141,7 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
     IF ( ALL ( (rs_grid % desc % lb_global(:,dest)-rs_grid%desc%border) .LE. lbc )  .AND. &
          ALL ( (rs_grid % desc % ub_global(:,dest)+rs_grid%desc%border) .GE. ubc )) THEN
        !standard distributed collocation/integration
-       tasks(1,ntasks)=dest
+       tasks(1,ntasks)=encode_rank(dest, igrid_level, n_levels)
        tasks(4,ntasks)=1
        tasks(6,ntasks)=0
        added_tasks = 1
@@ -2269,8 +2248,8 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
        DO iy=lb_coord(2),ub_coord(2)
        DO ix=lb_coord(1),ub_coord(1)
           icoord=MODULO((/ix,iy,iz/),rs_grid%desc%group_dim)
-          idest =rs_grid%desc%coord2rank(icoord(1),icoord(2),icoord(3))
-          tasks(1,itask)=idest
+          idest=rs_grid%desc%coord2rank(icoord(1),icoord(2),icoord(3))
+          tasks(1,itask)=encode_rank(idest, igrid_level, n_levels)
           tasks(4,itask)=2
           tasks(6,itask)=0 
           ! encode the domain size for this task
@@ -2287,6 +2266,49 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
        ENDDO
     ENDIF
 
-END SUBROUTINE rs_find_node
+  END SUBROUTINE rs_find_node
+
+! *****************************************************************************
+!> \brief utility functions for encoding the grid level with a rank, allowing
+!>        different grid levels to maintain a different rank ordering without
+!>        losing information.  These encoded_ints are stored in the tasks(1:2,:) array
+!> \par History
+!>      4.2009 created [Iain Bethune]
+!>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+! *****************************************************************************
+  FUNCTION encode_rank (rank, grid_level, n_levels) RESULT(encoded_int)
+
+    INTEGER, INTENT(IN)                      :: rank, grid_level, n_levels
+    INTEGER(kind=int_8)                      :: encoded_int
+
+! ordered so can still sort by rank
+
+    encoded_int = rank*n_levels + grid_level - 1
+
+  END FUNCTION
+
+  FUNCTION decode_rank (encoded_int, n_levels) RESULT(rank)
+
+    INTEGER(kind=int_8), INTENT(IN)          :: encoded_int
+    INTEGER, INTENT(IN)                      :: n_levels
+    INTEGER                                  :: rank
+
+    rank = encoded_int / n_levels
+
+  END FUNCTION
+
+  FUNCTION decode_level (encoded_int, n_levels) RESULT(grid_level)
+
+    INTEGER(kind=int_8), INTENT(IN)          :: encoded_int
+    INTEGER, INTENT(IN)                      :: n_levels
+    INTEGER                                  :: grid_level
+
+    INTEGER(kind=int_8)                      :: n_levels8
+
+    n_levels8 = n_levels
+
+    grid_level = MODULO (encoded_int, n_levels8) + 1
+
+  END FUNCTION decode_level
 
 END MODULE task_list_methods

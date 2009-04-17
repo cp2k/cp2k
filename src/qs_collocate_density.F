@@ -891,7 +891,7 @@ CONTAINS
 
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
-       CALL distribute_matrix (rs_rho(1)%rs_grid, deltap, atom_pair_send, atom_pair_recv, natoms, scatter=.TRUE., error=error)
+       CALL distribute_matrix (rs_rho, deltap, atom_pair_send, atom_pair_recv, natoms, scatter=.TRUE., error=error)
     ENDIF
 
     ! map all tasks on the grids
@@ -1290,7 +1290,7 @@ CONTAINS
 
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
-       CALL distribute_matrix (rs_rho(1)%rs_grid, deltap, atom_pair_send, atom_pair_recv, &
+       CALL distribute_matrix (rs_rho, deltap, atom_pair_send, atom_pair_recv, &
                                natoms, scatter=.TRUE., error=error)
     ENDIF
 
