@@ -305,76 +305,70 @@ CONTAINS
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
 
-    !Build 3 arrays where for each contracted basis function
-    !the x y and z coordinates of the center are given
-!    DO iatom = 1,natom
-!       DO iao = first_sgf(iatom),last_sgf(iatom)
-!          DO idir = 1,3
-!             current_env%basisfun_center(idir,iao) = particle_set(iatom)%r(idir)
-!          END DO
-!       END DO
-!    END DO
-
     !Calculate the second term of the operator state by state
-    DO ispin = 1, -1!nspins
-       !   Allocate full matrices as working storage in the calculation
-       !   of the rxp operator matrix. 3 matrices for the 3 Cartesian direction
-       !   plus one to apply the momentum oprator to the modified mos fm
-       mo_coeff => psi0_order(ispin)%matrix
-       nmo = nstates(ispin)
-       NULLIFY(tmp_fm_struct)
-       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-            ncol_global=nmo,para_env=para_env,&
-            context=mo_coeff%matrix_struct%context,error=error)
-       DO idir = 1,3
-          NULLIFY(fm_Rmd_mos(idir)%matrix)
-          CALL cp_fm_create(fm_Rmd_mos(idir)%matrix,tmp_fm_struct,error=error)
-       END DO
-       CALL cp_fm_create (fm_work1,tmp_fm_struct,error=error)
-       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
-
-       ! This part should be done better, using the full matrix distribution
-       DO istate = 1,nmo
-          CALL cp_fm_get_submatrix(psi0_order(ispin)%matrix,vecbuf_c0,1,istate,nao,1,&
-               &                   transpose=.TRUE.,error=error)
-          !center of the localized psi0 state istate
-          dk(1:3) = centers_set(ispin)%array(1:3,istate)
+    !!!! what follows is a way to avoid calculating the L matrix for each centers.
+    !!!! not tested
+    IF(.FALSE.) THEN
+       DO ispin = 1, nspins
+          !   Allocate full matrices as working storage in the calculation
+          !   of the rxp operator matrix. 3 matrices for the 3 Cartesian direction
+          !   plus one to apply the momentum oprator to the modified mos fm
+          mo_coeff => psi0_order(ispin)%matrix
+          nmo = nstates(ispin)
+          NULLIFY(tmp_fm_struct)
+          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+               ncol_global=nmo,para_env=para_env,&
+               context=mo_coeff%matrix_struct%context,error=error)
           DO idir = 1,3
-             !  This loop should be distributed over the processors
-             DO iao = 1,nao
-                ck(1:3) = basisfun_center(1:3,iao)
-                ckdk = pbc(dk,ck,cell)
-                vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
-             END DO ! iao
-             CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
-                  1,istate,nao,1,transpose=.TRUE.,error=error)
-          END DO  ! idir
-       END DO  ! istate
-       
-       DO idir = 1,3
-          CALL set_vecp(idir,ii,iii)
-
-          !Add the second term to the idir component
-          CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-          CALL cp_sm_fm_multiply(op_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
-               fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)
-          CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
-               1.0_dp, fm_work1,error=error)
+             NULLIFY(fm_Rmd_mos(idir)%matrix)
+             CALL cp_fm_create(fm_Rmd_mos(idir)%matrix,tmp_fm_struct,error=error)
+          END DO
+          CALL cp_fm_create (fm_work1,tmp_fm_struct,error=error)
+          CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
           
-          CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-          CALL cp_sm_fm_multiply(op_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
-               fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)
-          CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
-               -1.0_dp,fm_work1,error=error)
+          ! This part should be done better, using the full matrix distribution
+          DO istate = 1,nmo
+             CALL cp_fm_get_submatrix(psi0_order(ispin)%matrix,vecbuf_c0,1,istate,nao,1,&
+                  &                   transpose=.TRUE.,error=error)
+             !center of the localized psi0 state istate
+             dk(1:3) = centers_set(ispin)%array(1:3,istate)
+             DO idir = 1,3
+                !  This loop should be distributed over the processors
+                DO iao = 1,nao
+                   ck(1:3) = basisfun_center(1:3,iao)
+                   ckdk = pbc(dk,ck,cell)
+                   vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
+                END DO ! iao
+                CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
+                     1,istate,nao,1,transpose=.TRUE.,error=error)
+             END DO  ! idir
+          END DO  ! istate
+       
+          DO idir = 1,3
+             CALL set_vecp(idir,ii,iii)
 
-       END DO ! idir
+             !Add the second term to the idir component
+             CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
+             CALL cp_sm_fm_multiply(op_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
+                  fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)
+             CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
+                  1.0_dp, fm_work1,error=error)
+          
+             CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
+             CALL cp_sm_fm_multiply(op_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
+                  fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)
+             CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
+                  -1.0_dp,fm_work1,error=error)
 
-       DO idir = 1,3
-          CALL cp_fm_release (fm_Rmd_mos(idir)%matrix,error=error)
-       END DO
-       CALL cp_fm_release (fm_work1,error=error)
+          END DO ! idir
 
-    END DO  ! ispin
+          DO idir = 1,3
+             CALL cp_fm_release (fm_Rmd_mos(idir)%matrix,error=error)
+          END DO
+          CALL cp_fm_release (fm_work1,error=error)
+
+       END DO  ! ispin
+    ENDIF
 
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

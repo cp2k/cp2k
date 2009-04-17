@@ -2110,11 +2110,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: nbr_center(2), nspins
-    TYPE(dft_control_type), POINTER          :: dft_control
-
     IF(current_env%full) THEN
-       write(*,*) 'current_build_chi_many_centers'
        CALL current_build_chi_many_centers(current_env,qs_env,iB,error)
     ELSE
        CALL current_build_chi_one_center(current_env,qs_env,iB,error)
