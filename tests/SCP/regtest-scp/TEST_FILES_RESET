@@ -128,3 +128,6 @@ w2.inp
 w2-r1.inp
 # speedup changes for core_ppl 
 w2-r2.inp
+# New order of energy calculation
+w2-r2.inp
+argon2.inp
