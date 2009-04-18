@@ -365,7 +365,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
                                                 explicit, harris_flag, &
-                                                ionode, was_present, nometric
+                                                ionode, nometric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
