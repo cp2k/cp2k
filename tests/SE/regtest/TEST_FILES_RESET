@@ -353,3 +353,18 @@ h2o_gks.inp
 h2o_gks_p.inp
 # numerics
 h2o_gks_p.inp
+#New wfn extrapolation
+ch2o.inp
+h2o.inp
+h2o_lsd.inp
+hf.inp
+nh4.inp
+st.inp
+O2-ROKS.inp
+h2op_2.inp
+h2po4.inp
+geom.inp
+b2h6_pm6.inp
+ch2o_pm6.inp
+hcn_pm6.inp
+

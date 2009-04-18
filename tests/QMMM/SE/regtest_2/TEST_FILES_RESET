@@ -115,3 +115,12 @@ nh3_g4x6_excl_qm.inp
 Si_tersoff_qmmm.inp
 # numerics
 Si_tersoff_qmmm.inp
+# New wfn extrapolation
+nh3_g4x6_excl_mm.inp
+nh3_g4x6_excl_qm.inp
+water_colv_excl_mm.inp
+water_colv_excl_qm.inp
+water_fixd_excl_qm.inp
+water_g3x3_excl_mm.inp
+water_g3x3_excl_qm.inp
+Si_tersoff_qmmm.inp

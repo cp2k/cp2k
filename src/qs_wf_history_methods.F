@@ -596,10 +596,11 @@ END SUBROUTINE wfs_update
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, error)
+SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, unit_metric, error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: interpolation_method_nr
     INTEGER, INTENT(in), OPTIONAL            :: extrapolation_order
+    LOGICAL, INTENT(IN), OPTIONAL            :: unit_metric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create', &
@@ -607,10 +608,16 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
 
     INTEGER                                  :: i, my_extrapolation_order, &
                                                 stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, nometric
 
   my_extrapolation_order = 1
   IF (PRESENT(extrapolation_order)) my_extrapolation_order=extrapolation_order
+
+  IF (PRESENT(unit_metric)) THEN
+    nometric = unit_metric
+  ELSE
+    nometric = .FALSE.
+  END IF
 
   failure=.FALSE.
 
@@ -653,12 +660,12 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
      CASE(wfi_linear_ps_method_nr)
         wf_history%memory_depth=2
         wf_history%store_wf=.TRUE.
-        wf_history%store_overlap=.TRUE.
+        IF(.NOT.nometric) wf_history%store_overlap=.TRUE.
      CASE(wfi_ps_method_nr)
         CALL cite_reference(VandeVondele2005a)
         wf_history%memory_depth=my_extrapolation_order+1
         wf_history%store_wf=.TRUE.
-        wf_history%store_overlap=.TRUE.
+        IF(.NOT.nometric) wf_history%store_overlap=.TRUE.
      CASE(wfi_frozen_method_nr)
         wf_history%memory_depth=1
         wf_history%store_frozen_density=.TRUE.
@@ -666,7 +673,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
        CALL cite_reference(Kolafa2004)
        wf_history%memory_depth = my_extrapolation_order + 2
        wf_history%store_wf = .TRUE.
-       wf_history%store_overlap = .TRUE.
+       IF(.NOT.nometric) wf_history%store_overlap = .TRUE.
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
@@ -774,7 +781,7 @@ END FUNCTION wfi_get_method_label
                                                 , handle, i, ispin, k, n, &
                                                 nmo, nvec, output_unit
     LOGICAL                                  :: failure, my_kg_gpw, &
-                                                my_orthogonal_wf
+                                                my_orthogonal_wf, use_overlap
     REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
@@ -794,6 +801,8 @@ END FUNCTION wfi_get_method_label
     failure=.FALSE.
     my_kg_gpw = .FALSE.
     IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
+
+    use_overlap = wf_history%store_overlap
   
     CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
@@ -1031,8 +1040,10 @@ END FUNCTION wfi_get_method_label
           IF (.not.failure) THEN
              CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,error,failure)
              CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)
-             CPPrecondition(ASSOCIATED(t0_state%overlap),cp_warning_level,routineP,error,failure)
-             CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)
+             IF (wf_history%store_overlap) THEN
+               CPPrecondition(ASSOCIATED(t0_state%overlap),cp_warning_level,routineP,error,failure)
+               CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)
+             END IF
           END IF
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           IF (nvec >= wf_history%memory_depth) THEN
@@ -1066,8 +1077,13 @@ END FUNCTION wfi_get_method_label
                   CALL cp_fm_create(csc,matrix_struct_new,error=error)
                   CALL cp_fm_struct_release(matrix_struct_new,error=error)
   
-                  CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k,error=error)
-                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc,error=error)
+                  IF ( use_overlap ) THEN
+                    CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k,error=error)
+                    CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc,error=error)
+                  ELSE
+                    CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
+                                    t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
+                  END IF
                   CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff,error=error)
                   CALL cp_fm_release(csc,error=error)
                   CALL cp_fm_scale_and_add(-1.0_dp,mo_coeff,2.0_dp,t1_state%wf(ispin)%matrix,error=error)
@@ -1107,6 +1123,7 @@ END FUNCTION wfi_get_method_label
           my_orthogonal_wf=.TRUE.
           IF(my_kg_gpw) THEN
              CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
+             CPPrecondition(use_overlap,cp_failure_level,routineP,error,failure)
              ! first the most recent
              t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
              beta = REAL(nvec,dp)
@@ -1151,8 +1168,13 @@ END FUNCTION wfi_get_method_label
                 CALL cp_fm_scale(alpha,mo_coeff,error=error)
                 DO i=2,nvec
                    t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
-                   CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k,error=error)
-                   CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
+                   IF ( use_overlap ) THEN
+                     CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k,error=error)
+                     CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
+                   ELSE
+                     CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
+                                     t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
+                   END IF
                    CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
                    alpha = -1.0_dp * alpha * REAL(nvec - i + 1 , dp ) / REAL(i , dp )
                    CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp,error=error)
@@ -1224,8 +1246,13 @@ END FUNCTION wfi_get_method_label
   
           DO i=2,nvec
             t0_state => wfi_get_snapshot(wf_history,index=i,error=error)
-            CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp,k,error=error)
-            CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
+            IF ( use_overlap ) THEN
+              CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp,k,error=error)
+              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
+            ELSE
+              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
+                              t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
+            END IF
             CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
             alpha = (-1.0_dp)**(i + 1)*REAL(i,KIND=dp)*&
                     binomial(2*nvec,nvec - i)/binomial(2*nvec - 2,nvec -1)

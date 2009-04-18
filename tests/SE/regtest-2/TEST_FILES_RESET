@@ -225,3 +225,25 @@ scan_zn_1w_cp2k.inp
 md.inp
 # numerics
 md.inp
+# New wfn extrapolation
+ch2o.inp
+h2o.inp
+h2o_lsd.inp
+hf.inp
+nh4.inp
+st.inp
+O2-ROKS.inp
+h2o_meta.inp
+b2h6_pm6.inp
+ch2o_pm6.inp
+hcn_pm6.inp
+O2-ROKS-PM6.inp
+hcl.inp
+hcl_ot.inp
+hcl_z.inp
+CH3Cl2.inp
+c2h5cl.inp
+sio2.inp
+scan_zn_1w_cp2k.inp
+zn_1w_debug.inp
+

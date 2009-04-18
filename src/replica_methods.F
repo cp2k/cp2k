@@ -68,7 +68,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, in_use, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, nometric
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -108,6 +108,14 @@ CONTAINS
                       CALL wfi_retain(rep_env%wf_history(i)%wf_history,&
                            error=error)
                    ELSE
+                      nometric = .FALSE.
+                      IF (dft_control%qs_control%semi_empirical) THEN
+                        IF (dft_control%qs_control%se_control%orthogonal_basis) nometric = .TRUE.
+                      END IF
+                      IF (dft_control%qs_control%dftb) THEN
+                        IF (dft_control%qs_control%dftb_control%orthogonal_basis) nometric = .TRUE.
+                      END IF
+
                       CALL wfi_create(rep_env%wf_history(i)%wf_history,&
                            interpolation_method_nr=&
                            dft_control%qs_control%wf_interpolation_method_nr,&

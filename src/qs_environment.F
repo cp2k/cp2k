@@ -365,7 +365,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
                                                 explicit, harris_flag, &
-                                                ionode, was_present
+                                                ionode, was_present, nometric
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -605,11 +605,20 @@ CONTAINS
        CALL harris_energy_create(harris_energy=harris_energy,error=error)
     END IF
 
+    ! check for orthogoanl basis
+    nometric = .FALSE.
+    IF (dft_control%qs_control%semi_empirical) THEN
+      IF (dft_control%qs_control%se_control%orthogonal_basis) nometric = .TRUE.
+    END IF
+    IF (dft_control%qs_control%dftb) THEN
+      IF (dft_control%qs_control%dftb_control%orthogonal_basis) nometric = .TRUE.
+    END IF
     !   *** Activate the interpolation ***
     CALL wfi_create(wf_history,&
                     interpolation_method_nr=&
                     dft_control%qs_control%wf_interpolation_method_nr,&
                     extrapolation_order = dft_control%qs_control%wf_extrapolation_order,&
+                    unit_metric = nometric, &
                     error=error)
 
     !   *** Set the actual Harris environment ***

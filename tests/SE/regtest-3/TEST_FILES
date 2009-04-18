@@ -19,3 +19,8 @@ LM-KSDO.inp         3
 LM-KSDO-D.inp       3
 # Multipole with NONE MAX_EXPANSION
 SiO2.inp            3
+# MD with wavefunction extrapolation methods
+wfn_ex1.inp         3
+wfn_ex2.inp         3
+wfn_ex3.inp         3
+wfn_ex4.inp         3

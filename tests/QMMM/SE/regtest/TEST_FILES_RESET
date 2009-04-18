@@ -144,3 +144,16 @@ mol_CSVR_gen2.inp
 mol_CSVR_gen3.inp
 # New initial guess ATOMIC 
 mol_sph_cut.inp
+# New wfn extrapolation
+water_3.inp
+mol.inp
+water_3_full.inp
+water_3_full_num.inp
+water_3_NOwalls.inp
+water_3_walls.inp
+water_3_walls_q.inp
+mol_CSVR_gen1.inp
+mol_CSVR_gen2.inp
+mol_CSVR_gen3.inp
+mol_sph_cut.inp
+
