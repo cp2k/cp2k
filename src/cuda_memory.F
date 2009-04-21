@@ -58,9 +58,10 @@ CONTAINS
       "GLOBAL%CUDA",error=error)
     CALL section_vals_val_get(cuda_section,"MEMORY",i_val=memory,error=error)
 
-#if defined ( __CUDA ) || defined ( __FFTCU )
+#if defined ( __CUDA ) || defined ( __FFTCU ) || defined ( __CUBLASDP )
 
     CALL cuda_device_mem_init_cu(memory)
+    CALL cublasinit_cu()
 
 #endif
 
@@ -75,6 +76,7 @@ CONTAINS
 #if defined ( __CUDA ) || defined ( __FFTCU )
 
     CALL cuda_device_mem_release_cu(device_memory)
+    CALL cublasshutdown_cu()
 
 #endif 
 

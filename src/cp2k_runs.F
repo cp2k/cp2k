@@ -263,7 +263,7 @@ CONTAINS
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
           END IF
 
-#if defined( __FFTCU ) || defined ( __CUDA )
+#if defined( __FFTCU ) || defined ( __CUDA ) || defined ( __CUBLASDP )
 ! if CUDA is enabled we need to allocate memory on the graphics card
           CALL cuda_device_mem_init(root_section)
 #endif

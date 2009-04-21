@@ -7,13 +7,15 @@ To compile CP2K with CUDA support, three modifications must be made to the arch 
 
 1)  Add a line "NVCC = nvcc" pointing the makefile to the nvcc compiler.
 
-2)  Add -D__CUDA and -D__FFTSGL to the DFLAGS variable.
+2)  Add -D__CUDA and -D__FFTSGL to the DFLAGS and NVFLAGS environmental variables
 
-3)  Add libcudart.so and libcufft.so to the LIBS variable.
+3)  Add libcudart.so, libcufft.so, and cublas to the LIBS variable.
 
 Then, compile as normal.
 
+Alternatively one can comile with support for running DGEMM and DSYMM on the gpu, but nothing else.  This is accomplised as above, but instead of __CUDA and __FFTSGL one should include __CUBLASDP.
+
 Features
 --------
-At the moment, the only portion of the calculation which can be performed on the graphics card is the FFT.  Because NVIDIA graphics card only support single precision floating point arithmetic, the FFT must be performed in single precision (hence the -D__FFTSGL option.)
+At the moment, the only portion of the calculation which can be performed on the graphics card is the FFT, the associated scatter/gather operations, and some linear algebra.  Because NVIDIA graphics cards only reach full performance for single precision floating point arithmetic, the FFT must be performed in single precision (hence the -D__FFTSGL option.)
 

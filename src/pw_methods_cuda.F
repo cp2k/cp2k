@@ -78,6 +78,7 @@ CONTAINS
 
     DEALLOCATE( csp3, STAT = ierr )
     DEALLOCATE( csp, STAT = ierr )
+
     pw2 % in_space = RECIPROCALSPACE
 #endif
 

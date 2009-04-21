@@ -1,4 +1,4 @@
-#if defined ( __FFTCU ) || defined ( __CUDA )
+#if defined ( __FFTCU ) || defined ( __CUDA ) || defined ( __CUBLASDP )
 
 /* This file contains memory management routines for device memory.  The goal of these routines is eliminate the need to allocate device memory more than once during a run.  Basically, CP2K allocates a large chunk of memory at the beginning of the job using cuda_device_mem_init_cu_.  The size of this chunk is specified in the input file.  The below routines cuda_device_mem_alloc_cu_ and cuda_device_mem_free_cu_ are used to allocate and free memory from this chunk.  The bookkeeping is done by the static variables below.  Finally, the chunk can be freed at the end of the job using cuda_device_mem_release_cu_ */
 
@@ -46,6 +46,29 @@ extern void cuda_device_mem_alloc_cu_ (float **ptr, int n) {
   }
 }
 
+extern void cuda_device_mem_alloc_cu_ (double **ptr, int n) {
+
+  if ( n_allocs==0 && (n) <= length ) {
+    isize[n_allocs] = n;
+    ioffset[n_allocs] = 0;
+    *ptr = (double*)device_memory;
+    n_allocs++;
+  }
+  else {
+    if ((n) <= (length - (ioffset[n_allocs-1] + isize[n_allocs-1] ))) { 
+      isize[n_allocs] = (n);
+      ioffset[n_allocs] = ioffset[n_allocs-1] + isize[n_allocs-1];
+      *ptr = (double*)(device_memory + ioffset[n_allocs]);
+      n_allocs++;
+    }
+    else {
+      *ptr=NULL;
+      printf("NOT ENOUGH GPU DEVICE MEMORY!\n");
+      fflush(stdout);
+    }
+  }
+}
+
 extern void cuda_device_mem_alloc_cu_ (int **ptr, int n) {
 
   if ( n_allocs==0 && (n) <= length ) {
@@ -74,6 +97,22 @@ extern void cuda_device_mem_free_cu_ (float **ptr) {
   
   zfound=0;
   ioffsettmp = *ptr - device_memory;
+  for (i=0; i < n_allocs; i++) {
+    if (zfound) {
+      ioffset[i-1] = ioffset[i];
+      isize[i-1] = isize[i];
+    }
+    if (ioffsettmp==ioffset[i]) zfound=1;
+  }
+  n_allocs--;
+  *ptr=NULL;
+}
+
+extern void cuda_device_mem_free_cu_ (double **ptr) {
+  int ioffsettmp, zfound, i;
+  
+  zfound=0;
+  ioffsettmp = (float*)(*ptr) - device_memory;
   for (i=0; i < n_allocs; i++) {
     if (zfound) {
       ioffset[i-1] = ioffset[i];

@@ -44,6 +44,8 @@ extern "C" void fftcu_run_3d_cu_(int* n, cufftComplex* data, int fsign, float sc
 
   fftcu_plan3d(plan,n,ioverflow);
 
+  //exit(0);
+
   if ( fsign < 0.0f  ) {
     cufftExecC2C(plan, data, data, CUFFT_INVERSE);
   }
@@ -54,7 +56,9 @@ extern "C" void fftcu_run_3d_cu_(int* n, cufftComplex* data, int fsign, float sc
   if (scale /= 1.0f) {
     cublasSscal(lmem, scale, (float*)data, 1);
   }
+
   if (ioverflow) { cufftDestroy(plan); }
+
 }
 
 extern "C" void fftcu3d_cu_ (int *ifft_in_place, int *fsign, float *scale, int *n, float *zin, float *zout) {

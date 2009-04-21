@@ -207,7 +207,6 @@ extern "C" void pw_fft_wrap_fg_cu_(int* fsign, cufftComplex* zin, cufftComplex* 
   cuda_device_mem_free_cu_(&mapm_dev);
   cuda_device_mem_free_cu_(&mapn_dev);
   cuda_device_mem_free_cu_(&n_dev);
-  fflush(stdout);
   
 }
 
@@ -253,7 +252,6 @@ extern "C" void pw_fft_wrap_sf_cu_(int* fsign, cufftComplex* zin, cufftComplex* 
   cuda_device_mem_free_cu_(&mapm_dev);
   cuda_device_mem_free_cu_(&mapn_dev);
   cuda_device_mem_free_cu_(&n_dev);
-  fflush(stdout);
   
 }
 
