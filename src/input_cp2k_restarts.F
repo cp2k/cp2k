@@ -48,10 +48,10 @@ MODULE input_cp2k_restarts
                                              do_thermo_csvr,&
                                              do_thermo_no_communication,&
                                              do_thermo_nose,&
+                                             ehrenfest,&
                                              mol_dyn_run,&
                                              mon_car_run,&
-                                             pint_run,&
-                                             ehrenfest
+                                             pint_run
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &

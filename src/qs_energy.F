@@ -16,6 +16,7 @@ MODULE qs_energy
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
@@ -27,7 +28,6 @@ MODULE qs_energy
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE efield_utils,                     ONLY: calculate_ecore_efield
   USE nddo_methods,                    ONLY: se_core_core_interaction
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&

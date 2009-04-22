@@ -20,6 +20,7 @@ MODULE qs_force
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dft_plus_u,                      ONLY: plus_u
+  USE efield_utils,                    ONLY: calculate_ecore_efield
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_set,&
@@ -32,7 +33,6 @@ MODULE qs_force
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size
-  USE efield_utils,                     ONLY: calculate_ecore_efield
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_restraint
   USE nddo_methods,                    ONLY: se_core_core_interaction

@@ -5297,7 +5297,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_efield_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -7493,7 +7493,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_constant_env_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -7533,7 +7533,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_gaussian_env_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -7573,7 +7573,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ramp_env_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

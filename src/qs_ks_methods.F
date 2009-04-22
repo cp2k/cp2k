@@ -52,6 +52,7 @@ MODULE qs_ks_methods
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE dft_plus_u,                      ONLY: plus_u
+  USE efield_utils,                    ONLY: efield_potential
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE et_coupling,                     ONLY: becke_restraint
   USE f77_blas
@@ -77,7 +78,6 @@ MODULE qs_ks_methods
   USE kg_gpw_correction,               ONLY: kg_gpw_ekin_mol
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_p_type
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
-  USE efield_utils,                     ONLY: efield_potential
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE message_passing,                 ONLY: mp_sum
@@ -335,7 +335,7 @@ CONTAINS
       POINTER                                :: mo_array, mos, mos_aux_fit
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
-      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_r, v_efield_rspace
+      v_efield_rspace, v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
