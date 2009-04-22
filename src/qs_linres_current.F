@@ -95,7 +95,7 @@ MODULE qs_linres_current
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE qs_operators_ao,                 ONLY: p_xyz_ao,&
+  USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                              rRc_xyz_der_ao,&
                                              set_up_op_sm
   USE realspace_grid_cube,             ONLY: pw_to_cube
@@ -2291,7 +2291,8 @@ CONTAINS
     !
     !
     ! recompute the linear momentum matrices
-    CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+    CALL build_lin_mom_matrix(qs_env,op_p_ao,error)
+    !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
     !
     !
     ! get iiB and iiiB
@@ -2670,7 +2671,8 @@ CONTAINS
     !
     !
     ! recompute the linear momentum matrices
-    CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+    CALL build_lin_mom_matrix(qs_env,op_p_ao,error)
+    !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
     !
     !
     ! get iiB and iiiB

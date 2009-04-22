@@ -51,8 +51,8 @@ MODULE qs_linres_op
                                              linres_control_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_operators_ao,                 ONLY: p_xyz_ao,&
-                                             rmc_x_p_xyz_ao,&
+  USE qs_operators_ao,                 ONLY: build_ang_mom_matrix,&
+                                             build_lin_mom_matrix,&
                                              set_up_op_sm
   USE qs_spin_orbit,                   ONLY: build_pso_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
@@ -129,8 +129,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: op_ao
     TYPE(section_vals_type), POINTER         :: lr_section
-
-!, op_p_ao
 
     CALL timeset(routineN,handle)
 
@@ -211,9 +209,10 @@ CONTAINS
           CALL set_matrix(op_ao(1)%matrix,0.0_dp)
           CALL set_matrix(op_ao(2)%matrix,0.0_dp)
           CALL set_matrix(op_ao(3)%matrix,0.0_dp)
-          CALL rmc_x_p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,&
-               &              wancen=centers_set(ispin)%array(1:3,icenter),&
-               &              error=error)
+          !CALL rmc_x_p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,&
+          !     &              wancen=centers_set(ispin)%array(1:3,icenter),&
+          !     &              error=error)
+          CALL build_ang_mom_matrix(qs_env,op_ao,centers_set(ispin)%array(1:3,icenter),error)
           !
           ! accumulate checksums
           chk(1) = chk(1)+checksum_matrix(op_ao(1)%matrix,para_env)
@@ -254,8 +253,9 @@ CONTAINS
             & error=error)
        CALL set_matrix(op_ao(idir)%matrix,0.0_dp)
     ENDDO
-
-    CALL p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,error=error)
+    !
+    CALL build_lin_mom_matrix(qs_env,op_ao,error)
+    !CALL p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,error=error)
     !
     ! print checksums
     chk(1) = checksum_matrix(op_ao(1)%matrix,para_env)

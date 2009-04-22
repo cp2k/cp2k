@@ -14,6 +14,7 @@ MODULE qs_operators_ao
   USE ai_moments,                      ONLY: diff_momop,&
                                              diffop,&
                                              moment
+  USE ai_os_rr,                        ONLY: os_rr_ovlp
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -22,17 +23,21 @@ MODULE qs_operators_ao
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
-  USE orbital_pointers,                ONLY: ncoset
+  USE mathconstants,                   ONLY: pi
+  USE orbital_pointers,                ONLY: coset,&
+                                             init_orbital_pointers,&
+                                             ncoset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
+       neighbor_list_type, neighbor_node_type, next
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              get_block_node,&
@@ -50,8 +55,804 @@ MODULE qs_operators_ao
 ! *** Public subroutines ***
 
   PUBLIC :: p_xyz_ao, rmc_x_p_xyz_ao, rRc_xyz_ao, rRc_xyz_der_ao, set_up_op_sm
+  PUBLIC :: build_lin_mom_matrix, build_ang_mom_matrix
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief   Calculation of the linear momemtum matrix over
+!>          Cartesian Gaussian functions.
+!> \author  VW
+!> \date    27.02.2009
+!> \version 1.0
+! *****************************************************************************
+
+  SUBROUTINE build_lin_mom_matrix(qs_env,matrix,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
+      istat, jatom, jkind, jset, last_jatom, ldai, maxco, maxlgto, maxsgf, &
+      natom, ncoa, ncob, neighbor_list_id, nkind, nlist, nnode, nseta, nsetb, &
+      sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure, new_atom_b
+    REAL(KIND=dp)                            :: dab, rab2
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: intab, rr_work
+    REAL(KIND=dp), DIMENSION(3)              :: rab
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                zeta, zetb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: integral
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    NULLIFY(cell,sab_orb,atomic_kind_set,particle_set,para_env)
+    NULLIFY(logger)
+
+    logger => cp_error_get_logger(error)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,&
+                    neighbor_list_id=neighbor_list_id,&
+                    para_env=para_env,&
+                    sab_orb=sab_orb,&
+                    cell=cell,&
+                    error=error)
+
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+!   *** Allocate work storage ***
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxco=maxco,&
+                             maxlgto=maxlgto,&
+                             maxsgf=maxsgf)
+
+    ldai = ncoset(maxlgto+1)
+    CALL init_orbital_pointers(ldai)
+
+    ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DO ikind=1,nkind
+
+       atomic_kind => atomic_kind_set(ikind)
+
+       CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+
+       IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+
+       CALL get_gto_basis_set(gto_basis_set=basis_set_a,&
+                              first_sgf=first_sgfa,&
+                              lmax=la_max,&
+                              lmin=la_min,&
+                              npgf=npgfa,&
+                              nset=nseta,&
+                              nsgf_set=nsgfa,&
+                              pgf_radius=rpgfa,&
+                              set_radius=set_radius_a,&
+                              sphi=sphi_a,&
+                              zet=zeta)
+
+       DO jkind=1,nkind
+
+          atomic_kind => atomic_kind_set(jkind)
+
+          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_b)
+
+          IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+
+          CALL get_gto_basis_set(gto_basis_set=basis_set_b,&
+                                 first_sgf=first_sgfb,&
+                                 lmax=lb_max,&
+                                 lmin=lb_min,&
+                                 npgf=npgfb,&
+                                 nset=nsetb,&
+                                 nsgf_set=nsgfb,&
+                                 pgf_radius=rpgfb,&
+                                 set_radius=set_radius_b,&
+                                 sphi=sphi_b,&
+                                 zet=zetb)
+
+          iab = ikind + nkind*(jkind - 1)
+
+          IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+
+          neighbor_list_set => sab_orb(iab)%neighbor_list_set
+
+          CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,nlist=nlist)
+
+          neighbor_list => first_list(neighbor_list_set)
+
+          DO ilist=1,nlist
+
+             CALL get_neighbor_list(neighbor_list=neighbor_list,atom=iatom,nnode=nnode)
+
+             last_jatom = 0
+
+             neighbor_node => first_node(neighbor_list)
+
+             DO inode=1,nnode
+
+                CALL get_neighbor_node(neighbor_node=neighbor_node,neighbor=jatom,r=rab(:))
+
+                IF (jatom /= last_jatom) THEN
+                   new_atom_b = .TRUE.
+                   last_jatom = jatom
+                ELSE
+                   new_atom_b = .FALSE.
+                END IF
+
+                IF (new_atom_b) THEN
+                   IF (iatom <= jatom) THEN
+                      irow = iatom
+                      icol = jatom
+                   ELSE
+                      irow = jatom
+                      icol = iatom
+                   END IF
+
+                   DO i=1,3
+                      NULLIFY(integral(i)%block)
+                      CALL get_block_node(matrix=matrix(i)%matrix,&
+                                          block_row=irow,&
+                                          block_col=icol,&
+                                          BLOCK=integral(i)%block)
+                   ENDDO
+                END IF
+
+                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                dab = SQRT(rab2)
+
+                DO iset=1,nseta
+
+                   ncoa = npgfa(iset)*ncoset(la_max(iset))
+                   sgfa = first_sgfa(1,iset)
+
+                   DO jset=1,nsetb
+
+                      IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+
+                      ncob = npgfb(jset)*ncoset(lb_max(jset))
+                      sgfb = first_sgfb(1,jset)
+
+                      ! *** Calculate the primitive fermi contact integrals ***
+
+                      CALL lin_mom(la_max(iset),la_min(iset),npgfa(iset),&
+                                   rpgfa(:,iset),zeta(:,iset),&
+                                   lb_max(jset),lb_min(jset),npgfb(jset),&
+                                   rpgfb(:,jset),zetb(:,jset),&
+                                   rab,intab,SIZE(rr_work,1),rr_work,error)
+
+                      ! *** Contraction step ***
+
+                      DO i=1,3
+
+                         CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                                    1.0_dp,intab(1,1,i),SIZE(intab,1),&
+                                    sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                    0.0_dp,work(1,1),SIZE(work,1))
+
+                         IF (iatom <= jatom) THEN
+
+                            CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                       work(1,1),SIZE(work,1),&
+                                       1.0_dp,integral(i)%block(sgfa,sgfb),&
+                                       SIZE(integral(i)%block,1))
+
+                         ELSE
+
+                            CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                                      -1.0_dp,work(1,1),SIZE(work,1),&
+                                       sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                       1.0_dp,integral(i)%block(sgfb,sgfa),&
+                                       SIZE(integral(i)%block,1))
+
+                         ENDIF
+
+                      ENDDO
+
+                   ENDDO
+
+                ENDDO
+
+                neighbor_node => next(neighbor_node)
+
+             ENDDO
+
+             neighbor_list => next(neighbor_list)
+
+          ENDDO
+
+       ENDDO
+
+    ENDDO
+
+    ! *** Release work storage ***
+
+    DEALLOCATE(intab,work,integral,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+!   *** Print the spin orbit matrix, if requested ***
+
+    !IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+    !     qs_env%input,"DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM",error=error),cp_p_file)) THEN
+    !   iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/LINEA_MOMENTUM",&
+    !        extension=".Log",error=error)
+    !   CALL write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+    !        "DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM", error=error)
+    !END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE build_lin_mom_matrix
+
+! *****************************************************************************
+!> \brief   Calculation of the primitive paramagnetic spin orbit integrals over
+!>          Cartesian Gaussian-type functions.
+!> \author  VW
+!> \date    02.03.2009
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE lin_mom(la_max,la_min,npgfa,rpgfa,zeta,lb_max,lb_min,npgfb,rpgfb,zetb,&
+                     rab,intab,ldrr,rr,error)
+    INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
+    INTEGER, INTENT(IN)                      :: lb_max, lb_min, npgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: intab
+    INTEGER, INTENT(IN)                      :: ldrr
+    REAL(dp), &
+      DIMENSION(0:ldrr-1, 0:ldrr-1, *), &
+      INTENT(INOUT)                          :: rr
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'lin_mom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
+                                                cob, i, ipgf, j, jpgf, la, &
+                                                lb, ma, mb, na, nb
+    REAL(dp)                                 :: dab, dumx, dumy, dumz, f0, &
+                                                rab2, xhi, zet
+    REAL(dp), DIMENSION(3)                   :: rap, rbp
+
+! *** Calculate the distance of the centers a and c ***
+
+    rab2 = rab(1)**2+rab(2)**2+rab(3)**2
+    dab = SQRT(rab2)
+
+    ! *** Loop over all pairs of primitive Gaussian-type functions ***
+
+    na = 0
+
+    DO ipgf=1,npgfa
+
+       nb = 0
+
+       DO jpgf=1,npgfb
+
+          ! *** Screening ***
+
+          IF(rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+             DO j=nb+1,nb+ncoset(lb_max)
+                DO i=na+1,na+ncoset(la_max)
+                   intab(i,j,1) = 0.0_dp
+                   intab(i,j,2) = 0.0_dp
+                   intab(i,j,3) = 0.0_dp
+                ENDDO
+             ENDDO
+             nb = nb + ncoset(lb_max)
+             CYCLE
+          ENDIF
+
+          ! *** Calculate some prefactors ***
+          zet =  zeta(ipgf)+zetb(jpgf)
+          xhi =  zeta(ipgf)*zetb(jpgf)/zet
+          rap =  zetb(jpgf)*rab/zet
+          rbp = -zeta(ipgf)*rab/zet
+
+          f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
+          
+          ! *** Calculate the reccurence relation ***
+
+          CALL os_rr_ovlp(rap,la_max+1,rbp,lb_max,zet,ldrr,rr)
+
+          ! *** Calculate the primitive linear momentum integrals ***
+
+          DO lb = lb_min,lb_max
+          DO bx = 0,lb
+          DO by = 0,lb-bx
+             bz = lb - bx - by
+             cob = coset(bx,by,bz)
+             mb = nb + cob
+             DO la = la_min,la_max
+             DO ax = 0,la
+             DO ay = 0,la-ax
+                az = la - ax - ay
+                coa = coset(ax,ay,az)
+                ma = na + coa
+                !
+                !
+                ! (a|p_x|b) = 2*a*(a+1x|b) - N_x(a)*(a-1_x|b)
+                dumx = 2.0_dp * zeta(ipgf) * rr(ax+1,bx,1)
+                IF(ax.GT.0) dumx = dumx - REAL(ax,dp) * rr(ax-1,bx,1)
+                intab(ma,mb,1) = f0 * dumx * rr(ay,by,2) * rr(az,bz,3)
+                !
+                ! (a|p_y|b)
+                dumy = 2.0_dp * zeta(ipgf) * rr(ay+1,by,2)
+                IF(ay.GT.0) dumy = dumy - REAL(ay,dp) * rr(ay-1,by,2)
+                intab(ma,mb,2) = f0 * rr(ax,bx,1) * dumy * rr(az,bz,3)
+                !
+                ! (a|p_z|b)
+                dumz = 2.0_dp * zeta(ipgf) * rr(az+1,bz,3)
+                IF(az.GT.0) dumz = dumz - REAL(az,dp) * rr(az-1,bz,3)
+                intab(ma,mb,3) = f0 * rr(ax,bx,1) * rr(ay,by,2) * dumz
+                !
+             ENDDO
+             ENDDO
+             ENDDO !la
+
+          ENDDO
+          ENDDO
+          ENDDO !lb
+
+          nb = nb + ncoset(lb_max)
+
+       ENDDO
+
+       na = na + ncoset(la_max)
+
+    ENDDO
+
+  END SUBROUTINE lin_mom
+
+! *****************************************************************************
+!> \brief   Calculation of the angular momemtum matrix over
+!>          Cartesian Gaussian functions.
+!> \author  VW
+!> \date    27.02.2009
+!> \version 1.0
+! *****************************************************************************
+
+  SUBROUTINE build_ang_mom_matrix(qs_env,matrix,rc,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rc
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_ang_mom_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
+      istat, jatom, jkind, jset, last_jatom, ldai, maxco, maxlgto, maxsgf, &
+      natom, ncoa, ncob, neighbor_list_id, nkind, nlist, nnode, nseta, nsetb, &
+      sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure, new_atom_b
+    REAL(KIND=dp)                            :: dab, rab2
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: intab, rr_work
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rbc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                zeta, zetb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: integral
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    NULLIFY(cell,sab_orb,atomic_kind_set,particle_set,para_env)
+    NULLIFY(logger)
+
+    logger => cp_error_get_logger(error)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,&
+                    neighbor_list_id=neighbor_list_id,&
+                    para_env=para_env,&
+                    sab_all=sab_orb,&
+                    !sab_orb=sab_orb,&
+                    cell=cell,&
+                    error=error)
+
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+!   *** Allocate work storage ***
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxco=maxco,&
+                             maxlgto=maxlgto,&
+                             maxsgf=maxsgf)
+
+    ldai = ncoset(maxlgto+1)
+    CALL init_orbital_pointers(ldai)
+
+    ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
+    DO ikind=1,nkind
+
+       atomic_kind => atomic_kind_set(ikind)
+
+       CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+
+       IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+
+       CALL get_gto_basis_set(gto_basis_set=basis_set_a,&
+                              first_sgf=first_sgfa,&
+                              lmax=la_max,&
+                              lmin=la_min,&
+                              npgf=npgfa,&
+                              nset=nseta,&
+                              nsgf_set=nsgfa,&
+                              pgf_radius=rpgfa,&
+                              set_radius=set_radius_a,&
+                              sphi=sphi_a,&
+                              zet=zeta)
+
+       DO jkind=1,nkind
+
+          atomic_kind => atomic_kind_set(jkind)
+
+          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_b)
+
+          IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+
+          CALL get_gto_basis_set(gto_basis_set=basis_set_b,&
+                                 first_sgf=first_sgfb,&
+                                 lmax=lb_max,&
+                                 lmin=lb_min,&
+                                 npgf=npgfb,&
+                                 nset=nsetb,&
+                                 nsgf_set=nsgfb,&
+                                 pgf_radius=rpgfb,&
+                                 set_radius=set_radius_b,&
+                                 sphi=sphi_b,&
+                                 zet=zetb)
+
+          iab = ikind + nkind*(jkind - 1)
+
+          IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+
+          neighbor_list_set => sab_orb(iab)%neighbor_list_set
+
+          CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,nlist=nlist)
+
+          neighbor_list => first_list(neighbor_list_set)
+
+          DO ilist=1,nlist
+
+             CALL get_neighbor_list(neighbor_list=neighbor_list,atom=iatom,nnode=nnode)
+
+             ra = pbc(particle_set(iatom)%r,cell)
+
+             last_jatom = 0
+
+             neighbor_node => first_node(neighbor_list)
+
+             DO inode=1,nnode
+
+                CALL get_neighbor_node(neighbor_node=neighbor_node,neighbor=jatom,r=rab)
+
+                IF (jatom /= last_jatom) THEN
+                   new_atom_b = .TRUE.
+                   last_jatom = jatom
+                ELSE
+                   new_atom_b = .FALSE.
+                END IF
+
+                IF (new_atom_b) THEN
+                   !IF (iatom <= jatom) THEN
+                      irow = iatom
+                      icol = jatom
+                   !ELSE
+                   !   irow = jatom
+                   !   icol = iatom
+                   !END IF
+
+                   DO i=1,3
+                      NULLIFY(INTEGRAL(i)%block)
+                      CALL get_block_node(matrix=matrix(i)%matrix,&
+                                          block_row=irow,&
+                                          block_col=icol,&
+                                          BLOCK=INTEGRAL(i)%block)
+                   ENDDO
+                END IF
+
+                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                dab = SQRT(rab2)
+
+                DO iset=1,nseta
+
+                   ncoa = npgfa(iset)*ncoset(la_max(iset))
+                   sgfa = first_sgfa(1,iset)
+
+                   DO jset=1,nsetb
+
+                      IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+
+                      !IF(PRESENT(wancen)) THEN
+                      !   rc = wancen
+                      rac = pbc(rc,ra,cell)
+                      rbc = rac + rab
+                      !ELSE
+                      !   rc(1:3) = rb(1:3)
+                      !   rac(1:3) = -rab(1:3)
+                      !   rbc(1:3) = 0.0_dp
+                      !ENDIF
+
+                      ncob = npgfb(jset)*ncoset(lb_max(jset))
+                      sgfb = first_sgfb(1,jset)
+
+                      ! *** Calculate the primitive angular momentum integrals ***
+
+                      CALL ang_mom(la_max(iset),la_min(iset),npgfa(iset),&
+                                   rpgfa(:,iset),zeta(:,iset),&
+                                   lb_max(jset),lb_min(jset),npgfb(jset),&
+                                   rpgfb(:,jset),zetb(:,jset),&
+                                   rab,rac,intab,SIZE(rr_work,1),rr_work,error)
+
+                      ! *** Contraction step ***
+
+                      DO i=1,3
+
+                         CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                                    1.0_dp,intab(1,1,i),SIZE(intab,1),&
+                                    sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                    0.0_dp,work(1,1),SIZE(work,1))
+
+                         !IF (iatom <= jatom) THEN
+
+                            CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                       work(1,1),SIZE(work,1),&
+                                       1.0_dp,integral(i)%block(sgfa,sgfb),&
+                                       SIZE(integral(i)%block,1))
+
+
+                         !ELSE
+                         !
+                         !   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                         !              -1.0_dp,work(1,1),SIZE(work,1),&
+                         !              sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                         !              1.0_dp,integral(i)%block(sgfb,sgfa),&
+                         !              SIZE(integral(i)%block,1))
+                         !
+                         !ENDIF
+
+                      ENDDO
+
+                   ENDDO
+
+                ENDDO
+
+                neighbor_node => next(neighbor_node)
+
+             ENDDO
+
+             neighbor_list => next(neighbor_list)
+
+          ENDDO
+
+       ENDDO
+
+    ENDDO
+
+    ! *** Release work storage ***
+
+    DEALLOCATE(intab,work,integral,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+!   *** Print the spin orbit matrix, if requested ***
+
+    !IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+    !     qs_env%input,"DFT%PRINT%AO_MATRICES/ANGULAR_MOMENTUM",error=error),cp_p_file)) THEN
+    !   iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ANGULAR_MOMENTUM",&
+    !        extension=".Log",error=error)
+    !   CALL write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+    !        "DFT%PRINT%AO_MATRICES/ANGULAR_MOMENTUM", error=error)
+    !END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE build_ang_mom_matrix
+
+! *****************************************************************************
+!> \brief   Calculation of the primitive paramagnetic spin orbit integrals over
+!>          Cartesian Gaussian-type functions.
+!> \author  VW
+!> \date    02.03.2009
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE ang_mom(la_max,la_min,npgfa,rpgfa,zeta,lb_max,lb_min,npgfb,rpgfb,zetb,&
+                     rab,rac,intab,ldrr,rr,error)
+    INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
+    INTEGER, INTENT(IN)                      :: lb_max, lb_min, npgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab, rac
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: intab
+    INTEGER, INTENT(IN)                      :: ldrr
+    REAL(dp), &
+      DIMENSION(0:ldrr-1, 0:ldrr-1, 3), &
+      INTENT(INOUT)                          :: rr
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ang_mom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
+                                                cob, i, ipgf, j, jpgf, la, &
+                                                lb, ma, mb, na, nb
+    REAL(dp)                                 :: dab, dumx, dumy, dumz, f0, &
+                                                rab2, xhi, zet
+    REAL(dp), DIMENSION(3)                   :: rap, rbp
+
+! *** Calculate the distance of the centers a and c ***
+
+    rab2 = rab(1)**2+rab(2)**2+rab(3)**2
+    dab = SQRT(rab2)
+
+    ! *** Loop over all pairs of primitive Gaussian-type functions ***
+
+    na = 0
+
+    DO ipgf=1,npgfa
+
+       nb = 0
+
+       DO jpgf=1,npgfb
+
+          ! *** Screening ***
+
+          IF(rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
+             DO j=nb+1,nb+ncoset(lb_max)
+                DO i=na+1,na+ncoset(la_max)
+                   intab(i,j,1) = 0.0_dp
+                   intab(i,j,2) = 0.0_dp
+                   intab(i,j,3) = 0.0_dp
+                ENDDO
+             ENDDO
+             nb = nb + ncoset(lb_max)
+             CYCLE
+          ENDIF
+
+          ! *** Calculate some prefactors ***
+          zet =  zeta(ipgf)+zetb(jpgf)
+          xhi =  zeta(ipgf)*zetb(jpgf)/zet
+          rap =  zetb(jpgf)*rab/zet
+          rbp = -zeta(ipgf)*rab/zet
+
+          f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
+          
+          ! *** Calculate the reccurence relation ***
+
+          CALL os_rr_ovlp(rap,la_max+1,rbp,lb_max,zet,ldrr,rr)
+
+          ! *** Calculate the primitive Fermi contact integrals ***
+
+          DO lb = lb_min,lb_max
+          DO bx = 0,lb
+          DO by = 0,lb-bx
+             bz = lb - bx - by
+             cob = coset(bx,by,bz)
+             mb = nb + cob
+             DO la = la_min,la_max
+             DO ax = 0,la
+             DO ay = 0,la-ax
+                az = la - ax - ay
+                coa = coset(ax,ay,az)
+                ma = na + coa
+                !
+                dumx = -2.0_dp * zeta(ipgf) * rr(ax+1,bx,1)
+                dumy = -2.0_dp * zeta(ipgf) * rr(ay+1,by,2)
+                dumz = -2.0_dp * zeta(ipgf) * rr(az+1,bz,3)
+                IF(ax.GT.0) dumx = dumx + REAL(ax,dp) * rr(ax-1,bx,1)
+                IF(ay.GT.0) dumy = dumy + REAL(ay,dp) * rr(ay-1,by,2)
+                IF(az.GT.0) dumz = dumz + REAL(az,dp) * rr(az-1,bz,3)
+                !
+                ! (a|l_z|b)
+                intab(ma,mb,1) = - f0 * rr(ax,bx,1) * ( &
+                     &  ( rr(ay+1,by,2) + rac(2) * rr(ay,by,2) ) * dumz &
+                     & -( rr(az+1,bz,3) + rac(3) * rr(az,bz,3) ) * dumy )
+                !
+                ! (a|l_y|b)
+                intab(ma,mb,2) = - f0 * rr(ay,by,2) * ( &
+                     &  ( rr(az+1,bz,3) + rac(3) * rr(az,bz,3) ) * dumx &
+                     & -( rr(ax+1,bx,1) + rac(1) * rr(ax,bx,1) ) * dumz )
+                !
+                ! (a|l_z|b)
+                intab(ma,mb,3) = - f0 * rr(az,bz,3) * ( &
+                     &  ( rr(ax+1,bx,1) + rac(1) * rr(ax,bx,1) ) * dumy &
+                     & -( rr(ay+1,by,2) + rac(2) * rr(ay,by,2) ) * dumx )
+                !
+             ENDDO
+             ENDDO
+             ENDDO !la
+
+          ENDDO
+          ENDDO
+          ENDDO !lb
+
+          nb = nb + ncoset(lb_max)
+
+       ENDDO
+
+       na = na + ncoset(la_max)
+
+    ENDDO
+
+  END SUBROUTINE ang_mom
+
 
 ! *****************************************************************************
 !> \brief Calculation of the components of the dipole operator in the velocity form
@@ -332,12 +1133,14 @@ CONTAINS
                           work(1,1),ldwork,&
                           1.0_dp,op_dip(1)%block(sgfa,sgfb),&
                           SIZE(op_dip(1)%block,1))
+
                    ELSE
                      CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
                           1.0_dp,work(1,1),ldwork,&
                           sphi_a(1,sgfa),ldsa,&
                           1.0_dp,op_dip(1)%block(sgfb,sgfa),&
                           SIZE(op_dip(1)%block,1))
+
                    END IF
 
 !            *** Contraction ***
@@ -647,7 +1450,6 @@ CONTAINS
 !   write(*,*) 'atoms ', iatom, jatom, rab(1:3)
 !dbg
             IF (new_atom_b) THEN
-            ! iatom , jatom
               DO i = 1,3
                  NULLIFY(op_angij(i)%block)
                  irow = iatom
@@ -1689,3 +2491,4 @@ CONTAINS
   END SUBROUTINE set_up_op_sm
 
 END MODULE qs_operators_ao
+

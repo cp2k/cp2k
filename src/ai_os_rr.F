@@ -16,9 +16,84 @@ MODULE ai_os_rr
 
  ! *** Public subroutines ***
 
-  PUBLIC :: os_rr_coul
+  PUBLIC :: os_rr_ovlp, os_rr_coul
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief   Calculation of the basic Obara-Saika reccurence relation
+!> \author  VW
+!> \date    02.03.2009
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE os_rr_ovlp(rap,la_max,rbp,lb_max,zet,ldrr,rr)
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rap
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rbp
+    INTEGER, INTENT(IN)                      :: lb_max
+    REAL(dp), INTENT(IN)                     :: zet
+    INTEGER, INTENT(IN)                      :: ldrr
+    REAL(dp), &
+      DIMENSION(0:ldrr-1, 0:ldrr-1, 3)       :: rr
+
+    INTEGER                                  :: la, lam1, lap1, lb, lbm1, lbp1
+    REAL(dp)                                 :: g
+
+!
+! initialize
+!     
+
+    g = 0.5_dp/zet
+    rr(0,0,1)=1.0D0
+    rr(0,0,2)=1.0D0
+    rr(0,0,3)=1.0D0
+    !
+    ! recursion along la for lb=0
+    !
+    IF(la_max.GT.0) THEN
+       rr(1,0,1)=rap(1)
+       rr(1,0,2)=rap(2)
+       rr(1,0,3)=rap(3)
+       !
+       DO la=1,la_max-1
+          lap1=la+1
+          lam1=la-1
+          rr(lap1,0,1)=REAL(la,dp)*g*rr(lam1,0,1)+rap(1)*rr(la,0,1)
+          rr(lap1,0,2)=REAL(la,dp)*g*rr(lam1,0,2)+rap(2)*rr(la,0,2)
+          rr(lap1,0,3)=REAL(la,dp)*g*rr(lam1,0,3)+rap(3)*rr(la,0,3)
+       ENDDO
+    ENDIF
+    !
+    ! recursion along lb for all la
+    !
+    IF(lb_max.GT.0) THEN
+       rr(0,1,1)=rbp(1)
+       rr(0,1,2)=rbp(2)
+       rr(0,1,3)=rbp(3)
+       !
+       DO la=1,la_max
+          lam1=la-1
+          rr(la,1,1)=REAL(la,dp)*g*rr(lam1,0,1)+rbp(1)*rr(la,0,1)
+          rr(la,1,2)=REAL(la,dp)*g*rr(lam1,0,2)+rbp(2)*rr(la,0,2)
+          rr(la,1,3)=REAL(la,dp)*g*rr(lam1,0,3)+rbp(3)*rr(la,0,3)
+       ENDDO
+       !
+       DO lb=1,lb_max-1
+          lbp1=lb+1
+          lbm1=lb-1
+          rr(0,lbp1,1)=REAL(lb,dp)*g*rr(0,lbm1,1)+rbp(1)*rr(0,lb,1)
+          rr(0,lbp1,2)=REAL(lb,dp)*g*rr(0,lbm1,2)+rbp(2)*rr(0,lb,2)
+          rr(0,lbp1,3)=REAL(lb,dp)*g*rr(0,lbm1,3)+rbp(3)*rr(0,lb,3)
+          DO la=1,la_max
+             lam1=la-1
+             rr(la,lbp1,1)=g*(REAL(la,dp)*rr(lam1,lb,1)+REAL(lb,dp)*rr(la,lbm1,1))+rbp(1)*rr(la,lb,1)
+             rr(la,lbp1,2)=g*(REAL(la,dp)*rr(lam1,lb,2)+REAL(lb,dp)*rr(la,lbm1,2))+rbp(2)*rr(la,lb,2)
+             rr(la,lbp1,3)=g*(REAL(la,dp)*rr(lam1,lb,3)+REAL(lb,dp)*rr(la,lbm1,3))+rbp(3)*rr(la,lb,3)
+          ENDDO
+       ENDDO
+    ENDIF
+    !
+  END SUBROUTINE os_rr_ovlp
 
 ! *****************************************************************************
 !> \brief   Calculation of the Obara-Saika reccurence relation for 1/r_C

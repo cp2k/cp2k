@@ -88,7 +88,7 @@ MODULE qs_linres_current_utils
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_operators_ao,                 ONLY: p_xyz_ao,&
+  USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                              set_up_op_sm
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_types,                    ONLY: qs_rho_retain
@@ -231,7 +231,8 @@ CONTAINS
           CALL set_matrix(op_p_ao(idir)%matrix,0.0_dp)
        ENDDO
        !
-       CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+       !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+       CALL build_lin_mom_matrix(qs_env,op_p_ao,error)
        !
     ENDIF
     !
