@@ -34,6 +34,8 @@ MODULE  rt_propagation_utils
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE input_constants,                 ONLY: use_restart_wfn,&
+                                             use_rt_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -51,7 +53,8 @@ MODULE  rt_propagation_utils
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type,&
-                                             read_mo_set
+                                             read_mo_set,&
+                                             read_rt_mos_from_restart
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
@@ -583,7 +586,8 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_restart_wfn', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: id_nr, ispin, nspin, qs_env_id
+    INTEGER                                  :: i, id_nr, ispin, nspin, &
+                                                qs_env_id
     LOGICAL                                  :: scp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -613,12 +617,21 @@ MODULE  rt_propagation_utils
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
 
-
-    CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
-         id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-         scp=scp, scp_env=scp_env, error=error)
+    SELECT CASE(dft_control%rtp_control%initial_wfn)
+    CASE(use_restart_wfn)
+       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
+            id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
+            scp=scp, scp_env=scp_env, error=error)
+       DO i=1,SIZE(qs_env%mos)
+          CALL cp_fm_to_fm(qs_env%mos(i)%mo_set%mo_coeff,qs_env%rtp%mos_new(2*i-1)%matrix,error)
+          CALL cp_fm_set_all(qs_env%rtp%mos_new(2*i)%matrix,zero,zero,error)
+       END DO
+    CASE(use_rt_restart)
+       CALL read_rt_mos_from_restart(mo_array,qs_env%rtp%mos_new,atomic_kind_set,particle_set,qs_env%para_env,&
+            id_nr,dft_control%multiplicity,dft_section,&
+            scp, scp_env, error)
+    END SELECT
     
-
 
     DO ispin=1,nspin
        CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
@@ -888,7 +901,7 @@ MODULE  rt_propagation_utils
     END DO
     ! recall QS forces, at this point have the other sign.
     DO i=1,SIZE(force)
-       force(i)%ehrenfest(:,:)=-    force(i)%ehrenfest(:,:)    
+       force(i)%ehrenfest(:,:)=- force(i)%ehrenfest(:,:)    
     END DO
 
     CALL cp_fm_release(tmp_mat,error)

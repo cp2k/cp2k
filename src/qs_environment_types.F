@@ -302,6 +302,8 @@ MODULE qs_environment_types
     LOGICAL :: requires_mo_derivs
     LOGICAL :: use_harris
     LOGICAL :: run_rtp
+    REAL(KIND=dp)                                         :: sim_time
+    INTEGER                                               :: sim_step
     TYPE(cell_type), POINTER                              :: cell, super_cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -804,6 +806,9 @@ CONTAINS
     qs_env%qmmm_periodic=.FALSE.
     qs_env%requires_mo_derivs=.FALSE.
     qs_env%use_harris=.FALSE.
+
+    qs_env%sim_time=0._dp
+    qs_env%sim_step=0
     ! Zero all variables containing results
     CALL cp_result_create(qs_env%results, error)
     NULLIFY(qs_env%mo_derivs)

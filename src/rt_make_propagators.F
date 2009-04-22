@@ -75,7 +75,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, lb, ndim, ub
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: eps_exp, t
+    REAL(dp)                                 :: t
     TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, &
                                                 tmp_mat_B, tmp_mat_H
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -114,14 +114,13 @@ CONTAINS
        SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
 
        CASE(do_taylor,do_pade)
-          eps_exp=qs_env%dft_control%rtp_control%eps_exp
           CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,tmp_mat_H,error) 
           IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
              IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
-                  CALL taylor_only_imaginary(exp_H(lb:ub),tmp_mat_H,eps_exp,error)
+                  CALL taylor_only_imaginary(exp_H(lb:ub),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
 
              IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
-                  CALL exp_pade_only_imaginary(exp_H(lb:ub),tmp_mat_H,eps_exp,error)
+                  CALL exp_pade_only_imaginary(exp_H(lb:ub),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           ELSE
              CALL get_rtp(rtp=rtp,B_mat=B_mat,error=error)
 
@@ -132,9 +131,10 @@ CONTAINS
              CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,tmp_mat_B,error) 
              CALL cp_fm_scale(t,tmp_mat_B,error)
              IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
-                  CALL taylor_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,eps_exp,error)
+                  CALL taylor_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
              IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
-                  CALL exp_pade_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,eps_exp,error)
+                  CALL exp_pade_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),&
+                  qs_env%sim_step,error)
              CALL cp_fm_release(tmp_mat_B,error)
           END IF
 
@@ -296,24 +296,23 @@ CONTAINS
        CASE(do_taylor)
           eps_exp=qs_env%dft_control%rtp_control%eps_exp
           IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-             CALL taylor_only_imaginary(propagator(re:im),M2,eps_exp,error)
+             CALL taylor_only_imaginary(propagator(re:im),M2,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           ELSE
-             CALL taylor_full_complex(propagator(re:im),M1,M2,eps_exp,error)
+             CALL taylor_full_complex(propagator(re:im),M1,M2,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           END IF
        CASE(do_pade)
           eps_exp=qs_env%dft_control%rtp_control%eps_exp
           IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-             CALL exp_pade_only_imaginary(propagator(re:im),M2,eps_exp,error)
+             CALL exp_pade_only_imaginary(propagator(re:im),M2,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           ELSE
-             CALL exp_pade_full_complex(propagator(re:im),M1,M2,eps_exp,error)
+             CALL exp_pade_full_complex(propagator(re:im),M1,M2,rtp%orders(1,ispin),rtp%orders(2,ispin),qs_env%sim_step,error)
           END IF
 
        CASE(do_diag)
-          CALL cp_assert(qs_env%dft_control%rtp_control%fixed_ions,&
+          CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,&
-               routineP,"diagonalization does not yet work for the Ehrenfest scheme",&
+               routineP,"diagonalization does not work for EM propagator scheme",&
                error,failure)
-          CALL exp_diag(rtp,propagator(re:im),M2,error)
        END SELECT
 
     END DO

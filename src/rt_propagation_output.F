@@ -31,8 +31,10 @@ MODULE rt_propagation_output
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
+  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_mo_types,                     ONLY: write_rt_mos_to_restart
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                              write_available_results
@@ -68,23 +70,24 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(section_vals_type), POINTER         :: input, rtp_section
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                rtp_section
 
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s,input=input,rho=rho,error=error)
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s,input=input,rho=rho,particle_set=particle_set,&
+         atomic_kind_set=atomic_kind_set,error=error)
     CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
     rtp_section => section_vals_get_subs_vals(input,"DFT%REAL_TIME_PROPAGATION",error=error)
 
 
-    CALL get_qs_env(qs_env=qs_env, &
-         atomic_kind_set=atomic_kind_set, &
-         error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
          nelectron=n_electrons)
     n_electrons = n_electrons - qs_env%dft_control%charge
@@ -120,8 +123,8 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="((T3,A,T60,E20.10))")&
             "Convergence:",delta_iter
        IF(rtp%converged)&
-            WRITE (UNIT=output_unit,FMT="(/,(T3,A))")&
-            "CONVERGENCE REACHED"
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,3X,F16.10))")&
+            "CONVERGENCE REACHED",rtp%energy_new-rtp%energy_old
     END IF
     
     CALL cp_print_key_finished_output(output_unit,logger,rtp_section,&
@@ -133,6 +136,9 @@ CONTAINS
     ELSE
        CALL make_moment(qs_env,error)
        CALL write_available_results(qs_env=qs_env,error=error)
+       dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
+       CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,&
+                                     qs_env%dft_control%scp,qs_env%scp_env,atomic_kind_set,error)
        
     END IF
 
@@ -355,5 +361,10 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE make_moment
+
+
+
+
+
 
 END MODULE rt_propagation_output

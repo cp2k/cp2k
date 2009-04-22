@@ -401,7 +401,7 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_field_section(subsection,error)
+    CALL create_efield_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -1028,6 +1028,7 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ortho",&
             description="If the printkey is activated controls the printing of the orthogonalization matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
@@ -1038,6 +1039,7 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="fermi_contact",&
             description="If the printkey is activated controls the printing of the Fermi contact matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
@@ -5291,7 +5293,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE create_field_section(section,error)
+  SUBROUTINE create_efield_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -5300,44 +5302,83 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,"field",&
-            description="parameters for finite fields",&
-            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+       CALL section_create(section,"EFIELD",&
+            description="parameters for finite electric fields",&
+            n_keywords=6, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword,subsection)
 
-       CALL keyword_create(keyword, name="ELECTRICAL_FIELD_STRENGTH",&
-            variants=(/"EFIELD_STRENGTH"/),&
-            description="Strength of electrical field",&
-            usage="ELECTRICAL_FIELD_STRENGTH  1.0",&
+       CALL keyword_create(keyword, name="INTENSITY",&
+            description="Intensity of the electric field in W*cm-2 "//&
+            "which corresponds to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16))",&
+            usage="EFIELD_STRENGTH  1.0E15",&
             default_r_val=0._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="ELECTRICAL_FIELD_POLARISATION",&
-            variants=(/"EFIELD_POLARISATION"/),&
-            description="Polarisation vector of electrical field",&
-            usage="ELECTRICAL_FIELD_POLARISIATION  0.0 0.0 1.0",&
+       CALL keyword_create(keyword, name="POLARISATION",&
+            description="Polarisation vector of efield field",&
+            usage="EFIELD_POLARISIATION  0.0 0.0 1.0",&
             repeats=.FALSE.,required=.FALSE.,n_var=3,&
             type_of_var=real_t,default_r_vals=(/0.0_dp,0.0_dp,1.0_dp/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="wavelength",&
+            description="Wavelength of efield field",&
+            usage="Wavelength  1.E0",&
+            default_r_val=0._dp,unit_str="nm",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PHASE",&
+            description="phase offset of the cosine given in multiples of pi",&
+            usage="Phase  1.E0",&
+            default_r_val=0._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ENVELOP",&
+            description="Shape of the efield pulse",&
+            usage="ENVELOP CONSTANT",&
+            default_i_val=constant_env,&
+            enum_c_vals=s2a( "CONSTANT", "GAUSSIAN","RAMP" ),&
+            enum_desc=s2a("No envelop function is applied to the strength",&
+                          "A Gaussian function is used as envelop ",&
+                          "Linear tune in/out of the field"),&
+            enum_i_vals=(/constant_env,gaussian_env,ramp_env/),& 
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_constant_env_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_ramp_env_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_gaussian_env_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL keyword_create(keyword, name="BERRY_PHASE",&
-            description="Use the Berry phase definition for the polarisation",&
-            usage="BERRY_PHASE ON/OFF", default_l_val=.TRUE.,error=error)
+            description="Berry phase not yet implemented",&
+            usage="BERRY_PHASE ON/OFF", default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
-  END SUBROUTINE create_field_section
+  END SUBROUTINE create_efield_section
 
 ! *****************************************************************************
 !> \brief makes the orbital transformation section
@@ -7384,12 +7425,13 @@ CONTAINS
        CALL keyword_create(keyword, name="INITIAL_WFN",&
             description="Controls the initial WFN used for propagation.",&
             usage="INITIAL_WFN SCF_WFN",default_i_val=use_scf_wfn, &
-            enum_c_vals=s2a("SCF_WFN","RESTART_WFN"),&
-            enum_i_vals=(/use_scf_wfn,use_restart_wfn/),&
+            enum_c_vals=s2a("SCF_WFN","RESTART_WFN","RT_RESTART"),&
+            enum_i_vals=(/use_scf_wfn,use_restart_wfn,use_rt_restart/),&
             enum_desc=s2a("An SCF run is performed to get the initial state.",&
             "A wavefunction from a previous scf is propageted. Especially useful,"//&
             " if electronic constraints or restraints are used in the previous calculation, "//&
-            "since these do not work in the rtp scheme."),&
+            "since these do not work in the rtp scheme.",&
+            "use the wavefunction of a real time propagation/ehrenfest run"),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -7407,6 +7449,38 @@ CONTAINS
        CALL section_add_subsection(print_section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+
+        CALL cp_print_key_section_create(print_key,"RESTART",&
+            description="Controls the dumping of the MO restart file during rtp."//&
+                        "By default keeps a short history of three restarts."//&
+                        "See also RESTART_HISTORY", &
+            print_level=low_print_level, common_iter_levels=3,&
+            each_iter_names=s2a("MD"),each_iter_values=(/20/), &
+            add_last=add_last_numeric,filename="RESTART",error=error)
+       CALL keyword_create(keyword, name="BACKUP_COPIES",&
+             description="Specifies the maximum index of backup copies.",&
+             usage="BACKUP_COPIES {int}",&
+             default_i_val=3, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(print_section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RESTART_HISTORY",&
+            description="Dumps unique MO restart files during the run keeping all of them.",&
+            print_level=low_print_level, common_iter_levels=0,&
+            each_iter_names=s2a("__ROOT__","MD","GEO_OPT","ROT_OPT","NEB","METADYNAMICS","QS_SCF"),&
+            each_iter_values=(/500,500,500,500,500,500,500/), &
+            filename="RESTART",error=error)
+       CALL keyword_create(keyword, name="BACKUP_COPIES",&
+             description="Specifies the maximum index of backup copies.",&
+             usage="BACKUP_COPIES {int}",&
+             default_i_val=3, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(print_section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(section,print_section,error=error)
        CALL section_release(print_section,error=error)
 
@@ -7414,5 +7488,140 @@ CONTAINS
     END IF
   END SUBROUTINE create_rtp_section
 
+! *****************************************************************************
+  SUBROUTINE create_constant_env_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"CONSTANT_ENV",&
+            description="parameters for a constant envelop",&
+            n_keywords=6, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="START_STEP",&
+            description="First step the field is applied ",&
+            usage="START_STEP 0",&
+            default_i_val=0,&
+            error=error)    
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="END_STEP",&
+            description="Last step the field is applied",&
+            usage="END_STEP 2",&
+            default_i_val=-1,&
+            error=error)    
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_constant_env_section
+
+  SUBROUTINE create_gaussian_env_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"GAUSSIAN_ENV",&
+            description="parameters for a gaussian envelop",&
+            n_keywords=6, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="T0",&
+            description="Center of the gaussian envelop (maximum of the gaussian)",&
+            usage="T0 2.0E0",&
+            default_r_val=0.0E0_dp,&
+            unit_str="fs",error=error)    
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SIGMA",&
+            description="Width of the gaussian ",&
+            usage="SIGMA 2.0E0",&
+            default_r_val=-1.0E0_dp,&
+            unit_str="fs",error=error)    
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_gaussian_env_section
+! *****************************************************************************
+  SUBROUTINE create_ramp_env_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"RAMP_ENV",&
+            description="Parameters for an trapeziodal envelop ",&
+            n_keywords=6, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="START_STEP_IN",&
+            description="Step when the electric field starts to be applied ",&
+            usage="START_STEP_IN 0",&
+            default_i_val=0,&
+            error=error)    
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="END_STEP_IN",&
+            description="Step when the field reaches the full strength",&
+            usage="END_STEP_IN 2",&
+            default_i_val=-1,&
+            error=error)    
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="START_STEP_OUT",&
+            description="Step when the field starts to vanish ",&
+            usage="START_STEP 0",&
+            default_i_val=0,&
+            error=error)    
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="END_STEP_OUT",&
+            description="Step when the field disappears",&
+            usage="END_TIME 2",&
+            default_i_val=-1,&
+            error=error)    
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_ramp_env_section
 END MODULE input_cp2k_dft

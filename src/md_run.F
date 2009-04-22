@@ -354,7 +354,10 @@ CONTAINS
           force_env%qs_env%rtp%dt=simpar%dt
           CALL init_ehrenfest_md(force_env%qs_env,error)
        END IF
-
+       IF(ASSOCIATED(force_env%qs_env))THEN
+          force_env%qs_env%sim_time=time
+          force_env%qs_env%sim_step=itimes
+       END IF
        ! Warm-up engines for metadynamics
        IF (ASSOCIATED(force_env%meta_env)) THEN
           IF(force_env%meta_env%langevin) THEN
@@ -398,6 +401,11 @@ CONTAINS
        ! Increase counters
        itimes = itimes + 1
        time   = time + simpar%dt
+       !needed when electric field fields are applied
+       IF(ASSOCIATED(force_env%qs_env))THEN
+          force_env%qs_env%sim_time=time
+          force_env%qs_env%sim_step=itimes
+       END IF
        IF(ehrenfest_md)force_env%qs_env%rtp%istep=istep
 
        CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),iter_nr=itimes,error=error)
@@ -418,8 +426,8 @@ CONTAINS
        CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
             constraint_section,"LAGRANGE_MULTIPLIERS",error=error)
        
-       ! Free Energy calculation
-       CALL free_energy_evaluate(md_env,should_stop,free_energy_section,error)       
+       ! Free Energy calculation 
+      CALL free_energy_evaluate(md_env,should_stop,free_energy_section,error)       
        IF (should_stop) EXIT
 
        ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit 

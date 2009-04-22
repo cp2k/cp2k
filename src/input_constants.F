@@ -766,10 +766,12 @@ MODULE input_constants
                                               do_em=3
 
   INTEGER, PARAMETER, PUBLIC               :: use_scf_wfn=1,  &
-                                              use_restart_wfn=2
+                                              use_restart_wfn=2,&
+                                              use_rt_restart=3
 
-  INTEGER, PARAMETER, PUBLIC               :: eps_loose=1,  &
-                                              eps_medium=2,&
-                                              eps_tight=3
+  INTEGER, PARAMETER, PUBLIC               :: constant_env=1,  &
+                                              gaussian_env=2, &
+                                              ramp_env=3
+
   
 END MODULE input_constants

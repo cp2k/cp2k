@@ -25,7 +25,6 @@ MODULE rt_matrix_exp
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_maxabsrownorm,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
@@ -47,7 +46,8 @@ MODULE rt_matrix_exp
             taylor_full_complex,&
             exp_pade_full_complex,&
             backtransform_matrix,&
-            exp_pade_only_imaginary
+            exp_pade_only_imaginary,&
+            get_nsquare_norder
 
 CONTAINS
 
@@ -56,22 +56,18 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE taylor_only_imaginary(exp_H,im_matrix,eps_exp,error)
+  SUBROUTINE taylor_only_imaginary(exp_H,im_matrix,nsquare,ntaylor,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: im_matrix
-    REAL(dp)                                 :: eps_exp
+    INTEGER                                  :: nsquare, ntaylor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: i, ndim, nloop, nsquare, &
-                                                ntaylor
+    INTEGER                                  :: i, ndim, nloop
     REAL(KIND=dp)                            :: square_fac, Tfac, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im
     TYPE(cp_fm_type), POINTER                :: T1, T2, T3, Tres_im, Tres_re
-
-    CALL get_nsquare_norder(im_part=im_matrix,nsquare=nsquare,norder=ntaylor,&
-                             eps_exp=eps_exp,method=1,error=error)
 
     CALL cp_fm_get_info(im_matrix,local_data=local_data_im,error=error)
     ndim=im_matrix%matrix_struct%nrow_global   
@@ -158,22 +154,20 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE taylor_full_complex(exp_H,re_part,im_part,eps_exp,error)
+  SUBROUTINE taylor_full_complex(exp_H,re_part,im_part,nsquare,ntaylor,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: re_part, im_part
-    REAL(dp)                                 :: eps_exp
+    INTEGER                                  :: nsquare, ntaylor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: Tfac
-    INTEGER                                  :: i, ndim, nsquare, ntaylor
+    INTEGER                                  :: i, ndim
     REAL(KIND=dp)                            :: square_fac, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im, local_data_re
     TYPE(cp_cfm_type), POINTER               :: T1, T2, T3, Tres
-
-    CALL get_nsquare_norder(re_part,im_part,nsquare,ntaylor,eps_exp,1,error)
 
     CALL cp_fm_get_info(re_part,local_data=local_data_re,error=error)
     CALL cp_fm_get_info(im_part,local_data=local_data_im,error=error)
@@ -238,64 +232,32 @@ CONTAINS
 !>        calculated using diagonalization
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
-  SUBROUTINE get_nsquare_norder(re_part,im_part,nsquare,norder,eps_exp,method,error)
-    
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: re_part
-    TYPE(cp_fm_type), POINTER                :: im_part
+  SUBROUTINE get_nsquare_norder(norm,nsquare,norder,eps_exp,method,do_emd,error)
+
+    REAL(dp)                                 :: norm
     INTEGER                                  :: nsquare, norder
     REAL(dp)                                 :: eps_exp
     INTEGER                                  :: method
+    LOGICAL                                  :: do_emd
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nsquare_norder', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cost, i, icol_local, &
-                                                irow_local, iscale, &
-                                                ncol_local, nrow_local, &
-                                                orders(3), p, prev_cost, q
+    INTEGER                                  :: cost, i, iscale, orders(3), &
+                                                p, prev_cost, q
     LOGICAL                                  :: new_scale
-    REAL(dp)                                 :: D, eval, myval, N, norm, &
-                                                scaleD, scaleN
-    TYPE(cp_fm_type), POINTER                :: tmp_fm
+    REAL(dp)                                 :: D, eval, myval, N, scaleD, &
+                                                scaleN
 
-    IF(PRESENT(re_part))THEN
-       CALL cp_fm_create(tmp_fm,&
-            matrix_struct=im_part%matrix_struct,&
-            name="tmp_fm",&
-            error=error)
-       CALL cp_fm_get_info(tmp_fm, nrow_local=nrow_local, ncol_local=ncol_local,error=error)
-       
-       tmp_fm%local_data=0.0_dp
-       
-       DO icol_local=1,ncol_local
-          DO irow_local=1,nrow_local
-             tmp_fm%local_data(irow_local,icol_local) = &
-                  im_part%local_data(irow_local,icol_local)*im_part%local_data(irow_local,icol_local)
-          END DO
-       END DO
+!    optimization function for pade/taylor order and number of squaring steps
 
-       DO icol_local=1,ncol_local
-          DO irow_local=1,nrow_local
-             tmp_fm%local_data(irow_local,icol_local) = tmp_fm%local_data(irow_local,icol_local)+ &
-                  re_part%local_data(irow_local,icol_local)*re_part%local_data(irow_local,icol_local)
-          END DO
-       END DO
-       tmp_fm%local_data=SQRT(tmp_fm%local_data)
-       CALL  cp_fm_maxabsrownorm(tmp_fm, norm,error)
-       CALL cp_fm_release(tmp_fm,error)
-    ELSE
-       CALL  cp_fm_maxabsrownorm(im_part, norm,error)    
-    END IF
-    
-
-    !    optimization function for pade/taylor order and number of squaring steps
-    orders(:)=(/20,20,20/)
+    orders(:)=(/12,12,12/)
     IF(method==2)THEN
-       DO  iscale=0,20
+       DO  iscale=0,12
           new_scale=.FALSE.
           eval=norm/(2.0_dp**REAL(iscale,dp))
-          DO q=1,20
+          DO q=1,12
              DO p=MAX(1,q-1),q
                 IF(p>q)EXIT
                 D=1.0_dp
@@ -306,8 +268,8 @@ CONTAINS
                    IF(i.LE.p)N=N+scaleN*eval**i
                    D=D+scaleD*eval**i
                 END DO
-                IF(ABS(EXP(norm)-(N/D)**(2.0_dp**iscale)).LE.eps_exp)THEN
-                   IF(PRESENT(re_part))THEN
+                IF(ABS((EXP(norm)-(N/D)**(2.0_dp**iscale))/MAX(1.d0,EXP(norm))).LE.eps_exp)THEN
+                   IF(do_emd)THEN
                       cost=iscale+q
                       prev_cost=orders(1)+orders(2)
                    ELSE
@@ -339,8 +301,8 @@ CONTAINS
                 scaleN=1.0_dp/fac(i)
                 N=N+scaleN*(eval**i)
              END DO
-             IF(ABS(EXP(norm)-N**(2.0_dp**iscale)).LE.eps_exp)THEN
-                IF(PRESENT(re_part))THEN
+             IF(ABS((EXP(norm)-N**(2.0_dp**iscale))/MAX(1.d0,EXP(norm))).LE.eps_exp)THEN
+                IF(do_emd)THEN
                    cost=iscale+q
                    prev_cost=orders(1)+orders(2)
                 ELSE
@@ -445,7 +407,6 @@ CONTAINS
 
   END SUBROUTINE exp_diag
 
-
   SUBROUTINE backtransform_matrix(Eval,eigenvec,matrix,error)
 
     REAL(dp), DIMENSION(:)                   :: Eval
@@ -488,25 +449,22 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE exp_pade_full_complex(exp_H,re_part,im_part,eps_exp,error)
+  SUBROUTINE exp_pade_full_complex(exp_H,re_part,im_part,nsquare,npade,istep,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: re_part, im_part
-    REAL(dp)                                 :: eps_exp
+    INTEGER                                  :: nsquare, npade, istep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
-    INTEGER                                  :: i, ldim, ndim, npade, &
-                                                nsquare, p, q
+    INTEGER                                  :: i, ldim, ndim, p, q
     REAL(KIND=dp)                            :: square_fac, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im, local_data_re
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: mult_p
     TYPE(cp_cfm_type), POINTER               :: Dpq, fin_p, Npq, T1, T2, Tres
-
-    CALL get_nsquare_norder(re_part,im_part,nsquare,npade,eps_exp,2,error)
 
     p=npade
     q=npade
@@ -599,10 +557,10 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE exp_pade_only_imaginary(exp_H,im_part,eps_exp,error)
+  SUBROUTINE exp_pade_only_imaginary(exp_H,im_part,nsquare,npade,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: im_part
-    REAL(dp)                                 :: eps_exp
+    INTEGER                                  :: nsquare, npade
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
@@ -611,8 +569,7 @@ CONTAINS
                                                 rzero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
-    INTEGER                                  :: i, j, k, ldim, ndim, npade, &
-                                                nsquare, p, q
+    INTEGER                                  :: i, j, k, ldim, ndim, p, q
     REAL(KIND=dp)                            :: my_fac, square_fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im
     TYPE(cp_cfm_p_type), DIMENSION(:), &
@@ -621,9 +578,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mult_p
     TYPE(cp_fm_type), POINTER                :: T2, Tres
-
-    CALL get_nsquare_norder(im_part=im_part,nsquare=nsquare,norder=q,&
-                             eps_exp=eps_exp,method=2,error=error)
 
     npade=CEILING(REAL(q,dp)/2.0_dp)
     p=2*npade

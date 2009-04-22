@@ -27,6 +27,7 @@ MODULE qs_energy
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE efield_utils,                     ONLY: calculate_ecore_efield
   USE nddo_methods,                    ONLY: se_core_core_interaction
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
@@ -200,6 +201,7 @@ CONTAINS
 
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL calculate_ecore_self(qs_env,error=error)
+       CALL calculate_ecore_efield(qs_env,calculate_forces=.FALSE.,error=error)
        CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.FALSE.,error=error)
 
        IF ( dft_control%scp ) THEN
@@ -323,6 +325,7 @@ CONTAINS
     ELSE
        IF(qs_env%rtp%iter==1)THEN
           CALL update_core_and_matrices(qs_env,globenv,error)
+          CALL calculate_ecore_efield(qs_env,calculate_forces=.FALSE.,error=error)
        END IF
        CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
 

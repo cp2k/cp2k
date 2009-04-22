@@ -58,6 +58,7 @@ MODULE rt_propagation_types
     REAL(KIND=dp)                               :: energy_old
     REAL(KIND=dp)                               :: energy_new
     REAL(KIND=dp)                               :: dt
+    INTEGER,DIMENSION(:,:),ALLOCATABLE          :: orders
     INTEGER                                     :: nsteps,istep
     INTEGER                                     :: iter
     LOGICAL                                     :: converged
@@ -204,6 +205,8 @@ CONTAINS
                error=error)   
        END DO
     END IF
+    ALLOCATE(rtp%orders(2,SIZE(mos)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rtp_control%converged=.FALSE.
     rtp%istep=0
     rtp%iter=0
@@ -279,7 +282,7 @@ CONTAINS
          CALL cp_fm_vect_dealloc(rtp%S_der,error)
     IF(ASSOCIATED(rtp%history))&
          CALL rtp_history_release(rtp,error)
- 
+    DEALLOCATE(rtp%orders)
   END SUBROUTINE rt_prop_release
 
   SUBROUTINE rtp_history_create(rtp,use_delta_e,aspc_order,error)

@@ -128,14 +128,25 @@ MODULE cp_control_types
   END TYPE gapw_control_type
 
 ! *****************************************************************************
-! \brief parameters for finite field calculations
+! \brief parameters for calculations involving a efield field
 ! *****************************************************************************
-  TYPE finite_field_type
-    LOGICAL                         :: berry_phase
-    REAL(KIND = dp)                 :: efield_strength
-    REAL(KIND = dp), DIMENSION(3)   :: efield_polarisation
-  END TYPE finite_field_type
-
+  TYPE efield_type
+     LOGICAL                         :: berry_phase
+     REAL(KIND = dp)                 :: actual_time
+     REAL(KIND = dp), DIMENSION(:),POINTER :: polarisation
+     INTEGER                         :: envelop_id
+     REAL(kind=dp),DIMENSION(:),&
+                             POINTER :: envelop_r_vars
+     INTEGER,DIMENSION(:),&
+                             POINTER :: envelop_i_vars
+     REAL(kind=dp)                   :: strength
+     REAL(KIND=dp)                   :: phase_offset
+     REAL(KIND=dp)                   :: wavelength
+  END TYPE efield_type
+  
+  TYPE efield_p_type
+     TYPE(efield_type),POINTER       :: efield
+  END TYPE efield_p_type
 ! *****************************************************************************
 ! \brief some parameters useful for mulliken_restraints
 ! *****************************************************************************
@@ -298,7 +309,8 @@ MODULE cp_control_types
      TYPE(rtp_control_type),POINTER    :: rtp_control
      TYPE(wfn_fitting_control_type), POINTER &
                                        :: wfn_fitting_control
-     TYPE(finite_field_type),POINTER   :: finite_field_control
+     TYPE(efield_p_type),POINTER,&
+                        DIMENSION(:)   :: efield_fields
      INTEGER                           :: nspins,&
                                           charge,&
                                           multiplicity,&
@@ -320,7 +332,7 @@ MODULE cp_control_types
                                           lsd,&
                                           dft_plus_u,&
                                           scp,&
-                                          apply_finite_field,&
+                                          apply_efield_field,&
                                           do_wfn_fitting,&
                                           smear,&
                                           low_spin_roks
@@ -335,7 +347,8 @@ MODULE cp_control_types
             qs_control_type,&
             gapw_control_type,&
             tddfpt_control_type,&
-            finite_field_type,&
+            efield_type,&
+            efield_p_type,&
             pw_grid_option,&
             mulliken_restraint_type,&
             ddapc_restraint_type,&
@@ -356,7 +369,6 @@ MODULE cp_control_types
             scp_control_create,&
             xas_control_create,&
             tddfpt_control_create,&
-            finite_field_control_create,&
             wfn_fitting_control_create,&
             ddapc_control_create
 
@@ -714,7 +726,7 @@ CONTAINS
        NULLIFY(dft_control%scp_control)
        NULLIFY(dft_control%qs_control)
        NULLIFY(dft_control%tddfpt_control)
-       NULLIFY(dft_control%finite_field_control)
+       NULLIFY(dft_control%efield_fields)
        NULLIFY(dft_control%wfn_fitting_control)
        NULLIFY(dft_control%rtp_control)
        ALLOCATE(dft_control%rtp_control,stat=stat)
@@ -770,7 +782,7 @@ CONTAINS
           CALL xas_control_release(dft_control%xas_control, error=error)
           CALL scp_control_release(dft_control%scp_control, error=error)
           CALL wfn_fitting_control_release(dft_control%wfn_fitting_control, error=error)
-          CALL finite_field_control_release(dft_control%finite_field_control, error=error)
+          CALL efield_fields_release(dft_control%efield_fields, error=error)
           DEALLOCATE(dft_control%rtp_control,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           DEALLOCATE(dft_control, stat=stat)
@@ -933,43 +945,43 @@ CONTAINS
     END IF
   END SUBROUTINE tddfpt_control_release
 
+
 ! *****************************************************************************
-  SUBROUTINE finite_field_control_create(finite_field_control, error)
-    TYPE(finite_field_type), POINTER         :: finite_field_control
+  SUBROUTINE efield_fields_release(efield_fields, error)
+    TYPE(efield_p_type), DIMENSION(:), &
+      POINTER                                :: efield_fields
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'finite_field_control_create', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'efield_fields_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(finite_field_control),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE (finite_field_control,STAT=stat)
+    IF (ASSOCIATED(efield_fields)) THEN
+       DO i=1,SIZE(efield_fields)
+          IF(ASSOCIATED(efield_fields(i)%efield))THEN
+             IF(ASSOCIATED(efield_fields(i)%efield%envelop_r_vars))THEN
+                DEALLOCATE(efield_fields(i)%efield%envelop_r_vars,stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF(ASSOCIATED(efield_fields(i)%efield%envelop_i_vars))THEN
+                DEALLOCATE(efield_fields(i)%efield%envelop_i_vars,stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF(ASSOCIATED(efield_fields(i)%efield%polarisation))THEN
+                DEALLOCATE(efield_fields(i)%efield%polarisation,stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             DEALLOCATE(efield_fields(i)%efield,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+       END DO
+       DEALLOCATE(efield_fields,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
-  END SUBROUTINE finite_field_control_create
-
-! *****************************************************************************
-  SUBROUTINE finite_field_control_release(finite_field_control, error)
-    TYPE(finite_field_type), POINTER         :: finite_field_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'finite_field_control_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF (ASSOCIATED(finite_field_control)) THEN
-       DEALLOCATE(finite_field_control,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-  END SUBROUTINE finite_field_control_release
+  END SUBROUTINE efield_fields_release
 
 ! *****************************************************************************
   SUBROUTINE scp_control_create(scp_control,error)

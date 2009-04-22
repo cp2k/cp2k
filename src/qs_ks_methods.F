@@ -77,6 +77,7 @@ MODULE qs_ks_methods
   USE kg_gpw_correction,               ONLY: kg_gpw_ekin_mol
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_p_type
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
+  USE efield_utils,                     ONLY: efield_potential
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE message_passing,                 ONLY: mp_sum
@@ -334,7 +335,7 @@ CONTAINS
       POINTER                                :: mo_array, mos, mos_aux_fit
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
-      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_r
+      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_r, v_efield_rspace
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
@@ -531,6 +532,14 @@ CONTAINS
        END IF
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
+
+       IF(dft_control%apply_efield_field)THEN
+          CALL pw_pool_create_pw(auxbas_pw_pool,v_efield_rspace%pw,&
+            use_data=REALDATA3D, in_space=REALSPACE,error=error)
+          CALL efield_potential(qs_env,v_efield_rspace,calculate_forces,error)
+          CALL pw_scale(v_efield_rspace%pw, v_efield_rspace%pw%pw_grid%dvol)
+       END IF
+
 
        ! SIC
        CALL calc_v_sic_rspace(v_sic_rspace,energy,qs_env,dft_control,rho,poisson_env,&
@@ -888,6 +897,11 @@ CONTAINS
                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
                           +becke%becke_pot%pw%cr3d*qs_env%dft_control%qs_control%becke_control%strength
                   END IF
+                  ! the efield contribution
+                  IF(dft_control%apply_efield_field)THEN
+                      v_rspace_new(ispin)%pw%cr3d= v_rspace_new(ispin)%pw%cr3d+&
+                                                   v_efield_rspace%pw%cr3d
+                  END IF
                   IF(do_ppl)THEN
                     CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
                     v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
@@ -951,6 +965,11 @@ CONTAINS
              CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,error,failure)
              CPPrecondition(.NOT.ddapc_restraint_is_spin,cp_failure_level,routineP,error,failure)
              DO ispin=1,nspins
+                ! the efield contribution
+                IF(dft_control%apply_efield_field)THEN
+                   ks_env%v_hartree_rspace%pw%cr3d= ks_env%v_hartree_rspace%pw%cr3d +&
+                        v_efield_rspace%pw%cr3d
+                END IF
                 ! add only v_hartree
                  IF (do_ep) THEN
                     my_rho => ep_qs_env%dH_coeffs
@@ -1048,6 +1067,10 @@ CONTAINS
        IF (calculate_forces.AND.qs_env%dft_control%qs_control%becke_restraint)&
            CALL pw_pool_give_back_pw(auxbas_pw_pool,becke%becke_pot%pw,&
                                         error=error)
+       IF(dft_control%apply_efield_field)&
+            CALL pw_pool_give_back_pw(auxbas_pw_pool,v_efield_rspace%pw,&
+                                        error=error)   
+        
        IF(my_kg_gpw) THEN
          CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
          CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
@@ -1202,7 +1225,7 @@ CONTAINS
             energy%exc + energy%exc1 + energy%ex + energy%dispersion +&
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + SUM(energy%ddapc_restraint) + energy%s2_restraint +&
-            energy%becke + energy%dft_plus_u + energy%kTS
+            energy%becke + energy%dft_plus_u + energy%kTS + energy%efield +energy%efield_core
 
        IF( dft_control%do_wfn_fitting ) THEN
          energy%total = energy%total + energy%exc_aux_fit

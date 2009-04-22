@@ -252,7 +252,7 @@ CONTAINS
        END IF
 
        ! Write mos
-       CALL write_mo_set_low(mos, particle_set, rst_unit, error)
+       CALL write_mo_set_low(mos, particle_set, rst_unit, error=error)
        ! Close file
        CALL cp_print_key_finished_output(rst_unit,logger,xas_section,&
                   "PRINT%RESTART", error=error)

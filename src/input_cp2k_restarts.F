@@ -50,7 +50,8 @@ MODULE input_cp2k_restarts
                                              do_thermo_nose,&
                                              mol_dyn_run,&
                                              mon_car_run,&
-                                             pint_run
+                                             pint_run,&
+                                             ehrenfest
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -1457,7 +1458,8 @@ CONTAINS
     CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
     skip_vel_section =((myid /= mol_dyn_run).AND.&
                        (myid /= mon_car_run).AND.&
-                       (myid /= pint_run))
+                       (myid /= pint_run).AND.&
+                       (myid /= ehrenfest))
 
     ! Go on updatig the force_env_section
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)

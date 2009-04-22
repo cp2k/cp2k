@@ -148,6 +148,7 @@ OBJECTS_GENERIC =\
  dkh_main.o\
  dynamical_coeff_types.o\
  dynamical_coeff_methods.o\
+ efield_utils.o\
  eigenvalueproblems.o\
  environment.o\
  erf_fn.o\

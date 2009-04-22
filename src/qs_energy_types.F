@@ -47,6 +47,8 @@ MODULE qs_energy_types
                        qmmm_nu,&
                        mulliken,&
                        becke,&
+                       efield,&
+                       efield_core,&
                        s2_restraint,&
                        dft_plus_u,& ! DFT+U energy contribution
                        ktS,& ! electronic entropic contribution
@@ -157,6 +159,8 @@ CONTAINS
       qs_energy%kg_gpw_ekin_mol = 0.0_dp
       qs_energy%mulliken = 0.0_dp
       qs_energy%becke = 0.0_dp
+      qs_energy%efield = 0.0_dp
+      qs_energy%efield_core = 0.0_dp
       qs_energy%s2_restraint = 0.0_dp
       qs_energy%dft_plus_u = 0.0_dp
       qs_energy%kTS = 0.0_dp
@@ -238,6 +242,8 @@ CONTAINS
       qs_energy_out%mulliken        = qs_energy_in%mulliken
       qs_energy_out%ddapc_restraint = qs_energy_in%ddapc_restraint
       qs_energy_out%becke           = qs_energy_in%becke
+      qs_energy_out%efield           = qs_energy_in%efield
+      qs_energy_out%efield_core      = qs_energy_in%efield_core
       qs_energy_out%s2_restraint    = qs_energy_in%s2_restraint
       qs_energy_out%dft_plus_u      = qs_energy_in%dft_plus_u
       qs_energy_out%ktS             = qs_energy_in%ktS

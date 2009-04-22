@@ -14,8 +14,8 @@ MODULE cp_control_utils
        VandeVondele2005b, Zhechkov2005, cite_reference
   USE cp_control_types,                ONLY: &
        ddapc_control_create, ddapc_restraint_type, dft_control_create, &
-       dft_control_type, finite_field_control_create, qs_control_type, &
-       scp_control_create, tddfpt_control_create, tddfpt_control_type, &
+       dft_control_type, efield_type, qs_control_type, scp_control_create, &
+       tddfpt_control_create, tddfpt_control_type, &
        wfn_fitting_control_create, xas_control_create
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -73,13 +73,12 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: basis_set_file_name, &
                                                 potential_file_name
-    INTEGER                                  :: excitations, method_id, &
-                                                xc_deriv_method_id
+    INTEGER                                  :: excitations, i, method_id, &
+                                                nrep, stat, xc_deriv_method_id
     LOGICAL                                  :: failure, is_present, l_param, &
                                                 not_SE, was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
     TYPE(section_vals_type), POINTER         :: scf_section, scp_section, &
                                                 tmp_section, xc_fun_section, &
                                                 xc_section
@@ -261,18 +260,16 @@ CPSourceFileRef,&
     END IF
 
 !   *** Read the finite field input section ***
-    tmp_section => section_vals_get_subs_vals(dft_section,"FIELD",error=error)
-    CALL section_vals_get(tmp_section,explicit=dft_control%apply_finite_field,error=error)
-    IF (dft_control%apply_finite_field) THEN
-       CALL finite_field_control_create(dft_control%finite_field_control, error=error)
-       CALL section_vals_val_get(tmp_section,"ELECTRICAL_FIELD_STRENGTH",&
-            r_val=dft_control%finite_field_control%efield_strength,error=error)
-       CALL section_vals_val_get(tmp_section,"ELECTRICAL_FIELD_POLARISATION",&
-            r_vals=rvec,error=error)
-       dft_control%finite_field_control%efield_polarisation(1:3)=rvec(1:3)
-       CALL section_vals_val_get(tmp_section,"BERRY_PHASE",&
-            l_val=dft_control%finite_field_control%berry_phase,error=error)
+    tmp_section => section_vals_get_subs_vals(dft_section,"EFIELD",error=error)
+    CALL section_vals_get(tmp_section,n_repetition=nrep,explicit=dft_control%apply_efield_field,error=error)
+    IF (dft_control%apply_efield_field) THEN
+       ALLOCATE(dft_control%efield_fields(nrep),stat=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       DO i=1,nrep
+          CALL read_efield_sections(dft_control,tmp_section,error)
+       END DO
     END IF
+
   END SUBROUTINE read_dft_control
 
 ! *****************************************************************************
@@ -858,21 +855,21 @@ CPSourceFileRef,&
             "DFT| Multiplicity",dft_control%multiplicity
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
             "DFT| Number of spin states",dft_control%nspins
-
-       IF (dft_control%apply_finite_field) THEN
-          IF (dft_control%finite_field_control%berry_phase) THEN
-             WRITE ( output_unit, '( A, T51, A )' ) " DFT| Finite electrical field ",&
-                  "Polarisation type: Berry phase"
-          ELSE
-             WRITE ( output_unit, '( A )' ) " DFT| Finite electrical field "
-          END IF
-          WRITE ( output_unit, '( A, T61, F20.5 )' ) " DFT| Field strength [a.u.]",&
-               dft_control%finite_field_control%efield_strength
-          WRITE ( output_unit, '( A, T51, 3F10.5 )' ) " DFT| Field polarisation",&
-               dft_control%finite_field_control%efield_polarisation
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Finite field not operational")
-       END IF
+!!!
+!!!       IF (dft_control%apply_efield_field) THEN
+!!!          IF (dft_control%finite_field_control%berry_phase) THEN
+!!!             WRITE ( output_unit, '( A, T51, A )' ) " DFT| Finite electrical field ",&
+!!!                  "Polarisation type: Berry phase"
+!!!          ELSE
+!!!             WRITE ( output_unit, '( A )' ) " DFT| Finite electrical field "
+!!!          END IF
+!!!          WRITE ( output_unit, '( A, T61, F20.5 )' ) " DFT| Field strength [a.u.]",&
+!!!               dft_control%finite_field_control%efield_strength
+!!!          WRITE ( output_unit, '( A, T51, 3F10.5 )' ) " DFT| Field polarisation",&
+!!!               dft_control%finite_field_control%efield_polarisation
+!!!          CALL stop_program(routineN,moduleN,__LINE__,&
+!!!               "Finite field not operational")
+!!!       END IF
 
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
          "DFT| Charge",dft_control%charge
@@ -1476,5 +1473,71 @@ CPSourceFileRef,&
     IF (jj<qs_control%becke_control%natoms .AND. jj.NE.0) &
          CALL stop_program(routineN, "Need no or the same number of coeff as there are atoms ")
   END SUBROUTINE read_becke_section
+
+  SUBROUTINE read_efield_sections(dft_control,efield_section,error)
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), POINTER         :: efield_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_efield_sections', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    TYPE(efield_type), POINTER               :: efield
+    TYPE(section_vals_type), POINTER         :: tmp_section
+
+    failure=.FALSE.
+
+    DO i=1,SIZE(dft_control%efield_fields)
+       NULLIFY(dft_control%efield_fields(i)%efield)
+       ALLOCATE(dft_control%efield_fields(i)%efield,stat=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       efield => dft_control%efield_fields(i)%efield
+       NULLIFY(efield%envelop_i_vars,efield%envelop_r_vars)
+       CALL section_vals_val_get(efield_section,"INTENSITY",i_rep_section=i, &
+            r_val=efield%strength,error=error)
+
+       CALL section_vals_val_get(efield_section,"POLARISATION",i_rep_section=i, &
+            r_vals=efield%polarisation,error=error)
+       CALL section_vals_val_get(efield_section,"PHASE",i_rep_section=i, &
+            r_val=efield%phase_offset,error=error) 
+       CALL section_vals_val_get(efield_section,"ENVELOP",i_rep_section=i, &
+            i_val=efield%envelop_id,error=error)    
+       CALL section_vals_val_get(efield_section,"WAVELENGTH",i_rep_section=i, &
+            r_val=efield%wavelength,error=error)
+       IF(efield%envelop_id==constant_env)THEN
+          ALLOCATE(efield%envelop_i_vars(2),stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          tmp_section => section_vals_get_subs_vals(efield_section,"CONSTANT_ENV",i_rep_section=i,error=error)
+          CALL section_vals_val_get(tmp_section,"START_STEP", &
+            i_val=efield%envelop_i_vars(1),error=error)
+          CALL section_vals_val_get(tmp_section,"END_STEP", &
+            i_val=efield%envelop_i_vars(2),error=error)
+       END IF
+       IF(efield%envelop_id==gaussian_env)THEN
+          ALLOCATE(efield%envelop_r_vars(2),stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          tmp_section => section_vals_get_subs_vals(efield_section,"GAUSSIAN_ENV",i_rep_section=i,error=error)
+          CALL section_vals_val_get(tmp_section,"T0", &
+            r_val=efield%envelop_r_vars(1),error=error)
+          CALL section_vals_val_get(tmp_section,"SIGMA", &
+            r_val=efield%envelop_r_vars(2),error=error)
+       END IF
+       IF(efield%envelop_id==ramp_env)THEN
+          ALLOCATE(efield%envelop_i_vars(4),stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          tmp_section => section_vals_get_subs_vals(efield_section,"CONSTANT_ENV",i_rep_section=i,error=error)
+          CALL section_vals_val_get(tmp_section,"START_STEP_IN", &
+            i_val=efield%envelop_i_vars(1),error=error)
+          CALL section_vals_val_get(tmp_section,"END_STEP_IN", &
+            i_val=efield%envelop_i_vars(2),error=error)
+          CALL section_vals_val_get(tmp_section,"START_STEP_OUT", &
+            i_val=efield%envelop_i_vars(3),error=error)
+          CALL section_vals_val_get(tmp_section,"END_STEP_OUT", &
+            i_val=efield%envelop_i_vars(4),error=error)
+       END IF
+    END DO
+  END SUBROUTINE read_efield_sections
 
 END MODULE cp_control_utils
