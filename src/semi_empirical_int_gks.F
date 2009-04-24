@@ -69,7 +69,11 @@ CONTAINS
     rab= -rij
 
     IF(se_int_control%do_ewald_gks) THEN
-       CALL makeCoulE(rab,sepi,sepj,Coul,se_int_control,error)
+       IF ( DOT_PRODUCT(rij,rij) > rij_threshold) THEN
+         CALL makeCoulE(rab,sepi,sepj,Coul,se_int_control,error)
+       ELSE
+         CALL makeCoulE0(sepi,Coul,se_int_control,error)
+       END IF
     ELSE
        CALL makeCoul(rab,sepi,sepj,Coul,se_int_control,error)
     END IF
@@ -115,7 +119,11 @@ CONTAINS
     rab= -rij
 
     IF(se_int_control%do_ewald_gks) THEN
-       CALL makeCoulE(rab,sepi,sepj,Coul,se_int_control,error)
+       IF ( DOT_PRODUCT(rij,rij) > rij_threshold) THEN
+         CALL makeCoulE(rab,sepi,sepj,Coul,se_int_control,error)
+       ELSE
+         CALL makeCoulE0(sepi,Coul,se_int_control,error)
+       END IF
     ELSE
        CALL makeCoul(rab,sepi,sepj,Coul,se_int_control,error)
     END IF
@@ -571,6 +579,19 @@ CONTAINS
           denuc(3)= zz*dCoulE(3,1,1)+dscale*(rijv(3)/rij)*zz*Coul(1,1)+scale*zz*dCoul(3,1,1)
        END IF
 
+    ELSE
+
+       IF (se_int_control%do_ewald_gks) THEN
+         zz = sepi%zeff*sepi%zeff
+         CALL makeCoulE0(sepi,CoulE,se_int_control,error)
+         IF (l_enuc) THEN
+           enuc=zz*CoulE(1,1)
+         END IF
+         IF (l_denuc) THEN
+           denuc=0._dp
+         END IF
+       END IF
+
     ENDIF
   END SUBROUTINE corecore_gks
 
@@ -660,8 +681,8 @@ CONTAINS
 
     CALL build_d_tensor_gks(d1f, d2f, d3f, d4f, v=v, d1=d1, d2=d2, d3=d3, d4=d4)
 
-    DO imA=1, sepi%natorb*(sepi%natorb+1)/2
-       DO imB=1, sepj%natorb*(sepj%natorb+1)/2
+    DO imA=1, (sepi%natorb*(sepi%natorb+1))/2
+       DO imB=1, (sepj%natorb*(sepj%natorb+1))/2
 
           w=   M0A(imA)*M0B(imB)*f
           DO k1=1,3
@@ -749,8 +770,8 @@ CONTAINS
 
     ENDDO
 
-    DO imA=1, sepi%natorb*(sepi%natorb+1)/2
-       DO imB=1, sepj%natorb*(sepj%natorb+1)/2
+    DO imA=1, (sepi%natorb*(sepi%natorb+1))/2
+       DO imB=1, (sepj%natorb*(sepj%natorb+1))/2
 
           w=   M0A(imA)*M0B(imB)*f
           DO k1=1,3
@@ -784,8 +805,8 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DO imA=1, sepi%natorb*(sepi%natorb+1)/2
-       DO imB=1, sepj%natorb*(sepj%natorb+1)/2
+    DO imA=1, (sepi%natorb*(sepi%natorb+1))/2
+       DO imB=1, (sepj%natorb*(sepj%natorb+1))/2
           w= -M0A(imA)*M0B(imB)*0.25_dp*fourpi/(pw_grid%vol*alpha**2)
           Coul(imA,imB)=Coul(imA,imB)+w
        ENDDO
@@ -882,8 +903,8 @@ CONTAINS
 
     CALL build_d_tensor_gks(d1f, d2f, d3f, d4f, d5f, v, d1, d2, d3, d4, d5)
 
-    DO imA=1, sepi%natorb*(sepi%natorb+1)/2
-       DO imB=1, sepj%natorb*(sepj%natorb+1)/2
+    DO imA=1, (sepi%natorb*(sepi%natorb+1))/2
+       DO imB=1, (sepj%natorb*(sepj%natorb+1))/2
 
           tmp = M0A(imA)*M0B(imB)
           wv(1)=   tmp*d1f(1)
@@ -1000,8 +1021,8 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DO imA=1, sepi%natorb*(sepi%natorb+1)/2
-       DO imB=1, sepj%natorb*(sepj%natorb+1)/2
+    DO imA=1, (sepi%natorb*(sepi%natorb+1))/2
+       DO imB=1, (sepj%natorb*(sepj%natorb+1))/2
           tmp = M0A(imA)*M0B(imB)
           wv(1)=   tmp*d1f(1)
           wv(2)=   tmp*d1f(2)
@@ -1161,6 +1182,138 @@ CONTAINS
     END IF
   END SUBROUTINE build_d_tensor_gks
 
+  SUBROUTINE makeCoulE0(sepi,Coul,se_int_control,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi
+    REAL(KIND=dp), DIMENSION(45, 45), &
+      INTENT(OUT)                            :: Coul
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'makeCoulE0', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: gpt, i, imA, imB, j, jint, &
+                                                k1, k2, k3, k4, lp, mp, np, &
+                                                size_1c_int
+    INTEGER, DIMENSION(:, :), POINTER        :: bds
+    REAL(KIND=dp) :: a2, alpha, d2f(3,3), &
+      d4f(3,3,3,3), f, ff, &
+      w
+    REAL(KIND=dp), DIMENSION(3)              :: kk
+    REAL(KIND=dp), DIMENSION(3, 3, 45)       :: M2A
+    REAL(KIND=dp), DIMENSION(3, 45)          :: M1A
+    REAL(KIND=dp), DIMENSION(45)             :: M0A
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: rho0
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(dg_type), POINTER                   :: dg
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(semi_empirical_mpole_type), POINTER :: mpole
+
+    alpha = se_int_control%ewald_gks%alpha
+    pw_pool => se_int_control%ewald_gks%pw_pool
+    dg => se_int_control%ewald_gks%dg
+    CALL dg_get (dg, dg_rho0=dg_rho0)
+    rho0    => dg_rho0%density%pw%cr3d
+    pw_grid => pw_pool%pw_grid
+    bds     => pw_grid%bounds
+
+    CALL get_se_slater_multipole(sepi, M0A, M1A, M2A)
+
+    f=    0.0_dp
+    d2f = 0.0_dp
+    d4f = 0.0_dp
+
+    DO gpt = 1, pw_grid%ngpts_cut
+       lp = pw_grid%mapl%pos(pw_grid%g_hat(1,gpt))
+       mp = pw_grid%mapm%pos(pw_grid%g_hat(2,gpt))
+       np = pw_grid%mapn%pos(pw_grid%g_hat(3,gpt))
+
+       lp = lp + bds(1,1)
+       mp = mp + bds(1,2)
+       np = np + bds(1,3)
+
+       IF (pw_grid%gsq(gpt) == 0.0_dp) CYCLE
+       kk(:)=pw_grid%g(:,gpt)
+       ff = 2.0_dp * fourpi * rho0(lp,mp,np)**2 * pw_grid%vol / pw_grid%gsq(gpt)
+
+       f=f+ff
+       DO k2=1,3
+          DO k1=1,3
+             d2f(k1,k2)=d2f(k1,k2)-kk(k1)*kk(k2)*ff
+          ENDDO
+       ENDDO
+       DO k4=1,3
+          DO k3=1,3
+             DO k2=1,3
+                DO k1=1,3
+                   d4f(k1,k2,k3,k4)=d4f(k1,k2,k3,k4)+kk(k1)*kk(k2)*kk(k3)*kk(k4)*ff
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDDO
+
+    ENDDO
+
+    DO imA=1, (sepi%natorb*(sepi%natorb+1))/2
+       DO imB=1, (sepi%natorb*(sepi%natorb+1))/2
+
+          w=   M0A(imA)*M0A(imB)*f
+          DO k2=1,3
+             DO k1=1,3
+                w=w+(  M2A(k1,k2,imA)*M0A(imB)-M1A(k1,imA)*M1A(k2,imB)+M0A(imA)*M2A(k1,k2,imB) )*d2f(k1,k2)
+             ENDDO
+          ENDDO
+
+          DO k4=1,3
+             DO k3=1,3
+                DO k2=1,3
+                   DO k1=1,3
+                      w=w+ M2A(k1,k2,imA)*M2A(k3,k4,imB)*d4f(k1,k2,k3,k4)
+                   ENDDO
+                ENDDO
+             ENDDO
+          ENDDO
+
+          Coul(imA,imB)=w
+
+       ENDDO
+    ENDDO
+
+    DO imA=1, (sepi%natorb*(sepi%natorb+1))/2
+       DO imB=1, (sepi%natorb*(sepi%natorb+1))/2
+          w= -M0A(imA)*M0A(imB)*0.25_dp*fourpi/(pw_grid%vol*alpha**2)
+          Coul(imA,imB)=Coul(imA,imB)+w
+       ENDDO
+    ENDDO
+
+    DO imA=1, (sepi%natorb*(sepi%natorb+1))/2
+       DO imB=1, (sepi%natorb*(sepi%natorb+1))/2
+
+          w= M0A(imA)*M0A(imB)
+          Coul(imA,imB)=Coul(imA,imB)-2.0_dp*alpha*oorootpi*w
+
+          w= 0.0_dp
+          DO k1=1,3
+            w=w+ M1A(k1,imA)*M1A(k1,imB)
+            w=w- M0A(imA)*M2A(k1,k1,imB)
+            w=w- M2A(k1,k1,imA)*M0A(imB)
+          ENDDO
+          Coul(imA,imB)=Coul(imA,imB)-4.0_dp*alpha**3*oorootpi*w/3.0_dp
+
+          w= 0.0_dp
+          DO k2=1,3
+             DO k1=1,3
+                w=w+ 2.0_dp*M2A(k1,k2,imA)*M2A(k1,k2,imB)
+                w=w+        M2A(k1,k1,imA)*M2A(k2,k2,imB)
+             ENDDO
+          ENDDO
+          Coul(imA,imB)=Coul(imA,imB)-8.0_dp*alpha**5*oorootpi*w/5.0_dp
+       ENDDO
+    ENDDO
+  END SUBROUTINE makeCoulE0
+
 ! *****************************************************************************
 !> \brief Retrieves the multipole for the Slater integral evaluation
 ! *****************************************************************************
@@ -1172,7 +1325,7 @@ CONTAINS
       INTENT(OUT)                            :: M1
     REAL(kind=dp), DIMENSION(3, 3, 45), &
       INTENT(OUT)                            :: M2
-    REAL(KIND=dp), INTENT(OUT)               :: ACOUL
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ACOUL
 
     INTEGER                                  :: i, j, jint, size_1c_int
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
@@ -1201,7 +1354,7 @@ CONTAINS
        M2(2,3,indexb(i,j))= -mpole%qq(2,3)/3.0_dp
        M2(3,3,indexb(i,j))= -mpole%qq(3,3)/3.0_dp
     ENDDO
-    ACOUL = sepi%acoul
+    IF ( PRESENT (ACOUL) )  ACOUL = sepi%acoul
   END SUBROUTINE get_se_slater_multipole
 
 END MODULE semi_empirical_int_gks

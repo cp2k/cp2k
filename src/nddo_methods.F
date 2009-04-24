@@ -462,6 +462,13 @@ CONTAINS
                       CASE DEFAULT
                          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                       END SELECT
+                   ELSE
+                      IF ( se_int_control%do_ewald_gks ) THEN
+                         ! Core-Core energy term (self term in periodic systems)
+                         CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
+                              se_int_control=se_int_control, se_taper=se_taper, error=error)
+                         enuclear = enuclear + 0.5_dp*enuc
+                      END IF
                    END IF
                    sab_2c_neighbor_node => next(sab_2c_neighbor_node)
                 END DO ! inode => jatom(atom B)               
@@ -507,7 +514,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
                                                 failure, scp_nddo, switch
-    REAL(KIND=dp)                            :: delta, dr1, ecore2
+    REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
@@ -833,6 +840,38 @@ CONTAINS
                       CASE DEFAULT
                          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                       END SELECT
+                   ELSE
+                      IF ( se_int_control%do_ewald_gks ) THEN
+                         CPPostcondition(iatom==jatom,cp_failure_level,routineP,error,failure)
+                         ! Two-centers One-electron terms
+                         ecores=0._dp
+                         IF      ( nspins == 1 ) THEN
+                            CALL fock2_1el_ew (se_kind_a,rij, ksa_block_a, pa_a, &
+                                 ecore=ecores, itype=itype, anag=anag, se_int_control=se_int_control,&
+                                 se_taper=se_taper, store_int_env=store_int_env, error=error)
+                         ELSE IF ( nspins == 2 ) THEN
+                            CALL fock2_1el_ew (se_kind_a,rij, ksa_block_a, pa_block_a,&
+                                 ecore=ecores, itype=itype, anag=anag, se_int_control=se_int_control, &
+                                 se_taper=se_taper, store_int_env=store_int_env, error=error)
+                            CALL fock2_1el_ew (se_kind_a,rij, ksa_block_b, pa_b,&
+                                 ecore=ecores, itype=itype, anag=anag, se_int_control=se_int_control,&
+                                 se_taper=se_taper, store_int_env=store_int_env, error=error)
+                         END IF
+                         ecore2=ecore2+ecores
+                         ! Coulomb Terms
+                         IF      ( nspins == 1 ) THEN
+                            CALL fock2C_ew(se_kind_a, rij, p_block_tot_a, ksa_block_a,& 
+                                 factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
+                                 store_int_env=store_int_env, error=error)
+                         ELSE IF ( nspins == 2 ) THEN
+                            CALL fock2C_ew(se_kind_a, rij, p_block_tot_a, ksa_block_a,&
+                                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
+                                 store_int_env=store_int_env, error=error)
+                            CALL fock2C_ew(se_kind_a, rij, p_block_tot_a, ksa_block_b,&
+                                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
+                                 store_int_env=store_int_env, error=error)
+                         END IF
+                      END IF
                    END IF
                    sab_2c_neighbor_node => next(sab_2c_neighbor_node)
                 END DO ! inode => jatom(atom B)
@@ -1747,6 +1786,8 @@ CONTAINS
                          CALL fock1_2el(se_kind_a,p_block_tot,p_block_a,ks_block_a,factor=1.0_dp,error=error)
                          CALL fock1_2el(se_kind_a,p_block_tot,p_block_b,ks_block_b,factor=1.0_dp,error=error)
                       END IF
+                      IF (se_int_control%do_ewald_gks) THEN
+                      END IF
                    ELSE
                       ! Exchange Terms
                       IF      ( nspins == 1 ) THEN
@@ -2037,6 +2078,130 @@ CONTAINS
        END DO
     END DO
   END SUBROUTINE fock1_2el
+
+! *****************************************************************************
+!> \brief Construction of 2-center 1-electron Fock Matrix (Ewald self term)
+!> \author jgh - University of Zurich
+!> \date 04.2009 [jgh]
+! *****************************************************************************
+  SUBROUTINE fock2_1el_ew (sep, rij, ks_block, p_block, ecore, itype, anag, &
+                           se_int_control, se_taper, store_int_env, error)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
+    REAL(KIND=dp), &
+      DIMENSION(sep%natorb, sep%natorb), &
+      INTENT(INOUT)                          :: ks_block
+    REAL(KIND=dp), &
+      DIMENSION(sep%natorb, sep%natorb), &
+      INTENT(IN)                             :: p_block
+    REAL(KIND=dp), INTENT(INOUT)             :: ecore
+    INTEGER, INTENT(IN)                      :: itype
+    LOGICAL, INTENT(IN)                      :: anag
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
+    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el_ew', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i1, i1L, i2, j1, j1L, n
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(45)             :: e1b, e2a
+
+    failure = .FALSE.
+    ! Compute integrals
+    CALL rotnuc (sep, sep, rij, e1b=e1b, e2a=e2a, itype=itype, anag=anag,&
+         se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env,&
+         error=error)
+    !
+    ! Add the electron-nuclear attraction term for atom sep
+    ! e1b == e2a
+    !
+    n = (sep%natorb*(sep%natorb+1))/2
+    i2 = 0
+    DO i1L = 1, sep%natorb
+       i1 = se_orbital_pointer(i1L)
+       DO j1L = 1, i1L-1
+          j1 = se_orbital_pointer(j1L)
+          i2 = i2 + 1
+          ks_block(i1,j1) = ks_block(i1,j1) + e1b(i2)
+          ks_block(j1,i1) = ks_block(i1,j1)
+          ecore = ecore + 2._dp * e1b(i2) * p_block(i1,j1)
+       END DO
+       ! i1L == j1L
+       i2 = i2 + 1
+       ks_block(i1,i1) = ks_block(i1,i1) + e1b(i2)
+       ecore = ecore + e1b(i2) * p_block(i1,i1)
+    END DO
+
+  END SUBROUTINE fock2_1el_ew
+
+! *****************************************************************************
+!> \brief Construction of 2-center Fock Matrix - Coulomb Self Terms (Ewald)
+!> \author jgh - University of Zurich
+!> \date 04.2009 [jgh]
+! *****************************************************************************
+  SUBROUTINE fock2C_ew(sep, rij, p_tot, f_mat, factor, anag, se_int_control, &
+                       se_taper, store_int_env, error)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
+    REAL(KIND=dp), DIMENSION(45, 45), &
+      INTENT(IN)                             :: p_tot
+    REAL(KIND=dp), &
+      DIMENSION(sep%natorb, sep%natorb), &
+      INTENT(INOUT)                          :: f_mat
+    REAL(KIND=dp), INTENT(IN)                :: factor
+    LOGICAL, INTENT(IN)                      :: anag
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
+    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fock2C_ew', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
+                                                lL, natorb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, aa, bb, irij(3), ee
+    REAL(KIND=dp), DIMENSION(2025)           :: w
+
+    failure = .FALSE.
+    ! Evaluate integrals
+    CALL rotint (sep,sep,rij,w,anag=anag,se_int_control=se_int_control,&
+            se_taper=se_taper,store_int_env=store_int_env, error=error)
+    kr = 0
+    natorb = sep%natorb
+    DO iL = 1, natorb
+       i = se_orbital_pointer(iL)
+       aa = 2.0_dp
+       DO jL = 1, iL
+          j = se_orbital_pointer(jL)
+          IF (i == j) THEN
+             aa = 1.0_dp
+          END IF
+          DO kL = 1, natorb
+             k = se_orbital_pointer(kL)
+             bb = 2.0_dp
+             DO lL = 1, kL
+                l = se_orbital_pointer(lL)
+                IF (k == l) THEN
+                   bb = 1.0_dp
+                END IF
+                kr = kr + 1
+                a = 0.5_dp*w(kr)*factor
+                ! Coulomb
+                f_mat(i,j) = f_mat(i,j) + bb * a * p_tot(k,l)
+                f_mat(k,l) = f_mat(k,l) + aa * a * p_tot(i,j)
+                f_mat(j,i) = f_mat(i,j)
+                f_mat(l,k) = f_mat(k,l)
+             END DO
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE fock2C_ew
 
 ! *****************************************************************************
 !> \brief Construction of 2-center Fock Matrix - Coulomb Terms

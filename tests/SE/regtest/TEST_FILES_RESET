@@ -367,4 +367,5 @@ geom.inp
 b2h6_pm6.inp
 ch2o_pm6.inp
 hcn_pm6.inp
-
+# bug in self term
+h2o_gks_p.inp
