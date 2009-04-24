@@ -1192,13 +1192,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'makeCoulE0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: gpt, i, imA, imB, j, jint, &
-                                                k1, k2, k3, k4, lp, mp, np, &
-                                                size_1c_int
+    INTEGER                                  :: gpt, imA, imB, k1, k2, k3, &
+                                                k4, lp, mp, np
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    REAL(KIND=dp) :: a2, alpha, d2f(3,3), &
-      d4f(3,3,3,3), f, ff, &
-      w
+    REAL(KIND=dp)                            :: alpha, d2f(3,3), &
+                                                d4f(3,3,3,3), f, ff, w
     REAL(KIND=dp), DIMENSION(3)              :: kk
     REAL(KIND=dp), DIMENSION(3, 3, 45)       :: M2A
     REAL(KIND=dp), DIMENSION(3, 45)          :: M1A
@@ -1209,7 +1207,6 @@ CONTAINS
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     alpha = se_int_control%ewald_gks%alpha
     pw_pool => se_int_control%ewald_gks%pw_pool

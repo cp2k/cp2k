@@ -1786,8 +1786,6 @@ CONTAINS
                          CALL fock1_2el(se_kind_a,p_block_tot,p_block_a,ks_block_a,factor=1.0_dp,error=error)
                          CALL fock1_2el(se_kind_a,p_block_tot,p_block_b,ks_block_b,factor=1.0_dp,error=error)
                       END IF
-                      IF (se_int_control%do_ewald_gks) THEN
-                      END IF
                    ELSE
                       ! Exchange Terms
                       IF      ( nspins == 1 ) THEN
@@ -2164,7 +2162,7 @@ CONTAINS
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, aa, bb, irij(3), ee
+    REAL(KIND=dp)                            :: a, aa, bb
     REAL(KIND=dp), DIMENSION(2025)           :: w
 
     failure = .FALSE.
