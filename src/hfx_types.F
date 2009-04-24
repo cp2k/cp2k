@@ -66,12 +66,13 @@ MODULE hfx_types
           hfx_basis_type, parse_memory_section, &
           hfx_p_type, hfx_init_container,&
           hfx_basis_info_type, hfx_screen_coeff_type,&
-          hfx_reset_memory_usage_counter
+          hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, pair_set_list_type
 
 #define CACHE_SIZE 1024
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_types'
-  INTEGER(int_8), PARAMETER, PRIVATE         :: one = 1_int_8
+  INTEGER(int_8), PARAMETER, PRIVATE         :: one = 1_int_8 
+  INTEGER, PARAMETER, PUBLIC                 :: max_atom_block=32
   REAL(dp), PARAMETER, PUBLIC                :: log_zero = -1000.0_dp
   REAL(dp), PARAMETER, PUBLIC                :: powell_min_log = -20.0_dp
   REAL(KIND=dp), DIMENSION(0:10), &
@@ -133,6 +134,7 @@ MODULE hfx_types
 ! *****************************************************************************
   TYPE hfx_load_balance_type
     INTEGER                                  :: nbins                   
+    INTEGER                                  :: block_size
   END TYPE
 
 ! *****************************************************************************
@@ -149,7 +151,7 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_distribution
-    INTEGER                                  :: istart, jstart, kstart, lstart
+    INTEGER(int_8)                           :: istart, jstart, kstart, lstart
     INTEGER(int_8)                           :: number_of_atom_quartets
     INTEGER(int_8)                           :: cost
     INTEGER(int_8)                           :: original_cpu_id
@@ -157,6 +159,27 @@ MODULE hfx_types
     REAL(KIND=dp)                            :: time_other_scf
     REAL(KIND=dp)                            :: time_forces
   END TYPE
+
+! *****************************************************************************
+  TYPE pair_list_element_type
+      INTEGER, DIMENSION(2) :: pair
+      INTEGER, DIMENSION(2) :: set_bounds
+      INTEGER, DIMENSION(2) :: kind_pair
+      REAL(KIND=dp)         :: r1(3),r2(3)
+      REAL(KIND=dp)         :: vec(3)
+      REAL(KIND=dp)         :: dist2
+  END TYPE
+
+  ! *****************************************************************************
+  TYPE pair_set_list_type
+      INTEGER, DIMENSION(2) :: pair
+  END TYPE
+
+! *****************************************************************************
+  TYPE pair_list_type
+    TYPE(pair_list_element_type), DIMENSION(max_atom_block**2) :: elements
+    INTEGER :: n_element
+  END TYPE pair_list_type
   
 ! *****************************************************************************
   TYPE hfx_compression_type
@@ -434,8 +457,18 @@ MODULE hfx_types
         !! LOAD_BALANCE section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
-        actual_x_data%load_balance_parameter%nbins = int_val
-    
+        actual_x_data%load_balance_parameter%nbins = MAX(1,int_val)
+
+        CALL section_vals_val_get(hf_sub_section, "BLOCK_SIZE", i_val=int_val, error=error)
+        ! negative values ask for a computed default
+        IF (int_val<=0) THEN
+           ! this gives a reasonable number of blocks for binning, yet typically results in blocking.
+           int_val = CEILING( 0.1_dp * natom / &
+                 REAL(actual_x_data%load_balance_parameter%nbins * n_threads * para_env%num_pe ,KIND=dp)**(0.25_dp))
+        ENDIF
+        ! at least 1 atom per block, and avoid overly large blocks
+        actual_x_data%load_balance_parameter%block_size = MIN(max_atom_block, MAX(1, int_val))
+   
         !! BASIS parameter
         nkind = SIZE(atomic_kind_set,1)
         ALLOCATE(actual_x_data%basis_parameter(nkind), STAT=stat)
@@ -1227,6 +1260,10 @@ MODULE hfx_types
             "HFX_INFO| EPS_SCHWARZ_FORCES     ", x_data%screening_parameter%eps_schwarz_forces
       WRITE (UNIT=iw,FMT="((T3,A,T73,ES8.1))")&
             "HFX_INFO| EPS_STORAGE_SCALING:     ", x_data%memory_parameter%eps_storage_scaling
+      WRITE (UNIT=iw,FMT="((T3,A,T61,I20))")&
+            "HFX_INFO| NBINS:     ", x_data%load_balance_parameter%nbins
+      WRITE (UNIT=iw,FMT="((T3,A,T61,I20))")&
+            "HFX_INFO| BLOCK_SIZE:     ", x_data%load_balance_parameter%block_size
       WRITE(iw,'(T3,A,T61,F20.10)') & 
             "HFX_INFO| FRACTION:     ", x_data%general_parameter%fraction
       SELECT CASE (x_data%potential_parameter%potential_type)

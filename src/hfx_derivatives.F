@@ -19,19 +19,20 @@ MODULE hfx_derivatives
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: get_full_density
-  USE hfx_helpers,                     ONLY: FNV64
   USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
   USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
                                              initialize_libint,&
                                              lib_deriv,&
                                              lib_int
-  USE hfx_load_balance_methods,        ONLY: load_balance_forces,&
+  USE hfx_load_balance_methods,        ONLY: build_pair_list,&
+                                             load_balance_forces,&
                                              update_load_balance_forces
   USE hfx_screening_methods,           ONLY: update_pmax_mat
   USE hfx_types,                       ONLY: &
        hfx_basis_info_type, hfx_basis_type, hfx_cell_type, hfx_general_type, &
        hfx_load_balance_type, hfx_potential_type, hfx_screen_coeff_type, &
-       hfx_screening_type, hfx_type, log_zero
+       hfx_screening_type, hfx_type, log_zero, pair_list_type, &
+       pair_set_list_type
   USE input_constants,                 ONLY: do_hfx_potential_truncated
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
@@ -106,11 +107,12 @@ MODULE hfx_derivatives
     INTEGER :: bin, coord, forces_map(4,2), handle, handle_getP, handle_load, &
       handle_main, i, i_atom, i_thread, iatom, ikind, iset, j_atom, jatom, &
       jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, lkind, lset, &
-      max_am, max_set, maxsgf, my_bin_size, my_istart, my_jstart, my_kstart, &
-      my_lstart, n_threads, natom, nco_max, ncoa, ncob, ncoc, ncod, nseta, &
-      nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, &
-      nsgfd_total, nspins, pa1, pb1, pc1, pd1, sgfa, sgfb, sgfc, sgfd, stat
+      max_am, max_set, maxsgf, my_bin_size, n_threads, natom, nco_max, ncoa, &
+      ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, &
+      nsgfc_total, nsgfd_total, nspins, pa1, pb1, pc1, pd1, sgfa, sgfb, sgfc, &
+      sgfd, stat
     INTEGER(int_8)                           :: my_current_counter, &
+                                                my_istart, &
                                                 my_original_cpu_id, &
                                                 n_processes, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
@@ -121,13 +123,11 @@ MODULE hfx_derivatives
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd
     LOGICAL                                  :: do_periodic, failure, &
-                                                first_j_loop, first_k_loop, &
-                                                first_l_loop, &
                                                 screen_pmat_forces
     REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, eps_schwarz, &
       fac, hf_fraction, max_contraction_val, max_val1, max_val2, &
       my_adiabatic_rescale_factor, omega2Inv, pmax_entry, ra(3), rb(3), &
-      rc(3), rd(3), symm_fac, temp(3)
+      rc(3), rd(3), symm_fac
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
@@ -174,6 +174,14 @@ MODULE hfx_derivatives
     INTEGER                                  :: nsgf_max
     REAL(dp), DIMENSION(:), ALLOCATABLE      :: pbd_buf, pbc_buf, pad_buf, pac_buf, &
                                                 pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta
+    INTEGER(int_8)                           :: atom_block, tmp_block, nblocks
+    INTEGER                                  :: iatom_block, jatom_block, katom_block, latom_block, block_size
+    INTEGER                                  :: i_list_ij,i_list_kl, &
+                                                i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop,&
+                                                i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop
+    TYPE(pair_list_type)                     :: list_ij, list_kl
+    REAL(KIND=dp)                            :: coeffs_kind_max0
+    TYPE(pair_set_list_type), DIMENSION(:), ALLOCATABLE :: set_list_ij, set_list_kl
 
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
@@ -503,86 +511,146 @@ MODULE hfx_derivatives
 
     ncpu = para_env%num_pe
     n_processes = ncpu * n_threads
+
+
+
 !$OMP BARRIER
+
+
+    coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
+    ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     my_bin_size = SIZE(actual_x_data%distribution_forces)
     DO bin=1,my_bin_size
        actual_x_data%distribution_forces(bin)%time_forces=0.0_dp
     ENDDO
+    block_size = load_balance_parameter%block_size
+    nblocks = MAX((natom+block_size-1)/block_size,1)
     !! outer loop will be cycled if actual work_load done
     DO bin=1,my_bin_size
       bintime_start=m_walltime()
-      !! Get information on workload
-      first_j_loop = .TRUE.
-      first_l_loop = .TRUE.
-      first_k_loop = .TRUE.
       my_istart = actual_x_data%distribution_forces(bin)%istart
-      my_jstart = actual_x_data%distribution_forces(bin)%jstart
-      my_kstart = actual_x_data%distribution_forces(bin)%kstart
-      my_lstart = actual_x_data%distribution_forces(bin)%lstart
       my_original_cpu_id = actual_x_data%distribution_forces(bin)%original_cpu_id 
       my_current_counter = 0
-      !! It could happen, that one bin is empty. In that case just skip
-      IF(my_istart == 0 .OR. my_jstart == 0 .OR. my_kstart == 0 .OR. my_lstart == 0 .OR. &
-         actual_x_data%distribution_forces(bin)%number_of_atom_quartets == 0) THEN
-         my_istart = natom + 1 ; my_jstart = natom + 1 ;my_kstart = natom + 1 ;my_lstart = natom + 1 
-      ENDIF
-      DO iatom=my_istart,natom
-        IF(first_j_loop) jatom=my_jstart-1
-        IF(.NOT. first_j_loop) jatom = iatom-1
-        DO WHILE(jatom+1<=natom)
-          jatom = jatom + 1
-          IF(first_k_loop) katom=my_kstart-1
-          IF(.NOT. first_k_loop) katom = 0
-          DO WHILE(katom+1<=natom)
-            katom = katom + 1
-            hash_idx =(iatom-1)*INT(natom**2,kind=int_8)+ (jatom-1) * natom + katom
-            IF(MODULO(FNV64(hash_idx),n_processes)/=my_original_cpu_id-1) CYCLE
+      IF(actual_x_data%distribution_forces(bin)%number_of_atom_quartets == 0 .OR. &
+         my_istart == -1_int_8) my_istart = nblocks **4
+      atomic_blocks: DO atom_block = my_istart,nblocks**4-1,n_processes
+        latom_block = MODULO(atom_block,nblocks)+1
+        tmp_block = atom_block/nblocks
+        katom_block = MODULO(tmp_block,nblocks)+1
+        IF(latom_block<katom_block) CYCLE
+        tmp_block = tmp_block/nblocks
+        jatom_block = MODULO(tmp_block,nblocks)+1
+        tmp_block = tmp_block/nblocks
+        iatom_block = MODULO(tmp_block,nblocks)+1
+        IF(jatom_block<iatom_block) CYCLE
+        my_current_counter = my_current_counter + 1
+        IF(my_current_counter > actual_x_data%distribution_forces(bin)%number_of_atom_quartets) EXIT atomic_blocks
 
-            ikind = kind_of(iatom)
-            la_max => basis_parameter(ikind)%lmax
-            la_min => basis_parameter(ikind)%lmin
-            npgfa => basis_parameter(ikind)%npgf
-            nseta = basis_parameter(ikind)%nset
-            zeta => basis_parameter(ikind)%zet
-            nsgfa => basis_parameter(ikind)%nsgf
-            first_sgfa => basis_parameter(ikind)%first_sgf
-            sphi_a => basis_parameter(ikind)%sphi
-            nsgfa_total = basis_parameter(ikind)%nsgf_total
-            ra=particle_set(iatom)%r(:)
-            i_atom = atom_of_kind(iatom)
-            pa1 = last_sgf_global(iatom) - nsgfa_total
-            forces_map(1,1) = ikind
-            forces_map(1,2) = i_atom
+        CALL build_pair_list(list_ij,set_list_ij,(iatom_block-1)*block_size +1,MIN(iatom_block*block_size,natom), &
+                             (jatom_block-1)*block_size +1, MIN(jatom_block*block_size,natom),&
+                             kind_of,basis_parameter,particle_set, &
+                             do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
 
-            jkind = kind_of(jatom)
-            lb_max => basis_parameter(jkind)%lmax
-            lb_min => basis_parameter(jkind)%lmin
-            npgfb => basis_parameter(jkind)%npgf
-            nsetb = basis_parameter(jkind)%nset
-            zetb => basis_parameter(jkind)%zet
-            nsgfb => basis_parameter(jkind)%nsgf
-            first_sgfb => basis_parameter(jkind)%first_sgf
-            sphi_b => basis_parameter(jkind)%sphi
-            nsgfb_total = basis_parameter(jkind)%nsgf_total
+        CALL build_pair_list(list_kl,set_list_kl,(katom_block-1)*block_size +1,MIN(katom_block*block_size,natom), &
+                             (latom_block-1)*block_size +1, MIN(latom_block*block_size,natom),&
+                             kind_of,basis_parameter,particle_set, &
+                             do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
+
+        DO i_list_ij=1,list_ij%n_element
+          iatom=list_ij%elements(i_list_ij)%pair(1)
+          jatom=list_ij%elements(i_list_ij)%pair(2)
+          i_set_list_ij_start=list_ij%elements(i_list_ij)%set_bounds(1)
+          i_set_list_ij_stop=list_ij%elements(i_list_ij)%set_bounds(2)
+          ikind=list_ij%elements(i_list_ij)%kind_pair(1)
+          jkind=list_ij%elements(i_list_ij)%kind_pair(2)
+          ra=list_ij%elements(i_list_ij)%r1
+          rb=list_ij%elements(i_list_ij)%r2
+          B11=list_ij%elements(i_list_ij)%vec
+          rab2=list_ij%elements(i_list_ij)%dist2
+
+          la_max => basis_parameter(ikind)%lmax
+          la_min => basis_parameter(ikind)%lmin
+          npgfa => basis_parameter(ikind)%npgf
+          nseta = basis_parameter(ikind)%nset
+          zeta => basis_parameter(ikind)%zet
+          nsgfa => basis_parameter(ikind)%nsgf
+          first_sgfa => basis_parameter(ikind)%first_sgf
+          sphi_a => basis_parameter(ikind)%sphi
+          nsgfa_total = basis_parameter(ikind)%nsgf_total
+          pa1 = last_sgf_global(iatom) - nsgfa_total
+
+          lb_max => basis_parameter(jkind)%lmax
+          lb_min => basis_parameter(jkind)%lmin
+          npgfb => basis_parameter(jkind)%npgf
+          nsetb = basis_parameter(jkind)%nset
+          zetb => basis_parameter(jkind)%zet
+          nsgfb => basis_parameter(jkind)%nsgf
+          first_sgfb => basis_parameter(jkind)%first_sgf
+          sphi_b => basis_parameter(jkind)%sphi
+          nsgfb_total = basis_parameter(jkind)%nsgf_total
+          pb1 = last_sgf_global(jatom) - nsgfb_total
+
+          i_atom = atom_of_kind(iatom)
+          forces_map(1,1) = ikind
+          forces_map(1,2) = i_atom
+          j_atom = atom_of_kind(jatom)
+          forces_map(2,1) = jkind
+          forces_map(2,2) = j_atom
+
+          DO i_list_kl=1,list_kl%n_element
+            katom=list_kl%elements(i_list_kl)%pair(1)
+            latom=list_kl%elements(i_list_kl)%pair(2)
+
+            !All four centers equivalent => zero-contribution
+            IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE 
+            IF( .NOT. (katom+latom<=iatom+jatom) )  CYCLE
+            IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
+
+            i_set_list_kl_start=list_kl%elements(i_list_kl)%set_bounds(1)
+            i_set_list_kl_stop=list_kl%elements(i_list_kl)%set_bounds(2)
+            kkind=list_kl%elements(i_list_kl)%kind_pair(1)
+            lkind=list_kl%elements(i_list_kl)%kind_pair(2)
+            rc=list_kl%elements(i_list_kl)%r1
+            rd=list_kl%elements(i_list_kl)%r2
+            D11=list_kl%elements(i_list_kl)%vec
+            rcd2=list_kl%elements(i_list_kl)%dist2
+
+            IF( (screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
+                 screen_coeffs_kind(jkind,ikind)%x(2) ) + &
+                 (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+                 screen_coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+ 
+            IF(.NOT. (shm_is_assoc_atomic_block(latom,iatom)>=1 .AND. &
+                      shm_is_assoc_atomic_block(katom,iatom)>=1 .AND. &
+                      shm_is_assoc_atomic_block(katom,jatom)>=1 .AND. &
+                      shm_is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
+            k_atom = atom_of_kind(katom)
+            forces_map(3,1) = kkind
+            forces_map(3,2) = k_atom
+
+            l_atom = atom_of_kind(latom)
+            forces_map(4,1) = lkind
+            forces_map(4,2) = l_atom
   
-            rb=particle_set(jatom)%r(:)
-            ! ** pbc for rb
-            IF( do_periodic ) THEN
-              temp = rb -ra
-              pbc_B = pbc(temp,cell)
-              B11 = ra + pbc_B
-              rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+            IF(nspins == 1) THEN
+              fac = 0.25_dp * hf_fraction
             ELSE
-              rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-              B11 = ra - rb
+              fac = 0.5_dp * hf_fraction
             END IF
-            
-            j_atom = atom_of_kind(jatom)
-            pb1 = last_sgf_global(jatom) - nsgfb_total
-            forces_map(2,1) = jkind
-            forces_map(2,2) = j_atom
+            !calculate symmetry_factor
+            symm_fac = 0.25_dp
+            IF(iatom==jatom) symm_fac = symm_fac*2.0_dp
+            IF(katom==latom) symm_fac = symm_fac*2.0_dp
+            IF(iatom==katom .AND. jatom==latom .AND. iatom/=jatom .AND. katom/=latom) symm_fac = symm_fac*2.0_dp
+            IF(iatom==katom .AND. iatom==jatom .AND. katom==latom) symm_fac = symm_fac*2.0_dp
+    
+            symm_fac = 1.0_dp/symm_fac
+            fac = fac * symm_fac             
 
-            kkind = kind_of(katom)
             lc_max => basis_parameter(kkind)%lmax
             lc_min => basis_parameter(kkind)%lmin
             npgfc => basis_parameter(kkind)%npgf
@@ -592,212 +660,148 @@ MODULE hfx_derivatives
             first_sgfc => basis_parameter(kkind)%first_sgf
             sphi_c => basis_parameter(kkind)%sphi
             nsgfc_total = basis_parameter(kkind)%nsgf_total
-            rc=particle_set(katom)%r(:)
-            k_atom = atom_of_kind(katom)
             pc1 = last_sgf_global(katom) - nsgfc_total
-            forces_map(3,1) = kkind
-            forces_map(3,2) = k_atom
-            IF(first_l_loop) THEN
-              latom=my_lstart-1
-            ELSE
-              latom = katom-1
-            END IF
-            DO WHILE(latom+1<=natom)
-              latom = latom + 1
-              lkind = kind_of(latom)
-              rd=particle_set(latom)%r(:)
-             
-              ! ** pbc for rd
-              IF( do_periodic ) THEN
-                temp = rd -rc
-                pbc_D = pbc(temp,cell)
-                D11 = rc + pbc_D
-                rcd2 = (rc(1)-D11(1))**2+(rc(2)-D11(2))**2+(rc(3)-D11(3))**2
-              ELSE
-                rcd2 = (rc(1)-rd(1))**2+(rc(2)-rd(2))**2+(rc(3)-rd(3))**2
-                D11 = rc - rd
-              END IF
 
-              !All four centers equivalent => zero-contribution
-              IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE 
-              IF(katom+latom<=iatom+jatom)  THEN
-                IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
+            ld_max => basis_parameter(lkind)%lmax
+            ld_min => basis_parameter(lkind)%lmin
+            npgfd => basis_parameter(lkind)%npgf
+            nsetd = basis_parameter(lkind)%nset
+            zetd => basis_parameter(lkind)%zet
+            nsgfd => basis_parameter(lkind)%nsgf
+            first_sgfd => basis_parameter(lkind)%first_sgf
+            sphi_d => basis_parameter(lkind)%sphi
+            nsgfd_total = basis_parameter(lkind)%nsgf_total
+            pd1 = last_sgf_global(latom) - nsgfd_total
 
-                my_current_counter = my_current_counter + 1
-                IF(my_current_counter <= actual_x_data%distribution_forces(bin)%number_of_atom_quartets) THEN
-                  IF( (screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
-                       screen_coeffs_kind(jkind,ikind)%x(2) ) + &
-                      (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-                       screen_coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
- 
-                  IF(.NOT. (shm_is_assoc_atomic_block(latom,iatom)>=1 .AND. &
-                            shm_is_assoc_atomic_block(katom,iatom)>=1 .AND. &
-                            shm_is_assoc_atomic_block(katom,jatom)>=1 .AND. &
-                            shm_is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
-  
-                  ld_max => basis_parameter(lkind)%lmax
-                  ld_min => basis_parameter(lkind)%lmin
-                  npgfd => basis_parameter(lkind)%npgf
-                  nsetd = basis_parameter(lkind)%nset
-                  zetd => basis_parameter(lkind)%zet
-                  nsgfd => basis_parameter(lkind)%nsgf
-                  first_sgfd => basis_parameter(lkind)%first_sgf
-                  sphi_d => basis_parameter(lkind)%sphi
-                  nsgfd_total = basis_parameter(lkind)%nsgf_total
-  
- 
-                  l_atom = atom_of_kind(latom)
-                  lkind = kind_of(latom)
-                  pd1 = last_sgf_global(latom) - nsgfd_total
-                  forces_map(4,1) = lkind
-                  forces_map(4,2) = l_atom
-  
-                  IF(nspins == 1) THEN
-                    fac = 0.25_dp * hf_fraction
-                  ELSE
-                    fac = 0.5_dp * hf_fraction
-                  END IF
-                  !calculate symmetry_factor
-                  symm_fac = 0.25_dp
-                  IF(iatom==jatom) symm_fac = symm_fac*2.0_dp
-                  IF(katom==latom) symm_fac = symm_fac*2.0_dp
-                  IF(iatom==katom .AND. jatom==latom .AND. iatom/=jatom .AND. katom/=latom) symm_fac = symm_fac*2.0_dp
-                  IF(iatom==katom .AND. iatom==jatom .AND. katom==latom) symm_fac = symm_fac*2.0_dp
-    
-                  symm_fac = 1.0_dp/symm_fac
-                  fac = fac * symm_fac             
-                  DO iset = 1, nseta
-                    ncoa = npgfa(iset)*ncoset(la_max(iset))
-                    sgfa = first_sgfa(1,iset)
-                    DO jset = 1,nsetb
-                      ncob = npgfb(jset)*ncoset(lb_max(jset))
-                      sgfb = first_sgfb(1,jset)
-                      max_val1 = screen_coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
-                                 screen_coeffs_set(jset,iset,jkind,ikind)%x(2)
-                      IF (max_val1 + (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
-                                      screen_coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
+            DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
+              iset=set_list_ij(i_set_list_ij)%pair(1)
+              jset=set_list_ij(i_set_list_ij)%pair(2)
 
-                      DO kset = 1,nsetc
-                        ncoc = npgfc(kset)*ncoset(lc_max(kset))
-                        sgfc = first_sgfc(1,kset)
-                        DO lset = 1,nsetd
+              ncoa = npgfa(iset)*ncoset(la_max(iset))
+              sgfa = first_sgfa(1,iset)
+              ncob = npgfb(jset)*ncoset(lb_max(jset))
+              sgfb = first_sgfb(1,jset)
+              max_val1 = screen_coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
+                         screen_coeffs_set(jset,iset,jkind,ikind)%x(2)
+              !! Near field screening
+              IF (max_val1 + (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
+                              screen_coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
+              DO i_set_list_kl=i_set_list_kl_start, i_set_list_kl_stop
+                kset=set_list_kl(i_set_list_kl)%pair(1)
+                lset=set_list_kl(i_set_list_kl)%pair(2)
 
-                          ncod = npgfd(lset)*ncoset(ld_max(lset)) 
-                          sgfd = first_sgfd(1,lset)
-                          max_val2_set = (screen_coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
-                                          screen_coeffs_set(lset,kset,lkind,kkind)%x(2) )
-                          max_val2 = max_val1 + max_val2_set
-                          IF(max_val2<log10_eps_schwarz) CYCLE
-                          IF( screen_pmat_forces ) THEN 
-                            log10_pmax = log_2 + MAX(shm_initial_p(kset,iset,katom,iatom) + shm_initial_p(lset,jset,latom,jatom),&
-                                                     shm_initial_p(lset,iset,latom,iatom) + shm_initial_p(kset,jset,katom,jatom))
-                          ELSE
-                            log10_pmax = 0.0_dp
-                          END IF
+                ncoc = npgfc(kset)*ncoset(lc_max(kset))
+                sgfc = first_sgfc(1,kset)
+                ncod = npgfd(lset)*ncoset(ld_max(lset))
+                sgfd = first_sgfd(1,lset)
+                max_val2_set = (screen_coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
+                                       screen_coeffs_set(lset,kset,lkind,kkind)%x(2) )
+                max_val2 = max_val1 + max_val2_set
 
-                          max_val2 = max_val2 + log10_pmax
-                          IF(max_val2<log10_eps_schwarz)  CYCLE
-
-                          pmax_entry = EXP(log10_pmax*ln_10) 
-                          max_contraction_val =  max_contraction(iset,iatom) * &
-                                                   max_contraction(jset,jatom) * &
-                                                   max_contraction(kset,katom) * &
-                                                   max_contraction(lset,latom) * &
-                                                   pmax_entry
-                          tmp_R_1 => radii_pgf(:,:,jset,iset,jkind,ikind)
-                          tmp_R_2 => radii_pgf(:,:,lset,kset,lkind,kkind)
-                          tmp_screen_pgf1 => screen_coeffs_pgf(:,:,jset,iset,jkind,ikind)
-                          tmp_screen_pgf2 => screen_coeffs_pgf(:,:,lset,kset,lkind,kkind)
-
-                          IF( .NOT. do_periodic ) THEN
-                            CALL forces4(ra, rb, rc, rd,&
-                                         zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
-                                         la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
-                                         lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                                         npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
-                                         ncoa, ncob, ncoc, ncod,&
-                                         primitive_forces,&
-                                         work_forces,&
-                                         potential_parameter, eps_schwarz, max_contraction_val, cartesian_estimate,&
-                                         i_thread, rab2, rcd2, max_val2_set, log10_eps_schwarz, log10_pmax,&
-                                         tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, B11, D11)
-                          ELSE
-                            CALL forces4_periodic(ra, rb, rc, rd,&
-                                                  zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
-                                                  la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
-                                                  lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                                                  npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
-                                                  ncoa, ncob, ncoc, ncod,&
-                                                  primitive_forces,&
-                                                  work_forces,&
-                                                  potential_parameter, &
-                                                  actual_x_data%neighbor_cells, screen_coeffs_set(jset,iset,jkind,ikind)%x,& 
-                                                  screen_coeffs_set(lset,kset,lkind,kkind)%x, eps_schwarz,&
-                                                  max_contraction_val, cartesian_estimate, i_thread, cell, &
-                                                  log10_pmax, B11, D11, log10_eps_schwarz, &
-                                                  tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2,error)
-                          END IF 
-  
-                          IF(cartesian_estimate<eps_schwarz) CYCLE
-                          CALL prefetch_density_matrix(pa1, pb1, pc1, pd1,&
-                                                       nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                       sgfa, sgfb, sgfc, sgfd, full_density, &
-                                                       pbd_buf, pbc_buf, pad_buf, pac_buf, N_pmat)
-                          IF( nspins == 2 ) THEN
-                            CALL prefetch_density_matrix(pa1, pb1, pc1, pd1,&
-                                                         nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                         sgfa, sgfb, sgfc, sgfd, full_density_beta, &
-                                                         pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, N_pmat)
-                          END IF
-
-
-                          DO coord = 1,12
-                            T2 => primitive_forces((coord-1)*ncoa*ncob*ncoc*ncod+1:coord*ncoa*ncob*ncoc*ncod)
-                            CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
-                                       1.0_dp, T2(1), ncoa,&
-                                       sphi_a(1,sgfa), SIZE(sphi_a,1),&
-                                       0.0_dp, T1(1),ncob*ncoc*ncod)
-  
-                            CALL dgemm("T","N",nsgfa(iset)*ncoc*ncod,nsgfb(jset),ncob,&
-                                       1.0_dp, T1(1),ncob,&
-                                       sphi_b(1,sgfb), SIZE(sphi_b,1),&
-                                       0.0_dp, T2(1),&
-                                       nsgfa(iset)*ncoc*ncod)
-    
-                            CALL dgemm("T","N",nsgfa(iset)*nsgfb(jset)*ncod,nsgfc(kset),ncoc,&
-                                       1.0_dp, T2(1),&
-                                       ncoc,&
-                                       sphi_c(1,sgfc), SIZE(sphi_c,1),&
-                                       0.0_dp, T1(1),nsgfa(iset)*nsgfb(jset)*ncod)
-    
-                            CALL dgemm("T","N",nsgfa(iset)*nsgfb(jset)*nsgfc(kset),nsgfd(lset),ncod,&
-                                       1.0_dp, T1(1),ncod,&
-                                       sphi_d(1,sgfd), SIZE(sphi_d,1),&
-                                       0.0_dp, T2(1),&
-                                       nsgfa(iset)*nsgfb(jset)*nsgfc(kset))
-
-                            CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                               pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
-                                               T2, force, forces_map, coord)
-                            IF( nspins == 2 ) THEN
-                              CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                 pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
-                                                 T2, force, forces_map, coord)
-                            END IF
-                          END DO !coord
-                        END DO !lset
-                      END DO !ksetm
-                    END DO !jset
-                  END DO !iset
+                !! Near field screening
+                IF(max_val2<log10_eps_schwarz) CYCLE
+                IF( screen_pmat_forces ) THEN 
+                  log10_pmax = log_2 + MAX(shm_initial_p(kset,iset,katom,iatom) + shm_initial_p(lset,jset,latom,jatom),&
+                                           shm_initial_p(lset,iset,latom,iatom) + shm_initial_p(kset,jset,katom,jatom))
+                ELSE
+                  log10_pmax = 0.0_dp
                 END IF
-              END IF !cycle
-            END DO !latom
-            first_l_loop = .FALSE.
-          END DO !katom
-          first_k_loop = .FALSE.
-        END DO !jatom
-        first_j_loop = .FALSE.
-      END DO !iatom
+
+                max_val2 = max_val2 + log10_pmax
+                IF(max_val2<log10_eps_schwarz)  CYCLE
+
+                pmax_entry = EXP(log10_pmax*ln_10) 
+                max_contraction_val =  max_contraction(iset,iatom) * &
+                                         max_contraction(jset,jatom) * &
+                                         max_contraction(kset,katom) * &
+                                         max_contraction(lset,latom) * &
+                                         pmax_entry
+                tmp_R_1 => radii_pgf(:,:,jset,iset,jkind,ikind)
+                tmp_R_2 => radii_pgf(:,:,lset,kset,lkind,kkind)
+                tmp_screen_pgf1 => screen_coeffs_pgf(:,:,jset,iset,jkind,ikind)
+                tmp_screen_pgf2 => screen_coeffs_pgf(:,:,lset,kset,lkind,kkind)
+
+                IF( .NOT. do_periodic ) THEN
+                  CALL forces4(ra, rb, rc, rd,&
+                               zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
+                               la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                               lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                               npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
+                               ncoa, ncob, ncoc, ncod,&
+                               primitive_forces,&
+                               work_forces,&
+                               potential_parameter, eps_schwarz, max_contraction_val, cartesian_estimate,&
+                               i_thread, rab2, rcd2, max_val2_set, log10_eps_schwarz, log10_pmax,&
+                               tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, B11, D11)
+                ELSE
+                  CALL forces4_periodic(ra, rb, rc, rd,&
+                                        zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
+                                        la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                                        lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                                        npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
+                                        ncoa, ncob, ncoc, ncod,&
+                                        primitive_forces,&
+                                        work_forces,&
+                                        potential_parameter, &
+                                        actual_x_data%neighbor_cells, screen_coeffs_set(jset,iset,jkind,ikind)%x,& 
+                                        screen_coeffs_set(lset,kset,lkind,kkind)%x, eps_schwarz,&
+                                        max_contraction_val, cartesian_estimate, i_thread, cell, &
+                                        log10_pmax, B11, D11, log10_eps_schwarz, &
+                                        tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2,error)
+                END IF 
+  
+                IF(cartesian_estimate<eps_schwarz) CYCLE
+                CALL prefetch_density_matrix(pa1, pb1, pc1, pd1,&
+                                             nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                             sgfa, sgfb, sgfc, sgfd, full_density, &
+                                             pbd_buf, pbc_buf, pad_buf, pac_buf, N_pmat)
+                IF( nspins == 2 ) THEN
+                  CALL prefetch_density_matrix(pa1, pb1, pc1, pd1,&
+                                               nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                               sgfa, sgfb, sgfc, sgfd, full_density_beta, &
+                                               pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, N_pmat)
+                END IF
+
+
+                DO coord = 1,12
+                  T2 => primitive_forces((coord-1)*ncoa*ncob*ncoc*ncod+1:coord*ncoa*ncob*ncoc*ncod)
+                  CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
+                             1.0_dp, T2(1), ncoa,&
+                             sphi_a(1,sgfa), SIZE(sphi_a,1),&
+                             0.0_dp, T1(1),ncob*ncoc*ncod)
+  
+                  CALL dgemm("T","N",nsgfa(iset)*ncoc*ncod,nsgfb(jset),ncob,&
+                             1.0_dp, T1(1),ncob,&
+                             sphi_b(1,sgfb), SIZE(sphi_b,1),&
+                             0.0_dp, T2(1),&
+                             nsgfa(iset)*ncoc*ncod)
+    
+                  CALL dgemm("T","N",nsgfa(iset)*nsgfb(jset)*ncod,nsgfc(kset),ncoc,&
+                             1.0_dp, T2(1),&
+                             ncoc,&
+                             sphi_c(1,sgfc), SIZE(sphi_c,1),&
+                             0.0_dp, T1(1),nsgfa(iset)*nsgfb(jset)*ncod)
+    
+                  CALL dgemm("T","N",nsgfa(iset)*nsgfb(jset)*nsgfc(kset),nsgfd(lset),ncod,&
+                             1.0_dp, T1(1),ncod,&
+                             sphi_d(1,sgfd), SIZE(sphi_d,1),&
+                             0.0_dp, T2(1),&
+                             nsgfa(iset)*nsgfb(jset)*nsgfc(kset))
+
+                  CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                     pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
+                                     T2, force, forces_map, coord)
+                  IF( nspins == 2 ) THEN
+                    CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                       pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
+                                       T2, force, forces_map, coord)
+                  END IF
+                END DO !coord
+              END DO !i_set_list_kl
+            END DO !i_set_list_ij
+          END DO !i_list_kl
+        END DO !i_list_ij
+      END DO atomic_blocks
       bintime_stop=m_walltime()
       actual_x_data%distribution_forces(bin)%time_forces=bintime_stop-bintime_start
     END DO  !bin
@@ -831,6 +835,9 @@ MODULE hfx_derivatives
     DEALLOCATE(pad_buf, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(pac_buf, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF( nspins == 2 ) THEN

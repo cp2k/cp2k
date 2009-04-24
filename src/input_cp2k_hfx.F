@@ -214,6 +214,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="BLOCK_SIZE",&
+            description="Determines the blocking used for the atomic quartet loops. "//&
+                        "A proper choice can speedup the calculation. The default (-1) is automatic.",&
+            usage="BLOCK_SIZE 4",&
+            default_i_val=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of basic information during the run", &
