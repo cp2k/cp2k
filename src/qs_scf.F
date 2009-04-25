@@ -43,7 +43,9 @@ MODULE qs_scf
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_symm
+                                             cp_fm_symm,&
+                                             cp_fm_triangular_invert,&
+                                             cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
@@ -84,10 +86,11 @@ MODULE qs_scf
                                              harris_energy_correction,&
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
-       broy_mix, broy_mix_new, core_guess, debug_run, densities_guess, &
-       diag_ot, diag_standard, direct_p_mix, general_roks, high_spin_roks, &
-       history_guess, kerker_mix, no_mix, ot_precond_full_all, &
-       ot_precond_full_kinetic, ot_precond_full_single, &
+       broy_mix, broy_mix_new, cholesky_inverse, cholesky_off, &
+       cholesky_reduce, cholesky_restore, core_guess, debug_run, &
+       densities_guess, diag_ot, diag_standard, direct_p_mix, general_roks, &
+       high_spin_roks, history_guess, kerker_mix, no_mix, &
+       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_sparse_diag, ot_precond_sparse_firstorder, &
        ot_precond_sparse_kinetic, outer_scf_none, outer_scf_scp, &
@@ -330,22 +333,28 @@ CONTAINS
             ! No mixing is used with OT
              scf_env%mixing_method=no_mixing_nr
              scf_env%p_mix_alpha = 1.0_dp
+             scf_env%skip_diis = .TRUE.
           END IF
 
-          IF(scf_env%mixing_method>1) THEN
-            IF(qs_env%scf_control%eps_diis>qs_env%scf_control%eps_scf) THEN
-             IF(output_unit>0)  WRITE(output_unit,*) "WARNING running with g-space mixing and eps_diis>eps_scf",&
-                   "For Delta_P below eps_diis, the diis algorithm is started and g-space mixing is no longer  performed"
-            END IF
+
+          IF(scf_env%mixing_method>direct_mixing_nr) THEN
+            scf_env%skip_diis = .TRUE.
             IF(scf_env%p_mix_beta==0.0_dp) THEN
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                      routineP,"Mixing employing the Kerker damping factor: choose BETA /= 0.0",error,failure)
             END IF
           END IF
-          IF(scf_env%mixing_method>0) THEN
+
+          IF(scf_env%mixing_method==direct_mixing_nr) THEN
+            IF(qs_env%scf_control%eps_diis<qs_env%scf_control%eps_scf) THEN
+             scf_env%skip_diis = .TRUE.
+             IF(output_unit>0)  WRITE(output_unit,*) "WARNING the diis scheme is disabled "//&
+                 "since eps_diis<eps_scf"
+            END IF
             CALL section_vals_val_get(scf_section,"MIXING%NSKIP",i_val=scf_env%nskip_mixing,error=error)
           END IF
 
+          CALL section_vals_val_get(scf_section,"CHOLESKY",i_val=scf_env%cholesky_method,error=error)
        END IF
 
        IF ( qs_env%scf_control%max_scf > 0 ) THEN
@@ -841,19 +850,18 @@ CONTAINS
 
           ! ** update qs_env%rho
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-          IF(scf_env%mixing_method==gspace_mixing_nr .AND. .NOT. diis_step) THEN
+          ! ** Density mixing through density matrix or on the reciprocal space grid (exclusive)
+          IF(scf_env%mixing_method==gspace_mixing_nr) THEN
             CALL gmix_potential_only(scf_env, rho, error)
-          ELSEIF(scf_env%mixing_method==pulay_mixing_nr .AND. .NOT. diis_step) THEN
+          ELSEIF(scf_env%mixing_method==pulay_mixing_nr) THEN
             CALL pulay_mixing(scf_env, rho, qs_env%para_env, error)
-          ELSEIF(scf_env%mixing_method==broyden_mixing_nr .AND. .NOT. diis_step) THEN
+          ELSEIF(scf_env%mixing_method==broyden_mixing_nr) THEN
             CALL broyden_mixing(scf_env, rho, qs_env%para_env, error)
-          ELSEIF(scf_env%mixing_method==broyden_mixing_new_nr .AND. .NOT. diis_step) THEN
+          ELSEIF(scf_env%mixing_method==broyden_mixing_new_nr) THEN
             CALL broyden_mixing_new(scf_env, rho, qs_env%para_env, delta_rhog, delta_rhog_p, error)
- !dbg
- !    write(*,*)  'delta rhog ', delta_rhog, delta_rhog_p
- !dbg
           END IF
           CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+
           ! *** SCP
           IF ( scp_dft ) THEN
              CALL update_rhoscp ( qs_env = qs_env, error = error )
@@ -936,12 +944,14 @@ CONTAINS
                          error=error)
     END DO
 
-    IF (scf_env%iter_count > 1) THEN
+    IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
                           s_matrix=matrix_s,&
                           scf_section=scf_section,error=error)
+    ELSE
+      diis_step = .FALSE.
     END IF
 
     do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
@@ -1003,7 +1013,7 @@ CONTAINS
                        work=scf_env%scf_work2,&
                        do_level_shift=do_level_shift,&
                        level_shift=scf_control%level_shift,&
-                       use_cholesky=scf_control%use_cholesky,&
+                       cholesky_method=scf_env%cholesky_method,&
                        use_jacobi=use_jacobi,&
                        jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                        error=error)
@@ -1043,12 +1053,14 @@ CONTAINS
     DO ispin=1,SIZE(matrix_ks)
       CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
     END DO
-    IF (scf_env%iter_count > 1) THEN
+    IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
                           scf_section=scf_section,&
                           error=error)
+    ELSE
+      diis_step = .FALSE.
     END IF
 
     do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
@@ -1120,12 +1132,14 @@ CONTAINS
       CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
     END DO
 
-    IF (scf_env%iter_count > 1) THEN
+    IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
                           s_matrix=matrix_s,&
                           scf_section=scf_section,error=error)
+    ELSE
+      diis_step = .FALSE.
     END IF
 
     do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
@@ -1601,18 +1615,21 @@ END SUBROUTINE qs_scf_print_summary
                cp_to_string(scf_env%method),error,failure)
 
     CASE (general_diag_method_nr,special_diag_method_nr)
-
-       IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
-          CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
+       IF(.NOT. scf_env%skip_diis) THEN
+         IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+            CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
+         END IF
+         CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
        END IF
-       CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
 
     CASE (ot_diag_method_nr)
-
-       IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
-          CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
+  
+       IF(.NOT. scf_env%skip_diis) THEN
+         IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+            CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
+         END IF
+         CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
        END IF
-       CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
 
        ! disable DFTB and SE for now
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
@@ -2024,7 +2041,7 @@ CPSourceFileRef)
     INTEGER                                  :: handle, homo, i, ispin, iw, &
                                                 nao, ndep, nelectron_spin, &
                                                 output_unit
-    LOGICAL :: failure, gth_potential_present, id_equal, &
+    LOGICAL :: cho_inverse, failure, gth_potential_present, id_equal, &
       my_transition_potential, s_minus_half_available
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2119,13 +2136,18 @@ CPSourceFileRef)
         scf_env%method /= ot_diag_method_nr .AND. &
         scf_env%method /= special_diag_method_nr ) THEN
        CALL copy_sm_to_fm(matrix_s(1)%matrix,scf_env%ortho,error=error)
-       IF (scf_control%use_cholesky) THEN
-          CALL cp_fm_cholesky_decompose(scf_env%ortho,error=error)
+       cho_inverse = .FALSE.
+       IF (scf_env%cholesky_method>cholesky_off) THEN
+           CALL cp_fm_cholesky_decompose(scf_env%ortho,error=error)
+           IF(scf_env%cholesky_method==cholesky_inverse) THEN
+             CALL cp_fm_triangular_invert(scf_env%ortho,error=error)
+           END IF
        ELSE
-         CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,&
-                          scf_control%eps_eigval,ndep,error=error)
-         s_minus_half_available = .TRUE.
+           CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,&
+                           scf_control%eps_eigval,ndep,error=error)
+           s_minus_half_available = .TRUE.
        END IF
+       
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
@@ -2741,7 +2763,7 @@ CPSourceFileRef)
                    END DO
                ELSEIF(qs_env%scf_env%mixing_method==broyden_mixing_nr) THEN
                   DO ispin = 1,nspin
-                    IF(.NOT. ASSOCIATED(qs_env%scf_env%rhoin_buffer(1,1)%cc)) THEN
+                    IF(.NOT. ASSOCIATED(qs_env%scf_env%rhoin_buffer(1,ispin)%cc)) THEN
                     DO ib = 1,qs_env%scf_env%nbroy
                       ALLOCATE(qs_env%scf_env%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)  
                       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -2758,37 +2780,38 @@ CPSourceFileRef)
                ELSEIF(qs_env%scf_env%mixing_method==broyden_mixing_new_nr) THEN
        CPPrecondition(ASSOCIATED(qs_env%scf_env%broy_store),cp_failure_level,routineP,error,failure)
                   DO ispin = 1,nspin
-                  IF(.NOT. ASSOCIATED(qs_env%scf_env%rhoin_buffer(1,1)%cc)) THEN
-                    DO ib = 1,qs_env%scf_env%nbroy-1
-                      ALLOCATE(qs_env%scf_env%broy_store%delta_res(ib,ispin)%cc(ng),STAT=istat)  
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      ALLOCATE(qs_env%scf_env%broy_store%u_vec(ib,ispin)%cc(ng),STAT=istat)  
+                    IF(.NOT. ASSOCIATED(qs_env%scf_env%rhoin_buffer(1,ispin)%cc)) THEN
+                       DO ib = 1,qs_env%scf_env%nbroy-1
+                         ALLOCATE(qs_env%scf_env%broy_store%delta_res(ib,ispin)%cc(ng),STAT=istat)  
+                         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                         ALLOCATE(qs_env%scf_env%broy_store%u_vec(ib,ispin)%cc(ng),STAT=istat)  
+                          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                         ALLOCATE(qs_env%scf_env%broy_store%z_vec(ib,ispin)%cc(ng),STAT=istat)  
+                         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                         ALLOCATE(qs_env%scf_env%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)  
+                         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                       END DO
+                       ALLOCATE(qs_env%scf_env%rhoin_buffer(qs_env%scf_env%nbroy,ispin)%cc(ng),STAT=istat)  
                        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      ALLOCATE(qs_env%scf_env%broy_store%z_vec(ib,ispin)%cc(ng),STAT=istat)  
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      ALLOCATE(qs_env%scf_env%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)  
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                    END DO
-                    ALLOCATE(qs_env%scf_env%rhoin_buffer(qs_env%scf_env%nbroy,ispin)%cc(ng),STAT=istat)  
-                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                    ALLOCATE(qs_env%scf_env%broy_store%last_res(ispin)%cc(ng),STAT=istat)  
-                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                    ALLOCATE(qs_env%scf_env%broy_store%p_metric(ng),STAT=istat)
-                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                    IF(qs_env%scf_env%broy_store%p_metric_method==1) THEN
-                      bconst = qs_env%scf_env%broy_store%bconst
-                      g2min = 1.E30_dp
-                      DO ig = 1,ng
-                        IF(g2(ig)>1.E-10_dp) g2min =  MIN(g2min,g2(ig))
-                      END DO
-                      CALL mp_min(g2min,qs_env%para_env%group)
-                      fdamp = (bconst-1.0_dp)*g2min
-                    ELSEIF(qs_env%scf_env%broy_store%p_metric_method==2) THEN
-                      fdamp = beta*beta
-                    END IF
-                    DO ig = 1,ng
-                      qs_env%scf_env%broy_store%p_metric(ig) = (g2(ig)+fdamp)/MAX(g2(ig),1.E-10_dp)
-                    END DO
+                       ALLOCATE(qs_env%scf_env%broy_store%last_res(ispin)%cc(ng),STAT=istat)  
+                       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                       ALLOCATE(qs_env%scf_env%broy_store%p_metric(ng),STAT=istat)
+                       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                       IF(qs_env%scf_env%broy_store%p_metric_method==1) THEN
+                         bconst = qs_env%scf_env%broy_store%bconst
+                         g2min = 1.E30_dp
+                         DO ig = 1,ng
+                           IF(g2(ig)>1.E-10_dp) g2min =  MIN(g2min,g2(ig))
+                         END DO
+                         CALL mp_min(g2min,qs_env%para_env%group)
+                         fdamp = (bconst-1.0_dp)*g2min
+                       ELSEIF(qs_env%scf_env%broy_store%p_metric_method==2) THEN
+                         fdamp = beta*beta
+                       END IF
+                       DO ig = 1,ng
+                           qs_env%scf_env%broy_store%p_metric(ig) = (g2(ig)+fdamp)/MAX(g2(ig),1.E-10_dp)
+                       END DO
+                       IF(qs_env%rho%rho_g(1)%pw%pw_grid%have_g0) qs_env%scf_env%broy_store%p_metric(1) = 0.0_dp
                     END IF
                     qs_env%scf_env%rhoin_buffer(1,ispin)%cc(1:ng) = qs_env%rho%rho_g(ispin)%pw%cc(1:ng)
                   END DO
@@ -3161,13 +3184,25 @@ CPSourceFileRef)
     ELSE IF (.NOT.orthogonal_basis) THEN
 
       ! Transform the current Kohn-Sham matrix to an orthogonal basis
-
-      IF (scf_control%use_cholesky) THEN
+      SELECT CASE(scf_env%cholesky_method)
+      CASE(cholesky_reduce)
         CALL cp_fm_cholesky_reduce(ksa,ortho,error=error)
-      ELSE
+      CASE(cholesky_restore)
+         CALL cp_fm_upper_to_full(ksa,work,error=error)
+         CALL cp_fm_cholesky_restore(ksa,nao,ortho,work,&
+                "SOLVE",pos="RIGHT",error=error)
+         CALL cp_fm_cholesky_restore(work,nao,ortho,ksa,&
+               "SOLVE",pos="LEFT",transa="T",error=error)
+      CASE(cholesky_inverse)
+         CALL cp_fm_upper_to_full(ksa,work,error=error)
+         CALL cp_fm_cholesky_restore(ksa,nao,ortho,work,&
+                "MULTIPLY",pos="RIGHT",error=error)
+         CALL cp_fm_cholesky_restore(work,nao,ortho,ksa,&
+               "MULTIPLY",pos="LEFT",transa="T",error=error)
+      CASE(cholesky_off)
         CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work,error=error)
         CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa,error=error)
-      END IF
+      END SELECT
 
     END IF
 
@@ -3185,11 +3220,14 @@ CPSourceFileRef)
       IF (orthogonal_basis) THEN
         CALL cp_fm_to_fm(work,moa,error=error)
       ELSE
-        IF (scf_control%use_cholesky) THEN
+        SELECT CASE(scf_env%cholesky_method)
+        CASE(cholesky_reduce,cholesky_restore)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"SOLVE",error=error)
-        ELSE
+        CASE(cholesky_inverse)
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"MULTIPLY",error=error)
+        CASE(cholesky_off) 
           CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
-        END IF
+        END SELECT
       END IF
     END IF
 

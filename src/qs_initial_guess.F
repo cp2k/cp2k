@@ -390,7 +390,7 @@ CPSourceFileRef,&
                            work=work2,&
                            do_level_shift=.FALSE.,&
                            level_shift=0.0_dp,&
-                           use_cholesky=scf_control%use_cholesky,&
+                           cholesky_method=scf_env%cholesky_method,&
                            use_jacobi=.FALSE.,&
                            jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                            error=error)
@@ -823,7 +823,7 @@ CPSourceFileRef,&
                           work=qs_env%scf_env%scf_work2,&
                           do_level_shift=.FALSE., &
                           level_shift=scf_control%level_shift, &
-                          use_cholesky=scf_control%use_cholesky,&
+                          cholesky_method=scf_env%cholesky_method,&
                           use_jacobi=.FALSE.,&
                           jacobi_threshold=scf_control%diagonalization%jacobi_threshold, &
                           error=error)

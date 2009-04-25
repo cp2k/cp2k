@@ -144,7 +144,7 @@ CONTAINS
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     LOGICAL :: diis_step, do_level_shift, energy_only, exit_loop, failure, &
-      gapw, ionode, uniform_occupation, use_cholesky, use_jacobi
+      gapw, ionode, uniform_occupation, use_jacobi
     REAL(KIND=dp)                            :: a_max, b_max, diis_error, &
                                                 IP_energy, t1, t2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
@@ -286,11 +286,13 @@ CONTAINS
              CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix,error=error)
           ENDDO
 
-          IF (iter_count > 1) THEN
+          IF (iter_count > 1  .AND. .NOT. scf_env%skip_diis) THEN
              CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
                   scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                   xas_env%eps_diis,s_matrix=matrix_s,scf_section=scf_section,&
                   error=error)
+          ELSE
+            diis_step = .FALSE.
           END IF
 
           do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
@@ -315,7 +317,6 @@ CONTAINS
           IF ((iter_count > 1).AND.(scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
              use_jacobi = .TRUE.
           ELSE
-             use_cholesky = scf_control%use_cholesky
              use_jacobi = .FALSE.
           END IF
 
@@ -326,7 +327,7 @@ CONTAINS
              CALL eigensolver(scf_work1(ispin)%matrix,&
                   mos(ispin)%mo_set,ortho,scf_work2,&
                   do_level_shift,scf_control%level_shift,&
-                  use_cholesky=use_cholesky,&
+                  cholesky_method=scf_env%cholesky_method,&
                   use_jacobi=use_jacobi,&
                   jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                   error=error)

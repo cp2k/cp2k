@@ -162,6 +162,11 @@ MODULE input_constants
                                               pot_neb_fe=1,&
                                               pot_neb_me=2
 
+  INTEGER, PARAMETER, PUBLIC               :: cholesky_off=0,&
+                                              cholesky_reduce=1,&
+                                              cholesky_restore=2,&
+                                              cholesky_inverse=3
+
   INTEGER, PARAMETER, PUBLIC               :: atomic_guess=1,&
                                               restart_guess=2,&
                                               random_guess=3,&

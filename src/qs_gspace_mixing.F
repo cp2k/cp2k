@@ -297,7 +297,6 @@ CONTAINS
     INTEGER                                  :: handle, ig, ispin, ng, nspin
     LOGICAL                                  :: failure
     REAL(dp)                                 :: f_mix
-    REAL(dp), DIMENSION(:), POINTER          :: g2
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env%rhoin_buffer),cp_failure_level,routineP,error,failure)
@@ -309,11 +308,10 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(cc_new, g2)
+    NULLIFY(cc_new)
 
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(rho%rho_g(1)%pw%pw_grid%gsq)
-    g2 => rho%rho_g(1)%pw%pw_grid%gsq
 
     DO ispin = 1,nspin
       cc_new =>  rho%rho_g(ispin)%pw%cc
@@ -350,15 +348,13 @@ CONTAINS
     COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: cc_mix
     INTEGER                                  :: handle, i, ib, ibb, ig, &
                                                 ispin, istat, jb, nb, nb1, &
-                                                nbuffer, ng, ng_tot, ngpts, &
-                                                nspin
+                                                nbuffer, ng, nspin
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha_kerker, alpha_pulay, &
                                                 beta, f_mix, inv_err, norm, &
                                                 norm_c_inv, vol
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: alpha_c, ev
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b, c, c_inv
-    REAL(dp), DIMENSION(:), POINTER          :: g2
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env%res_buffer),cp_failure_level,routineP,error,failure)
@@ -373,9 +369,6 @@ CONTAINS
 
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(scf_env%res_buffer(1,1)%cc)
-    ng_tot = SIZE(rho%rho_g(1)%pw%pw_grid%gsq)
-    ngpts = rho%rho_g(1)%pw%pw_grid%ngpts
-    g2 => rho%rho_g(1)%pw%pw_grid%gsq
     vol = rho%rho_g(1)%pw%pw_grid%vol
 
     alpha_kerker=scf_env%p_mix_alpha
@@ -416,7 +409,6 @@ CONTAINS
       norm = 0.0_dp
       DO ig = 1,ng
           f_mix = scf_env%kerker_factor(ig)
-!           f_mix = (g2(ig)+beta*beta)/(g2(ig)+beta*beta*0.01_dp*0.01_dp)
           scf_env%res_buffer(ib,ispin)%cc(ig) = f_mix*(rho%rho_g(ispin)%pw%cc(ig)-scf_env%rhoin_buffer(ib,ispin)%cc(ig))
       END DO
 
@@ -478,11 +470,10 @@ CONTAINS
           END IF
         END DO
         ev(1:nb) = MATMUL(a(1:nb,1:nb1),b(nb1,1:nb1))
+
         cc_mix = CMPLX(0._dp,0._dp,KIND=dp) 
         DO jb = 1,nb
           DO ig = 1,ng
-          !   cc_mix(ig) = cc_mix(ig) +  ev(jb) * scf_env%rhoin_buffer(jb,ispin)%cc(ig)
-!           cc_mix(ig) = cc_mix(ig) +  ev(jb) * (scf_env%rhoin_buffer(jb,ispin)%cc(ig) +scf_env%res_buffer(jb,ispin)%cc(ig))
            cc_mix(ig) = cc_mix(ig) +  alpha_c(jb) * (scf_env%rhoin_buffer(jb,ispin)%cc(ig) +scf_env%res_buffer(jb,ispin)%cc(ig))
           END DO
         END DO
@@ -510,6 +501,8 @@ CONTAINS
     DEALLOCATE(ev, STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(cc_mix, STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(c,c_inv,alpha_c, STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
@@ -539,15 +532,12 @@ CONTAINS
     COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: res_rho
     INTEGER                                  :: handle, ib, ibb, ig, ispin, &
                                                 istat, jb, kb, nb, nbuffer, &
-                                                ng, ng_tot, ngpts, ngpts_tot, &
-                                                nspin
+                                                ng, nspin
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha, beta, delta_norm, &
-                                                f_mix, inv_err, res_norm, &
-                                                vol, w0
+                                                f_mix, inv_err, res_norm, w0
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: c, g
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b
-    REAL(dp), DIMENSION(:), POINTER          :: g2
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env%res_buffer),cp_failure_level,routineP,error,failure)
@@ -563,12 +553,6 @@ CONTAINS
 
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(scf_env%res_buffer(1,1)%cc)
-    ng_tot = SIZE(rho%rho_g(1)%pw%pw_grid%gsq)
-    ngpts_tot = rho%rho_g(1)%pw%pw_grid%ngpts
-    ngpts = ng
-    CALL mp_sum(ngpts,para_env%group)
-    g2 => rho%rho_g(1)%pw%pw_grid%gsq
-    vol = rho%rho_g(1)%pw%pw_grid%vol
 
     alpha=scf_env%p_mix_alpha
     beta=scf_env%p_mix_beta
@@ -705,15 +689,17 @@ CONTAINS
 
     COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: delta_res_p, res_rho, &
                                                 res_rho_p, tmp
-    INTEGER                                  :: handle, ib, ibb, ig, ispin, &
-                                                istat, jb, kb, kkb, nb, &
-                                                nbuffer, ng, nspin
+    INTEGER                                  :: handle, ib, ibb, ig, info, &
+                                                ispin, istat, jb, kb, kkb, &
+                                                lwork, nb, nbuffer, ng, nspin
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
     LOGICAL                                  :: failure, skip_bq
     REAL(dp)                                 :: alpha, beta, delta, delta_p, &
                                                 f_mix, imp, imp_j, inv_err, &
                                                 norm, norm_ig, rep, rep_j, &
                                                 vol, wc, wmax
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b, bq
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: aval, work_dgesdd
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, au, av, b, bq, work
     REAL(dp), DIMENSION(:), POINTER          :: p_metric
     REAL(dp), DIMENSION(:, :), POINTER       :: fmat, gmat, smat, weight
     TYPE(cp_1d_z_p_type), DIMENSION(:), &
@@ -725,10 +711,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_env%rhoin_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_env%broy_store),cp_failure_level,routineP,error,failure)
 
-    IF(scf_env%iter_count < scf_env%nskip_mixing) THEN
-      ! skip mixing
-      RETURN
-    END IF
 
     CALL timeset(routineN,handle)
 
@@ -736,9 +718,25 @@ CONTAINS
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(scf_env%rhoin_buffer(1,1)%cc)
     vol = rho%rho_g(1)%pw%pw_grid%vol
-
     alpha=scf_env%p_mix_alpha
     beta=scf_env%p_mix_beta
+
+    IF(scf_env%iter_count < 10) THEN !scf_env%nskip_mixing) THEN
+      ! skip mixing
+      ! Simple Kerker damping : linear mixing rho(G) = rho_in(G) - alpha k(G)*(rho_out(G)-rho_in(G))
+      DO ispin = 1,nspin
+      DO ig = 1,ng
+        f_mix = alpha*scf_env%kerker_factor(ig)
+        rho%rho_g(ispin)%pw%cc(ig) = scf_env%rhoin_buffer(1,ispin)%cc(ig) + &
+            f_mix*(rho%rho_g(ispin)%pw%cc(ig) - scf_env%rhoin_buffer(1,ispin)%cc(ig))
+        scf_env%rhoin_buffer(1,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+      END DO
+      END DO
+
+      CALL timestop(handle)
+      RETURN
+    END IF
+
     wc = scf_env%broy_store%wc
     wmax = scf_env%broy_store%wmax
     nbuffer = scf_env%nbroy
@@ -814,6 +812,10 @@ CONTAINS
       IF(weight(ib,ispin)==0.0_dp) weight(ib,ispin) = 100.0_dp
       IF(weight(ib,ispin)<1.0_dp) weight(ib,ispin) = 1.0_dp
 
+!dbg
+!    write(*,*) 'ibroy ', ib, weight(ib,ispin)
+!    write(*,*) 'delta ', delta, delta_p
+!dbg
       IF(ib==1) THEN
         ! Simple Kerker damping : linear mixing rho(G) = rho_in(G) - alpha k(G)*(rho_out(G)-rho_in(G))
         DO ig = 1,ng
@@ -898,7 +900,59 @@ CONTAINS
              a(kb,jb) = weight(jb,ispin)*weight(kb,ispin)*fmat(kb,jb)
           ENDDO
         END DO
-        CALL invert_matrix(a,b,inv_err,error=error)
+
+        IF(.TRUE.) THEN
+          b=0.0_dp
+          CALL invert_matrix(a,b,inv_err,error=error)
+!dbg
+!      write(*,*) 'invert version 1'
+!      DO kb = 1,ib-1
+!         write(*,*)  'b ', kb, (b(kb,jb),jb=1,ib-1)
+!      END DO
+!dbg
+        ELSE
+          b=0.0_dp
+          ALLOCATE(work(ib-1,ib-1),aval(ib-1),av(ib-1,ib-1),au(ib-1,ib-1))
+          work=a
+          ALLOCATE(iwork(8*(ib-1)),work_dgesdd(1))
+             lwork=-1
+             CALL DGESDD('S',ib-1,ib-1,work,ib-1,aval,au,ib-1,av,ib-1,work_dgesdd,lwork,iwork,info)
+             lwork=work_dgesdd(1)
+             DEALLOCATE(work_dgesdd) ; ALLOCATE(work_dgesdd(lwork))
+             CALL DGESDD('S',ib-1,ib-1,work,ib-1,aval,au,ib-1,av,ib-1,work_dgesdd,lwork,iwork,info)
+             ! construct the inverse
+             DO kb=1,ib-1
+                ! invert SV
+                IF (aval(kb)<1.E-6_dp) THEN
+                   aval(kb)=0.0_dp
+                ELSE
+                   aval(kb)=1.0_dp/aval(kb)
+                ENDIF
+                av(kb,:)=av(kb,:)*aval(kb)
+             ENDDO
+             CALL DGEMM('T','T',ib-1,ib-1,ib-1,1.0_dp,av,ib-1,au,ib-1,0.0_dp,b,ib-1)
+             DEALLOCATE(iwork,aval,au,av,work_dgesdd, work)
+
+!          CALL diamat_all(work(1:ib-1,1:ib-1),aval(1:ib-1),error=error)
+!
+!          avec(1:ib-1,1:ib-1) = work(1:ib-1,1:ib-1)
+!          DO jb = 1,ib-1
+!            IF(ABS(aval(jb)) < 1.E-5_dp ) THEN
+!              avec(1:ib-1,jb) = 0.0_dp
+!            ELSE
+!              avec(1:ib-1,jb) = work(1:ib-1,jb) / aval(jb)
+!            END IF
+!          END DO
+!          b(1:ib-1,1:ib-1) = MATMUL(avec(1:ib-1,1:ib-1),work(1:ib-1,1:ib-1))
+
+!          DEALLOCATE(work,avec,aval)
+!dbg
+!      write(*,*) 'invert version 2'
+!      DO kb = 1,ib-1
+!         write(*,*)  'b ', kb, (b(kb,jb),jb=1,ib-1)
+!      END DO
+!dbg
+        END IF
 
 
         bq = 0.0_dp
@@ -924,6 +978,9 @@ CONTAINS
            END DO 
         END IF
         DO jb = 1,ib-1
+!dbg
+!  write(*,*) ' jb ', skip_bq
+!dbg
           tmp(:) = CMPLX(0.0_dp,0.0_dp)
           IF(.NOT. skip_bq) THEN
             ! sum_{kb} bq(jb,kb) * z_vec_{kb,iter-2}
@@ -938,9 +995,15 @@ CONTAINS
 
            ! sum_{kb} w(jb)*w(kb)*b(jb,kb) * u_vec_{kb}
           DO kb = 1,ib-1
+!dbg
+!  write(*,*) ' kb ',  weight(kb,ispin), weight(jb,ispin), b(jb,kb)
+!dbg
              DO ig = 1,ng
                 tmp(ig) = tmp(ig) + weight(kb,ispin)*weight(jb,ispin)*b(jb,kb)*u_vec(kb,ispin)%cc(ig) 
              END DO
+!dbg
+! write(*,*) ' z ', kb, weight(kb,ispin)*weight(jb,ispin)*b(jb,kb),  tmp(1),tmp(2)
+!dbg
           END DO
 
           ! store the new z_vec(jb)
@@ -972,6 +1035,9 @@ CONTAINS
             norm = norm + rep_j*rep + imp_j*imp
           END DO
           CALL mp_sum(norm,para_env%group)
+!dbg
+!   write(*,*) 'jb norm ', jb, norm
+!dbg
           ! Subtract |Z_jb)><DR_jb|P|R_{iter}> 
           DO ig = 1,ng
             rho%rho_g(ispin)%pw%cc(ig) = rho%rho_g(ispin)%pw%cc(ig) - norm * z_vec(jb,ispin)%cc(ig) 

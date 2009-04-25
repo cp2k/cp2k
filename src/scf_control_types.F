@@ -357,7 +357,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: cholesky_flag, stat
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals, roks_parameter
@@ -387,7 +387,10 @@ CONTAINS
        CALL section_vals_val_get(scf_section,"SCF_GUESS",i_val=scf_control%density_guess,error=error)
        CALL section_vals_val_get(scf_section,"EPS_DIIS",r_val=scf_control%eps_diis,error=error)
        CALL section_vals_val_get(scf_section,"eps_eigval",r_val=scf_control%eps_eigval,error=error)
-       CALL section_vals_val_get(scf_section,"cholesky",l_val=scf_control%use_cholesky,error=error)
+       CALL section_vals_val_get(scf_section,"cholesky",i_val=cholesky_flag,error=error)
+       IF(cholesky_flag>0) THEN
+         scf_control%use_cholesky = .TRUE.
+       END IF 
        CALL section_vals_val_get(scf_section,"eps_scf",r_val=scf_control%eps_scf,error=error)
        CALL section_vals_val_get(scf_section,"level_shift",r_val=scf_control%level_shift,error=error)
        CALL section_vals_val_get(scf_section,"max_diis",i_val=scf_control%max_diis,error=error)

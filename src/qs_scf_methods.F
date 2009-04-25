@@ -15,7 +15,8 @@
 MODULE qs_scf_methods
 
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_symm
+                                             cp_fm_symm,&
+                                             cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
@@ -29,6 +30,10 @@ MODULE qs_scf_methods
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
+  USE input_constants,                 ONLY: cholesky_inverse,&
+                                             cholesky_off,&
+                                             cholesky_reduce,&
+                                             cholesky_restore
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
   USE qs_environment_types,            ONLY: qs_environment_type
@@ -145,14 +150,14 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,&
-                         level_shift,use_cholesky,use_jacobi,&
+                         level_shift,cholesky_method,use_jacobi,&
                          jacobi_threshold,error)
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: ortho, work
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift
-    LOGICAL, INTENT(INOUT)                   :: use_cholesky
+    INTEGER, INTENT(INout)                   :: cholesky_method
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -162,6 +167,9 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, nao, &
                                                 nelectron, nmo
+    LOGICAL                                  :: use_cho_inverse, &
+                                                use_cho_reduce, &
+                                                use_cho_restore
     REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -182,23 +190,58 @@ CONTAINS
                     mo_coeff=mo_coeff)
 
     IF (do_level_shift) THEN
-       IF (use_cholesky) THEN
+       IF (cholesky_method>cholesky_off) THEN
           CALL stop_program("eigensolver","level shift not implemented")
        ENDIF
     ENDIF
 
-    IF (use_cholesky) THEN
-       CALL cp_fm_cholesky_reduce(matrix_ks,ortho,error=error)
+    use_cho_reduce = .FALSE.
+    use_cho_restore = .TRUE.
+    use_cho_inverse = .FALSE.
+    
+    IF (cholesky_method>cholesky_off) THEN
+       SELECT CASE(cholesky_method)
+       CASE(cholesky_reduce)
+         CALL cp_fm_cholesky_reduce(matrix_ks,ortho,error=error)
+       CASE(cholesky_restore)
+         CALL cp_fm_upper_to_full(matrix_ks,work,error=error)
+         CALL cp_fm_cholesky_restore(matrix_ks,nao,ortho,work,&
+                "SOLVE",pos="RIGHT",error=error)
+         CALL cp_fm_cholesky_restore(work,nao,ortho,matrix_ks,&
+               "SOLVE",pos="LEFT",transa="T",error=error)
+       CASE(cholesky_inverse)
+         CALL cp_fm_upper_to_full(matrix_ks,work,error=error)
+         CALL cp_fm_cholesky_restore(matrix_ks,nao,ortho,work,&
+                "MULTIPLY",pos="RIGHT",error=error)
+         CALL cp_fm_cholesky_restore(work,nao,ortho,matrix_ks,&
+               "MULTIPLY",pos="LEFT",transa="T",error=error)
+       END SELECT
 
        IF (use_jacobi) THEN
           CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
-          use_cholesky = .FALSE.
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+          IF(cholesky_method==cholesky_inverse) THEN
+            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
+          ELSE
+            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+          END IF
           CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
-       ELSE
+          cholesky_method = cholesky_off
+       ELSEIF(nmo==nao) THEN
           ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
           CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+          IF(cholesky_method==cholesky_inverse) THEN
+            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
+          ELSE
+            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+          END IF
+       ELSE
+          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
+!          CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
+          IF(cholesky_method==cholesky_inverse) THEN
+            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
+          ELSE
+            CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+          END IF
        END IF
 
     ELSE IF (use_jacobi) THEN
@@ -227,7 +270,12 @@ CONTAINS
        END IF
 
        ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
-       CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
+       IF(nmo==nao) THEN
+         CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
+       ELSE
+         CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
+!         CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
+       END IF
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
                        mo_coeff,error=error)

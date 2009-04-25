@@ -89,13 +89,13 @@ END TYPE qs_outer_scf_type
 TYPE qs_scf_env_type
    TYPE(qs_outer_scf_type) :: outer_scf
    INTEGER :: ref_count, id_nr, print_count, iter_count
-   INTEGER :: nelectron, method, mixing_method, npulay, nbroy, mixing_ncall, nskip_mixing
+   INTEGER :: cholesky_method, nelectron, method, mixing_method, npulay, nbroy, mixing_ncall, nskip_mixing
    REAL(KIND = dp) :: broy_w0, iter_param, iter_delta, p_mix_alpha, &
                       p_mix_beta, pulay_alpha
    REAL(KIND = dp) , DIMENSION(:,:), POINTER :: pulay_matrix
    CHARACTER (len=15) :: iter_method
    COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
-   LOGICAL :: print_iter_line, skip_mixing
+   LOGICAL :: print_iter_line, skip_mixing, skip_diis
    REAL(KIND=dp), DIMENSION(:), POINTER :: kerker_factor
    TYPE(broyden_storage_type), POINTER :: broy_store
    TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: broy_last_res
@@ -150,6 +150,7 @@ CONTAINS
        scf_env%iter_method=""
        scf_env%print_iter_line=.TRUE.
        scf_env%skip_mixing=.FALSE.
+       scf_env%skip_diis=.FALSE.
 
        scf_env%method= -1
        scf_env%mixing_method = -1
@@ -157,6 +158,7 @@ CONTAINS
        scf_env%p_mix_beta=1.0_dp
        scf_env%pulay_alpha=0.0_dp
        scf_env%nskip_mixing = 0
+       scf_env%cholesky_method = -1
 
        scf_env%outer_scf%iter_count=0
        NULLIFY(scf_env%outer_scf%variables, &

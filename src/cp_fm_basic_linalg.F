@@ -47,7 +47,8 @@ MODULE cp_fm_basic_linalg
             cp_fm_lu_decompose,&           ! computes determinant (and lu decomp)
             cp_fm_invert,&                 ! computes the inverse and determinant 
             cp_fm_frobenius_norm,&         ! frobenius norm
-            cp_fm_ger                      ! rank 1 operation
+            cp_fm_ger, &                   ! rank 1 operation
+            cp_fm_triangular_invert        ! compute the reciprocal of a tirangular matrix
 
 CONTAINS
 
@@ -1082,10 +1083,51 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
                        eval_error=eps1,error=error)
     CALL cp_fm_lu_decompose(matrix_lu,determinant,correct_sign=sign)
 #endif
-   CALL cp_fm_release(matrix_lu,error=error)
+    CALL cp_fm_release(matrix_lu,error=error)
     CALL cp_fm_release(matrix_B,error=error)
     DEALLOCATE(ipivot)
     det_a=determinant
   END SUBROUTINE cp_fm_invert
    
+! *****************************************************************************
+! *****************************************************************************
+  SUBROUTINE cp_fm_triangular_invert(matrix_a,error)
+
+    TYPE(cp_fm_type), POINTER                :: matrix_a
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_triangular_invert', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: unit_diag, uplo
+    INTEGER                                  :: handle, info, ncol_global
+    INTEGER, DIMENSION(9)                    :: desca
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+
+    failure=.FALSE.
+
+    CALL timeset(routineN,handle)
+
+    unit_diag='N'
+    uplo='U'
+
+    ncol_global =matrix_a%matrix_struct%ncol_global
+
+    a => matrix_a%local_data
+
+#if defined(__SCALAPACK)
+
+    desca(:) = matrix_a%matrix_struct%descriptor(:)
+
+    CALL pdtrtri( uplo, unit_diag, ncol_global, a(1,1), 1, 1, desca, info )
+
+#else
+    CALL dtrtri( uplo, unit_diag, ncol_global, a(1,1), ncol_global, info )
+#endif
+
+
+    CALL timestop(handle)
+  END SUBROUTINE cp_fm_triangular_invert
+
 END MODULE cp_fm_basic_linalg
