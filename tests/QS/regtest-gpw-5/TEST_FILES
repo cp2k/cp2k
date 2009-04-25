@@ -8,3 +8,9 @@ si8_pmix.inp          1
 si8_kerker.inp          1
 si8_pulay.inp          1
 si8_broy.inp          1
+si8_pulay_md.inp      1
+# cholesky methods
+si8_pulay_reduce.inp          1
+si8_pulay_restore.inp          1
+si8_pulay_inverse.inp          1
+si8_pulay_off.inp          1
