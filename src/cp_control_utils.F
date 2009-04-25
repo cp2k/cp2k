@@ -855,21 +855,6 @@ CPSourceFileRef,&
             "DFT| Multiplicity",dft_control%multiplicity
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
             "DFT| Number of spin states",dft_control%nspins
-!!!
-!!!       IF (dft_control%apply_efield_field) THEN
-!!!          IF (dft_control%finite_field_control%berry_phase) THEN
-!!!             WRITE ( output_unit, '( A, T51, A )' ) " DFT| Finite electrical field ",&
-!!!                  "Polarisation type: Berry phase"
-!!!          ELSE
-!!!             WRITE ( output_unit, '( A )' ) " DFT| Finite electrical field "
-!!!          END IF
-!!!          WRITE ( output_unit, '( A, T61, F20.5 )' ) " DFT| Field strength [a.u.]",&
-!!!               dft_control%finite_field_control%efield_strength
-!!!          WRITE ( output_unit, '( A, T51, 3F10.5 )' ) " DFT| Field polarisation",&
-!!!               dft_control%finite_field_control%efield_polarisation
-!!!          CALL stop_program(routineN,moduleN,__LINE__,&
-!!!               "Finite field not operational")
-!!!       END IF
 
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
          "DFT| Charge",dft_control%charge
@@ -1484,6 +1469,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_vals
     TYPE(efield_type), POINTER               :: efield
     TYPE(section_vals_type), POINTER         :: tmp_section
 
@@ -1499,7 +1485,11 @@ CPSourceFileRef,&
             r_val=efield%strength,error=error)
 
        CALL section_vals_val_get(efield_section,"POLARISATION",i_rep_section=i, &
-            r_vals=efield%polarisation,error=error)
+            r_vals=tmp_vals,error=error)
+       ALLOCATE(efield%polarisation(SIZE(tmp_vals)),stat=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       efield%polarisation = tmp_vals
+
        CALL section_vals_val_get(efield_section,"PHASE",i_rep_section=i, &
             r_val=efield%phase_offset,error=error) 
        CALL section_vals_val_get(efield_section,"ENVELOP",i_rep_section=i, &
