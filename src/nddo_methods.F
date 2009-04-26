@@ -217,7 +217,6 @@ CONTAINS
        DO ispin=1,nspins
           CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
                para_env=para_env,error=error)
-
           energy%hartree = energy%hartree + ecoul
        END DO
 
@@ -1058,11 +1057,11 @@ CONTAINS
             cell, se_nonbond_env, para_env, se_section, error=error)
 
        enuc = 0.0_dp
-       DO ispin = 1, nspins
-          se_nddo_mpole%charge     = 0.0_dp
-          se_nddo_mpole%dipole     = 0.0_dp
-          se_nddo_mpole%quadrupole = 0.0_dp
+       se_nddo_mpole%charge     = 0.0_dp
+       se_nddo_mpole%dipole     = 0.0_dp
+       se_nddo_mpole%quadrupole = 0.0_dp
 
+       DO ispin = 1, nspins
           ! Compute the NDDO mpole expansion
           DO ikind=1,nkind
              atomic_kind => atomic_kind_set(ikind)
@@ -1089,7 +1088,7 @@ CONTAINS
                 END IF
 
                 ! Nuclei
-                IF (task(1)) se_nddo_mpole%charge(iatom)   = se_kind_a%zeff
+                IF (task(1).AND.ispin==1) se_nddo_mpole%charge(iatom)   = se_kind_a%zeff
                 ! Electrons
                 size_1c_int = SIZE(se_kind_a%w_mpole)
                 DO jint = 1, size_1c_int
@@ -1126,67 +1125,69 @@ CONTAINS
                 END IF
              END DO
           END DO
-          CALL mp_sum(se_nddo_mpole%charge, para_env%group)
-          CALL mp_sum(se_nddo_mpole%dipole, para_env%group)
-          CALL mp_sum(se_nddo_mpole%quadrupole, para_env%group)
+       END DO
+       CALL mp_sum(se_nddo_mpole%charge, para_env%group)
+       CALL mp_sum(se_nddo_mpole%dipole, para_env%group)
+       CALL mp_sum(se_nddo_mpole%quadrupole, para_env%group)
 
-          ! Ewald Multipoles Sum
-          iw = cp_print_key_unit_nr(logger,se_section,"PRINT%EWALD_INFO",extension=".seLog",error=error)
-          IF(calculate_forces) THEN
-             CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+       ! Ewald Multipoles Sum
+       iw = cp_print_key_unit_nr(logger,se_section,"PRINT%EWALD_INFO",extension=".seLog",error=error)
+       IF(calculate_forces) THEN
+          CALL get_qs_env(qs_env=qs_env, force=force, error=error)
              
-             ! Allocate atom index for kind
-             ALLOCATE (atom_of_kind(natoms),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
+          ! Allocate atom index for kind
+          ALLOCATE (atom_of_kind(natoms),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
              
-             ! Allocate and zeroing arrays
-             ALLOCATE ( forces_g(3, forces_g_size), STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE ( forces_r(3, natoms), STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             forces_g = 0.0_dp
-             forces_r = 0.0_dp
+          ! Allocate and zeroing arrays
+          ALLOCATE ( forces_g(3, forces_g_size), STAT=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE ( forces_r(3, natoms), STAT=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          forces_g = 0.0_dp
+          forces_r = 0.0_dp
              
-             CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
+          CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
                   do_forces=.TRUE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
                   dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
                   forces_local=forces_g, forces_glob=forces_r, efield0=se_nddo_mpole%efield0,&
                   efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
                   do_debug=.TRUE.,error=error)
-             ! Only SR force have to be summed up.. the one in g-space are already fully local..
-             CALL mp_sum(forces_r, para_env%group)
-          ELSE
-             CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
+          ! Only SR force have to be summed up.. the one in g-space are already fully local..
+          CALL mp_sum(forces_r, para_env%group)
+       ELSE
+          CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
                   do_forces=.FALSE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
                   dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
                   efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1,&
                   efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.TRUE.,error=error)
-          END IF
-          CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
 
-          ! Debug Statements
-          IF (info_coulomb_lr) THEN
-             CALL mp_sum(energy_glob,para_env%group)
-             WRITE(*,*)"TOTAL ENERGY AFTER EWALD:",energy_local+ energy_glob+ e_neut+ e_self,&
+       ! Debug Statements
+       IF (info_coulomb_lr) THEN
+          CALL mp_sum(energy_glob,para_env%group)
+          WRITE(*,*)"TOTAL ENERGY AFTER EWALD:",energy_local+ energy_glob+ e_neut+ e_self,&
                   energy_local, energy_glob, e_neut, e_self
-          END IF
+       END IF
 
-          ! Modify the KS matrix and possibly compute derivatives
-          node = 0 
-          DO ikind=1,nkind
-             atomic_kind => atomic_kind_set(ikind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
-             CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
+       ! Modify the KS matrix and possibly compute derivatives
+       node = 0 
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
              
-             IF (.NOT.defined .OR. natorb_a < 1) CYCLE
+          IF (.NOT.defined .OR. natorb_a < 1) CYCLE
              
-             nparticle_local = local_particles%n_el(ikind)
-             DO ilist=1, nparticle_local
-                node  = node + 1
-                iatom = local_particles%list(ikind)%array(ilist)
+          nparticle_local = local_particles%n_el(ikind)
+          DO ilist=1, nparticle_local
+             node  = node + 1
+             iatom = local_particles%list(ikind)%array(ilist)
+             DO ispin = 1, nspins
                 IF ( nspins >= 1 ) THEN
                    CALL get_block_node(matrix=diagmat_ks(ispin)%matrix,&
                                        block_row=iatom,&
@@ -1221,17 +1222,17 @@ CONTAINS
                    ksa_block_a(indi, indj) = ksa_block_a(indi, indj) + tmp
                    ksa_block_a(indj, indi) = ksa_block_a(indi, indj)
                 END DO
-
-                ! Nuclear term and forces
-                IF (task(1)) enuc = enuc + se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
-                IF(calculate_forces) THEN
-                   atom_a   = atom_of_kind(iatom)
-                   force_a  = forces_r(1:3,iatom) + forces_g(1:3,node)
-
-                   ! Derivatives of the periodic Coulomb Terms
-                   force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_a(:)
-                END IF                
              END DO
+
+             ! Nuclear term and forces
+             IF (task(1)) enuc = enuc + se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
+             IF(calculate_forces) THEN
+                atom_a   = atom_of_kind(iatom)
+                force_a  = forces_r(1:3,iatom) + forces_g(1:3,node)
+
+                ! Derivatives of the periodic Coulomb Terms
+                force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_a(:)
+             END IF                
           END DO
        END DO
        ! Sum nuclear energy contribution

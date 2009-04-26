@@ -24,3 +24,5 @@ wfn_ex1.inp         3
 wfn_ex2.inp         3
 wfn_ex3.inp         3
 wfn_ex4.inp         3
+# EWALD with LSD
+H2O-4.inp           3
