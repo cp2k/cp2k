@@ -2739,11 +2739,11 @@ CPSourceFileRef,&
                             tmp_b(ispin)%pw%cr3d(ia,ir,1) * drhob(idir)%array(ia,ir,1)
                     END DO
                     IF (ASSOCIATED(e_drhoa)) THEN
-                       vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
+                       vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - &
                             e_drhoa(ia,ir,1) * drho1a(idir)%array(ia,ir,1)
                     END IF
                     IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
-                       vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
+                       vxg(idir,ia,ir,2) = vxg(idir,ia,ir,2) - &
                             e_drhob(ia,ir,1) * drho1b(idir)%array(ia,ir,1)
                     END IF
                     IF (ASSOCIATED(e_norm_drho)) THEN
