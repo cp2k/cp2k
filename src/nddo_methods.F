@@ -260,7 +260,8 @@ CONTAINS
 
        ! Modify energy for SCP
        IF (scp_nddo) THEN 
-          energy%total = energy%total + energy_scp%e_scp_hartree + energy_scp%e_scp_kernel
+          energy%total = energy%total + energy_scp%e_scp_hartree + energy_scp%e_scp_kernel + &
+                                        energy_scp%e_scp_disp
        END IF
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
@@ -275,9 +276,12 @@ CONTAINS
           END IF
           IF (scp_nddo) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-                  "SCP electrostatic energy:                    ",energy_scp%e_scp_hartree
+                  "SCP electrostatic energy:             ",energy_scp%e_scp_hartree
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                   "SCP kernel energy:                    ",energy_scp%e_scp_kernel
+             IF ( ABS(energy_scp%e_scp_disp) > 0._dp ) &
+               WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+                  "SCP dispersion energy:                ",energy_scp%e_scp_disp
           END IF
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&

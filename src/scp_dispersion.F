@@ -82,11 +82,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scp_nddo_dispersion'
 
     INTEGER :: ab, handle, i_atom, iatom, ikind, ilist, inode, istat, j_atom, &
-      jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, nnode, &
-      output_unit
+      jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, nnode
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     LOGICAL                                  :: anag, defined, forces, &
-                                                ionode, old_store_int, switch
+                                                old_store_int, switch
     REAL(kind=dp)                            :: dab, de_a, de_b, disp_factor, &
                                                 e_scp, force_ab( 3 ), &
                                                 rab( 3 ), rab2
@@ -94,7 +93,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
@@ -116,10 +114,7 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
     CALL timeset(routineN,handle)
-    output_unit = -1
-    logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+
     forces = .FALSE.
     IF ( PRESENT ( calculate_forces ) ) forces = calculate_forces
 
@@ -251,13 +246,6 @@ CONTAINS
 
      CALL mp_sum(e_scp,para_env%group)
      energy % e_scp_disp =  e_scp 
-
-     ! print
-     IF (output_unit>0) THEN
-        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-             "Post Processed SCP-NDDO Dispersion                          ",energy % e_scp_disp
-        CALL m_flush(output_unit)
-     END IF
 
      DEALLOCATE(atom_of_kind,STAT=istat)
      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
