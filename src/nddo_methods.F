@@ -973,7 +973,7 @@ CONTAINS
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force,particle_set, diagmat_ks, diagmat_p,local_particles,&
             se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env, se_section, mpole,&
-            logger,pscp,ks_scp,scp_env)
+            logger,pscp,ks_scp,scp_env,dbm)
 
        logger => cp_error_get_logger(error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
