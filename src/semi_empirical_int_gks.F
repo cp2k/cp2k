@@ -458,7 +458,7 @@ CONTAINS
                 DO k3=1,3
                    DO k2=1,3
                       DO k1=1,3
-                         tmp = -M2A(k1,k2,imA)*M1B(k2,imB)+M1A(k1,imA)*M2B(k2,k3,imB)
+                         tmp = -M2A(k1,k2,imA)*M1B(k3,imB)+M1A(k1,imA)*M2B(k2,k3,imB)
                          wv(1)=wv(1)+tmp*d4f(1,k1,k2,k3)
                          wv(2)=wv(2)+tmp*d4f(2,k1,k2,k3)
                          wv(3)=wv(3)+tmp*d4f(3,k1,k2,k3)
