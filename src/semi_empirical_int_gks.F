@@ -338,24 +338,24 @@ CONTAINS
                    ENDDO
                 ENDDO
 
-                do_it = .FALSE.
-                IF     ( imA==1 .AND.  imB==1  )  THEN
-                   tmp=M2A(1,1,imA)*M2B(1,1,imB)
-                   do_it = .TRUE.
-                ELSE IF( imA==1 .AND. (iB==jB) )  THEN
-                   tmp=M2A(1,1,imA)*M2B(iB-1,iB-1,imB)/3.0_dp
-                   do_it = .TRUE.
-                ELSE IF( (iA==jA) .AND. imB==1 )  THEN
-                   tmp=M2A(iA-1,iA-1,imA)*M2B(1,1,imB)/3.0_dp  
-                   do_it = .TRUE.
-                ELSE IF( (iA==jA) .AND. (iB==jB) )THEN
-                   tmp=M2A(iA-1,iA-1,imA)*M2B(iB-1,iB-1,imB)/9.0_dp
-                   do_it = .TRUE.
-                ENDIF
-                IF (do_it) THEN
-                   tmp=tmp*(a2**4)*EXP(-w0)/rr
-                   w=w-tmp
-                END IF
+!               do_it = .FALSE.
+!               IF     ( imA==1 .AND.  imB==1  )  THEN
+!                  tmp=M2A(1,1,imA)*M2B(1,1,imB)
+!                  do_it = .TRUE.
+!               ELSE IF( imA==1 .AND. (iB==jB) )  THEN
+!                  tmp=M2A(1,1,imA)*M2B(iB-1,iB-1,imB)/3.0_dp
+!                  do_it = .TRUE.
+!               ELSE IF( (iA==jA) .AND. imB==1 )  THEN
+!                  tmp=M2A(iA-1,iA-1,imA)*M2B(1,1,imB)/3.0_dp  
+!                  do_it = .TRUE.
+!               ELSE IF( (iA==jA) .AND. (iB==jB) )THEN
+!                  tmp=M2A(iA-1,iA-1,imA)*M2B(iB-1,iB-1,imB)/9.0_dp
+!                  do_it = .TRUE.
+!               ENDIF
+!               IF (do_it) THEN
+!                  tmp=tmp*(a2**4)*EXP(-w0)/rr
+!                  w=w-tmp
+!               END IF
                 Coul(imA,imB)=w
              ENDDO
           ENDDO
@@ -479,26 +479,26 @@ CONTAINS
                    ENDDO
                 ENDDO
 
-                do_it = .FALSE.
-                IF     ( imA==1 .AND. imB==1 )    THEN
-                   tmp=M2A(1,1,imA)*M2B(1,1,imB)  
-                   do_it = .TRUE.
-                ELSE IF( imA==1 .AND. (iB==jB) )  THEN
-                   tmp=M2A(1,1,imA)*M2B(iB-1,iB-1,imB)/3.0_dp
-                   do_it = .TRUE.
-                ELSE IF( (iA==jA) .AND. imB==1 )  THEN
-                   tmp=M2A(iA-1,iA-1,imA)*M2B(1,1,imB)/3.0_dp  
-                   do_it = .TRUE.
-                ELSE IF( (iA==jA) .AND. (iB==jB) )THEN
-                   tmp=M2A(iA-1,iA-1,imA)*M2B(iB-1,iB-1,imB)/9.0_dp
-                   do_it = .TRUE.
-                ENDIF
-                IF (do_it) THEN
-                   tmp=tmp*((1.0_dp+w0)*a2**4)*EXP(-w0)/rr**3
-                   wv(1)=wv(1) +v(1)*tmp
-                   wv(2)=wv(2) +v(2)*tmp
-                   wv(3)=wv(3) +v(3)*tmp
-                END IF
+!               do_it = .FALSE.
+!               IF     ( imA==1 .AND. imB==1 )    THEN
+!                  tmp=M2A(1,1,imA)*M2B(1,1,imB)  
+!                  do_it = .TRUE.
+!               ELSE IF( imA==1 .AND. (iB==jB) )  THEN
+!                  tmp=M2A(1,1,imA)*M2B(iB-1,iB-1,imB)/3.0_dp
+!                  do_it = .TRUE.
+!               ELSE IF( (iA==jA) .AND. imB==1 )  THEN
+!                  tmp=M2A(iA-1,iA-1,imA)*M2B(1,1,imB)/3.0_dp  
+!                  do_it = .TRUE.
+!               ELSE IF( (iA==jA) .AND. (iB==jB) )THEN
+!                  tmp=M2A(iA-1,iA-1,imA)*M2B(iB-1,iB-1,imB)/9.0_dp
+!                  do_it = .TRUE.
+!               ENDIF
+!               IF (do_it) THEN
+!                  tmp=tmp*((1.0_dp+w0)*a2**4)*EXP(-w0)/rr**3
+!                  wv(1)=wv(1) +v(1)*tmp
+!                  wv(2)=wv(2) +v(2)*tmp
+!                  wv(3)=wv(3) +v(3)*tmp
+!               END IF
 
                 dCoul(1,imA,imB)=wv(1)
                 dCoul(2,imA,imB)=wv(2)
