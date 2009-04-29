@@ -369,3 +369,5 @@ ch2o_pm6.inp
 hcn_pm6.inp
 # bug in self term
 h2o_gks_p.inp
+# GKS update of code
+h2o_gks_p.inp
