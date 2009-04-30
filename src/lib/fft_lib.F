@@ -70,7 +70,7 @@ END SUBROUTINE fft_get_lengths
 
 ! *****************************************************************************
 
-SUBROUTINE fft_create_plan_3d ( plan, fft_type, fft_in_place, fsign, n, zin, zout, plan_style )
+SUBROUTINE fft_create_plan_3d ( plan, fft_type, fft_in_place, fsign, n, zin, zout, plan_style, aligned )
 
 USE fft_plan,                           ONLY: fft_plan_type, dp
 
@@ -83,7 +83,8 @@ IMPLICIT NONE
   INTEGER, DIMENSION(3), INTENT ( IN )                                :: n
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zout
-  LOGICAL, INTENT ( IN )                                :: plan_style
+  INTEGER, INTENT ( IN )                                :: plan_style
+  LOGICAL, INTENT ( IN )                                :: aligned
 
   plan % fft_type = fft_type
   plan % fsign = fsign
@@ -94,7 +95,7 @@ IMPLICIT NONE
     CASE ( 2 )
       CALL fftw2_create_plan_3d ( plan, plan_style )
     CASE ( 3 )
-      CALL fftw3_create_plan_3d ( plan, zin, zout, plan_style )
+      CALL fftw3_create_plan_3d ( plan, zin, zout, plan_style, aligned )
   END SELECT
 
   plan % valid = .TRUE.
