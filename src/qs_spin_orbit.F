@@ -157,6 +157,10 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "soint",3*int_size)
 
+    rr_work(:,:,:) = 0.0_dp
+    soab(:,:,:) = 0.0_dp
+    work(:,:) = 0.0_dp
+
     DO ikind=1,nkind
 
        atomic_kind => atomic_kind_set(ikind)

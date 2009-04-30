@@ -149,16 +149,18 @@ CONTAINS
     ALLOCATE(efgab(maxco,maxco,6),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "efgab",maxco*maxco*6*dp_size)
-    efgab(:,:,:) = 0.0_dp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work",maxco*maxsgf*dp_size)
-    work(:,:) = 0.0_dp
 
     ALLOCATE (efgint(6),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "efgint",6*int_size)
+
+    rr_work(:,:,:) = 0.0_dp
+    efgab(:,:,:) = 0.0_dp
+    work(:,:) = 0.0_dp
 
     DO ikind=1,nkind
 
