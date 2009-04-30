@@ -145,6 +145,9 @@ CONTAINS
 
     ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    rr_work(:,:,:) = 0.0_dp
+    intab(:,:,:) = 0.0_dp
+    work(:,:) = 0.0_dp
 
     DO ikind=1,nkind
 
@@ -341,7 +344,7 @@ CONTAINS
       INTENT(INOUT)                          :: intab
     INTEGER, INTENT(IN)                      :: ldrr
     REAL(dp), &
-      DIMENSION(0:ldrr-1, 0:ldrr-1, *), &
+      DIMENSION(0:ldrr-1, 0:ldrr-1, 3), &
       INTENT(INOUT)                          :: rr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -397,7 +400,6 @@ CONTAINS
           CALL os_rr_ovlp(rap,la_max+1,rbp,lb_max,zet,ldrr,rr)
 
           ! *** Calculate the primitive linear momentum integrals ***
-
           DO lb = lb_min,lb_max
           DO bx = 0,lb
           DO by = 0,lb-bx
@@ -533,7 +535,9 @@ CONTAINS
 
     ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
+    rr_work(:,:,:) = 0.0_dp
+    intab(:,:,:) = 0.0_dp
+    work(:,:) = 0.0_dp
 
     DO ikind=1,nkind
 
