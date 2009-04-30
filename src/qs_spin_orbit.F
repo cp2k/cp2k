@@ -86,7 +86,7 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: new_atom_b
-    REAL(KIND=dp)                            :: dab, dac, dbc, rab2
+    REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
     REAL(KIND=dp), ALLOCATABLE, &
@@ -216,8 +216,6 @@ CONTAINS
              CALL get_neighbor_list(neighbor_list=neighbor_list,atom=iatom,nnode=nnode)
 
              ra = pbc(particle_set(iatom)%r,cell)
-             rac = rc - ra
-             dac = SQRT(rac(1)**2 + rac(2)**2 + rac(3)**2)
 
              last_jatom = 0
 
@@ -228,8 +226,10 @@ CONTAINS
                 CALL get_neighbor_node(neighbor_node=neighbor_node,neighbor=jatom,r=rab(:))
 
                 rb = rab + ra
-                rbc = rc - rb
-                dbc = SQRT(rbc(1)**2 + rbc(2)**2 + rbc(3)**2)
+                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                dab = SQRT(rab2)
+                rac = pbc(rc,ra,cell)
+                rbc = rac + rab
 
                 IF (jatom /= last_jatom) THEN
                    new_atom_b = .TRUE.
@@ -255,9 +255,6 @@ CONTAINS
                                           BLOCK=soint(i)%block)
                    ENDDO
                 END IF
-
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                dab = SQRT(rab2)
 
                 DO iset=1,nseta
 
@@ -333,7 +330,6 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work")
 
-    NULLIFY (soint(1)%block)
     DEALLOCATE (soint,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "soint")

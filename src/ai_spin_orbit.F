@@ -80,7 +80,7 @@ CONTAINS
       coap1y, coap1z, cob, cobm1x, cobm1y, cobm1z, cobp1x, cobp1y, cobp1z, i, &
       ipgf, j, jpgf, la, lb, ma, mb, na, nb
     REAL(dp)                                 :: dab, dum1, dum2, f0, rab2, &
-                                                rcp2, xhi, zet, zetab
+                                                xhi, zet, zetab
     REAL(dp), DIMENSION(3)                   :: rap, rbp, rcp
 
 ! *** Calculate the distance of the centers a and c ***
@@ -119,8 +119,7 @@ CONTAINS
           xhi  =  zetab/zet
           rap  =  zetb(jpgf)*rab/zet
           rbp  = -zeta(ipgf)*rab/zet
-          rcp  = -(zeta(ipgf)*rac+zetb(jpgf)*rbc)/zet
-          rcp2 = rcp(1)**2+rcp(2)**2+rcp(3)**2
+          rcp  = -(-zeta(ipgf)*rac+zetb(jpgf)*rbc)/zet
 
           f0 = 2.0_dp*SQRT(zet/pi)*(pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 
