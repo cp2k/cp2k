@@ -64,3 +64,5 @@ stp6.inp               3
 #Reftraj standard XYZ
 scan_zn_1w_cp2k.inp    3
 zn_1w_debug.inp        3
+#Jacobi diagonalization
+H2O-32.inp             3
