@@ -53,6 +53,8 @@ MODULE qs_semi_empirical_hamiltonian
                                              real_matrix_type,&
                                              replicate_matrix_structure
   USE termination,                     ONLY: stop_program
+  USE virial_methods,                  ONLY: virial_pair_force
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -80,7 +82,7 @@ CONTAINS
       inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, &
       natorb_b, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure
+    LOGICAL                                  :: defined, failure, use_virial
     REAL(KIND=dp)                            :: delta, dr, econst, eheat, &
                                                 eisol, enuclear, kh, udd, &
                                                 uff, upp, uss
@@ -108,6 +110,7 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(real_matrix_type), POINTER          :: diagmat_h, diagmat_p
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -125,6 +128,8 @@ CONTAINS
                               neighbor_list_sab=qs_env%sab_orb,&
                               error=error)
         CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+        CALL get_qs_env(qs_env=qs_env, virial=virial, error=error)
+        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      ELSE
         CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
         CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
@@ -134,6 +139,7 @@ CONTAINS
                               neighbor_list_sab=qs_env%sab_orb,&
                               error=error)
         CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+        use_virial = .FALSE.
      END IF
 
      CALL get_qs_env(qs_env=qs_env,&
@@ -358,6 +364,9 @@ CONTAINS
                      force(ikind)%all_potential(:,atom_a) - force_ab(:)
                  force(jkind)%all_potential(:,atom_b) =&
                      force(jkind)%all_potential(:,atom_b) + force_ab(:)
+                 IF (use_virial) THEN
+                   CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
+                 END IF
                END IF
 
                sab_orb_neighbor_node => next(sab_orb_neighbor_node)

@@ -91,6 +91,8 @@ MODULE nddo_methods
        set_matrix, transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -320,7 +322,8 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
       itype, jatom, jkind, natom, nkind, nlist, nnode, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, defined, failure
+    LOGICAL                                  :: anag, defined, failure, &
+                                                use_virial
     REAL(KIND=dp)                            :: delta, dr1, dr3inv(3), enuc, &
                                                 enuclear, r2inv, r3inv, rinv
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
@@ -345,6 +348,7 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(virial_type), POINTER               :: virial
 
     failure  = .FALSE.
     enuclear = 0.0_dp
@@ -353,12 +357,13 @@ CONTAINS
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
-         energy=energy, error=error)
+         virial=virial,energy=energy, error=error)
 
     CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
     ! Parameters
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     CALL setup_se_int_control_type(se_int_control,do_ewald_r3=se_control%do_ewald_r3,&
          do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
          shortrange=(se_control%do_ewald.OR.se_control%do_ewald_gks),&
@@ -368,6 +373,8 @@ CONTAINS
        CALL ewald_env_get (ewald_env, alpha=se_int_control%ewald_gks%alpha, error=error)
        CALL ewald_pw_get (ewald_pw, pw_big_pool=se_int_control%ewald_gks%pw_pool, &
             dg=se_int_control%ewald_gks%dg)
+       ! virial not implemented
+       CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
     END IF
 
     IF ( .NOT. failure ) THEN
@@ -432,7 +439,6 @@ CONTAINS
                             r2inv = 1.0_dp/dr1
                             rinv  = SQRT(r2inv)
                             r3inv = rinv**3
-                            
                             ! Core-Core term
                             enuclear = enuclear + se_kind_a%expns3_int(jkind)%expns3%core_core*r3inv
                          END IF
@@ -450,6 +456,9 @@ CONTAINS
                                dr3inv   = -3.0_dp*rij*r3inv*r2inv
                                ! Derivatives of core-core terms
                                force_ab = force_ab + se_kind_a%expns3_int(jkind)%expns3%core_core*dr3inv
+                            END IF
+                            IF (use_virial) THEN
+                               CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
                             END IF
 
                             ! Sum up force components
@@ -516,7 +525,8 @@ CONTAINS
       natorb_b2, nkind, nlist, nnode, nspins, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
-                                                failure, scp_nddo, switch
+                                                failure, scp_nddo, switch, &
+                                                use_virial
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
@@ -549,6 +559,7 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -558,14 +569,14 @@ CONTAINS
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_2c=sab_2c, atomic_kind_set=atomic_kind_set, &
-            particle_set=particle_set, error=error)
+            particle_set=particle_set, virial=virial, error=error)
       
-
        ! Parameters
        CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
        se_control  => dft_control%qs_control%se_control
        anag        =  se_control%analytical_gradients
        scp_nddo    =  se_control%scp
+       use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
        CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
             do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
@@ -785,7 +796,7 @@ CONTAINS
                             atom_a   = atom_of_kind(iatom)
                             atom_b   = atom_of_kind(jatom)
  
-                            ! Derivatives of the One-centre One-electron terms
+                            ! Derivatives of the Two-centre One-electron terms
                             force_ab = 0.0_dp
                             IF      ( nspins == 1 ) THEN
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_a, pb_a, itype=itype, anag=anag,&
@@ -798,6 +809,10 @@ CONTAINS
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_b, pb_b, itype=itype, anag=anag,&
                                     se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                     error=error)
+                            END IF
+
+                            IF (use_virial) THEN
+                               CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
                             END IF
 
                             ! Sum up force components
@@ -829,6 +844,9 @@ CONTAINS
                                force_ab(1) = -force_ab(1)
                                force_ab(2) = -force_ab(2)
                                force_ab(3) = -force_ab(3)
+                            END IF
+                            IF (use_virial) THEN
+                               CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
                             END IF
                             ! Sum up force components
                             force(ikind)%rho_elec(1,atom_a) = force(ikind)%rho_elec(1,atom_a) - force_ab(1)
@@ -935,14 +953,14 @@ CONTAINS
       nlocal_particles, node, nparticle_local, nspins, size_1c_int, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, defined, failure, &
-                                                scp_nddo
+                                                scp_nddo, use_virial
     LOGICAL, DIMENSION(3)                    :: task
     REAL(KIND=dp)                            :: e_neut, e_self, energy_glob, &
                                                 energy_local, enuc, fac, tmp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: forces_g, forces_r
     REAL(KIND=dp), DIMENSION(3)              :: force_a
-    REAL(KIND=dp), DIMENSION(3, 3)           :: qcart
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_glob, pv_local, qcart
     REAL(KIND=dp), DIMENSION(5)              :: qsph
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, pa_block_a, &
                                                 pscpa_block
@@ -971,6 +989,7 @@ CONTAINS
       POINTER                                :: se_control
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
+    TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -983,7 +1002,7 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
             atomic_kind_set=atomic_kind_set, particle_set=particle_set, ewald_env=ewald_env,&
             local_particles=local_particles, ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,&
-            se_nonbond_env=se_nonbond_env, scp_env=scp_env, error=error)
+            se_nonbond_env=se_nonbond_env, scp_env=scp_env, virial=virial, error=error)
        
        nlocal_particles = SUM(local_particles%n_el(:))
        natoms           = SIZE(particle_set)
@@ -1002,6 +1021,7 @@ CONTAINS
        se_control => dft_control%qs_control%se_control
        scp_nddo   =  se_control%scp
        anag       =  se_control%analytical_gradients
+       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
        
        nspins=dft_control%nspins
        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
@@ -1151,16 +1171,23 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           forces_g = 0.0_dp
           forces_r = 0.0_dp
+          pv_glob  = 0.0_dp
+          pv_local = 0.0_dp
              
           CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
-                  do_forces=.TRUE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
+                  do_forces=.TRUE., do_stress=use_virial, do_efield=.TRUE., charges=se_nddo_mpole%charge,&
                   dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
-                  forces_local=forces_g, forces_glob=forces_r, efield0=se_nddo_mpole%efield0,&
+                  forces_local=forces_g, forces_glob=forces_r, pv_glob=pv_glob, pv_local=pv_local,&
+                  efield0=se_nddo_mpole%efield0,&
                   efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
                   do_debug=.TRUE.,error=error)
           ! Only SR force have to be summed up.. the one in g-space are already fully local..
           CALL mp_sum(forces_r, para_env%group)
+          IF ( use_virial ) THEN
+             ! why do we not need pv_local?
+             virial%pv_virial = virial%pv_virial + pv_glob 
+          END IF
        ELSE
           CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
@@ -1233,7 +1260,6 @@ CONTAINS
              IF(calculate_forces) THEN
                 atom_a   = atom_of_kind(iatom)
                 force_a  = forces_r(1:3,iatom) + forces_g(1:3,node)
-
                 ! Derivatives of the periodic Coulomb Terms
                 force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_a(:)
              END IF                
@@ -1649,7 +1675,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: size_p_block_a
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
-                                                failure, switch
+                                                failure, switch, use_virial
     REAL(KIND=dp)                            :: delta, dr
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot
@@ -1674,16 +1700,18 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(dft_control,cell,force,particle_set,se_control,se_taper)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,se_taper=se_taper,&
-         para_env=para_env,error=error)
+         para_env=para_env,virial=virial,error=error)
 
     CALL initialize_se_taper(se_taper,exchange=.TRUE.,error=error)
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     nspins=dft_control%nspins
 
     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
@@ -1828,6 +1856,10 @@ CONTAINS
                             force_ab(2) = -force_ab(2)
                             force_ab(3) = -force_ab(3)
                          END IF
+                         IF (use_virial) THEN
+                            CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
+                         END IF
+
                          force(ikind)%rho_elec(1,atom_a) = force(ikind)%rho_elec(1,atom_a) - force_ab(1)
                          force(jkind)%rho_elec(1,atom_b) = force(jkind)%rho_elec(1,atom_b) + force_ab(1)
 

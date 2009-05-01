@@ -49,8 +49,7 @@ MODULE qs_scf_methods
                                              real_block_node_type,&
                                              real_matrix_p_type,&
                                              real_matrix_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -292,13 +291,15 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,do_level_shift,&
-                                level_shift,error)
+                                level_shift,use_jacobi,jacobi_threshold,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: work
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift
+    LOGICAL, INTENT(IN)                      :: use_jacobi
+    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'simple_eigensolver', &
@@ -306,6 +307,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, istat, &
                                                 nao, nelectron, nmo
+    LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigvals
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
@@ -333,17 +335,24 @@ CONTAINS
       END DO
     END IF
 
-    ALLOCATE(eigvals(nao),STAT=istat)
-    IF (istat.NE.0) CALL stop_memory("simple_eigensolver","eigvals",nao)
+    IF ( use_jacobi ) THEN
+       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work,error=error)
+       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
+                       0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1,error=error)
+       ! Block Jacobi (pseudo-diagonalization, only one sweep)
+       CALL cp_fm_block_jacobi(matrix_ks,mo_coeff,mo_eigenvalues,jacobi_threshold,homo+1)
+    ELSE
+      ALLOCATE(eigvals(nao),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
+      CALL cp_fm_syevd(matrix_ks,work,eigvals,error)
 
-    ! In most of the cases syevd is faster than syevx, also when anly partial spectrum is needed
-    CALL cp_fm_syevd(matrix_ks,work,eigvals,error)
+      mo_eigenvalues(1:nmo) = eigvals(1:nmo)
+      CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
 
-    mo_eigenvalues(1:nmo) = eigvals(1:nmo)
-    CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
-
-    DEALLOCATE(eigvals,STAT=istat)
-    IF (istat.NE.0) CALL stop_memory("simple_eigensolver","eigvals")
+      DEALLOCATE(eigvals,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     IF (do_level_shift) THEN
       CALL correct_mo_eigenvalues(mo_set,level_shift)

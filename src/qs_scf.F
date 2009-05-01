@@ -193,7 +193,6 @@ MODULE qs_scf
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_types,                    ONLY: virial_type
   USE xas_restart,                     ONLY: xas_initialize_rho
 #include "cp_common_uses.h"
 
@@ -434,7 +433,7 @@ CONTAINS
                                                 total_steps
     LOGICAL :: diis_step, energy_only, exit_inner_loop, failure, gapw, &
       gapw_xc, harris_energy, harris_flag, has_unit_metric, &
-      outer_loop_converged, scp_dft, scp_nddo, use_jacobi, use_virial
+      outer_loop_converged, scp_dft, scp_nddo, use_jacobi
     REAL(KIND=dp)                            :: delta_rhog, delta_rhog_p, &
                                                 outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -460,7 +459,6 @@ CONTAINS
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, harris_section, &
                                                 input, scf_section
-    TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
 
@@ -491,12 +489,10 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
                     input=input, dft_control=dft_control, scf_control=scf_control, &
-                    virial=virial, error=error)
+                    error=error)
     ! Defining SCP logicals
     scp_dft = dft_control%scp
     scp_nddo = dft_control%qs_control%se_control%scp 
-
-    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
@@ -1047,7 +1043,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: do_level_shift
+    LOGICAL                                  :: do_level_shift, use_jacobi
     REAL(kind=dp)                            :: diis_error
 
     DO ispin=1,SIZE(matrix_ks)
@@ -1063,11 +1059,21 @@ CONTAINS
       diis_step = .FALSE.
     END IF
 
+    IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
+      use_jacobi = .TRUE.
+    ELSE
+      use_jacobi = .FALSE.
+    END IF
+
     do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
                       ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
     IF (diis_step) THEN
       scf_env%iter_param = diis_error
-      scf_env%iter_method = "DIIS/Diag."
+      IF (use_jacobi) THEN
+        scf_env%iter_method = "DIIS/Jacobi"
+      ELSE
+        scf_env%iter_method = "DIIS/Diag."
+      END IF
     ELSE
       SELECT CASE(scf_env%mixing_method)
       CASE(direct_mixing_nr)
@@ -1092,6 +1098,8 @@ CONTAINS
                               work=scf_env%scf_work2,&
                               do_level_shift=do_level_shift,&
                               level_shift=scf_control%level_shift,&
+                              use_jacobi=use_jacobi,&
+                              jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                               error=error)
       CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
                              smear=scf_control%smear,&

@@ -805,7 +805,7 @@ CONTAINS
     INTEGER, INTENT(IN)                       :: start_sec_block
     REAL(KIND = dp), INTENT(IN)               :: thresh
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_lu_decompose', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_block_jacobi', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle

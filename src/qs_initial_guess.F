@@ -382,6 +382,7 @@ CPSourceFileRef,&
                                   work=work2,&
                                   do_level_shift=.FALSE.,&
                                   level_shift=0.0_dp,&
+                                  use_jacobi=.FALSE.,jacobi_threshold=0._dp,&
                                   error=error)
        ELSE
           CALL eigensolver(matrix_ks=work1(ispin)%matrix,&
