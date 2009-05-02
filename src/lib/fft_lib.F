@@ -216,7 +216,7 @@ USE fft_plan,                           ONLY: fft_plan_type, dp
 
 ! Arguments
   TYPE (fft_plan_type) , INTENT (IN)              :: plan
-  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)      :: zin
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: zout
   REAL (KIND=dp), INTENT(IN)                      :: scale  
   INTEGER, INTENT(OUT)                            :: stat
