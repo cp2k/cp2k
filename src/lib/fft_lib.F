@@ -178,7 +178,7 @@ IMPLICIT NONE
 
   SELECT CASE ( fft_type )
     CASE ( 2 )
-      CALL fftw2_create_plan_1dm ( plan, plan_style, aligned )
+      CALL fftw2_create_plan_1dm ( plan, plan_style )
     CASE ( 3 )
       CALL fftw3_create_plan_1dm ( plan, zin, zout, plan_style, aligned )
   END SELECT
