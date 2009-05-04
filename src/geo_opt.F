@@ -29,7 +29,9 @@ MODULE geo_opt
                                              default_cg_method_id,&
                                              default_lbfgs_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -58,7 +60,7 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle, stat, step_start_val
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_logger_type), POINTER            :: logger
@@ -82,11 +84,15 @@ MODULE geo_opt
          geo_opt_section=geo_section, eval_opt_geo=eval_opt_geo, error=error)
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
 
+    CALL section_vals_val_get(geo_section,"STEP_START_VAL",i_val=step_start_val,error=error)
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",error=error)
+    CALL cp_iterate(logger%iter_info,iter_nr=step_start_val,error=error)
     CALL cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env,&
          force_env_section, geo_section, x0, error)
     CALL cp_rm_iter_level(logger%iter_info,"GEO_OPT",error=error)
 
+    ! Reset counter for next iteration
+    CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=0,error=error)
     DEALLOCATE(x0, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL gopt_f_release(gopt_env, error=error)
@@ -110,7 +116,7 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_rot_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, step_start_val
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -123,13 +129,16 @@ MODULE geo_opt
     CPPrecondition(ASSOCIATED(gopt_env%force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(gopt_env%globenv),cp_failure_level,routineP,error,failure)
     force_env_section => gopt_env%force_env%force_env_section
-
+    
+    CALL section_vals_val_get(geo_section,"STEP_START_VAL",i_val=step_start_val,error=error)
     CALL cp_add_iter_level(logger%iter_info,"ROT_OPT",error=error)
-    CALL cp_iterate(logger%iter_info,iter_nr=0,error=error)
+    CALL cp_iterate(logger%iter_info,iter_nr=step_start_val,error=error)
     CALL cp_geo_opt_low(gopt_env%force_env, gopt_env%globenv, gopt_param, gopt_env,&
          force_env_section, geo_section, x0, error)
     CALL cp_rm_iter_level(logger%iter_info,"ROT_OPT",error=error)
 
+    ! Reset counter for next iteration
+    CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=0,error=error)
     CALL timestop(handle)
 
   END SUBROUTINE cp_rot_opt

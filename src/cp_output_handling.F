@@ -601,20 +601,25 @@ CONTAINS
 !>      this is supposed to be called at the beginning of each iteration
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE cp_iterate(iteration_info,last,iter_nr,error)
+  SUBROUTINE cp_iterate(iteration_info,last,iter_nr,increment,iter_nr_out,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     LOGICAL, INTENT(IN), OPTIONAL            :: last
-    INTEGER, INTENT(IN), OPTIONAL            :: iter_nr
+    INTEGER, INTENT(IN), OPTIONAL            :: iter_nr, increment
+    INTEGER, INTENT(OUT), OPTIONAL           :: iter_nr_out
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterate', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: my_increment
     LOGICAL                                  :: failure, my_last
 
     failure=.FALSE.
     my_last=.FALSE.
-    IF (PRESENT(last)) my_last=last
+    my_increment = 1
+    IF (PRESENT(last))            my_last = last
+    IF (PRESENT(increment))  my_increment = increment
+    IF (PRESENT(iter_nr_out)) iter_nr_out = -1
 
     CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -623,8 +628,12 @@ CONTAINS
           iteration_info%iteration(iteration_info%n_rlevel)=iter_nr
        ELSE
           iteration_info%iteration(iteration_info%n_rlevel)=&
-               iteration_info%iteration(iteration_info%n_rlevel)+1
+               iteration_info%iteration(iteration_info%n_rlevel)+my_increment
        END IF
+       ! If requested provide the value of the iteration level
+       IF (PRESENT(iter_nr_out)) iter_nr_out = iteration_info%iteration(iteration_info%n_rlevel)
+
+       ! Possibly setup the LAST flag
        iteration_info%last_iter(iteration_info%n_rlevel)=my_last
     END IF
   END SUBROUTINE cp_iterate

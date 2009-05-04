@@ -453,6 +453,28 @@ CONTAINS
                 CALL set_restart_info("MD COUNTERS",restarted_infos,error)
              END IF
              !
+             IF (check_restart(input_file, restart_file, "MOTION%GEO_OPT",error)) THEN
+                ! GEO_OPT
+                CALL section_vals_val_get(restart_file,"MOTION%GEO_OPT%STEP_START_VAL",i_val=myi,error=error)
+                CALL section_vals_val_set(input_file,"MOTION%GEO_OPT%STEP_START_VAL",i_val=myi,error=error)
+                CALL set_restart_info("GEO_OPT COUNTERS",restarted_infos,error)
+                ! ROT_OPT
+                IF (check_restart(input_file, restart_file, "MOTION%GEO_OPT%TRANSITION_STATE%DIMER%ROT_OPT",error)) THEN
+                   CALL section_vals_val_get(restart_file,"MOTION%GEO_OPT%TRANSITION_STATE%DIMER%ROT_OPT%STEP_START_VAL",&
+                        i_val=myi,error=error)
+                   CALL section_vals_val_set(input_file,"MOTION%GEO_OPT%TRANSITION_STATE%DIMER%ROT_OPT%STEP_START_VAL",&
+                        i_val=myi,error=error)
+                   CALL set_restart_info("ROT_OPT COUNTERS",restarted_infos,error)
+                END IF
+             END IF
+             !
+             IF (check_restart(input_file, restart_file, "MOTION%GEO_OPT",error)) THEN
+                ! CELL_OPT
+                CALL section_vals_val_get(restart_file,"MOTION%CELL_OPT%STEP_START_VAL",i_val=myi,error=error)
+                CALL section_vals_val_set(input_file,"MOTION%CELL_OPT%STEP_START_VAL",i_val=myi,error=error)
+                CALL set_restart_info("CELL_OPT COUNTERS",restarted_infos,error)
+             END IF
+             !
              CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag2,error=error)
              IF (flag2.AND.check_restart(input_file, restart_file, "MOTION%FREE_ENERGY%METADYN",error)) THEN
                 CALL section_vals_val_get(restart_file,&

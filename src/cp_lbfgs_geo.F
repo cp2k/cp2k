@@ -30,7 +30,8 @@ MODULE cp_lbfgs_geo
   USE gopt_param_types,                ONLY: gopt_param_type
   USE input_constants,                 ONLY: default_cell_method_id,&
                                              default_ts_method_id
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
@@ -53,8 +54,8 @@ CONTAINS
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, &
-       geo_section, gopt_env, x0, error)
+  SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, geo_section, gopt_env,&
+       x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
@@ -66,7 +67,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_lbfgs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, its, output_unit
+    INTEGER                                  :: handle, iter_nr, its, &
+                                                output_unit
     LOGICAL                                  :: converged, failure, &
                                                 should_stop
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
@@ -104,10 +106,11 @@ CONTAINS
             x0=x0, wanted_relative_f_delta=gopt_param%wanted_rel_f_error,&
             wanted_projected_gradient=gopt_param%wanted_proj_gradient, m=gopt_param%max_h_rank,&
             max_f_per_iter=gopt_param%max_f_per_iter, error=error)
+       CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr,error=error)
 
-       DO its=1,gopt_param%max_iter
-          gopt_env%its = its
-          CALL cp_iterate(logger%iter_info,iter_nr=its,last=(its==gopt_param%max_iter),error=error)
+       DO its=iter_nr+1,gopt_param%max_iter
+          CALL cp_iterate(logger%iter_info,last=(its==gopt_param%max_iter),error=error)
+          CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=its,error=error)
           CALL gopt_f_ii(its, output_unit)
 
           ! Real optimization step..
@@ -128,7 +131,7 @@ CONTAINS
        END IF
 
        ! Write final output information, if converged
-       CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
+       CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
        CALL gopt_f_io_finalize(gopt_env, force_env, optimizer%x, converged, its, root_section,&
             optimizer%para_env, optimizer%master, error)
 

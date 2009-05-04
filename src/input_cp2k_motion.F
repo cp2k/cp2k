@@ -737,6 +737,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error) 
 
+       CALL keyword_create(keyword=keyword,name="step_start_val",&
+            description="The starting step value for the "//TRIM(label)//" module.",&
+            usage="step_start_val <integer>",default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL create_lbfgs_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)

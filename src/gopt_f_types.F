@@ -53,7 +53,7 @@ MODULE gopt_f_types
 ! *****************************************************************************
   TYPE gopt_f_type
      INTEGER                                  :: ref_count, id_nr
-     INTEGER                                  :: nfree, its
+     INTEGER                                  :: nfree
      INTEGER                                  :: type_id, ts_method_id, cell_method_id, shellcore_method_id
      LOGICAL                                  :: dimer_rotation, do_line_search, eval_opt_geo
      CHARACTER(LEN=default_string_length)     :: label, tag
@@ -103,7 +103,6 @@ CONTAINS
        gopt_env%ref_count=1
        last_gopt_f_id=last_gopt_f_id+1
        gopt_env%id_nr=last_gopt_f_id
-       gopt_env%its=0
        gopt_env%dimer_rotation=.FALSE.
        gopt_env%do_line_search=.FALSE.
        CALL force_env_retain(force_env, error=error)

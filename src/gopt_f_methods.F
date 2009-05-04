@@ -52,7 +52,7 @@ MODULE gopt_f_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
 
-  PUBLIC :: gopt_f_create_x0, write_cycle_infos, check_converg, write_final_info,&
+  PUBLIC :: gopt_f_create_x0, check_converg, write_final_info,&
        print_geo_opt_header, check_rot_conv, write_rot_cycle_infos, print_geo_opt_nc,&
        geo_opt_io, gopt_f_io_init, gopt_f_io, gopt_f_io_finalize, gopt_f_ii
 
@@ -142,11 +142,12 @@ CONTAINS
 !> \brief Handles the Output during an optimization run 
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, error)
+  SUBROUTINE gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, its, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     INTEGER, INTENT(IN)                      :: output_unit
     REAL(KIND=dp)                            :: opt_energy
     CHARACTER(LEN=5)                         :: wildcard
+    INTEGER, INTENT(IN)                      :: its
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_init', &
@@ -158,18 +159,18 @@ CONTAINS
     CASE(default_ts_method_id,default_minimization_method_id)
        ! Geometry Optimization (Minimization and Transition State Search)
        IF (.NOT.gopt_env%dimer_rotation) THEN
-          CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard,error=error)
+          CALL write_cycle_infos(output_unit,it=its,etot=opt_energy,wildcard=wildcard,error=error)
        ELSE
-          CALL write_rot_cycle_infos(output_unit,it=0,etot=opt_energy,dimer_env=gopt_env%dimer_env,&
+          CALL write_rot_cycle_infos(output_unit,it=its,etot=opt_energy,dimer_env=gopt_env%dimer_env,&
                wildcard=wildcard)
        END IF
     CASE(default_cell_method_id)
        ! Cell Optimization
        pres_int = gopt_env%cell_env%pres_int
-       CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,pres_int=pres_int,wildcard=wildcard,&
+       CALL write_cycle_infos(output_unit,it=its,etot=opt_energy,pres_int=pres_int,wildcard=wildcard,&
                               error=error)
     CASE(default_shellcore_method_id)
-       CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard,error=error)
+       CALL write_cycle_infos(output_unit,it=its,etot=opt_energy,wildcard=wildcard,error=error)
     END SELECT
 
   END SUBROUTINE gopt_f_io_init

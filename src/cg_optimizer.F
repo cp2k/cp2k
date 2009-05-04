@@ -25,7 +25,8 @@ MODULE cg_optimizer
                                              print_geo_opt_nc
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
@@ -50,8 +51,8 @@ CONTAINS
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,&
-       geo_section, gopt_env, x0, error)
+  RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv, geo_section, &
+       gopt_env, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
@@ -107,8 +108,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: wildcard
-    INTEGER                                  :: handle, its, max_steep_steps, &
-                                                maxiter, stat
+    INTEGER                                  :: handle, iter_nr, its, &
+                                                max_steep_steps, maxiter, stat
     LOGICAL                                  :: conv, failure, &
                                                 Fletcher_Reeves, should_stop
     REAL(KIND=dp)                            :: emin, eold, opt_energy, &
@@ -146,13 +147,14 @@ CONTAINS
        h    =   g
        xi   =   h
        emin = HUGE(0.0_dp)
+       CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr,error=error)
        ! Main Loop
        wildcard = "   SD"
-       CALL gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, error)
+       CALL gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, its=iter_nr, error=error)
        eold = opt_energy
-       DO its = 1, maxiter
-          gopt_env%its = its
-          CALL cp_iterate(logger%iter_info,iter_nr=its,last=(its==maxiter),error=error)
+       DO its = iter_nr+1, maxiter
+          CALL cp_iterate(logger%iter_info,last=(its==maxiter),error=error)
+          CALL section_vals_val_set(gopt_env%geo_section,"STEP_START_VAL",i_val=its,error=error)
           CALL gopt_f_ii(its, output_unit)
 
           xold = x0
@@ -194,7 +196,7 @@ CONTAINS
        END IF
 
        ! Write final particle information and restart, if converged
-       CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
+       CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
        CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section, &
             gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, error)
 

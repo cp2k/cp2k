@@ -47,7 +47,8 @@ MODULE bfgs_optimizer
                                              default_ts_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE machine,                         ONLY: m_flush
@@ -72,8 +73,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Main driver for BFGS geometry optimizations 
 ! *****************************************************************************
-  SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,&
-       geo_section, gopt_env, x0, error)
+  SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv, geo_section, gopt_env, x0,&
+       error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -90,8 +91,8 @@ CONTAINS
     CHARACTER(LEN=5)                         :: wildcard
     CHARACTER(LEN=default_path_length)       :: hes_filename
     INTEGER                                  :: handle, hesunit_read, indf, &
-                                                its, maxiter, ndf, nfree, &
-                                                output_unit, stat
+                                                iter_nr, its, maxiter, ndf, &
+                                                nfree, output_unit, stat
     LOGICAL                                  :: conv, failure, hesrest, &
                                                 ionode, should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
@@ -181,6 +182,7 @@ CONTAINS
     dr(:) = 0.0_dp
 
     ! Geometry optimization starts now
+    CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr,error=error)
     CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
 
     ! Calculate Energy & Gradients
@@ -189,14 +191,14 @@ CONTAINS
 
     ! Print info at time 0
     emin = etot
-    CALL gopt_f_io_init(gopt_env, output_unit, etot, wildcard=wildcard, error=error)
-    DO its = 1, maxiter
-       gopt_env%its = its
-       CALL cp_iterate(logger%iter_info,iter_nr=its,last=(its==maxiter),error=error)
+    CALL gopt_f_io_init(gopt_env, output_unit, etot, wildcard=wildcard, its=iter_nr, error=error)
+    DO its = iter_nr+1, maxiter
+       CALL cp_iterate(logger%iter_info,last=(its==maxiter),error=error)
+       CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=its,error=error)
        CALL gopt_f_ii(its, output_unit)
 
        ! Hessian update/restarting
-       IF ((its == 1).AND.hesrest) THEN
+       IF (((its-iter_nr) == 1).AND.hesrest) THEN
           stat = 0
           ALLOCATE(hessian_restart(ndf,ndf),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -221,7 +223,7 @@ CONTAINS
           CALL cp_fm_set_submatrix(hess_mat,hessian_restart,error=error)
           DEALLOCATE(hessian_restart,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ELSE IF( its > 1 ) THEN
+       ELSE IF( (its-iter_nr) > 1 ) THEN
           DO indf = 1, ndf
              dx(indf) = x0(indf) - xold(indf)
              dg(indf) =  g(indf) - gold(indf)
@@ -265,9 +267,9 @@ CONTAINS
        IF(should_stop) EXIT
 
        ! Some IO and Convergence check
-       CALL gopt_f_io(gopt_env, force_env, root_section, its, etot,&
-            output_unit, eold, emin, wildcard, gopt_param, ndf, dr, g, conv, ediff, pred,&
-            rat, step, rad, error)
+       CALL gopt_f_io(gopt_env, force_env, root_section, its, etot, output_unit,&
+            eold, emin, wildcard, gopt_param, ndf, dr, g, conv, ediff, pred, rat,&
+            step, rad, error)
 
        IF (conv.OR.(its==maxiter)) EXIT
        IF (etot < emin) emin = etot
@@ -279,7 +281,7 @@ CONTAINS
     END IF
 
     ! Write final  information, if converged
-    CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
+    CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
     CALL write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
     CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
          gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos,error)
