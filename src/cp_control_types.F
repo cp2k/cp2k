@@ -88,6 +88,7 @@ MODULE cp_control_types
      INTEGER               :: max_multipole
      REAL(KIND = dp)       :: delta
      ! Parameters controlling the evaluation of the integrals
+     REAL(KIND = dp)       :: cutoff_lrc, taper_lrc, range_lrc
      REAL(KIND = dp)       :: cutoff_cou, taper_cou, range_cou
      REAL(KIND = dp)       :: cutoff_exc, taper_exc, range_exc
      REAL(KIND = dp)       :: taper_scr , range_scr

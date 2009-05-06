@@ -971,6 +971,14 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
+            name="sab_lrc",&
+            description="Activates the printing of the long-range SE correction "//&
+            "neighbor lists (only when doing long-range SE with integral scheme KDSO and KDSO-d)",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
             name="sac_3c",&
             description="Activates the printing of the three-center "//&
             "orbital(a) V(Hartree_local) neighbor lists "//&
@@ -2387,6 +2395,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_lr_corr_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_neighbor_lists_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -2401,6 +2413,58 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_se_control_section
+
+! *****************************************************************************
+!> \brief Create the COULOMB se section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino]
+!> \date  03.2009
+! *****************************************************************************
+  SUBROUTINE create_lr_corr_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_lr_corr_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="LR_CORRECTION",&
+            description="Setup parameters for the evaluation of the long-range correction term in SE "//&
+            "calculations.", n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="CUTOFF",&
+            description="Atomic Cutoff Radius Cutoff for the evaluation of the long-ranbe correction integrals. ",&
+            usage="CUTOFF {real} ",unit_str="angstrom",&
+            default_r_val=cp_unit_to_cp2k(value=6.0_dp,unit_str="angstrom",error=error),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RC_TAPER",&
+            description="Atomic Cutoff Radius Cutoff for Tapering the long-range correction integrals. "//&
+            "If not specified it assumes the same value specified for the CUTOFF.",&
+            usage="RC_TAPER {real} ",unit_str="angstrom",type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RC_RANGE",&
+            description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
+            "where r0=2.0*RC_TAPER-20.0*RC_RANGE.",&
+            usage="RC_RANGE {real} ",unit_str="angstrom",default_r_val=0.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+    END IF
+  END SUBROUTINE create_lr_corr_section
 
 ! *****************************************************************************
 !> \brief Create the COULOMB se section

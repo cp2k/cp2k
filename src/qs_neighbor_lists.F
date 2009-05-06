@@ -40,7 +40,8 @@ MODULE qs_neighbor_lists
                                              get_potential,&
                                              gth_potential_type
   USE f77_blas
-  USE input_constants,                 ONLY: xc_vdw_fun_pairpot
+  USE input_constants,                 ONLY: do_se_IS_slater,&
+                                             xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -174,8 +175,8 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_2c, sab_all, &
-      sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_orb, sab_scp, &
-      sab_vdw, sac_3c, sac_ae, sac_ppl, sap_oce, sap_ppnl, sbc_3c
+      sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_lrc, sab_orb, &
+      sab_scp, sab_vdw, sac_3c, sac_ae, sac_ppl, sap_oce, sap_ppnl, sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -209,6 +210,7 @@ CONTAINS
     NULLIFY (sap_ppnl)
     NULLIFY (sap_oce)
     NULLIFY (sab_2c)
+    NULLIFY (sab_lrc)
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
     NULLIFY (sab_all)
@@ -270,6 +272,7 @@ CONTAINS
                     sap_ppnl=sap_ppnl,&
                     sap_oce=sap_oce,&
                     sab_2c=sab_2c,&
+                    sab_lrc=sab_lrc,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c,&
                     sab_all=sab_all, &
@@ -770,6 +773,7 @@ CONTAINS
      END IF
 
     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+       ! Semi-empirical neighbor lists
        ALLOCATE (semi_present(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (c_radius(nkind),STAT=stat)
@@ -789,6 +793,22 @@ CONTAINS
        ! Dump neighbor list if requested
        CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
             "/SAB_2C","sab_2c","HARTREE INTERACTIONS",error)
+
+       ! If requested build the SE long-range correction neighbor list 
+       IF ((qs_env%dft_control%qs_control%se_control%do_ewald).AND.&
+           (qs_env%dft_control%qs_control%se_control%integral_screening/=do_se_IS_slater)) THEN
+          c_radius = qs_env%dft_control%qs_control%se_control%cutoff_lrc
+          CALL build_neighbor_lists(sab_lrc,atom,cell,r_skin,maxatom_local,&
+                                    unit_conv,unit_str,output_unit,semi_present,&
+                                    semi_present,c_radius,c_radius,&
+                                    name="SE LONG-RANGE CORRECTION",&
+                                    subcells=subcells,error=error)
+          CALL set_qs_env(qs_env=qs_env,sab_lrc=sab_lrc,error=error)
+          
+          ! Dump neighbor list if requested
+          CALL write_neighbor_lists(sab_lrc,particle_set,cell,para_env,neighbor_list_section,&
+               "/SAB_LRC","sab_lrc","SE LONG-RANGE CORRECTION",error)       
+       END IF
 
        DEALLOCATE (semi_present,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

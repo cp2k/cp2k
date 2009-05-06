@@ -640,6 +640,18 @@ CPSourceFileRef,&
                error=error,failure=failure)          
           qs_control%se_control%integral_screening = do_se_IS_slater
        END IF
+       ! Long-Range correction
+       CALL section_vals_val_get(se_section,"LR_CORRECTION%CUTOFF",&
+            r_val=qs_control%se_control%cutoff_lrc,error=error)
+       qs_control%se_control%taper_lrc = qs_control%se_control%cutoff_lrc
+       CALL section_vals_val_get(se_section,"LR_CORRECTION%RC_TAPER",&
+            explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(se_section,"LR_CORRECTION%RC_TAPER",&
+               r_val=qs_control%se_control%taper_lrc, error=error)
+       END IF
+       CALL section_vals_val_get(se_section,"LR_CORRECTION%RC_RANGE",&
+            r_val=qs_control%se_control%range_lrc,error=error)
        ! Coulomb
        CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",&
             r_val=qs_control%se_control%cutoff_cou,error=error)

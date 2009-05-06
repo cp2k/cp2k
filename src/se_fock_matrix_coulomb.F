@@ -87,7 +87,7 @@ MODULE se_fock_matrix_coulomb
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
   
   PUBLIC :: build_fock_matrix_coulomb, build_fock_matrix_coulomb_lr,&
-            build_fock_matrix_coul_lr_corr, build_fock_matrix_coul_lr_r3
+            build_fock_matrix_coul_lr_r3
 
 CONTAINS
   
@@ -343,7 +343,7 @@ CONTAINS
                          ! Add P_scp + P_block_tot_b to get P_tot
                          p_block_tot_b(1:natorb_b,1:natorb_b) = p_block_tot_b(1:natorb_b,1:natorb_b) + 2.0_dp * pscpb_block
                          ! Modify accordingly the density matrix for SCP
-                              pb_a(1:natorb_b2) = RESHAPE(pb_block_a+pscpb_block,(/natorb_b2/))
+                         pb_a(1:natorb_b2) = RESHAPE(pb_block_a+pscpb_block,(/natorb_b2/))
                          IF ( nspins >= 2 ) &
                               pb_b(1:natorb_b2) = RESHAPE(pb_block_b+pscpb_block,(/natorb_b2/))
                       ENDIF 
@@ -614,7 +614,7 @@ CONTAINS
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
        
        nspins=dft_control%nspins
-       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+       CPPrecondition(((nspins>=1).AND.(nspins<3)),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
@@ -744,9 +744,9 @@ CONTAINS
        CALL mp_sum(se_nddo_mpole%dipole, para_env%group)
        CALL mp_sum(se_nddo_mpole%quadrupole, para_env%group)
 
-       ! Apply correction only when the Integral Scheme is KDSO and KDSO-d
+       ! Apply correction only when the Integral Scheme is different from Slater
        IF (se_control%integral_screening/=do_se_IS_slater) THEN
-          CALL build_fock_matrix_coul_lr_corr(qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
+          CALL build_fock_matrix_coul_lrc(qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
                store_int_env, se_nddo_mpole, error)
        END IF
 
@@ -815,13 +815,11 @@ CONTAINS
              node  = node + 1
              iatom = local_particles%list(ikind)%array(ilist)
              DO ispin = 1, nspins
-                IF ( nspins >= 1 ) THEN
-                   CALL get_block_node(matrix=diagmat_ks(ispin)%matrix,&
-                                       block_row=iatom,&
-                                       block_col=iatom,&
-                                       BLOCK=ksa_block_a)
-                   CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
-                END IF
+                CALL get_block_node(matrix=diagmat_ks(ispin)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=ksa_block_a)
+                CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
 
                 ! Modify Hamiltonian Matrix accordingly potential, field and electric field gradient
                 size_1c_int = SIZE(se_kind_a%w_mpole)
@@ -910,7 +908,7 @@ CONTAINS
 !>        with charges
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
-  SUBROUTINE build_fock_matrix_coul_lr_corr (qs_env,ks_matrix,matrix_p,energy,&
+  SUBROUTINE build_fock_matrix_coul_lrc (qs_env,ks_matrix,matrix_p,energy,&
        calculate_forces, store_int_env,se_nddo_mpole,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -922,8 +920,7 @@ CONTAINS
     TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'build_fock_matrix_coul_lr_corr', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lrc', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
@@ -949,9 +946,9 @@ CONTAINS
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_2c
-    TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_2c_neighbor_node
+      DIMENSION(:), POINTER                  :: sab_lrc
+    TYPE(neighbor_list_type), POINTER        :: sab_lrc_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: sab_lrc_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
@@ -976,7 +973,7 @@ CONTAINS
                se_control,se_taper,pscp,ks_scp,scp_env)
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
-            para_env=para_env, sab_2c=sab_2c, atomic_kind_set=atomic_kind_set, &
+            para_env=para_env, sab_lrc=sab_lrc, atomic_kind_set=atomic_kind_set, &
             particle_set=particle_set, virial=virial, error=error)
       
        ! Parameters
@@ -990,12 +987,6 @@ CONTAINS
             do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
             shortrange=(se_control%do_ewald.OR.se_control%do_ewald_gks),&
             max_multipole=se_control%max_multipole)
-       IF(se_control%do_ewald_gks) THEN
-         CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
-         CALL ewald_env_get (ewald_env, alpha=se_int_control%ewald_gks%alpha, error=error)
-         CALL ewald_pw_get (ewald_pw, pw_big_pool=se_int_control%ewald_gks%pw_pool, &
-                            dg=se_int_control%ewald_gks%dg)
-       END IF
 
        IF (scp_nddo) CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
        
@@ -1045,18 +1036,18 @@ CONTAINS
              IF (.NOT.defined .OR. natorb_b < 1) CYCLE
              natorb_b2 = natorb_b**2
              iab = ikind + nkind*(jkind - 1)
-             IF (.NOT.ASSOCIATED(sab_2c(iab)%neighbor_list_set)) CYCLE
-             CALL get_neighbor_list_set(neighbor_list_set=sab_2c(iab)%neighbor_list_set,nlist=nlist)
-             NULLIFY(sab_2c_neighbor_list)
+             IF (.NOT.ASSOCIATED(sab_lrc(iab)%neighbor_list_set)) CYCLE
+             CALL get_neighbor_list_set(neighbor_list_set=sab_lrc(iab)%neighbor_list_set,nlist=nlist)
+             NULLIFY(sab_lrc_neighbor_list)
 
              DO ilist=1,nlist
-                IF ( .NOT. ASSOCIATED(sab_2c_neighbor_list) ) THEN
-                   sab_2c_neighbor_list => first_list(sab_2c(iab)%neighbor_list_set)
+                IF ( .NOT. ASSOCIATED(sab_lrc_neighbor_list) ) THEN
+                   sab_lrc_neighbor_list => first_list(sab_lrc(iab)%neighbor_list_set)
                 ELSE
-                   sab_2c_neighbor_list => next(sab_2c_neighbor_list)
+                   sab_lrc_neighbor_list => next(sab_lrc_neighbor_list)
                 END IF
-                CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom, nnode=nnode)
-                sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
+                CALL get_neighbor_list(neighbor_list=sab_lrc_neighbor_list,atom=iatom, nnode=nnode)
+                sab_lrc_neighbor_node => first_node(sab_lrc_neighbor_list)
  
                 CALL get_block_node(matrix=diagmat_p(1)%matrix,&
                                     block_row=iatom,&
@@ -1106,7 +1097,7 @@ CONTAINS
                 ENDIF
  
                 DO inode=1,nnode
-                   CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,neighbor=jatom,r=rij)
+                   CALL get_neighbor_node(neighbor_node=sab_lrc_neighbor_node,neighbor=jatom,r=rij)
  
                    dr1 = DOT_PRODUCT(rij,rij)
                    IF ( dr1 > rij_threshold ) THEN
@@ -1269,40 +1260,8 @@ CONTAINS
                       CASE DEFAULT
                          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                       END SELECT
-                   ELSE
-                      IF ( se_int_control%do_ewald_gks ) THEN
-                         CPPostcondition(iatom==jatom,cp_failure_level,routineP,error,failure)
-                         ! Two-centers One-electron terms
-                         ecores=0._dp
-                         IF      ( nspins == 1 ) THEN
-                            CALL fock2_1el_ew (se_kind_a,rij, ksa_block_a, pa_a, &
-                                 ecore=ecores, itype=itype, anag=anag, se_int_control=se_int_control,&
-                                 se_taper=se_taper, store_int_env=store_int_env, error=error)
-                         ELSE IF ( nspins == 2 ) THEN
-                            CALL fock2_1el_ew (se_kind_a,rij, ksa_block_a, pa_block_a,&
-                                 ecore=ecores, itype=itype, anag=anag, se_int_control=se_int_control, &
-                                 se_taper=se_taper, store_int_env=store_int_env, error=error)
-                            CALL fock2_1el_ew (se_kind_a,rij, ksa_block_b, pa_b,&
-                                 ecore=ecores, itype=itype, anag=anag, se_int_control=se_int_control,&
-                                 se_taper=se_taper, store_int_env=store_int_env, error=error)
-                         END IF
-                         ecore2=ecore2+ecores
-                         ! Coulomb Terms
-                         IF      ( nspins == 1 ) THEN
-                            CALL fock2C_ew(se_kind_a, rij, p_block_tot_a, ksa_block_a,& 
-                                 factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
-                                 store_int_env=store_int_env, error=error)
-                         ELSE IF ( nspins == 2 ) THEN
-                            CALL fock2C_ew(se_kind_a, rij, p_block_tot_a, ksa_block_a,&
-                                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
-                                 store_int_env=store_int_env, error=error)
-                            CALL fock2C_ew(se_kind_a, rij, p_block_tot_a, ksa_block_b,&
-                                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
-                                 store_int_env=store_int_env, error=error)
-                         END IF
-                      END IF
                    END IF
-                   sab_2c_neighbor_node => next(sab_2c_neighbor_node)
+                   sab_lrc_neighbor_node => next(sab_lrc_neighbor_node)
                 END DO ! inode => jatom(atom B)
              END DO ! ilist => iatom(atom A)
           END DO ! jkind
@@ -1336,7 +1295,7 @@ CONTAINS
     END IF
     CALL finalize_se_taper(se_taper,error=error)    
     CALL timestop(handle)
-  END SUBROUTINE build_fock_matrix_coul_lr_corr
+  END SUBROUTINE build_fock_matrix_coul_lrc
 
 ! *****************************************************************************
 !> \brief Construction of the residual part (1/R^3) of the Coulomb long-range 
