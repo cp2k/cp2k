@@ -28,7 +28,6 @@ MODULE qs_energy
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE nddo_methods,                    ONLY: se_core_core_interaction
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -49,7 +48,6 @@ MODULE qs_energy
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
-  USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
   USE rt_propagation_methods,          ONLY: aspc_extrapolate,&
                                              calc_update_rho,&
                                              propagation_step,&
@@ -61,6 +59,8 @@ MODULE qs_energy
   USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE scp_dispersion,                  ONLY: scp_nddo_dispersion,&
                                              scp_qs_dispersion
+  USE se_core_core,                    ONLY: se_core_core_interaction
+  USE se_core_matrix,                  ONLY: build_se_core_matrix
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop

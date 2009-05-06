@@ -8,7 +8,7 @@
 !>      semi-empirical methods
 !> \author JGH
 ! *****************************************************************************
-MODULE qs_semi_empirical_hamiltonian
+MODULE se_core_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -24,15 +24,12 @@ MODULE qs_semi_empirical_hamiltonian
        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
        use_orb_basis_set
   USE kinds,                           ONLY: dp
-  USE nddo_methods,                    ONLY: build_nddo_fock_matrix
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
@@ -61,9 +58,9 @@ MODULE qs_semi_empirical_hamiltonian
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_semi_empirical_hamiltonian'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_core_matrix'
 
-  PUBLIC :: build_se_core_matrix, build_se_fock_matrix
+  PUBLIC :: build_se_core_matrix
 
 CONTAINS
 
@@ -406,37 +403,5 @@ CONTAINS
 
   END SUBROUTINE build_se_core_matrix
 
-! *****************************************************************************
-  SUBROUTINE build_se_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
-               calculate_forces,just_energy,error)
-
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_energy_type), POINTER            :: energy
-    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(dft_control_type), POINTER          :: dft_control
-
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
-
-    SELECT CASE (dft_control%qs_control%method_id)
-      CASE DEFAULT
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
-            do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
-        CALL build_nddo_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
-               calculate_forces,just_energy,error)
-    END SELECT
-
-  END SUBROUTINE build_se_fock_matrix
-
-END MODULE qs_semi_empirical_hamiltonian
+END MODULE se_core_matrix
 

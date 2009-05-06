@@ -35,7 +35,6 @@ MODULE qs_force
                                              int_size
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_restraint
-  USE nddo_methods,                    ONLY: se_core_core_interaction
   USE particle_types,                  ONLY: particle_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -58,12 +57,13 @@ MODULE qs_force
                                              mo_set_p_type,&
                                              mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
   USE rt_propagation_utils,            ONLY: calc_c_mat_force
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
   USE scp_force_types,                 ONLY: scp_force_type
+  USE se_core_core,                    ONLY: se_core_core_interaction
+  USE se_core_matrix,                  ONLY: build_se_core_matrix
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&

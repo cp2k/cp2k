@@ -362,8 +362,6 @@ OBJECTS_GENERIC =\
  mt_util.o\
  mulliken.o\
  multipole_types.o\
- nddo_methods.o\
- nddo_methods_dbg.o\
  neb_io.o\
  neb_methods.o\
  neb_md_utils.o\
@@ -526,7 +524,6 @@ OBJECTS_GENERIC =\
  qs_scf_post_gpw.o\
  qs_scf_post_se.o\
  qs_scf_types.o\
- qs_semi_empirical_hamiltonian.o\
  qs_spin_orbit.o\
  qs_tddfpt_eigensolver.o\
  qs_tddfpt_module.o\
@@ -573,6 +570,13 @@ OBJECTS_GENERIC =\
  scp_rho_types.o\
  scp_rspw_methods.o\
  scp_rspw_types.o\
+ se_core_core.o\
+ se_core_matrix.o\
+ se_fock_matrix.o\
+ se_fock_matrix_coulomb.o\
+ se_fock_matrix_dbg.o\
+ se_fock_matrix_exchange.o\
+ se_fock_matrix_integrals.o\
  semi_empirical_expns3_methods.o\
  semi_empirical_expns3_types.o\
  semi_empirical_integrals.o\

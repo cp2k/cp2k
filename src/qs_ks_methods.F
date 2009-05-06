@@ -138,7 +138,6 @@ MODULE qs_ks_methods
                                              mo_set_type
   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_semi_empirical_hamiltonian,   ONLY: build_se_fock_matrix
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE s_square_methods,                ONLY: s2_restraint
   USE scp_energy,                      ONLY: scp_qs_energies
@@ -146,6 +145,7 @@ MODULE qs_ks_methods
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
   USE scp_hartree_1center,             ONLY: integrate_a_vhscp_b
+  USE se_fock_matrix,                  ONLY: build_se_fock_matrix
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix,&
                                              real_matrix_p_type,&
