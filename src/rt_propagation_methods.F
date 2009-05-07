@@ -30,7 +30,8 @@ MODULE rt_propagation_methods
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_cn,&
                                              do_em,&
-                                             do_etrs
+                                             do_etrs,&
+                                             do_diag, do_pade, do_taylor,do_arnoldi
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: binomial
@@ -54,7 +55,8 @@ MODULE rt_propagation_methods
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_make_propagators,             ONLY: make_cn_propagator,&
                                              make_em_propagator,&
-                                             make_etrs_exp
+                                             make_etrs_exp,&
+                                             propagate_arnoldi
   USE rt_matrix_exp,                   ONLY: backtransform_matrix
   USE rt_propagation_output,           ONLY: rt_convergence
   USE rt_propagation_types,            ONLY: get_rtp,&
@@ -133,17 +135,25 @@ CONTAINS
        CALL cp_fm_to_fm(rtp%mos_new(i)%matrix,delta_mos(i)%matrix,error)
     END DO
     
-    SELECT CASE(qs_env%dft_control%rtp_control%propagator)
-    CASE(do_cn,do_em)
+    SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
+    CASE( do_diag, do_pade, do_taylor)
+       
+       SELECT CASE(qs_env%dft_control%rtp_control%propagator)
+       CASE(do_cn,do_em)
+          IF(rtp%iter.NE.1)&
+               CALL calc_SinvH(exp_H_new,qs_env,error)
+          CALL propagate_cn_or_em(qs_env,error)
+       CASE(do_etrs)
+          IF(rtp%iter.NE.1)&
+               CALL make_etrs_exp(exp_H_new,qs_env,error)
+          CALL propagate_etrs(qs_env,error)
+       END SELECT
+    CASE(do_arnoldi)
        IF(rtp%iter.NE.1)&
             CALL calc_SinvH(exp_H_new,qs_env,error)
-       CALL propagate_cn_or_em(qs_env,error)
-    CASE(do_etrs)
-       IF(rtp%iter.NE.1)&
-            CALL make_etrs_exp(exp_H_new,qs_env,error)
-       CALL propagate_etrs(qs_env,error)
+       CALL propagate_arnoldi(qs_env,error)
+       CALL calc_update_rho(qs_env,error)
     END SELECT
-
 
     DO i=1,2*SIZE(mos)
        CALL cp_fm_scale_and_add(-1.0_dp,delta_mos(i)%matrix,1.0_dp,rtp%mos_new(i)%matrix,error)

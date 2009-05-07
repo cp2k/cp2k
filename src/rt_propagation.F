@@ -30,7 +30,7 @@ MODULE rt_propagation
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_cn, do_diag, do_em, do_etrs, do_pade, do_taylor, &
+       do_cn, do_diag, do_em, do_etrs, do_pade, do_taylor, do_diag, do_arnoldi, &
        real_time_propagation, use_restart_wfn, use_rt_restart, use_scf_wfn
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -403,32 +403,42 @@ CONTAINS
 
     CALL get_rtp (rtp=rtp,exp_H_old=exp_H_old,exp_H_new=exp_H_new,mos_old=mos_old,error=error)
 
-    CALL get_maxabs_eigval(rtp,qs_env,error)
-    
 
-    SELECT CASE(qs_env%dft_control%rtp_control%propagator)
-    CASE (do_cn,do_em)
-       diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
-       IF(qs_env%dft_control%rtp_control%propagator==do_cn)diagonalize=.FALSE.
+    
+    SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
+    CASE(do_taylor,do_pade,do_diag)
+       CALL get_maxabs_eigval(rtp,qs_env,error)
+       SELECT CASE(qs_env%dft_control%rtp_control%propagator)
+       CASE (do_cn,do_em)
+          diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
+          IF(qs_env%dft_control%rtp_control%propagator==do_cn)diagonalize=.FALSE.
+          CALL s_matrices_create (s_mat,rtp,diagonalize,error)
+          CALL calc_SinvH(exp_H_old,qs_env,error)
+          DO i=1,SIZE(exp_H_old)
+             CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%exp_H_new(i)%matrix,error)
+             CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%history%exp_history(i,1)%matrix,error)
+          END DO
+          
+       CASE (do_etrs)
+          
+          diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
+          CALL s_matrices_create (s_mat,rtp,diagonalize,error)
+          
+          CALL make_etrs_exp(exp_H_old,qs_env,error)
+          DO i=1,SIZE(exp_H_old)
+             CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%exp_H_new(i)%matrix,error)
+             CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%history%exp_history(i,1)%matrix,error)
+          END DO
+       END SELECT
+    CASE(do_arnoldi)
+       diagonalize=.FALSE.
        CALL s_matrices_create (s_mat,rtp,diagonalize,error)
        CALL calc_SinvH(exp_H_old,qs_env,error)
        DO i=1,SIZE(exp_H_old)
           CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%exp_H_new(i)%matrix,error)
           CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%history%exp_history(i,1)%matrix,error)
        END DO
-       
-    CASE (do_etrs)
-       
-       diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
-       CALL s_matrices_create (s_mat,rtp,diagonalize,error)
-       
-       CALL make_etrs_exp(exp_H_old,qs_env,error)
-       DO i=1,SIZE(exp_H_old)
-          CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%exp_H_new(i)%matrix,error)
-          CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%history%exp_history(i,1)%matrix,error)
-       END DO
     END SELECT
-
   END SUBROUTINE init_propagators
 
   SUBROUTINE get_maxabs_eigval(rtp,qs_env,error)

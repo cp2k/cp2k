@@ -764,7 +764,8 @@ MODULE input_constants
   !real time propagation
   INTEGER, PARAMETER, PUBLIC               :: do_taylor=1,  &
                                               do_diag=2,&
-                                              do_pade=3
+                                              do_pade=3,&
+                                              do_arnoldi=4
 
   INTEGER, PARAMETER, PUBLIC               :: do_etrs=1,&
                                               do_cn=2,&

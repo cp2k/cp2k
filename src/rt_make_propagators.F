@@ -24,15 +24,19 @@ MODULE rt_make_propagators
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE input_constants,                 ONLY: do_diag,&
+                                             do_em,&
+                                             do_etrs,&
                                              do_pade,&
                                              do_taylor
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE rt_matrix_exp,                   ONLY: exp_diag,&
+  USE rt_matrix_exp,                   ONLY: arnoldi,&
+                                             exp_diag,&
                                              exp_pade_full_complex,&
                                              exp_pade_only_imaginary,&
                                              taylor_full_complex,&
@@ -51,8 +55,9 @@ MODULE rt_make_propagators
 
   PUBLIC :: make_etrs_exp,&
             make_cn_propagator,&
-            make_em_propagator
-
+            make_em_propagator,&
+            propagate_arnoldi
+  
 
 CONTAINS
 ! *****************************************************************************
@@ -255,13 +260,15 @@ CONTAINS
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
-    INTEGER                                  :: i, im, ispin, ldim, ndim, re
+    INTEGER                                  :: handle, i, im, ispin, ldim, &
+                                                ndim, re
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dt, eps_exp
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: new_Ham, old_Ham
     TYPE(cp_fm_type), POINTER                :: M1, M2
 
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     CALL cp_fm_create(M1,&
                       matrix_struct=propagator(1)%matrix%matrix_struct,&
@@ -318,7 +325,117 @@ CONTAINS
     END DO
     CALL cp_fm_release(M1,error)
     CALL cp_fm_release(M2,error)
-    
+    CALL timestop(handle)
+
   END SUBROUTINE make_em_propagator
 
+! *****************************************************************************
+!> \brief computs U_prop*MOs using arnoldi subspace algorithm
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE propagate_arnoldi(qs_env,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'propagate_arnoldi', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: handle, i, ispin, lb, ldim, &
+                                                ndim, nspin, ub
+    REAL(dp)                                 :: dt, t
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_new, mos_old, new_Ham, &
+                                                old_Ham
+    TYPE(cp_fm_type), POINTER                :: S_inv, tmp_mat_B, tmp_mat_H
+    TYPE(rt_prop_type), POINTER              :: rtp
+
+    CALL timeset(routineN,handle)
+
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)  
+    CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,mos_new=mos_new,mos_old=mos_old,&
+         exp_H_old=old_Ham,exp_H_new=new_Ham,error=error)
+
+    CALL cp_fm_create(tmp_mat_H,&
+         matrix_struct=old_Ham(1)%matrix%matrix_struct,&
+         name="TMP_H",&
+         error=error)
+    CALL cp_fm_create(tmp_mat_B,&
+         matrix_struct=old_Ham(1)%matrix%matrix_struct,&
+         name="TMP_B",&
+         error=error)
+    nspin=SIZE(mos_new)/2
+    SELECT CASE(qs_env%dft_control%rtp_control%propagator)
+    CASE(do_etrs)
+       IF(rtp%iter==1)THEN
+          dt=-t/2.0_dp
+          DO ispin=1,nspin
+             
+             lb=ispin*2-1
+             ub=ispin*2
+             CALL cp_fm_to_fm(old_ham(ub)%matrix,tmp_mat_H,error) 
+             CALL cp_fm_scale(dt,tmp_mat_H,error)
+             
+             IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
+                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Him=tmp_mat_H,error=error)             
+             ELSE
+                CALL cp_fm_to_fm(old_ham(lb)%matrix,tmp_mat_B,error) 
+                CALL cp_fm_scale(dt,tmp_mat_B,error)
+
+                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
+             END IF
+          END DO
+          DO i=1,SIZE(mos_new)
+             CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
+          END DO
+       END IF
+       dt=-t/2.0_dp
+
+       DO ispin=1,nspin
+          
+          lb=ispin*2-1
+          ub=ispin*2
+          CALL cp_fm_to_fm(new_ham(ub)%matrix,tmp_mat_H,error) 
+          CALL cp_fm_scale(dt,tmp_mat_H,error)
+          IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
+             CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Him=tmp_mat_H,error=error)             
+          ELSE
+             CALL cp_fm_to_fm(new_ham(lb)%matrix,tmp_mat_B,error) 
+             CALL cp_fm_scale(dt,tmp_mat_B,error)
+             CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
+          END IF
+          
+       END DO
+
+       CASE(do_em)
+          CALL cp_fm_get_info(tmp_mat_H,ncol_local=ldim,nrow_global=ndim,error=error)
+          DO ispin=1,nspin
+             lb=2*ispin-1
+             ub=2*ispin
+             dt=-t
+             DO i=1,ldim
+                tmp_mat_H%local_data(:,i)=0.5_dp*dt*old_ham(ub)%matrix%local_data(:,i)+&
+                     0.5_dp*dt*new_ham(ub)%matrix%local_data(:,i)
+             END DO
+             IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
+                DO i=1,ldim
+                   tmp_mat_B%local_data(:,i)=0.5_dp*dt*old_ham(lb)%matrix%local_data(:,i)+&
+                        0.5_dp*dt*new_ham(lb)%matrix%local_data(:,i)
+                END DO
+                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
+             ELSE
+                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Him=tmp_mat_H,error=error)             
+             END IF
+             
+
+          END DO
+       END SELECT
+       CALL cp_fm_release(tmp_mat_H,error)
+       CALL cp_fm_release(tmp_mat_B,error)
+       CALL timestop(handle)
+
+     END SUBROUTINE propagate_arnoldi
+     
 END MODULE rt_make_propagators

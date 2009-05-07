@@ -27,7 +27,7 @@ MODULE cp_cfm_basic_linalg
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
   PUBLIC :: cp_cfm_add, cp_cfm_gemm, cp_cfm_lu_decompose, cp_cfm_column_scale, cp_cfm_schur_product,&
-             cp_cfm_solve
+             cp_cfm_schur_product_cc,cp_cfm_solve
 CONTAINS
 
 ! *****************************************************************************
@@ -67,6 +67,41 @@ CONTAINS
 
   END SUBROUTINE cp_cfm_schur_product
 
+  SUBROUTINE cp_cfm_schur_product_cc(matrix_a,matrix_b,matrix_c,error)
+
+    TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b, matrix_c
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a, b, c
+    INTEGER                                  :: handle, icol_local, &
+                                                irow_local, mypcol, myprow, &
+                                                ncol_local, nrow_local
+
+    CALL timeset(routineN,handle)
+
+    myprow=matrix_a%matrix_struct%context%mepos(1)
+    mypcol=matrix_a%matrix_struct%context%mepos(2)
+
+    a => matrix_a%local_data
+    b => matrix_b%local_data
+    c => matrix_c%local_data
+
+    nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix_a%matrix_struct%ncol_locals(mypcol)
+
+    DO icol_local=1,ncol_local
+       DO irow_local=1,nrow_local
+          c(irow_local,icol_local) = a(irow_local,icol_local)*CONJG(b(irow_local,icol_local))
+       END DO
+    END DO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_schur_product_cc
 ! *****************************************************************************
 !> \brief   Scale and add two BLACS matrices (a <- alpha*a + beta*b).
 !> \author  Matthias Krack
