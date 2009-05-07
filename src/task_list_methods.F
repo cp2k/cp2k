@@ -47,7 +47,8 @@ MODULE task_list_methods
                                              realspace_grid_type,&
                                              rs_grid_create,&
                                              rs_grid_locate_rank,&
-                                             rs_grid_release
+                                             rs_grid_release,&
+                                             rs_grid_reorder_ranks
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              get_block_node,&
                                              real_matrix_type
@@ -655,14 +656,15 @@ CONTAINS
 !> \par History
 !>      created 2008-10-03 [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE load_balance_distributed (tasks, ntasks, rs_rho, natoms, maxset,maxpgf, error)
+  SUBROUTINE load_balance_distributed (tasks, ntasks, rs_rho, grid_level, natoms, maxset,maxpgf, error)
 
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER                                  :: ntasks
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-    INTEGER                                  :: natoms, maxset, maxpgf
+    INTEGER                                  :: grid_level, natoms, maxset, &
+                                                maxpgf
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'load_balance_distributed', &
@@ -678,16 +680,16 @@ CONTAINS
     NULLIFY(list)
     ! here we create for each cpu (0:ncpu-1) a list of possible destinations.
     ! if a destination would not be in this list, it is a bug
-    CALL create_destination_list(list,rs_rho,error)
+    CALL create_destination_list(list,rs_rho,grid_level,error)
 
     ! now, walk over the tasks, filling in the loads of each destination
-    CALL compute_load_list(list,rs_rho,tasks,ntasks,natoms, maxset,maxpgf, create_list=.TRUE., error=error)
+    CALL compute_load_list(list,rs_rho,grid_level,tasks,ntasks,natoms, maxset,maxpgf, create_list=.TRUE., error=error)
 
     ! optimize loads & fluxes
     CALL optimize_load_list(list,rs_rho(1)%rs_grid%desc%group,rs_rho(1)%rs_grid%desc%my_pos, error)
 
     ! now, walk over the tasks, using the list to set the destinations
-    CALL compute_load_list(list,rs_rho,tasks,ntasks,natoms, maxset,maxpgf, create_list=.FALSE., error=error)
+    CALL compute_load_list(list,rs_rho,grid_level, tasks,ntasks,natoms, maxset,maxpgf, create_list=.FALSE., error=error)
 
     DEALLOCATE(list,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -932,10 +934,11 @@ CONTAINS
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE compute_load_list(list,rs_rho,tasks,ntasks,natoms, maxset,maxpgf, create_list, error)
+  SUBROUTINE compute_load_list(list,rs_rho,grid_level,tasks,ntasks,natoms, maxset,maxpgf, create_list, error)
     INTEGER, DIMENSION(:, :, 0:)             :: list
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
+    INTEGER                                  :: grid_level
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER                                  :: ntasks, natoms, maxset, maxpgf
@@ -957,8 +960,9 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    ALLOCATE(loads(0:rs_rho(1)%rs_grid%desc%group_size-1))
-    CALL get_current_loads(loads, rs_rho, ntasks, tasks, skip_distributed=.TRUE., error=error)
+    ALLOCATE(loads(0:rs_rho(grid_level)%rs_grid%desc%group_size-1))
+    CALL get_current_loads(loads, rs_rho, grid_level, ntasks, natoms, maxset, maxpgf, &
+                           tasks, use_reordered_ranks=.FALSE. , error=error)
 
     failure=.FALSE.
 
@@ -993,18 +997,23 @@ CONTAINS
        ipair=ipair_old
        nshort=itask_stop-itask_start+1
 
-       ! find the unique list of destinations
+       ! find the unique list of destinations on this grid level only
        DEALLOCATE(all_dests)
        ALLOCATE(all_dests(nshort))
        DEALLOCATE(index)
        ALLOCATE(INDEX(nshort))
        DO i=1,nshort
-         all_dests(i)=decode_rank(tasks(1,itask_start + i - 1), SIZE(rs_rho))
+         CALL int2pair(tasks(3,itask_start + i - 1),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+           IF (ilevel .EQ. grid_level) THEN
+             all_dests(i)=decode_rank(tasks(1,itask_start + i - 1), SIZE(rs_rho))
+           ELSE
+             all_dests(i)=HUGE(all_dests(i))
+           END IF
        ENDDO
        CALL sort(all_dests,nshort,index)
        ndest_pair=1
        DO i=2,nshort
-          IF (all_dests(ndest_pair).NE.all_dests(i)) THEN
+          IF ((all_dests(ndest_pair).NE.all_dests(i) ) .AND. (all_dests(i) .NE. HUGE(all_dests(i)))) THEN
              ndest_pair=ndest_pair+1
              all_dests(ndest_pair)=all_dests(i)
           ENDIF
@@ -1012,13 +1021,14 @@ CONTAINS
 
        DO itask=itask_start,itask_stop
 
+          
           dest=decode_rank(tasks(1,itask), SIZE(rs_rho)) ! notice that dest can be changed
           CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+          ! Only proceed with tasks which are on this grid level
+          IF (ilevel .NE. grid_level) CYCLE
           ipair=(iatom-1)*natom8+(jatom-1)
 
           SELECT CASE(tasks(4,itask))
-          CASE(0)
-               ! just ignore these replicated tasks   
           CASE(1)
             bit_pattern=tasks(6,itask)
             nopt=0
@@ -1138,19 +1148,18 @@ CONTAINS
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE create_destination_list(list,rs_rho,error)
+  SUBROUTINE create_destination_list(list,rs_rho,grid_level,error)
     INTEGER, DIMENSION(:, :, :), POINTER     :: list
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
+    INTEGER, INTENT(IN)                      :: grid_level
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_destination_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, icount, icpu, &
-                                                igrid_level, j, maxcount, &
-                                                ncpu, ndistributed, stat, &
-                                                ultimate_max
+    INTEGER                                  :: handle, i, icpu, j, maxcount, &
+                                                ncpu, stat, ultimate_max
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, sublist
     INTEGER, DIMENSION(3)                    :: coord
     LOGICAL                                  :: failure
@@ -1160,14 +1169,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,error,failure)
-    ncpu=rs_rho(1)%rs_grid%desc%group_size
-    ndistributed=0
-    DO igrid_level=1,SIZE(rs_rho)
-       IF (rs_rho(igrid_level)%rs_grid%desc%distributed) ndistributed=ndistributed+1
-    ENDDO
-    ultimate_max=7*ndistributed
+    ncpu=rs_rho(grid_level)%rs_grid%desc%group_size
+    ultimate_max=7
 
-    ! each grid is distributed and yields different neighbors
     ALLOCATE(list(2,ultimate_max,0:ncpu-1),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -1179,24 +1183,18 @@ CONTAINS
 
     maxcount=1
     DO icpu=0,ncpu-1
-       icount=1
        sublist(1)=icpu
-       DO igrid_level=1,SIZE(rs_rho)
-          IF (rs_rho(igrid_level)%rs_grid%desc%distributed) THEN
-             coord=rs_rho(igrid_level)%rs_grid%desc%rank2coord(:,icpu)  
-             sublist(icount+1)=rs_grid_locate_rank(rs_rho(igrid_level)%rs_grid,icpu,(/-1,0,0/))    
-             sublist(icount+2)=rs_grid_locate_rank(rs_rho(igrid_level)%rs_grid,icpu,(/+1,0,0/))    
-             sublist(icount+3)=rs_grid_locate_rank(rs_rho(igrid_level)%rs_grid,icpu,(/0,-1,0/))    
-             sublist(icount+4)=rs_grid_locate_rank(rs_rho(igrid_level)%rs_grid,icpu,(/0,+1,0/))    
-             sublist(icount+5)=rs_grid_locate_rank(rs_rho(igrid_level)%rs_grid,icpu,(/0,0,-1/))    
-             sublist(icount+6)=rs_grid_locate_rank(rs_rho(igrid_level)%rs_grid,icpu,(/0,0,+1/))    
-             icount=icount+6
-          ENDIF
-       END DO
+       coord=rs_rho(grid_level)%rs_grid%desc%rank2coord(:,icpu)  
+       sublist(2)=rs_grid_locate_rank(rs_rho(grid_level)%rs_grid,icpu,(/-1,0,0/))    
+       sublist(3)=rs_grid_locate_rank(rs_rho(grid_level)%rs_grid,icpu,(/+1,0,0/))    
+       sublist(4)=rs_grid_locate_rank(rs_rho(grid_level)%rs_grid,icpu,(/0,-1,0/))    
+       sublist(5)=rs_grid_locate_rank(rs_rho(grid_level)%rs_grid,icpu,(/0,+1,0/))    
+       sublist(6)=rs_grid_locate_rank(rs_rho(grid_level)%rs_grid,icpu,(/0,0,-1/))    
+       sublist(7)=rs_grid_locate_rank(rs_rho(grid_level)%rs_grid,icpu,(/0,0,+1/))    
        ! only retain unique values of the destination
-       CALL sort(sublist,icount,index)
+       CALL sort(sublist,ultimate_max,index)
        j=1
-       DO i=2,icount
+       DO i=2,7
           IF(sublist(i).NE.sublist(j)) THEN
              j=j+1
              sublist(j)=sublist(i)
@@ -1221,20 +1219,23 @@ CONTAINS
 !>      none
 !> \author MattW 21/11/2007
 ! *****************************************************************************
-  SUBROUTINE get_current_loads(loads, rs_rho, ntasks, tasks, skip_distributed, error)
+  SUBROUTINE get_current_loads(loads, rs_rho, grid_level, ntasks, natom, maxset, maxpgf, tasks, use_reordered_ranks, error)
     INTEGER(kind=int_8), DIMENSION(:)        :: loads
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-    INTEGER                                  :: ntasks
+    INTEGER                                  :: grid_level, ntasks, natom, &
+                                                maxset, maxpgf
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
-    LOGICAL                                  :: skip_distributed
+    LOGICAL, INTENT(IN)                      :: use_reordered_ranks
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_current_loads', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i, iatom, ilevel, &
+                                                ipgf, iset, jatom, jpgf, &
+                                                jset, stat
     INTEGER(KIND=int_8)                      :: total_cost_local
     INTEGER(kind=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
@@ -1244,7 +1245,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    rs=>rs_rho(1)%rs_grid
+
+    rs => rs_rho(grid_level)%rs_grid
 
     ! allocate local arrays
     ALLOCATE(send_sizes(rs%desc%group_size),STAT=stat)
@@ -1259,11 +1261,6 @@ CONTAINS
     IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
     ALLOCATE(recv_buf_i(rs%desc%group_size),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
-
-!
-! part 1, load balance on the replicated tasks, i.e. after this step replicated tasks can have
-!         a destination that is different from their source
-!
 
     send_sizes = 1
     recv_sizes = 1
@@ -1281,9 +1278,17 @@ CONTAINS
     ! send buffer now contains for each target the cost of the tasks it will receive
     send_buf_i=0
     DO i = 1, ntasks
-       IF (skip_distributed .AND. tasks(4,i)==0) CYCLE
-       send_buf_i( decode_rank(tasks(1,i), SIZE(rs_rho))+1 ) = &
-       send_buf_i( decode_rank(tasks(1,i), SIZE(rs_rho))+1 ) + tasks(5,i)
+       CALL int2pair(tasks(3,i),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf) 
+       IF (ilevel .NE. grid_level) CYCLE
+       IF (use_reordered_ranks) THEN
+         send_buf_i( rs_rho(ilevel)%rs_grid%desc%virtual2real(decode_rank(tasks(1,i), SIZE(rs_rho))) +1 ) = &
+         send_buf_i( rs_rho(ilevel)%rs_grid%desc%virtual2real(decode_rank(tasks(1,i), SIZE(rs_rho))) +1 ) &
+                   + tasks(5,i)
+       ELSE
+         send_buf_i( decode_rank(tasks(1,i), SIZE(rs_rho)) +1 ) = &
+         send_buf_i( decode_rank(tasks(1,i), SIZE(rs_rho)) +1 ) &
+                   + tasks(5,i)
+       END IF
     END DO
     CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
     total_cost_local = SUM(recv_buf_i)
@@ -1336,8 +1341,8 @@ CONTAINS
                                                 count, offset, &
                                                 total_cost_global
     INTEGER(kind=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: load_imbalance, recv_buf_i, &
-                                                send_buf_i
+      DIMENSION(:)                           :: load_imbalance, loads, &
+                                                recv_buf_i, send_buf_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, recv_disps, &
                                                 recv_sizes, send_disps, &
                                                 send_sizes
@@ -1360,6 +1365,8 @@ CONTAINS
     IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
     ALLOCATE(recv_buf_i(rs%desc%group_size),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
+    ALLOCATE(loads(rs%desc%group_size),STAT=stat)
+    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
     send_sizes = 1
     recv_sizes = 1
     send_disps(1)=0
@@ -1369,7 +1376,11 @@ CONTAINS
        recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
     ENDDO
 
-    CALL get_current_loads ( recv_buf_i, rs_rho, ntasks, tasks, skip_distributed=.FALSE., error=error )
+    recv_buf_i = 0
+    DO i = 1, SIZE(rs_rho)
+      CALL get_current_loads ( loads, rs_rho, i, ntasks, natoms,maxset,maxpgf, tasks, use_reordered_ranks=.TRUE. ,error=error )
+      recv_buf_i = recv_buf_i + loads
+    END DO
 
     total_cost_global = SUM(recv_buf_i)
     average_cost = total_cost_global / rs%desc%group_size
@@ -1707,14 +1718,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_tasks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, igrid_level, k, &
-                                                ntasks_recv, stat
+    INTEGER                                  :: handle, igrid_level, irank, &
+                                                k, load_gap, max_load, &
+                                                ntasks_recv, replicated_load, &
+                                                stat
     INTEGER(kind=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: taskid
+      DIMENSION(:)                           :: taskid, total_loads, &
+                                                total_loads_tmp, trial_loads
     INTEGER(kind=int_8), DIMENSION(:, :), &
-      POINTER                                :: tasks_recv
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: index
-    LOGICAL                                  :: distributed_grids
+      POINTER                                :: loads, tasks_recv
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, real2virtual, &
+                                                total_index
+    LOGICAL                                  :: distributed_grids, &
+                                                fixed_first_grid
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rval_recv
     TYPE(realspace_grid_type), POINTER       :: rs
 
@@ -1734,22 +1750,129 @@ CONTAINS
 
     IF (distributed_grids) THEN
 
-       ! first round of balancing on the distributed grids
-       CALL load_balance_distributed(tasks, ntasks, rs_rho, natoms, maxset,maxpgf, error)
+       ALLOCATE(loads(0:rs%desc%group_size-1,SIZE(rs_rho)),STAT=stat)
+       IF (stat/=0) CALL stop_memory("distribute_tasks","loads",rs%desc%group_size*SIZE(rs_rho))
+       ALLOCATE(total_loads(0:rs%desc%group_size-1),STAT=stat)
+       IF (stat/=0) CALL stop_memory("distribute_tasks","total_loads",rs%desc%group_size)
+       total_loads = 0
 
-       ! adjusting the replicated task to improve the load balance
+       ! First round of balancing on the distributed grids
+       ! we just balance each of the distributed grids independently
+
+       DO igrid_level=1,SIZE(rs_rho)
+         IF ( rs_rho(igrid_level)%rs_grid%desc%distributed ) THEN
+
+           CALL load_balance_distributed(tasks, ntasks, rs_rho, igrid_level, natoms, maxset,maxpgf, error)
+
+           CALL get_current_loads( loads(:,igrid_level), rs_rho, igrid_level, ntasks, natoms, maxset,maxpgf, &
+                                   tasks, use_reordered_ranks=.FALSE. , error=error)
+           total_loads=total_loads+loads(:,igrid_level)
+
+         END IF
+       END DO
+
+       ! calculate the total load of replicated tasks, so we can decide if it is worth
+       ! reordering the distributed grid levels
+
+       replicated_load=0
+       DO igrid_level=1,SIZE(rs_rho)
+        IF (.NOT. rs_rho(igrid_level)%rs_grid%desc%distributed) THEN
+          CALL get_current_loads( loads(:,igrid_level), rs_rho, igrid_level, ntasks, natoms, maxset,maxpgf, &
+                                     tasks, use_reordered_ranks=.FALSE., error=error)
+          replicated_load = replicated_load + SUM(loads(:,igrid_level))
+        END IF
+       END DO
+
+       !IF (rs%desc%my_pos==0) THEN
+       ! WRITE(6,*) "Total replicated load is ",replicated_load
+       !END IF
+
+       ! Now we adjust the rank ordering based on the current loads
+       ! we leave the first distributed level and all the replicated levels in the default order
+
+       fixed_first_grid=.FALSE.
+       DO igrid_level=1,SIZE(rs_rho)
+         IF (rs_rho(igrid_level)%rs_grid%desc%distributed ) THEN
+           IF (fixed_first_grid .EQV. .FALSE.) THEN
+             total_loads = loads(:,igrid_level)
+             fixed_first_grid = .TRUE.
+           ELSE
+             ALLOCATE(trial_loads(0:rs%desc%group_size-1),STAT=stat)
+             IF (stat/=0) CALL stop_memory("distribute_tasks","trial_loads",rs%desc%group_size)
+
+             trial_loads = total_loads + loads(:,igrid_level)
+             max_load = MAXVAL(trial_loads)
+             load_gap = 0
+             DO irank=0, rs%desc%group_size-1
+               load_gap = load_gap + max_load - trial_loads(irank)
+             END DO 
+             
+             ! If there is not enough replicated load to load balance well enough
+             ! then we will reorder this grid level
+             IF (load_gap > replicated_load * 1.05_dp) THEN
+
+               ALLOCATE(INDEX(0:rs%desc%group_size-1),STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","index",rs%desc%group_size)
+               ALLOCATE(total_index(0:rs%desc%group_size-1),STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","total_index",rs%desc%group_size)
+               ALLOCATE(total_loads_tmp(0:rs%desc%group_size-1),STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","total_loads_tmp",rs%desc%group_size)
+               ALLOCATE(real2virtual(0:rs%desc%group_size-1),STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","real2virtual",rs%desc%group_size)
+
+               total_loads_tmp = total_loads
+               CALL sort(total_loads_tmp, rs%desc%group_size, total_index)
+               CALL sort(loads(:,igrid_level), rs%desc%group_size, index)
+
+               ! Reorder so that the rank with smallest load on this grid level is paired with
+               ! the highest load in total
+               DO irank=0, rs%desc%group_size-1
+                 total_loads(total_index(irank)-1) = total_loads(total_index(irank)-1) + &
+                             loads(rs%desc%group_size - irank - 1, igrid_level)
+                 real2virtual(total_index(irank)-1)=INDEX(rs%desc%group_size - irank - 1) - 1
+               END DO
+
+               CALL rs_grid_reorder_ranks(rs_rho(igrid_level)%rs_grid, real2virtual, error)
+
+               DEALLOCATE(index,STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","index",rs%desc%group_size)
+               DEALLOCATE(total_index,STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","total_index",rs%desc%group_size)
+               DEALLOCATE(total_loads_tmp,STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","total_loads_tmp",rs%desc%group_size)
+               DEALLOCATE(real2virtual,STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","real2virtual",rs%desc%group_size)
+             ELSE
+               total_loads = trial_loads
+             ENDIF
+
+             DEALLOCATE(trial_loads,STAT=stat)
+             IF (stat/=0) CALL stop_memory("distribute_tasks","trial_loads",rs%desc%group_size)
+
+           ENDIF
+         ENDIF
+       END DO
+
+       ! Now we use the replicated tasks to balance out the rest of the load
        CALL load_balance_replicated(rs_rho, ntasks, tasks, natoms,maxset,maxpgf, error)
+
+       !total_loads = 0
+       !DO igrid_level=1,SIZE(rs_rho)
+       !  CALL get_current_loads(loads(:,igrid_level), rs_rho, igrid_level, ntasks, natoms, maxset,maxpgf, &
+       !                         tasks, use_reordered_ranks=.TRUE. , error=error)
+       !  total_loads = total_loads + loads(:, igrid_level)
+       !END DO
+
+       !IF (rs%desc%my_pos==0) THEN
+       !  WRITE(6,*) ""
+       !  WRITE(6,*) "At the end of the load balancing procedure"
+       !  WRITE(6,*) "Maximum  load:",MAXVAL(total_loads)
+       !  WRITE(6,*) "Average  load:",SUM(total_loads)/SIZE(total_loads)
+       !  WRITE(6,*) "Minimum  load:",MINVAL(total_loads)
+       !ENDIF
 
        ! given a list of tasks, this will do the needed reshuffle so that all tasks will be local
        CALL create_local_tasks ( rs_rho, ntasks, tasks, rval, ntasks_recv, tasks_recv, rval_recv, error)
-
-       ! CALL get_current_loads( loads, rs_rho, ntasks, tasks, skip_distributed=.FALSE., error=error)
-       ! IF (rs%my_pos==0) THEN
-       !     WRITE(6,*) ""
-       !     WRITE(6,*) "At the end of the load balancing procedure"
-       !     WRITE(6,*) "Maximum load:",MAXVAL(loads)
-       !     WRITE(6,*) "Average load:",SUM(loads)/SIZE(loads)
-       ! ENDIF
 
        !
        ! tasks list are complete, we can compute the list of atomic blocks (atom pairs)
@@ -1759,6 +1882,7 @@ CONTAINS
        IF (stat/=0) CALL stop_memory("get_my_tasks","atom_pair_send",rs%desc%group_size)
        CALL get_atom_pair ( atom_pair_send, tasks, send=.TRUE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, rs_rho=rs_rho )
+
  
        ! natom_send=SIZE(atom_pair_send)
        ! CALL mp_sum(natom_send,rs%desc%group)
@@ -1777,6 +1901,10 @@ CONTAINS
        IF (stat/=0) CALL stop_memory("get_my_tasks","tasks",rs%desc%group_size)
        DEALLOCATE(rval,STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","rval",rs%desc%group_size)
+       DEALLOCATE(loads,STAT=stat)
+       IF (stat/=0) CALL stop_memory("get_my_tasks","loads",rs%desc%group_size*SIZE(rs_rho))
+       DEALLOCATE(total_loads,STAT=stat)
+       IF (stat/=0) CALL stop_memory("get_my_tasks","total_loads",rs%desc%group_size)
 
     ELSE
 
