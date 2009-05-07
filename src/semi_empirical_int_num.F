@@ -556,7 +556,7 @@ CONTAINS
        rij = SQRT(rij)
        CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
             do_ewald_gks=.FALSE., integral_screening=se_int_control%integral_screening,&
-            max_multipole=do_multipole_none)
+            max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
        CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,se_taper=se_taper,&
             se_int_control=se_int_control_off,error=error)
        ! In case let's compute the short-range part of the (ss|ss) integral

@@ -127,6 +127,7 @@ MODULE semi_empirical_types
      LOGICAL                                  :: shortrange
      LOGICAL                                  :: do_ewald_r3
      LOGICAL                                  :: do_ewald_gks
+     LOGICAL                                  :: pc_coulomb_int
      INTEGER                                  :: integral_screening
      INTEGER                                  :: max_multipole
      TYPE(ewald_gks_type)                     :: ewald_gks
@@ -525,12 +526,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! ***************************************************************************** 
   SUBROUTINE setup_se_int_control_type(se_int_control, shortrange, do_ewald_r3,&
-       do_ewald_gks, integral_screening, max_multipole)
+       do_ewald_gks, integral_screening, max_multipole, pc_coulomb_int)
     TYPE(se_int_control_type)                :: se_int_control
     LOGICAL, INTENT(IN)                      :: shortrange, do_ewald_r3, &
                                                 do_ewald_gks
     INTEGER, INTENT(IN)                      :: integral_screening, &
                                                 max_multipole
+    LOGICAL, INTENT(IN)                      :: pc_coulomb_int
 
     se_int_control%shortrange         = shortrange
     se_int_control%do_ewald_r3        = do_ewald_r3
@@ -548,6 +550,7 @@ CONTAINS
     END SELECT
 
     se_int_control%do_ewald_gks       = do_ewald_gks
+    se_int_control%pc_coulomb_int     = pc_coulomb_int
     NULLIFY(se_int_control%ewald_gks%dg,se_int_control%ewald_gks%pw_pool)
 
   END SUBROUTINE setup_se_int_control_type

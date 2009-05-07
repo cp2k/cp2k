@@ -19,9 +19,7 @@ MODULE  scp_dispersion
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             int_size
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
@@ -49,7 +47,6 @@ MODULE  scp_dispersion
                                              setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: finalize_se_taper,&
                                              initialize_se_taper
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -59,11 +56,10 @@ MODULE  scp_dispersion
   PRIVATE
 
   ! *** Global parameters (only in this module)
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_dispersion'
+  LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
   ! Public Subroutine
-
   PUBLIC :: scp_qs_dispersion, scp_nddo_dispersion
 
 
@@ -79,13 +75,14 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'scp_nddo_dispersion'
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_nddo_dispersion', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: ab, handle, i_atom, iatom, ikind, ilist, inode, istat, j_atom, &
-      jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, nnode
+    INTEGER :: ab, handle, i_atom, iatom, ikind, ilist, inode, j_atom, jatom, &
+      jkind, natom, natorb_a, natorb_b, nkind, nlist, nnode, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    LOGICAL                                  :: anag, defined, forces, &
-                                                old_store_int, switch
+    LOGICAL                                  :: anag, defined, failure, &
+                                                forces, old_store_int, switch
     REAL(kind=dp)                            :: dab, de_a, de_b, disp_factor, &
                                                 e_scp, force_ab( 3 ), &
                                                 rab( 3 ), rab2
@@ -115,8 +112,9 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    failure = .FALSE.
     forces = .FALSE.
-    IF ( PRESENT ( calculate_forces ) ) forces = calculate_forces
+    IF ( PRESENT(calculate_forces) ) forces = calculate_forces
 
     e_scp = 0._dp
 
@@ -125,11 +123,11 @@ CONTAINS
     NULLIFY( cell, sab_2c, dft_control, se_control )
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
-                    cell=cell, scp_env = scp_env, se_taper = se_taper, &
-                    se_store_int_env=store_int_env, &
-                    para_env=para_env, particle_set=particle_set,&
-                    sab_2c=sab_2c, force=force, dft_control=dft_control, & 
-                    error=error)
+         cell=cell, scp_env = scp_env, se_taper = se_taper, &
+         se_store_int_env=store_int_env, &
+         para_env=para_env, particle_set=particle_set,&
+         sab_2c=sab_2c, force=force, dft_control=dft_control, & 
+         error=error)
 
     CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
 
@@ -137,17 +135,18 @@ CONTAINS
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
     CALL setup_se_int_control_type(se_int_control,do_ewald_r3=.FALSE.,&
-          do_ewald_gks=.FALSE., integral_screening=se_control%integral_screening,&
-          shortrange=.FALSE., max_multipole=se_control%max_multipole)
+         do_ewald_gks=.FALSE., integral_screening=se_control%integral_screening,&
+         shortrange=.FALSE., max_multipole=se_control%max_multipole,&
+         pc_coulomb_int=.FALSE.)
 
     CALL get_scp_env(scp_env=scp_env, energy=energy, error=error)
 
     nkind = SIZE(atomic_kind_set,1)
     natom = SIZE(particle_set,1)
 
-    ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "atom_of_kind",natom*int_size)
+    ALLOCATE (atom_of_kind(natom),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
     DO ikind = 1,nkind
@@ -161,99 +160,96 @@ CONTAINS
 
        DO jkind = 1, nkind 
 
-         NULLIFY(atomic_kind)
-         atomic_kind => atomic_kind_set(jkind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_b)
-         CALL get_se_param(se_kind_b,defined=defined,natorb=natorb_b, de=de_b )
+          NULLIFY(atomic_kind)
+          atomic_kind => atomic_kind_set(jkind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_b)
+          CALL get_se_param(se_kind_b,defined=defined,natorb=natorb_b, de=de_b )
 
-         IF (.NOT.defined .OR. natorb_b < 1) CYCLE
+          IF (.NOT.defined .OR. natorb_b < 1) CYCLE
 
-         ! Computing the constants for the dispersion interaction
-         IF ( (de_a + de_b) == 0._dp ) THEN
-           disp_factor = 0._dp 
-         ELSE
-           disp_factor = -0.25_dp * de_a * de_b / ( de_a + de_b )
-         END IF
+          ! Computing the constants for the dispersion interaction
+          IF ( (de_a + de_b) == 0._dp ) THEN
+             disp_factor = 0._dp 
+          ELSE
+             disp_factor = -0.25_dp * de_a * de_b / ( de_a + de_b )
+          END IF
 
-         ab = ikind + nkind*(jkind-1)
+          ab = ikind + nkind*(jkind-1)
 
-         IF( .NOT.ASSOCIATED(sab_2c(ab)%neighbor_list_set)) CYCLE
+          IF( .NOT.ASSOCIATED(sab_2c(ab)%neighbor_list_set)) CYCLE
 
-         neighbor_list_set => sab_2c(ab)%neighbor_list_set
+          neighbor_list_set => sab_2c(ab)%neighbor_list_set
 
-         CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set, nlist=nlist)
+          CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set, nlist=nlist)
 
-         neighbor_list => first_list(neighbor_list_set)
+          neighbor_list => first_list(neighbor_list_set)
 
-         DO ilist = 1,nlist
+          DO ilist = 1,nlist
 
-           CALL get_neighbor_list(neighbor_list=neighbor_list, atom=iatom, nnode=nnode)
+             CALL get_neighbor_list(neighbor_list=neighbor_list, atom=iatom, nnode=nnode)
 
-           neighbor_node => first_node(neighbor_list)
- 
-           DO inode=1,nnode
+             neighbor_node => first_node(neighbor_list)
 
-             CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                    neighbor=jatom,&
-                                    r=rab(:))
+             DO inode=1,nnode
 
-             IF ( iatom == jatom ) THEN
-               neighbor_node => next(neighbor_node)
-               CYCLE
-             END IF
+                CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                     neighbor=jatom,&
+                     r=rab(:))
 
-             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-             dab = SQRT ( rab2 )
-  
-             IF (iatom <= jatom) THEN
-                switch = .FALSE.
-             ELSE
-                switch = .TRUE.
-             END IF
+                IF ( iatom == jatom ) THEN
+                   neighbor_node => next(neighbor_node)
+                   CYCLE
+                END IF
 
-             force_ab = 0.0_dp
+                rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                dab = SQRT ( rab2 )
 
-             old_store_int = store_int_env%memory_parameter%do_all_on_the_fly
-             store_int_env%memory_parameter%do_all_on_the_fly= .TRUE.
+                IF (iatom <= jatom) THEN
+                   switch = .FALSE.
+                ELSE
+                   switch = .TRUE.
+                END IF
 
-             CALL scp_disp_2C ( se_kind_a, se_kind_b, rab, switch, factor=disp_factor, &
-                                se_taper=se_taper, store_int_env=store_int_env,      &
-                                se_int_control=se_int_control, edisp=e_scp, error=error)
-             IF ( forces ) THEN
-               CALL dscp_disp_2C ( se_kind_a, se_kind_b, rab, switch, factor=disp_factor, & 
-                                   se_taper=se_taper, store_int_env=store_int_env,  &
-                                   se_int_control=se_int_control, force=force_ab, error=error)
-               i_atom = atom_of_kind(iatom)
-               j_atom = atom_of_kind(jatom)
-               ! Sum up force components
-               force(ikind)%all_potential(1,i_atom) = force(ikind)%all_potential(1,i_atom) - force_ab(1)
-               force(jkind)%all_potential(1,j_atom) = force(jkind)%all_potential(1,j_atom) + force_ab(1)
+                force_ab = 0.0_dp
 
-               force(ikind)%all_potential(2,i_atom) = force(ikind)%all_potential(2,i_atom) - force_ab(2)
-               force(jkind)%all_potential(2,j_atom) = force(jkind)%all_potential(2,j_atom) + force_ab(2)
-  
-               force(ikind)%all_potential(3,i_atom) = force(ikind)%all_potential(3,i_atom) - force_ab(3)
-               force(jkind)%all_potential(3,j_atom) = force(jkind)%all_potential(3,j_atom) + force_ab(3)
-             END IF
+                old_store_int = store_int_env%memory_parameter%do_all_on_the_fly
+                store_int_env%memory_parameter%do_all_on_the_fly= .TRUE.
 
-             store_int_env%memory_parameter%do_all_on_the_fly = old_store_int
-             neighbor_node => next(neighbor_node)
-           END DO ! inode
-           neighbor_list => next(neighbor_list)
-         END DO ! ilist 
-        END DO ! jkind
-     END DO  ! ikind
+                CALL scp_disp_2C ( se_kind_a, se_kind_b, rab, switch, factor=disp_factor, &
+                     se_taper=se_taper, store_int_env=store_int_env,      &
+                     se_int_control=se_int_control, edisp=e_scp, error=error)
+                IF ( forces ) THEN
+                   CALL dscp_disp_2C ( se_kind_a, se_kind_b, rab, switch, factor=disp_factor, & 
+                        se_taper=se_taper, store_int_env=store_int_env,  &
+                        se_int_control=se_int_control, force=force_ab, error=error)
+                   i_atom = atom_of_kind(iatom)
+                   j_atom = atom_of_kind(jatom)
+                   ! Sum up force components
+                   force(ikind)%all_potential(1,i_atom) = force(ikind)%all_potential(1,i_atom) - force_ab(1)
+                   force(jkind)%all_potential(1,j_atom) = force(jkind)%all_potential(1,j_atom) + force_ab(1)
 
-     CALL mp_sum(e_scp,para_env%group)
-     energy % e_scp_disp =  e_scp 
+                   force(ikind)%all_potential(2,i_atom) = force(ikind)%all_potential(2,i_atom) - force_ab(2)
+                   force(jkind)%all_potential(2,j_atom) = force(jkind)%all_potential(2,j_atom) + force_ab(2)
 
-     DEALLOCATE(atom_of_kind,STAT=istat)
-     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "atom_of_kind")
+                   force(ikind)%all_potential(3,i_atom) = force(ikind)%all_potential(3,i_atom) - force_ab(3)
+                   force(jkind)%all_potential(3,j_atom) = force(jkind)%all_potential(3,j_atom) + force_ab(3)
+                END IF
 
-     CALL finalize_se_taper(se_taper,error=error)
+                store_int_env%memory_parameter%do_all_on_the_fly = old_store_int
+                neighbor_node => next(neighbor_node)
+             END DO ! inode
+             neighbor_list => next(neighbor_list)
+          END DO ! ilist 
+       END DO ! jkind
+    END DO  ! ikind
 
-     CALL timestop(handle)
+    CALL mp_sum(e_scp,para_env%group)
+    energy % e_scp_disp =  e_scp 
+
+    DEALLOCATE(atom_of_kind,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL finalize_se_taper(se_taper,error=error)
+    CALL timestop(handle)
 
   END SUBROUTINE scp_nddo_dispersion
 
@@ -263,26 +259,26 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
 
-  SUBROUTINE scp_qs_dispersion ( qs_env, calculate_forces, error, debug )
+  SUBROUTINE scp_qs_dispersion ( qs_env, calculate_forces, error )
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
-    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'scp_qs_dispersion'
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_qs_dispersion', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ab, handle, i_atom, ia, iatom, ib, idir, ikind, ilist, inode, &
-      iseta, isetb, istat, j_atom, jatom, jkind, ldvab1, ldvab2, &
-      maxco_global, maxcoa, maxcob, maxder, maxlgto, maxlgto1, natom, ncoa, &
-      ncoap, ncob, ncobp, nkind, nlist, nnode, nseta, nsetb, nz1, nz2, &
-      output_unit, sgfa, sgfb
+      iseta, isetb, j_atom, jatom, jkind, ldvab1, ldvab2, maxco_global, &
+      maxcoa, maxcob, maxder, maxlgto, maxlgto1, natom, ncoa, ncoap, ncob, &
+      ncobp, nkind, nlist, nnode, nseta, nsetb, nz1, nz2, output_unit, sgfa, &
+      sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, &
                                                 nsgf_seta, nsgf_setb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: forces, ionode, my_debug
+    LOGICAL                                  :: failure, forces, ionode
     REAL(dp)                                 :: alpha_a, alpha_b, dab, &
                                                 disp_factor, I_a, I_b, &
                                                 rab(3), rab2
@@ -319,9 +315,8 @@ CONTAINS
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-    my_debug = .FALSE.
-    IF ( PRESENT ( debug ) ) my_debug = debug
     forces = .FALSE.
+    failure = .FALSE.
     IF ( PRESENT ( calculate_forces ) ) forces = calculate_forces
 
     NULLIFY( atomic_kind, aux_basis, scp_env)
@@ -333,10 +328,10 @@ CONTAINS
                     para_env=para_env,&
                     particle_set=particle_set,&
                     sab_scp=sab_scp,error=error)
-
+    
     CALL get_scp_env(scp_env=scp_env, & 
                      energy=energy, force = force, error=error)
-   
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxco_global,maxlgto=maxlgto)
 
@@ -345,354 +340,321 @@ CONTAINS
 
     maxder = 0
     IF ( forces ) THEN
-      maxder = 1
+       maxder = 1
 
-      ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-           "atom_of_kind",natom*int_size)
+       ALLOCATE (atom_of_kind(natom),STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             atom_of_kind=atom_of_kind)
 
-      IF ( my_debug ) THEN
-        ALLOCATE (kind_of(natom),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-             "kind_of",natom*int_size)
-        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                 kind_of=kind_of)
-      END IF
+       IF (debug_this_module) THEN
+          ALLOCATE (kind_of(natom),STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      CALL get_scp_env(scp_env=scp_env, force=force,error=error)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+               kind_of=kind_of)
+       END IF
 
-      maxlgto1 = maxlgto + maxder
+       CALL get_scp_env(scp_env=scp_env, force=force,error=error)
+
+       maxlgto1 = maxlgto + maxder
     ELSE
-      maxlgto1 = maxlgto
+       maxlgto1 = maxlgto
     END IF
 
-    ALLOCATE( I_tmp ( maxco_global, maxco_global ), STAT=istat )
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "I_tmp",maxco_global*maxco_global*dp_size)
-    ALLOCATE(vab(1,1),STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vab",1*1*dp_size)
+    ALLOCATE( I_tmp ( maxco_global, maxco_global ), STAT=stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(vab(1,1),STAT = stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ldvab1 = 1
     ldvab2 = 1
     vab = 0.0_dp
 
-    ALLOCATE(vv(ncoset(maxlgto1),ncoset(maxlgto1),maxlgto1+maxlgto1+1),STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "vv",maxco_global*maxco_global*(maxlgto1+maxlgto+1)*dp_size)
-    ALLOCATE(ff(0:maxlgto1+maxlgto1),STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "ff", (maxlgto1+maxlgto1+1)*dp_size)
+    ALLOCATE(vv(ncoset(maxlgto1),ncoset(maxlgto1),maxlgto1+maxlgto1+1),STAT = stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ff(0:maxlgto1+maxlgto1),STAT = stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     e_scp = 0._dp
     DO ikind = 1,nkind
 
-      NULLIFY(atomic_kind)
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,aux_basis_set=aux_basis, &
-                           alpha_scp = alpha_a, I_scp = I_a )
-                           
+       NULLIFY(atomic_kind)
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,aux_basis_set=aux_basis, &
+            alpha_scp = alpha_a, I_scp = I_a )
 
-! Check to see if the atom is an SCP atom
-      IF (.NOT.ASSOCIATED(aux_basis)) CYCLE
-      NULLIFY(first_sgfa,la_max,la_min,npgfa,nsgf_seta)
-      NULLIFY(rpgfa,sphia,zeta)
-      CALL get_gto_basis_set(gto_basis_set=aux_basis,&
-                            first_sgf=first_sgfa,&
-                            lmax=la_max,&
-                            lmin=la_min,&
-                            maxco=maxcoa,&
-                            npgf=npgfa,&
-                            nset=nseta,&
-                            nsgf_set=nsgf_seta,&
-                            pgf_radius=rpgfa,&
-                            sphi=sphia,&
-                            zet=zeta)
-      DO jkind = 1, nkind 
-        NULLIFY(atomic_kind)
-        atomic_kind => atomic_kind_set(jkind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,aux_basis_set=aux_basis, & 
-                             alpha_scp = alpha_b, I_scp = I_b )
-                           
-! Computing the constants for the dispersion interaction
-        disp_factor = -1._dp/8._dp * alpha_a * alpha_b * I_a * I_b / ( I_a + I_b )
 
-! Check to see if the atom is an SCP atom
-        IF (.NOT.ASSOCIATED(aux_basis)) CYCLE
-        NULLIFY(first_sgfb,lb_max,lb_min,npgfb,nsgf_setb)
-        NULLIFY(rpgfb,sphib,zetb)
-        CALL get_gto_basis_set(gto_basis_set=aux_basis,&
-                              first_sgf=first_sgfb,&
-                              lmax=lb_max,&
-                              lmin=lb_min,&
-                              maxco=maxcob,&
-                              npgf=npgfb,&
-                              nset=nsetb,&
-                              nsgf_set=nsgf_setb,&
-                              pgf_radius=rpgfb,&
-                              sphi=sphib,&
-                              zet=zetb)
+       ! Check to see if the atom is an SCP atom
+       IF (.NOT.ASSOCIATED(aux_basis)) CYCLE
+       NULLIFY(first_sgfa,la_max,la_min,npgfa,nsgf_seta)
+       NULLIFY(rpgfa,sphia,zeta)
+       CALL get_gto_basis_set(gto_basis_set=aux_basis,&
+                              first_sgf=first_sgfa,&
+                              lmax=la_max,&
+                              lmin=la_min,&
+                              maxco=maxcoa,&
+                              npgf=npgfa,&
+                              nset=nseta,&
+                              nsgf_set=nsgf_seta,&
+                              pgf_radius=rpgfa,&
+                              sphi=sphia,&
+                              zet=zeta)
+       DO jkind = 1, nkind 
+          NULLIFY(atomic_kind)
+          atomic_kind => atomic_kind_set(jkind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,aux_basis_set=aux_basis, & 
+               alpha_scp = alpha_b, I_scp = I_b )
 
-        ab = ikind + nkind*(jkind-1)
+          ! Computing the constants for the dispersion interaction
+          disp_factor = -1._dp/8._dp * alpha_a * alpha_b * I_a * I_b / ( I_a + I_b )
 
-        IF( .NOT.ASSOCIATED(sab_scp(ab)%neighbor_list_set)) CYCLE
+          ! Check to see if the atom is an SCP atom
+          IF (.NOT.ASSOCIATED(aux_basis)) CYCLE
+          NULLIFY(first_sgfb,lb_max,lb_min,npgfb,nsgf_setb)
+          NULLIFY(rpgfb,sphib,zetb)
+          CALL get_gto_basis_set(gto_basis_set=aux_basis,&
+                                 first_sgf=first_sgfb,&
+                                 lmax=lb_max,&
+                                 lmin=lb_min,&
+                                 maxco=maxcob,&
+                                 npgf=npgfb,&
+                                 nset=nsetb,&
+                                 nsgf_set=nsgf_setb,&
+                                 pgf_radius=rpgfb,&
+                                 sphi=sphib,&
+                                 zet=zetb)
 
-        neighbor_list_set => sab_scp(ab)%neighbor_list_set
+          ab = ikind + nkind*(jkind-1)
 
-        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
-                                   nlist=nlist)
+          IF( .NOT.ASSOCIATED(sab_scp(ab)%neighbor_list_set)) CYCLE
 
-        neighbor_list => first_list(neighbor_list_set)
+          neighbor_list_set => sab_scp(ab)%neighbor_list_set
 
-        DO ilist = 1,nlist
+          CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+               nlist=nlist)
 
-          CALL get_neighbor_list(neighbor_list=neighbor_list,&
-                                 atom=iatom,&
-                                 nnode=nnode)
+          neighbor_list => first_list(neighbor_list_set)
 
-        !  ra(:) = pbc(particle_set(iatom)%r(:),cell) ! for debug only
+          DO ilist = 1,nlist
 
-          neighbor_node => first_node(neighbor_list)
+             CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                    atom=iatom,&
+                                    nnode=nnode)
 
-          DO inode=1,nnode
+             !  ra(:) = pbc(particle_set(iatom)%r(:),cell) ! for debug only
+             neighbor_node => first_node(neighbor_list)
 
-            CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                   neighbor=jatom,&
-                                   r=rab(:))
+             DO inode=1,nnode
 
-            rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                       neighbor=jatom,&
+                                       r=rab(:))
 
-            IF ( forces ) dab = SQRT ( rab2 )
+                rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
-        !    rb(:) = pbc(particle_set(jatom)%r,cell) ! for debug only
+                IF ( forces ) dab = SQRT ( rab2 )
 
-        !    IF ( .NOT. my_debug ) THEN  ! for debug only
-        !     rab ( : ) = ra ( : ) - rb ( : )
-        !     rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-        !    END IF 
+                IF ( iatom == jatom ) THEN
+                   neighbor_node => next(neighbor_node)
+                   CYCLE
+                END IF
 
-            IF ( iatom == jatom ) THEN
-              neighbor_node => next(neighbor_node)
-              CYCLE
-            END IF
-  
 
-            DO iseta = 1, nseta
-              ncoa = npgfa ( iseta ) * ncoset ( la_max ( iseta ) )
-! Redifine ncoap if there are forces. This is needed to get the derivative
-              IF ( forces ) ncoap = npgfa ( iseta ) * ncoset ( la_max ( iseta ) + 1 )
-              sgfa = first_sgfa ( 1, iseta )
-              nz1 = npgfa ( iseta )
-              r1 => rpgfa ( 1:nz1, iseta )
-              z1 => zeta ( 1 : nz1, iseta )
-              DO isetb = 1, nsetb
-                 ncob = npgfb ( isetb ) * ncoset ( lb_max ( isetb ) )
-! Redifine ncobp if there are forces. This is needed to get the derivative
-                 IF ( forces ) ncobp = npgfb ( isetb ) * ncoset ( lb_max ( isetb ) + 1 )
-                 sgfb = first_sgfb ( 1, isetb )
-                 nz2 = npgfb ( isetb )
-                 r2 => rpgfb ( 1 : nz2, isetb )
-                 z2 => zetb ( 1 : nz2, isetb )
-! Allcating the arrays for the integrals
-                 IF ( ncoa > ldvab1 .OR.  ncob > ldvab2 ) THEN
-                   CALL reallocate ( vab , 1, ncoa, 1, ncob )
-                   ldvab1 = ncoa
-                   ldvab2 = ncob
-                 ELSE
-                   vab = 0._dp 
-                 ENDIF 
+                DO iseta = 1, nseta
+                   ncoa = npgfa ( iseta ) * ncoset ( la_max ( iseta ) )
+                   ! Redifine ncoap if there are forces. This is needed to get the derivative
+                   IF ( forces ) ncoap = npgfa ( iseta ) * ncoset ( la_max ( iseta ) + 1 )
+                   sgfa = first_sgfa ( 1, iseta )
+                   nz1 = npgfa ( iseta )
+                   r1 => rpgfa ( 1:nz1, iseta )
+                   z1 => zeta ( 1 : nz1, iseta )
+                   DO isetb = 1, nsetb
+                      ncob = npgfb ( isetb ) * ncoset ( lb_max ( isetb ) )
+                      ! Redifine ncobp if there are forces. This is needed to get the derivative
+                      IF ( forces ) ncobp = npgfb ( isetb ) * ncoset ( lb_max ( isetb ) + 1 )
+                      sgfb = first_sgfb ( 1, isetb )
+                      nz2 = npgfb ( isetb )
+                      r2 => rpgfb ( 1 : nz2, isetb )
+                      z2 => zetb ( 1 : nz2, isetb )
+                      ! Allcating the arrays for the integrals
+                      IF ( ncoa > ldvab1 .OR.  ncob > ldvab2 ) THEN
+                         CALL reallocate ( vab , 1, ncoa, 1, ncob )
+                         ldvab1 = ncoa
+                         ldvab2 = ncob
+                      ELSE
+                         vab = 0._dp 
+                      ENDIF
 
-                 ALLOCATE( I_ab ( nsgf_seta ( iseta ), nsgf_setb ( isetb ) ), STAT=istat )
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                 "I_ab",nsgf_seta(iseta)*nsgf_setb(isetb)*dp_size)
+                      ALLOCATE( I_ab ( nsgf_seta ( iseta ), nsgf_setb ( isetb ) ), STAT=stat )
+                      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                 IF ( forces ) THEN
+                      IF ( forces ) THEN
 
-                   ALLOCATE( I_dabdx ( nsgf_seta ( iseta ), nsgf_setb ( isetb ) ), STAT=istat )
-                   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                   "I_dabdx",nsgf_seta(iseta)*nsgf_setb(isetb)*dp_size)
- 
-                   ALLOCATE( I_dabdy ( nsgf_seta ( iseta ), nsgf_setb ( isetb ) ), STAT=istat )
-                   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                   "I_dabdy",nsgf_seta(iseta)*nsgf_setb(isetb)*dp_size)
+                         ALLOCATE( I_dabdx ( nsgf_seta ( iseta ), nsgf_setb ( isetb ) ), STAT=stat )
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                   ALLOCATE( I_dabdz ( nsgf_seta ( iseta ), nsgf_setb ( isetb ) ), STAT=istat )
-                   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                   "I_dabdz",nsgf_seta(iseta)*nsgf_setb(isetb)*dp_size)
+                         ALLOCATE( I_dabdy ( nsgf_seta ( iseta ), nsgf_setb ( isetb ) ), STAT=stat )
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                   ALLOCATE( vab_plus ( ncoap, ncobp ), STAT=istat )
-                   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                   "vab_plus",ncoap*ncobp*dp_size)
+                         ALLOCATE( I_dabdz ( nsgf_seta ( iseta ), nsgf_setb ( isetb ) ), STAT=stat )
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                   ALLOCATE(dabdx(ncoa,ncob),dabdy(ncoa,ncob),dabdz(ncoa,ncob),STAT=istat)
-                   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                   "dbdx.dbdy.dbdz",3*ncoa*ncob*dp_size)
+                         ALLOCATE( vab_plus ( ncoap, ncobp ), STAT=stat )
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                   CALL coulomb2_new( la_max ( iseta )+1, npgfa ( iseta ), z1, r1, 0, &
-                                      lb_max ( isetb )+1, npgfb ( isetb ), z2, r2, 0, &
-                                      rab, rab2, vab, vv, ff ( 0: ), maxder, vab_plus )
+                         ALLOCATE(dabdx(ncoa,ncob),dabdy(ncoa,ncob),dabdz(ncoa,ncob),STAT=stat)
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-! Use vab_plus integral block to compute derivative
-                   CALL dabdr ( la_max ( iseta ), npgfa ( iseta ), z1, r1, 0, &
-                                lb_max ( isetb ), npgfb ( isetb ), z2, r2, 0, &
-                                dab, vab_plus, dabdx, dabdy, dabdz )
+                         CALL coulomb2_new( la_max ( iseta )+1, npgfa ( iseta ), z1, r1, 0, &
+                              lb_max ( isetb )+1, npgfb ( isetb ), z2, r2, 0, &
+                              rab, rab2, vab, vv, ff ( 0: ), maxder, vab_plus )
 
-! Contract over the cartesian orbital index to obtain integral
-! block labeled by molecular orbitals
-! vab->I_ab
-                   CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
-                         1.0_dp,vab (1,1),SIZE (vab,1), &
-                         sphib(1,sgfb),SIZE (sphib,1), &
-                         0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
-                   CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
-                         1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
-                         I_tmp(1,1),SIZE(I_tmp,1),&
-                         0.0_dp,I_ab(1,1),SIZE(I_ab,1))
-! dabdx->I_dabdx
-                   CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
-                         1.0_dp,dabdx (1,1),SIZE (dabdx,1), &
-                         sphib(1,sgfb),SIZE (sphib,1), &
-                         0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
-                   CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
-                         1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
-                         I_tmp(1,1),SIZE(I_tmp,1),&
-                         0.0_dp,I_dabdx(1,1),SIZE(I_dabdx,1))
-! dabdy->I_dabdy
-                   CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
-                         1.0_dp,dabdy (1,1),SIZE (dabdy,1), &
-                         sphib(1,sgfb),SIZE (sphib,1), &
-                         0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
-                   CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
-                         1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
-                         I_tmp(1,1),SIZE(I_tmp,1),&
-                         0.0_dp,I_dabdy(1,1),SIZE(I_dabdy,1))
-! dabdz->I_dabdz
-                   CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
-                         1.0_dp,dabdz (1,1),SIZE (dabdz,1), &
-                         sphib(1,sgfb),SIZE (sphib,1), &
-                         0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
-                   CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
-                         1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
-                         I_tmp(1,1),SIZE(I_tmp,1),&
-                         0.0_dp,I_dabdz(1,1),SIZE(I_dabdz,1))
-                   force_a = 0.0_dp
-                   DO ia = 1, nsgf_seta ( iseta )
-                     DO ib = 1, nsgf_setb ( isetb )
-             ! **** need to omit (s|s) ****
-                       e_scp = e_scp + disp_factor * I_ab ( ia, ib )**2 
-                       force_a(1)=force_a(1)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdx(ia,ib)
-                       force_a(2)=force_a(2)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdy(ia,ib)
-                       force_a(3)=force_a(3)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdz(ia,ib)
-                     END DO
-                   END DO
-!             ***  sum up in the force arrey  ***
-              ! NOTE: This is the actual force, e.g. -d/dR
-                   i_atom = atom_of_kind(iatom)
-                   j_atom = atom_of_kind(jatom)
-                   DO idir = 1,3
-                     force(ikind)%f_scp_disp(idir,i_atom) = &
-                       force(ikind)%f_scp_disp(idir,i_atom) - force_a(idir)
-                     force(jkind)%f_scp_disp(idir,j_atom) = &
-                        force(jkind)%f_scp_disp(idir,j_atom) + force_a(idir)
-                   END DO
-                   
-                   DEALLOCATE(dabdx,dabdy,dabdz,STAT=istat)
-                   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                   "dbdx.dbdy.dbdz")
-                   DEALLOCATE(vab_plus, STAT=istat)
-                   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                   "vab_plus")
-                   DEALLOCATE( I_dabdx, I_dabdy, I_dabdz, STAT=istat)
-                   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                   "I_dabdz.I_dabdy.I_dabdz")
-                 ELSE
-                   CALL coulomb2_new( la_max ( iseta )+1, npgfa ( iseta ), z1, r1, 0, &
-                                      lb_max ( isetb )+1, npgfb ( isetb ), z2, r2, 0, &
-                                      rab, rab2, vab, vv, ff ( 0: ) )
-                !   CALL coulomb2( la_max ( iseta ), npgfa ( iseta ), z1, r1, la_min ( iseta ), &
-                !                  lb_max ( isetb ), npgfb ( isetb ), z2, r2, lb_min ( isetb ), &
-                !                  rab, rab2, vab, vv, ff ( 0: ) )
-! Contract over the cartesian orbital index to obtain integral
-! block labeled by molecular orbitals
-! vab->I_ab
- 
-                   CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
-                         1.0_dp,vab (1,1),SIZE (vab,1), &
-                         sphib(1,sgfb),SIZE (sphib,1), &
-                         0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
-                   CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
-                         1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
-                         I_tmp(1,1),SIZE(I_tmp,1),&
-                         0.0_dp,I_ab(1,1),SIZE(I_ab,1))
+                         ! Use vab_plus integral block to compute derivative
+                         CALL dabdr ( la_max ( iseta ), npgfa ( iseta ), z1, r1, 0, &
+                              lb_max ( isetb ), npgfb ( isetb ), z2, r2, 0, &
+                              dab, vab_plus, dabdx, dabdy, dabdz )
 
-                   DO ia = 1, nsgf_seta ( iseta )
-                     DO ib = 1, nsgf_setb ( isetb )
-             ! **** need to omit (s|s) ****
-                       e_scp= e_scp +  disp_factor * I_ab ( ia, ib )**2 
-                     END DO
-                   END DO
+                         ! Contract over the cartesian orbital index to obtain integral
+                         ! block labeled by molecular orbitals
+                         ! vab->I_ab
+                         CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
+                              1.0_dp,vab (1,1),SIZE (vab,1), &
+                              sphib(1,sgfb),SIZE (sphib,1), &
+                              0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
+                         CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
+                              1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
+                              I_tmp(1,1),SIZE(I_tmp,1),&
+                              0.0_dp,I_ab(1,1),SIZE(I_ab,1))
+                         ! dabdx->I_dabdx
+                         CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
+                              1.0_dp,dabdx (1,1),SIZE (dabdx,1), &
+                              sphib(1,sgfb),SIZE (sphib,1), &
+                              0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
+                         CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
+                              1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
+                              I_tmp(1,1),SIZE(I_tmp,1),&
+                              0.0_dp,I_dabdx(1,1),SIZE(I_dabdx,1))
+                         ! dabdy->I_dabdy
+                         CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
+                              1.0_dp,dabdy (1,1),SIZE (dabdy,1), &
+                              sphib(1,sgfb),SIZE (sphib,1), &
+                              0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
+                         CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
+                              1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
+                              I_tmp(1,1),SIZE(I_tmp,1),&
+                              0.0_dp,I_dabdy(1,1),SIZE(I_dabdy,1))
+                         ! dabdz->I_dabdz
+                         CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
+                              1.0_dp,dabdz (1,1),SIZE (dabdz,1), &
+                              sphib(1,sgfb),SIZE (sphib,1), &
+                              0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
+                         CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
+                              1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
+                              I_tmp(1,1),SIZE(I_tmp,1),&
+                              0.0_dp,I_dabdz(1,1),SIZE(I_dabdz,1))
+                         force_a = 0.0_dp
+                         DO ia = 1, nsgf_seta ( iseta )
+                            DO ib = 1, nsgf_setb ( isetb )
+                               ! **** need to omit (s|s) ****
+                               e_scp = e_scp + disp_factor * I_ab ( ia, ib )**2 
+                               force_a(1)=force_a(1)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdx(ia,ib)
+                               force_a(2)=force_a(2)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdy(ia,ib)
+                               force_a(3)=force_a(3)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdz(ia,ib)
+                            END DO
+                         END DO
+                         !             ***  sum up in the force arrey  ***
+                         ! NOTE: This is the actual force, e.g. -d/dR
+                         i_atom = atom_of_kind(iatom)
+                         j_atom = atom_of_kind(jatom)
+                         DO idir = 1,3
+                            force(ikind)%f_scp_disp(idir,i_atom) = &
+                                 force(ikind)%f_scp_disp(idir,i_atom) - force_a(idir)
+                            force(jkind)%f_scp_disp(idir,j_atom) = &
+                                 force(jkind)%f_scp_disp(idir,j_atom) + force_a(idir)
+                         END DO
 
-                 ENDIF
+                         DEALLOCATE(dabdx,dabdy,dabdz,STAT=stat)
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                 DEALLOCATE( I_ab, STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                 "I_ab")
+                         DEALLOCATE(vab_plus, STAT=stat)
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-               END DO ! isetb
-             END DO ! iseta
-             neighbor_node => next(neighbor_node)
-           END DO ! inode
-           neighbor_list => next(neighbor_list)
-         END DO ! ilist 
+                         DEALLOCATE(I_dabdx,I_dabdy,I_dabdz, STAT=stat)
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+                      ELSE
+                         CALL coulomb2_new( la_max ( iseta )+1, npgfa ( iseta ), z1, r1, 0, &
+                              lb_max ( isetb )+1, npgfb ( isetb ), z2, r2, 0, &
+                              rab, rab2, vab, vv, ff ( 0: ) )
+
+                         CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &
+                              1.0_dp,vab (1,1),SIZE (vab,1), &
+                              sphib(1,sgfb),SIZE (sphib,1), &
+                              0.0_dp, I_tmp(1,1), SIZE(I_tmp,1))
+                         CALL dgemm("T","N",nsgf_seta (iseta),nsgf_setb(isetb),ncoa,&
+                              1.0_dp,sphia(1,sgfa),SIZE(sphia,1),&
+                              I_tmp(1,1),SIZE(I_tmp,1),&
+                              0.0_dp,I_ab(1,1),SIZE(I_ab,1))
+
+                         DO ia = 1, nsgf_seta ( iseta )
+                            DO ib = 1, nsgf_setb ( isetb )
+                               ! **** need to omit (s|s) ****
+                               e_scp= e_scp +  disp_factor * I_ab ( ia, ib )**2 
+                            END DO
+                         END DO
+
+                      ENDIF
+
+                      DEALLOCATE( I_ab, STAT=stat)
+                      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END DO ! isetb
+                END DO ! iseta
+                neighbor_node => next(neighbor_node)
+             END DO ! inode
+             neighbor_list => next(neighbor_list)
+          END DO ! ilist 
        END DO ! jkind
-     END DO  ! ikind
+    END DO  ! ikind
 
-     IF ( my_debug .AND. ionode ) THEN
-        DO iatom = 1, natom
+    IF (debug_this_module.AND.ionode) THEN
+       DO iatom = 1, natom
           ikind = kind_of ( iatom )
           i_atom = atom_of_kind ( iatom )
           WRITE ( *, * ) 'F_DISPERSION', iatom,  force ( ikind ) % f_scp_disp ( :, i_atom )
-        END DO
-     END IF
-
-     CALL mp_sum(e_scp,para_env%group)
-     energy % e_scp_disp =  e_scp 
-
-    ! print
-    IF ( .NOT. my_debug ) THEN
-      IF (output_unit>0) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-              "Post Processed SCP Dispersion                          ",energy % e_scp_disp
-
-         CALL m_flush(output_unit)
-      END IF
+       END DO
     END IF
 
-   
-    DEALLOCATE(vab,vv,ff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "vab.vv.ff")
+    CALL mp_sum(e_scp,para_env%group)
+    energy % e_scp_disp =  e_scp 
 
-    DEALLOCATE(I_tmp,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "I_tmp")
+    ! print
+    IF (.NOT.debug_this_module) THEN
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+               "Post Processed SCP Dispersion                          ",energy % e_scp_disp
+
+          CALL m_flush(output_unit)
+       END IF
+    END IF
+
+
+    DEALLOCATE(vab,vv,ff,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(I_tmp,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (forces) THEN
-       DEALLOCATE(atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "atom_of_kind")
-       IF ( my_debug ) THEN
-         DEALLOCATE(kind_of,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "kind_of")
+       DEALLOCATE(atom_of_kind,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (debug_this_module) THEN
+          DEALLOCATE(kind_of,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
 
     CALL timestop(handle)
   END SUBROUTINE scp_qs_dispersion
 
-!******************************************************************************
 ! *****************************************************************************
 !> \brief Construction of 2-center Coulomb Terms for SCP-NDDO dispersion
 !> \author Teodoro Laino [tlaino] - University of Zurich
@@ -781,6 +743,7 @@ CONTAINS
     END DO
 
   END SUBROUTINE scp_disp_2C
+
 ! *****************************************************************************
 !> \brief Derivatives of 2-center Coulomb Terms for SCP-NDDO dispersion
 !> \author Teodoro Laino [tlaino] - University of Zurich

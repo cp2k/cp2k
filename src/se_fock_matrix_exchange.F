@@ -125,7 +125,6 @@ CONTAINS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     nspins=dft_control%nspins
 
-    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
@@ -135,8 +134,9 @@ CONTAINS
        IF ((integral_screening==do_se_IS_kdso_d).AND.(.NOT.se_control%force_kdsod_EX)) THEN
           integral_screening = do_se_IS_kdso
        END IF
-       CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
-            do_ewald_gks=.FALSE., integral_screening=integral_screening, max_multipole=do_multipole_none)
+       CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE.,&
+            do_ewald_r3=.FALSE., do_ewald_gks=.FALSE., integral_screening=integral_screening,&
+            max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
 
        CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
 
@@ -205,7 +205,7 @@ CONTAINS
                    p_block_tot(1:size_p_block_a(1),1:size_p_block_a(2)) = 2.0_dp * p_block_a
                    
                    ! Handle more configurations
-                   IF ( nspins >= 2 ) THEN
+                   IF ( nspins == 2 ) THEN
                       CALL get_block_node(matrix=ks_matrix(2)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&

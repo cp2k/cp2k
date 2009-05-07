@@ -170,7 +170,7 @@ CONTAINS
        CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
             do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
             shortrange=(se_control%do_ewald.OR.se_control%do_ewald_gks),&
-            max_multipole=se_control%max_multipole)
+            max_multipole=se_control%max_multipole,pc_coulomb_int=.FALSE.)
        IF(se_control%do_ewald_gks) THEN
          CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
          CALL ewald_env_get (ewald_env, alpha=se_int_control%ewald_gks%alpha, error=error)
@@ -178,10 +178,7 @@ CONTAINS
                             dg=se_int_control%ewald_gks%dg)
        END IF
 
-       IF (scp_nddo) CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
-       
        nspins=dft_control%nspins
-       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
@@ -207,7 +204,10 @@ CONTAINS
                                   "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
        END DO
 
-       IF (scp_nddo)  CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
+       IF (scp_nddo)  THEN 
+          CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
+          CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
+       END IF
        
        ecore2   = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
@@ -253,7 +253,7 @@ CONTAINS
                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                 p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
                 pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
-                IF ( nspins >= 2 ) THEN
+                IF ( nspins == 2 ) THEN
                    CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
@@ -282,7 +282,7 @@ CONTAINS
                    p_block_tot_a(1:natorb_a,1:natorb_a) = p_block_tot_a(1:natorb_a,1:natorb_a) + 2.0_dp * pscpa_block
                    ! Modify accordingly the density matrix for SCP
                         pa_a(1:natorb_a2)       = RESHAPE(pa_block_a+pscpa_block,(/natorb_a2/))
-                   IF ( nspins >= 2 ) &
+                   IF ( nspins == 2 ) &
                         pa_b(1:natorb_a2)       = RESHAPE(pa_block_b+pscpa_block,(/natorb_a2/))
                 ENDIF
  
@@ -313,7 +313,7 @@ CONTAINS
                       p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
                       pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
                       ! Handle more than one configuration
-                      IF ( nspins >= 2 ) THEN
+                      IF ( nspins == 2 ) THEN
                          CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                              block_row=jatom,&
                                              block_col=jatom,&
@@ -332,7 +332,7 @@ CONTAINS
                          pb_b(1:natorb_b2)                    = RESHAPE(pb_block_b,(/natorb_b2/))
                       END IF
 
-                      IF ( scp_nddo ) THEN
+                      IF (scp_nddo) THEN
                          CALL get_block_node(matrix=pscp,&
                                              block_row=jatom,&
                                              block_col=jatom,&
@@ -344,8 +344,7 @@ CONTAINS
                          p_block_tot_b(1:natorb_b,1:natorb_b) = p_block_tot_b(1:natorb_b,1:natorb_b) + 2.0_dp * pscpb_block
                          ! Modify accordingly the density matrix for SCP
                          pb_a(1:natorb_b2) = RESHAPE(pb_block_a+pscpb_block,(/natorb_b2/))
-                         IF ( nspins >= 2 ) &
-                              pb_b(1:natorb_b2) = RESHAPE(pb_block_b+pscpb_block,(/natorb_b2/))
+                         IF (nspins == 2) pb_b(1:natorb_b2) = RESHAPE(pb_block_b+pscpb_block,(/natorb_b2/))
                       ENDIF 
  
                       SELECT CASE (dft_control%qs_control%method_id)
@@ -614,7 +613,6 @@ CONTAINS
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
        
        nspins=dft_control%nspins
-       CPPrecondition(((nspins>=1).AND.(nspins<3)),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
@@ -982,14 +980,11 @@ CONTAINS
        use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
        CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
-            do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
-            shortrange=(se_control%do_ewald.OR.se_control%do_ewald_gks),&
-            max_multipole=se_control%max_multipole)
+            do_ewald_gks=.FALSE., integral_screening=se_control%integral_screening,&
+            shortrange=se_control%do_ewald,max_multipole=se_control%max_multipole,&
+            pc_coulomb_int=.TRUE.)
 
-       IF (scp_nddo) CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
-       
        nspins=dft_control%nspins
-       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
@@ -1015,7 +1010,10 @@ CONTAINS
                                   "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
        END DO
 
-       IF (scp_nddo)  CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
+       IF (scp_nddo)  THEN 
+          CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
+          CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
+       END IF
        
        ecore2   = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
@@ -1061,7 +1059,7 @@ CONTAINS
                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                 p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
                 pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
-                IF ( nspins >= 2 ) THEN
+                IF ( nspins == 2 ) THEN
                    CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
@@ -1090,7 +1088,7 @@ CONTAINS
                    p_block_tot_a(1:natorb_a,1:natorb_a) = p_block_tot_a(1:natorb_a,1:natorb_a) + 2.0_dp * pscpa_block
                    ! Modify accordingly the density matrix for SCP
                         pa_a(1:natorb_a2)       = RESHAPE(pa_block_a+pscpa_block,(/natorb_a2/))
-                   IF ( nspins >= 2 ) &
+                   IF ( nspins == 2 ) &
                         pa_b(1:natorb_a2)       = RESHAPE(pa_block_b+pscpa_block,(/natorb_a2/))
                 ENDIF
  
@@ -1121,7 +1119,7 @@ CONTAINS
                       p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
                       pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
                       ! Handle more than one configuration
-                      IF ( nspins >= 2 ) THEN
+                      IF ( nspins == 2 ) THEN
                          CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                              block_row=jatom,&
                                              block_col=jatom,&
@@ -1152,7 +1150,7 @@ CONTAINS
                          p_block_tot_b(1:natorb_b,1:natorb_b) = p_block_tot_b(1:natorb_b,1:natorb_b) + 2.0_dp * pscpb_block
                          ! Modify accordingly the density matrix for SCP
                               pb_a(1:natorb_b2) = RESHAPE(pb_block_a+pscpb_block,(/natorb_b2/))
-                         IF ( nspins >= 2 ) &
+                         IF ( nspins == 2 ) &
                               pb_b(1:natorb_b2) = RESHAPE(pb_block_b+pscpb_block,(/natorb_b2/))
                       ENDIF 
  
@@ -1384,7 +1382,6 @@ CONTAINS
        anag       =  se_control%analytical_gradients
        
        nspins=dft_control%nspins
-       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
@@ -1453,7 +1450,7 @@ CONTAINS
                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                 p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
                 pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
-                IF ( nspins >= 2 ) THEN
+                IF ( nspins == 2 ) THEN
                    CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
@@ -1496,7 +1493,7 @@ CONTAINS
                       p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
                       pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
                       ! Handle more than one configuration
-                      IF ( nspins >= 2 ) THEN
+                      IF ( nspins == 2 ) THEN
                          CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                              block_row=jatom,&
                                              block_col=jatom,&

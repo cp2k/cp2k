@@ -145,6 +145,8 @@ CONTAINS
          do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
 
        ! Check for properly allocation of Matrixes
+       nspins=dft_control%nspins
+       CPPrecondition(((nspins>=1).AND.(nspins<=2)),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
@@ -152,7 +154,6 @@ CONTAINS
        se_control  => dft_control%qs_control%se_control
        scp_nddo    =  se_control%scp
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
-       nspins         = dft_control%nspins
        matrix_p       => rho%rho_ao
        energy%qmmm_el = 0.0_dp
 

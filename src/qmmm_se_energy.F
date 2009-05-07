@@ -141,7 +141,7 @@ CONTAINS
     ! Setup type for SE integral control 
     CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE.,do_ewald_r3=.FALSE.,&
          do_ewald_gks=.FALSE., integral_screening=dft_control%qs_control%se_control%integral_screening,&
-         max_multipole=do_multipole_none)
+         max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
 
     ! Allocate the core Hamiltonian matrix
     CALL allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)

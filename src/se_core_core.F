@@ -130,7 +130,7 @@ CONTAINS
     CALL setup_se_int_control_type(se_int_control,do_ewald_r3=se_control%do_ewald_r3,&
          do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
          shortrange=(se_control%do_ewald.OR.se_control%do_ewald_gks),&
-         max_multipole=se_control%max_multipole)
+         max_multipole=se_control%max_multipole, pc_coulomb_int=.FALSE.)
 
     ! Retrieve some information if GKS ewald scheme is used
     IF(se_control%do_ewald_gks) THEN

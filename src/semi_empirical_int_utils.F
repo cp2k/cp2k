@@ -65,12 +65,16 @@ CONTAINS
 
     res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                       se_int_control%integral_screening, se_int_control%shortrange,&
-                      se_int_control%max_multipole, itype, charg_int_nri, error)
+                      se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
+                      itype, charg_int_nri, error)
 
-    ! Handle the 1/r^3 term
-    IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
-       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
-                              itype, charg_int_3, error)
+    ! If only the shortrange component is requested we can skip the rest
+    IF (.NOT.se_int_control%pc_coulomb_int) THEN
+       ! Handle the 1/r^3 term
+       IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
+          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+                                 itype, charg_int_3, error)
+       END IF
     END IF
   END FUNCTION ijkl_sp
 
@@ -102,20 +106,24 @@ CONTAINS
 
     res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                       se_int_control%integral_screening, se_int_control%shortrange,&
-                      se_int_control%max_multipole, itype, dcharg_int_nri, error)
+                      se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
+                      itype, dcharg_int_nri, error)
 
-    ! Handle the derivative of the Tapering term
-    IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
-       dfs = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-            se_int_control%integral_screening, .FALSE., do_multipole_none, itype, &
-            dcharg_int_nri_fs, error)
-       res = res + dfs*se_int_screen%dft
-    END IF
-
-    ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-S integrals
-    IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
-       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
-                              itype, dcharg_int_3, error)
+    ! If only the shortrange component is requested we can skip the rest
+    IF (.NOT.se_int_control%pc_coulomb_int) THEN
+       ! Handle the derivative of the Tapering term
+       IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
+          dfs = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+               se_int_control%integral_screening, .FALSE., .FALSE., do_multipole_none,&
+               itype, dcharg_int_nri_fs, error)
+          res = res + dfs*se_int_screen%dft
+       END IF
+       
+       ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-S integrals
+       IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
+          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+                                 itype, dcharg_int_3, error)
+       END IF
     END IF
   END FUNCTION d_ijkl_sp
 
@@ -131,13 +139,13 @@ CONTAINS
 !> \date 05.2008 [tlaino]
 ! *****************************************************************************
   FUNCTION ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-       iscreen, shortrange, max_multipole, itype, eval, error) RESULT(res)
+       iscreen, shortrange, pc_coulomb_int, max_multipole, itype, eval, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
     TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     INTEGER, INTENT(IN)                      :: iscreen
-    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN)                      :: shortrange, pc_coulomb_int
     INTEGER, INTENT(IN)                      :: max_multipole, itype
     REAL(KIND=dp)                            :: eval
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -172,58 +180,60 @@ CONTAINS
     fact_screen = 1.0_dp
     IF (lij==3) fact_ij = SQRT(2.0_dp)
     IF (lkl==3) fact_kl = SQRT(2.0_dp)
-    IF (iscreen==do_se_IS_kdso_d) fact_screen = se_int_screen%ft
-    ! Standard value of the integral
-    DO l1 = l1min, l1max
-       IF (l1 == 0) THEN
-          IF (lij == 1) THEN
-             pij = sepi%ko(1)
-             IF (ic == -1 .OR. ic == 1) THEN
-                pij = sepi%ko(9)
-             END IF
-          ELSE IF (lij == 3) THEN
-             pij = sepi%ko(7)
-          END IF
-       ELSE
-          dij = sepi%cs(lij)*fact_ij
-          pij = sepi%ko(lij)
-       END IF
-       !
-       DO l2 = l2min, l2max
-          IF (l2 == 0) THEN
-             IF (lkl == 1) THEN
-                pkl = sepj%ko(1)
-                IF (ic == -1 .OR. ic == 2) THEN
-                   pkl = sepj%ko(9)
+    IF (.NOT.pc_coulomb_int) THEN
+       IF (iscreen==do_se_IS_kdso_d) fact_screen = se_int_screen%ft
+       ! Standard value of the integral
+       DO l1 = l1min, l1max
+          IF (l1 == 0) THEN
+             IF (lij == 1) THEN
+                pij = sepi%ko(1)
+                IF (ic == -1 .OR. ic == 1) THEN
+                   pij = sepi%ko(9)
                 END IF
-             ELSE IF (lkl == 3) THEN
-                pkl = sepj%ko(7)
+             ELSE IF (lij == 3) THEN
+                pij = sepi%ko(7)
              END IF
           ELSE
-             dkl = sepj%cs(lkl)*fact_kl
-             pkl = sepj%ko(lkl)
+             dij = sepi%cs(lij)*fact_ij
+             pij = sepi%ko(lij)
           END IF
-          IF (itype==do_method_pchg) THEN
-             add = 0.0_dp
-          ELSE
-             add = (pij+pkl) ** 2
-          END IF
-          lmin = MAX(l1, l2)
-          s1   = 0.0_dp
-          DO m = -lmin, lmin
-             ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
-             IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
-                mm   = ABS (m)
-                chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, fact_screen, error)
-                s1   = s1 + chrg
+          !
+          DO l2 = l2min, l2max
+             IF (l2 == 0) THEN
+                IF (lkl == 1) THEN
+                   pkl = sepj%ko(1)
+                   IF (ic == -1 .OR. ic == 2) THEN
+                      pkl = sepj%ko(9)
+                   END IF
+                ELSE IF (lkl == 3) THEN
+                   pkl = sepj%ko(7)
+                END IF
+             ELSE
+                dkl = sepj%cs(lkl)*fact_kl
+                pkl = sepj%ko(lkl)
              END IF
+             IF (itype==do_method_pchg) THEN
+                add = 0.0_dp
+             ELSE
+                add = (pij+pkl) ** 2
+             END IF
+             lmin = MAX(l1, l2)
+             s1   = 0.0_dp
+             DO m = -lmin, lmin
+                ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
+                IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
+                   mm   = ABS (m)
+                   chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, fact_screen, error)
+                   s1   = s1 + chrg
+                END IF
+             END DO
+             sum = sum + s1
           END DO
-          sum = sum + s1
        END DO
-    END DO
-    res = sum
+       res = sum
+    END IF
     ! Shortrange: Possibly computes pure Coulomb and subtract from the original integral value
-    IF (shortrange) THEN
+    IF (shortrange.OR.pc_coulomb_int) THEN
        sum = 0.0_dp
        dij = 0.0_dp
        dkl = 0.0_dp
@@ -253,7 +263,8 @@ CONTAINS
              sum = sum + s1
           END DO
        END DO
-       res = res - sum
+       IF (pc_coulomb_int) res = sum
+       IF (shortrange)     res = res - sum
     END IF
   END FUNCTION ijkl_sp_low
 
@@ -884,12 +895,16 @@ CONTAINS
 
     res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                      se_int_control%integral_screening, se_int_control%shortrange,&
-                     se_int_control%max_multipole, itype, charg_int_ri, error)
+                     se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
+                     itype, charg_int_ri, error)
 
-    ! Handle the 1/r^3 term
-    IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
-       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
-                              itype, charg_int_3, error)
+    ! If only the shortrange component is requested we can skip the rest
+    IF (.NOT.se_int_control%pc_coulomb_int) THEN
+       ! Handle the 1/r^3 term
+       IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
+          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+                                 itype, charg_int_3, error)
+       END IF
     END IF
   END FUNCTION ijkl_d
 
@@ -927,20 +942,24 @@ CONTAINS
 
     res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                      se_int_control%integral_screening, se_int_control%shortrange,&
-                     se_int_control%max_multipole, itype, dcharg_int_ri, error)
+                     se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
+                     itype, dcharg_int_ri, error)
 
-    ! Handle the derivative of the Tapering term
-    IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
-       dfs = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-            se_int_control%integral_screening, .FALSE., do_multipole_none, itype,&
-            dcharg_int_ri_fs, error)
-       res = res + dfs*se_int_screen%dft
-    END IF
+    ! If only the shortrange component is requested we can skip the rest
+    IF (.NOT.se_int_control%pc_coulomb_int) THEN
+       ! Handle the derivative of the Tapering term
+       IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
+          dfs = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+               se_int_control%integral_screening, .FALSE., .FALSE., do_multipole_none,&
+               itype, dcharg_int_ri_fs, error)
+          res = res + dfs*se_int_screen%dft
+       END IF
 
-    ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-S integrals
-    IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
-       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
-                              itype, dcharg_int_3, error)
+       ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-S integrals
+       IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
+          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+                                 itype, dcharg_int_3, error)
+       END IF
     END IF
   END FUNCTION d_ijkl_d
 
@@ -961,13 +980,13 @@ CONTAINS
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
   FUNCTION ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-       iscreen, shortrange, max_multipole, itype, eval, error) RESULT(res)
+       iscreen, shortrange, pc_coulomb_int, max_multipole, itype, eval, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
     TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     INTEGER, INTENT(IN)                      :: iscreen
-    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN)                      :: shortrange, pc_coulomb_int
     INTEGER, INTENT(IN)                      :: max_multipole, itype
     REAL(KIND=dp)                            :: eval
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -996,62 +1015,64 @@ CONTAINS
     dij = 0.0_dp
     dkl = 0.0_dp
     fact_screen = 1.0_dp
-    IF (iscreen==do_se_IS_kdso_d) fact_screen = se_int_screen%ft
-    ! Standard value of the integral
-    DO l1 = l1min, l1max
-       IF (l1 == 0) THEN
-          IF (lij == 1) THEN
-             pij = sepi%ko(1)
-             IF (ic == 1) THEN
-                pij = sepi%ko(9)
-             END IF
-          ELSE IF (lij == 3) THEN
-             pij = sepi%ko(7)
-          ELSE IF (lij == 6) THEN
-             pij = sepi%ko(8)
-          END IF
-       ELSE
-          dij = sepi%cs(lij)
-          pij = sepi%ko(lij)
-       END IF
-       !
-       DO l2 = l2min, l2max
-          IF (l2 == 0) THEN
-             IF (lkl == 1) THEN
-                pkl = sepj%ko(1)
-                IF (ic == 2) THEN
-                   pkl = sepj%ko(9)
+    IF (.NOT.pc_coulomb_int) THEN
+       IF (iscreen==do_se_IS_kdso_d) fact_screen = se_int_screen%ft
+       ! Standard value of the integral
+       DO l1 = l1min, l1max
+          IF (l1 == 0) THEN
+             IF (lij == 1) THEN
+                pij = sepi%ko(1)
+                IF (ic == 1) THEN
+                   pij = sepi%ko(9)
                 END IF
-             ELSE IF (lkl == 3) THEN
-                pkl = sepj%ko(7)
-             ELSE IF (lkl == 6) THEN
-                pkl = sepj%ko(8)
+             ELSE IF (lij == 3) THEN
+                pij = sepi%ko(7)
+             ELSE IF (lij == 6) THEN
+                pij = sepi%ko(8)
              END IF
           ELSE
-             dkl = sepj%cs(lkl)
-             pkl = sepj%ko(lkl)
+             dij = sepi%cs(lij)
+             pij = sepi%ko(lij)
           END IF
-          IF (itype==do_method_pchg) THEN
-             add = 0.0_dp
-          ELSE
-             add = (pij+pkl) ** 2
-          END IF
-          lmin = MIN(l1, l2)
-          s1 = 0.0_dp
-          DO m = -lmin, lmin
-             ccc = clm_d(ij, l1, m) * clm_d(kl, l2, m)
-             IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
-                mm   = ABS (m)
-                chrg = eval(r, l1, l2, mm, dij, dkl, add, fact_screen, error)
-                s1   = s1 + chrg * ccc
+          !
+          DO l2 = l2min, l2max
+             IF (l2 == 0) THEN
+                IF (lkl == 1) THEN
+                   pkl = sepj%ko(1)
+                   IF (ic == 2) THEN
+                      pkl = sepj%ko(9)
+                   END IF
+                ELSE IF (lkl == 3) THEN
+                   pkl = sepj%ko(7)
+                ELSE IF (lkl == 6) THEN
+                   pkl = sepj%ko(8)
+                END IF
+             ELSE
+                dkl = sepj%cs(lkl)
+                pkl = sepj%ko(lkl)
              END IF
+             IF (itype==do_method_pchg) THEN
+                add = 0.0_dp
+             ELSE
+                add = (pij+pkl) ** 2
+             END IF
+             lmin = MIN(l1, l2)
+             s1 = 0.0_dp
+             DO m = -lmin, lmin
+                ccc = clm_d(ij, l1, m) * clm_d(kl, l2, m)
+                IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
+                   mm   = ABS (m)
+                   chrg = eval(r, l1, l2, mm, dij, dkl, add, fact_screen, error)
+                   s1   = s1 + chrg * ccc
+                END IF
+             END DO
+             sum = sum + s1
           END DO
-          sum = sum + s1
        END DO
-    END DO
-    res = sum
+       res = sum
+    END IF
     ! Shortrange: Possibly computes pure Coulomb and subtract from the original integral valeu
-    IF (shortrange) THEN
+    IF (shortrange.OR.pc_coulomb_int) THEN
        sum = 0.0_dp
        dij = 0.0_dp
        dkl = 0.0_dp
@@ -1081,7 +1102,8 @@ CONTAINS
              sum = sum + s1
           END DO
        END DO
-       res = res - sum
+       IF (pc_coulomb_int) res = sum
+       IF (shortrange)     res = res - sum
     END IF
   END FUNCTION ijkl_d_low
   
