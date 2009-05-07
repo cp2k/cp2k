@@ -30,7 +30,7 @@ MODULE rt_propagation
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_cn, do_diag, do_em, do_etrs, do_pade, do_taylor, do_diag, do_arnoldi, &
+       do_arnoldi, do_cn, do_diag, do_em, do_etrs, do_pade, do_taylor, &
        real_time_propagation, use_restart_wfn, use_rt_restart, use_scf_wfn
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&

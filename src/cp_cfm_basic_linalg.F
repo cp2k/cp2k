@@ -72,7 +72,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b, matrix_c
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product_cc', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &

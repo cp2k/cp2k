@@ -28,10 +28,13 @@ MODULE rt_propagation_methods
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_create_matrix_vect
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_cn,&
+  USE input_constants,                 ONLY: do_arnoldi,&
+                                             do_cn,&
+                                             do_diag,&
                                              do_em,&
                                              do_etrs,&
-                                             do_diag, do_pade, do_taylor,do_arnoldi
+                                             do_pade,&
+                                             do_taylor
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: binomial
