@@ -930,7 +930,7 @@ CONTAINS
     LOGICAL                                  :: anag, check, defined, &
                                                 failure, scp_nddo, switch, &
                                                 use_virial
-    REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores
+    REAL(KIND=dp)                            :: delta, dr1, ecore2
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
@@ -943,8 +943,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_lrc
     TYPE(neighbor_list_type), POINTER        :: sab_lrc_neighbor_list
@@ -977,7 +975,7 @@ CONTAINS
             particle_set=particle_set, virial=virial, error=error)
       
        ! Parameters
-       CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
+       CALL initialize_se_taper(se_taper,lr_corr=.TRUE.,error=error)
        se_control  => dft_control%qs_control%se_control
        anag        =  se_control%analytical_gradients
        scp_nddo    =  se_control%scp

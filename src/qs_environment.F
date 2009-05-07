@@ -739,10 +739,11 @@ CONTAINS
                dft_control%qs_control%method_id,error)
        END IF
        ! Taper function
-       CALL se_taper_create(se_taper, se_control%integral_screening, &
+       CALL se_taper_create(se_taper, se_control%integral_screening, se_control%do_ewald,&
             se_control%taper_cou, se_control%range_cou, &
             se_control%taper_exc, se_control%range_exc, &
-            se_control%taper_scr, se_control%range_scr, error)
+            se_control%taper_scr, se_control%range_scr, &
+            se_control%taper_lrc, se_control%range_lrc, error)
        CALL set_qs_env(qs_env, se_taper=se_taper, error=error)
        ! Store integral environment
        CALL semi_empirical_si_create(se_store_int_env, se_section, error)

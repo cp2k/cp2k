@@ -161,16 +161,16 @@ CONTAINS
 !> \brief  Initializes the semi-empirical taper for a chunk calculation
 !> \author Teodoro Laino [tlaino] - 03.2009 
 ! *****************************************************************************
-  SUBROUTINE initialize_se_taper(se_taper, coulomb, exchange, error)
+  SUBROUTINE initialize_se_taper(se_taper, coulomb, exchange, lr_corr, error)
     TYPE(se_taper_type), POINTER             :: se_taper
-    LOGICAL, INTENT(IN), OPTIONAL            :: coulomb, exchange
+    LOGICAL, INTENT(IN), OPTIONAL            :: coulomb, exchange, lr_corr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_se_taper', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: check, failure, l_coulomb, &
-                                                l_exchange
+                                                l_exchange, l_lrc
 
     failure = .FALSE.
     check = PRESENT(coulomb).NEQV.PRESENT(exchange)
@@ -179,10 +179,13 @@ CONTAINS
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
     l_coulomb  = .FALSE.
     l_exchange = .FALSE.
+    l_lrc      = .FALSE.
     IF (PRESENT(coulomb))  l_coulomb  = coulomb
     IF (PRESENT(exchange)) l_exchange = exchange
+    IF (PRESENT(lr_corr))  l_lrc      = lr_corr
     IF (l_coulomb)  se_taper%taper => se_taper%taper_cou
     IF (l_exchange) se_taper%taper => se_taper%taper_exc
+    IF (l_lrc)      se_taper%taper => se_taper%taper_lrc
   END SUBROUTINE initialize_se_taper
 
 ! *****************************************************************************

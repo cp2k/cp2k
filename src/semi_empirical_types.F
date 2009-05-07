@@ -20,7 +20,7 @@ MODULE semi_empirical_types
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
        do_multipole_charge, do_multipole_dipole, do_multipole_none, &
-       do_multipole_quadrupole, do_se_IS_kdso_d
+       do_multipole_quadrupole, do_se_IS_kdso_d, do_se_IS_slater
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -147,6 +147,7 @@ MODULE semi_empirical_types
      TYPE(taper_type), POINTER             :: taper
      TYPE(taper_type), POINTER             :: taper_cou
      TYPE(taper_type), POINTER             :: taper_exc
+     TYPE(taper_type), POINTER             :: taper_lrc
      ! This taper is for KDSO-D integrals
      TYPE(taper_type), POINTER             :: taper_add
   END TYPE se_taper_type
@@ -165,8 +166,8 @@ MODULE semi_empirical_types
             se_int_screen_type,&
             se_taper_type,&
             se_taper_release,&
-            se_taper_create
-  PUBLIC :: ewald_gks_type
+            se_taper_create,&
+            ewald_gks_type
 
 CONTAINS
 
@@ -555,13 +556,16 @@ CONTAINS
 !> \brief Creates the taper type used in SE calculations
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! ***************************************************************************** 
-  SUBROUTINE se_taper_create(se_taper, integral_screening, taper_cou,&
-       range_cou, taper_exc, range_exc, taper_scr, range_scr, error)
+  SUBROUTINE se_taper_create(se_taper, integral_screening, do_ewald, &
+       taper_cou, range_cou, taper_exc, range_exc, taper_scr, range_scr,&
+       taper_lrc, range_lrc, error)
     TYPE(se_taper_type), POINTER             :: se_taper
     INTEGER, INTENT(IN)                      :: integral_screening
+    LOGICAL, INTENT(IN)                      :: do_ewald
     REAL(KIND=dp), INTENT(IN)                :: taper_cou, range_cou, &
                                                 taper_exc, range_exc, &
-                                                taper_scr, range_scr
+                                                taper_scr, range_scr, &
+                                                taper_lrc, range_lrc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_create', &
@@ -577,12 +581,16 @@ CONTAINS
     NULLIFY(se_taper%taper)
     NULLIFY(se_taper%taper_cou)
     NULLIFY(se_taper%taper_exc)
+    NULLIFY(se_taper%taper_lrc)
     NULLIFY(se_taper%taper_add)
     ! Create the sub-typo taper
     CALL taper_create(se_taper%taper_cou, taper_cou, range_cou, error)
     CALL taper_create(se_taper%taper_exc, taper_exc, range_exc, error)
     IF (integral_screening==do_se_IS_kdso_d) THEN
        CALL taper_create(se_taper%taper_add, taper_scr, range_scr, error)
+    END IF
+    IF ((integral_screening/=do_se_IS_slater).AND.do_ewald) THEN
+       CALL taper_create(se_taper%taper_lrc, taper_lrc, range_lrc, error)
     END IF
   END SUBROUTINE se_taper_create
 
@@ -604,6 +612,7 @@ CONTAINS
     IF (ASSOCIATED(se_taper)) THEN
        CALL taper_release(se_taper%taper_cou, error=error)
        CALL taper_release(se_taper%taper_exc, error=error)
+       CALL taper_release(se_taper%taper_lrc, error=error)
        CALL taper_release(se_taper%taper_add, error=error)
        
        DEALLOCATE(se_taper, stat=stat)
