@@ -8,7 +8,8 @@
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 MODULE rt_propagation_methods
-
+  USE bibliography,                    ONLY: Kolafa2004,&
+                                             cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -625,6 +626,7 @@ CONTAINS
     exp_hist=>rtp%history%exp_history
 
     naspc=MIN(rtp%istep,aspc_order)
+    CALL cite_reference(Kolafa2004)
 
     IF(naspc.GT.1)THEN
        DO imat=1,nmat

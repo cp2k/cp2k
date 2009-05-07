@@ -670,7 +670,6 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
         wf_history%memory_depth=1
         wf_history%store_frozen_density=.TRUE.
      CASE (wfi_aspc_nr)
-       CALL cite_reference(Kolafa2004)
        wf_history%memory_depth = my_extrapolation_order + 2
        wf_history%store_wf = .TRUE.
        IF(.NOT.nometric) wf_history%store_overlap = .TRUE.
@@ -1198,6 +1197,7 @@ END FUNCTION wfi_get_method_label
              CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
           END IF
       CASE (wfi_aspc_nr)
+        CALL cite_reference(Kolafa2004)
         ! figure out the actual number of vectors to use in the extrapolation:
         nvec = MIN(wf_history%memory_depth,wf_history%snapshot_count)
         CPPrecondition(nvec.GT.0,cp_failure_level,routineP,error,failure)
