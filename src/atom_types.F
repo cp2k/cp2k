@@ -259,11 +259,6 @@ CONTAINS
     CHARACTER(LEN=2)                         :: btyp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    !   btyp = AE : standard all-electron basis
-    !   btyp = PP : standard pseudopotential basis
-    !   btyp = AA : high accuracy all-electron basis
-    !   btyp = AP : high accuracy pseudopotential basis
-
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nua = 40, nup = 16
@@ -285,9 +280,14 @@ CONTAINS
     INTEGER, DIMENSION(0:3)                  :: starti
     INTEGER, DIMENSION(:), POINTER           :: num_gto, sindex
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: al, aval, cval, ear, rk, amax
+    REAL(KIND=dp)                            :: al, amax, aval, cval, ear, rk
     REAL(KIND=dp), DIMENSION(:), POINTER     :: expo
     TYPE(section_vals_type), POINTER         :: gto_basis_section
+
+!   btyp = AE : standard all-electron basis
+!   btyp = PP : standard pseudopotential basis
+!   btyp = AA : high accuracy all-electron basis
+!   btyp = AP : high accuracy pseudopotential basis
 
     failure = .FALSE.
     NULLIFY(basis%am,basis%cm,basis%as,basis%bf,basis%dbf)

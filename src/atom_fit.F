@@ -16,16 +16,17 @@ MODULE atom_fit
                                              atom_relint_setup
   USE atom_output,                     ONLY: atom_print_basis
   USE atom_types,                      ONLY: &
-       GTO_BASIS, atom_basis_type, atom_integrals, atom_p_type, &
-       atom_potential_type, atom_type, create_opgrid, opgrid_type, &
-       release_opgrid, set_atom, atom_gthpot_type
+       GTO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, &
+       atom_p_type, atom_potential_type, atom_type, create_opgrid, &
+       opgrid_type, release_opgrid, set_atom
   USE atom_utils,                      ONLY: atom_denmat,&
                                              atom_density,&
                                              atom_orbital_charge,&
                                              atom_orbital_nodes,&
-                                             integrate_grid,&
-                                             get_maxn_occ
-  USE cp_files,                        ONLY: open_file, close_file
+                                             get_maxn_occ,&
+                                             integrate_grid
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE f77_blas
   USE input_constants,                 ONLY: do_analytic
   USE input_section_types,             ONLY: section_vals_type,&
@@ -35,7 +36,8 @@ MODULE atom_fit
   USE mathconstants,                   ONLY: fourpi,&
                                              pi
   USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: bohr, evolt
+  USE physcon,                         ONLY: bohr,&
+                                             evolt
   USE powell,                          ONLY: opt_state_type,&
                                              powell_optimize
 #include "cp_common_uses.h"
@@ -301,19 +303,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_pseudo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, n10, i, j, np, l, k, iw
-    INTEGER, DIMENSION(0:3)                  :: ncore
+    INTEGER                                  :: i, ierr, iw, j, k, l, n10, np
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: xtob
+    INTEGER, DIMENSION(0:3)                  :: ncore
     LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: fopt, rcov, charge, eig, deig, drho, oc
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x,xi
+    REAL(KIND=dp) :: charge, deig, drho, eig, fopt, oc, rcov, &
+      w_node = 1000._dp, w_semi = 10._dp, w_valence = 100._dp, &
+      w_virt = 0.01_dp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x, xi
     TYPE(opt_state_type)                     :: ostate
 
-    ! weights for the optimization
-    REAL(KIND=dp)                            :: w_semi = 10._dp, &
-                                                w_valence = 100._dp, &
-                                                w_virt = 0.01_dp, &
-                                                w_node = 1000._dp
+! weights for the optimization
 
     CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend, error=error)
     CALL section_vals_val_get(powell_section,"STEP_SIZE", r_val=ostate%rhobeg, error=error)
@@ -649,11 +649,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_fit', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure = .FALSE.
-    INTEGER                                  :: i, j, n, l, k, node
+    INTEGER                                  :: i, j, k, l, n, node
     REAL(KIND=dp)                            :: charge, rcov
-    TYPE(atom_type), POINTER                 :: atom
     TYPE(atom_integrals), POINTER            :: pp_int
+    TYPE(atom_type), POINTER                 :: atom
 
     afun = 0._dp
 
@@ -687,16 +686,15 @@ CONTAINS
   END SUBROUTINE pseudo_fit
 ! *****************************************************************************
   SUBROUTINE get_pseudo_param (pvec,nval,gthpot,error)
-    REAL(KIND=dp),DIMENSION(:),INTENT(out)   :: pvec
-    INTEGER,INTENT(out)                      :: nval
-    TYPE(atom_gthpot_type),INTENT(in)        :: gthpot
+    REAL(KIND=dp), DIMENSION(:), INTENT(out) :: pvec
+    INTEGER, INTENT(out)                     :: nval
+    TYPE(atom_gthpot_type), INTENT(in)       :: gthpot
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_pseudo_param', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure = .FALSE.
-    INTEGER                                  :: ival, i, j, l, n
+    INTEGER                                  :: i, ival, j, l, n
 
     pvec = 0
     ival = 1
@@ -727,18 +725,17 @@ CONTAINS
   END SUBROUTINE get_pseudo_param 
 
   SUBROUTINE put_pseudo_param (pvec,gthpot,error)
-    REAL(KIND=dp),DIMENSION(:),INTENT(in)    :: pvec
-    TYPE(atom_gthpot_type),INTENT(inout)     :: gthpot
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: pvec
+    TYPE(atom_gthpot_type), INTENT(inout)    :: gthpot
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'put_pseudo_param', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure = .FALSE.
-    INTEGER                                  :: ival, i, j, l, n
+    INTEGER                                  :: i, ival, j, l, n
 
     ival = 1
-    gthpot%rc = exp(pvec(ival))
+    gthpot%rc = EXP(pvec(ival))
     DO i=1,gthpot%ncl
       ival=ival+1
       gthpot%cl(i) = pvec(ival)
@@ -746,7 +743,7 @@ CONTAINS
     DO l=0,3
       IF(gthpot%nl(l) > 0) THEN
         ival = ival+1
-        gthpot%rcnl(l) = exp(pvec(ival))
+        gthpot%rcnl(l) = EXP(pvec(ival))
       END IF
     END DO
     DO l=0,3
@@ -764,14 +761,13 @@ CONTAINS
   END SUBROUTINE put_pseudo_param
 
   SUBROUTINE write_pseudo_param (gthpot,error)
-    TYPE(atom_gthpot_type),INTENT(inout)     :: gthpot
+    TYPE(atom_gthpot_type), INTENT(inout)    :: gthpot
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_pseudo_param', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure = .FALSE.
-    INTEGER                                  :: iw, i, j, k, n
+    INTEGER                                  :: i, iw, j, k, n
 
     CALL open_file(file_name="GTH-PARAMETER",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
     WRITE(iw,'(A2,A)') gthpot%symbol,ADJUSTL(TRIM(gthpot%pname))

@@ -65,10 +65,8 @@ CONTAINS
     CHARACTER(LEN=2)                         :: elem
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: do_eric, do_erie, handle, i, &
-                                                ierr, im, in, iw, k, l, maxl, &
-                                                mb, method, mo, n_meth, &
-                                                n_rep, reltyp, zcore, zval, zz, ads
+    INTEGER :: ads, do_eric, do_erie, handle, i, ierr, im, in, iw, k, l, &
+      maxl, mb, method, mo, n_meth, n_rep, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, pp_calc

@@ -59,8 +59,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iter, l, max_iter, &
                                                 method, reltyp
-    LOGICAL                                  :: do_hfx, failure, need_x, &
-                                                need_xc, doguess
+    LOGICAL                                  :: do_hfx, doguess, failure, &
+                                                need_x, need_xc
     REAL(KIND=dp)                            :: deps, eps_scf, hf_frac
     TYPE(atom_history_type)                  :: history
     TYPE(opgrid_type), POINTER               :: cpot, density

@@ -328,9 +328,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure = .FALSE.
-    INTEGER                                  :: i,j,l
     CHARACTER(len=60)                        :: pline
+    INTEGER                                  :: i, j, l
+    LOGICAL                                  :: failure = .FALSE.
 
     SELECT CASE (potential%ppot_type)
       CASE (NO_PSEUDO)

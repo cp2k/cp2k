@@ -295,10 +295,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_charge', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, n, m, ierr
+    INTEGER                                  :: i, ierr, j, m, n
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: ff
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: den
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: den
 
     charge=0._dp
     m=SIZE(basis%bf,1)
@@ -330,10 +330,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_nodes', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, n, m, ierr
+    INTEGER                                  :: i, ierr, m, n
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: ff
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: orb
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: orb
 
     node=0
     m=SIZE(basis%bf,1)
