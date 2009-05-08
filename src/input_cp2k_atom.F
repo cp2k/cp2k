@@ -440,7 +440,7 @@ CONTAINS
        CALL keyword_create(keyword, name="EPS_EIGENVALUE",&
             description="Cutoff of overlap matrix eigenvalues included into basis",&
             usage="EPS_EIGENVALUE real",&
-            default_r_val=1.e-10_dp,error=error)
+            default_r_val=1.e-8_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -558,7 +558,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EPS_SCF",&
             description="Convergence criterion for SCF",&
-            usage="EPS_SCF 1.e-6", default_r_val=1.e-6_dp,&
+            usage="EPS_SCF 1.e-10", default_r_val=1.e-6_dp,&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -768,6 +768,34 @@ CONTAINS
             description="Maximum number of function evaluations",&
             usage="MAX_FUN 1000",&
             default_i_val=5000,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHT_POT_VIRTUAL",&
+            description="Weight for virtual states in pseudopotential optimization",&
+            usage="WEIGHT_POT_VIRTUAL 1.0",&
+            default_r_val=0.01_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHT_POT_SEMICORE",&
+            description="Weight for semi core states in pseudopotential optimization",&
+            usage="WEIGHT_POT_SEMICORE 1.0",&
+            default_r_val=10._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHT_POT_VALENCE",&
+            description="Weight for valence states in pseudopotential optimization",&
+            usage="WEIGHT_POT_VALENCE 1.0",&
+            default_r_val=100.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHT_POT_NODE",&
+            description="Weight for node mismatch in pseudopotential optimization",&
+            usage="WEIGHT_POT_NODE 1.0",&
+            default_r_val=1000.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

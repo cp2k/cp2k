@@ -79,6 +79,9 @@ MODULE atom_types
 !> Provides all information about a pseudopotential
 ! *****************************************************************************
   TYPE atom_gthpot_type
+    CHARACTER (LEN=2)                             :: symbol
+    CHARACTER (LEN=80)                            :: pname
+    INTEGER, DIMENSION(0:3)                       :: econf
     REAL(dp)                                      :: zion
     REAL(dp)                                      :: rc
     INTEGER                                       :: ncl
@@ -140,6 +143,8 @@ MODULE atom_types
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: wfn
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: pmat
     REAL(KIND=dp),DIMENSION(:,:),POINTER          :: ener
+    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: refene,refchg,refnod
+    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: wrefene,wrefchg,wrefnod
   END TYPE atom_orbitals
 
 !> Operator matrices
@@ -254,13 +259,18 @@ CONTAINS
     CHARACTER(LEN=2)                         :: btyp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    !   btyp = AE : standard all-electron basis
+    !   btyp = PP : standard pseudopotential basis
+    !   btyp = AA : high accuracy all-electron basis
+    !   btyp = AP : high accuracy pseudopotential basis
+
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nua = 40, nup = 20
+    INTEGER, PARAMETER                       :: nua = 40, nup = 16
     REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp,&
       0.013705_dp, 0.025733_dp, 0.048316_dp, 0.090718_dp, 0.170333_dp,&
       0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp, 3.974902_dp,&
-      1.463317_dp,14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp,&
+      7.463317_dp,14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp,&
       174.164456_dp, 327.013024_dp,614.003114_dp, 1152.858743_dp,&
       2164.619772_dp, 4064.312984_dp, 7631.197056_dp,14328.416324_dp,&
       26903.186074_dp, 50513.706789_dp, 94845.070265_dp, 178082.107320_dp,&
@@ -275,7 +285,7 @@ CONTAINS
     INTEGER, DIMENSION(0:3)                  :: starti
     INTEGER, DIMENSION(:), POINTER           :: num_gto, sindex
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: al, aval, cval, ear, rk
+    REAL(KIND=dp)                            :: al, aval, cval, ear, rk, amax
     REAL(KIND=dp), DIMENSION(:), POINTER     :: expo
     TYPE(section_vals_type), POINTER         :: gto_basis_section
 
@@ -390,8 +400,31 @@ CONTAINS
          NULLIFY(num_gto)
          CALL section_vals_val_get(basis_section,"NUM_GTO",i_vals=num_gto,error=error)
          IF ( num_gto(1) < 1 ) THEN
-           ! use the Clementi extra large basis
-           CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+           IF ( btyp == "AE" ) THEN
+             ! use the Clementi extra large basis
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+           ELSEIF ( btyp == "PP" ) THEN
+             ! use the Clementi extra large basis
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+           ELSEIF ( btyp == "AA" ) THEN
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+             amax = cval**(basis%nbas(0)-1)
+             basis%nbas(0) = NINT((LOG(amax)/LOG(1.6_dp)))
+             cval = 1.6_dp
+             starti = 0
+             basis%nbas(1) = basis%nbas(0) - 4
+             basis%nbas(2) = basis%nbas(0) - 8
+             basis%nbas(3) = basis%nbas(0) -12
+           ELSEIF ( btyp == "AP" ) THEN
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+             amax = 200._dp/aval
+             basis%nbas = NINT((LOG(amax)/LOG(1.6_dp)))
+             cval = 1.6_dp
+             starti = 0
+           ELSE
+             ! use the Clementi extra large basis
+             CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+           ENDIF
            basis%nprim = basis%nbas
          ELSE
            basis%nbas = 0
@@ -649,6 +682,17 @@ CONTAINS
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%ener = 0._dp
 
+    ALLOCATE(orbs%refene(mo,0:3),orbs%refchg(mo,0:3),orbs%refnod(mo,0:3),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    orbs%refene = 0._dp
+    orbs%refchg = 0._dp
+    orbs%refnod = 0._dp
+    ALLOCATE(orbs%wrefene(mo,0:3),orbs%wrefchg(mo,0:3),orbs%wrefnod(mo,0:3),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    orbs%wrefene = 0._dp
+    orbs%wrefchg = 0._dp
+    orbs%wrefnod = 0._dp
+
   END SUBROUTINE create_atom_orbs
   
   SUBROUTINE release_atom_orbs(orbs,error)
@@ -679,6 +723,36 @@ CONTAINS
       DEALLOCATE(orbs%ener,STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
       NULLIFY(orbs%ener)
+    END IF
+    IF(ASSOCIATED(orbs%refene)) THEN
+      DEALLOCATE(orbs%refene,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%refene)
+    END IF
+    IF(ASSOCIATED(orbs%refchg)) THEN
+      DEALLOCATE(orbs%refchg,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%refchg)
+    END IF
+    IF(ASSOCIATED(orbs%refnod)) THEN
+      DEALLOCATE(orbs%refnod,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%refnod)
+    END IF
+    IF(ASSOCIATED(orbs%wrefene)) THEN
+      DEALLOCATE(orbs%wrefene,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%wrefene)
+    END IF
+    IF(ASSOCIATED(orbs%wrefchg)) THEN
+      DEALLOCATE(orbs%wrefchg,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%wrefchg)
+    END IF
+    IF(ASSOCIATED(orbs%wrefnod)) THEN
+      DEALLOCATE(orbs%wrefnod,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%wrefnod)
     END IF
 
     DEALLOCATE(orbs,STAT=ierr)
@@ -1327,8 +1401,8 @@ CONTAINS
         ival(2) = 5
         ival(3) = 4
       CASE (69)
-        aval = 0.01529430_dp
         cval = 1.97809240_dp
+        aval = 0.01529430_dp
         ngto(0) = 32
         ngto(1) = 24
         ngto(2) = 17
@@ -1887,6 +1961,9 @@ CONTAINS
     apname = pseudo_name
     symbol = element_symbol
 
+    potential%symbol = symbol
+    potential%pname = apname
+    potential%econf = 0
     potential%rc = 0._dp
     potential%ncl = 0
     potential%cl = 0._dp
@@ -1912,6 +1989,7 @@ CONTAINS
         READ(line_att,*)elec_conf(l)
         CALL remove_word(line_att)
       END DO
+      potential%econf(0:3) = elec_conf(0:3)
       potential%zion = REAL ( SUM(elec_conf), dp )
       ! Read r(loc) to define the exponent of the core charge
       is_ok=cp_sll_val_next(list,val,error=error)
@@ -1992,6 +2070,7 @@ CONTAINS
                l = l + 1
                CALL parser_get_object(parser,elec_conf(l),error=error)
              END DO
+             potential%econf(0:3) = elec_conf(0:3)
              potential%zion = REAL ( SUM(elec_conf), dp )
              ! Read r(loc) to define the exponent of the core charge
              CALL parser_get_object(parser,potential%rc,newline=.TRUE.,error=error)

@@ -382,9 +382,9 @@ CONTAINS
     CALL set_atom(atom,orbitals=orbitals,error=error)
 
     IF(PRESENT(iunit)) THEN
-      CALL calculate_atom(atom,iunit,error)
+      CALL calculate_atom(atom,iunit,error=error)
     ELSE
-      CALL calculate_atom(atom,0,error)
+      CALL calculate_atom(atom,0,error=error)
     END IF
 
     IF (PRESENT(pmat)) THEN

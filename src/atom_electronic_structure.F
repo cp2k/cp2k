@@ -48,9 +48,10 @@ MODULE atom_electronic_structure
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_atom(atom,iw,error)
+  SUBROUTINE calculate_atom(atom,iw,noguess,error)
     TYPE(atom_type), POINTER                 :: atom
     INTEGER, INTENT(IN)                      :: iw
+    LOGICAL, INTENT(IN), OPTIONAL            :: noguess
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom', &
@@ -59,7 +60,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iter, l, max_iter, &
                                                 method, reltyp
     LOGICAL                                  :: do_hfx, failure, need_x, &
-                                                need_xc
+                                                need_xc, doguess
     REAL(KIND=dp)                            :: deps, eps_scf, hf_frac
     TYPE(atom_history_type)                  :: history
     TYPE(opgrid_type), POINTER               :: cpot, density
@@ -69,6 +70,12 @@ CONTAINS
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
+
+    IF (PRESENT(noguess)) THEN
+      doguess=.NOT.noguess
+    ELSE
+      doguess=.TRUE.
+    END IF
 
     hf_frac = 0._dp
     IF (ASSOCIATED(atom%xc_section)) THEN
@@ -153,15 +160,17 @@ CONTAINS
     CALL create_opgrid(density,atom%basis%grid,error)
     CALL create_opgrid(cpot,atom%basis%grid,error)
 
-    ! initial guess
-    CALL slater_density(density%op,atom%z,atom%state,atom%basis%grid,error)
-    CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
-    CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
-    CALL wigner_slater_functional(density%op,cpot%op,error)
-    CALL numpot_matrix(xcmat%op,cpot%op,atom%basis,0,error)
-    fmat%op = hcore%op + jmat%op + xcmat%op
-    CALL atom_solve(fmat%op,atom%integrals%utrans,atom%orbitals%wfn,atom%orbitals%ener,&
-                    atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
+    IF (doguess) THEN
+      ! initial guess
+      CALL slater_density(density%op,atom%z,atom%state,atom%basis%grid,error)
+      CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
+      CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
+      CALL wigner_slater_functional(density%op,cpot%op,error)
+      CALL numpot_matrix(xcmat%op,cpot%op,atom%basis,0,error)
+      fmat%op = hcore%op + jmat%op + xcmat%op
+      CALL atom_solve(fmat%op,atom%integrals%utrans,atom%orbitals%wfn,atom%orbitals%ener,&
+                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
+    END IF
     CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occupation,&
                      atom%state%maxl_occ,atom%state%maxn_occ,error)
 

@@ -329,19 +329,39 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure = .FALSE.
+    INTEGER                                  :: i,j,l
+    CHARACTER(len=60)                        :: pline
 
     SELECT CASE (potential%ppot_type)
       CASE (NO_PSEUDO)
         WRITE(iw,'(/," ",28("*"),A,27("*"))') " All Electron Potential "
       CASE (GTH_PSEUDO)
         WRITE(iw,'(/," ",29("*"),A,29("*"))') " GTH Pseudopotential "
+        WRITE(iw,'(T10,A,T76,F5.1)') " Core Charge ",potential%gth_pot%zion
+        WRITE(iw,'(T10,A,T66,F15.6)') " Rc ",potential%gth_pot%rc
+        WRITE(pline,'(5F12.6)') (potential%gth_pot%cl(i),i=1,potential%gth_pot%ncl)
+        WRITE(iw,'(T10,A,T21,A60)') " C1 C2 ... ",ADJUSTR(pline)
+        DO l=0,3
+          IF (potential%gth_pot%nl(l) > 0) THEN
+             WRITE(iw,'(T10,A,T76,I5)') " Angular momentum ",l
+             WRITE(iw,'(T10,A,T66,F15.6)') " Rcnl ",potential%gth_pot%rcnl(l)
+             WRITE(iw,'(T10,A,T76,I5)') " Nl ",potential%gth_pot%nl(l)
+             WRITE(pline,'(5F12.6)') (potential%gth_pot%hnl(1,j,l),j=1,potential%gth_pot%nl(l))
+             WRITE(iw,'(T10,A,T21,A60)') " Hnl ",ADJUSTR(pline)
+             DO i=2,potential%gth_pot%nl(l)
+               WRITE(pline,'(T21,5F12.6)') (potential%gth_pot%hnl(i,j,l),j=i,potential%gth_pot%nl(l))
+               WRITE(iw,'(T21,A60)') ADJUSTR(pline)
+             END DO
+          END IF
+        END DO
       CASE DEFAULT
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
     END SELECT
     IF (potential%confinement) THEN
-      WRITE(iw,'(T20,A,T51,F12.6," * (R /",F6.2,")**",I2)') &
+      WRITE(iw,'(/,T10,A,T51,F12.6," * (R /",F6.2,")**",I2)') &
         " Confinement Potential ",potential%acon,potential%rcon,potential%ncon
     END IF
+    WRITE(iw,'(" ",79("*"))')
 
   END SUBROUTINE atom_print_potential
 ! *****************************************************************************

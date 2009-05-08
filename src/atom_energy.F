@@ -272,7 +272,7 @@ CONTAINS
 
         !Calculate the electronic structure
         iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
-        CALL calculate_atom(atom_info(in,im)%atom,iw,error)
+        CALL calculate_atom(atom_info(in,im)%atom,iw,error=error)
         CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
 
         ! perform a fit of the total electronic density

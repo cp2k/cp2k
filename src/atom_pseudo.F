@@ -38,6 +38,7 @@ MODULE atom_pseudo
                                              dp
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
+  USE physcon,                         ONLY: bohr
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -67,7 +68,7 @@ CONTAINS
     INTEGER                                  :: do_eric, do_erie, handle, i, &
                                                 ierr, im, in, iw, k, l, maxl, &
                                                 mb, method, mo, n_meth, &
-                                                n_rep, reltyp, zcore, zval, zz
+                                                n_rep, reltyp, zcore, zval, zz, ads
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, pp_calc
@@ -105,10 +106,10 @@ CONTAINS
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS",error=error)
     NULLIFY(ae_basis%grid)
-    CALL init_atom_basis(ae_basis,basis_section,zval,"AE",error)
+    CALL init_atom_basis(ae_basis,basis_section,zval,"AA",error)
     NULLIFY(pp_basis%grid)
     basis_section => section_vals_get_subs_vals(atom_section,"PP_BASIS",error=error)
-    CALL init_atom_basis(pp_basis,basis_section,zval,"PP",error)
+    CALL init_atom_basis(pp_basis,basis_section,zval,"AP",error)
 
     ! print general and basis set information
     logger => cp_error_get_logger(error)
@@ -129,6 +130,19 @@ CONTAINS
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     CALL init_atom_potential(p_pot,potential_section,zval,error)
     CALL init_atom_potential(ae_pot,potential_section,-1,error)
+    IF ( .NOT.p_pot%confinement .AND. .NOT.ae_pot%confinement ) THEN
+      !set default confinement potential
+      p_pot%confinement = .TRUE.
+      p_pot%ncon = 2
+      p_pot%acon = 0.5_dp
+      ! this seems to be the default in the old code
+      p_pot%rcon = (2._dp*ptable(zval)%covalent_radius*bohr)**2
+      ae_pot%confinement = .TRUE.
+      ae_pot%ncon = 2
+      ae_pot%acon = 0.5_dp
+      ! this seems to be the default in the old code
+      ae_pot%rcon = (2._dp*ptable(zval)%covalent_radius*bohr)**2
+    END IF
 
     ! if the ERI's are calculated analytically, we have to precalculate them
     eri_c = .FALSE.
@@ -147,7 +161,6 @@ CONTAINS
     END DO
     DO in = 0, 3
       maxn(in) = MIN(maxn(in),ae_basis%nbas(in))
-      maxn(in) = MIN(maxn(in),pp_basis%nbas(in))
     END DO
 
     ! read optimization section
@@ -210,7 +223,10 @@ CONTAINS
         state%maxl_calc = MIN(3,state%maxl_calc)
         state%maxn_calc = 0
         DO k=0,state%maxl_calc
-          state%maxn_calc(k) = MAX(maxn(k),state%maxn_occ(k))
+          ads=2
+          IF ( state%maxn_occ(k)==0 ) ads=1
+          state%maxn_calc(k) = MAX(maxn(k),state%maxn_occ(k)+ads)
+          state%maxn_calc(k) = MIN(state%maxn_calc(k),ae_basis%nbas(k))
         END DO
         state%core=0._dp
         CALL set_atom(atom_refs(in,im)%atom,zcore=zval,pp_calc=.FALSE.,error=error)
@@ -235,11 +251,12 @@ CONTAINS
 
         statepp%maxl_occ = get_maxl_occ(statepp%occ)
         statepp%maxn_occ = get_maxn_occ(statepp%occ)
-        statepp%maxl_calc = MAX(maxl,statepp%maxl_occ)
-        statepp%maxl_calc = MIN(3,statepp%maxl_calc)
+        statepp%maxl_calc = state%maxl_calc
         statepp%maxn_calc = 0
+        maxn = get_maxn_occ(statepp%core)
         DO k=0,statepp%maxl_calc
-          statepp%maxn_calc(k) = MAX(maxn(k),statepp%maxn_occ(k))
+          statepp%maxn_calc(k) = state%maxn_calc(k)-maxn(k)
+          statepp%maxn_calc(k) = MIN(statepp%maxn_calc(k),pp_basis%nbas(k))
         END DO
 
         CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_val=im,error=error)
@@ -256,6 +273,8 @@ CONTAINS
         CALL atom_int_setup(pp_int,pp_basis,potential=p_pot,eri_coulomb=eri_c,eri_exchange=eri_e,error=error)
         !
         NULLIFY(pp_int%tzora,pp_int%hdkh)
+        ! potential
+        CALL atom_ppint_setup(pp_int,pp_basis,potential=p_pot,error=error)
         !
         CALL set_atom(atom_info(in,im)%atom,basis=pp_basis,integrals=pp_int,potential=p_pot,error=error)
         statepp%maxn_calc(:) = MIN( statepp%maxn_calc(:), pp_basis%nbas(:) )
@@ -295,7 +314,7 @@ CONTAINS
 
         !Calculate the electronic structure
         iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
-        CALL calculate_atom(atom_refs(in,im)%atom,iw,error)
+        CALL calculate_atom(atom_refs(in,im)%atom,iw,error=error)
         CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
 
       END DO
@@ -309,11 +328,9 @@ CONTAINS
         CALL atom_print_potential(p_pot,iw,error)
         powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
         CALL atom_fit_pseudo (atom_info,atom_refs,p_pot,iw,potential_section,powell_section,error)
+        CALL atom_print_potential(p_pot,iw,error)
     END IF
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
-
-!        ! potential
-!        CALL atom_ppint_setup(pp_int,pp_basis,potential=p_pot,error=error)
 
     ! clean up
     CALL atom_int_release(ae_int,error)

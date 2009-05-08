@@ -46,6 +46,7 @@ MODULE atom_utils
   PUBLIC :: exchange_numeric, exchange_semi_analytic
   PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix
   PUBLIC :: slater_density, wigner_slater_functional
+  PUBLIC :: atom_orbital_charge, atom_orbital_nodes
 
 !-----------------------------------------------------------------------------!
 
@@ -282,6 +283,75 @@ CONTAINS
     density=density/fourpi
 
   END SUBROUTINE atom_density
+! *****************************************************************************
+  SUBROUTINE atom_orbital_charge(charge,wfn,rcov,l,basis,error)
+    REAL(KIND=dp), INTENT(OUT)               :: charge
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
+    REAL(KIND=dp), INTENT(IN)                :: rcov
+    INTEGER, INTENT(IN)                      :: l
+    TYPE(atom_basis_type), INTENT(IN)        :: basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_charge', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, n, m, ierr
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: ff
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: den
+
+    charge=0._dp
+    m=SIZE(basis%bf,1)
+    ALLOCATE(den(m),STAT=ierr)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    n=basis%nbas(l)
+    den=0._dp
+    DO i=1,n
+      DO j=1,n
+        ff=wfn(i)*wfn(j)
+        den(1:m) = den(1:m) + ff*basis%bf(1:m,i,l)*basis%bf(1:m,j,l)
+      END DO
+    END DO
+    DO i=1,m
+      IF(basis%grid%rad(i) < rcov) den(i)=0._dp
+    END DO
+    charge = SUM ( den(1:m) * basis%grid%wr(1:m) )
+
+  END SUBROUTINE atom_orbital_charge
+! *****************************************************************************
+  SUBROUTINE atom_orbital_nodes(node,wfn,rcov,l,basis,error)
+    INTEGER, INTENT(OUT)                     :: node
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
+    REAL(KIND=dp), INTENT(IN)                :: rcov
+    INTEGER, INTENT(IN)                      :: l
+    TYPE(atom_basis_type), INTENT(IN)        :: basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_nodes', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, n, m, ierr
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: ff
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: orb
+
+    node=0
+    m=SIZE(basis%bf,1)
+    ALLOCATE(orb(m),STAT=ierr)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    n=basis%nbas(l)
+    orb=0._dp
+    DO i=1,n
+      ff=wfn(i)
+      orb(1:m) = orb(1:m) + ff*basis%bf(1:m,i,l)
+    END DO
+    DO i=1,m-1
+      IF(basis%grid%rad(i) < rcov) THEN 
+        IF (orb(i)*orb(i+1) < 0._dp) node=node+1
+      END IF
+    END DO
+
+  END SUBROUTINE atom_orbital_nodes
 ! *****************************************************************************
   SUBROUTINE atom_solve(hmat,umat,orb,ener,nb,nv,maxl,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
