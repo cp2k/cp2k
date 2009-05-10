@@ -35,7 +35,7 @@ MODULE se_fock_matrix_integrals
   
   PUBLIC :: fock2_1el, dfock2_1el, fock1_2el, fock2_1el_ew, fock2C_ew,&
             fock2C, dfock2C, fock2E, dfock2E, fock2_1el_r3, dfock2_1el_r3,&
-            fock2C_r3, dfock2C_r3
+            fock2C_r3, dfock2C_r3, se_coulomb_ij_interaction
 
 CONTAINS
 
@@ -1004,6 +1004,86 @@ CONTAINS
     END DO
 
   END SUBROUTINE dfock2C_r3
-  
+
+! *****************************************************************************
+!> \brief  Coulomb interaction multipolar correction
+!> \author Teodoro Laino [tlaino]
+!> \date   05.2009 [tlaino]
+! *****************************************************************************
+  SUBROUTINE se_coulomb_ij_interaction (atom_a, atom_b, my_task, do_forces, do_efield,&
+       charges, dipoles, quadrupoles, force_ab, efield0, efield1, efield2, rab2, rab,&
+       integral_value, error)
+    INTEGER, INTENT(IN)                      :: atom_a, atom_b
+    LOGICAL, DIMENSION(3)                    :: my_task
+    LOGICAL, INTENT(IN)                      :: do_forces, do_efield
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dipoles
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: quadrupoles
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force_ab
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1, efield2
+    REAL(KIND=dp), INTENT(IN)                :: rab2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: integral_value
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'se_coulomb_ij_interaction', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: a, b, c, d, e, i, j, k
+    LOGICAL                                  :: do_efield0, do_efield1, &
+                                                do_efield2, failure, &
+                                                force_eval
+    LOGICAL, DIMENSION(3)                    :: do_task
+    LOGICAL, DIMENSION(3, 3)                 :: task
+    REAL(KIND=dp) :: ch_i, ch_j, ef0_i, ef0_j, eloc, energy, fac, fac_ij, ir, &
+      irab2, r, tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, &
+      tmp23, tmp31, tmp32, tmp33, tmp_ij, tmp_ji
+    REAL(KIND=dp), DIMENSION(0:5)            :: f
+    REAL(KIND=dp), DIMENSION(3)              :: dp_i, dp_j, ef1_i, ef1_j, fr, &
+                                                tij_a
+    REAL(KIND=dp), DIMENSION(3, 3)           :: ef2_i, ef2_j, qp_i, qp_j, &
+                                                tij_ab
+    REAL(KIND=dp), DIMENSION(3, 3, 3)        :: tij_abc
+    REAL(KIND=dp), DIMENSION(3, 3, 3, 3)     :: tij_abcd
+    REAL(KIND=dp), DIMENSION(3, 3, 3, 3, 3)  :: tij_abcde
+
+    failure = .FALSE.
+    do_task = my_task
+    energy = 0.0_dp
+    DO i = 1, 3
+       IF (do_task(i)) THEN
+          SELECT CASE(i)
+          CASE(1)
+             do_task(1) = (charges(atom_a)/=0.0_dp).OR.(charges(atom_b)/=0.0_dp)
+          CASE(2)
+             do_task(2) = (ANY(dipoles(:,atom_a)/=0.0_dp)).OR.(ANY(dipoles(:,atom_b)/=0.0_dp))
+          CASE(3)
+             do_task(3) = (ANY(quadrupoles(:,:,atom_a)/=0.0_dp)).OR.(ANY(quadrupoles(:,:,atom_b)/=0.0_dp))
+          END SELECT
+       END IF
+    END DO
+    DO i = 1,3
+       DO j =i,3
+          task(j,i) = do_task(i).AND.do_task(j)
+          task(i,j) = task(j,i)
+       END DO
+    END DO
+    do_efield0 = do_efield.AND.ASSOCIATED(efield0)
+    do_efield1 = do_efield.AND.ASSOCIATED(efield1)
+    do_efield2 = do_efield.AND.ASSOCIATED(efield2)
+
+    fac_ij = 1.0_dp
+    IF (atom_a==atom_b) fac_ij = 0.5_dp
+#define PURE_COULOMB
+#include "ewalds_multipole_sr.f90"
+#undef PURE_COULOMB
+
+    IF (PRESENT(integral_value)) THEN
+       integral_value = eloc
+    END IF
+  END SUBROUTINE se_coulomb_ij_interaction
+
 END MODULE se_fock_matrix_integrals
 

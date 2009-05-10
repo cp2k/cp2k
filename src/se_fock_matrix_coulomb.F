@@ -55,9 +55,12 @@ MODULE se_fock_matrix_coulomb
                                              set_scp_env
   USE se_fock_matrix_integrals,        ONLY: &
        dfock2C, dfock2C_r3, dfock2_1el, dfock2_1el_r3, fock2C, fock2C_ew, &
-       fock2C_r3, fock2_1el, fock2_1el_ew, fock2_1el_r3
+       fock2C_r3, fock2_1el, fock2_1el_ew, fock2_1el_r3, &
+       se_coulomb_ij_interaction
   USE semi_empirical_int_arrays,       ONLY: rij_threshold,&
                                              se_orbital_pointer
+  USE semi_empirical_integrals,        ONLY: corecore_el,&
+                                             dcorecore_el
   USE semi_empirical_mpole_methods,    ONLY: quadrupole_sph_to_cart
   USE semi_empirical_mpole_types,      ONLY: nddo_mpole_type,&
                                              semi_empirical_mpole_type
@@ -742,12 +745,6 @@ CONTAINS
        CALL mp_sum(se_nddo_mpole%dipole, para_env%group)
        CALL mp_sum(se_nddo_mpole%quadrupole, para_env%group)
 
-       ! Apply correction only when the Integral Scheme is different from Slater
-       IF (se_control%integral_screening/=do_se_IS_slater) THEN
-          CALL build_fock_matrix_coul_lrc(qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
-               store_int_env, se_nddo_mpole, error)
-       END IF
-
        ! Ewald Multipoles Sum
        iw = cp_print_key_unit_nr(logger,se_section,"PRINT%EWALD_INFO",extension=".seLog",error=error)
        IF(calculate_forces) THEN
@@ -791,6 +788,12 @@ CONTAINS
                   efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.TRUE.,error=error)
        END IF
        CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
+
+       ! Apply correction only when the Integral Scheme is different from Slater
+       IF (se_control%integral_screening/=do_se_IS_slater) THEN
+          CALL build_fock_matrix_coul_lrc(qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
+               store_int_env, se_nddo_mpole, task, error)
+       END IF
 
        ! Debug Statements
        IF (debug_this_module) THEN
@@ -907,7 +910,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lrc (qs_env,ks_matrix,matrix_p,energy,&
-       calculate_forces, store_int_env,se_nddo_mpole,error)
+       calculate_forces, store_int_env,se_nddo_mpole,task,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -916,6 +919,7 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
+    LOGICAL, DIMENSION(3), INTENT(IN)        :: task
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lrc', &
@@ -923,18 +927,19 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
       ispin, itype, jatom, jkind, natom, natorb_a, natorb_a2, natorb_b, &
-      natorb_b2, nkind, nlist, nnode, nspins, stat
+      natorb_b2, nkind, nlist, nnode, nspins, size1, size2, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
                                                 failure, scp_nddo, switch, &
                                                 use_virial
-    REAL(KIND=dp)                            :: delta, dr1, ecore2
+    REAL(KIND=dp)                            :: delta, dr1, ecore2, enuc
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
-    REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_ab0, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
-      ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, &
-      pb_block_b, pscpa_block, pscpb_block
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: efield1, efield2, ksa_block_a, &
+      ksa_block_b, ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, &
+      pb_block_a, pb_block_b, pscpa_block, pscpb_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -961,12 +966,14 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
-    ! Just a hack for the time being..
+    ! Temporary Hack.. this routine requires debugging...
     RETURN
+    ! 
     CALL timeset(routineN,handle)
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control,cell,force,particle_set,diagmat_ks,diagmat_p,&
-               se_control,se_taper,pscp,ks_scp,scp_env)
+               se_control,se_taper,pscp,ks_scp,scp_env,efield0,efield1,&
+               efield2)
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_lrc=sab_lrc, atomic_kind_set=atomic_kind_set, &
@@ -981,7 +988,7 @@ CONTAINS
 
        CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
             do_ewald_gks=.FALSE., integral_screening=se_control%integral_screening,&
-            shortrange=se_control%do_ewald,max_multipole=se_control%max_multipole,&
+            shortrange=.FALSE., max_multipole=se_control%max_multipole,&
             pc_coulomb_int=.TRUE.)
 
        nspins=dft_control%nspins
@@ -1010,11 +1017,29 @@ CONTAINS
                                   "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
        END DO
 
+       ! SCP
        IF (scp_nddo)  THEN 
           CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
           CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
        END IF
        
+       ! Allocate arrays for storing partial information on potential, field, field gradient
+       size1 = SIZE(se_nddo_mpole%efield0)
+       ALLOCATE (efield0(size1), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       efield0 = 0.0_dp
+       size1 = SIZE(se_nddo_mpole%efield1,1)
+       size2 = SIZE(se_nddo_mpole%efield1,2)
+       ALLOCATE (efield1(size1,size2), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       efield1 = 0.0_dp
+       size1 = SIZE(se_nddo_mpole%efield2,1)
+       size2 = SIZE(se_nddo_mpole%efield2,2)
+       ALLOCATE (efield2(size1,size2), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       efield2 = 0.0_dp
+
+       ! Start of the loop for the correction of the pair interactions
        ecore2   = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
        DO ikind=1,nkind
@@ -1103,6 +1128,13 @@ CONTAINS
                       ELSE
                          switch = .TRUE.
                       END IF
+
+                      ! Pint-like interaction corrections
+                      CALL se_coulomb_ij_interaction (iatom, jatom, task, do_forces=calculate_forces,&
+                           do_efield=.TRUE., charges=se_nddo_mpole%charge, dipoles=se_nddo_mpole%dipole,&
+                           quadrupoles=se_nddo_mpole%quadrupole, force_ab=force_ab0, efield0=efield0,&
+                           efield1=efield1, efield2=efield2, rab2=dr1, rab=rij, error=error)
+                      
                       ! Retrieve blocks for KS and P
                       CALL get_block_node(matrix=diagmat_p(1)%matrix,&
                                           block_row=jatom,&
@@ -1138,6 +1170,7 @@ CONTAINS
                          pb_b(1:natorb_b2)                    = RESHAPE(pb_block_b,(/natorb_b2/))
                       END IF
 
+                      ! SCP
                       IF ( scp_nddo ) THEN
                          CALL get_block_node(matrix=pscp,&
                                              block_row=jatom,&
@@ -1157,6 +1190,10 @@ CONTAINS
                       SELECT CASE (dft_control%qs_control%method_id)
                       CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
                             do_method_rm1, do_method_mndod, do_method_pnnl)
+                         ! Evaluate nuclear contribution..
+                         CALL corecore_el (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
+                              se_int_control=se_int_control, se_taper=se_taper, error=error)
+                         ecore2 = ecore2 + enuc
 
                          ! Two-centers One-electron terms
                          IF      ( nspins == 1 ) THEN
@@ -1190,9 +1227,12 @@ CONTAINS
                          IF(calculate_forces) THEN
                             atom_a   = atom_of_kind(iatom)
                             atom_b   = atom_of_kind(jatom)
- 
+
+                            ! Evaluate nuclear contribution..
+                            CALL dcorecore_el (se_kind_a,se_kind_b,rij,denuc=force_ab,itype=itype,delta=delta,&
+                                 anag=anag,se_int_control=se_int_control,se_taper=se_taper,error=error)
+
                             ! Derivatives of the Two-centre One-electron terms
-                            force_ab = 0.0_dp
                             IF      ( nspins == 1 ) THEN
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_a, pb_a, itype=itype, anag=anag,&
                                     se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
@@ -1205,6 +1245,7 @@ CONTAINS
                                     se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                     error=error)
                             END IF
+                            force_ab = force_ab + force_ab0
 
                             IF (use_virial) THEN
                                CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
@@ -1284,10 +1325,25 @@ CONTAINS
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+
+       ! collect information on potential, field, field gradient
+       CALL mp_sum(efield0, para_env%group)
+       CALL mp_sum(efield1, para_env%group)
+       CALL mp_sum(efield2, para_env%group)
+       se_nddo_mpole%efield0 = se_nddo_mpole%efield0 - efield0
+       se_nddo_mpole%efield1 = se_nddo_mpole%efield1 - efield1
+       se_nddo_mpole%efield2 = se_nddo_mpole%efield2 - efield2
+       ! deallocate working arrays
+       DEALLOCATE (efield0, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (efield1, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (efield2, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        
-       ! Two-centers one-electron terms
-       CALL mp_sum(ecore2,para_env%group)       
-       energy%hartree = ecore2 - energy%core
+       ! Corrections for two-centers one-electron terms + nuclear terms
+       CALL mp_sum(ecore2,para_env%group)
+       energy%hartree = energy%hartree + ecore2
     END IF
     CALL finalize_se_taper(se_taper,error=error)    
     CALL timestop(handle)

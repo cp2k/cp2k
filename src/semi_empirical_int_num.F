@@ -52,11 +52,11 @@ MODULE semi_empirical_int_num
 
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_num'
-  PUBLIC :: rotint_num,      rotnuc_num,   corecore_num,&
-           drotint_num,     drotnuc_num,  dcorecore_num,&
-       ssss_nucint_num, core_nucint_num,      terep_num,&
-         nucint_sp_num,    terep_sp_num,    terep_d_num,&
-          nucint_d_num 
+  PUBLIC :: rotint_num,      rotnuc_num,     corecore_num,&
+           drotint_num,     drotnuc_num,    dcorecore_num,&
+       ssss_nucint_num, core_nucint_num,        terep_num,&
+         nucint_sp_num,    terep_sp_num,      terep_d_num,&
+          nucint_d_num, corecore_el_num, dcorecore_el_num
 
 CONTAINS
 
@@ -697,6 +697,55 @@ CONTAINS
   END SUBROUTINE corecore_num
 
 ! *****************************************************************************
+!> \brief Computes the electrostatic core-core interactions only.
+!> \param on input  sepi   = Atomic parameters of first atom
+!>                  sepj   = Atomic parameters of second atom
+!>                  rijv   = Coordinate vector i -> j
+!>        se_int_control   = input parameters that control the calculation of SE 
+!>                           integrals (shortrange, R3 residual, screening type)
+!>
+!>    on output     enuc= nuclear-nuclear repulsion term.
+!>
+!> \author Teodoro Laino [tlaino] - 05.2009 
+! *****************************************************************************
+  SUBROUTINE corecore_el_num(sepi,sepj,rijv,enuc,itype,se_int_control,se_taper,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
+    REAL(dp), INTENT(OUT)                    :: enuc
+    INTEGER, INTENT(IN)                      :: itype
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'corecore_el_num', &
+      routineP = moduleN//':'//routineN
+
+    REAL(dp)                                 :: rij, ssss, ssss_sr, zz
+    TYPE(se_int_control_type)                :: se_int_control_off
+
+    rij    =  DOT_PRODUCT(rijv,rijv)
+    enuc   =  0.0_dp
+    IF (rij > rij_threshold) THEN
+       rij = SQRT(rij)
+       CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
+            do_ewald_gks=.FALSE., integral_screening=se_int_control%integral_screening,&
+            max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
+       CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,se_taper=se_taper,&
+            se_int_control=se_int_control_off,error=error)
+       ! In case let's compute the short-range part of the (ss|ss) integral
+       IF (se_int_control%shortrange.OR.se_int_control%pc_coulomb_int) THEN
+          CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss_sr,itype=itype,se_taper=se_taper,&
+               se_int_control=se_int_control,error=error)
+       ELSE
+          ssss_sr = ssss
+       END IF
+       zz = sepi%zeff*sepj%zeff
+       ! Nuclear-Nuclear electrostatic contribution
+       enuc = zz*ssss_sr
+    END IF
+  END SUBROUTINE corecore_el_num
+
+! *****************************************************************************
 !> \brief Calculates the SSSS integrals (main driver)
 !> \param on input rij    = interatomic distance
 !>                sepi    = paramters of atom i
@@ -1113,5 +1162,36 @@ CONTAINS
        denuc(i)  = od * ( enucp - enucm )
     END DO
   END SUBROUTINE dcorecore_num
+
+! *****************************************************************************
+!> \brief Numerical Derivatives for corecore
+! *****************************************************************************
+  SUBROUTINE dcorecore_el_num(sepi,sepj,r,denuc,itype,delta,se_int_control,se_taper,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: r
+    REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
+    INTEGER, INTENT(IN)                      :: itype
+    REAL(dp), INTENT(IN)                     :: delta
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore_el_num', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    REAL(dp)                                 :: enucm, enucp, od
+    REAL(dp), DIMENSION(3)                   :: rr
+
+    od = 0.5_dp/delta
+    DO i=1,3
+       rr=r
+       rr(i)=rr(i)+delta
+       CALL corecore_el_num(sepi,sepj,rr,enucp,itype,se_int_control,se_taper=se_taper,error=error)
+       rr(i)=rr(i)-2._dp*delta
+       CALL corecore_el_num(sepi,sepj,rr,enucm,itype,se_int_control,se_taper=se_taper,error=error)
+       denuc(i)  = od * ( enucp - enucm )
+    END DO
+  END SUBROUTINE dcorecore_el_num
 
 END MODULE semi_empirical_int_num

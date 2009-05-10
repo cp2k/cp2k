@@ -21,6 +21,7 @@ MODULE semi_empirical_integrals
                                              int_8
   USE memory_utilities,                ONLY: reallocate
   USE semi_empirical_int_ana,          ONLY: corecore_ana,&
+                                             corecore_el_ana,&
                                              rotint_ana,&
                                              rotnuc_ana
   USE semi_empirical_int_gks,          ONLY: corecore_gks,&
@@ -28,7 +29,9 @@ MODULE semi_empirical_integrals
                                              drotnuc_gks,&
                                              rotint_gks,&
                                              rotnuc_gks
-  USE semi_empirical_int_num,          ONLY: corecore_num,&
+  USE semi_empirical_int_num,          ONLY: corecore_el_num,&
+                                             corecore_num,&
+                                             dcorecore_el_num,&
                                              dcorecore_num,&
                                              drotint_num,&
                                              drotnuc_num,&
@@ -45,7 +48,8 @@ MODULE semi_empirical_integrals
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
-  PUBLIC :: rotint, rotnuc, corecore, drotint, drotnuc, dcorecore
+  PUBLIC :: rotint, rotnuc, corecore, corecore_el, drotint, drotnuc, dcorecore,&
+            dcorecore_el
 
 CONTAINS
 
@@ -402,6 +406,36 @@ CONTAINS
   END SUBROUTINE corecore
 
 ! *****************************************************************************
+!> \brief  wrapper for numerical/analytical routines
+!>         core-core electrostatic (only) integrals
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   05.2009
+! *****************************************************************************
+  SUBROUTINE corecore_el (sepi,sepj,rij,enuc,itype,anag,se_int_control,se_taper,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
+    REAL(dp), INTENT(OUT)                    :: enuc
+    INTEGER, INTENT(IN)                      :: itype
+    LOGICAL, INTENT(IN)                      :: anag
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'corecore_el', &
+      routineP = moduleN//':'//routineN
+
+    IF (anag) THEN
+       CALL corecore_el_ana (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
+            se_taper=se_taper, error=error)
+    ELSE
+       CALL corecore_el_num (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
+            se_taper=se_taper, error=error)
+    END IF
+
+  END SUBROUTINE corecore_el
+
+! *****************************************************************************
 !> \brief wrapper for numerical/analytical routines
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008
@@ -500,5 +534,36 @@ CONTAINS
     END IF
 
   END SUBROUTINE dcorecore
+
+! *****************************************************************************
+!> \brief  wrapper for numerical/analytical routines
+!>         core-core electrostatic (only) integrals derivatives
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   05.2009
+! *****************************************************************************
+  SUBROUTINE dcorecore_el (sepi,sepj,rij,denuc,itype,delta,anag,se_int_control,se_taper,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
+    INTEGER, INTENT(IN)                      :: itype
+    REAL(dp), INTENT(IN)                     :: delta
+    LOGICAL, INTENT(IN)                      :: anag
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore_el', &
+      routineP = moduleN//':'//routineN
+
+    IF (anag) THEN
+       CALL corecore_el_ana (sepi,sepj,rij,denuc=denuc,itype=itype,se_int_control=se_int_control,&
+            se_taper=se_taper, error=error)
+    ELSE
+       CALL dcorecore_el_num (sepi,sepj,rij,denuc=denuc,delta=delta,itype=itype,&
+            se_int_control=se_int_control,se_taper=se_taper, error=error)
+    END IF
+    
+  END SUBROUTINE dcorecore_el
 
 END MODULE semi_empirical_integrals

@@ -58,7 +58,7 @@ MODULE semi_empirical_int_ana
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_ana'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
-  PUBLIC :: rotnuc_ana, rotint_ana, corecore_ana
+  PUBLIC :: rotnuc_ana, rotint_ana, corecore_ana, corecore_el_ana
 
 CONTAINS
 
@@ -332,20 +332,15 @@ CONTAINS
   END SUBROUTINE rotnuc_ana
 
 ! *****************************************************************************
-!> \brief Computes analytical gradients for semiempirical integrals
+!> \brief Computes analytical gradients for semiempirical core-core interaction.
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j 
 !>        se_int_control   = input parameters that control the calculation of SE 
 !>                           integrals (shortrange, R3 residual, screening type)
 !> 
-!>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
-!>                       e1b = Electron on atom ni attracting nucleus of nj.
-!>                       e2a = Electron on atom nj attracting nucleus of ni.
-!>                       enuc= nuclear-nuclear repulsion term.
+!>    on output          enuc= nuclear-nuclear repulsion term.
 !> 
-!>                      de1b = derivative of e1b term
-!>                      de2a = derivative of e2a term
 !>                      denuc= derivative of nuclear-nuclear repulsion term. 
 !> \note
 !>      Analytical version of the MOPAC rotnuc routine
@@ -353,7 +348,8 @@ CONTAINS
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
-!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
+!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the 
+!>                 core-core part
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
   RECURSIVE SUBROUTINE corecore_ana (sepi,sepj,rijv,itype,enuc,denuc,se_int_control,se_taper,error)
@@ -646,6 +642,81 @@ CONTAINS
        END IF
     ENDIF
   END SUBROUTINE corecore_ana
+
+! *****************************************************************************
+!> \brief Computes analytical gradients for semiempirical core-core electrostatic 
+!>        interaction only.
+!> \param on input  sepi   = Atomic parameters of first atom
+!>                  sepj   = Atomic parameters of second atom
+!>                  rijv   = Coordinate vector i -> j 
+!>        se_int_control   = input parameters that control the calculation of SE 
+!>                           integrals (shortrange, R3 residual, screening type)
+!> 
+!>    on output          enuc= nuclear-nuclear electrostatic repulsion term.
+!> 
+!>                      denuc= derivative of nuclear-nuclear electrostatic 
+!>                             repulsion term. 
+!> \note
+!>      Analytical version of the MOPAC rotnuc routine
+!> \par History
+!>      04.2007 created [tlaino]
+!>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
+!>                 for computing integrals
+!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the 
+!>                 core-core part
+!> \author Teodoro Laino [tlaino] - Zurich University
+! *****************************************************************************
+  RECURSIVE SUBROUTINE corecore_el_ana (sepi,sepj,rijv,itype,enuc,denuc,&
+       se_int_control,se_taper,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
+    INTEGER, INTENT(IN)                      :: itype
+    REAL(dp), INTENT(OUT), OPTIONAL          :: enuc
+    REAL(dp), DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: denuc
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'corecore_el_ana', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, l_denuc, l_enuc
+    REAL(dp)                                 :: denuc_loc, dssss, dssss_sr, &
+                                                enuc_loc, rij, ssss, ssss_sr, &
+                                                zz
+    TYPE(se_int_control_type)                :: se_int_control_off
+
+    failure = .FALSE.
+    rij=DOT_PRODUCT(rijv,rijv)
+    ! Initialization
+    l_enuc = PRESENT(enuc)
+    l_denuc= PRESENT(denuc)
+    IF ((rij > rij_threshold).AND.(l_enuc.OR.l_denuc)) THEN
+       ! Compute Integrals in diatomic frame
+       rij  = SQRT(rij)
+       CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
+            do_ewald_gks=.FALSE., integral_screening=se_int_control%integral_screening, &
+            max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
+       CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,se_taper=se_taper,&
+            se_int_control=se_int_control_off,lgrad=l_denuc,error=error)
+       ! In case let's compute the short-range part of the (ss|ss) integral
+       IF (se_int_control%shortrange.OR.se_int_control%pc_coulomb_int) THEN
+          CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss_sr,dssss=dssss_sr,itype=itype,&
+               se_taper=se_taper, se_int_control=se_int_control, lgrad=l_denuc, error=error)
+       ELSE
+          ssss_sr  =  ssss
+          dssss_sr = dssss
+       END IF
+       ! Zeroing local method dependent core-core corrections
+       enuc_loc  = 0.0_dp
+       denuc_loc = 0.0_dp
+       zz = sepi%zeff*sepj%zeff
+       ! Core Core electrostatic contribution
+       IF (l_enuc)   enuc_loc = zz* ssss_sr
+       IF (l_denuc) denuc_loc = zz*dssss_sr
+    END IF
+  END SUBROUTINE corecore_el_ana
 
 ! *****************************************************************************
 !> \brief Exploits inversion symmetry to avoid divergence
