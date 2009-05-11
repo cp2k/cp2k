@@ -156,7 +156,7 @@ CONTAINS
 
     INTEGER                                  :: ccc, l1, l1max, l1min, l2, &
                                                 l2max, l2min, lij, lkl, lmin, &
-                                                m, mm
+                                                m
     REAL(KIND=dp)                            :: add, chrg, dij, dkl, fact_ij, &
                                                 fact_kl, fact_screen, pij, &
                                                 pkl, s1, sum
@@ -222,7 +222,6 @@ CONTAINS
              DO m = -lmin, lmin
                 ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
                 IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
-                   mm   = ABS (m)
                    chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, fact_screen, error)
                    s1   = s1 + chrg
                 END IF
@@ -255,7 +254,6 @@ CONTAINS
              DO m = -lmin, lmin
                 ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
                 IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
-                   mm   = ABS (m)
                    chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, fact_screen, error)
                    s1   = s1 + chrg
                 END IF

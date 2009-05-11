@@ -682,9 +682,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, l_denuc, l_enuc
-    REAL(dp)                                 :: denuc_loc, dssss, dssss_sr, &
-                                                enuc_loc, rij, ssss, ssss_sr, &
-                                                zz
+    REAL(dp)                                 :: dssss, dssss_sr, rij, ssss, &
+                                                ssss_sr, zz
     TYPE(se_int_control_type)                :: se_int_control_off
 
     failure = .FALSE.
@@ -708,13 +707,10 @@ CONTAINS
           ssss_sr  =  ssss
           dssss_sr = dssss
        END IF
-       ! Zeroing local method dependent core-core corrections
-       enuc_loc  = 0.0_dp
-       denuc_loc = 0.0_dp
        zz = sepi%zeff*sepj%zeff
        ! Core Core electrostatic contribution
-       IF (l_enuc)   enuc_loc = zz* ssss_sr
-       IF (l_denuc) denuc_loc = zz*dssss_sr
+       IF (l_enuc)   enuc = zz* ssss_sr
+       IF (l_denuc) denuc = zz*dssss_sr
     END IF
   END SUBROUTINE corecore_el_ana
 

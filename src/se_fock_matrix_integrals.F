@@ -1050,8 +1050,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3, 3, 3, 3)  :: tij_abcde
 
     failure = .FALSE.
-    do_task = my_task
-    energy = 0.0_dp
+    do_task  = my_task
+    energy   = 0.0_dp
+    force_ab = 0.0_dp
     DO i = 1, 3
        IF (do_task(i)) THEN
           SELECT CASE(i)

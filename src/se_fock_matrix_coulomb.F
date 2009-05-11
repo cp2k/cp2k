@@ -672,6 +672,7 @@ CONTAINS
             cell, se_nonbond_env, para_env, se_section, error=error)
 
        enuc = 0.0_dp
+       energy%core_overlap      = 0.0_dp
        se_nddo_mpole%charge     = 0.0_dp
        se_nddo_mpole%dipole     = 0.0_dp
        se_nddo_mpole%quadrupole = 0.0_dp
@@ -792,7 +793,7 @@ CONTAINS
        ! Apply correction only when the Integral Scheme is different from Slater
        IF (se_control%integral_screening/=do_se_IS_slater) THEN
           CALL build_fock_matrix_coul_lrc(qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
-               store_int_env, se_nddo_mpole, task, error)
+               store_int_env, se_nddo_mpole, task, diagmat_p, diagmat_ks, ks_scp, pscp, error)
        END IF
 
        ! Debug Statements
@@ -862,7 +863,7 @@ CONTAINS
        END DO
        ! Sum nuclear energy contribution
        CALL mp_sum(enuc, para_env%group)
-       energy%core_overlap = energy%core_overlap0 + 0.5_dp*enuc
+       energy%core_overlap = energy%core_overlap + energy%core_overlap0 + 0.5_dp*enuc
 
        ! Debug Statements
        IF (debug_this_module) THEN
@@ -872,7 +873,7 @@ CONTAINS
        ! Increment the SCP portion of the Fock matrix with the long-range coulomb portion of the Fock matrix
        IF ( scp_nddo ) THEN
           ! transfer to dummy dbm
-          CALL transfer_matrix ( diagmat_ks ( 1 ) % matrix, dbm, error )
+          CALL transfer_matrix ( diagmat_ks(1)%matrix, dbm, error )
           ! replicate the dbm
           CALL mpsum_dbm ( dbm, para_env, error )
           ! add dbm (which is the long range part of (P+p)C + CZ )to the replicated ks_scp
@@ -910,7 +911,8 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lrc (qs_env,ks_matrix,matrix_p,energy,&
-       calculate_forces, store_int_env,se_nddo_mpole,task,error)
+       calculate_forces, store_int_env,se_nddo_mpole,task,diagmat_p,diagmat_ks,&
+       ks_scp, pscp, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -920,19 +922,23 @@ CONTAINS
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
     LOGICAL, DIMENSION(3), INTENT(IN)        :: task
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_p, diagmat_ks
+    TYPE(real_matrix_type), POINTER          :: ks_scp, pscp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lrc', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
-      ispin, itype, jatom, jkind, natom, natorb_a, natorb_a2, natorb_b, &
-      natorb_b2, nkind, nlist, nnode, nspins, size1, size2, stat
+      itype, jatom, jkind, natom, natorb_a, natorb_a2, natorb_b, natorb_b2, &
+      nkind, nlist, nnode, nspins, size1, size2, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
                                                 failure, scp_nddo, switch, &
                                                 use_virial
-    REAL(KIND=dp)                            :: delta, dr1, ecore2, enuc
+    REAL(KIND=dp)                            :: delta, dr1, ecore2, enuc, &
+                                                enuclear
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_ab0, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
@@ -954,10 +960,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
-    TYPE(real_matrix_type), POINTER          :: ks_scp, pscp
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
@@ -966,14 +968,12 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
-    ! Temporary Hack.. this routine requires debugging...
+    ! Temporary hack.. to remove later..
     RETURN
-    ! 
     CALL timeset(routineN,handle)
     IF ( .NOT. failure ) THEN
-       NULLIFY(dft_control,cell,force,particle_set,diagmat_ks,diagmat_p,&
-               se_control,se_taper,pscp,ks_scp,scp_env,efield0,efield1,&
-               efield2)
+       NULLIFY(dft_control, cell, force, particle_set, se_control, se_taper, pscp,&
+            efield0, efield1, efield2)
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_lrc=sab_lrc, atomic_kind_set=atomic_kind_set, &
@@ -994,10 +994,9 @@ CONTAINS
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
-       
-       CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
-       CALL allocate_matrix_set(diagmat_p,nspins,error=error)
-       
+       CPPrecondition(ASSOCIATED(diagmat_p),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(diagmat_ks),cp_failure_level,routineP,error,failure)
+              
        nkind = SIZE(atomic_kind_set)
        IF(calculate_forces) THEN
           CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -1009,20 +1008,6 @@ CONTAINS
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
 
-       DO ispin=1,nspins
-          ! Allocate diagonal block matrices
-          CALL create_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,&
-                                  "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
-          CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
-                                  "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
-       END DO
-
-       ! SCP
-       IF (scp_nddo)  THEN 
-          CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
-          CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
-       END IF
-       
        ! Allocate arrays for storing partial information on potential, field, field gradient
        size1 = SIZE(se_nddo_mpole%efield0)
        ALLOCATE (efield0(size1), stat=stat)
@@ -1041,6 +1026,7 @@ CONTAINS
 
        ! Start of the loop for the correction of the pair interactions
        ecore2   = 0.0_dp
+       enuclear = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
@@ -1129,7 +1115,7 @@ CONTAINS
                          switch = .TRUE.
                       END IF
 
-                      ! Pint-like interaction corrections
+                      ! Point-like interaction corrections
                       CALL se_coulomb_ij_interaction (iatom, jatom, task, do_forces=calculate_forces,&
                            do_efield=.TRUE., charges=se_nddo_mpole%charge, dipoles=se_nddo_mpole%dipole,&
                            quadrupoles=se_nddo_mpole%quadrupole, force_ab=force_ab0, efield0=efield0,&
@@ -1189,11 +1175,11 @@ CONTAINS
  
                       SELECT CASE (dft_control%qs_control%method_id)
                       CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
-                            do_method_rm1, do_method_mndod, do_method_pnnl)
+                            do_method_rm1, do_method_mndod)
                          ! Evaluate nuclear contribution..
                          CALL corecore_el (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
                               se_int_control=se_int_control, se_taper=se_taper, error=error)
-                         ecore2 = ecore2 + enuc
+                         enuclear = enuclear + enuc
 
                          ! Two-centers One-electron terms
                          IF      ( nspins == 1 ) THEN
@@ -1309,18 +1295,8 @@ CONTAINS
           CALL transfer_matrix ( diagmat_ks(1)%matrix, ks_scp, error )
           ! sum over all procs to get the replicated ks_scp
           CALL mpsum_dbm ( ks_scp, para_env, error )
-          CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
        ENDIF 
-       
-       DO ispin = 1, nspins
-          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,.FALSE.,error=error)
-          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
-       END DO
-       DEALLOCATE(diagmat_ks,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(diagmat_p,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
        IF (calculate_forces) THEN 
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1342,8 +1318,10 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        
        ! Corrections for two-centers one-electron terms + nuclear terms
+       CALL mp_sum(enuclear,para_env%group)
        CALL mp_sum(ecore2,para_env%group)
        energy%hartree = energy%hartree + ecore2
+       energy%core_overlap = enuclear
     END IF
     CALL finalize_se_taper(se_taper,error=error)    
     CALL timestop(handle)

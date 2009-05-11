@@ -173,8 +173,6 @@ CONTAINS
                                                 l_exchange, l_lrc
 
     failure = .FALSE.
-    check = PRESENT(coulomb).NEQV.PRESENT(exchange)
-    CPPrecondition(check,cp_failure_level,routineP,error,failure)
     check = .NOT.ASSOCIATED(se_taper%taper)
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
     l_coulomb  = .FALSE.
@@ -183,9 +181,21 @@ CONTAINS
     IF (PRESENT(coulomb))  l_coulomb  = coulomb
     IF (PRESENT(exchange)) l_exchange = exchange
     IF (PRESENT(lr_corr))  l_lrc      = lr_corr
-    IF (l_coulomb)  se_taper%taper => se_taper%taper_cou
-    IF (l_exchange) se_taper%taper => se_taper%taper_exc
-    IF (l_lrc)      se_taper%taper => se_taper%taper_lrc
+    IF (l_coulomb)  THEN 
+       check = (.NOT.l_exchange).AND.(.NOT.l_lrc)
+       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       se_taper%taper => se_taper%taper_cou
+    END IF
+    IF (l_exchange) THEN 
+       check = (.NOT.l_coulomb).AND.(.NOT.l_lrc)
+       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       se_taper%taper => se_taper%taper_exc
+    END IF
+    IF (l_lrc)      THEN 
+       check = (.NOT.l_coulomb).AND.(.NOT.l_exchange)
+       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       se_taper%taper => se_taper%taper_lrc
+    END IF
   END SUBROUTINE initialize_se_taper
 
 ! *****************************************************************************
