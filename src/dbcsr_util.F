@@ -3627,7 +3627,7 @@ CONTAINS
     INTEGER(KIND=int_4), DIMENSION(:), &
       INTENT(OUT)                            :: array_upper, array_lower
 
-    INTEGER(KIND=int_8), PARAMETER :: lmask8 = INT(4294967295, int_8)
+    INTEGER(KIND=int_8), PARAMETER           :: lmask8 = 4294967295_int_8
 
     INTEGER                                  :: i
 

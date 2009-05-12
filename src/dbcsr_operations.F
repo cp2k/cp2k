@@ -966,28 +966,6 @@ CONTAINS
     tuple = most
     tuple = IOR (ISHFT(tuple, 32), INT(least, int_8))
   END FUNCTION make_coordinate_tuple
-    
-
-
-!! *****************************************************************************
-!!> \brief Temporary transpose of a matrix represented with 1-d data
-!!> \param[in] vector          matrix data
-!!> \param[in] rows            number of matrix rows
-!!> \param[in] columns         number of matrix columns
-!! *****************************************************************************
-!
-!  FUNCTION temp_transpose (vector, rows, columns) RESULT vector_tr
-!    REAL(KIND=dp)                           :: vector_tr
-!    REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: vector
-!    INTEGER, INTENT(IN)                     :: rows, columns
-!!   ---------------------------------------------------------------------------
-!    vector_tr =
-!    RESHAPE (&
-!            TRANSPOSE (&
-!                    RESHAPE (vector, (/ rows, columns /))),&
-!            (/ rows*columns /))
-!  END FUNCTION temp_transpose
-
 
 ! *****************************************************************************
 !> \brief Adds two DBCSR work matrices
