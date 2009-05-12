@@ -1,0 +1,408 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2009  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief   Wrapper for various memory allocation methods and bindings
+!> \author  Urban Borstnik
+!> \date    2009-05-12
+!> \version 1.0
+!>
+!> <b>Modification history:</b>
+!> - Created
+! *****************************************************************************
+
+MODULE C_MPI_CALLS
+
+! Do not use C bindings if we can use CRAY pointers.
+#ifdef __cray_pointers
+#undef __c_bindings
+#endif
+
+! Can not use any bindings if we can not use bindings at all
+#ifndef __c_bindings
+#undef __mpi_f_bindings
+#undef __mpi_c_bindings
+#endif
+
+! Can only use fortran or C bindings, not both. fortran takes precedence
+#if !defined(__mpi_f_bindings) && !defined(__mpi_f_bindings)
+#define __mpi_f_bindings
+#endif
+
+! Must use either fortran or C bindings, not both. fortran takes precedence
+#if defined(__mpi_f_bindings) && defined(__mpi_c_bindings)
+#undef __mpi_c_bindings
+#endif
+
+! The fortran binding of the MPI_Alloc_mem subroutine
+#ifndef __MPI_F_ALLOC_DECL
+#define __MPI_F_ALLOC_DECL "mpi_alloc_mem_"
+#endif
+
+#ifdef __c_bindings
+  USE ISO_C_BINDING
+#endif
+
+  IMPLICIT NONE
+
+
+  PUBLIC :: mp_alloc_mem, mp_free_mem
+
+  PRIVATE 
+
+  INTEGER, PARAMETER :: dp=KIND(0.0D0)
+#if defined(__c_bindings) || defined(__cray_pointers)
+  INCLUDE "mpif.h"
+#endif
+
+#ifdef __c_bindings
+#ifndef __mpi_f_bindings
+  INTERFACE
+    !> We assume that the type for the argument size corresponds to intptr_t.
+    !> It is MPI_ADDRESS_TYPE in fortran.
+    FUNCTION mpi_alloc_mem_c(size, info, baseptr)&
+         RESULT(res) BIND(C, name="MPI_Alloc_mem")
+      USE ISO_C_BINDING
+      INCLUDE "mpif.h"
+      INTEGER(KIND=C_INTPTR_T), VALUE, INTENT(IN)       :: size
+      INTEGER(KIND=C_INT), VALUE, INTENT(IN)            :: info
+      TYPE(C_PTR), INTENT(INOUT)                        :: baseptr
+      INTEGER(KIND=C_INT)                               :: res
+    END FUNCTION mpi_alloc_mem_c
+  END INTERFACE
+
+  INTERFACE
+    FUNCTION mpi_free_mem_c(baseptr)&
+         RESULT(res) BIND(C, name="MPI_Free_mem")
+      USE ISO_C_BINDING
+      INCLUDE "mpif.h"
+      TYPE(C_PTR), INTENT(IN)                           :: baseptr
+      INTEGER(KIND=C_INT)                               :: res
+    END FUNCTION mpi_free_mem_c
+  END INTERFACE
+
+#else /* !__mpi_f_bindings */
+
+  INTERFACE
+     !> We guess the name of the fortran binding name.
+     SUBROUTINE mpi_alloc_mem_f(size, info, baseptr, ierr)&
+          BIND(C, name=__MPI_F_ALLOC_DECL)
+      USE ISO_C_BINDING
+      INCLUDE "mpif.h"
+      INTEGER(KIND=MPI_ADDRESS_KIND), INTENT(IN)        :: size
+      INTEGER, INTENT(IN)                               :: info
+      TYPE(C_PTR), INTENT(INOUT)                        :: baseptr
+      INTEGER, INTENT(INOUT)                            :: ierr
+    END SUBROUTINE mpi_alloc_mem_f
+  END INTERFACE
+
+#endif /* !__mpi_f_bindings */
+
+#endif /* __c_bindings */
+
+
+  INTERFACE mp_alloc_mem
+     MODULE PROCEDURE mp_alloc_mem_i, mp_alloc_mem_d
+  END INTERFACE
+
+  INTERFACE mp_free_mem
+     MODULE PROCEDURE mp_free_mem_i, mp_free_mem_d
+  END INTERFACE
+
+CONTAINS
+
+! *****************************************************************************
+!> \brief Points a FORTRAN 90 pointer to an existing array, integer version
+!> \author UB
+!> \param[in] iarray     data array
+!> \param fp             pointer to assign
+! *****************************************************************************
+  SUBROUTINE array_to_fp_i(iarray, fp)
+    INTEGER, DIMENSION(:), TARGET, INTENT(IN) :: iarray
+    INTEGER, DIMENSION(:), POINTER :: fp
+    fp => iarray
+  END SUBROUTINE array_to_fp_i
+
+! *****************************************************************************
+!> \brief Points a FORTRAN 90 pointer to an existing array, double version
+!> \author UB
+!> \param[in] darray     data array
+!> \param fp             pointer to assign
+! *****************************************************************************
+  SUBROUTINE array_to_fp_d(darray, fp)
+    REAL(KIND=dp), DIMENSION(:), TARGET, INTENT(IN) :: darray
+    REAL(KIND=dp), DIMENSION(:), POINTER :: fp
+    fp => darray
+  END SUBROUTINE array_to_fp_d
+
+#if defined(__c_bindings) || defined(__cray_pointers)
+! *****************************************************************************
+!> \brief Allocates an integer array, version with either C bindings or CRAY
+!>        pointers
+!> \author UB
+!> \param data           data array to allocate
+!> \param[in] len        length (in data elements) of data array allocation
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_alloc_mem_i(data, len, stat)
+     INTEGER, DIMENSION(:), POINTER        :: data
+     INTEGER, INTENT(IN)                   :: len
+     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+
+#ifdef __c_bindings
+     TYPE(C_PTR)              :: mp_baseptr
+#ifndef __mpi_f_bindings
+     INTEGER(KIND=C_INTPTR_T) :: mp_size
+     INTEGER(KIND=C_INT)      :: mp_info, mp_res
+#else
+     INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
+     INTEGER                            :: mp_info, mp_res
+#endif
+#else
+     INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
+     INTEGER                            :: mp_info, mp_res
+     INTEGER                            :: dynmem(1:*)
+     POINTER (icp, dynmem)
+#endif
+     INTEGER                  :: integer_size, length, ierr
+
+     length = MAX(len,1)
+     CALL MPI_TYPE_SIZE(MPI_INTEGER, integer_size, ierr)
+     mp_size = length * integer_size
+!> The C bindings may use a different value for MPI_INFO_NULL
+     mp_info = MPI_INFO_NULL
+#ifdef __c_bindings
+#ifndef __mpi_f_bindings
+     mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
+#else
+     CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
+#endif
+     CALL C_F_POINTER(mp_baseptr, data, (/length/))
+#else /* __c_bindings */
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
+     CALL array_to_fp_i(dynmem(1:len), data)
+#endif 
+     !write(6,*)'int allocation', ASSOCIATED(data), (/length/), &
+     !     mp_res
+     !IF (ASSOCIATED (data)) &
+     !     write(6,*)'int allocation size', SIZE(data)
+     IF (PRESENT (stat)) stat = mp_res
+   END SUBROUTINE mp_alloc_mem_i
+
+
+! *****************************************************************************
+!> \brief Allocates a double array, version with either C bindings or CRAY
+!>        pointers
+!> \author UB
+!> \param data           data array to allocate
+!> \param[in] len        length (in data elements) of data array allocation
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_alloc_mem_d(data, len, stat)
+     REAL(KIND=dp), DIMENSION(:), POINTER  :: data
+     INTEGER, INTENT(IN)                   :: len
+     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+
+#ifdef __c_bindings     
+     TYPE(C_PTR)              :: mp_baseptr
+#ifndef __mpi_f_bindings
+     INTEGER(KIND=C_INTPTR_T) :: mp_size
+     INTEGER(KIND=C_INT)      :: mp_info, mp_res
+#else
+     INTEGER(KIND=MPI_ADDRESS_KIND) :: mp_size
+     INTEGER                        :: mp_info, mp_res
+#endif
+#else
+     INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
+     INTEGER                            :: mp_info, mp_res
+     REAL(KIND=dp)                      :: dynmem(1:*)
+     POINTER (icp, dynmem)
+#endif
+     INTEGER                  :: double_size, length, ierr
+
+     length = MAX(len,1)
+     CALL MPI_TYPE_SIZE(MPI_DOUBLE_PRECISION, double_size, ierr)
+     mp_size = length * double_size
+!> The C bindings may use a different value for MPI_INFO_NULL
+     mp_info = MPI_INFO_NULL
+#ifdef __c_bindings
+#ifndef __mpi_f_bindings
+     mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
+#else
+     CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
+#endif
+     CALL C_F_POINTER(mp_baseptr, data, (/length/))
+#else /* __c_bindings */
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
+     CALL array_to_fp_d(dynmem(1:len), data)
+#endif
+     !write(6,*)'double allocation', ASSOCIATED(data), (/length/),&
+     !     mp_res
+     !IF (ASSOCIATED (data)) &
+     !     write(6,*)'double allocation size', SIZE(data)
+     IF (PRESENT (stat)) stat = mp_res
+   END SUBROUTINE mp_alloc_mem_d
+
+
+! *****************************************************************************
+!> \brief Deallocates an integer array, version with either C bindings or CRAY
+!>        pointers
+!> \author UB
+!> \param data           data array to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_free_mem_i(data, stat)
+     INTEGER, DIMENSION(:), POINTER        :: data
+     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+     
+#if defined(__c_bindings) && !defined (__mpi_f_bindings)
+     INTEGER, POINTER               :: felement
+     INTEGER(KIND=C_INT)            :: mp_res
+     TYPE(C_PTR)                    :: mp_baseptr
+#else
+     INTEGER                        :: mp_res
+#endif
+
+#if (defined __c_bindings) && !defined(__mpi_f_bindings)
+     IF (SIZE (data) .GT. 0) THEN
+        felement => data(1)
+        mp_baseptr = C_LOC(felement)
+        mp_res = mpi_free_mem_c(mp_baseptr)
+     ELSE
+        mp_res = 0
+     ENDIF
+#else
+     CALL MPI_FREE_MEM(data, mp_res)
+#endif
+     !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
+     IF (PRESENT (stat)) stat = mp_res
+   END SUBROUTINE mp_free_mem_i
+
+
+! *****************************************************************************
+!> \brief Deallocates a double array, version with either C bindings or CRAY
+!>        pointers
+!> \author UB
+!> \param data           data array to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_free_mem_d(data, stat)
+     REAL(KIND=dp), DIMENSION(:), POINTER  :: data
+     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+#if defined(__c_bindings) && !defined (__mpi_f_bindings)
+     REAL(KIND=dp), POINTER         :: felement
+     INTEGER(KIND=C_INT)            :: mp_res
+     TYPE(C_PTR)                    :: mp_baseptr
+#else
+     INTEGER                        :: mp_res
+#endif
+
+#if (defined __c_bindings) && !defined(__mpi_f_bindings)
+     IF (SIZE (data) .GT. 0) THEN
+        felement => data(1)
+        mp_baseptr = C_LOC(felement)
+        mp_res = mpi_free_mem_c(mp_baseptr)
+     ELSE
+        mp_res = 0
+     ENDIF
+#else
+     CALL MPI_FREE_MEM(data, mp_res)
+#endif
+     !write(6,*)'double free', ASSOCIATED(data), 'res=', mp_res
+     IF (PRESENT (stat)) stat = mp_res
+   END SUBROUTINE mp_free_mem_d
+
+#else /* __c_bindings || __cray_pointers */
+
+! *****************************************************************************
+!> \brief Allocates an integer array, generic version
+!> \author UB
+!> \param data           data array to allocate
+!> \param[in] len        length (in data elements) of data array allocation
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_alloc_mem_i(data, size, stat)
+     INTEGER, DIMENSION(:), POINTER        :: data
+     INTEGER, INTENT(IN)                   :: size
+     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+
+     IF (PRESENT (stat)) THEN
+        ALLOCATE(data(size), stat=stat)
+     ELSE
+        ALLOCATE(data(size))
+     ENDIF
+   END SUBROUTINE mp_alloc_mem_i
+
+
+! *****************************************************************************
+!> \brief Allocates a double array, generic version
+!> \author UB
+!> \param data           data array to allocate
+!> \param[in] len        length (in data elements) of data array allocation
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_alloc_mem_d(data, size, stat)
+     REAL(KIND=dp), DIMENSION(:), POINTER  :: data
+     INTEGER, INTENT(IN)                   :: size
+     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+     
+     IF (PRESENT (stat)) THEN
+        ALLOCATE(data(size), stat=stat)
+     ELSE
+        ALLOCATE(data(size))
+     ENDIF
+   END SUBROUTINE mp_alloc_mem_d
+
+
+! *****************************************************************************
+!> \brief Deallocates an integer array, generic version
+!> \author UB
+!> \param data           data array to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_free_mem_i(data, stat)
+     INTEGER, DIMENSION(:), POINTER        :: data
+     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+
+     IF (PRESENT (stat)) THEN
+        DEALLOCATE(data, stat=stat)
+     ELSE
+        DEALLOCATE(data)
+     ENDIF
+   END SUBROUTINE mp_free_mem_i
+
+
+! *****************************************************************************
+!> \brief Deallocates a double array, generic version
+!> \author UB
+!> \param data           data array to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_free_mem_d(data, stat)
+     REAL(KIND=dp), DIMENSION(:), POINTER  :: data
+     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+     
+     IF (PRESENT (stat)) THEN
+        DEALLOCATE(data, stat=stat)
+     ELSE
+        DEALLOCATE(data)
+     ENDIF
+   END SUBROUTINE mp_free_mem_d
+
+#endif /* __c_bindings */
+
+END MODULE
+
+!USE TEST
+!
+!     INTEGER                 :: nelements
+!     REAL(KIND=dp), POINTER, DIMENSION(:) :: data
+!     nelements=16
+!     NULLIFY(data)
+!     CALL mp_alloc_mem(data, nelements)
+!     write(6,*) ASSOCIATED(data),SIZE(data),MPI_DNFO_NULL
+!
+!END
+

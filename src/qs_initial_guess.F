@@ -25,6 +25,7 @@ MODULE qs_initial_guess
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: dbcsr_check
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
   USE f77_blas
@@ -118,6 +119,8 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: exist, failure, id_equal, &
                                                 ortho_basis, scp
+    LOGICAL                                  :: ionode
+    INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 sum, total_rho, trps1, trps2, &
                                                 yy, zeff
@@ -841,6 +844,27 @@ CPSourceFileRef,&
     ELSE
        CALL stop_program(routineP,"An invalid keyword for the initial density guess was specified")
     END IF
+
+    !
+    ! once a run, we check the new bcsr code on real data, if things go wrong the user can
+    ! disable this in the &QS section using the keyword CHECK_BCSR_CODE
+    !
+    IF (scf_control%use_ot) THEN
+       IF (qs_env%dft_control%qs_control%check_bcsr_code) THEN
+          ionode = logger%para_env%mepos==logger%para_env%source
+          output_unit = -1
+          IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+          IF (output_unit>0) THEN
+             WRITE(output_unit,'(T2,A)') ""
+             WRITE(output_unit,'(T2,A)') "Testing the BCSR code ... " 
+             WRITE(output_unit,'(T2,A)') "Report errors, and use the input keyword CHECK_BCSR_CODE to circumvent them"
+          ENDIF
+          CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
+          CALL dbcsr_check(s_sparse(1)%matrix, mo_coeff, error)
+          qs_env%dft_control%qs_control%check_bcsr_code=.FALSE.
+       ENDIF
+    ENDIF
+
 
     CALL timestop(handle)
 

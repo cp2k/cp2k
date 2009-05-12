@@ -12,6 +12,7 @@ OBJECTS_GENERIC =\
  ai_overlap_ppl.o\
  ai_spin_orbit.o\
  ai_verfc.o\
+ array_types.o\
  atom.o\
  atomic_charges.o\
  atomic_kind_list_types.o\
@@ -39,6 +40,7 @@ OBJECTS_GENERIC =\
  bibliography.o\
  block_p_types.o\
  bsse.o\
+ btree_i8_k_i4_v.o\
  cell_opt.o\
  cell_opt_types.o\
  cell_opt_utils.o\
@@ -73,6 +75,7 @@ OBJECTS_GENERIC =\
  cp_cfm_types.o\
  cp_control_types.o\
  cp_control_utils.o\
+ cp_dbcsr_operations.o\
  cp_ddapc.o\
  cp_ddapc_forces.o\
  cp_ddapc_methods.o\
@@ -124,6 +127,7 @@ OBJECTS_GENERIC =\
  cp_subsys_types.o\
  cp_symmetry.o\
  cp_units.o\
+ c_mpi_calls.o\
  cpot_types.o\
  csvr_system_dynamics.o\
  csvr_system_init.o\
@@ -134,6 +138,10 @@ OBJECTS_GENERIC =\
  cuda_cublas.o\
  cuda_memory.o\
  d3_poly.o\
+ dbcsr_methods.o\
+ dbcsr_operations.o\
+ dbcsr_types.o\
+ dbcsr_util.o\
  dft_plus_u.o\
  dg_rho0_types.o\
  dg_types.o\

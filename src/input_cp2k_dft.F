@@ -1903,6 +1903,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CHECK_BCSR_CODE",&
+            description="Check the BCSR code on actual data, once per QS run.",&
+            usage="CHECK_BCSR_CODE TRUE",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! Integers
        CALL keyword_create(keyword, name="LMAXN1",&
             variants=(/"LMAXRHO1"/),&

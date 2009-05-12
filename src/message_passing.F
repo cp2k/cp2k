@@ -20,6 +20,8 @@
 ! *****************************************************************************
 
 MODULE message_passing
+  USE c_mpi_calls,                     ONLY: mp_alloc_mem,&
+                                             mp_free_mem
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -93,11 +95,24 @@ MODULE message_passing
   PUBLIC :: mp_sum_i8, mp_max_i8
   PUBLIC :: mp_send, mp_recv
 
+  ! RMA
+  PUBLIC :: mp_window_type
+  PUBLIC :: mp_window_create, mp_window_destroy
+  PUBLIC :: mp_window_lock, mp_window_unlock
+  PUBLIC :: mp_window_fence
+  PUBLIC :: mp_rma_get, mp_rma_put
+
+  ! Memory management
+  PUBLIC :: mp_allocate, mp_deallocate
+
+
   ! default communicators
   PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD, MPI_COMM_NULL
 #ifndef __parallel
   INTEGER, PARAMETER :: MPI_COMM_SELF=0,MPI_COMM_WORLD=0, MPI_COMM_NULL=-1
 #endif
+
+
 
   !
   ! interfaces to deal easily with scalars / vectors / matrice / ...
@@ -112,7 +127,7 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_shift
-     MODULE PROCEDURE mp_shift_im, mp_shift_r1, mp_shift_rm
+     MODULE PROCEDURE mp_shift_im, mp_shift_i, mp_shift_r1, mp_shift_rm
   END INTERFACE
   
   INTERFACE mp_bcast
@@ -156,7 +171,9 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_allgather
-     MODULE PROCEDURE mp_allgather_i1, mp_allgatherv_iv, mp_allgatherv_rv
+     MODULE PROCEDURE mp_allgather_i1, mp_allgatherv_rv,&
+                      mp_allgather_i12, mp_allgather_i23,&
+                      mp_allgatherv_iv
   END INTERFACE
 
   INTERFACE mp_sum_scatter
@@ -170,7 +187,8 @@ MODULE message_passing
   INTERFACE mp_alltoall
      MODULE PROCEDURE mp_alltoall_c22v, mp_alltoall_i, mp_alltoall_c22v_sgl, &
                       mp_alltoall_i11v, mp_alltoall_r11v, mp_alltoall_r45,&
-                      mp_alltoall_r34,mp_alltoall_r54, mp_alltoall_i8v, mp_alltoall_z11v
+                      mp_alltoall_r34,mp_alltoall_r54, mp_alltoall_i8v,&
+                      mp_alltoall_z11v, mp_alltoall_i33, mp_alltoall_i22
                       
   END INTERFACE
 
@@ -184,10 +202,12 @@ MODULE message_passing
 
   INTERFACE mp_sendrecv
      MODULE PROCEDURE mp_sendrecv_rm3, mp_sendrecv_rm2, mp_sendrecv_rv
+     MODULE PROCEDURE mp_sendrecv_iv
   END INTERFACE
 
   INTERFACE mp_isendrecv
      MODULE PROCEDURE mp_isendrecv_rm2,mp_isendrecv_rv,mp_isendrecv_8iv
+     MODULE PROCEDURE mp_isendrecv_iv
   END INTERFACE
 
   INTERFACE mp_isend
@@ -206,6 +226,42 @@ MODULE message_passing
 #endif
   END INTERFACE
 
+  INTERFACE mp_window_create
+     MODULE PROCEDURE mp_win_create_i, mp_win_create_d
+  END INTERFACE
+
+  INTERFACE mp_rma_get
+     MODULE PROCEDURE mp_rma_get_i, mp_rma_get_d
+  END INTERFACE
+
+  INTERFACE mp_rma_put
+     MODULE PROCEDURE mp_rma_put_i, mp_rma_put_d
+  END INTERFACE
+
+  INTERFACE mp_allocate
+     MODULE PROCEDURE mp_allocate_i, mp_allocate_d
+  END INTERFACE
+
+  INTERFACE mp_deallocate
+     MODULE PROCEDURE mp_deallocate_i, mp_deallocate_d
+  END INTERFACE
+
+
+! *****************************************************************************
+!> \brief Windows used for MPI RMA operations
+!> \var id          MPI window identifier
+!> \var info        MPI window info
+! *****************************************************************************
+  TYPE mp_window_type
+#if defined(__parallel)
+     INTEGER        :: id
+#else
+     INTEGER, DIMENSION(:), POINTER       :: src_i
+     REAL(KIND=dp), DIMENSION(:), POINTER :: src_d
+#endif
+  END TYPE mp_window_type
+
+
   ! type internally used to store message passing performance indicators
 ! *****************************************************************************
   TYPE mp_perf_type
@@ -215,7 +271,7 @@ MODULE message_passing
     REAL (KIND=dp) :: time
   END TYPE mp_perf_type
 
-  INTEGER, PARAMETER :: MAX_PERF = 14
+  INTEGER, PARAMETER :: MAX_PERF = 20
 
 ! *****************************************************************************
   TYPE mp_perf_env_type
@@ -240,7 +296,9 @@ MODULE message_passing
      "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
      "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             ", &
      "MP_comm_split       ", "MP_ISend            ", "MP_IRecv            ", &
-     "MP_Send             ", "MP_Recv             "/)
+     "MP_Send             ", "MP_Recv             ", "MP_Memory           ", &
+     "MP_Put              ", "MP_Get              ", "MP_Fence            ", &
+     "MP_Window_Lock      ", "MP_Window_Misc      "/)
   REAL(KIND=dp) :: t_start, t_end
 
   ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
@@ -1045,6 +1103,59 @@ CONTAINS
 
   END SUBROUTINE mp_shift_im
 
+! this routine will shift around the data in msg
+! i.e. msg will be moved from rank to rank+displ_in (in a circular way)
+! displ_in will be 1 by default (others not tested)
+! the message array needs to be the same size on all processes
+! *****************************************************************************
+  SUBROUTINE mp_shift_i( msg, group, displ_in)
+
+    INTEGER, INTENT(INOUT)                   :: msg( : )
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, INTENT(IN), OPTIONAL            :: displ_in
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_shift_i', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: displ, handle, ierror, left, &
+                                                msglen, myrank, nprocs, &
+                                                right, tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierror = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL mpi_comm_rank(group,myrank,ierror)
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
+    CALL mpi_comm_size(group,nprocs,ierror)
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
+    IF (PRESENT(displ_in)) THEN
+       displ=displ_in
+    ELSE
+       displ=1
+    ENDIF
+    right=MODULO(myrank+displ,nprocs)
+    left =MODULO(myrank-displ,nprocs)
+    tag=17
+    msglen = SIZE(msg)
+    t_start = m_walltime ( )
+    CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER,right,tag,left,tag, &
+         group,status(1),ierror)
+    t_end = m_walltime ( )
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_im" )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    DEALLOCATE(status)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+
+  END SUBROUTINE mp_shift_i
+
 ! *****************************************************************************
   SUBROUTINE mp_shift_rm( msg, group, displ_in)
 
@@ -1431,6 +1542,52 @@ CONTAINS
 #endif
 
 ! *****************************************************************************
+!> \brief All-to-all scatter gather, 3-D arrays
+!> \par The first two indices specify the data while the last index counts
+!>      the processes
+!> \param[in] sb    array with data to send
+!> \param[out] rb   array into which data is received
+!> \param[in] count  number of elements to send/receive (product of the
+!>                   extents of the first two dimensions)
+! *****************************************************************************
+  SUBROUTINE mp_alltoall_i33 ( sb, rb, count, group )
+
+    INTEGER, DIMENSION(:, :, :), INTENT(IN)  :: sb
+    INTEGER, DIMENSION(:, :, :), INTENT(OUT) :: rb
+    INTEGER, INTENT(IN)                      :: count, group
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_i33', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, np
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_alltoall ( sb, count, MPI_INTEGER, &
+         rb, count, MPI_INTEGER, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_i33" )
+    CALL mpi_comm_size ( group, np, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_i33" )
+    msglen = 2 * count * np
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#else
+    rb=sb
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+
+  END SUBROUTINE mp_alltoall_i33
+
+
+
+! *****************************************************************************
   SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: sb
@@ -1458,13 +1615,51 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #else
-    !  rb=sb
+    rb=sb
 #endif
 #if defined(__mp_timeset__)
     CALL timestop_mp(handle)
 #endif
 
   END SUBROUTINE mp_alltoall_i
+
+
+! *****************************************************************************
+  SUBROUTINE mp_alltoall_i22 ( sb, rb, count, group )
+
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: sb
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: rb
+    INTEGER, INTENT(IN)                      :: count, group
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_i22', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, np
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_alltoall ( sb, count, MPI_INTEGER, &
+         rb, count, MPI_INTEGER, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_i22" )
+    CALL mpi_comm_size ( group, np, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_i22" )
+    msglen = 2 * SIZE(sb) * np
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#else
+    rb=sb
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+
+  END SUBROUTINE mp_alltoall_i22
+
 
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r45 ( sb, rb, count, group )
@@ -3379,6 +3574,68 @@ CONTAINS
   END SUBROUTINE mp_allgather_i1
 
 ! *****************************************************************************
+  SUBROUTINE mp_allgather_i12(msgout, msgin,gid)
+    INTEGER, INTENT(IN)                      :: msgout(:)
+    INTEGER, INTENT(OUT)                     :: msgin(:, :)
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgather_i12', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, rcount, scount
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    scount = SIZE (msgout(:))
+    rcount = scount
+    CALL MPI_ALLGATHER(msgout, scount, MPI_INTEGER, &
+                       msgin , rcount, MPI_INTEGER, &
+                       gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_i12" )
+#else
+    msgin(:,1) = msgout(:)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allgather_i12
+
+! *****************************************************************************
+  SUBROUTINE mp_allgather_i23(msgout, msgin,gid)
+    INTEGER, INTENT(IN)                      :: msgout(:,:)
+    INTEGER, INTENT(OUT)                     :: msgin(:, :, :)
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgather_i23', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, rcount, scount
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    scount = SIZE (msgout(:,:))
+    rcount = scount
+    CALL MPI_ALLGATHER(msgout, scount, MPI_INTEGER, &
+                       msgin , rcount, MPI_INTEGER, &
+                       gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_i23" )
+#else
+    msgin(:,:,1) = msgout(:,:)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allgather_i23
+
+! *****************************************************************************
   SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
     REAL(KIND=dp), INTENT(IN)                :: msgout( : )
     REAL(KIND=dp), INTENT(OUT)               :: msgin( : )
@@ -3593,6 +3850,48 @@ CONTAINS
   END SUBROUTINE mp_sendrecv_rv
 
 ! *****************************************************************************
+  SUBROUTINE mp_sendrecv_iv(msgin,dest,msgout,source,comm)
+    INTEGER, INTENT(IN)                      :: msgin( : ), dest
+    INTEGER, INTENT(OUT)                     :: msgout( : )
+    INTEGER, INTENT(IN)                      :: source, comm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_iv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen_in, &
+                                                msglen_out, recv_tag, send_tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
+    msglen_in = SIZE(msgin)
+    msglen_out = SIZE(msgout)
+    send_tag = 0 ! cannot think of something better here, this might be dangerous
+    recv_tag = 0 ! cannot think of something better here, this might be dangerous
+    CALL mpi_sendrecv(msgin,msglen_in,MPI_INTEGER,dest,send_tag,msgout,&
+         msglen_out,MPI_INTEGER,source,recv_tag,comm,status(1),ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_iv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
+         msg_size=(msglen_in+msglen_out)*reallen/2)
+    DEALLOCATE(status)
+#else
+    msgout = msgin
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_sendrecv_iv
+
+
+
+! *****************************************************************************
 !> \brief non blocking send of real arrays
 !> \note
 !>      the arguments must be pointers to be sure that we do not get a temporaries.
@@ -3659,6 +3958,76 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_isendrecv_rv
+
+
+! *****************************************************************************
+!> \brief non blocking send of real arrays
+!> \note
+!>      the arguments must be pointers to be sure that we do not get a temporaries.
+!>      they must point to contiguous memory
+!> \par History
+!>      12.2008 adapted from mp_isendrecv_rv by UB
+! *****************************************************************************
+  SUBROUTINE mp_isendrecv_iv(msgin,dest,msgout,source,comm,send_request,&
+       recv_request,tag)
+    INTEGER, DIMENSION(:), POINTER           :: msgin
+    INTEGER, INTENT(IN)                      :: dest
+    INTEGER, DIMENSION(:), POINTER           :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: send_request, recv_request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isendrecv_iv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, msglen, &
+                                                my_tag
+    REAL(KIND=dp)                            :: foo
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    msglen = SIZE(msgout,1)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgout,1)
+       CALL mpi_irecv(msgout(lower1),msglen,MPI_INTEGER,source, my_tag,&
+            comm,recv_request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MPI_INTEGER,source, my_tag,&
+            comm,recv_request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_iv" )
+
+    msglen = SIZE(msgin,1)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgin,1)
+       CALL mpi_isend(msgin(lower1),msglen,MPI_INTEGER,dest,my_tag,&
+            comm,send_request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MPI_INTEGER,dest,my_tag,&
+            comm,send_request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_iv" )
+
+    msglen = (msglen+SIZE(msgout,1))/2.0_dp
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#else
+    send_request=0
+    recv_request=0
+    msgout = msgin
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_isendrecv_iv
+
 
 ! *****************************************************************************
 !> \brief non blocking send of int_8 arrays
@@ -4552,5 +4921,604 @@ CONTAINS
 #endif
 
   END SUBROUTINE mp_group
+
+! *****************************************************************************
+!> \brief Creates a double precision MPI RMA window.
+!> \author UB
+!> \param[out] window       created window id
+!> \param[in] range        window contents
+!> \param[in] gid          communicator
+! *****************************************************************************
+  SUBROUTINE mp_win_create_d(window, range, len, gid)
+    TYPE(mp_window_type), INTENT(OUT)    :: window
+    REAL(KIND=dp), DIMENSION(:), POINTER :: range
+    INTEGER, INTENT(IN)                  :: gid
+    INTEGER, INTENT(IN), OPTIONAL        :: len
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_create_d', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+    INTEGER                   :: winsize, double_size
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    IF (PRESENT (len)) THEN
+       winsize = len
+    ELSE
+       winsize = SIZE (range)
+    ENDIF
+    CALL MPI_TYPE_SIZE(MPI_DOUBLE_PRECISION, double_size, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_type_size @ mp_win_create_d")
+    CALL MPI_WIN_CREATE(range, winsize, double_size, 0, gid, window%id, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_create @ mp_win_create_d")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=20, time=t_end-t_start)
+#else
+    NULLIFY(window%src_i)
+    window%src_d => range
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+
+  END SUBROUTINE mp_win_create_d
+
+
+! *****************************************************************************
+!> \brief Creates an integer MPI RMA window.
+!> \author UB
+!> \param[out] window       created window id
+!> \param[in] range        window contents
+!> \param[in] gid          communicator
+! *****************************************************************************
+  SUBROUTINE mp_win_create_i(window, range, len, gid)
+    TYPE(mp_window_type), INTENT(OUT)   :: window
+    INTEGER, DIMENSION(:), POINTER      :: range
+    INTEGER, INTENT(IN)       :: gid
+    INTEGER, INTENT(IN), OPTIONAL       :: len
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_create_i', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+    INTEGER                   :: winsize, integer_size
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    IF (PRESENT (len)) THEN
+       winsize = len
+    ELSE
+       winsize = SIZE (range)
+    ENDIF
+    CALL MPI_TYPE_SIZE(MPI_INTEGER, integer_size, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_type_size @ mp_win_create_i")
+    CALL MPI_WIN_CREATE(range, winsize, integer_size, 0, gid, window%id, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_create @ mp_win_create_i")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=20, count=1, time=t_end-t_start)
+#else
+    NULLIFY (window%src_d)
+    window%src_i => range
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_win_create_i
+
+
+! *****************************************************************************
+!> \brief Destroys an MPI RMA window.
+!> \author UB
+!> \param[in] window       window to free and destroy
+! *****************************************************************************
+  SUBROUTINE mp_window_destroy(window)
+    TYPE(mp_window_type), INTENT(INOUT) :: window
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_destroy', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    CALL MPI_WIN_FREE(window, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_free @ mp_window_destroy")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=20, count=1, time=t_end-t_start)
+#else
+    NULLIFY(window%src_d, window%src_i)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_window_destroy
+
+
+! *****************************************************************************
+!> \brief Initiates an RMA access
+!> \author UB
+!> \param window       RMA access window
+!> \param[in] remote   process to which access is initiated (target)
+!> \param[in] shared   (optional) access is shared (default is exclusive)
+!> \param[in] nocheck  (optional) don't check for others' locks (default is
+!>                     to be careful and check)
+! *****************************************************************************
+  SUBROUTINE mp_window_lock(window, remote, shared, nocheck)
+    TYPE(mp_window_type), INTENT(INOUT) :: window
+    INTEGER, INTENT(IN)      :: remote
+    LOGICAL, INTENT(IN), OPTIONAL       :: shared, nocheck
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_lock', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+    INTEGER                   :: exclusivity, assertion
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    exclusivity = MPI_LOCK_EXCLUSIVE
+    IF (PRESENT (shared)) THEN
+       IF (shared) exclusivity = MPI_LOCK_SHARED
+    ENDIF
+    assertion = 0
+    IF (PRESENT (nocheck)) THEN
+       IF (nocheck) assertion = MPI_MODE_NOCHECK
+    ENDIF
+    CALL MPI_WIN_LOCK (exclusivity, remote, assertion, window%id, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_lock @ mp_window_lock")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=19, count=1, time=t_end-t_start)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_window_lock
+
+! *****************************************************************************
+!> \brief Terminates an RMA access
+!> \author UB
+!> \param[in] window   RMA access window
+!> \param[in] remote   process to which access is initiated (target)
+! *****************************************************************************
+  SUBROUTINE mp_window_unlock(window, remote)
+    TYPE(mp_window_type), INTENT(INOUT) :: window
+    INTEGER, INTENT(IN)      :: remote
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_unlock', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    CALL MPI_WIN_UNLOCK (remote, window%id, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_unlock @ mp_window_unlock")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=20, count=1, time=t_end-t_start)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_window_unlock
+
+
+! *****************************************************************************
+!> \brief Creates an RMA window epoch
+!> \author UB
+!> \param[in] window       RMA access window
+!> \param[in] nothing_stored  (optional) asserts that there were no local
+!>                            window updates since last sync (default is
+!>                            .FALSE.)
+!> \param[in] no_put_follows  (optional) asserts that nobody will put or
+!>                            accumulate data in local data of window until
+!>                            next fence (default is .FALSE.)
+!> \param[in] no_pre_access   (optional) asserts that no RMA access calls
+!>                            were made. All procesess must specify the same
+!>                            flag (default is .FALSE.)
+!> \param[in] no_post_access  (optional) asserts that no RMA access will be
+!>                            issued. All processess must specify the same
+!>                            flag (default is .FALSE.)
+! *****************************************************************************
+  SUBROUTINE mp_window_fence(window, nothing_stored, no_put_follows,&
+       no_pre_access, no_post_access)
+    TYPE(mp_window_type), INTENT(INOUT) :: window
+    LOGICAL, INTENT(IN), OPTIONAL       :: nothing_stored, no_put_follows,&
+                                           no_pre_access, no_post_access
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_window_unlock', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle, assertion
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    assertion = 0
+    IF (PRESENT (nothing_stored)) THEN
+       IF (nothing_stored) assertion = assertion + MPI_MODE_NOSTORE
+    ENDIF
+    IF (PRESENT (no_put_follows)) THEN
+       IF (no_put_follows) assertion = assertion + MPI_MODE_NOPUT
+    ENDIF
+    IF (PRESENT (no_pre_access)) THEN
+       IF (no_pre_access) assertion = assertion + MPI_MODE_NOPRECEDE
+    ENDIF
+    IF (PRESENT (no_post_access)) THEN
+       IF (no_post_access) assertion = assertion + MPI_MODE_NOSUCCEED
+    ENDIF
+    CALL MPI_WIN_FENCE (assertion, window%id, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_fence @ mp_window_fence")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=18, count=1, time=t_end-t_start)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_window_fence
+
+
+! *****************************************************************************
+!> \brief Fetch access using RMA, integer
+!> \author UB
+!> \param[in] window       RMA access window
+!> \param[in] remote       remote process
+!> \param[in] offset       offset in remote window (starting at 0)
+!> \param[in] len          amount of data to fetch
+!> \param[out] storage     integer storage of fetched data
+! *****************************************************************************
+  SUBROUTINE mp_rma_get_i(window, remote, offset, len, storage)
+    TYPE(mp_window_type), INTENT(IN) :: window
+    INTEGER, INTENT(IN)      :: remote, offset
+    INTEGER, DIMENSION(:), POINTER :: storage
+    INTEGER, INTENT(IN)       :: len
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_get_i', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    CALL MPI_GET(storage, len, MPI_INTEGER, remote, offset, len,&
+         MPI_INTEGER, window%id, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_get @ mp_rma_get_i")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=17, count=1, time=t_end-t_start,&
+         msg_size=len*intlen)
+#else
+    storage(LBOUND(storage,1):LBOUND(storage,1)+len-1) &
+         = window%src_i(LBOUND(window%src_i,1)+offset&
+         : LBOUND(window%src_i,1)+offset+len-1)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_rma_get_i
+
+
+! *****************************************************************************
+!> \brief Fetch access using RMA, double
+!> \author UB
+!> \param[in] window       RMA access window
+!> \param[in] remote       remote process
+!> \param[in] offset       offset in remote window (starting at 0)
+!> \param[in] len          amount of data to fetch
+!> \param[out] storage     double precision storage of fetched data
+! *****************************************************************************
+  SUBROUTINE mp_rma_get_d(window, remote, offset, len, storage)
+    TYPE(mp_window_type), INTENT(IN) :: window
+    INTEGER, INTENT(IN)      :: remote, offset
+    REAL(KIND=dp), DIMENSION(:), POINTER :: storage
+    INTEGER, INTENT(IN)       :: len
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_get_d', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    CALL MPI_GET(storage, len, MPI_DOUBLE_PRECISION, remote, offset, len,&
+         MPI_DOUBLE_PRECISION, window%id, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_get @ mp_rma_get_d")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=17, count=1,time=t_end-t_start,&
+         msg_size=len*reallen)
+#else
+    storage(LBOUND(storage,1):LBOUND(storage,1)+len-1) =&
+         window%src_d(LBOUND(window%src_d,1)+offset&
+         : LBOUND(window%src_d,1)+offset+len-1)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_rma_get_d
+
+
+! *****************************************************************************
+!> \brief Store access using RMA, integer
+!> \author UB
+!> \param[in] window       RMA access window
+!> \param[in] storage      integer data to store
+!> \param[in] len          amount of data to store
+!> \param[in] remote       remote process
+!> \param[in] offset       offset in remote window (starting at 0)
+! *****************************************************************************
+  SUBROUTINE mp_rma_put_i(window, storage, len, remote, offset)
+    TYPE(mp_window_type), INTENT(IN)  :: window
+    INTEGER, INTENT(IN)               :: remote, offset
+    INTEGER, DIMENSION(:), POINTER    :: storage
+    INTEGER, INTENT(IN)         :: len
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_put_i', &
+         routineP = moduleN//':'//routineN
+    INTEGER                        :: ierr, handle
+    INTEGER, DIMENSION(:), POINTER :: win_data
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    CALL MPI_PUT(storage, len, MPI_INTEGER, remote, offset, len, MPI_INTEGER,&
+         window, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_put @ mp_rma_put_i")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=16, count=1, time=t_end-t_start,&
+         msg_size=intlen*len)
+#else
+    win_data => window%src_i
+    win_data(LBOUND(window%src_i,1)+offset &
+         : LBOUND(window%src_i,1)+offset+len-1) =&
+    storage(LBOUND(storage,1):LBOUND(storage,1)+len-1)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_rma_put_i
+
+
+! *****************************************************************************
+!> \brief Store access using RMA, doubles
+!> \author UB
+!> \param[in] window       RMA access window
+!> \param[in] storage      double precision data to store
+!> \param[in] len          amount of data to store
+!> \param[in] remote       remote process
+!> \param[in] offset       offset in remote window (starting at 0)
+! *****************************************************************************
+  SUBROUTINE mp_rma_put_d(window, storage, len, remote, offset)
+    TYPE(mp_window_type), INTENT(IN)      :: window
+    INTEGER, INTENT(IN)                   :: remote, offset
+    REAL(KIND=dp), DIMENSION(:), POINTER  :: storage
+    INTEGER, INTENT(IN)         :: len
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_put_d', &
+         routineP = moduleN//':'//routineN
+    INTEGER                     :: ierr, handle
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: win_data
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    CALL MPI_PUT(storage, len, MPI_DOUBLE_PRECISION, remote, offset, len,&
+         MPI_DOUBLE_PRECISION, window, ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr, "mpi_put @ mp_rma_put_d")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=16, count=1, time=t_end-t_start,&
+         msg_size=len*reallen)
+#else
+    win_data => window%src_d
+    win_data(LBOUND(window%src_d,1)+offset&
+         : LBOUND(window%src_d,1)+offset+len-1) =&
+    storage(LBOUND(storage,1):LBOUND(storage,1)+len-1)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_rma_put_d
+
+
+! *****************************************************************************
+!> \brief Allocates special parallel memory, integer version
+!> \author UB
+!> \param[in]  data      pointer to integer array to allocate
+!> \param[in]  len       number of integers to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_allocate_i(DATA, len, stat)
+    INTEGER, DIMENSION(:), POINTER      :: DATA
+    INTEGER, INTENT(IN)                 :: len
+    INTEGER, INTENT(OUT), OPTIONAL      :: stat
+    INTEGER                   :: ierr, handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allocate_i', &
+         routineP = moduleN//':'//routineN
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    NULLIFY(DATA)
+    !WRITE(*,*)routineN//' Allocating size len=',len
+    CALL mp_alloc_mem(DATA, len, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alloc_mem @ mp_allocate_i")
+    ENDIF
+    !WRITE(*,*)routineN//' Allocated size ',SIZE(data)
+    DO ierr = 1, len
+       DATA(ierr) = -333
+    ENDDO
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    ALLOCATE(DATA(len), stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "ALLOCATE @ mp_allocate_i")
+    ENDIF
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allocate_i
+
+
+! *****************************************************************************
+!> \brief Allocates special parallel memory, double precision version
+!> \author UB
+!> \param[in]  data      pointer to double precision array to allocate
+!> \param[in]  len       number of doubles to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_allocate_d(DATA, len, stat)
+    REAL(KIND=dp), DIMENSION(:), POINTER  :: DATA
+    INTEGER, INTENT(IN)                   :: len
+    INTEGER, INTENT(OUT), OPTIONAL        :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allocate_d', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    NULLIFY(DATA)
+    !WRITE(*,*)routineN//' Allocating size len=',len
+    CALL mp_alloc_mem(DATA, len, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alloc_mem @ mp_allocate_d")
+    ENDIF
+    !WRITE(*,*)routineN//' Allocated size ',SIZE(data)
+    DO ierr = 1, SIZE(DATA)
+       DATA(ierr) = -333
+    ENDDO
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    ALLOCATE(DATA(len), stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "ALLOCATE @ mp_allocate_d")
+    ENDIF
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allocate_d
+
+
+! *****************************************************************************
+!> \brief Deallocates special parallel memory, integer version
+!> \author UB
+!> \param[in] data         pointer to special memory to deallocate
+! *****************************************************************************
+  SUBROUTINE mp_deallocate_i(DATA, stat)
+    INTEGER, DIMENSION(:), POINTER      :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL      :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_deallocate_i', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    !WRITE(*,*)routineN//' Deallocating', SIZE(data)
+    CALL mp_free_mem(DATA, ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_free_mem @ mp_deallocate_i")
+    ENDIF
+    NULLIFY(DATA)
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    DEALLOCATE(DATA, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat=ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "DEALLOCATE @ mp_deallocate_i")
+    ENDIF
+    NULLIFY(DATA)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_deallocate_i
+
+
+! *****************************************************************************
+!> \brief Deallocates special parallel memory, double version
+!> \author UB
+!> \param[in] data         pointer to special memory to deallocate
+! *****************************************************************************
+  SUBROUTINE mp_deallocate_d(DATA, stat)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_deallocate_d', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    !WRITE(*,*)routineN//' Deallocating', SIZE(data)
+    CALL mp_free_mem(DATA, ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_free_mem @ mp_deallocate_d")
+    ENDIF
+    NULLIFY(DATA)
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    DEALLOCATE(DATA, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "DEALLOCATE @ mp_deallocate_d")
+    ENDIF
+    NULLIFY(DATA)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_deallocate_d
+
 
 END MODULE message_passing

@@ -1,0 +1,10 @@
+[
+{'nametype1':'i8',
+'type1':'INTEGER(KIND=keyt)', 
+'type1setup':'INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)',
+'nametype2':'i4',
+'type2':'INTEGER(KIND=valt)',
+'type2setup':'INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5)',
+'defaultFormatType1':'I12',
+'defaultFormatType2':'I6'}
+]
