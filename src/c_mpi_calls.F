@@ -13,7 +13,7 @@
 !> - Created
 ! *****************************************************************************
 
-MODULE C_MPI_CALLS
+MODULE c_mpi_calls
 
 ! Do not use C bindings if we can use CRAY pointers.
 #ifdef __cray_pointers
@@ -120,8 +120,10 @@ CONTAINS
 !> \param fp             pointer to assign
 ! *****************************************************************************
   SUBROUTINE array_to_fp_i(iarray, fp)
-    INTEGER, DIMENSION(:), TARGET, INTENT(IN) :: iarray
-    INTEGER, DIMENSION(:), POINTER :: fp
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      TARGET                                 :: iarray
+    INTEGER, DIMENSION(:), POINTER           :: fp
+
     fp => iarray
   END SUBROUTINE array_to_fp_i
 
@@ -132,8 +134,10 @@ CONTAINS
 !> \param fp             pointer to assign
 ! *****************************************************************************
   SUBROUTINE array_to_fp_d(darray, fp)
-    REAL(KIND=dp), DIMENSION(:), TARGET, INTENT(IN) :: darray
-    REAL(KIND=dp), DIMENSION(:), POINTER :: fp
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), TARGET                     :: darray
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: fp
+
     fp => darray
   END SUBROUTINE array_to_fp_d
 
@@ -146,8 +150,8 @@ CONTAINS
 !> \param[in] len        length (in data elements) of data array allocation
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
-  SUBROUTINE mp_alloc_mem_i(data, len, stat)
-     INTEGER, DIMENSION(:), POINTER        :: data
+  SUBROUTINE mp_alloc_mem_i(DATA, len, stat)
+     INTEGER, DIMENSION(:), POINTER        :: DATA
      INTEGER, INTENT(IN)                   :: len
      INTEGER, INTENT(OUT), OPTIONAL        :: stat
 
@@ -179,10 +183,10 @@ CONTAINS
 #else
      CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
 #endif
-     CALL C_F_POINTER(mp_baseptr, data, (/length/))
+     CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
-     CALL array_to_fp_i(dynmem(1:len), data)
+     CALL array_to_fp_i(dynmem(1:len), DATA)
 #endif 
      !write(6,*)'int allocation', ASSOCIATED(data), (/length/), &
      !     mp_res
@@ -200,8 +204,8 @@ CONTAINS
 !> \param[in] len        length (in data elements) of data array allocation
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
-  SUBROUTINE mp_alloc_mem_d(data, len, stat)
-     REAL(KIND=dp), DIMENSION(:), POINTER  :: data
+  SUBROUTINE mp_alloc_mem_d(DATA, len, stat)
+     REAL(KIND=dp), DIMENSION(:), POINTER  :: DATA
      INTEGER, INTENT(IN)                   :: len
      INTEGER, INTENT(OUT), OPTIONAL        :: stat
 
@@ -233,10 +237,10 @@ CONTAINS
 #else
      CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
 #endif
-     CALL C_F_POINTER(mp_baseptr, data, (/length/))
+     CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
-     CALL array_to_fp_d(dynmem(1:len), data)
+     CALL array_to_fp_d(dynmem(1:len), DATA)
 #endif
      !write(6,*)'double allocation', ASSOCIATED(data), (/length/),&
      !     mp_res
@@ -253,8 +257,8 @@ CONTAINS
 !> \param data           data array to allocate
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
-  SUBROUTINE mp_free_mem_i(data, stat)
-     INTEGER, DIMENSION(:), POINTER        :: data
+  SUBROUTINE mp_free_mem_i(DATA, stat)
+     INTEGER, DIMENSION(:), POINTER        :: DATA
      INTEGER, INTENT(OUT), OPTIONAL        :: stat
      
 #if defined(__c_bindings) && !defined (__mpi_f_bindings)
@@ -266,15 +270,15 @@ CONTAINS
 #endif
 
 #if (defined __c_bindings) && !defined(__mpi_f_bindings)
-     IF (SIZE (data) .GT. 0) THEN
-        felement => data(1)
+     IF (SIZE (DATA) .GT. 0) THEN
+        felement => DATA(1)
         mp_baseptr = C_LOC(felement)
         mp_res = mpi_free_mem_c(mp_baseptr)
      ELSE
         mp_res = 0
      ENDIF
 #else
-     CALL MPI_FREE_MEM(data, mp_res)
+     CALL MPI_FREE_MEM(DATA, mp_res)
 #endif
      !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
@@ -288,8 +292,8 @@ CONTAINS
 !> \param data           data array to allocate
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
-  SUBROUTINE mp_free_mem_d(data, stat)
-     REAL(KIND=dp), DIMENSION(:), POINTER  :: data
+  SUBROUTINE mp_free_mem_d(DATA, stat)
+     REAL(KIND=dp), DIMENSION(:), POINTER  :: DATA
      INTEGER, INTENT(OUT), OPTIONAL        :: stat
 #if defined(__c_bindings) && !defined (__mpi_f_bindings)
      REAL(KIND=dp), POINTER         :: felement
@@ -300,15 +304,15 @@ CONTAINS
 #endif
 
 #if (defined __c_bindings) && !defined(__mpi_f_bindings)
-     IF (SIZE (data) .GT. 0) THEN
-        felement => data(1)
+     IF (SIZE (DATA) .GT. 0) THEN
+        felement => DATA(1)
         mp_baseptr = C_LOC(felement)
         mp_res = mpi_free_mem_c(mp_baseptr)
      ELSE
         mp_res = 0
      ENDIF
 #else
-     CALL MPI_FREE_MEM(data, mp_res)
+     CALL MPI_FREE_MEM(DATA, mp_res)
 #endif
      !write(6,*)'double free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
@@ -323,15 +327,15 @@ CONTAINS
 !> \param[in] len        length (in data elements) of data array allocation
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
-  SUBROUTINE mp_alloc_mem_i(data, size, stat)
-     INTEGER, DIMENSION(:), POINTER        :: data
-     INTEGER, INTENT(IN)                   :: size
-     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+  SUBROUTINE mp_alloc_mem_i(DATA, size, stat)
+    INTEGER, DIMENSION(:), POINTER           :: DATA
+    INTEGER, INTENT(IN)                      :: size
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
      IF (PRESENT (stat)) THEN
-        ALLOCATE(data(size), stat=stat)
+        ALLOCATE(DATA(size), stat=stat)
      ELSE
-        ALLOCATE(data(size))
+        ALLOCATE(DATA(size))
      ENDIF
    END SUBROUTINE mp_alloc_mem_i
 
@@ -343,15 +347,15 @@ CONTAINS
 !> \param[in] len        length (in data elements) of data array allocation
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
-  SUBROUTINE mp_alloc_mem_d(data, size, stat)
-     REAL(KIND=dp), DIMENSION(:), POINTER  :: data
-     INTEGER, INTENT(IN)                   :: size
-     INTEGER, INTENT(OUT), OPTIONAL        :: stat
-     
+  SUBROUTINE mp_alloc_mem_d(DATA, size, stat)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
+    INTEGER, INTENT(IN)                      :: size
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+
      IF (PRESENT (stat)) THEN
-        ALLOCATE(data(size), stat=stat)
+        ALLOCATE(DATA(size), stat=stat)
      ELSE
-        ALLOCATE(data(size))
+        ALLOCATE(DATA(size))
      ENDIF
    END SUBROUTINE mp_alloc_mem_d
 
@@ -362,14 +366,14 @@ CONTAINS
 !> \param data           data array to allocate
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
-  SUBROUTINE mp_free_mem_i(data, stat)
-     INTEGER, DIMENSION(:), POINTER        :: data
-     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+  SUBROUTINE mp_free_mem_i(DATA, stat)
+    INTEGER, DIMENSION(:), POINTER           :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
      IF (PRESENT (stat)) THEN
-        DEALLOCATE(data, stat=stat)
+        DEALLOCATE(DATA, stat=stat)
      ELSE
-        DEALLOCATE(data)
+        DEALLOCATE(DATA)
      ENDIF
    END SUBROUTINE mp_free_mem_i
 
@@ -380,29 +384,18 @@ CONTAINS
 !> \param data           data array to allocate
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
-  SUBROUTINE mp_free_mem_d(data, stat)
-     REAL(KIND=dp), DIMENSION(:), POINTER  :: data
-     INTEGER, INTENT(OUT), OPTIONAL        :: stat
-     
+  SUBROUTINE mp_free_mem_d(DATA, stat)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+
      IF (PRESENT (stat)) THEN
-        DEALLOCATE(data, stat=stat)
+        DEALLOCATE(DATA, stat=stat)
      ELSE
-        DEALLOCATE(data)
+        DEALLOCATE(DATA)
      ENDIF
    END SUBROUTINE mp_free_mem_d
 
 #endif /* __c_bindings */
 
-END MODULE
-
-!USE TEST
-!
-!     INTEGER                 :: nelements
-!     REAL(KIND=dp), POINTER, DIMENSION(:) :: data
-!     nelements=16
-!     NULLIFY(data)
-!     CALL mp_alloc_mem(data, nelements)
-!     write(6,*) ASSOCIATED(data),SIZE(data),MPI_DNFO_NULL
-!
-!END
+END MODULE c_mpi_calls
 
