@@ -525,16 +525,22 @@ CONTAINS
 !> \brief Deallocates and destroys a matrix.
 !> \param[in,out] matrix      matrix
 !> \param[in,out] error       cp2k error
+!> \param[in] no_sizes        do not deallocate row and column block sizes
 ! *****************************************************************************
-  SUBROUTINE dbcsr_destroy(matrix, error)
+  SUBROUTINE dbcsr_destroy(matrix, error, no_sizes)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: no_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: nosd
+
 !   ---------------------------------------------------------------------------
 
+    nosd = .FALSE.
+    IF (PRESENT (no_sizes)) nosd = no_sizes
     IF (matrix%special_memory) THEN
        CALL MP_DEALLOCATE(matrix%index)
     ELSE
@@ -545,10 +551,12 @@ CONTAINS
     ELSE
        DEALLOCATE(matrix%data)
     ENDIF
-    IF (ASSOCIATED (matrix%row_blk_size)) &
-         DEALLOCATE (matrix%row_blk_size)
-    IF (ASSOCIATED (matrix%col_blk_size)) &
-         DEALLOCATE (matrix%col_blk_size)
+    IF (.NOT. nosd) THEN
+       IF (ASSOCIATED (matrix%row_blk_size)) &
+            DEALLOCATE (matrix%row_blk_size)
+       IF (ASSOCIATED (matrix%col_blk_size)) &
+            DEALLOCATE (matrix%col_blk_size)
+    ENDIF
     CALL distribution_2d_release(matrix%dist2d, error)
     matrix%valid = .FALSE.
   END SUBROUTINE dbcsr_destroy
@@ -3568,6 +3576,8 @@ CONTAINS
     !CALL array_hold (row_repetition)
     rptdist_left%row_repetition = row_repetition
     CALL array_nullify (rptdist_left%col_repetition)
+    CALL dbcsr_mp_release (mp_env)
+    CALL array_release (row_dist)
   END SUBROUTINE dbcsr_create_dist_left
 
 ! *****************************************************************************
@@ -3654,20 +3664,25 @@ CONTAINS
 !> \param[in] source          input matrix
 !> \param[in,out] marray      matrix array
 !> \param[in,out] error       cp2k error
+!> \param[in] no_sizes        do not deallocate row and column block sizes
 ! *****************************************************************************
-  SUBROUTINE dbcsr_destroy_array(marray, error)
+  SUBROUTINE dbcsr_destroy_array(marray, error, no_sizes)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: marray
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: no_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy_array', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
+    LOGICAL                                  :: nosd
 
 !   ---------------------------------------------------------------------------
 
+    nosd = .FALSE.
+    IF (PRESENT (no_sizes)) nosd = no_sizes
     DO i = LBOUND(marray%mats,1), UBOUND (marray%mats,1)
-       CALL dbcsr_destroy (marray%mats(i), error)
+       CALL dbcsr_destroy (marray%mats(i), error, no_sizes = nosd)
     ENDDO
     DEALLOCATE (marray%mats)
   END SUBROUTINE dbcsr_destroy_array

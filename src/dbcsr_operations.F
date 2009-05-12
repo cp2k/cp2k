@@ -362,18 +362,10 @@ CONTAINS
     DEALLOCATE (keys)
     CALL dbcsr_finalize(product_wm, product_matrix, .TRUE., .FALSE., error)
     !
-    !DO left_prow = 0, left_nprows - 1
-    !   CALL dbcsr_destroy (lbuffer_set1%mats(left_prow), error)
-    !   CALL dbcsr_destroy (lbuffer_set2%mats(left_prow), error)
-    !ENDDO
-    !DO right_prow = 0, right_nprows - 1
-    !   CALL dbcsr_destroy (rbuffer_set1%mats(right_prow), error)
-    !   CALL dbcsr_destroy (rbuffer_set2%mats(right_prow), error)
-    !ENDDO
-    CALL dbcsr_destroy_array (rbuffer_set1, error)
-    CALL dbcsr_destroy_array (rbuffer_set2, error)
-    CALL dbcsr_destroy_array (lbuffer_set1, error)
-    CALL dbcsr_destroy_array (lbuffer_set2, error)
+    CALL dbcsr_destroy_array (rbuffer_set1, error, no_sizes = .TRUE.)
+    CALL dbcsr_destroy_array (rbuffer_set2, error, no_sizes = .TRUE.)
+    CALL dbcsr_destroy_array (lbuffer_set1, error, no_sizes = .TRUE.)
+    CALL dbcsr_destroy_array (lbuffer_set2, error, no_sizes = .TRUE.)
     DEALLOCATE (left_set%data_windows)
     DEALLOCATE (left_set%index_windows)
     DEALLOCATE (right_set%data_windows)

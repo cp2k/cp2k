@@ -206,6 +206,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     ALLOCATE (dist%d)
+    dist%d%refcount = 1
     CALL array_hold (row_dist)
     dist%d%row_dist = row_dist
     CALL array_hold (col_dist)
