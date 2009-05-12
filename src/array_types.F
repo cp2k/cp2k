@@ -64,7 +64,7 @@ MODULE array_types
   INTEGER, PARAMETER :: dp = KIND(0.0d0)
 
   TYPE array_i1d_type
-     INTEGER, DIMENSION(:), POINTER     :: data
+     INTEGER, DIMENSION(:), POINTER     :: DATA
      INTEGER                            :: refcount
   END TYPE array_i1d_type
   TYPE array_i1d_obj
@@ -72,7 +72,7 @@ MODULE array_types
   END TYPE array_i1d_obj
 
   TYPE array_i2d_type
-     INTEGER, DIMENSION(:,:), POINTER   :: data
+     INTEGER, DIMENSION(:,:), POINTER   :: DATA
      INTEGER                            :: refcount
   END TYPE array_i2d_type
   TYPE array_i2d_obj
@@ -80,7 +80,7 @@ MODULE array_types
   END TYPE array_i2d_obj
 
   TYPE array_d1d_type
-     REAL(KIND=dp), DIMENSION(:), POINTER    :: data
+     REAL(KIND=dp), DIMENSION(:), POINTER    :: DATA
      INTEGER                                 :: refcount
   END TYPE array_d1d_type
   TYPE array_d1d_obj
@@ -88,7 +88,7 @@ MODULE array_types
   END TYPE array_d1d_obj
 
   TYPE array_d2d_type
-     REAL(KIND=dp), DIMENSION(:,:), POINTER  :: data
+     REAL(KIND=dp), DIMENSION(:,:), POINTER  :: DATA
      INTEGER                                 :: refcount
   END TYPE array_d2d_type
   TYPE array_d2d_obj
@@ -101,150 +101,172 @@ CONTAINS
 
   !
 
-  SUBROUTINE array_new_i1d(array, data, gift)
-    TYPE(array_i1d_obj), INTENT(OUT) :: array
-    INTEGER, DIMENSION(:), POINTER :: data
-    LOGICAL, INTENT(IN), OPTIONAL :: gift
-    INTEGER :: lb, ub
-    LOGICAL :: g
+  SUBROUTINE array_new_i1d(array, DATA, gift)
+    TYPE(array_i1d_obj), INTENT(OUT)         :: array
+    INTEGER, DIMENSION(:), POINTER           :: DATA
+    LOGICAL, INTENT(IN), OPTIONAL            :: gift
+
+    INTEGER                                  :: lb, ub
+    LOGICAL                                  :: g
+
     ALLOCATE (array%low)
     array%low%refcount = 1
     g = .FALSE.
     IF (PRESENT (gift)) g = gift
     IF (g) THEN
-       array%low%data => data
+       array%low%data => DATA
     ELSE
-       lb = LBOUND(data, 1)
-       ub = UBOUND(data, 1)
+       lb = LBOUND(DATA, 1)
+       ub = UBOUND(DATA, 1)
        ALLOCATE (array%low%data(lb:ub))
-       array%low%data(:) = data(:)
+       array%low%data(:) = DATA(:)
     ENDIF
   END SUBROUTINE array_new_i1d
-  SUBROUTINE array_new_i1d_lb(array, data, lb)
-    TYPE(array_i1d_obj), INTENT(OUT) :: array
-    INTEGER, DIMENSION(:), INTENT(IN) :: data
-    INTEGER, INTENT(IN) :: lb
-    INTEGER :: ub
+  SUBROUTINE array_new_i1d_lb(array, DATA, lb)
+    TYPE(array_i1d_obj), INTENT(OUT)         :: array
+    INTEGER, DIMENSION(:), INTENT(IN)        :: DATA
+    INTEGER, INTENT(IN)                      :: lb
+
+    INTEGER                                  :: ub
+
     ALLOCATE (array%low)
     array%low%refcount = 1
-    ub = UBOUND(data, 1)
+    ub = UBOUND(DATA, 1)
     ALLOCATE (array%low%data(lb:ub))
-    array%low%data(:) = data(:)
+    array%low%data(:) = DATA(:)
   END SUBROUTINE array_new_i1d_lb
-  SUBROUTINE array_new_i2d(array, data, gift)
-    TYPE(array_i2d_obj), INTENT(OUT) :: array
-    INTEGER, DIMENSION(:,:), POINTER :: data
-    LOGICAL, INTENT(IN), OPTIONAL :: gift
-    INTEGER, DIMENSION(2) :: lb, ub
-    LOGICAL :: g
+  SUBROUTINE array_new_i2d(array, DATA, gift)
+    TYPE(array_i2d_obj), INTENT(OUT)         :: array
+    INTEGER, DIMENSION(:, :), POINTER        :: DATA
+    LOGICAL, INTENT(IN), OPTIONAL            :: gift
+
+    INTEGER, DIMENSION(2)                    :: lb, ub
+    LOGICAL                                  :: g
+
     ALLOCATE (array%low)
     array%low%refcount = 1
     g = .FALSE.
     IF (PRESENT (gift)) g = gift
     IF (g) THEN
-       array%low%data => data
+       array%low%data => DATA
     ELSE
-       lb = LBOUND(data)
-       ub = UBOUND(data)
+       lb = LBOUND(DATA)
+       ub = UBOUND(DATA)
        ALLOCATE (array%low%data(lb(1):ub(1), lb(2):ub(2)))
-       array%low%data(:,:) = data(:,:)
+       array%low%data(:,:) = DATA(:,:)
     ENDIF
   END SUBROUTINE array_new_i2d
-  SUBROUTINE array_new_i2d_lb(array, data, lb)
-    TYPE(array_i2d_obj), INTENT(OUT) :: array
-    INTEGER, DIMENSION(:,:), INTENT(IN) :: data
-    INTEGER, DIMENSION(2), INTENT(IN) :: lb
-    INTEGER, DIMENSION(2) :: ub
+  SUBROUTINE array_new_i2d_lb(array, DATA, lb)
+    TYPE(array_i2d_obj), INTENT(OUT)         :: array
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: DATA
+    INTEGER, DIMENSION(2), INTENT(IN)        :: lb
+
+    INTEGER, DIMENSION(2)                    :: ub
+
     ALLOCATE (array%low)
     array%low%refcount = 1
-    ub = UBOUND(data)
+    ub = UBOUND(DATA)
     ALLOCATE (array%low%data(lb(1):ub(1), lb(2):ub(2)))
-    array%low%data(:,:) = data(:,:)
+    array%low%data(:,:) = DATA(:,:)
   END SUBROUTINE array_new_i2d_lb
-  SUBROUTINE array_new_d1d(array, data, gift)
-    TYPE(array_d1d_obj), INTENT(OUT) :: array
-    REAL(KIND=dp), DIMENSION(:), POINTER :: data
-    LOGICAL, INTENT(IN), OPTIONAL :: gift
-    INTEGER :: lb, ub
-    LOGICAL :: g
+  SUBROUTINE array_new_d1d(array, DATA, gift)
+    TYPE(array_d1d_obj), INTENT(OUT)         :: array
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
+    LOGICAL, INTENT(IN), OPTIONAL            :: gift
+
+    INTEGER                                  :: lb, ub
+    LOGICAL                                  :: g
+
     ALLOCATE (array%low)
     array%low%refcount = 1
     g = .FALSE.
     IF (PRESENT (gift)) g = gift
     IF (g) THEN
-       array%low%data => data
+       array%low%data => DATA
     ELSE
-       lb = LBOUND(data, 1)
-       ub = UBOUND(data, 1)
+       lb = LBOUND(DATA, 1)
+       ub = UBOUND(DATA, 1)
        ALLOCATE (array%low%data(lb:ub))
-       array%low%data(:) = data(:)
+       array%low%data(:) = DATA(:)
     ENDIF
   END SUBROUTINE array_new_d1d
-  SUBROUTINE array_new_d1d_lb(array, data, lb)
-    TYPE(array_d1d_obj), INTENT(OUT) :: array
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: data
-    INTEGER, INTENT(IN) :: lb
-    INTEGER ub
+  SUBROUTINE array_new_d1d_lb(array, DATA, lb)
+    TYPE(array_d1d_obj), INTENT(OUT)         :: array
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: DATA
+    INTEGER, INTENT(IN)                      :: lb
+
+    INTEGER                                  :: ub
+
     ALLOCATE (array%low)
     array%low%refcount = 1
-    ub = UBOUND(data, 1)
+    ub = UBOUND(DATA, 1)
     ALLOCATE (array%low%data(lb:ub))
-    array%low%data(:) = data(:)
+    array%low%data(:) = DATA(:)
   END SUBROUTINE array_new_d1d_lb
-  SUBROUTINE array_new_d2d(array, data, gift)
-    TYPE(array_d2d_obj), INTENT(OUT) :: array
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: data
-    LOGICAL, INTENT(IN), OPTIONAL :: gift
-    INTEGER, DIMENSION(2) :: lb, ub
-    LOGICAL :: g
+  SUBROUTINE array_new_d2d(array, DATA, gift)
+    TYPE(array_d2d_obj), INTENT(OUT)         :: array
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
+    LOGICAL, INTENT(IN), OPTIONAL            :: gift
+
+    INTEGER, DIMENSION(2)                    :: lb, ub
+    LOGICAL                                  :: g
+
     ALLOCATE (array%low)
     array%low%refcount = 1
     g = .FALSE.
     IF (PRESENT (gift)) g = gift
     IF (g) THEN
-       array%low%data => data
+       array%low%data => DATA
     ELSE
-       lb = LBOUND(data)
-       ub = UBOUND(data)
+       lb = LBOUND(DATA)
+       ub = UBOUND(DATA)
        ALLOCATE (array%low%data(lb(1):ub(1), lb(2):ub(2)))
-       array%low%data(:,:) = data(:,:)
+       array%low%data(:,:) = DATA(:,:)
     ENDIF
   END SUBROUTINE array_new_d2d
-  SUBROUTINE array_new_d2d_lb(array, data, lb)
-    TYPE(array_d2d_obj), INTENT(OUT) :: array
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: data
-    INTEGER, DIMENSION(2), INTENT(IN) :: lb
-    INTEGER, DIMENSION(2) :: ub
+  SUBROUTINE array_new_d2d_lb(array, DATA, lb)
+    TYPE(array_d2d_obj), INTENT(OUT)         :: array
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: DATA
+    INTEGER, DIMENSION(2), INTENT(IN)        :: lb
+
+    INTEGER, DIMENSION(2)                    :: ub
+
     ALLOCATE (array%low)
     array%low%refcount = 1
-    ub = UBOUND(data)
+    ub = UBOUND(DATA)
     ALLOCATE (array%low%data(lb(1):ub(1), lb(2):ub(2)))
-    array%low%data(:,:) = data(:,:)
+    array%low%data(:,:) = DATA(:,:)
   END SUBROUTINE array_new_d2d_lb
 
   !
 
   SUBROUTINE array_hold_i1d (array)
-    TYPE(array_i1d_obj), INTENT(INOUT) :: array
+    TYPE(array_i1d_obj), INTENT(INOUT)       :: array
+
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_i1d
   SUBROUTINE array_hold_i2d (array)
-    TYPE(array_i2d_obj), INTENT(INOUT) :: array
+    TYPE(array_i2d_obj), INTENT(INOUT)       :: array
+
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_i2d
   SUBROUTINE array_hold_d1d (array)
-    TYPE(array_d1d_obj), INTENT(INOUT) :: array
+    TYPE(array_d1d_obj), INTENT(INOUT)       :: array
+
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_d1d
   SUBROUTINE array_hold_d2d (array)
-    TYPE(array_d2d_obj), INTENT(INOUT) :: array
+    TYPE(array_d2d_obj), INTENT(INOUT)       :: array
+
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_d2d
 
   !
 
   SUBROUTINE array_release_i1d (array)
-    TYPE(array_i1d_obj), INTENT(INOUT) :: array
+    TYPE(array_i1d_obj), INTENT(INOUT)       :: array
+
     IF (ASSOCIATED (array%low)) THEN
        array%low%refcount = array%low%refcount - 1
        IF (array%low%refcount .EQ. 0) THEN
@@ -255,7 +277,8 @@ CONTAINS
     ENDIF
   END SUBROUTINE array_release_i1d
   SUBROUTINE array_release_i2d (array)
-    TYPE(array_i2d_obj), INTENT(INOUT) :: array
+    TYPE(array_i2d_obj), INTENT(INOUT)       :: array
+
     IF (ASSOCIATED (array%low)) THEN
        array%low%refcount = array%low%refcount - 1
        IF (array%low%refcount .EQ. 0 .AND. ASSOCIATED (array%low)) THEN
@@ -266,7 +289,8 @@ CONTAINS
     ENDIF
   END SUBROUTINE array_release_i2d
   SUBROUTINE array_release_d1d (array)
-    TYPE(array_d1d_obj), INTENT(INOUT) :: array
+    TYPE(array_d1d_obj), INTENT(INOUT)       :: array
+
     IF (ASSOCIATED (array%low)) THEN
        array%low%refcount = array%low%refcount - 1
        IF (array%low%refcount .EQ. 0 .AND. ASSOCIATED (array%low)) THEN
@@ -277,7 +301,8 @@ CONTAINS
     ENDIF
   END SUBROUTINE array_release_d1d
   SUBROUTINE array_release_d2d (array)
-    TYPE(array_d2d_obj), INTENT(INOUT) :: array
+    TYPE(array_d2d_obj), INTENT(INOUT)       :: array
+
     IF (ASSOCIATED (array%low)) THEN
        array%low%refcount = array%low%refcount - 1
        IF (array%low%refcount .EQ. 0 .AND. ASSOCIATED (array%low)) THEN
@@ -291,65 +316,77 @@ CONTAINS
   !
 
   SUBROUTINE array_nullify_i1d (array)
-    TYPE(array_i1d_obj), INTENT(INOUT) :: array
+    TYPE(array_i1d_obj), INTENT(INOUT)       :: array
+
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_i1d
   SUBROUTINE array_nullify_i2d (array)
-    TYPE(array_i2d_obj), INTENT(INOUT) :: array
+    TYPE(array_i2d_obj), INTENT(INOUT)       :: array
+
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_i2d
   SUBROUTINE array_nullify_d1d (array)
-    TYPE(array_d1d_obj), INTENT(INOUT) :: array
+    TYPE(array_d1d_obj), INTENT(INOUT)       :: array
+
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_d1d
   SUBROUTINE array_nullify_d2d (array)
-    TYPE(array_d2d_obj), INTENT(INOUT) :: array
+    TYPE(array_d2d_obj), INTENT(INOUT)       :: array
+
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_d2d
 
   !
 
-  FUNCTION array_data_i1d(array) RESULT (data)
-    TYPE(array_i1d_obj), INTENT(IN) :: array
-    INTEGER, DIMENSION(:), POINTER :: data
-    data => array%low%data
+  FUNCTION array_data_i1d(array) RESULT (DATA)
+    TYPE(array_i1d_obj), INTENT(IN)          :: array
+    INTEGER, DIMENSION(:), POINTER           :: DATA
+
+    DATA => array%low%data
   END FUNCTION array_data_i1d
-  FUNCTION array_data_i2d(array) RESULT (data)
-    TYPE(array_i2d_obj), INTENT(IN) :: array
-    INTEGER, DIMENSION(:,:), POINTER :: data
-    data => array%low%data
+  FUNCTION array_data_i2d(array) RESULT (DATA)
+    TYPE(array_i2d_obj), INTENT(IN)          :: array
+    INTEGER, DIMENSION(:, :), POINTER        :: DATA
+
+    DATA => array%low%data
   END FUNCTION array_data_i2d
-  FUNCTION array_data_d1d(array) RESULT (data)
-    TYPE(array_d1d_obj), INTENT(IN) :: array
-    REAL(KIND=dp), DIMENSION(:), POINTER :: data
-    data => array%low%data
+  FUNCTION array_data_d1d(array) RESULT (DATA)
+    TYPE(array_d1d_obj), INTENT(IN)          :: array
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
+
+    DATA => array%low%data
   END FUNCTION array_data_d1d
-  FUNCTION array_data_d2d(array) RESULT (data)
-    TYPE(array_d2d_obj), INTENT(IN) :: array
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: data
-    data => array%low%data
+  FUNCTION array_data_d2d(array) RESULT (DATA)
+    TYPE(array_d2d_obj), INTENT(IN)          :: array
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
+
+    DATA => array%low%data
   END FUNCTION array_data_d2d
 
   !
 
   FUNCTION array_size_i1d(array) RESULT (the_size)
-    TYPE(array_i1d_obj), INTENT(IN) :: array
-    INTEGER :: the_size
+    TYPE(array_i1d_obj), INTENT(IN)          :: array
+    INTEGER                                  :: the_size
+
     the_size = SIZE(array%low%data)
   END FUNCTION array_size_i1d
   FUNCTION array_size_i2d(array) RESULT (the_size)
-    TYPE(array_i2d_obj), INTENT(IN) :: array
-    INTEGER :: the_size
+    TYPE(array_i2d_obj), INTENT(IN)          :: array
+    INTEGER                                  :: the_size
+
     the_size = SIZE(array%low%data)
   END FUNCTION array_size_i2d
   FUNCTION array_size_d1d(array) RESULT (the_size)
-    TYPE(array_d1d_obj), INTENT(IN) :: array
-    INTEGER :: the_size
+    TYPE(array_d1d_obj), INTENT(IN)          :: array
+    INTEGER                                  :: the_size
+
     the_size = SIZE(array%low%data)
   END FUNCTION array_size_d1d
   FUNCTION array_size_d2d(array) RESULT (the_size)
-    TYPE(array_d2d_obj), INTENT(IN) :: array
-    INTEGER :: the_size
+    TYPE(array_d2d_obj), INTENT(IN)          :: array
+    INTEGER                                  :: the_size
+
     the_size = SIZE(array%low%data)
   END FUNCTION array_size_d2d
 
