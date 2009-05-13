@@ -99,7 +99,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
                                                 right_pgrid
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
-    REAL(KIND=dp)                            :: trun, tstart, tstop
+    REAL(KIND=dp)                            :: trun, tstart, tstop, trun_t
     TYPE(btree_I8_I4)                        :: windex
     TYPE(dbcsr_array_type), POINTER          :: lbuffer_set_calc, &
                                                 lbuffer_set_comm, &
@@ -115,6 +115,7 @@ CONTAINS
     CALL timeset (routineN, timing_handle)
     CALL btree_new (windex)
     tstart = 0.0d0 ; tstop = 0.0d0 ; trun = 0.0d0
+    trun_t = m_walltime ()
     left_reps = SIZE (left_set%mats)
     right_reps = SIZE (right_set%mats)
     mp_obj = dbcsr_distribution_mp (product_matrix%dist)
@@ -319,8 +320,10 @@ CONTAINS
                   product_matrix, product_wm, error, windex, flop=flop)
              flop_total = flop_total + flop
              tstop = m_walltime ()
-             DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-                  (REAL(flop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+             IF (tstop-tstart .NE. 0) THEN
+                DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
+                     (REAL(flop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+             ENDIF
              trun = trun + (tstop - tstart)
           ENDIF calc_case_left
        ENDDO left_row_aggregation
@@ -328,10 +331,12 @@ CONTAINS
        CALL dbcsr_switch_sets(lbuffer_set_calc, lbuffer_set_comm)
        CALL dbcsr_switch_sets(rbuffer_set_calc, rbuffer_set_comm)
     ENDDO k_index
+    trun_t = m_walltime () - trun_t
+    IF (trun_t .EQ. 0) trun_t = 0.001
     WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
          routineN//' Total Local Multiplication time',&
          trun,' and',&
-         (REAL(flop_total, dp)/1000000.0d0)/trun,' MFLOPS',flop_total
+         (REAL(flop_total, dp)/1000000.0d0)/trun_t,' MFLOPS',flop_total
     DO rep = 1, left_reps
        CALL mp_window_destroy (left_set%data_windows(rep))
        CALL mp_window_destroy (left_set%index_windows(rep))
@@ -769,8 +774,10 @@ CONTAINS
                   product_matrix, product_wm, error, windex, flop=flop)
              flop_total = flop_total + flop
              tstop = m_walltime ()
-             DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-                  (REAL(flop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+             IF (tstop-tstart .NE. 0) THEN
+                DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
+                     (REAL(flop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+             ENDIF
              trun = trun + (tstop - tstart)
           ENDIF calc_case_left
        ENDDO left_row_walk
@@ -939,11 +946,12 @@ CONTAINS
     ENDIF
     !.!DEALLOCATE (c_blk_ps)
     DBG "Post-mult blk sizes, data", wm%lastblk, wm%datasize
-    dbg = .TRUE.
     IF (dbg) THEN
        tstop = m_walltime ()
-       DBG tstop-tstart,'s',&
-            (REAL(lflop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+       IF (tstop-tstart .NE. 0) THEN
+          DBG tstop-tstart,'s',&
+               (REAL(lflop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+       ENDIF
     ENDIF
     IF (PRESENT (flop)) flop = lflop
     CALL timestop(timing_handle)
@@ -1069,8 +1077,10 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DBG "Post-add blk sizes, data", wm%lastblk, wm%datasize
     IF (dbg) THEN
        tstop = m_walltime ()
-       DBG tstop-tstart,'s',&
-            (REAL(lflop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+       IF (tstop-tstart .NE. 0) THEN
+          DBG tstop-tstart,'s',&
+               (REAL(lflop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+       ENDIF
     ENDIF
     IF (PRESENT (flop)) flop = lflop
     CALL timestop(timing_handle)
