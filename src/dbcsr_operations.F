@@ -99,7 +99,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
                                                 right_pgrid
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
-    REAL(KIND=dp)                            :: trun, tstart, tstop, trun_t
+    REAL(KIND=dp)                            :: trun, trun_t, tstart, tstop
     TYPE(btree_I8_I4)                        :: windex
     TYPE(dbcsr_array_type), POINTER          :: lbuffer_set_calc, &
                                                 lbuffer_set_comm, &
