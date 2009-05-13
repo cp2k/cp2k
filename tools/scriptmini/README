@@ -1,0 +1,13 @@
+#
+# a quite general derivative free approach to minimize stuff.
+# basically scriptmini.f90 will compile into an executable which will
+# minimize the script called scriptmini_eval
+# communication between scriptmini.x and scriptmini_eval is through two files
+# scriptmini_eval.in and scriptmini_eval.out
+# the former contains the variables at which scriptmini_eval should evaluate the objective function
+# while the later should contain the value of the objective function at these variables
+#
+# The 2 line how to goes as :
+#
+gfortran -O2 -o scriptmini.x scriptmini.f90
+./scriptmini.x < scriptmini.in
