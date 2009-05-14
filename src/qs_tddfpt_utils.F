@@ -289,7 +289,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, n_ev, n_spins, occ, &
-                                                spin, stat, virt
+                                                output_unit, spin, stat, virt
     INTEGER, DIMENSION(2)                    :: nhomos, nlumos, nrows
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp)                            :: contribution, &
@@ -305,6 +305,8 @@ CONTAINS
     failure = .FALSE.
     logger    => cp_error_get_logger(error)
     ionode    = (logger%para_env%mepos==logger%para_env%source)
+    output_unit= cp_logger_get_default_unit_nr(logger)
+
     IF (ionode) WRITE (*,*)
     IF (ionode) WRITE (*,*)
 
@@ -363,6 +365,12 @@ CONTAINS
        END DO
        IF (ionode) WRITE (*,*)
     END DO
+
+    !
+    ! punch a checksum for the regs
+    IF(output_unit > 0) THEN
+       WRITE(output_unit,'(T2,A,E14.6)') ' TDDFPT : CheckSum  =',SQRT(SUM(t_env%evals**2))
+    ENDIF
 
     DO spin=1, n_spins
        CALL cp_fm_release(S_lumos(spin)%matrix, error=error)
