@@ -69,8 +69,8 @@ CONTAINS
                       itype, charg_int_nri, error)
 
     ! If only the shortrange component is requested we can skip the rest
-    IF (.NOT.se_int_control%pc_coulomb_int) THEN
-       ! Handle the 1/r^3 term
+    IF ((.NOT.se_int_control%pc_coulomb_int).AND.(itype/=do_method_pchg)) THEN
+       ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-D integrals
        IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
           res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
                                  itype, charg_int_3, error)
@@ -102,29 +102,45 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_sp', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: dfs
+    REAL(KIND=dp)                            :: dfs, srd
 
-    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-                      se_int_control%integral_screening, se_int_control%shortrange,&
-                      se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
-                      itype, dcharg_int_nri, error)
+    IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
+       res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                         se_int_control%integral_screening, .FALSE.,&
+                         se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
+                         itype, dcharg_int_nri, error)
+
+       IF (.NOT.se_int_control%pc_coulomb_int) THEN
+          dfs = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                            se_int_control%integral_screening, .FALSE., .FALSE., &
+                            do_multipole_none, itype, dcharg_int_nri_fs, error)
+          res = res + dfs*se_int_screen%dft
+
+          ! In case we need the shortrange part we have to evaluate an additional derivative
+          ! to handle the derivative of the Tapering term
+          IF (se_int_control%shortrange) THEN
+             srd = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                               se_int_control%integral_screening, .FALSE., .TRUE., &
+                               do_multipole_none, itype, dcharg_int_nri_fs, error)
+             res = res - srd
+          END IF
+       END IF
+    ELSE
+       res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                         se_int_control%integral_screening, se_int_control%shortrange,&
+                         se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
+                         itype, dcharg_int_nri, error)
+    END IF
 
     ! If only the shortrange component is requested we can skip the rest
-    IF (.NOT.se_int_control%pc_coulomb_int) THEN
-       ! Handle the derivative of the Tapering term
-       IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
-          dfs = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-               se_int_control%integral_screening, .FALSE., .FALSE., do_multipole_none,&
-               itype, dcharg_int_nri_fs, error)
-          res = res + dfs*se_int_screen%dft
-       END IF
-       
-       ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-S integrals
+    IF ((.NOT.se_int_control%pc_coulomb_int).AND.(itype/=do_method_pchg)) THEN
+       ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-D integrals
        IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
           res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
                                  itype, dcharg_int_3, error)
        END IF
     END IF
+
   END FUNCTION d_ijkl_sp
 
 ! *****************************************************************************
@@ -897,8 +913,8 @@ CONTAINS
                      itype, charg_int_ri, error)
 
     ! If only the shortrange component is requested we can skip the rest
-    IF (.NOT.se_int_control%pc_coulomb_int) THEN
-       ! Handle the 1/r^3 term
+    IF ((.NOT.se_int_control%pc_coulomb_int).AND.(itype/=do_method_pchg)) THEN
+       ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-D integrals
        IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
           res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
                                  itype, charg_int_3, error)
@@ -936,29 +952,45 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_d', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: dfs
+    REAL(KIND=dp)                            :: dfs, srd
 
-    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-                     se_int_control%integral_screening, se_int_control%shortrange,&
-                     se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
-                     itype, dcharg_int_ri, error)
+    IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
+       res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                        se_int_control%integral_screening, .FALSE.,&
+                        se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
+                        itype, dcharg_int_ri, error)
+
+       IF (.NOT.se_int_control%pc_coulomb_int) THEN
+          dfs = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                        se_int_control%integral_screening, .FALSE., .FALSE.,&
+                        se_int_control%max_multipole, itype, dcharg_int_ri, error)
+          res = res + dfs*se_int_screen%dft
+
+          ! In case we need the shortrange part we have to evaluate an additional derivative
+          ! to handle the derivative of the Tapering term
+          IF (se_int_control%shortrange) THEN
+             srd = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                              se_int_control%integral_screening, .FALSE., .TRUE.,&
+                              se_int_control%max_multipole, itype, dcharg_int_ri, error)
+             res = res - srd
+          END IF
+       END IF
+    ELSE
+       res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                        se_int_control%integral_screening, se_int_control%shortrange,&
+                        se_int_control%pc_coulomb_int, se_int_control%max_multipole,&
+                        itype, dcharg_int_ri, error)
+    END IF
 
     ! If only the shortrange component is requested we can skip the rest
-    IF (.NOT.se_int_control%pc_coulomb_int) THEN
-       ! Handle the derivative of the Tapering term
-       IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype/=do_method_pchg)) THEN
-          dfs = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
-               se_int_control%integral_screening, .FALSE., .FALSE., do_multipole_none,&
-               itype, dcharg_int_ri_fs, error)
-          res = res + dfs*se_int_screen%dft
-       END IF
-
-       ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-S integrals
+    IF ((.NOT.se_int_control%pc_coulomb_int).AND.(itype/=do_method_pchg)) THEN
+       ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-D integrals
        IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
           res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
                                  itype, dcharg_int_3, error)
        END IF
     END IF
+
   END FUNCTION d_ijkl_d
 
 ! *****************************************************************************

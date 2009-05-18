@@ -968,8 +968,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
-    ! Temporary hack.. to remove later..
-    RETURN
     CALL timeset(routineN,handle)
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force, particle_set, se_control, se_taper, pscp,&
@@ -1270,6 +1268,7 @@ CONTAINS
                             IF (use_virial) THEN
                                CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
                             END IF
+
                             ! Sum up force components
                             force(ikind)%rho_elec(1,atom_a) = force(ikind)%rho_elec(1,atom_a) - force_ab(1)
                             force(jkind)%rho_elec(1,atom_b) = force(jkind)%rho_elec(1,atom_b) + force_ab(1)

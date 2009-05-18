@@ -476,3 +476,5 @@ water_hbonds_dist.inp
 # bug fix
 multipole_ch_dip.dbg_f_rec.inp
 multipole_dip_qu.dbg_f_rec.inp
+# numerics
+multipole_quadrupole.dbg_f_rec.inp

@@ -15,6 +15,10 @@
           RC_TAPER [angstrom]     6.0
           RC_RANGE [angstrom]     0.1
         &END
+        &LR_CORRECTION
+          CUTOFF   [angstrom]     5.0
+          RC_RANGE [angstrom]     0.1
+        &END
         &PRINT
           &EWALD_INFO
           &END
@@ -41,7 +45,7 @@
     &POISSON
       &EWALD
         &MULTIPOLES
-          MAX_MULTIPOLE_EXPANSION NONE
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
         &END
         EWALD_TYPE ewald
         ALPHA  .5

@@ -682,8 +682,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, l_denuc, l_enuc
-    REAL(dp)                                 :: dssss, dssss_sr, rij, ssss, &
-                                                ssss_sr, zz
+    REAL(dp)                                 :: drij(3), dssss, dssss_sr, &
+                                                rij, ssss, ssss_sr, tmp, zz
     TYPE(se_int_control_type)                :: se_int_control_off
 
     failure = .FALSE.
@@ -710,7 +710,13 @@ CONTAINS
        zz = sepi%zeff*sepj%zeff
        ! Core Core electrostatic contribution
        IF (l_enuc)   enuc = zz* ssss_sr
-       IF (l_denuc) denuc = zz*dssss_sr
+       IF (l_denuc) THEN 
+          drij(1) = rijv(1)/rij
+          drij(2) = rijv(2)/rij
+          drij(3) = rijv(3)/rij
+          tmp   = zz*dssss_sr
+          denuc = tmp*drij
+       END IF
     END IF
   END SUBROUTINE corecore_el_ana
 

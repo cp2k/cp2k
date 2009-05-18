@@ -1052,7 +1052,6 @@ CONTAINS
     failure = .FALSE.
     do_task  = my_task
     energy   = 0.0_dp
-    force_ab = 0.0_dp
     DO i = 1, 3
        IF (do_task(i)) THEN
           SELECT CASE(i)
@@ -1084,6 +1083,10 @@ CONTAINS
     IF (PRESENT(integral_value)) THEN
        integral_value = eloc
     END IF
+    IF (do_forces) THEN
+       force_ab = fr
+    END IF
+
   END SUBROUTINE se_coulomb_ij_interaction
 
 END MODULE se_fock_matrix_integrals

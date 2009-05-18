@@ -157,3 +157,5 @@ mol_CSVR_gen2.inp
 mol_CSVR_gen3.inp
 mol_sph_cut.inp
 
+# numerics
+mol.inp

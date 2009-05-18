@@ -46,3 +46,8 @@ H2O-MNDO-KDSOd.inp
 LM-KSDO.inp
 LM-KSDO-D.inp
 
+# bug fixes
+H-0.inp
+H2O-MNDO.inp
+LiH.inp
+O2.inp

@@ -28,3 +28,5 @@ wfn_ex4.inp         3
 H2O-4.inp           3
 # NDDO Stress tensor
 LiH.inp            31
+# PERIODIC NDDO
+SiO2_lr_quad.inp   11

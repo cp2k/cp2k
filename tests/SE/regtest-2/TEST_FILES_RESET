@@ -247,3 +247,5 @@ sio2.inp
 scan_zn_1w_cp2k.inp
 zn_1w_debug.inp
 
+# bug fixes
+H2O-32.inp
