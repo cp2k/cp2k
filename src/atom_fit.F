@@ -147,11 +147,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_basis', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, k, l, ll, n10, nr
+    INTEGER                                  :: i, ierr, j, k, l, ll, m, n, &
+                                                n10, nr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: xtob
-    LOGICAL                                  :: failure = .FALSE., mult
+    LOGICAL                                  :: explicit, failure = .FALSE., &
+                                                mult
     REAL(KIND=dp)                            :: al, ear, fopt, rk
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: wem
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(opt_state_type)                     :: ostate
 
     SELECT CASE (basis%basis_type)
@@ -200,6 +205,34 @@ CONTAINS
     CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend, error=error)
     CALL section_vals_val_get(powell_section,"STEP_SIZE", r_val=ostate%rhobeg, error=error)
     CALL section_vals_val_get(powell_section,"MAX_FUN", i_val=ostate%maxfun, error=error)
+
+    n=SIZE(atom_info,1)
+    m=SIZE(atom_info,2)
+    ALLOCATE(wem(n,m),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    wem = 1._dp
+    CALL section_vals_val_get(powell_section,"WEIGHT_ELECTRON_CONFIGURATION", explicit=explicit, error=error)
+    IF(explicit) THEN
+      CALL section_vals_val_get(powell_section,"WEIGHT_ELECTRON_CONFIGURATION", r_vals=w, error=error)
+      DO i=1,MIN(SIZE(w),n)
+        wem(i,:)=w(i)*wem(i,:)
+      END DO
+    END IF
+    CALL section_vals_val_get(powell_section,"WEIGHT_METHOD", explicit=explicit, error=error)
+    IF(explicit) THEN
+      CALL section_vals_val_get(powell_section,"WEIGHT_METHOD", r_vals=w, error=error)
+      DO i=1,MIN(SIZE(w),m)
+        wem(:,i)=w(i)*wem(:,i)
+      END DO
+    END IF
+
+    DO i=1,SIZE(atom_info,1)
+      DO j=1,SIZE(atom_info,2)
+        atom_info(i,j)%atom%weight = wem(i,j)
+      END DO
+    END DO
+    DEALLOCATE(wem,STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
     ostate%nf = 0
     ostate%iprint = 1
@@ -303,14 +336,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_pseudo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, iw, j, k, l, n10, np
+    INTEGER                                  :: i, ierr, iw, j, k, l, m, n, &
+                                                n10, np
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: xtob
     INTEGER, DIMENSION(0:3)                  :: ncore
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: explicit, failure = .FALSE.
     REAL(KIND=dp) :: charge, deig, drho, eig, fopt, oc, rcov, &
       w_node = 1000._dp, w_semi = 10._dp, w_valence = 100._dp, &
       w_virt = 0.01_dp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x, xi
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: wem
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(opt_state_type)                     :: ostate
 
 ! weights for the optimization
@@ -323,6 +360,26 @@ CONTAINS
     CALL section_vals_val_get(powell_section,"WEIGHT_POT_VIRTUAL", r_val=w_virt, error=error)
     CALL section_vals_val_get(powell_section,"WEIGHT_POT_SEMICORE", r_val=w_semi, error=error)
     CALL section_vals_val_get(powell_section,"WEIGHT_POT_NODE", r_val=w_node, error=error)
+
+    n=SIZE(atom_info,1)
+    m=SIZE(atom_info,2)
+    ALLOCATE(wem(n,m),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    wem = 1._dp
+    CALL section_vals_val_get(powell_section,"WEIGHT_ELECTRON_CONFIGURATION", explicit=explicit, error=error)
+    IF(explicit) THEN
+      CALL section_vals_val_get(powell_section,"WEIGHT_ELECTRON_CONFIGURATION", r_vals=w, error=error)
+      DO i=1,MIN(SIZE(w),n)
+        wem(i,:)=w(i)*wem(i,:)
+      END DO
+    END IF
+    CALL section_vals_val_get(powell_section,"WEIGHT_METHOD", explicit=explicit, error=error)
+    IF(explicit) THEN
+      CALL section_vals_val_get(powell_section,"WEIGHT_METHOD", r_vals=w, error=error)
+      DO i=1,MIN(SIZE(w),m)
+        wem(:,i)=w(i)*wem(:,i)
+      END DO
+    END IF
 
     CALL open_file(file_name="POWELL_RESULT",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
 
@@ -350,6 +407,7 @@ CONTAINS
     !set all reference values
     DO i=1,SIZE(atom_info,1)
       DO j=1,SIZE(atom_info,2)
+        atom_info(i,j)%atom%weight = wem(i,j)
         ncore = get_maxn_occ(atom_info(i,j)%atom%state%core)
         DO l=0,3
           np = atom_info(i,j)%atom%state%maxn_calc(l)
@@ -378,6 +436,9 @@ CONTAINS
         CALL calculate_atom(atom_info(i,j)%atom,0,error=error)
       END DO
     END DO
+
+    DEALLOCATE(wem,STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
     WRITE(iunit,'(/," POWELL| Initial errors of target values")')
     DO i=1,SIZE(atom_info,1)
@@ -625,7 +686,7 @@ CONTAINS
           CALL set_atom(atom,integrals=atint,error=error)
           CALL calculate_atom(atom,iw,error=error)
 
-          afun =afun + atom%energy%etot
+          afun =afun + atom%energy%etot*atom%weight
         END IF
       END DO
     END DO
@@ -669,14 +730,14 @@ CONTAINS
         DO l=0,atom%state%maxl_calc
           n = atom%state%maxn_calc(l)
           DO k=1,n
-            afun = afun + atom%orbitals%wrefene(k,l)*(atom%orbitals%ener(k,l)-atom%orbitals%refene(k,l))**2
+            afun = afun + atom%weight*atom%orbitals%wrefene(k,l)*(atom%orbitals%ener(k,l)-atom%orbitals%refene(k,l))**2
             IF(atom%orbitals%wrefchg(k,l) > 0._dp) THEN
               CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
-              afun = afun + atom%orbitals%wrefchg(k,l)*(charge-atom%orbitals%refchg(k,l))**2
+              afun = afun + atom%weight*atom%orbitals%wrefchg(k,l)*(charge-atom%orbitals%refchg(k,l))**2
             END IF
             IF(atom%orbitals%wrefnod(k,l) > 0._dp) THEN
               CALL atom_orbital_nodes(node,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
-              afun = afun + atom%orbitals%wrefnod(k,l)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l))
+              afun = afun + atom%weight*atom%orbitals%wrefnod(k,l)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l))
             END IF
           END DO
         END DO

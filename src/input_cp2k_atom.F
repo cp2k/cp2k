@@ -236,7 +236,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"FIT_DENSITY",&
-            description="FIT the total electronic density to a linear combination of Gaussian functions",&
+            description="Fit the total electronic density to a linear combination of Gaussian functions",&
             print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="NUM_GTO",&
@@ -248,6 +248,24 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"RESPONSE_BASIS",&
+            description="Calculate a response basis set contraction scheme",&
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL keyword_create(keyword, name="DELTA_CHARGE",&
+            description="Variation of charge used in finite difference calculation",&
+            usage="DELTA_CHARGE real ",type_of_var=real_t,&
+            default_r_val=0.05_dp,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="DERIVATIVES",&
+            description="Number of wavefunction derivatives to calculate",&
+            usage="DERIVATIVES integer ",type_of_var=integer_t,&
+            default_i_val=2,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"SCF_INFO",&
             description="Controls the printing of SCF information",&
@@ -796,6 +814,20 @@ CONTAINS
             description="Weight for node mismatch in pseudopotential optimization",&
             usage="WEIGHT_POT_NODE 1.0",&
             default_r_val=1000.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHT_ELECTRON_CONFIGURATION",&
+            description="Weight for different electronic states in optimization",&
+            usage="WEIGHT_ELECTRON_CONFIGURATION 1.0 0.1 ...",&
+            n_var=-1,type_of_var=real_t, default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHT_METHOD",&
+            description="Weight for different methods in optimization",&
+            usage="WEIGHT_METHOD 1.0 0.1 ...",&
+            n_var=-1,type_of_var=real_t, default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

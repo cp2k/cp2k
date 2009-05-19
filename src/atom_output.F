@@ -109,9 +109,11 @@ CONTAINS
     WRITE(iw,'(T36,A,T61,F20.12)') "     Band Energy ::",atom%energy%eband
     WRITE(iw,'(T36,A,T61,F20.12)') "  Kinetic Energy ::",atom%energy%ekin
     WRITE(iw,'(T36,A,T61,F20.12)') "     Core Energy ::",atom%energy%ecore
-    WRITE(iw,'(T36,A,T61,F20.12)') "       XC Energy ::",atom%energy%exc
+    IF(atom%energy%exc /= 0._dp) &
+      WRITE(iw,'(T36,A,T61,F20.12)') "       XC Energy ::",atom%energy%exc
     WRITE(iw,'(T36,A,T61,F20.12)') "  Coulomb Energy ::",atom%energy%ecoulomb
-    WRITE(iw,'(T34,A,T61,F20.12)') "HF Exchange Energy ::",atom%energy%eexchange
+    IF(atom%energy%eexchange /= 0._dp) &
+      WRITE(iw,'(T34,A,T61,F20.12)') "HF Exchange Energy ::",atom%energy%eexchange
     IF ( atom%potential%ppot_type /= NO_PSEUDO ) THEN
        WRITE(iw,'(T20,A,T61,F20.12)') "    Total Pseudopotential Energy ::",atom%energy%epseudo
        WRITE(iw,'(T20,A,T61,F20.12)') "    Local Pseudopotential Energy ::",atom%energy%eploc

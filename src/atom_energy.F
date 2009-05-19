@@ -20,7 +20,7 @@ MODULE atom_energy
   USE atom_types,                      ONLY: &
        atom_basis_type, atom_integrals, atom_optimization_type, &
        atom_orbitals, atom_p_type, atom_potential_type, atom_state, &
-       create_atom_orbs, create_atom_type, init_atom_basis, &
+       atom_type, create_atom_orbs, create_atom_type, init_atom_basis, &
        init_atom_potential, read_atom_opt_section, release_atom_basis, &
        release_atom_potential, release_atom_type, set_atom
   USE atom_utils,                      ONLY: atom_set_occupation,&
@@ -36,6 +36,7 @@ MODULE atom_energy
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE lapack
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
   USE timings,                         ONLY: timeset,&
@@ -65,11 +66,12 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, maxl, mb, &
-      method, mo, n_meth, n_rep, num_gto, reltyp, zcore, zval, zz
+      method, mo, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, &
                                                 had_ae, had_pp, pp_calc
+    REAL(KIND=dp)                            :: delta
     REAL(KIND=dp), DIMENSION(0:3, 10)        :: pocc
     TYPE(atom_basis_type), POINTER           :: ae_basis, pp_basis
     TYPE(atom_integrals), POINTER            :: ae_int, pp_int
@@ -284,6 +286,15 @@ CONTAINS
         END IF
         CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_DENSITY",error=error)
 
+        ! perform a fit of the total electronic density
+        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%RESPONSE_BASIS",extension=".log",error=error)
+        IF (iw>0) THEN
+          CALL section_vals_val_get(atom_section,"PRINT%RESPONSE_BASIS%DELTA_CHARGE", r_val=delta, error=error)
+          CALL section_vals_val_get(atom_section,"PRINT%RESPONSE_BASIS%DERIVATIVES", i_val=nder, error=error)
+          CALL atom_response_basis(atom_info(in,im)%atom,delta,nder,iw,error)
+        END IF
+        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%RESPONSE_BASIS",error=error)
+
       END DO
     END DO
 
@@ -319,6 +330,119 @@ CONTAINS
 
   END SUBROUTINE atom_energy_opt
 
+! *****************************************************************************
+  SUBROUTINE atom_response_basis(atom,delta,nder,iw,error)
+ 
+    TYPE(atom_type), POINTER                 :: atom
+    REAL(KIND=dp), INTENT(IN)                :: delta
+    INTEGER, INTENT(IN)                      :: nder, iw
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_response_basis', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ider, ierr, k, l, lhomo, &
+                                                lwork, m, n, nhomo, s1, s2
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: dene, emax, fhomo
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: amat
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: rbasis
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: wfn
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: ovlp
+    TYPE(atom_state), POINTER                :: state
+
+    WRITE(iw,'(/," ",79("*"),/,T34,A,/," ",79("*"))') "RESPONSE BASIS"
+
+    state => atom%state
+    ovlp => atom%integrals%ovlp
+
+    ! find HOMO
+    lhomo = -1
+    nhomo = -1
+    emax=-HUGE(1._dp)
+    DO l=0,state%maxl_occ
+      DO i=1,state%maxn_occ(l)
+        IF (atom%orbitals%ener(i,l) > emax) THEN
+          lhomo=l
+          nhomo=i
+          emax=atom%orbitals%ener(i,l)
+          fhomo=state%occupation(l,i)
+        END IF
+      END DO
+    END DO
+
+    s1=SIZE(atom%orbitals%wfn,1)
+    s2=SIZE(atom%orbitals%wfn,2)
+    ALLOCATE(wfn(s1,s2,0:3,-nder:nder),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    s2=MAXVAL(state%maxn_occ)+nder
+    ALLOCATE(rbasis(s1,s2,0:3),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+    DO ider=-nder,nder
+      dene = REAL(ider,KIND=dp)*delta
+      CPPostcondition(fhomo>ABS(dene), cp_failure_level, routineP, error, failure)
+      state%occupation(lhomo,nhomo)=fhomo+dene
+      CALL calculate_atom(atom,iw=0,noguess=.TRUE.,error=error)
+      wfn(:,:,:,ider) = atom%orbitals%wfn
+      state%occupation(lhomo,nhomo)=fhomo
+    END DO
+
+    DO l=0,state%maxl_occ
+      ! occupied states
+      DO i=1,state%maxn_occ(l)
+        rbasis(:,i,l) = wfn(:,i,l,0)
+      END DO
+      ! differentiation
+      DO ider=1,nder
+        i=state%maxn_occ(l)
+        SELECT CASE (ider)
+          CASE (1)
+            rbasis(:,i+1,l) = 0.5_dp*(wfn(:,i,l,1) - wfn(:,i,l,-1))/delta
+          CASE (2)
+            rbasis(:,i+2,l) = 0.25_dp*(wfn(:,i,l,2) - 2._dp*wfn(:,i,l,0) + wfn(:,i,l,-2))/delta**2
+          CASE (3)
+            rbasis(:,i+3,l) = 0.125_dp*(wfn(:,i,l,3) - 3._dp*wfn(:,i,l,1) &
+                                      + 3._dp*wfn(:,i,l,-1) - wfn(:,i,l,-3))/delta**3
+          CASE DEFAULT
+            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        END SELECT
+      END DO
+      ! orthogonalization
+      n = state%maxn_occ(l)+nder
+      m = atom%basis%nbas(l)
+      lwork = n*n
+      ALLOCATE(amat(n,n),w(n),work(lwork),STAT=ierr)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      amat(1:n,1:n) = MATMUL(TRANSPOSE(rbasis(1:m,1:n,l)),MATMUL(ovlp(1:m,1:m,l),rbasis(1:m,1:n,l)))
+      CALL lapack_ssyev ( "V", "U", n, amat(1:n,1:n), n, w(1:n), work, lwork, ierr )
+      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      DO i=1,n
+        amat(1:n,i)=amat(1:n,i)/SQRT(w(i))
+      END DO
+      rbasis(1:m,1:n,l) = MATMUL(rbasis(1:m,1:n,l),amat(1:n,1:n))
+      DEALLOCATE(amat,w,work,STAT=ierr)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+      WRITE(iw,'(/,A,T30,I3)') " Angular momentum :",l
+      WRITE(iw,'(A)') " Basis             Coefficients"
+      DO i=1,m
+        WRITE(iw,'(I6,4X,15ES20.6)') i,(rbasis(i,k,l),k=1,n) 
+      END DO
+
+    END DO
+
+    DEALLOCATE(wfn,rbasis,STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+    WRITE(iw,'(" ",79("*"))')
+
+  END SUBROUTINE atom_response_basis
 ! *****************************************************************************
 
 END MODULE atom_energy

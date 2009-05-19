@@ -197,6 +197,7 @@ MODULE atom_types
     INTEGER                                       :: relativistic
     INTEGER                                       :: coulomb_integral_type
     INTEGER                                       :: exchange_integral_type
+    REAL(KIND=dp)                                 :: weight
     TYPE(atom_basis_type), POINTER                :: basis
     TYPE(atom_potential_type), POINTER            :: potential
     TYPE(atom_state), POINTER                     :: state
