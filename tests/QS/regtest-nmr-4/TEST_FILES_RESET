@@ -276,3 +276,5 @@ o2-gapw-uks-restart-1.inp
 no_list-1.inp
 # reduce memory need for chi
 w2_3-selected-states-2.inp
+#
+he-gapw-no-soft-1.inp

@@ -103,7 +103,7 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, p_matrix
     REAL(dp), DIMENSION(3)                   :: rac, rbc
     REAL(dp), DIMENSION(3, 3)                :: force_tmp
-    REAL(kind=dp)                            :: eps_cpc, factor, pmax
+    REAL(kind=dp)                            :: eps_cpc, factor
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: C_int_h, C_int_s, coc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dCPC_h, dCPC_s
@@ -268,7 +268,6 @@ CONTAINS
           DO inode=1,nnode
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,neighbor=jatom,cell=cell_b)
 
-            pmax = 0._dp
             DO ispin = 1,nspins
               NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
               IF (iatom <= jatom) THEN
@@ -282,7 +281,6 @@ CONTAINS
                                     block_col=iatom,&
                                     BLOCK=mat_h(ispin)%array)
               END IF
-              pmax = pmax+MAXVAL(ABS(mat_h(ispin)%array))
 
               IF(forces) THEN
                 IF (iatom <= jatom) THEN
@@ -322,7 +320,6 @@ CONTAINS
                 DO kbc=1,alist_bc%nclist
                   IF ( alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom ) CYCLE
                   IF ( ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0) ) THEN
-                    IF(pmax*alist_bc%clist(kbc)%maxac*alist_ac%clist(kac)%maxac < eps_cpc) CYCLE
 
                     n_cont_a = alist_ac%clist(kac)%nsgf_cnt
                     n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
