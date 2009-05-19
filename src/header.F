@@ -122,7 +122,7 @@ CONTAINS
     IF (.NOT.ionode) RETURN
 
     WRITE ( iw, '( / )' )
-    WRITE ( iw, '( 14(12x,a,/) )' ) &
+    WRITE ( iw, '( 12(12x,a,/) )' ) &
          '  #####   #####        # #     # ######  ######   #####  ', &
          ' #     # #     #      #  ##    # #     # #     # #     # ', &
          ' #     # #           #   # #   # #     # #     # #     # ', &
@@ -131,10 +131,8 @@ CONTAINS
          ' #    #  #     #  #      #    ## #     # #     # #     # ', &
          '  #### #  #####  #       #     # ######  ######   #####  ', &
          '                                                         ', &
-         '                   University of Zurich                  ', &
-         '                       2005 -- 2009                      ', &
+         '                  T. Laino and J. Hutter                 ', &
          '                                                         ', &
-         '                       Version 1.0                       ', &
          '                                                         '
 
   END SUBROUTINE se_header
