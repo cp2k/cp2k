@@ -298,7 +298,8 @@ MODULE input_constants
                                               do_coord_xyz=2,&
                                               do_coord_g96=3,&
                                               do_coord_crd=4,&
-                                              do_coord_cif=5
+                                              do_coord_cif=5,&
+                                              do_coord_xtl=6
                                            
   INTEGER, PARAMETER, PUBLIC               :: do_ff_undef=0,&
                                               do_ff_quartic=1,&

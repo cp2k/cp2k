@@ -30,3 +30,5 @@ H2O-4.inp           3
 LiH.inp            31
 # PERIODIC NDDO
 SiO2_lr_quad.inp   11
+#XTL file
+Al2O3.inp          11

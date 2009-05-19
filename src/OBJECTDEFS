@@ -646,6 +646,7 @@ OBJECTS_GENERIC =\
  topology_psf.o\
  topology_types.o\
  topology_util.o\
+ topology_xtl.o\
  topology_xyz.o\
  util.o\
  velocity_verlet_control.o\

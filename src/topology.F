@@ -22,7 +22,7 @@ MODULE topology
        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
        do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
        do_coord_cif, do_coord_crd, do_coord_g96, do_coord_off, do_coord_pdb, &
-       do_coord_xyz
+       do_coord_xtl, do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -73,6 +73,7 @@ MODULE topology
                                              topology_molecules_check,&
                                              topology_reorder_atoms,&
                                              topology_set_atm_mass
+  USE topology_xtl,                    ONLY: read_coordinate_xtl
   USE topology_xyz,                    ONLY: read_coordinate_xyz
 #include "cp_common_uses.h"
 
@@ -524,6 +525,8 @@ CONTAINS
        CALL read_coordinate_xyz (topology,para_env,subsys_section,error)
     CASE (do_coord_cif)
        CALL read_coordinate_cif (topology,para_env,subsys_section,error)
+    CASE (do_coord_xtl)
+       CALL read_coordinate_xtl (topology,para_env,subsys_section,error)
     CASE DEFAULT
        ! We should never reach this point..
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)   
