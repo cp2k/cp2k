@@ -70,7 +70,7 @@ MODULE physcon
   REAL(KIND = dp) :: a_bohr,a_fine,a_mass,angstrom,atm,bar,bohr,boltzmann,&
                      c_light,debye,e_charge,e_gfactor,e_mass,evolt,&
                      femtoseconds,h_bar,h_planck,hertz,joule,kcalmol,kelvin,&
-                     kjmol,massunit,mu_perm,n_avogadro,pascal,permittivity,&
+                     kjmol,massunit,mu_perm,n_avogadro,p_mass,pascal,permittivity,&
                      picoseconds,rydberg,seconds,vibfac,wavenumbers
 
   REAL(KIND = dp), DIMENSION(maxmom) :: esu
@@ -78,7 +78,7 @@ MODULE physcon
   PUBLIC :: a_bohr,a_fine,a_mass,angstrom,atm,bar,bohr,boltzmann,c_light,&
             debye,e_charge,e_gfactor,e_mass,evolt,femtoseconds,h_bar,h_planck,&
             hertz,joule,kcalmol,kelvin,kjmol,massunit,mu_perm,n_avogadro,&
-            pascal,permittivity,picoseconds,rydberg,seconds,vibfac,wavenumbers
+            p_mass,pascal,permittivity,picoseconds,rydberg,seconds,vibfac,wavenumbers
 
   PUBLIC :: init_physcon,&
             write_physcon
@@ -129,6 +129,9 @@ CONTAINS
     ! Electron mass [kg]
     e_mass = 9.10938188E-31_dp
 
+    ! Proton mass [kg]
+    p_mass = 1.67262158E−27_dp
+
     ! Electron g factor [ ]
     e_gfactor = -2.0023193043718_dp
 
@@ -167,6 +170,9 @@ CONTAINS
 
     ! Electron mass [kg]
     e_mass = 9.10938215E-31_dp
+
+    ! Proton mass [kg]
+    p_mass = 1.672621637E-27_dp   
 
     ! Electron g factor [ ]
     e_gfactor = -2.0023193043622_dp
@@ -307,6 +313,8 @@ CONTAINS
       "Electron mass [kg]",e_mass
     WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES21.14)")&
       "Electron g factor [ ]",e_gfactor
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Proton mass [kg]",p_mass
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
       "Fine-structure constant",a_fine
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&

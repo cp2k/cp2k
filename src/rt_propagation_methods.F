@@ -530,7 +530,7 @@ CONTAINS
        CALL add_matrices(rho%rho_ao(i)%matrix,one,tmp_rho_re,one,tmp_rho_im)
     END DO
 
-    CALL qs_rho_update_rho(rho, qs_env, error)
+    CALL qs_rho_update_rho(rho, qs_env, error=error)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
     CALL deallocate_matrix(tmp_rho_re,error)

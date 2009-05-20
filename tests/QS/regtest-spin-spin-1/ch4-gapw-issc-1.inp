@@ -35,6 +35,10 @@
           ORBITAL_CENTER WANNIER
        &END CURRENT
        &SPINSPIN
+          DO_FC F
+          DO_SD F
+          DO_DSO F
+          DO_PSO T
        &END
     &END
   &END

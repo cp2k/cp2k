@@ -39,6 +39,10 @@
        &CURRENT
        &END CURRENT
        &SPINSPIN
+          DO_FC F
+          DO_SD F
+          DO_DSO F
+          DO_PSO F
        &END
     &END
   &END

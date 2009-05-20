@@ -28,6 +28,7 @@ MODULE qs_rho_methods
                                              calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_local_rho_types,              ONLY: local_rho_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
@@ -313,9 +314,10 @@ END SUBROUTINE qs_rho_rebuild
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
+SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(local_rho_type), OPTIONAL, POINTER  :: local_rho_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho', &
@@ -388,7 +390,11 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
 
      ! GAPW o GAPW_XC require the calculation of hard and soft local densities
       IF(gapw ) THEN
-         CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao,error=error)
+         IF(PRESENT(local_rho_set)) THEN
+            CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao,local_rho_set%rho_atom_set,error=error)
+         ELSE
+            CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao,error=error)
+         ENDIF
       ENDIF
       IF(gapw_xc ) THEN
          CALL get_qs_env(qs_env=qs_env,rho_xc=rho_xc,error=error)
@@ -427,7 +433,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
            rho_xc%tau_g_valid=.TRUE.
          ENDIF
       ENDIF
-    END IF
+   END IF
 
     CALL timestop(handle)
 

@@ -51,6 +51,8 @@ MODULE qs_linres_module
                                              epr_env_init
   USE qs_linres_issc_utils,            ONLY: issc_env_cleanup,&
                                              issc_env_init,&
+                                             issc_issc,&
+                                             issc_print,&
                                              issc_response
   USE qs_linres_methods,               ONLY: linres_localize
   USE qs_linres_nmr_shift,             ONLY: nmr_shift,&
@@ -173,7 +175,6 @@ CONTAINS
 
        IF(nmr_present.OR.epr_present) THEN
           linres_control%property = lr_current
-          linres_control%do_kernel = .FALSE.
           IF(.NOT.linres_control%localized_psi0) THEN
              CALL stop_program(routineP,&
                   "Are you sure that you want to calculate the chemical"//&
@@ -253,7 +254,6 @@ CONTAINS
 
        IF(issc_present) THEN
           linres_control%property = lr_current
-          linres_control%do_kernel = .FALSE.
           IF(.NOT.linres_control%localized_psi0) THEN
              CALL stop_program(routineP,&
                   "Are you sure that you want to calculate the chemical"//&
@@ -273,22 +273,15 @@ CONTAINS
           issc_env%ref_count=0
           CALL issc_env_init(issc_env,qs_env,error=error)
           !
-          ! Loop over atoms and field direction
+          ! Loop over atoms
           DO iatom = 1,issc_env%issc_natms
              CALL issc_operators(issc_env,qs_env,iatom,error)
              CALL issc_response(issc_env,p_env,qs_env,iatom,error)
-             DO iB = 1,3
-                !
-                ! Build current response
-                !CALL current_build_current(issc_env,qs_env,iatom,iB,error=error)
-                !
-                ! Compute indirect spin-spin coupling
-                !CALL issc_tensor(issc_env,qs_env,iatom,iB,error=error)
-             ENDDO
+             CALL issc_issc(issc_env,qs_env,iatom,error=error)
           ENDDO
           !
           ! Finalized the issc environment
-          !CALL issc_print(issc_env,qs_env,error)
+          CALL issc_print(issc_env,qs_env,error)
           CALL issc_env_cleanup(issc_env,error)
        ENDIF
 

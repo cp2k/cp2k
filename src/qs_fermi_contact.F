@@ -85,7 +85,7 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: new_atom_b
-    REAL(KIND=dp)                            :: dab, dac, dbc, max_radius_a, &
+    REAL(KIND=dp)                            :: dab, max_radius_a, &
                                                 max_radius_b, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: fcab, work
@@ -214,9 +214,6 @@ CONTAINS
 
              ra = pbc(particle_set(iatom)%r,cell)
 
-             rac = rc - ra
-             dac = SQRT(rac(1)**2 + rac(2)**2 + rac(3)**2)
-
              last_jatom = 0
 
              neighbor_node => first_node(neighbor_list)
@@ -226,8 +223,10 @@ CONTAINS
                 CALL get_neighbor_node(neighbor_node=neighbor_node,neighbor=jatom,r=rab(:))
 
                 rb = rab + ra
-                rbc = rc - rb
-                dbc = SQRT(rbc(1)**2 + rbc(2)**2 + rbc(3)**2)
+                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                dab = SQRT(rab2)
+                rac = pbc(ra,rc,cell)
+                rbc = rac - rab
 
                 IF (jatom /= last_jatom) THEN
                    new_atom_b = .TRUE.
@@ -251,9 +250,6 @@ CONTAINS
                                        block_col=icol,&
                                        BLOCK=fcint(1)%block)
                 ENDIF
-
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                dab = SQRT(rab2)
 
                 DO iset=1,nseta
 

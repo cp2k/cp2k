@@ -16,8 +16,13 @@
 ! *****************************************************************************
 MODULE qs_linres_issc_utils
 
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
+                                             cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -28,18 +33,29 @@ MODULE qs_linres_issc_utils
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE mathlib,                         ONLY: diamat_all
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: a_fine,&
+                                             e_mass,&
+                                             hertz,&
+                                             p_mass
+  USE qs_elec_field,                   ONLY: build_efg_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_fermi_contact,                ONLY: build_fermi_contact_matrix
   USE qs_linres_methods,               ONLY: linres_solver
   USE qs_linres_types,                 ONLY: get_issc_env,&
                                              issc_env_create,&
@@ -50,8 +66,10 @@ MODULE qs_linres_issc_utils
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: set_up_op_sm
   USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE qs_spin_orbit,                   ONLY: build_pso_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
+                                             real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
   USE timings,                         ONLY: timeset,&
@@ -61,7 +79,7 @@ MODULE qs_linres_issc_utils
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: issc_env_cleanup, issc_env_init, issc_response
+  PUBLIC :: issc_env_cleanup, issc_env_init, issc_response, issc_issc, issc_print
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_issc_utils'
 
@@ -84,14 +102,15 @@ CONTAINS
     INTEGER                                  :: handle, idir, ijdir, ispin, &
                                                 istat, jdir, nao, nmo, &
                                                 nspins, output_unit
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
+                                                failure
     REAL(dp)                                 :: chk, fro
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fc_psi0, h1_psi0, psi0_order, &
                                                 psi1, psi1_fc
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: efg_psi0, psi1_efg, psi1_pso, &
-                                                pso_psi0
+      POINTER                                :: dso_psi0, efg_psi0, psi1_dso, &
+                                                psi1_efg, psi1_pso, pso_psi0
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -111,7 +130,6 @@ CONTAINS
     NULLIFY(tmp_fm_struct, psi1_fc, psi1_efg, psi1_pso, pso_psi0, fc_psi0, efg_psi0, psi0_order)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     issc_section => section_vals_get_subs_vals(qs_env%input, &
                                                  "PROPERTIES%LINRES%SPINSPIN",error=error)
@@ -134,18 +152,19 @@ CONTAINS
     nspins = dft_control%nspins
 
     CALL get_issc_env(issc_env=issc_env, &
-                      !nao=nao, &
-                      !centers_set=centers_set, &
-                      !nbr_center=nbr_center, &
-                      !center_list=center_list, &
                       !list_cubes=list_cubes, &
                       psi1_efg=psi1_efg, &
                       psi1_pso=psi1_pso, &
+                      psi1_dso=psi1_dso, &
                       psi1_fc=psi1_fc, &
                       efg_psi0=efg_psi0, &
                       pso_psi0=pso_psi0, &
+                      dso_psi0=dso_psi0, &
                       fc_psi0=fc_psi0, &
-                      !psi0_order=psi0_order,&
+                      do_fc=do_fc, &
+                      do_sd=do_sd, &
+                      do_pso=do_pso, &
+                      do_dso=do_dso, &
                       error=error)
     !
     ! allocate the vectors
@@ -168,14 +187,14 @@ CONTAINS
     chk = 0.0_dp
     !
     ! operator efg
-    ijdir = 0
-    DO idir = 1,3
-    DO jdir = idir,3
-       ijdir = ijdir+1
-       DO ispin = 1,nspins
-          CALL cp_fm_set_all(psi1_efg(ispin,ijdir)%matrix,0.0_dp,error=error)
-       ENDDO
-       !IF(.NOT.current_env%simple_done(idir)) THEN
+    IF(do_sd) THEN
+       ijdir = 0
+       DO idir = 1,3
+       DO jdir = idir,3
+          ijdir = ijdir+1
+          DO ispin = 1,nspins
+             CALL cp_fm_set_all(psi1_efg(ispin,ijdir)%matrix,0.0_dp,error=error)
+          ENDDO
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T10,A)") "Response to the perturbation operator efg_"//ACHAR(idir+119)//ACHAR(jdir+119)
           ENDIF
@@ -193,7 +212,9 @@ CONTAINS
           ENDDO
           !
           !
-          linres_control%converged = .FALSE.
+          linres_control%lr_triplet = .FALSE.
+          linres_control%do_kernel  = .FALSE.
+          linres_control%converged  = .FALSE.
           CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
           !
           !
@@ -220,21 +241,18 @@ CONTAINS
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
           ENDIF
+          !
           ! Write the result in the restart file
-          !current_env%simple_done(ijdir) = .TRUE.
-          !current_env%simple_converged(ijdir) = linres_control%converged
-          !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir,error=error)
-       !ENDIF
-
-    ENDDO ! jdir
-    ENDDO ! idir
+       ENDDO ! jdir
+       ENDDO ! idir
+    ENDIF
     !
     ! operator pso
-    DO idir = 1,3
-       DO ispin = 1,nspins
-          CALL cp_fm_set_all(psi1_pso(ispin,idir)%matrix,0.0_dp,error=error)
-       ENDDO
-       !IF(.NOT.current_env%simple_done(idir+6)) THEN
+    IF(do_pso) THEN
+       DO idir = 1,3
+          DO ispin = 1,nspins
+             CALL cp_fm_set_all(psi1_pso(ispin,idir)%matrix,0.0_dp,error=error)
+          ENDDO
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T10,A)") "Response to the perturbation operator pso_"//ACHAR(idir+119)
           ENDIF
@@ -251,8 +269,10 @@ CONTAINS
              CALL cp_fm_to_fm(pso_psi0(ispin,idir)%matrix,h1_psi0(ispin)%matrix,error=error)
           ENDDO
           !
-          ! 
-          linres_control%converged = .FALSE.
+          !
+          linres_control%lr_triplet = .FALSE. ! we do singlet response
+          linres_control%do_kernel  = .FALSE. ! we do uncoupled response
+          linres_control%converged  = .FALSE.
           CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
           !
           !
@@ -279,18 +299,16 @@ CONTAINS
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
           ENDIF
-          ! Write the result inthe restart file
-          !current_env%simple_done(idir+6) = .TRUE.
-          !current_env%simple_converged(idir+6) = linres_control%converged
-          !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+3,error=error)
-       !ENDIF
-    ENDDO ! idir
+          !
+          ! Write the result in the restart file
+       ENDDO ! idir
+    ENDIF
     !
     ! operator fc
-    DO ispin = 1,nspins
-       CALL cp_fm_set_all(psi1_fc(ispin)%matrix,0.0_dp,error=error)
-    ENDDO
-    !IF(.NOT.current_env%simple_done(idir+9)) THEN
+    IF(do_fc) THEN
+       DO ispin = 1,nspins
+          CALL cp_fm_set_all(psi1_fc(ispin)%matrix,0.0_dp,error=error)
+       ENDDO
        IF(output_unit>0) THEN
           WRITE(output_unit,"(T10,A)") "Response to the perturbation operator fc"
        ENDIF
@@ -307,8 +325,10 @@ CONTAINS
           CALL cp_fm_to_fm(fc_psi0(ispin)%matrix,h1_psi0(ispin)%matrix,error=error)
        ENDDO
        !
-       ! 
-       linres_control%converged = .FALSE.
+       !
+       linres_control%lr_triplet = .TRUE. ! we do triplet response  
+       linres_control%do_kernel  = .TRUE. ! we do coupled response
+       linres_control%converged  = .FALSE.
        CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
        !
        !
@@ -335,15 +355,77 @@ CONTAINS
        IF(output_unit>0) THEN
           WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
        ENDIF
-       ! Write the result inthe restart file
-       !current_env%simple_done(idir+9) = .TRUE.
-       !current_env%simple_converged(idir+9) = linres_control%converged
-       !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+3,error=error)
-    !ENDIF
+       !
+       ! Write the result in the restart file
+    ENDIF
+
+    !>>>> debugging only
     !
+    ! here we have the operator r and compute the polarizability for debugging the kernel only
+    IF(do_dso) THEN
+       DO idir = 1,3
+          DO ispin = 1,nspins
+             CALL cp_fm_set_all(psi1_dso(ispin,idir)%matrix,0.0_dp,error=error)
+          ENDDO
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T10,A)") "Response to the perturbation operator r_"//ACHAR(idir+119)
+          ENDIF
+          !
+          !Initial guess for psi1
+          DO ispin = 1,nspins
+             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+             !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
+             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
+          ENDDO
+          !
+          !DO scf cycle to optimize psi1
+          DO ispin = 1,nspins
+             CALL cp_fm_to_fm(dso_psi0(ispin,idir)%matrix,h1_psi0(ispin)%matrix,error=error)
+          ENDDO
+          !
+          !
+          linres_control%lr_triplet = .FALSE. ! we do singlet response
+          linres_control%do_kernel  = .TRUE.  ! we do uncoupled response
+          linres_control%converged  = .FALSE.
+          CALL linres_solver(p_env,qs_env,psi1,h1_psi0,psi0_order,error=error)
+          !
+          !
+          ! copy the response
+          DO ispin=1,nspins
+             CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_dso(ispin,idir)%matrix,error=error)
+             CALL cp_fm_frobenius_norm(psi1(ispin)%matrix,fro,error=error)
+             chk = chk + fro
+          ENDDO
+          !
+          ! print response functions
+          !IF(BTEST(cp_print_key_should_output(logger%iter_info,issc_section,&
+          !     &   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+          !   ncubes = SIZE(list_cubes,1)
+          !   print_key => section_vals_get_subs_vals(issc_section,"PRINT%RESPONSE_FUNCTION_CUBES",error=error)
+          !   DO ispin = 1,nspins
+          !      CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
+          !           centers_set(ispin)%array,print_key,'psi1_pso',&
+          !           idir=idir,ispin=ispin,error=error)
+          !   ENDDO ! ispin
+          !ENDIF ! print response functions
+          !
+          !
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
+          ENDIF
+          !
+          ! Write the result in the restart file
+       ENDDO ! idir
+    ENDIF
+    !<<<< debugging only
+
+    !
+    !
+    ! print the checksum
     IF(output_unit>0) THEN
        WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| response: CheckSum =',chk
     ENDIF
+    !
     !
     ! clean up
     DO ispin = 1,nspins
@@ -359,6 +441,352 @@ CONTAINS
     CALL timestop(handle)
     !
   END SUBROUTINE issc_response
+
+
+  SUBROUTINE issc_issc(issc_env,qs_env,iatom,error)
+
+    TYPE(issc_env_type)                      :: issc_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iatom
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_issc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, ixyz, jatom, &
+                                                jxyz, natom, nmo, nspins
+    LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
+                                                failure, gapw
+    REAL(dp)                                 :: buf, facdso, facfc, facpso, &
+                                                facsd, g, issc_dso, issc_fc, &
+                                                issc_pso, issc_sd, maxocc
+    REAL(dp), DIMENSION(3)                   :: r_i, r_j
+    REAL(dp), DIMENSION(:, :, :, :, :), &
+      POINTER                                :: issc
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: fc_psi0, psi1_fc
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: psi1_dso, psi1_efg, psi1_pso
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_dso, matrix_efg, &
+                                                matrix_fc, matrix_pso
+    TYPE(section_vals_type), POINTER         :: issc_section
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+
+    NULLIFY(cell,dft_control,particle_set,issc,psi1_fc,psi1_efg,psi1_pso)
+    NULLIFY(matrix_efg, matrix_fc, matrix_pso, mos, mo_coeff, fc_psi0)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         &          cell=cell,&
+         &          dft_control=dft_control,&
+         &          particle_set=particle_set,&
+         &          mos=mos,&
+         &          error=error)
+
+    gapw = dft_control%qs_control%gapw
+    natom = SIZE(particle_set,1)
+    nspins = dft_control%nspins
+
+    CALL get_issc_env(issc_env=issc_env,&
+                      matrix_efg=matrix_efg, &
+                      matrix_pso=matrix_pso, &
+                      matrix_fc=matrix_fc, &
+                      matrix_dso=matrix_dso,&
+                      psi1_fc=psi1_fc, &
+                      psi1_efg=psi1_efg, &
+                      psi1_pso=psi1_pso, &
+                      psi1_dso=psi1_dso, &
+                      fc_psi0=fc_psi0, &
+                      issc=issc, &
+                      do_fc=do_fc, &
+                      do_sd=do_sd, &
+                      do_pso=do_pso, &
+                      do_dso=do_dso, &
+                      error=error)
+
+    g = e_mass / ( 2.0_dp * p_mass )
+    facfc  = hertz * g**2 * a_fine**4
+    facpso = hertz * g**2 * a_fine**4
+    facsd  = hertz * g**2 * a_fine**4
+    facdso = hertz * g**2 * a_fine**4
+
+    !
+    !
+    issc_section => section_vals_get_subs_vals(qs_env%input, &
+         & "PROPERTIES%LINRES%SPINSPIN",error=error)
+    !
+    ! Initialize
+    DO ispin = 1,nspins
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,maxocc=maxocc)
+       CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,error=error)
+
+       DO jatom = 1,natom
+          r_i = particle_set(iatom)%r
+          r_j = particle_set(jatom)%r
+          r_j = pbc(r_i,r_j,cell)+r_i
+          !
+          !
+          !
+          !write(*,*) 'iatom =',iatom,' r_i=',r_i
+          !write(*,*) 'jatom =',jatom,' r_j=',r_j
+          !
+          ! FC term
+          !
+          IF(do_fc.AND.iatom.NE.jatom) THEN
+             !
+             ! build the integral for the jatom
+             CALL set_matrix(matrix_fc(1)%matrix,0.0_dp)
+             CALL build_fermi_contact_matrix(qs_env,matrix_fc,r_j,error)
+             CALL cp_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
+                  &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
+                  &                 alpha=1.0_dp,error=error)
+
+             CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf,error=error)
+             WRITE(*,*) ' jatom',jatom,'tr(P*fc)=',buf
+
+             CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_fc(ispin)%matrix,buf,error=error)
+             issc_fc = 2.0_dp * 2.0_dp * maxocc * facfc * buf
+             issc(1,1,iatom,jatom,1) = issc(1,1,iatom,jatom,1) + issc_fc
+             issc(2,2,iatom,jatom,1) = issc(2,2,iatom,jatom,1) + issc_fc
+             issc(3,3,iatom,jatom,1) = issc(3,3,iatom,jatom,1) + issc_fc
+          ENDIF
+          !
+          ! SD term
+          !
+          IF(do_sd.AND.iatom.NE.jatom) THEN
+             !
+             ! build the integral for the jatom
+             CALL set_matrix(matrix_efg(1)%matrix,0.0_dp)
+             CALL set_matrix(matrix_efg(2)%matrix,0.0_dp)
+             CALL set_matrix(matrix_efg(3)%matrix,0.0_dp)
+             CALL set_matrix(matrix_efg(4)%matrix,0.0_dp)
+             CALL set_matrix(matrix_efg(5)%matrix,0.0_dp)
+             CALL set_matrix(matrix_efg(6)%matrix,0.0_dp)
+             CALL build_efg_matrix(qs_env,matrix_efg,r_j,error)
+             DO ixyz = 1,6
+                CALL cp_sm_fm_multiply(matrix_efg(ixyz)%matrix,mo_coeff,&
+                     &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
+                     &                 alpha=1.0_dp,beta=0.0_dp,error=error)
+                CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf,error=error)
+                WRITE(*,*) ' jatom',jatom,ixyz,'tr(P*efg)=',buf
+             DO jxyz = 1,6
+                CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_efg(ispin,jxyz)%matrix,buf,error=error)
+                issc_sd = 2.0_dp * maxocc * facsd * buf
+                !issc(ixyz,jxyz,iatom,jatom) = issc_sd
+                !write(*,*) 'pso_',ixyz,jxyz,' iatom',iatom,'jatom',jatom,issc_pso
+             ENDDO
+             ENDDO
+          ENDIF
+          !
+          ! PSO term
+          !
+          IF(do_pso.AND.iatom.NE.jatom) THEN
+             !
+             ! build the integral for the jatom
+             CALL set_matrix(matrix_pso(1)%matrix,0.0_dp)
+             CALL set_matrix(matrix_pso(2)%matrix,0.0_dp)
+             CALL set_matrix(matrix_pso(3)%matrix,0.0_dp)
+             CALL build_pso_matrix(qs_env,matrix_pso,r_j,error)
+             DO ixyz = 1,3
+                CALL cp_sm_fm_multiply(matrix_pso(ixyz)%matrix,mo_coeff,&
+                     &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
+                     &                 alpha=1.0_dp,beta=0.0_dp,error=error)
+             DO jxyz = 1,3
+                CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_pso(ispin,jxyz)%matrix,buf,error=error)
+                issc_pso = -2.0_dp * maxocc * facpso * buf
+                issc(ixyz,jxyz,iatom,jatom,3) = issc(ixyz,jxyz,iatom,jatom,3) + issc_pso
+             ENDDO
+             ENDDO
+          ENDIF
+          !
+          ! DSO term
+          !
+          !>>>>> for debugging we compute here the polarizability and NOT the DSO term!
+          IF(do_dso.AND.iatom.EQ.natom.AND.jatom.EQ.natom) THEN
+             !
+             ! build the integral for the jatom
+             !CALL set_matrix(matrix_dso(1)%matrix,0.0_dp)
+             !CALL set_matrix(matrix_dso(2)%matrix,0.0_dp)
+             !CALL set_matrix(matrix_dso(3)%matrix,0.0_dp)
+             !CALL set_matrix(matrix_dso(4)%matrix,0.0_dp)
+             !CALL set_matrix(matrix_dso(5)%matrix,0.0_dp)
+             !CALL set_matrix(matrix_dso(6)%matrix,0.0_dp)
+             !CALL build_dso_matrix(qs_env,matrix_dso,r_i,r_j,error)
+             !DO ixyz = 1,6
+             !   CALL cp_sm_fm_multiply(matrix_dso(ixyz)%matrix,mo_coeff,&
+             !        &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
+             !        &                 alpha=1.0_dp,beta=0.0_dp,error=error)
+             !   CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf,error=error)
+             !   issc_dso = 2.0_dp * maxocc * facdso * buf
+             !   issc(ixyz,jxyz,iatom,jatom,4) = issc_dso
+             !ENDDO
+             !CALL set_matrix(matrix_dso(1)%matrix,0.0_dp)
+             !CALL set_matrix(matrix_dso(2)%matrix,0.0_dp)
+             !CALL set_matrix(matrix_dso(3)%matrix,0.0_dp)
+             !CALL rRc_xyz_ao(matrix_dso,qs_env,(/0.0_dp,0.0_dp,0.0_dp/),1,error=error)
+             DO ixyz = 1,3
+                CALL cp_sm_fm_multiply(matrix_dso(ixyz)%matrix,mo_coeff,&
+                     &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
+                     &                 alpha=1.0_dp,beta=0.0_dp,error=error)
+             DO jxyz = 1,3
+                CALL cp_fm_trace(psi1_dso(ispin,jxyz)%matrix,fc_psi0(ispin)%matrix,buf,error=error)
+                ! we save the polarizability for a checksum later on !
+                issc_dso = 2.0_dp * maxocc * buf
+                !WRITE(*,*) ixyz,jxyz,'tr(P_r*r)=',2.0_dp * maxocc * buf
+                issc(ixyz,jxyz,iatom,jatom,4) = issc(ixyz,jxyz,iatom,jatom,4) + issc_dso
+             ENDDO
+             ENDDO
+
+          ENDIF
+          !
+       ENDDO ! jatom
+    ENDDO ! ispin
+    !
+    !
+    ! Finalize
+    CALL timestop(handle)
+    !
+  END SUBROUTINE issc_issc
+
+  SUBROUTINE issc_print(issc_env,qs_env,error)
+    TYPE(issc_env_type)                      :: issc_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'issc_print', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=2)                         :: element_symbol_i, &
+                                                element_symbol_j
+    CHARACTER(LEN=default_string_length)     :: name_i, name_j, title
+    INTEGER                                  :: iatom, jatom, natom, &
+                                                output_unit, unit_atoms
+    LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
+                                                failure, gapw
+    REAL(dp) :: eig(3), issc_iso_dso, issc_iso_fc, issc_iso_pso, issc_iso_sd, &
+      issc_iso_tot, issc_tmp(3,3)
+    REAL(dp), DIMENSION(:, :, :, :, :), &
+      POINTER                                :: issc
+    REAL(dp), EXTERNAL                       :: DDOT
+    TYPE(atomic_kind_type), POINTER          :: atom_kind_i, atom_kind_j
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: issc_section
+
+    failure = .FALSE.
+
+    NULLIFY(logger,particle_set,atom_kind_i,atom_kind_j,dft_control)
+
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_unit_nr(logger)
+
+    issc_section => section_vals_get_subs_vals(qs_env%input, &
+         "PROPERTIES%LINRES%SPINSPIN",error=error)
+
+    CALL get_issc_env(issc_env=issc_env, &
+         &            issc=issc, &
+                      do_fc=do_fc, &
+                      do_sd=do_sd, &
+                      do_pso=do_pso, &
+                      do_dso=do_dso, &
+         &            error=error)
+    !
+    CALL get_qs_env(qs_env=qs_env, &
+         &          dft_control=dft_control, &
+         &          particle_set=particle_set, &
+         &          error=error)
+
+    natom = SIZE(particle_set,1)
+    gapw = dft_control%qs_control%gapw
+
+    !
+    IF(output_unit > 0) THEN
+       WRITE(output_unit,'(T2,A,E14.6)') 'ISSC| CheckSum K =',&
+            & SQRT(DDOT(SIZE(issc),issc,1,issc,1))
+    ENDIF
+    !
+    IF(BTEST(cp_print_key_should_output(logger%iter_info,issc_section,&
+             "PRINT%K_MATRIX",error=error),cp_p_file)) THEN
+
+       unit_atoms=cp_print_key_unit_nr(logger,issc_section,"PRINT%K_MATRIX",&
+                  extension=".data",middle_name="K",log_filename=.FALSE.,&
+                  error=error)
+
+       IF(unit_atoms > 0) THEN
+          WRITE(unit_atoms,*)
+          WRITE(unit_atoms,*)
+          WRITE(title,'(A)') "Indirect spin-spin coupling matrix"
+          WRITE(unit_atoms,'(T2,A)') title
+          DO iatom = 1,natom
+             atom_kind_i => particle_set(iatom)%atomic_kind
+             CALL get_atomic_kind(atom_kind_i,name=name_i,element_symbol=element_symbol_i)
+             DO jatom = 1,natom
+                atom_kind_j => particle_set(jatom)%atomic_kind
+                CALL get_atomic_kind(atom_kind_j,name=name_j,element_symbol=element_symbol_j)
+                !
+                IF(iatom.EQ.jatom.AND..NOT.do_dso) CYCLE
+                !
+                !
+                ! FC
+                issc_tmp(:,:) = issc(:,:,iatom,jatom,1)
+                issc_tmp(:,:) = 0.5_dp * ( issc_tmp(:,:) + TRANSPOSE( issc_tmp(:,:) ) )
+                CALL diamat_all(issc_tmp,eig,error=error)
+                issc_iso_fc = (eig(1)+ eig(2)+eig(3))/3.0_dp
+                !
+                ! SD
+                issc_tmp(:,:) = issc(:,:,iatom,jatom,2)
+                issc_tmp(:,:) = 0.5_dp * ( issc_tmp(:,:) + TRANSPOSE( issc_tmp(:,:) ) )
+                CALL diamat_all(issc_tmp,eig,error=error)
+                issc_iso_sd = (eig(1)+ eig(2)+eig(3))/3.0_dp
+                !
+                ! PSO
+                issc_tmp(:,:) = issc(:,:,iatom,jatom,3)
+                issc_tmp(:,:) = 0.5_dp * ( issc_tmp(:,:) + TRANSPOSE( issc_tmp(:,:) ) )
+                CALL diamat_all(issc_tmp,eig,error=error)
+                issc_iso_pso = (eig(1)+ eig(2)+eig(3))/3.0_dp
+                !
+                ! DSO
+                issc_tmp(:,:) = issc(:,:,iatom,jatom,4)
+                issc_tmp(:,:) = 0.5_dp * ( issc_tmp(:,:) + TRANSPOSE( issc_tmp(:,:) ) )
+                CALL diamat_all(issc_tmp,eig,error=error)
+                issc_iso_dso = (eig(1)+ eig(2)+eig(3))/3.0_dp
+                !
+                ! TOT
+                issc_iso_tot = issc_iso_fc + issc_iso_sd + issc_iso_dso + issc_iso_pso
+                !
+                !
+                WRITE(unit_atoms,*)
+                WRITE(unit_atoms,'(T2,2(A,I5,A,2X,A2))') 'Indirect spin-spin coupling between ',&
+                     iatom,TRIM(name_i),element_symbol_i,' and ',&
+                     jatom,TRIM(name_j),element_symbol_j
+                !
+                IF(do_fc ) WRITE(unit_atoms,'(T1,A,f12.4,A)') ' Isotropic FC contribution  = ',issc_iso_fc,' Hz'
+                IF(do_sd ) WRITE(unit_atoms,'(T1,A,f12.4,A)') ' Isotropic SD contribution  = ',issc_iso_sd,' Hz'
+                IF(do_pso) WRITE(unit_atoms,'(T1,A,f12.4,A)') ' Isotropic PSO contribution = ',issc_iso_pso,' Hz'
+                !IF(do_dso) WRITE(unit_atoms,'(T1,A,f12.4,A)') ' Isotropic DSO contribution = ',issc_iso_dso,' Hz'
+                IF(do_dso) WRITE(unit_atoms,'(T1,A,f12.4,A)') ' !!! POLARIZABILITY (for the moment) = ',issc_iso_dso,' Hz'
+                IF(.NOT.do_dso)WRITE(unit_atoms,'(T1,A,f12.4,A)') ' Isotropic coupling         = ',issc_iso_tot,' Hz'
+             ENDDO
+          ENDDO
+       ENDIF
+       CALL cp_print_key_finished_output(unit_atoms,logger,issc_section,&
+            &                            "PRINT%K_MATRIX",error=error)
+    ENDIF
+    !
+    !
+  END SUBROUTINE issc_print
+
 
 ! *****************************************************************************
 !> \brief Initialize the issc environment
@@ -440,6 +868,18 @@ CONTAINS
             ' To get indirect spin-spin coupling parameters within PBC you need to localize zero order orbitals '
     ENDIF
     !
+    !
+    ! read terms need to be calculated
+    ! FC
+    CALL section_vals_val_get(issc_section,"DO_FC",l_val=issc_env%do_fc,error=error)
+    ! SD
+    CALL section_vals_val_get(issc_section,"DO_SD",l_val=issc_env%do_sd,error=error)
+    ! PSO
+    CALL section_vals_val_get(issc_section,"DO_PSO",l_val=issc_env%do_pso,error=error)
+    ! DSO
+    CALL section_vals_val_get(issc_section,"DO_DSO",l_val=issc_env%do_dso,error=error)
+    !
+    !
     ! read the list of atoms on which the issc need to be calculated
     CALL section_vals_val_get(issc_section,"ISSC_ON_ATOM_LIST",n_rep_val=n_rep,error=error)
     !
@@ -469,16 +909,17 @@ CONTAINS
     !
     !
     ! Initialize the issc tensor
-    ALLOCATE(issc_env%issc(3,3,issc_env%issc_natms,issc_env%issc_natms),&
-         &   issc_env%issc_loc(3,3,issc_env%issc_natms,issc_env%issc_natms),&
+    ALLOCATE(issc_env%issc(3,3,issc_env%issc_natms,issc_env%issc_natms,4),&
+         &   issc_env%issc_loc(3,3,issc_env%issc_natms,issc_env%issc_natms,4),&
          &   STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    issc_env%issc(:,:,:,:) = 0.0_dp
-    issc_env%issc_loc(:,:,:,:) = 0.0_dp
+    issc_env%issc(:,:,:,:,:) = 0.0_dp
+    issc_env%issc_loc(:,:,:,:,:) = 0.0_dp
     !
     ! allocation
     ALLOCATE(issc_env%efg_psi0(nspins,6),issc_env%pso_psi0(nspins,3),issc_env%fc_psi0(nspins),&
          &   issc_env%psi1_efg(nspins,6),issc_env%psi1_pso(nspins,3),issc_env%psi1_fc(nspins),&
+         &   issc_env%dso_psi0(nspins,3),issc_env%psi1_dso(nspins,3),&
          &   STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ispin = 1,nspins
@@ -497,9 +938,12 @@ CONTAINS
           CALL cp_fm_create(issc_env%efg_psi0(ispin,idir)%matrix,tmp_fm_struct,error=error)
        ENDDO
        DO idir = 1,3
-          NULLIFY(issc_env%psi1_pso(ispin,idir)%matrix,issc_env%pso_psi0(ispin,idir)%matrix)
+          NULLIFY(issc_env%psi1_pso(ispin,idir)%matrix,issc_env%pso_psi0(ispin,idir)%matrix,&
+               &  issc_env%dso_psi0(ispin,idir)%matrix)
           CALL cp_fm_create(issc_env%psi1_pso(ispin,idir)%matrix,tmp_fm_struct,error=error)
           CALL cp_fm_create(issc_env%pso_psi0(ispin,idir)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_create(issc_env%psi1_dso(ispin,idir)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_create(issc_env%dso_psi0(ispin,idir)%matrix,tmp_fm_struct,error=error)
        ENDDO
        NULLIFY(issc_env%psi1_fc(ispin)%matrix,issc_env%fc_psi0(ispin)%matrix)
        CALL cp_fm_create(issc_env%psi1_fc(ispin)%matrix,tmp_fm_struct,error=error)
@@ -528,6 +972,7 @@ CONTAINS
     CALL set_matrix(issc_env%matrix_efg(5)%matrix,0.0_dp)
     CALL set_matrix(issc_env%matrix_efg(6)%matrix,0.0_dp)
     !
+    ! PSO
     CALL allocate_matrix_set(issc_env%matrix_pso,3,error=error)
     CALL set_up_op_sm(issc_env%matrix_pso(1)%matrix,qs_env,symmetry="antisymmetric",&
          &            name="pso x",error=error)
@@ -539,6 +984,19 @@ CONTAINS
     CALL set_matrix(issc_env%matrix_pso(2)%matrix,0.0_dp)
     CALL set_matrix(issc_env%matrix_pso(3)%matrix,0.0_dp)
     !
+    ! DSO
+    CALL allocate_matrix_set(issc_env%matrix_dso,3,error=error)
+    CALL set_up_op_sm(issc_env%matrix_dso(1)%matrix,qs_env,symmetry="symmetric",&
+         &            name="dso x",error=error)
+    CALL replicate_matrix_structure(issc_env%matrix_dso(1)%matrix,issc_env%matrix_dso(2)%matrix,&
+         'dso y',target_symmetry="symmetric",error=error)
+    CALL replicate_matrix_structure(issc_env%matrix_dso(1)%matrix,issc_env%matrix_dso(3)%matrix,&
+         'dso z',target_symmetry="symmetric",error=error)
+    CALL set_matrix(issc_env%matrix_dso(1)%matrix,0.0_dp)
+    CALL set_matrix(issc_env%matrix_dso(2)%matrix,0.0_dp)
+    CALL set_matrix(issc_env%matrix_dso(3)%matrix,0.0_dp)
+    !
+    ! FC
     CALL allocate_matrix_set(issc_env%matrix_fc,1,error=error)
     CALL set_up_op_sm(issc_env%matrix_fc(1)%matrix,qs_env,symmetry="symmetric",&
          &            name="fc",error=error)
@@ -611,6 +1069,17 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ENDIF
        !
+       !dso_psi0
+       IF(ASSOCIATED(issc_env%dso_psi0)) THEN
+          DO idir = 1,SIZE(issc_env%dso_psi0,2)
+             DO ispin = 1,SIZE(issc_env%dso_psi0,1)
+                CALL cp_fm_release(issc_env%dso_psi0(ispin,idir)%matrix,error=error)
+             ENDDO
+          ENDDO
+          DEALLOCATE(issc_env%dso_psi0,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+       !
        !fc_psi0
        IF(ASSOCIATED(issc_env%fc_psi0)) THEN
           DO ispin = 1,SIZE(issc_env%fc_psi0,1)
@@ -642,6 +1111,17 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ENDIF
        !
+       !psi1_dso
+       IF(ASSOCIATED(issc_env%psi1_dso)) THEN
+          DO idir = 1,SIZE(issc_env%psi1_dso,2)
+             DO ispin = 1,SIZE(issc_env%psi1_dso,1)
+                CALL cp_fm_release(issc_env%psi1_dso(ispin,idir)%matrix,error=error)
+             ENDDO
+          ENDDO
+          DEALLOCATE(issc_env%psi1_dso,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+       !
        !psi1_fc
        IF(ASSOCIATED(issc_env%psi1_fc)) THEN
           DO ispin = 1,SIZE(issc_env%psi1_fc,1)
@@ -665,6 +1145,11 @@ CONTAINS
        !matrix_pso
        IF(ASSOCIATED(issc_env%matrix_pso)) THEN
           CALL deallocate_matrix_set(issc_env%matrix_pso,error=error)
+       ENDIF
+       !
+       !matrix_dso
+       IF(ASSOCIATED(issc_env%matrix_dso)) THEN
+          CALL deallocate_matrix_set(issc_env%matrix_dso,error=error)
        ENDIF
        !
        !matrix_fc

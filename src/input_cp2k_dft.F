@@ -6714,13 +6714,41 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="DO_FC",&
+            description="Compute the Fermi contact contribution",&
+            usage="DO_FC F",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DO_SD",&
+            description="Compute the spin-dipolar contribution",&
+            usage="DO_SD F",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DO_PSO",&
+            description="Compute the paramagnetic spin-orbit contribution",&
+            usage="DO_PSO F",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DO_DSO",&
+            description="Compute the diamagnetic spin-orbit contribution (NOT YET IMPLEMENTED)",&
+            usage="DO_DSO F",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        NULLIFY(subsection)
        CALL section_create(subsection,name="PRINT",&
             description="print results of the indirect spin-spin calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
-       CALL cp_print_key_section_create(print_key,"SPINSPIN_TENSOR",&
-            description="Controls the printing of the spin-spin tensors",&
+       CALL cp_print_key_section_create(print_key,"K_MATRIX",&
+            description="Controls the printing of the indirect spin-spin matrix",&
             print_level=low_print_level,add_last=add_last_numeric,filename="",&
             error=error)
 

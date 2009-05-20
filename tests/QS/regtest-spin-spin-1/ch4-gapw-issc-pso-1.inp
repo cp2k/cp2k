@@ -1,13 +1,11 @@
 &GLOBAL
-  PROJECT no-gapw-issc-1
+  PROJECT ch4-gapw-issc-pso-1
   PRINT_LEVEL LOW
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
 
 &FORCE_EVAL
   &DFT
-    LSD T
-    MULTIPLICITY 2
     BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
     POTENTIAL_FILE_NAME ../POTENTIAL
     &MGRID
@@ -18,6 +16,7 @@
     &END QS
     &SCF
       MAX_SCF 5
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
       &XC_FUNCTIONAL BLYP
@@ -32,14 +31,12 @@
        MAX_ITER 10
        PRECONDITIONER FULL_ALL
        &CURRENT
-          GAUGE R_AND_STEP_FUNCTION
-          ORBITAL_CENTER WANNIER
        &END CURRENT
        &SPINSPIN
-         DO_FC F
-         DO_SD F
-         DO_DSO F
-         DO_PSO T
+          DO_FC F
+          DO_SD F
+          DO_DSO F
+          DO_PSO T
        &END
     &END
   &END
@@ -47,17 +44,20 @@
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
-    &KIND O
-      BASIS_SET 3-21G*
-      POTENTIAL ALL
-    &END KIND
-    &KIND N
-      BASIS_SET 3-21G*
-      POTENTIAL ALL
-    &END KIND
     &COORD
- O   0.000000    0.000000    0.542338
- N   0.000000    0.000000   -0.619815
+C  -0.000367    0.000000    0.000481
+H   0.638760   -0.000080    0.888272
+H   0.207743    0.893069   -0.597225
+H   0.207729   -0.892972   -0.597375
+H  -1.052031   -0.000017    0.303441
     &END COORD
+    &KIND H
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+    &KIND C
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL

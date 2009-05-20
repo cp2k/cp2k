@@ -381,7 +381,7 @@ CONTAINS
        DEALLOCATE(v_xc,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section, error)
+       IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section, error=error)
 
        CALL xc_rho_set_release(rho1_set,error=error)
 

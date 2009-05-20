@@ -228,8 +228,8 @@ CONTAINS
                 rb = rab + ra
                 rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                 dab = SQRT(rab2)
-                rac = pbc(rc,ra,cell)
-                rbc = rac + rab
+                rac = pbc(ra,rc,cell)
+                rbc = rac - rab
 
                 IF (jatom /= last_jatom) THEN
                    new_atom_b = .TRUE.
@@ -296,7 +296,7 @@ CONTAINS
                          ELSE
 
                             CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                                       1.0_dp,work(1,1),SIZE(work,1),&
+                                      -1.0_dp,work(1,1),SIZE(work,1),&
                                        sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                        1.0_dp,soint(i)%block(sgfb,sgfa),&
                                        SIZE(soint(i)%block,1))

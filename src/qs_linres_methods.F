@@ -11,6 +11,7 @@
 !> \author MI
 ! *****************************************************************************
 MODULE qs_linres_methods
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -34,14 +35,20 @@ MODULE qs_linres_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t
   USE f77_blas
+  USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
+  USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
+  USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE input_constants,                 ONLY: do_loc_none,&
                                              op_loc_berry,&
                                              ot_precond_none,&
                                              ot_precond_solver_default,&
                                              state_loc_all
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_rval,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
@@ -50,8 +57,32 @@ MODULE qs_linres_methods
   USE message_passing,                 ONLY: mp_bcast
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              make_preconditioner
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_copy,&
+                                             pw_transfer,&
+                                             pw_zero
+  USE pw_poisson_methods,              ONLY: pw_poisson_solve
+  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_create,&
+                                             pw_p_type,&
+                                             pw_release,&
+                                             pw_retain
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_gapw_densities,               ONLY: prepare_gapw_den
+  USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
+  USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_linres_types,                 ONLY: linres_control_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
                                              set_loc_centers,&
@@ -64,11 +95,29 @@ MODULE qs_linres_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type
+  USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
+  USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
+                                             qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
+  USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
+  USE sparse_matrix_types,             ONLY: checksum_matrix,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix_structure,&
+                                             set_matrix,&
+                                             transfer_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xc,                              ONLY: xc_calc_2nd_deriv,&
+                                             xc_prep_2nd_deriv
+  USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
+                                             xc_rho_set_release,&
+                                             xc_rho_set_type,&
+                                             xc_rho_set_update
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -196,7 +245,8 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
                                                 tr_rz1
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: Ap, chc, p, r, Sc, z
+      POINTER                                :: Ap, chc, mo_coeff_array, p, &
+                                                r, Sc, z
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: buf, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -251,8 +301,13 @@ CONTAINS
     !
     ! allocate the vectors
     ALLOCATE(alpha(nspins),beta(nspins),tr_pAp(nspins),tr_rz0(nspins),tr_rz1(nspins),&
-             r(nspins),p(nspins),z(nspins),Ap(nspins),STAT=istat)
+             r(nspins),p(nspins),z(nspins),Ap(nspins),mo_coeff_array(nspins),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+       mo_coeff_array(ispin)%matrix => mo_coeff
+    ENDDO
+    !
     DO ispin = 1,nspins
        NULLIFY(r(ispin)%matrix,p(ispin)%matrix,z(ispin)%matrix,Ap(ispin)%matrix)
        CALL cp_fm_create(r(ispin)%matrix,psi1(ispin)%matrix%matrix_struct,error=error)
@@ -310,10 +365,7 @@ CONTAINS
     ENDIF
     !
     ! orthogonalize x with respect to the psi0
-    DO ispin = 1,nspins
-       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-       CALL preortho(psi1(ispin)%matrix,mo_coeff,Sc(ispin)%matrix,buf,error)
-    ENDDO
+    CALL preortho(psi1,mo_coeff_array,Sc,buf,error)
     !
     ! build the preconditioner
     IF(linres_control%preconditioner_type /= ot_precond_none) THEN
@@ -331,20 +383,19 @@ CONTAINS
     ENDIF
     !
     ! initalization of the linear solver
+    !
+    ! A * x0
+    CALL apply_op(qs_env,p_env,psi0_order,psi1,Ap,chc,buf,error)
+    !
+    !
+    ! r_0 = b - Ax0
     DO ispin = 1,nspins
-       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-       !
-       ! A * x0
-       CALL apply_op_1(psi1(ispin)%matrix,Ap(ispin)%matrix,matrix_ks(ispin)%matrix,&
-            &          matrix_s(1)%matrix,chc(ispin)%matrix,buf,error)
-       !
-       ! r_0 = b - Ax0
        CALL cp_fm_to_fm(h1_psi0(ispin)%matrix,r(ispin)%matrix,error=error)
        CALL cp_fm_scale_and_add(-1.0_dp,r(ispin)%matrix,-1.0_dp,Ap(ispin)%matrix,error=error)
-       !
-       ! proj r
-       CALL postortho(r(ispin)%matrix,mo_coeff,Sc(ispin)%matrix,buf,error)
     ENDDO
+    !
+    ! proj r
+    CALL postortho(r,mo_coeff_array,Sc,buf,error)
     !
     ! preconditioner
     linres_control%flag=""
@@ -388,7 +439,7 @@ CONTAINS
           linres_control%converged = .TRUE.
        ENDIF
        !
-       IF(iter.EQ.1.OR.MOD(iter,10).EQ.0.OR.linres_control%converged.OR.restart) THEN
+       IF(iter.EQ.1.OR.MOD(iter,1).EQ.0.OR.linres_control%converged.OR.restart) THEN
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T5,I5,T22,A3,T37,L1,T49,1E8.2,T60,F20.10)")&
                   iter,linres_control%flag,restart,MAXVAL(alpha),norm_res
@@ -415,19 +466,21 @@ CONTAINS
        ENDIF
        !
        !
+       ! Apply the operators that do not depend on the perturbation
+       CALL apply_op(qs_env,p_env,psi0_order,p,Ap,chc,buf,error)
+       !
+       !
+       ! proj Ap onto the virtual subspace
+       CALL postortho(Ap,mo_coeff_array,Sc,buf,error)
+       !
+       !
        DO ispin = 1,nspins
-          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-          !
-          ! Apply the operators that do not depend on the perturbation
-          CALL apply_op_1(p(ispin)%matrix,Ap(ispin)%matrix,matrix_ks(ispin)%matrix,&
-               &          matrix_s(1)%matrix,chc(ispin)%matrix,buf,error)
-          !
-          ! proj Ap onto the virtual subspace
-          CALL postortho(Ap(ispin)%matrix,mo_coeff,Sc(ispin)%matrix,buf,error)
           !
           ! tr(Ap_j*p_j)
           CALL cp_fm_trace(Ap(ispin)%matrix,p(ispin)%matrix,tr_pAp(ispin),error)
-          IF(tr_pAp(ispin).LT.0.0_dp) CALL stop_program("linres_cg_step","tr(Ap_j*p_j) < 0")
+          IF(tr_pAp(ispin).LT.0.0_dp) THEN
+             CALL stop_program("linres_cg_step","tr(Ap_j*p_j) < 0")
+          ENDIF
           !          
           ! alpha = tr(r_j*z_j) / tr(Ap_j*p_j)
           IF(tr_pAp(ispin).LT.1.0e-10_dp) THEN
@@ -445,17 +498,16 @@ CONTAINS
        IF(MOD(iter,linres_control%restart_every).EQ.0) THEN
           !
           !
+          ! r_j+1 = b - A * x_j+1
+          CALL apply_op(qs_env,p_env,psi0_order,psi1,Ap,chc,buf,error)
+          !
+          !
           DO ispin = 1,nspins
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-             !
-             ! r_j+1 = b - A * x_j+1
-             CALL apply_op_1(psi1(ispin)%matrix,Ap(ispin)%matrix,matrix_ks(ispin)%matrix,&
-                  &          matrix_s(1)%matrix,chc(ispin)%matrix,buf,error)
-             !
              CALL cp_fm_to_fm(h1_psi0(ispin)%matrix,r(ispin)%matrix,error=error)
              CALL cp_fm_scale_and_add(-1.0_dp,r(ispin)%matrix,-1.0_dp,Ap(ispin)%matrix,error=error)
-             CALL postortho(r(ispin)%matrix,mo_coeff,Sc(ispin)%matrix,buf,error)
           ENDDO
+          CALL postortho(r,mo_coeff_array,Sc,buf,error)
           !
           restart = .TRUE.
        ELSE
@@ -508,10 +560,7 @@ CONTAINS
     ENDDO iteration
     !
     ! proj psi1
-    DO ispin = 1,nspins
-       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-       CALL preortho(psi1(ispin)%matrix,mo_coeff,Sc(ispin)%matrix,buf,error)
-    ENDDO
+    CALL preortho(psi1,mo_coeff_array,Sc,buf,error)
     !
     ! clean up
     DO ispin = 1,nspins
@@ -524,7 +573,7 @@ CONTAINS
        CALL cp_fm_release(chc(ispin)%matrix,error=error)
     ENDDO
     CALL cp_fm_release(buf,error=error)
-    DEALLOCATE(alpha,beta,tr_pAp,tr_rz0,tr_rz1,r,p,z,Ap,Sc,chc,STAT=istat)
+    DEALLOCATE(alpha,beta,tr_pAp,tr_rz0,tr_rz1,r,p,z,Ap,Sc,chc,mo_coeff_array,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,"PRINT%PROGRAM_RUN_INFO",error=error)
@@ -532,6 +581,151 @@ CONTAINS
     CALL timestop(handle)
     !
   END SUBROUTINE linres_solver
+  !
+  !
+  SUBROUTINE apply_op(qs_env,p_env,c0,v,Av,chc,buf,error)
+    !
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: c0, v, Av, chc
+    TYPE(cp_fm_type), POINTER                :: buf
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspins
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: chksum
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+
+!
+
+    failure = .FALSE.
+    NULLIFY(dft_control,matrix_ks,matrix_s,linres_control)
+    !
+    !
+    CALL timeset(routineN,handle)
+    !
+    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,error,failure)
+    !
+    CALL get_qs_env(qs_env=qs_env,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=matrix_s,&
+                    dft_control=dft_control,&
+                    linres_control=linres_control,&
+                    error=error)
+    !
+    nspins = dft_control%nspins
+    !
+    !
+    ! apply the uncoupled operator
+    DO ispin = 1,nspins
+       CALL apply_op_1(v(ispin)%matrix,Av(ispin)%matrix,matrix_ks(ispin)%matrix,&
+                       matrix_s(1)%matrix,chc(ispin)%matrix,buf,error)
+    ENDDO
+
+
+    IF(linres_control%do_kernel) THEN!.AND.chksum.GT.1.0E-10_dp) THEN
+       !
+       ! build DM
+       CALL build_dm_response(c0,v,p_env%p1,error)
+
+       chksum = 0.0_dp
+       DO ispin = 1,nspins
+          chksum = chksum + checksum_matrix(p_env%p1(ispin)%matrix,qs_env%para_env)
+       ENDDO
+
+       !
+       ! skip the kernel if the DM is very small
+       IF(chksum.GT.1.0E-14_dp) THEN
+
+          CALL p_env_check_i_alloc(p_env,qs_env,error)
+
+          !CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, error=error)
+          DO ispin = 1,nspins
+             CALL transfer_matrix(p_env%p1(ispin)%matrix,p_env%rho1%rho_ao(ispin)%matrix,error=error)
+          ENDDO
+
+             CALL qs_rho_update_rho(rho_struct=p_env%rho1,local_rho_set=p_env%local_rho_set,&
+                                    qs_env=qs_env,error=error)
+
+          !if(first_time) then
+          CALL get_qs_env(qs_env,rho=rho,error=error) ! that could be called before
+          CALL qs_rho_update_rho(rho,qs_env=qs_env,error=error) ! that could be called before
+          !   first_time = .false.
+          !endif
+
+
+
+          CALL apply_op_2(qs_env,p_env,c0,v,Av,chc,buf,error)
+
+          !CALL kpp1_calc_k_p_p1(p_env%kpp1_env, p_env, qs_env, p_env%kpp1, qs_env%rho, p_env%rho1, p_env%rho1_xc, error)
+          !DO ispin = 1,nspins
+          !   CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol,error=error)
+          !   CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
+          !                          v_in=c0(ispin)%matrix,&
+          !                          v_out=Av(ispin)%matrix,&
+          !                          ncol=ncol,alpha=1.0_dp,beta=1.0_dp,&
+          !                          error=error)
+          !ENDDO
+
+       ENDIF
+
+    ENDIF
+    !
+    CALL timestop(handle)
+    !
+  END SUBROUTINE apply_op
+  !
+  !
+  SUBROUTINE build_dm_response(c0,c1,dm,error)
+    !
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: c0, c1
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: dm
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dm_response', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, ncol, nspins
+    LOGICAL                                  :: failure
+
+!
+!
+
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(c0),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(c1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dm),cp_failure_level,routineP,error,failure)
+
+    nspins = SIZE(dm,1)
+
+    DO ispin = 1,nspins
+       CALL set_matrix(dm(ispin)%matrix,value=0.0_dp)
+       CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol,error=error)
+       CALL cp_sm_plus_fm_fm_t(dm(ispin)%matrix,&
+                               matrix_v=c0(ispin)%matrix,&
+                               matrix_g=c1(ispin)%matrix,&
+                               ncol=ncol,alpha=1.0_dp,error=error)
+       CALL cp_sm_plus_fm_fm_t(dm(ispin)%matrix,&
+                               matrix_v=c1(ispin)%matrix,&
+                               matrix_g=c0(ispin)%matrix,&
+                               ncol=ncol,alpha=1.0_dp,error=error)
+    ENDDO
+
+  END SUBROUTINE build_dm_response
   !
   !
   SUBROUTINE apply_op_1(v,Av,matrix_ks,matrix_s,chc,buf,error)
@@ -571,18 +765,613 @@ CONTAINS
     CALL timestop(handle)
     !
   END SUBROUTINE apply_op_1
+
+
+  SUBROUTINE apply_op_2(qs_env,p_env,c0,v,Av,chc,buf,error)
+    !
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: c0, v, Av, chc
+    TYPE(cp_fm_type), POINTER                :: buf
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, ncol, nspins, &
+                                                stat
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    LOGICAL                                  :: failure, gapw, gapw_xc, &
+                                                lr_triplet, lsd
+    REAL(KIND=dp)                            :: energy_hartree, &
+                                                energy_hartree_1c, &
+                                                energy_hartree_2c, &
+                                                energy_hartree_3c, fac
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho1_tot_gspace, &
+                                                v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_g_pw, rho1_r, rho1_r_pw, &
+                                                tau_pw, v_rspace_new, v_xc
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho, rho1, rho1_xc
+    TYPE(section_vals_type), POINTER         :: input, scf_section, &
+                                                xc_fun_section, xc_section
+    TYPE(xc_rho_cflags_type)                 :: needs
+    TYPE(xc_rho_set_type), POINTER           :: rho1_set
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
+            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, rho1_set,&
+            poisson_env, input, scf_section,rho,dft_control)
+    logger => cp_error_get_logger(error)
+
+    energy_hartree=0.0_dp
+    energy_hartree_1c=0.0_dp
+    energy_hartree_2c=0.0_dp
+    energy_hartree_3c=0.0_dp
+
+    CPPrecondition(ASSOCIATED(c0),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,error,failure)
+
+
+    CPPrecondition(ASSOCIATED(p_env%kpp1_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(p_env%kpp1),cp_failure_level,routineP,error,failure)
+    rho1    => p_env%rho1
+    rho1_xc => p_env%rho1_xc
+    CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(p_env%kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+       CALL get_qs_env(qs_env=qs_env,&
+            pw_env=pw_env,&
+            cell=cell,&
+            input=input,&
+            rho=rho,&
+            linres_control=linres_control,&
+            dft_control=dft_control,&
+            error=error)
+
+       lr_triplet = linres_control%lr_triplet
+       CALL kpp1_check_i_alloc(p_env%kpp1_env,qs_env,lr_triplet,error=error)
+       !gapw=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw)
+       !gapw_xc=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw_xc)
+       gapw    = dft_control%qs_control%gapw
+       gapw_xc = dft_control%qs_control%gapw_xc
+       IF(gapw_xc) THEN
+          CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,error,failure)
+       END IF
+
+       nspins = SIZE(p_env%kpp1)
+       lsd = (nspins==2)
+
+       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+       scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
+       !CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
+       !     i_val=excitations,error=error)
+       !IF (excitations==tddfpt_excitations) THEN
+       !   xc_section => section_vals_get_subs_vals(input,"DFT%TDDFPT%XC",error=error)
+       !   !FM this check should already had happened and section made explicit, give an error?
+       !   CALL section_vals_get(xc_section,explicit=explicit,error=error)
+       !   IF (.NOT.explicit) THEN
+       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+       !   END IF
+       !END IF
+
+       !CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
+       !     l_val=lsd_singlets,error=error)
+       !CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
+       !     i_val=res_etype,error=error)
+    END IF
+
+    IF (.NOT.failure) THEN
+       p_env%kpp1_env%iter=p_env%kpp1_env%iter+1
+    END IF
+
+! gets the tmp grids
+    IF (.NOT. failure) THEN
+       CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+            pw_pools=pw_pools, poisson_env=poisson_env,error=error)
+       ALLOCATE(v_rspace_new(nspins), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.NOT.failure) THEN
+       CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
+            use_data = COMPLEXDATA1D,&
+            in_space = RECIPROCALSPACE, error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
+            use_data = REALDATA3D,&
+            in_space = REALSPACE, error=error)
+    END IF
+
+    IF (gapw .OR. gapw_xc) &
+       CALL prepare_gapw_den(qs_env,p_env%local_rho_set, do_rho0=(.NOT.gapw_xc), error=error)
+
+! *** calculate the hartree potential on the total density ***
+    IF (.NOT. failure) THEN
+
+       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
+            use_data = COMPLEXDATA1D,&
+            in_space = RECIPROCALSPACE, error=error)
+
+       CALL pw_copy(rho1%rho_g(1)%pw,rho1_tot_gspace%pw)
+       DO ispin=2,nspins
+          CALL pw_axpy(rho1%rho_g(ispin)%pw, rho1_tot_gspace%pw)
+       END DO
+       IF (gapw) &
+            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
+
+       !IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
+       !     error=error)/=0) THEN
+       !   output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
+       !        extension=".scfLog",error=error)
+       !   CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error=error)
+       !   CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+       !        "PRINT%TOTAL_DENSITIES", error=error)
+       !END IF
+
+       !IF (.NOT.(nspins==1 .AND. excitations==tddfpt_excitations .AND. &
+       IF (.NOT.(nspins==1 .AND. .TRUE. .AND. &
+       !          res_etype /= tddfpt_singlet )) THEN
+                 lr_triplet )) THEN
+          CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
+                                 energy_hartree, &
+                                 v_hartree_gspace%pw,error=error)
+          CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw)
+       ENDIF
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
+            error=error)
+
+! *** calculate the xc potential ***
+       IF(gapw_xc) THEN
+         CALL qs_rho_get(rho1_xc, rho_r=rho1_r, error=error)
+       ELSE
+         CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
+       END IF
+
+       !IF (nspins == 1 .AND. excitations==tddfpt_excitations .AND. &
+       IF (nspins == 1 .AND. .TRUE. .AND. &
+       !    (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
+           (lr_triplet)) THEN
+
+          lsd = .TRUE.
+          ALLOCATE(rho1_r_pw(2))
+          DO ispin=1, 2
+             NULLIFY(rho1_r_pw(ispin)%pw)
+             CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
+                  rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space,error=error)
+             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
+          END DO
+
+       ELSE
+
+          ALLOCATE(rho1_r_pw(nspins))
+          DO ispin=1, nspins
+             rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
+             CALL pw_retain(rho1_r_pw(ispin)%pw,error=error)
+          END DO
+
+       END IF
+
+       NULLIFY(tau_pw)
+
+       !------!
+       ! rho1 !
+       !------!
+       bo = rho1_r(1)%pw%pw_grid%bounds_local
+       ! create the place where to store the argument for the functionals
+       CALL xc_rho_set_create(rho1_set, bo, &
+                              rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF",error=error), &
+                              drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF",error=error), &
+                              tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF",error=error), &
+                              error=error)
+
+       xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
+            error=error)
+       needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.,error)
+
+       ! calculate the arguments needed by the functionals
+       CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
+                             section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
+                             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
+                             cell, auxbas_pw_pool,  error)
+
+       ALLOCATE(v_xc(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO ispin=1, nspins
+          NULLIFY(v_xc(ispin)%pw)
+          CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
+                                 use_data = REALDATA3D,&
+                                 in_space = REALSPACE, error=error)
+          CALL pw_zero(v_xc(ispin)%pw)
+       END DO
+
+       fac=0._dp
+       !IF (nspins==1.AND.excitations==tddfpt_excitations) THEN
+       IF (nspins==1.AND. .TRUE.) THEN
+          !IF (lsd_singlets) fac=1.0_dp
+          !IF (res_etype == tddfpt_triplet) fac=-1.0_dp
+          IF (lr_triplet) fac=-1.0_dp
+       END IF
+
+       CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
+            rho1_set, auxbas_pw_pool,xc_section=xc_section,&
+            tddfpt_fac=fac, error=error)
+
+       DO ispin=1,nspins
+          v_rspace_new(ispin)%pw => v_xc(ispin)%pw
+       END DO
+       DEALLOCATE(v_xc,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       IF(gapw) CALL calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,do_tddft=.FALSE.,&
+                                                 do_triplet=lr_triplet,error=error)
+
+       CALL xc_rho_set_release(rho1_set,error=error)
+
+       DO ispin=1,SIZE(rho1_r_pw)
+          CALL pw_release(rho1_r_pw(ispin)%pw,error=error)
+       END DO
+       DEALLOCATE(rho1_r_pw, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       !-------------------------------!
+       ! Add both hartree and xc terms !
+       !-------------------------------!
+       DO ispin=1,nspins
+
+          IF(gapw_xc) THEN
+          ! XC and Hartree are integrated separatedly
+          ! XC uses the sofft basis set only
+             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
+                                        v_rspace_new(ispin)%pw%pw_grid%dvol
+
+            !IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
+             IF (.TRUE. .AND. nspins==1) THEN
+
+                !IF (.NOT.(lsd_singlets .OR. &
+                !        res_etype == tddfpt_triplet)) THEN
+                IF (.NOT.(lr_triplet)) THEN
+
+                   v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+
+                END IF
+                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+                CALL set_matrix(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                     p=rho%rho_ao(ispin),&
+                     h=p_env%kpp1_env%v_ao(ispin),&
+                     qs_env=qs_env,&
+                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
+
+               ! add hartree only for SINGLETS
+                !IF (res_etype == tddfpt_singlet) THEN
+                IF (.NOT.lr_triplet) THEN
+                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                               v_hartree_rspace%pw%pw_grid%dvol
+                   v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
+
+                   CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                         p=rho%rho_ao(ispin),&
+                         h=p_env%kpp1_env%v_ao(ispin),&
+                         qs_env=qs_env,&
+                         calculate_forces=.FALSE.,gapw=gapw,error=error)
+                END IF
+             ELSE
+                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+                CALL set_matrix(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                     p=rho%rho_ao(ispin),&
+                     h=p_env%kpp1_env%v_ao(ispin),&
+                     qs_env=qs_env,&
+                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
+
+                IF (ispin == 1) THEN
+                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                             v_hartree_rspace%pw%pw_grid%dvol
+                END IF
+                v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
+                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                         p=rho%rho_ao(ispin),&
+                         h=p_env%kpp1_env%v_ao(ispin),&
+                         qs_env=qs_env,&
+                         calculate_forces=.FALSE.,gapw=gapw,error=error)
+             END IF
+
+          ELSE
+
+             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
+                                          v_rspace_new(ispin)%pw%pw_grid%dvol
+
+            !IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
+             IF (.TRUE. .AND. nspins==1) THEN
+
+               !IF (.NOT.(lsd_singlets .OR. &
+               !          res_etype == tddfpt_triplet)) THEN
+                IF(.NOT.(lr_triplet)) THEN
+                   v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+
+                ENDIF
+
+               ! add hartree only for SINGLETS
+               !IF (res_etype == tddfpt_singlet) THEN
+                IF (.NOT.lr_triplet) THEN
+                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                             v_hartree_rspace%pw%pw_grid%dvol
+                   v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
+                                             2.0_dp * v_hartree_rspace%pw%cr3d
+                END IF
+             ELSE
+                IF (ispin == 1) THEN
+                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                             v_hartree_rspace%pw%pw_grid%dvol
+                END IF
+                v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
+                                              v_hartree_rspace%pw%cr3d
+             END IF
+
+            ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+             CALL set_matrix(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+
+             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                 p=rho%rho_ao(ispin),&
+                 h=p_env%kpp1_env%v_ao(ispin),&
+                 qs_env=qs_env,&
+                 calculate_forces=.FALSE.,gapw=gapw,error=error)
+
+          END IF
+         
+          CALL transfer_matrix(p_env%kpp1_env%v_ao(ispin)%matrix,&
+               p_env%kpp1(ispin)%matrix,error=error)
+       END DO
+
+       IF (gapw) THEN
+
+          !IF (.NOT. (excitations==tddfpt_excitations .AND. (nspins == 1 .AND. &
+          IF (.NOT. (.TRUE. .AND. (nspins == 1 .AND. &
+          !     res_etype == tddfpt_triplet))) THEN
+               lr_triplet))) THEN
+             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, tddft=.TRUE., p_env=p_env,error=error)
+
+             CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
+                                        .FALSE., .TRUE., p_env, error=error)
+
+             CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
+                                    .TRUE., p_env,error=error)
+
+             CALL integrate_a_vhg0_b(qs_env,p_env%kpp1,rho1%rho_ao,&
+                                        energy_hartree_3c,.FALSE.,.FALSE.,&
+                                        .TRUE.,p_env,error)
+          END IF
+
+!         ***  Add single atom contributions to the KS matrix ***
+
+          CALL update_ks_atom(qs_env,p_env%kpp1,rho%rho_ao,.FALSE.,.TRUE.,p_env,error)
+
+       END IF
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
+            error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
+            error=error)
+       DO ispin=1,nspins
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
+               error=error)
+       END DO
+       DEALLOCATE(v_rspace_new, stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+    END IF
+
+    DO ispin = 1,nspins
+       CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol,error=error)
+       CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
+                              v_in=c0(ispin)%matrix,&
+                              v_out=Av(ispin)%matrix,&
+                              ncol=ncol,alpha=1.0_dp,beta=1.0_dp,&
+                              error=error)
+    ENDDO
+    !
+    CALL timestop(handle)
+    !
+  END SUBROUTINE apply_op_2
+  !
+  !
+  SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=25)                        :: name
+    INTEGER                                  :: handle, ispin, nspins, stat
+    LOGICAL                                  :: failure, gapw_xc
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    NULLIFY(dft_control,matrix_s)
+
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL get_qs_env(qs_env, dft_control=dft_control,error=error)
+       gapw_xc = dft_control%qs_control%gapw_xc
+       IF (.NOT.ASSOCIATED(p_env%kpp1)) THEN
+          CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+          nspins=dft_control%nspins
+
+          ALLOCATE(p_env%kpp1(nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (.NOT. failure) THEN
+             name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
+             !CALL compress(name,full=.TRUE.)
+             DO ispin=1,nspins
+                NULLIFY(p_env%kpp1(ispin)%matrix)
+                CALL replicate_matrix_structure(matrix_s(1)%matrix,&
+                     p_env%kpp1(ispin)%matrix,&
+                     TRIM(name)//ADJUSTL(cp_to_string(ispin)),error=error)
+             END DO
+          END IF
+
+          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
+          IF(gapw_xc) THEN
+             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc,error=error)
+             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
+          END IF
+       END IF
+
+       IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
+          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
+          IF(gapw_xc) THEN
+             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc,error=error)
+             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
+          END IF
+       END IF
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE p_env_check_i_alloc
+  !
+  !
+  SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, lr_triplet,error)
+
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: lr_triplet
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, nspins, stat
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(section_vals_type), POINTER         :: input, xc_section
+
+! ------------------------------------------------------------------
+
+    failure=.FALSE.
+    NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,input)
+
+    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    CALL get_qs_env(qs_env, pw_env=pw_env,&
+                    matrix_s=matrix_s, cell=cell, input=input, error=error, rho=rho)
+
+    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+    nspins=SIZE(rho_r)
+
+    CALL pw_env_get(pw_env, auxbas_pw_pool = auxbas_pw_pool, error=error)
+
+    IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
+       ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (.NOT.failure) THEN
+          DO ispin=1,nspins
+             CALL pw_pool_create_pw(auxbas_pw_pool, &
+                  kpp1_env%v_rspace(ispin)%pw,&
+                  use_data=REALDATA3D, in_space=REALSPACE,error=error)
+          END DO
+       END IF
+    END IF
+
+    IF (.NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
+       ALLOCATE(kpp1_env%v_ao(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (.NOT. failure) THEN
+          DO ispin=1,nspins
+             NULLIFY(kpp1_env%v_ao(ispin)%matrix)
+             CALL replicate_matrix_structure(matrix_s(1)%matrix,&
+                  kpp1_env%v_ao(ispin)%matrix,&
+                  "kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)),error=error)
+          END DO
+       END IF
+    END IF
+
+    IF(.NOT.ASSOCIATED(kpp1_env%deriv_set)) THEN
+
+       IF (nspins==1.AND.lr_triplet) THEN
+          ALLOCATE(my_rho_r(2),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ispin=1,2
+             CALL pw_pool_create_pw(auxbas_pw_pool,my_rho_r(ispin)%pw, &
+                  use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space,&
+                  error=error)
+             my_rho_r(ispin)%pw%cr3d = 0.5_dp * rho_r(1)%pw%cr3d
+          END DO
+       ELSE
+          ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ispin=1,SIZE(rho_r)
+             my_rho_r(ispin)%pw => rho_r(ispin)%pw
+             CALL pw_retain(my_rho_r(ispin)%pw,error=error)
+          END DO
+       END IF
+
+       !ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
+       !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       !DO ispin=1,SIZE(rho_r)
+       !   my_rho_r(ispin)%pw => rho_r(ispin)%pw
+       !   CALL pw_retain(my_rho_r(ispin)%pw,error=error)
+       !END DO
+
+       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+
+       CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
+                              my_rho_r, auxbas_pw_pool, &
+                              xc_section=xc_section, cell=cell, error=error)
+
+       DO ispin=1,SIZE(my_rho_r)
+          CALL pw_release(my_rho_r(ispin)%pw,error=error)
+       ENDDO
+       DEALLOCATE(my_rho_r,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+  END SUBROUTINE kpp1_check_i_alloc
   !
   !
   SUBROUTINE preortho(v,psi0,S_psi0,buf,error)
     !v = (I-PS)v
     !
-    TYPE(cp_fm_type), POINTER                :: v, psi0, S_psi0, buf
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: v, psi0, S_psi0
+    TYPE(cp_fm_type), POINTER                :: buf
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'preortho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, mp, mt, mv, np, nt, nv
+    INTEGER                                  :: handle, ispin, mp, mt, mv, &
+                                                np, nspins, nt, nv
     LOGICAL                                  :: failure
 
 !
@@ -596,18 +1385,24 @@ CONTAINS
     CPPrecondition(ASSOCIATED(psi0),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,error,failure)
     !
-    CALL cp_fm_get_info(v,ncol_global=mv,nrow_global=nv,error=error)
-    CALL cp_fm_get_info(psi0,ncol_global=mp,nrow_global=np,error=error)
-    CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt,error=error)
-    CPPrecondition(nv==np,cp_failure_level,routineP,error,failure)
-    CPPrecondition(mt>=mv,cp_failure_level,routineP,error,failure)
-    CPPrecondition(mt>=mp,cp_failure_level,routineP,error,failure)
-    CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
+    nspins = SIZE(v,1)
     !
-    ! buf = v' * S_psi0
-    CALL cp_fm_gemm('T','N',mv,mp,nv,1.0_dp,v,S_psi0,0.0_dp,buf,error)
-    ! v = v - psi0 * buf'
-    CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,psi0,buf,1.0_dp,v,error)    
+    DO ispin = 1,nspins
+       !
+       CALL cp_fm_get_info(v(ispin)%matrix,ncol_global=mv,nrow_global=nv,error=error)
+       CALL cp_fm_get_info(psi0(ispin)%matrix,ncol_global=mp,nrow_global=np,error=error)
+       CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt,error=error)
+       CPPrecondition(nv==np,cp_failure_level,routineP,error,failure)
+       CPPrecondition(mt>=mv,cp_failure_level,routineP,error,failure)
+       CPPrecondition(mt>=mp,cp_failure_level,routineP,error,failure)
+       CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
+       !
+       ! buf = v' * S_psi0
+       CALL cp_fm_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,S_psi0(ispin)%matrix,0.0_dp,buf,error)
+       ! v = v - psi0 * buf'
+       CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
+       !
+    ENDDO
     !
     CALL timestop(handle)
     !
@@ -617,13 +1412,16 @@ CONTAINS
   SUBROUTINE postortho(v,psi0,S_psi0,buf,error)
     !v = (I-SP)v
     !
-    TYPE(cp_fm_type), POINTER                :: v, psi0, S_psi0, buf
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: v, psi0, S_psi0
+    TYPE(cp_fm_type), POINTER                :: buf
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'postortho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, mp, mt, mv, np, nt, nv
+    INTEGER                                  :: handle, ispin, mp, mt, mv, &
+                                                np, nspins, nt, nv
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -635,18 +1433,24 @@ CONTAINS
     CPPrecondition(ASSOCIATED(psi0),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,error,failure)
     !
-    CALL cp_fm_get_info(v,ncol_global=mv,nrow_global=nv,error=error)
-    CALL cp_fm_get_info(psi0,ncol_global=mp,nrow_global=np,error=error)
-    CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt,error=error)
-    CPPrecondition(nv==np,cp_failure_level,routineP,error,failure)
-    CPPrecondition(mt>=mv,cp_failure_level,routineP,error,failure)
-    CPPrecondition(mt>=mp,cp_failure_level,routineP,error,failure)
-    CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
+    nspins = SIZE(v,1)
     !
-    ! buf = v' * psi0
-    CALL cp_fm_gemm('T','N',mv,mp,nv,1.0_dp,v,psi0,0.0_dp,buf,error)
-    ! v = v - S_psi0 * buf'
-    CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0,buf,1.0_dp,v,error)    
+    DO ispin = 1,nspins
+       !
+       CALL cp_fm_get_info(v(ispin)%matrix,ncol_global=mv,nrow_global=nv,error=error)
+       CALL cp_fm_get_info(psi0(ispin)%matrix,ncol_global=mp,nrow_global=np,error=error)
+       CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt,error=error)
+       CPPrecondition(nv==np,cp_failure_level,routineP,error,failure)
+       CPPrecondition(mt>=mv,cp_failure_level,routineP,error,failure)
+       CPPrecondition(mt>=mp,cp_failure_level,routineP,error,failure)
+       CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
+       !
+       ! buf = v' * psi0
+       CALL cp_fm_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,psi0(ispin)%matrix,0.0_dp,buf,error)
+       ! v = v - S_psi0 * buf'
+       CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)    
+       !
+    ENDDO
     !
     CALL timestop(handle)
     !

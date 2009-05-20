@@ -33,6 +33,10 @@
        &SPINSPIN
          ISSC_ON_ATOM_LIST 1 2 3
          ISSC_ON_ATOM_LIST 4 5
+         DO_FC F
+         DO_SD F
+         DO_DSO F
+         DO_PSO T
        &END
     &END
   &END

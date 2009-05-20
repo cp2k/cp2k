@@ -119,7 +119,7 @@ CONTAINS
           xhi  =  zetab/zet
           rap  =  zetb(jpgf)*rab/zet
           rbp  = -zeta(ipgf)*rab/zet
-          rcp  = -(-zeta(ipgf)*rac+zetb(jpgf)*rbc)/zet
+          rcp  = -(zeta(ipgf)*rac+zetb(jpgf)*rbc)/zet
 
           f0 = 2.0_dp*SQRT(zet/pi)*(pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
 

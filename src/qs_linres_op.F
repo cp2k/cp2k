@@ -53,6 +53,7 @@ MODULE qs_linres_op
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: build_ang_mom_matrix,&
                                              build_lin_mom_matrix,&
+                                             rRc_xyz_ao,&
                                              set_up_op_sm
   USE qs_spin_orbit,                   ONLY: build_pso_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
@@ -396,15 +397,16 @@ CONTAINS
 
     INTEGER                                  :: handle, idir, ispin, nmo, &
                                                 nspins, output_unit
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: chk(20)
+    LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
+                                                failure
+    REAL(dp)                                 :: chk(20), r_i(3)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fc_psi0
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: efg_psi0, pso_psi0
+      POINTER                                :: dso_psi0, efg_psi0, pso_psi0
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -415,8 +417,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_efg, matrix_fc, &
-                                                matrix_pso
+      POINTER                                :: matrix_dso, matrix_efg, &
+                                                matrix_fc, matrix_pso
     TYPE(section_vals_type), POINTER         :: lr_section
 
     failure = .FALSE.
@@ -449,56 +451,95 @@ CONTAINS
                       matrix_efg=matrix_efg, & !this is used only here alloc/dealloc here???
                       matrix_pso=matrix_pso, & !this is used only here alloc/dealloc here???
                       matrix_fc=matrix_fc, & !this is used only here alloc/dealloc here???
+                      matrix_dso=matrix_dso, & !this is used only here alloc/dealloc here???
                       efg_psi0=efg_psi0, &
                       pso_psi0=pso_psi0, &
+                      dso_psi0=dso_psi0, &
                       fc_psi0=fc_psi0, &
+                      do_fc=do_fc,&
+                      do_sd=do_sd,&
+                      do_pso=do_pso,&
+                      do_dso=do_dso,&
                       error=error)
-
+    !
+    !
+    r_i = particle_set(iatom)%r !pbc(particle_set(iatom)%r,cell)
+    !write(*,*) 'issc_operators iatom=',iatom,' r_i=',r_i
+    chk = 0.0_dp
+    !
+    !
     !
     ! Fermi contact integral
-    CALL build_fermi_contact_matrix(qs_env,matrix_fc,(/0.0_dp,0.0_dp,0.0_dp/),error)
+    !IF(do_fc) THEN
+    IF(.TRUE.) THEN ! for the moment we build it (regs)
+       CALL set_matrix(matrix_fc(1)%matrix,0.0_dp)
+       CALL build_fermi_contact_matrix(qs_env,matrix_fc,r_i,error)
 
-    chk(1) = checksum_matrix(matrix_fc(1)%matrix,para_env)
+       chk(1) = checksum_matrix(matrix_fc(1)%matrix,para_env)
 
-    IF(output_unit>0) THEN
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| fermi_contact: CheckSum =',chk(1)
+       IF(output_unit>0) THEN
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| fermi_contact: CheckSum =',chk(1)
+       ENDIF
     ENDIF
     !
     ! spin-orbit integral
-    CALL build_pso_matrix(qs_env,matrix_pso,(/0.0_dp,0.0_dp,0.0_dp/),error)
+    !IF(do_pso) THEN
+    IF(.TRUE.) THEN ! for the moment we build it (regs)
+       CALL set_matrix(matrix_pso(1)%matrix,0.0_dp)
+       CALL set_matrix(matrix_pso(2)%matrix,0.0_dp)
+       CALL set_matrix(matrix_pso(3)%matrix,0.0_dp)
+       CALL build_pso_matrix(qs_env,matrix_pso,r_i,error)
 
-    chk(2) = checksum_matrix(matrix_pso(1)%matrix,para_env)
-    chk(3) = checksum_matrix(matrix_pso(2)%matrix,para_env)
-    chk(4) = checksum_matrix(matrix_pso(3)%matrix,para_env)
+       chk(2) = checksum_matrix(matrix_pso(1)%matrix,para_env)
+       chk(3) = checksum_matrix(matrix_pso(2)%matrix,para_env)
+       chk(4) = checksum_matrix(matrix_pso(3)%matrix,para_env)
 
-    IF(output_unit>0) THEN
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_x: CheckSum =',chk(2)
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_y: CheckSum =',chk(3)
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_z: CheckSum =',chk(4)
+       IF(output_unit>0) THEN
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_x: CheckSum =',chk(2)
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_y: CheckSum =',chk(3)
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_z: CheckSum =',chk(4)
+       ENDIF
     ENDIF
     !
     ! electric field integral
-    CALL build_efg_matrix(qs_env,matrix_efg,(/0.0_dp,0.0_dp,0.0_dp/),error)
+    !IF(do_sd) THEN
+    IF(.TRUE.) THEN ! for the moment we build it (regs)
+       CALL set_matrix(matrix_efg(1)%matrix,0.0_dp)
+       CALL set_matrix(matrix_efg(2)%matrix,0.0_dp)
+       CALL set_matrix(matrix_efg(3)%matrix,0.0_dp)
+       CALL set_matrix(matrix_efg(4)%matrix,0.0_dp)
+       CALL set_matrix(matrix_efg(5)%matrix,0.0_dp)
+       CALL set_matrix(matrix_efg(6)%matrix,0.0_dp)
+       CALL build_efg_matrix(qs_env,matrix_efg,r_i,error)
 
-    chk(5) = checksum_matrix(matrix_efg(1)%matrix,para_env)
-    chk(6) = checksum_matrix(matrix_efg(2)%matrix,para_env)
-    chk(7) = checksum_matrix(matrix_efg(3)%matrix,para_env)
-    chk(8) = checksum_matrix(matrix_efg(4)%matrix,para_env)
-    chk(9) = checksum_matrix(matrix_efg(5)%matrix,para_env)
-    chk(10)= checksum_matrix(matrix_efg(6)%matrix,para_env)
+       chk(5) = checksum_matrix(matrix_efg(1)%matrix,para_env)
+       chk(6) = checksum_matrix(matrix_efg(2)%matrix,para_env)
+       chk(7) = checksum_matrix(matrix_efg(3)%matrix,para_env)
+       chk(8) = checksum_matrix(matrix_efg(4)%matrix,para_env)
+       chk(9) = checksum_matrix(matrix_efg(5)%matrix,para_env)
+       chk(10)= checksum_matrix(matrix_efg(6)%matrix,para_env)
 
-    IF(output_unit>0) THEN
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3xx-rr)/3: CheckSum =',chk(5)
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3yy-rr)/3: CheckSum =',chk(6)
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3zz-rr)/3: CheckSum =',chk(7)
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg xy: CheckSum =',chk(8)
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg xz: CheckSum =',chk(9)
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg yz: CheckSum =',chk(10)
+       IF(output_unit>0) THEN
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3xx-rr)/3: CheckSum =',chk(5)
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3yy-rr)/3: CheckSum =',chk(6)
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3zz-rr)/3: CheckSum =',chk(7)
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg xy: CheckSum =',chk(8)
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg xz: CheckSum =',chk(9)
+          WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg yz: CheckSum =',chk(10)
+       ENDIF
     ENDIF
     !
     !
     IF(output_unit>0) THEN
        WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| all operator: CheckSum =',SUM(chk(1:10))
+    ENDIF
+    !
+    !>>> debugging only  here we build the dipole matrix... debugging the kernel...
+    IF(do_dso) THEN
+       CALL set_matrix(matrix_dso(1)%matrix,0.0_dp)
+       CALL set_matrix(matrix_dso(2)%matrix,0.0_dp)
+       CALL set_matrix(matrix_dso(3)%matrix,0.0_dp)
+       CALL rRc_xyz_ao(matrix_dso,qs_env,(/0.0_dp,0.0_dp,0.0_dp/),1,error=error)
     ENDIF
     !
     ! multiply by the mos
@@ -508,24 +549,39 @@ CONTAINS
        CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,error=error)
        !
        ! EFG
-       DO idir = 1,6
-          CALL cp_sm_fm_multiply(matrix_efg(idir)%matrix,mo_coeff,&
-               &                 efg_psi0(ispin,idir)%matrix,ncol=nmo,&
-               &                 alpha=1.0_dp,error=error)
-       ENDDO
+       IF(do_sd) THEN
+          DO idir = 1,6
+             CALL cp_sm_fm_multiply(matrix_efg(idir)%matrix,mo_coeff,&
+                  &                 efg_psi0(ispin,idir)%matrix,ncol=nmo,&
+                  &                 alpha=1.0_dp,error=error)
+          ENDDO
+       ENDIF
        !
        ! PSO
-       DO idir = 1,3
-          CALL cp_sm_fm_multiply(matrix_pso(idir)%matrix,mo_coeff,&
-               &                 pso_psi0(ispin,idir)%matrix,ncol=nmo,&
-               &                 alpha=-1.0_dp,error=error)
-       ENDDO
+       IF(do_pso) THEN
+          DO idir = 1,3
+             CALL cp_sm_fm_multiply(matrix_pso(idir)%matrix,mo_coeff,&
+                  &                 pso_psi0(ispin,idir)%matrix,ncol=nmo,&
+                  &                 alpha=-1.0_dp,error=error)
+          ENDDO
+       ENDIF
        !
        ! FC
-       CALL cp_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
-            &                 fc_psi0(ispin)%matrix,ncol=nmo,&
-            &                 alpha=1.0_dp,error=error)
+       IF(do_fc) THEN
+          CALL cp_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
+               &                 fc_psi0(ispin)%matrix,ncol=nmo,&
+               &                 alpha=1.0_dp,error=error)
+       ENDIF
        !
+       !>>> for debugging only
+       IF(do_dso) THEN
+          DO idir = 1,3
+             CALL cp_sm_fm_multiply(matrix_dso(idir)%matrix,mo_coeff,&
+                  &                 dso_psi0(ispin,idir)%matrix,ncol=nmo,&
+                  &                 alpha=-1.0_dp,error=error)
+          ENDDO
+       ENDIF
+       !<<< for debugging only
     ENDDO
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&

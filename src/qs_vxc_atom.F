@@ -445,11 +445,12 @@ CONTAINS
   END SUBROUTINE calculate_vxc_atom
 
 ! *****************************************************************************
-  SUBROUTINE calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,error)
+  SUBROUTINE calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,do_tddft,do_triplet,error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: xc_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_tddft, do_triplet
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom', &
@@ -462,8 +463,8 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, gradient_functional, &
-                                                lsd, lsd_singlets, paw_atom, &
-                                                tau_f
+                                                lsd, lsd_singlets, &
+                                                my_do_tddft, paw_atom, tau_f
     REAL(KIND=dp)                            :: density_cut, exc, &
                                                 gradient_cut, rtot, tau_cut
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho1_h, rho1_s, rho_h, rho_s, &
@@ -504,12 +505,18 @@ CONTAINS
    NULLIFY(rho1_h, rho1_s, drho1_h, drho1_s)
    NULLIFY(vxc_h, vxc_s, vxg_h, vxg_s)
    NULLIFY(tau_h, tau_s, tau1_h, tau1_s)
+
+   my_do_tddft = .TRUE.
+   IF(PRESENT(do_tddft)) my_do_tddft = do_tddft
+
    CALL get_qs_env(qs_env=qs_env,&
                    para_env=para_env,&
                    energy=energy,&
                    input=input,&
-                   atomic_kind_set=atomic_kind_set,error=error)
-   rho_atom_set => qs_env%local_rho_set%rho_atom_set
+                   atomic_kind_set=atomic_kind_set,&
+                   rho_atom_set=rho_atom_set,&
+                   error=error)
+
    rho1_atom_set => p_env%local_rho_set%rho_atom_set
 
     CALL section_vals_val_get(input,"DFT%LSD",l_val=lsd,error=error)
@@ -519,12 +526,14 @@ CONTAINS
          r_val=gradient_cut,error=error)
     CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
          r_val=tau_cut,error=error)
-    CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
-         i_val=excitations,error=error)
-    CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
-         l_val=lsd_singlets,error=error)
-    CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
-         i_val=res_etype,error=error)
+    IF(my_do_tddft) THEN
+       CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
+            i_val=excitations,error=error)
+       CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
+            l_val=lsd_singlets,error=error)
+       CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
+            i_val=res_etype,error=error)
+    ENDIF
     xc_fun_section => section_vals_get_subs_vals(xc_section,&
          "XC_FUNCTIONAL",error=error)
     IF (lsd) THEN
@@ -542,13 +551,18 @@ CONTAINS
               error=error, error_level=cp_failure_level)
     END IF
 
+    IF(my_do_tddft) THEN
+       IF (excitations==tddfpt_excitations) THEN
+          IF (nspins == 1 .AND. (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
+             lsd = .TRUE.
+          END IF
+       END IF
+    ELSE
+       IF(PRESENT(do_triplet)) THEN
+          lsd = .TRUE.
+       ENDIF
+    ENDIF
 
-  IF (excitations==tddfpt_excitations) THEN
-      IF (nspins == 1 .AND. (lsd_singlets .OR. &
-                             res_etype == tddfpt_triplet)) THEN
-         lsd = .TRUE.
-      END IF
-   END IF
    nkind = SIZE(atomic_kind_set)
 
 !  Here starts the loop over all the atoms
@@ -608,8 +622,6 @@ CONTAINS
       vxc_h = 0.0_dp
       vxc_s = 0.0_dp
 
-!      ALLOCATE (weight(1:na,1:nr),STAT=stat)
-!      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       weight => grid_atom%weight
 
       IF (gradient_functional) THEN
@@ -684,11 +696,13 @@ CONTAINS
                                 w=weight, exc=exc, vxc=vxc_s, vxg=vxg_s, error=error)
 
          atom_kind => atomic_kind_set(ikind)
+
          IF(gradient_functional) THEN
             CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
                             rho1_atom, drho_h, drho_s, nspins,error=error)
          ELSE
-            CALL gaVxcgb_noGC(vxc_h, vxc_s, atom_kind, rho1_atom, nspins,error=error)
+            CALL gaVxcgb_noGC(vxc_h, vxc_s, atom_kind, &
+                              rho1_atom, nspins,error=error)
          ENDIF
 
          NULLIFY(r_h,r_s,dr_h,dr_s)
@@ -765,7 +779,6 @@ CONTAINS
    rad = grid_atom%rad(ir)
    urad = grid_atom%oorad2l(ir,1)
    rho_h = 0.0_dp ; rho_s = 0.0_dp
-
    DO ispin = 1,nspins
       DO iso = 1,harmonics%max_iso_not0
          DO ia = 1,na
@@ -1015,12 +1028,12 @@ CONTAINS
             DO ispin=1,nspins
               ld = lmax12+1
               DO ir =1,nr
-                vx(1:na,ir) = vxc_h(1:na,ir,ispin)
+                 vx(1:na,ir) = vxc_h(1:na,ir,ispin)
               END DO
               CALL dgemm('N','N',na,ld,nr,1.0_dp,vx(1:na,1:nr),na,&
                           gg(1:nr,0:lmax12),nr,0.0_dp,gVg_h(1:na,0:lmax12),na)
               DO ir =1,nr
-                vx(1:na,ir) = vxc_s(1:na,ir,ispin)
+                 vx(1:na,ir) = vxc_s(1:na,ir,ispin)
               END DO
               CALL dgemm('N','N',na,ld,nr,1.0_dp,vx(1:na,1:nr),na,&
                           gg(1:nr,0:lmax12),nr,0.0_dp,gVg_s(1:na,0:lmax12),na)
@@ -1390,7 +1403,6 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_hh, int_ss
 
-!    REAL(dp)                                 :: rad, urad
 ! -------------------------------------------------------------------------
 
     failure = .FALSE.

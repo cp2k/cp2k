@@ -60,6 +60,7 @@ MODULE qs_linres_types
      LOGICAL                                   :: do_kernel
      LOGICAL                                   :: converged
      LOGICAL                                   :: linres_restart
+     LOGICAL                                   :: lr_triplet
      REAL(KIND=dp)                             :: eps
      TYPE(localized_wfn_control_type),POINTER  :: localized_wfn_control
      CHARACTER(LEN=8)                          :: flag
@@ -122,12 +123,13 @@ MODULE qs_linres_types
      INTEGER                             :: issc_natms
      INTEGER, DIMENSION(:), POINTER      :: issc_on_atom_list
      LOGICAL                             :: interpolate_issc
+     LOGICAL                             :: do_fc,do_sd,do_pso,do_dso
      REAL(dp)                            :: issc_gapw_radius,issc_factor,issc_factor_gapw
-     REAL(dp), DIMENSION(:,:,:,:), POINTER :: issc,issc_loc
-     TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_efg,psi1_pso,efg_psi0,pso_psi0
+     REAL(dp), DIMENSION(:,:,:,:,:), POINTER :: issc,issc_loc
+     TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_efg,psi1_pso,efg_psi0,pso_psi0,dso_psi0,psi1_dso!last two not needed
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1_fc
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: fc_psi0
-     TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: matrix_efg,matrix_pso,matrix_fc
+     TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: matrix_efg,matrix_pso,matrix_dso,matrix_fc
   END TYPE issc_env_type
 
   TYPE nmr_env_type
@@ -234,8 +236,19 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        linres_control%ref_count=1
        NULLIFY(linres_control%localized_wfn_control)
+       linres_control%property            = HUGE(0)!is that used?
+       linres_control%preconditioner_type = HUGE(0)
+       linres_control%restart_every       = HUGE(0)
+       linres_control%energy_gap          = HUGE(0.0_dp)
+       linres_control%max_iter            = HUGE(0)
+       linres_control%localized_psi0      = .FALSE.
+       linres_control%converged           = .FALSE.
+       linres_control%linres_restart      = .FALSE.
+       linres_control%eps                 = HUGE(0.0_dp)
+       linres_control%flag                = ""
+       linres_control%do_kernel           = .FALSE.
+       linres_control%lr_triplet          = .FALSE.
 !       CALL localized_wfn_control_create(linres_control%localized_wfn_control, error=error)
-
      END IF
 
   END SUBROUTINE linres_control_create
@@ -377,13 +390,16 @@ CONTAINS
         NULLIFY(issc_env%issc)
         NULLIFY(issc_env%issc_loc)
         NULLIFY(issc_env%psi1_efg)
-        NULLIFY(issc_env%psi1_pso)
         NULLIFY(issc_env%psi1_fc)
+        NULLIFY(issc_env%psi1_pso)
+        NULLIFY(issc_env%psi1_dso)
         NULLIFY(issc_env%efg_psi0)
         NULLIFY(issc_env%pso_psi0)
+        NULLIFY(issc_env%dso_psi0)
         NULLIFY(issc_env%fc_psi0)
         NULLIFY(issc_env%matrix_efg)
         NULLIFY(issc_env%matrix_pso)
+        NULLIFY(issc_env%matrix_dso)
         NULLIFY(issc_env%matrix_fc)
      ENDIF
 
@@ -550,26 +566,30 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE get_issc_env(issc_env,issc_on_atom_list,issc_gapw_radius,issc_loc,&
-       issc,interpolate_issc,psi1_efg,psi1_pso,psi1_fc,efg_psi0,pso_psi0,fc_psi0,&
-       matrix_efg,matrix_pso,matrix_fc,error)
+       do_fc,do_sd,do_pso,do_dso,&
+       issc,interpolate_issc,psi1_efg,psi1_pso,psi1_dso,psi1_fc,efg_psi0,pso_psi0,dso_psi0,fc_psi0,&
+       matrix_efg,matrix_pso,matrix_dso,matrix_fc,error)
 
     TYPE(issc_env_type)                      :: issc_env
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: issc_on_atom_list
     REAL(dp), OPTIONAL                       :: issc_gapw_radius
-    REAL(dp), DIMENSION(:, :, :, :), &
-      OPTIONAL, POINTER                      :: issc_loc, issc
+    REAL(dp), DIMENSION(:, :, :, :, :), &
+      OPTIONAL, POINTER                      :: issc_loc
+    LOGICAL, OPTIONAL                        :: do_fc, do_sd, do_pso, do_dso
+    REAL(dp), DIMENSION(:, :, :, :, :), &
+      OPTIONAL, POINTER                      :: issc
     LOGICAL, OPTIONAL                        :: interpolate_issc
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: psi1_efg, psi1_pso
+      OPTIONAL, POINTER                      :: psi1_efg, psi1_pso, psi1_dso
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: psi1_fc
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: efg_psi0, pso_psi0
+      OPTIONAL, POINTER                      :: efg_psi0, pso_psi0, dso_psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: fc_psi0
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_efg, matrix_pso, &
-                                                matrix_fc
+                                                matrix_dso, matrix_fc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_issc_env', &
@@ -588,13 +608,20 @@ CONTAINS
     IF(PRESENT(interpolate_issc )) interpolate_issc  =  issc_env%interpolate_issc
     IF(PRESENT(psi1_efg         )) psi1_efg          => issc_env%psi1_efg
     IF(PRESENT(psi1_pso         )) psi1_pso          => issc_env%psi1_pso
+    IF(PRESENT(psi1_dso         )) psi1_dso          => issc_env%psi1_dso
     IF(PRESENT(psi1_fc          )) psi1_fc           => issc_env%psi1_fc    
     IF(PRESENT(efg_psi0         )) efg_psi0          => issc_env%efg_psi0   
     IF(PRESENT(pso_psi0         )) pso_psi0          => issc_env%pso_psi0   
+    IF(PRESENT(dso_psi0         )) dso_psi0          => issc_env%dso_psi0
     IF(PRESENT(fc_psi0          )) fc_psi0           => issc_env%fc_psi0    
     IF(PRESENT(matrix_efg       )) matrix_efg        => issc_env%matrix_efg 
     IF(PRESENT(matrix_pso       )) matrix_pso        => issc_env%matrix_pso 
     IF(PRESENT(matrix_fc        )) matrix_fc         => issc_env%matrix_fc  
+    IF(PRESENT(matrix_dso       )) matrix_dso        => issc_env%matrix_dso
+    IF(PRESENT(do_fc            )) do_fc             =  issc_env%do_fc
+    IF(PRESENT(do_sd            )) do_sd             =  issc_env%do_sd
+    IF(PRESENT(do_pso           )) do_pso            =  issc_env%do_pso
+    IF(PRESENT(do_dso           )) do_dso            =  issc_env%do_dso
 
   END SUBROUTINE get_issc_env
 

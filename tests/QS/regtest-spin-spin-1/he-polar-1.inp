@@ -1,0 +1,93 @@
+@SET MULTIPLICITY 1
+@SET BASIS_SET 6-31G**
+@SET PROJECT_NAME he-polar-1
+@SET BASIS_SET_FILE ../EMSL_BASIS_SETS
+@SET POTENTIAL_FILE ../POTENTIAL
+
+@SET LSD T
+@IF ${MULTIPLICITY}==1
+@SET LSD F
+@ENDIF
+
+&GLOBAL
+  PROJECT ${PROJECT_NAME}
+  PRINT_LEVEL LOW
+  RUN_TYPE LINEAR_RESPONSE
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+
+#>>> this is still needed
+EXCITATIONS tddfpt
+#<<<
+
+    LSD ${LSD}
+    MULTIPLICITY ${MULTIPLICITY}
+    BASIS_SET_FILE_NAME ${BASIS_SET_FILE}
+    POTENTIAL_FILE_NAME ${POTENTIAL_FILE}
+    &MGRID
+      CUTOFF 100
+      COMMENSURATE
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 5
+    &END SCF
+
+#>>> this is still needed
+    &TDDFPT
+    &END TDDFPT
+#<<<
+
+    &XC
+      &XC_FUNCTIONAL
+        &XALPHA
+        &END
+      &END XC_FUNCTIONAL
+      &XC_GRID
+         XC_DERIV NN50_SMOOTH
+      &END
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &LINRES
+       &LOCALIZE
+         MAX_ITER 5
+       &END
+       MAX_ITER 10
+       PRECONDITIONER FULL_ALL
+       EPS 1E-6
+       RESTART_EVERY 10
+       &CURRENT
+       &END CURRENT
+       &SPINSPIN
+          DO_FC F
+          DO_SD F
+          DO_PSO F
+
+#THIS IS A HACK SO FAR, compute polarizability for debugging only.
+          DO_DSO T
+
+       &END
+    &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+    &END CELL
+    &KIND He
+      BASIS_SET ${BASIS_SET}
+      POTENTIAL ALL
+    &END KIND
+    &COORD
+ He   0.000000    0.000000    0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

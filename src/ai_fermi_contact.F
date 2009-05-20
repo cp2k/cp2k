@@ -108,27 +108,27 @@ CONTAINS
           DO lb = lb_min,lb_max
           DO bx = 0,lb
              fbx = 1.0_dp
-             IF(bx.GT.0) fbx = (-rbc(1))**bx
+             IF(bx.GT.0) fbx = (rbc(1))**bx
           DO by = 0,lb-bx
              bz = lb - bx - by
              cob = coset(bx,by,bz)
              mb = nb + cob
              fby = 1.0_dp
-             IF(by.GT.0) fby = (-rbc(2))**by
+             IF(by.GT.0) fby = (rbc(2))**by
              fbz = 1.0_dp
-             IF(bz.GT.0) fbz = (-rbc(3))**bz
+             IF(bz.GT.0) fbz = (rbc(3))**bz
              DO la = la_min,la_max
              DO ax = 0,la
                 fax = fbx
-                IF(ax.GT.0) fax = fbx * (-rac(1))**ax
+                IF(ax.GT.0) fax = fbx * (rac(1))**ax
              DO ay = 0,la-ax
                 az = la - ax - ay
                 coa = coset(ax,ay,az)
                 ma = na + coa
                 fay = fby
-                IF(ay.GT.0) fay = fby * (-rac(2))**ay
+                IF(ay.GT.0) fay = fby * (rac(2))**ay
                 faz = fbz
-                IF(az.GT.0) faz = fbz * (-rac(3))**az
+                IF(az.GT.0) faz = fbz * (rac(3))**az
 
                 fcab(ma,mb) = f0 * fax * fay * faz
 
