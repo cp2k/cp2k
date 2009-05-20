@@ -498,15 +498,15 @@ CONTAINS
        IF (gapw) THEN
           IF (.NOT. (excitations==tddfpt_excitations .AND. (nspins == 1 .AND. &
                res_etype == tddfpt_triplet))) THEN
-             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env,error=error)
+             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env=p_env,error=error)
              CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
-                                        .FALSE., .TRUE., p_env, error=error)
+                                        .FALSE., .TRUE., p_env=p_env, error=error)
 
              CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
-                                    .TRUE., p_env,error=error)
+                                    .TRUE., p_env=p_env,error=error)
              CALL integrate_a_vhg0_b(qs_env,k_p_p1,rho1%rho_ao,&
                                         energy_hartree_3c,.FALSE.,.FALSE.,&
-                                        .TRUE.,p_env,error)
+                                        .TRUE.,p_env=p_env,error=error)
           END IF
 !         ***  Add single atom contributions to the KS matrix ***
           CALL update_ks_atom(qs_env,k_p_p1,rho%rho_ao,.FALSE.,.TRUE.,p_env,error)

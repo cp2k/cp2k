@@ -212,11 +212,11 @@ CONTAINS
   END SUBROUTINE calculate_Vh_1center
 
 ! *****************************************************************************
-  SUBROUTINE Vh_1c_gg_integrals(qs_env,energy_hartree_1c,tddft,p_env,error)
+  SUBROUTINE Vh_1c_gg_integrals(qs_env,energy_hartree_1c,tddft,do_triplet,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(kind=dp), INTENT(out)               :: energy_hartree_1c
-    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft, do_triplet
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -312,7 +312,11 @@ CONTAINS
     nspins = dft_control%nspins
 
     IF (my_tddft) THEN
-       IF (nspins==1.AND.dft_control%tddfpt_control%res_etype/=tddfpt_singlet) RETURN
+       IF(PRESENT(do_triplet)) THEN
+          IF (nspins==1.AND.do_triplet) RETURN
+       ELSE
+          IF (nspins==1.AND.dft_control%tddfpt_control%res_etype/=tddfpt_singlet) RETURN
+       ENDIF
     END IF
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&

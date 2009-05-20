@@ -90,7 +90,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE integrate_a_vhg0_b(qs_env,h_mat,p_mat,energy_hartree_3c,just_energy,&
-       calculate_forces,tddft,p_env,error)
+       calculate_forces,tddft,do_triplet,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -99,7 +99,7 @@ CONTAINS
       INTENT(IN)                             :: p_mat
     REAL(kind=dp), INTENT(INOUT)             :: energy_hartree_3c
     LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
-    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft, do_triplet
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -182,8 +182,12 @@ CONTAINS
 
     ! TRIPLETS don't need a coulomb contribution
     IF (my_tddft) THEN
-       IF ((qs_env%dft_control%nspins == 1) &
-            .AND. (qs_env%dft_control%tddfpt_control%res_etype /= tddfpt_singlet)) RETURN
+       IF(PRESENT(do_triplet)) THEN
+          IF ((qs_env%dft_control%nspins == 1) .AND. do_triplet) RETURN
+       ELSE
+          IF ((qs_env%dft_control%nspins == 1) &
+               .AND. (qs_env%dft_control%tddfpt_control%res_etype /= tddfpt_singlet)) RETURN
+       ENDIF
     END IF
 
     fac = 1.0_dp

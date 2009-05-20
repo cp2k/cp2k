@@ -1147,17 +1147,21 @@ CONTAINS
           IF (.NOT. (.TRUE. .AND. (nspins == 1 .AND. &
           !     res_etype == tddfpt_triplet))) THEN
                lr_triplet))) THEN
-             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, tddft=.TRUE., p_env=p_env,error=error)
+             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, tddft=.TRUE., do_triplet=lr_triplet, &
+                                     p_env=p_env,error=error)
 
              CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
-                                        .FALSE., .TRUE., p_env, error=error)
+                                        .FALSE., tddft=.TRUE., do_triplet=lr_triplet, &
+                                        p_env=p_env, error=error)
 
              CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
-                                    .TRUE., p_env,error=error)
+                                    tddft=.TRUE.,do_triplet=lr_triplet, &
+                                    p_env=p_env,error=error)
 
              CALL integrate_a_vhg0_b(qs_env,p_env%kpp1,rho1%rho_ao,&
-                                        energy_hartree_3c,.FALSE.,.FALSE.,&
-                                        .TRUE.,p_env,error)
+                                     energy_hartree_3c,.FALSE.,.FALSE.,&
+                                     tddft=.TRUE.,do_triplet=lr_triplet,&
+                                     p_env=p_env,error=error)
           END IF
 
 !         ***  Add single atom contributions to the KS matrix ***

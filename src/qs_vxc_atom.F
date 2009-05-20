@@ -559,7 +559,9 @@ CONTAINS
        END IF
     ELSE
        IF(PRESENT(do_triplet)) THEN
-          lsd = .TRUE.
+          IF(nspins == 1 .AND. do_triplet) THEN
+             lsd = .TRUE.
+          ENDIF
        ENDIF
     ENDIF
 

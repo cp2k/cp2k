@@ -342,12 +342,12 @@ MODULE qs_rho0_ggrid
 
 ! *****************************************************************************
   SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, calculate_forces, &
-                                   tddft, p_env, error)
+                                   tddft, do_triplet, p_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type)                          :: v_rspace
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft, do_triplet
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -427,7 +427,11 @@ MODULE qs_rho0_ggrid
     nspins = dft_control%nspins
 
     IF (my_tddft) THEN
-       IF (nspins==1.AND.dft_control%tddfpt_control%res_etype/=tddfpt_singlet) RETURN
+       IF(PRESENT(do_triplet)) THEN
+          IF (nspins==1.AND.do_triplet) RETURN
+       ELSE
+          IF (nspins==1.AND.dft_control%tddfpt_control%res_etype/=tddfpt_singlet) RETURN
+       ENDIF
     END IF
 
     IF (my_tddft) THEN

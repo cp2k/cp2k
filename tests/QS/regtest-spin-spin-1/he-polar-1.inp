@@ -17,11 +17,6 @@
 
 &FORCE_EVAL
   &DFT
-
-#>>> this is still needed
-EXCITATIONS tddfpt
-#<<<
-
     LSD ${LSD}
     MULTIPLICITY ${MULTIPLICITY}
     BASIS_SET_FILE_NAME ${BASIS_SET_FILE}
@@ -40,12 +35,6 @@ EXCITATIONS tddfpt
       SCF_GUESS ATOMIC
       MAX_SCF 5
     &END SCF
-
-#>>> this is still needed
-    &TDDFPT
-    &END TDDFPT
-#<<<
-
     &XC
       &XC_FUNCTIONAL
         &XALPHA
