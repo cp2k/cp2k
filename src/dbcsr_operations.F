@@ -114,7 +114,7 @@ CONTAINS
     DEBUG_BODY
     CALL timeset (routineN, timing_handle)
     CALL btree_new (windex)
-    tstart = 0.0d0 ; tstop = 0.0d0 ; trun = 0.0d0
+    tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
     trun_t = m_walltime ()
     left_reps = SIZE (left_set%mats)
     right_reps = SIZE (right_set%mats)
@@ -322,7 +322,7 @@ CONTAINS
              tstop = m_walltime ()
              IF (tstop-tstart .NE. 0) THEN
                 DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-                     (REAL(flop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+                     (REAL(flop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
              ENDIF
              trun = trun + (tstop - tstart)
           ENDIF calc_case_left
@@ -332,11 +332,11 @@ CONTAINS
        CALL dbcsr_switch_sets(rbuffer_set_calc, rbuffer_set_comm)
     ENDDO k_index
     trun_t = m_walltime () - trun_t
-    IF (trun_t .EQ. 0) trun_t = 0.001
+    IF (trun_t .EQ. 0) trun_t = 0.001_dp
     WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
          routineN//' Total Local Multiplication time',&
          trun,' and',&
-         (REAL(flop_total, dp)/1000000.0d0)/trun_t,' MFLOPS',flop_total
+         (REAL(flop_total, dp)/1000000.0_dp)/trun_t,' MFLOPS',flop_total
     DO rep = 1, left_reps
        CALL mp_window_destroy (left_set%data_windows(rep))
        CALL mp_window_destroy (left_set%index_windows(rep))
@@ -469,7 +469,7 @@ CONTAINS
     ! Instead of prefetching all local left matrices, they could be
     ! fetched in turn (through the process rows).
     !
-    tstart = 0.0d0 ; tstop = 0.0d0 ; trun = 0.0d0
+    tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
     tstart = m_walltime ()
     left_reps = SIZE (left_set%mats)
     right_reps = SIZE (right_set%mats)
@@ -776,7 +776,7 @@ CONTAINS
              tstop = m_walltime ()
              IF (tstop-tstart .NE. 0) THEN
                 DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-                     (REAL(flop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+                     (REAL(flop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
              ENDIF
              trun = trun + (tstop - tstart)
           ENDIF calc_case_left
@@ -790,7 +790,7 @@ CONTAINS
     WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
          routineN//' Total Local Multiplication time',&
          trun,' and',&
-         (REAL(flop_total, dp)/1000000.0d0)/trun,' MFLOPS',flop_total
+         (REAL(flop_total, dp)/1000000.0_dp)/trun,' MFLOPS',flop_total
     DO rep = 1, left_reps
        CALL mp_window_destroy (left_set%data_windows(rep))
        CALL mp_window_destroy (left_set%index_windows(rep))
@@ -841,9 +841,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0d0, &
-                                                beta_add = 1.0d0, &
-                                                beta_new = 0.0d0
+    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0_dp, &
+                                                beta_add = 1.0_dp, &
+                                                beta_new = 0.0_dp
 
     CHARACTER                                :: a_type, b_type
     INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, b_blk, &
@@ -937,7 +937,7 @@ CONTAINS
                   a_data, lda,&
                   b_data, ldb, beta,&
                   c_data, a_row_size)
-             lflop = lflop + a_row_size * b_col_size * a_row_size * 2.0d0
+             lflop = lflop + a_row_size * b_col_size * a_row_size * 2.0_dp
           ENDDO
        ENDDO ! a_col
     ENDDO ! a_row
@@ -950,7 +950,7 @@ CONTAINS
        tstop = m_walltime ()
        IF (tstop-tstart .NE. 0) THEN
           DBG tstop-tstart,'s',&
-               (REAL(lflop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+               (REAL(lflop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
        ENDIF
     ENDIF
     IF (PRESENT (flop)) flop = lflop
@@ -982,9 +982,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_wm_add', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0d0, &
-                                                beta_add = 1.0d0, &
-                                                beta_new = 0.0d0
+    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0_dp, &
+                                                beta_add = 1.0_dp, &
+                                                beta_new = 0.0_dp
 
     CHARACTER                                :: addee_type, sum_type
     INTEGER :: addee_blk, addee_col, addee_col_size, addee_nze, addee_row, &
@@ -1053,9 +1053,9 @@ CONTAINS
                 sum_type = 'N'; ldsum = sum_row_size
              ENDIF
              IF (sum_type .EQ. addee_type) THEN
-                CALL DAXPY (addee_nze, 1.0d0, addee_data, 1, sum_data, 1)
+                CALL DAXPY (addee_nze, 1.0_dp, addee_data, 1, sum_data, 1)
              ELSE
-                CALL DAXPY (addee_nze, 1.0d0,&
+                CALL DAXPY (addee_nze, 1.0_dp,&
 temp_transpose(addee_data,addee_row_size,addee_col_size),&
                      1, sum_data, 1)
              ENDIF
@@ -1079,7 +1079,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        tstop = m_walltime ()
        IF (tstop-tstart .NE. 0) THEN
           DBG tstop-tstart,'s',&
-               (REAL(lflop, dp)/1000000.0d0)/(tstop-tstart),'MFLOPS'
+               (REAL(lflop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
        ENDIF
     ENDIF
     IF (PRESENT (flop)) flop = lflop

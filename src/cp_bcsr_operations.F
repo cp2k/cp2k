@@ -621,7 +621,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER   :: fss, blacs2mpi_a, blacs2mpi_b
     TYPE(cp_blacs_env_type), POINTER    :: blacs_env_a, blacs_env_b
     REAL(KIND=dp)     :: beta
-    REAL(KIND=dp), PARAMETER    :: alpha = 1.0
+    REAL(KIND=dp), PARAMETER    :: alpha = 1.0_dp
     REAL(KIND=dp), DIMENSION(:), POINTER  :: data_a, data_b
     CHARACTER         :: ctr_a, ctr_b
     INTEGER           :: timing_handle
@@ -781,7 +781,7 @@ CONTAINS
                 data_b => fetch_b%buffer(offset_b:offset_b+nze_b-1)
              ENDIF
              !> Prepare target.
-             beta = 0.0
+             beta = 0.0_dp
              ! Check history
              IF (m_c%lastblk .GT. 0) THEN
                 DO i = m_c%lastblk, 1, -1
@@ -797,7 +797,7 @@ CONTAINS
              ENDIF
              IF (dosum) THEN
                 dosum = .TRUE.
-                beta = 1.0
+                beta = 1.0_dp
                 flop = flop + size_m*size_n
              ELSE
                 CALL ensure_array_size(m_c%data, ub=m_c%datasize+nze_c,&
@@ -868,7 +868,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_simple_dgemm', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0
+    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0_dp
 
     CHARACTER                                :: ctr_a, ctr_b
     INTEGER :: col, datap, stp, extent_i_a, extent_i_b, from_a, from_b, k, &
@@ -996,11 +996,11 @@ CONTAINS
        !
        dosum = .FALSE.
        datap = wm%datasize+1
-       beta = 0.0
+       beta = 0.0_dp
        IF(wm%lastblk .GT. 0) THEN
           IF(wm%row_i(wm%lastblk).EQ.row .AND. wm%col_i(wm%lastblk).EQ.col) THEN
              dosum = .TRUE.
-             beta = 1.0
+             beta = 1.0_dp
              datap = wm%blk_p(wm%lastblk)
           ENDIF
        ENDIF
@@ -1121,7 +1121,7 @@ CONTAINS
     CALL cp_bcsr_verify_matrix(matrix_a, error)
     WRITE(*,*)'S checksum=',&
          checksum_matrix(matrix_s, matrix_s%distribution_2d%blacs_env%para_env)
-    checksum = 0.0
+    checksum = 0.0_dp
     CALL cp_bcsr_checksum(matrix_a, checksum, error)
     WRITE(*,*)'BCSR S checksum',checksum
     !row_blk_begin => matrix_a%row_blk_begin
@@ -1132,7 +1132,7 @@ CONTAINS
          col_blk_begin, col_blk_end, error=error)
     IF (dbg) WRITE(*,*)'right0=',dist2d%ref_count,dist2d%blacs_env%ref_count,&
          dist2d%blacs_env%para_env%ref_count
-    CALL cp_bcsr_from_fm(matrix_b, matrix_x, 0.0d0, dist2d,&
+    CALL cp_bcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist2d,&
          row_blk_begin=matrix_a%row_blk_begin,&
          row_blk_end=matrix_a%row_blk_end,&
          col_blk_begin=col_blk_begin, col_blk_end=col_blk_end,&

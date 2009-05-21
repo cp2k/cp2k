@@ -2608,7 +2608,7 @@ CPSourceFileRef,&
     colvar%dsdr=0.0_dp
     inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
 
-    norm=dsqrt(pi*2.0_dp)*sigma
+    norm=SQRT(pi*2.0_dp)*sigma
     norm=1/norm
 
     DO ii=1,n_atoms_from

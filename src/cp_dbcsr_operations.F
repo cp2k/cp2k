@@ -126,7 +126,7 @@ CONTAINS
     IF (dbg) WRITE(*,*)routineP//'Creating work matrix...'
     CALL mp_sync(matrix_a%dist2d%blacs_env%para_env%group)
     CALL dbcsr_work_create(wm, matrix_c,&
-         sizedata_guess=INT(1.5*SIZE(matrix_a%data)), error=error)
+         sizedata_guess=INT(1.5_dp*SIZE(matrix_a%data)), error=error)
     IF (dbg) WRITE(*,*)routineP//'Multiplying...'
     CALL mp_sync(matrix_a%dist2d%blacs_env%para_env%group)
     !CALL dbcsr_sm2_mult_overlap(matrix_a, matrix_b, wm, error)
@@ -240,7 +240,7 @@ CONTAINS
     CALL dbcsr_verify_matrix(matrix_a, error)
     WRITE(*,*)'S checksum=',&
          checksum_matrix(matrix_s, matrix_s%distribution_2d%blacs_env%para_env)
-    checksum = 0.0
+    checksum = 0.0_dp
     checksum = dbcsr_checksum(matrix_a, error)
     WRITE(*,*)'BCSR S checksum',checksum
     !row_blk_begin => matrix_a%row_blk_begin
@@ -251,7 +251,7 @@ CONTAINS
          col_blk_size, error=error)
     IF (dbg) WRITE(*,*)'right0=',dist2d%ref_count,dist2d%blacs_env%ref_count,&
          dist2d%blacs_env%para_env%ref_count
-    CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0d0, dist2d,&
+    CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist2d,&
          row_blk_size=matrix_a%row_blk_size,&
          col_blk_size=col_blk_size,&
          error=error)
@@ -299,7 +299,7 @@ CONTAINS
     oldtime = walltime2-walltime1
     CALL cp_fm_frobenius_norm(fmout, checksum, error)
     WRITE(*,*)'Sx checksum',checksum*checksum,'time=',oldtime
-    CALL dbcsr_from_fm(matrix_b, fmout, 0.0d0, dist2d,&
+    CALL dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist2d,&
          row_blk_size=matrix_a%row_blk_size,&
          col_blk_size=col_blk_size,&
          error=error)

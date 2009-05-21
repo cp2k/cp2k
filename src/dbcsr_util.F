@@ -1782,7 +1782,7 @@ CONTAINS
     e = error
     CALL distribution_2d_get(matrix%dist2d, blacs_env=blacs_env, error=e)
     CALL get_blacs_info(blacs_env, para_env=para_env)
-    local_cs = 0.0d0
+    local_cs = 0.0_dp
     DO br = 1, matrix%nblkrows_total
        m = matrix%row_blk_size(br)
        DO blk = matrix%row_p(br)+1, matrix%row_p(br+1)
@@ -3245,7 +3245,7 @@ CONTAINS
        bit_bucket = matrix(r)
     ENDDO
     IF (dbg) WRITE(*,*)'Range OK'
-    bit_bucket = 0.0d0
+    bit_bucket = 0.0_dp
     DO r = LBOUND(matrix,1), UBOUND(matrix,1)
        !IF (dbg.AND.bcsr_verbose) WRITE(*,*)':@',r,'=',matrix(r)
        bit_bucket = bit_bucket + matrix(r)
