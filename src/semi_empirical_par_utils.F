@@ -654,7 +654,7 @@ CPSourceFileRef)
 !>         the two-center two-electron integrals with d-orbitals
 !> \par    Notation
 !>         -) Charge separations [sep%cs(1:6)]  [see equations (12)-(16) of TCA]
-!>         -) Additive terms od Klopman-Ohno terms [sep%ko(1:9)] [see equations 
+!>         -) Additive terms of Klopman-Ohno terms [sep%ko(1:9)] [see equations 
 !>            (19)-(26) of TCA]
 !>         -) Atomic core additive term stored in sep%ko(9): used in the calculation
 !>            of the core-electron attractions and core-core repulsions

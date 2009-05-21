@@ -248,8 +248,8 @@ CPSourceFileRef,&
        END IF
 
        IF (meta_env%do_hills) THEN 
-          WRITE (iw,'( A )')' METADYN| Spanwing the Hills '
-          WRITE (iw,'( A,T71,F10.2)')  ' METADYN| Width of the Spawned Gaussian',meta_env%hills_env%ww
+          WRITE (iw,'( A )')' METADYN| Spawning the Hills '
+          WRITE (iw,'( A,T71,F10.3)')  ' METADYN| Width of the Spawned Gaussian',meta_env%hills_env%ww
        END IF
 
        IF (meta_env%do_multiple_walkers) THEN

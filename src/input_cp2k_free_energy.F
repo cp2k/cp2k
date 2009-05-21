@@ -188,7 +188,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,name="nhills_start_val",&
-             description="The starting value od previously spawned hills",&
+             description="The starting value of previously spawned hills",&
              usage="nhills_start_val <integer>",default_i_val=0,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
