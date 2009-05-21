@@ -478,3 +478,6 @@ multipole_ch_dip.dbg_f_rec.inp
 multipole_dip_qu.dbg_f_rec.inp
 # numerics
 multipole_quadrupole.dbg_f_rec.inp
+# new dang chang
+H2O-dimer-dangchang.inp
+H2OandI-dangchang.inp
