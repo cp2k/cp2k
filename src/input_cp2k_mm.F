@@ -824,8 +824,9 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DIPOLE",&
-            description="This section specifies that we will perform an SCF dipole calculation of the MM atoms. &
-                         Needs KEYWORD POL_SCF in POISSON secton",&
+            description="This section specifies that we will perform an &
+                        & SCF dipole calculation of the MM atoms. &
+                        & Needs KEYWORD POL_SCF in POISSON secton",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
