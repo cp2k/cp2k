@@ -42,6 +42,7 @@ MODULE fist_force
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE fist_nonbond_force,              ONLY: bonded_correct_gaussian,&
                                              force_nonbond
+  USE fist_pol_scf,                    ONLY: fist_pol_evaluate
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
@@ -119,7 +120,8 @@ CONTAINS
       node, nparticle_kind, nparticle_local, nshell, shell_index, stat
     LOGICAL                                  :: do_multipoles, failure, &
                                                 shell_model_ad, &
-                                                shell_present, use_virial
+                                                shell_present, use_virial,&
+                                                do_ipol_scf
     REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
       pot_manybody, pot_nonbond, pot_onef, pot_shell, pot_torsion, &
       pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
@@ -150,6 +152,8 @@ CONTAINS
                                                 shell_particle_set
     TYPE(section_vals_type), POINTER         :: mm_section, print_section
     TYPE(shell_kind_type), POINTER           :: shell
+    INTEGER                                  :: iter
+    REAL(KIND=dp)                            :: diff, Upol
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -176,7 +180,7 @@ CONTAINS
          multipoles=multipoles, error=error)
 
     CALL ewald_env_get (ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
-         error=error)
+    do_ipol_scf=do_ipol_scf,error=error)
 
     natoms = SIZE ( particle_set )
     nlocal_particles = 0
@@ -347,14 +351,21 @@ CONTAINS
                   message="Ewald sum and Core-Shell model not implemented.", &
                   error=error, error_level=cp_failure_level)
           ELSE
-             IF (do_multipoles) THEN
+             IF (do_ipol_scf) THEN
+! converge the dipoles self-consistently
+                CALL  fist_pol_evaluate ( atomic_kind_set, multipoles, ewald_env, ewald_pw,  &
+                      fist_nonbond_env, cell, particle_set, local_particles, & 
+                      thermo, vg_coulomb, pot_nonbond, f_nonbond, fg_coulomb,&
+                      use_virial, pv_g, pv_nonbond, mm_section, para_env, error )
+
+             ELSEIF (do_multipoles) THEN
                 CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
                      particle_set, local_particles, vg_coulomb, pot_nonbond, thermo%e_neut,&
                      thermo%e_self, multipoles%task, do_forces=.TRUE., do_stress=use_virial,&
                      do_efield=.FALSE., charges=multipoles%charges, dipoles=multipoles%dipoles,&
                      quadrupoles=multipoles%quadrupoles, forces_local=fg_coulomb,forces_glob=f_nonbond,&
                      pv_local=pv_g,pv_glob=pv_nonbond,iw=iw2,do_debug=.TRUE.,atomic_kind_set=atomic_kind_set,&
-                     mm_section=mm_section,error=error) 
+                     mm_section=mm_section,error=error)
              ELSE
                 CALL ewald_evaluate ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set, &
                      local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial, &
@@ -397,11 +408,7 @@ CONTAINS
                core_particle_set=core_particle_set, cell=cell, use_virial=use_virial, error=error)
           
        ELSE
-          IF (do_multipoles) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Bonded correction for Multipoles not yet implemented.", &
-                  error=error, error_level=cp_warning_level)
-          ELSE
+          IF (.NOT. do_multipoles) THEN
              CALL bonded_correct_gaussian ( atomic_kind_set, local_particles,&
                   particle_set, ewald_env, thermo%e_bonded, pv_bc=pv_bc , cell=cell,&
                   use_virial=use_virial, error=error)
@@ -483,6 +490,8 @@ CONTAINS
        thermo%e_gspace = vg_coulomb
        thermo%pot = thermo%pot + thermo%e_self + thermo%e_neut
        thermo%pot = thermo%pot + vg_coulomb + thermo%e_bonded
+       ! add the induction energy of the dipoles for polarizable models
+       IF ( do_ipol_scf ) thermo%pot = thermo%pot + thermo%e_induction
     END IF
 
     ! add up all the forces

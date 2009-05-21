@@ -270,6 +270,14 @@ CPSourceFileRef,&
           CALL reallocate(inp_info%charge,1,nchg)
           CALL read_chrg_section(inp_info%charge_atm,inp_info%charge,tmp_section,ntot,error)
        END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"DIPOLE",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%alpha_atm,1,nchg)
+          CALL reallocate(inp_info%alpha,1,nchg)
+          CALL read_alpha_section(inp_info%alpha_atm,inp_info%alpha,tmp_section,ntot,error)
+       END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"SHELL",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nshell,error=error)
        IF (explicit) THEN
@@ -1012,6 +1020,37 @@ CPSourceFileRef,&
             error=error)
     END DO
   END SUBROUTINE read_chrg_section
+
+! *****************************************************************************
+!> \brief Reads the POLARIZABILITY section
+!> \author Marcel Baer
+! *****************************************************************************
+  SUBROUTINE read_alpha_section(alpha_atm, alpha, section, start, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: alpha_atm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_alpha_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: atm_name
+    INTEGER                                  :: isec, n_items
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=atm_name,&
+            error=error)
+       alpha_atm(start+isec) = atm_name
+       print *, "NAME  ", atm_name
+       CALL uppercase(alpha_atm(start+isec))
+       CALL section_vals_val_get(section,"ALPHA",i_rep_section=isec,r_val=alpha(start+isec),&
+            error=error)
+       print *, "ALPHA ", alpha(start+isec)
+    END DO
+  END SUBROUTINE read_alpha_section
 
 ! *****************************************************************************
 !> \brief Reads the SHELL section

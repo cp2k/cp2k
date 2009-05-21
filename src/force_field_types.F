@@ -84,6 +84,8 @@ MODULE force_field_types
   TYPE input_info_type
     CHARACTER (LEN=default_string_length), POINTER :: charge_atm(:)
     REAL(KIND=dp), POINTER                         :: charge(:)
+    CHARACTER (LEN=default_string_length), POINTER :: alpha_atm(:)
+    REAL(KIND=dp), POINTER                         :: alpha(:)
     INTEGER, POINTER                               :: bond_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
@@ -615,6 +617,8 @@ CONTAINS
 
     NULLIFY(inp_info%charge_atm)
     NULLIFY(inp_info%charge)
+    NULLIFY(inp_info%alpha_atm)
+    NULLIFY(inp_info%alpha)
     NULLIFY(inp_info%bond_kind)
     NULLIFY(inp_info%bond_a)
     NULLIFY(inp_info%bond_b)
@@ -1074,6 +1078,14 @@ CONTAINS
     END IF
     IF(ASSOCIATED(inp_info%charge)) THEN
        DEALLOCATE(inp_info%charge,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%alpha_atm)) THEN
+       DEALLOCATE(inp_info%alpha_atm,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%alpha)) THEN
+       DEALLOCATE(inp_info%alpha,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(inp_info%bond_kind)) THEN

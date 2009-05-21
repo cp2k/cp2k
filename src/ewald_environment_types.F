@@ -52,13 +52,16 @@ MODULE ewald_environment_types
     PRIVATE
     INTEGER   :: id_nr, ref_count
     LOGICAL   :: do_multipoles            ! Flag for using the multipole code
+    LOGICAL   :: do_ipol_scf              ! Flag for using the scf for induced dipoles 
     INTEGER   :: max_multipole            ! max expansion in the multipoles
+    INTEGER   :: max_ipol_iter            ! max number of interation for induced dipoles
     INTEGER   :: ewald_type               ! type of ewald
     INTEGER   :: gmax(3)                  ! max Miller index
     INTEGER   :: ns_max                   ! # grid points for small grid (PME)
     INTEGER   :: o_spline                 ! order of spline (SPME)
     REAL (KIND=dp) :: alpha, rcut         ! ewald alpha and real-space cutoff
     REAL (KIND=dp) :: epsilon             ! tolerance for small grid (PME)
+    REAL (KIND=dp) :: eps_pol             ! tolerance for convergence of induced dipoles
     TYPE ( cp_para_env_type ), POINTER   :: para_env
     TYPE(section_vals_type), POINTER     :: poisson_section
   END TYPE ewald_environment_type
@@ -98,12 +101,12 @@ CONTAINS
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, epsilon, gmax,&
+  SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, eps_pol,  epsilon, gmax,&
        ns_max, o_spline, group, para_env, id_nr, poisson_section,&
-       rcut, do_multipoles, max_multipole, error)
+       rcut, do_multipoles, max_multipole,do_ipol_scf,max_ipol_iter, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
-    REAL(KIND=dp), OPTIONAL                  :: alpha, epsilon
+    REAL(KIND=dp), OPTIONAL                  :: alpha, epsilon, eps_pol
     INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline, &
                                                 group
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -112,8 +115,8 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
     REAL(KIND=dp), OPTIONAL                  :: rcut
-    LOGICAL, INTENT(OUT), OPTIONAL           :: do_multipoles
-    INTEGER, INTENT(OUT), OPTIONAL           :: max_multipole
+    LOGICAL, INTENT(OUT), OPTIONAL           :: do_multipoles, do_ipol_scf
+    INTEGER, INTENT(OUT), OPTIONAL           :: max_multipole, max_ipol_iter
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -128,10 +131,13 @@ CONTAINS
     IF (PRESENT(id_nr)) id_nr = ewald_env%id_nr
     IF (PRESENT(ewald_type)) ewald_type = ewald_env%ewald_type
     IF (PRESENT(do_multipoles)) do_multipoles = ewald_env%do_multipoles
+    IF (PRESENT(do_ipol_scf)) do_ipol_scf = ewald_env%do_ipol_scf
     IF (PRESENT(max_multipole)) max_multipole = ewald_env%max_multipole
+    IF (PRESENT(max_ipol_iter)) max_ipol_iter = ewald_env%max_ipol_iter
     IF (PRESENT(alpha)) alpha = ewald_env%alpha
     IF (PRESENT(rcut)) rcut = ewald_env%rcut
     IF (PRESENT(epsilon)) epsilon = ewald_env%epsilon
+    IF (PRESENT(eps_pol)) eps_pol = ewald_env%eps_pol
     IF (PRESENT(gmax)) gmax = ewald_env%gmax
     IF (PRESENT(ns_max)) ns_max = ewald_env%ns_max
     IF (PRESENT(o_spline)) o_spline = ewald_env%o_spline
@@ -148,12 +154,12 @@ CONTAINS
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_env_set( ewald_env, ewald_type, alpha, epsilon, gmax, ns_max,&
+  SUBROUTINE ewald_env_set( ewald_env, ewald_type, alpha, epsilon, eps_pol, gmax, ns_max,&
        o_spline, para_env, id_nr, poisson_section, error )
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
-    REAL(KIND=dp), OPTIONAL                  :: alpha, epsilon
+    REAL(KIND=dp), OPTIONAL                  :: alpha, epsilon, eps_pol
     INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
@@ -176,6 +182,7 @@ CONTAINS
        IF (PRESENT(ewald_type)) ewald_env%ewald_type = ewald_type
        IF (PRESENT(alpha)) ewald_env%alpha = alpha
        IF (PRESENT(epsilon)) ewald_env%epsilon = epsilon
+       IF (PRESENT(eps_pol)) ewald_env%eps_pol = eps_pol
        IF (PRESENT(gmax)) ewald_env%gmax = gmax
        IF (PRESENT(ns_max)) ewald_env%ns_max = ns_max
        IF (PRESENT(o_spline)) ewald_env%o_spline = o_spline
@@ -342,10 +349,13 @@ CONTAINS
        ! Multipoles
        multipole_section => section_vals_get_subs_vals(ewald_section,"MULTIPOLES",error=error)
        CALL section_vals_val_get(multipole_section,"_SECTION_PARAMETERS_",l_val=ewald_env%do_multipoles,error=error)
+       CALL section_vals_val_get(multipole_section,"POL_SCF",l_val=ewald_env%do_ipol_scf,error=error)
+       CALL section_vals_val_get(multipole_section,"EPS_POL",r_val=ewald_env%eps_pol,error=error)
        IF (ewald_env%do_multipoles) THEN
           SELECT CASE(ewald_env%ewald_type)
           CASE(do_ewald_ewald)
              CALL section_vals_val_get(multipole_section,"MAX_MULTIPOLE_EXPANSION",i_val=ewald_env%max_multipole,error=error)
+             CALL section_vals_val_get(multipole_section,"MAX_IPOL_ITER",i_val=ewald_env%max_ipol_iter,error=error)
           CASE DEFAULT
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="Multipole code works at the moment only with standard EWALD sums.", &
@@ -370,6 +380,8 @@ CONTAINS
                 WRITE ( iw, '( T2,"EWALD| ",A )' ) 'Enabled Multipole Method'
                 WRITE ( iw, '( T2,"EWALD| ",A,T67,A14 )' ) 'Max Term in Multipole Expansion :',&
                      ADJUSTR(TRIM(enum_i2c(enum,ewald_env%max_multipole,error=error)))
+                WRITE ( iw, '( T2,"EWALD| ",A,T67,3I10 )' ) 'Max number Iterations for IPOL :',&
+                     ewald_env%max_ipol_iter
              END IF
              dummy = cp_unit_from_cp2k(ewald_env%alpha,"angstrom^-1",error=error)
              WRITE ( iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )' ) &

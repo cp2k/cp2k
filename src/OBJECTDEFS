@@ -205,6 +205,7 @@ OBJECTS_GENERIC =\
  fist_neighbor_lists.o\
  fist_nonbond_env_types.o\
  fist_nonbond_force.o\
+ fist_pol_scf.o\
  force_env_methods.o\
  force_env_types.o\
  force_field_types.o\

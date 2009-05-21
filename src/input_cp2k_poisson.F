@@ -373,7 +373,31 @@ SUBROUTINE create_ewald_section(section,error)
          enum_i_vals=(/ do_multipole_none, do_multipole_charge, do_multipole_dipole,&
          do_multipole_quadrupole/), type_of_var=enum_t, error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
-    CALL keyword_release(keyword,error=error)   
+    CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword, name="POL_SCF",&
+         description="Specify if the SCF for induced multipole moments is used",&
+         usage="POL_SCF T",required=.FALSE.,&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error) 
+
+    CALL keyword_create(keyword, name="MAX_IPOL_ITER",&
+         description="Specify the maximum number of iterations for induced "//&
+         "Dipoles",&
+         usage="MAX_IPOL_ITER {int}",required=.FALSE., type_of_var=integer_t,&
+            n_var=1, default_i_val=0,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword, name="EPS_POL",&
+         description="Specify the maximum number of iterations for induced "//&
+         "Dipoles",&
+         usage="EPS_POL {real}",required=.FALSE., type_of_var=real_t,&
+            n_var=1, default_r_val=0.5e-07_dp,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error) 
+
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
 

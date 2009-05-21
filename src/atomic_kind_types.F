@@ -346,7 +346,7 @@ CONTAINS
   SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
        gth_potential,se_parameter,dftb_parameter,aux_basis_set,aux_fit_basis_set,orb_basis_set,&
        element_symbol,name,mass,kind_number,natom,atom_list,alpha_core_charge,&
-       ccore_charge,core_charge,alpha_scp,I_scp,core_charge_radius,ncgf,nsgf,rcov,z,zeff,qeff,&
+       ccore_charge,core_charge,alpha_scp,I_scp,core_charge_radius,ncgf,nsgf,rcov,z,zeff,qeff,a_pol,&
        soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
        hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
        max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
@@ -380,7 +380,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcov
     INTEGER, INTENT(OUT), OPTIONAL           :: z
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff, a_pol
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: soft_basis_set
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
@@ -603,6 +603,14 @@ CONTAINS
              qeff = -HUGE(0.0_dp)
           END IF
        END IF
+       IF (PRESENT(a_pol)) THEN
+          IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+             CALL get_potential(potential=atomic_kind%elp_potential,a_pol=a_pol)
+          ELSE
+             a_pol = -HUGE(0.0_dp)
+          END IF
+       END IF
+       IF (PRESENT(soft_basis_set)) soft_basis_set => atomic_kind%soft_basis_set
        IF (PRESENT(soft_basis_set)) soft_basis_set => atomic_kind%soft_basis_set
        IF (PRESENT(hard_basis_set)) hard_basis_set => atomic_kind%hard_basis_set
        IF (PRESENT(paw_proj_set))   paw_proj_set => atomic_kind%paw_proj_set

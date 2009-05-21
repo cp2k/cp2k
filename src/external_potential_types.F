@@ -125,7 +125,7 @@ MODULE external_potential_types
                                                cerf_ppl,&
                                                core_charge_radius,&
                                                ccore_charge_radius,&
-                                               ppl_radius,qeff
+                                               ppl_radius,qeff,a_pol
      INTEGER                                :: nalpha_ppl
      INTEGER,DIMENSION (:), POINTER         :: nexp_ppl
      REAL(KIND = dp),DIMENSION(:), POINTER  :: alpha_ppl
@@ -244,6 +244,7 @@ CONTAINS
     ALLOCATE (potential,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    potential%a_pol = 0.0_dp
     NULLIFY (potential%alpha_ppl)
     NULLIFY (potential%cexp_ppl)
     NULLIFY (potential%nexp_ppl)
@@ -480,7 +481,7 @@ CONTAINS
        alpha_ppl,cerf_ppl,cexp_ppl,nalpha_ppl,&
        ccore_charge,core_charge_radius,&
        ccore_charge_radius,&
-       nexp_ppl,ppl_radius,ppl_present,qeff)
+       nexp_ppl,ppl_radius,ppl_present,a_pol,qeff)
     TYPE(elp_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
@@ -497,7 +498,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nexp_ppl
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ppl_radius
     LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff, a_pol
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_elp_potential', &
       routineP = moduleN//':'//routineN
@@ -506,6 +507,7 @@ CONTAINS
 
        IF (PRESENT(name)) name = potential%name
        IF (PRESENT(qeff)) qeff = potential%qeff
+       IF (PRESENT(a_pol)) a_pol = potential%a_pol
        IF (PRESENT(nalpha_ppl)) nalpha_ppl=potential%nalpha_ppl
        IF (PRESENT(alpha_ppl)) alpha_ppl => potential%alpha_ppl
        IF (PRESENT(alpha_core_charge))&
@@ -1712,7 +1714,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_elp_potential(potential,name,alpha_core_charge,ccore_charge,&
-       core_charge_radius,ccore_charge_radius,cexp_ppl,cerf_ppl,qeff,&
+       core_charge_radius,ccore_charge_radius,cexp_ppl,cerf_ppl,qeff,a_pol,&
        ppl_radius,alpha_ppl,nexp_ppl,nalpha_ppl,description)
     TYPE(elp_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
@@ -1723,7 +1725,7 @@ CONTAINS
                                                 ccore_charge_radius
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: cexp_ppl
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cerf_ppl, qeff, ppl_radius
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cerf_ppl, qeff, a_pol, ppl_radius
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: alpha_ppl
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nexp_ppl
@@ -1747,6 +1749,7 @@ CONTAINS
        IF (PRESENT(ccore_charge_radius))&
             potential%ccore_charge_radius = ccore_charge_radius
        IF (PRESENT(qeff)) potential%qeff = qeff
+       IF (PRESENT(a_pol)) potential%a_pol = a_pol
        IF (PRESENT(alpha_ppl)) potential%alpha_ppl => alpha_ppl
        IF (PRESENT(cexp_ppl)) potential%cexp_ppl => cexp_ppl
        IF (PRESENT(nexp_ppl)) potential%nexp_ppl => nexp_ppl

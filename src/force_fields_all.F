@@ -1705,7 +1705,7 @@ CONTAINS
                                                 only_manybody, only_qm
     REAL(KIND=dp)                            :: chrg_tot, cs_charge, &
                                                 scale_factor
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, alpha
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
 
@@ -1715,6 +1715,8 @@ CONTAINS
     chrg_tot = 0.0_dp
     ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(alpha(SIZE(atomic_kind_set)),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1722,7 +1724,7 @@ CONTAINS
                             atom_list=my_atom_list,&
                             name=atmname)
        CALL get_potential(potential=elp_potential,&
-                          qeff=charge(i))
+                          qeff=charge(i), a_pol=alpha(i))
 
        is_shell = .FALSE.
        found    = .FALSE.
@@ -1737,6 +1739,17 @@ CONTAINS
              IF((inp_info%charge_atm(j))==atmname) THEN
                 charge(i) = inp_info%charge(j)
                 CALL issue_duplications(found,routineP, "Charge", atmname, error=error)
+                found = .TRUE.
+             END IF
+          END DO
+       END IF
+       ! Always have the input param last to overwrite all the other ones
+       IF(ASSOCIATED(inp_info%alpha_atm)) THEN
+          DO j=1,SIZE(inp_info%alpha_atm)
+             IF (iw>0) WRITE(iw,*)"Alpha Checking ::",TRIM(inp_info%alpha_atm(j)),atmname
+             IF((inp_info%alpha_atm(j))==atmname) THEN
+                alpha(i) = inp_info%alpha(j)
+                CALL issue_duplications(found,routineP, "Alpha", atmname, error=error)
                 found = .TRUE.
              END IF
           END DO
@@ -1814,7 +1827,7 @@ CPSourceFileRef,&
           END IF
        END IF
 
-       CALL set_potential(potential=elp_potential,qeff=charge(i))
+       CALL set_potential(potential=elp_potential,qeff=charge(i), a_pol=alpha(i))
        CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
        ! Sum up total charges for IO
        IF (found) THEN 
