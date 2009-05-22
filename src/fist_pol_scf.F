@@ -108,7 +108,8 @@ CONTAINS
     local_dipoles = 0.0_dp
     CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
          particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo%e_neut,&
-         thermo%e_self, multipoles%task, do_forces=.FALSE., do_stress=use_virial,&
+         thermo%e_self, multipoles%task, do_correction_bonded=.TRUE., &
+         do_forces=.FALSE., do_stress=use_virial,&
          do_efield=.TRUE., charges=multipoles%charges, dipoles=multipoles%dipoles,&
          quadrupoles=multipoles%quadrupoles,&
          iw=iw2,do_debug=.TRUE.,atomic_kind_set=atomic_kind_set,&
@@ -138,7 +139,7 @@ CONTAINS
             thermo%e_induction = thermo%e_induction +  &
             DOT_PRODUCT ( multipoles%dipoles ( :, ii ), multipoles%dipoles ( :, ii ) ) / a_pol / 2.0_dp 
             
-          END DO
+         END DO
        END DO
        diff = SQRT ( diff / ntot )
        IF ( diff <= eps_pol ) EXIT pol_scf
@@ -149,24 +150,25 @@ CONTAINS
        pot_nonbond_local=0.0_dp
        CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
            particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo%e_neut,&
-           thermo%e_self, multipoles%task, do_forces=.FALSE., do_stress=.FALSE.,&
-           do_efield=.TRUE., charges=multipoles%charges, dipoles=multipoles%dipoles,&
+           thermo%e_self, multipoles%task, do_correction_bonded=.TRUE., do_forces=.FALSE.,&
+           do_stress=.FALSE., do_efield=.TRUE., charges=multipoles%charges, dipoles=multipoles%dipoles,&
            quadrupoles=multipoles%quadrupoles, iw=iw2,&
            do_debug=.TRUE.,atomic_kind_set=atomic_kind_set,&
            mm_section=mm_section,efield0=efield0,efield1=efield1,error=error)
     END DO pol_scf
-
+    
 ! Now evaluate after convergence to obtain forces and converged energies
 ! NOTE: Here we use POT_NONBOND
     CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
          particle_set, local_particles, vg_coulomb, pot_nonbond, thermo%e_neut,&
-         thermo%e_self, multipoles%task, do_forces=.TRUE., do_stress=use_virial,&
+         thermo%e_self, multipoles%task, do_correction_bonded=.TRUE., &
+         do_forces=.TRUE., do_stress=use_virial,&
          do_efield=.TRUE., charges=multipoles%charges, dipoles=multipoles%dipoles,&
          quadrupoles=multipoles%quadrupoles, forces_local=fg_coulomb,&
          forces_glob=f_nonbond,pv_local=pv_g,pv_glob=pv_nonbond,iw=iw2,&
          do_debug=.TRUE.,atomic_kind_set=atomic_kind_set,&
          mm_section=mm_section,efield0=efield0,efield1=efield1,error=error)
-!MDB cleaning up
+    ! Deallocate working arrays
     DEALLOCATE(efield0,stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(efield1,stat=stat)
@@ -179,7 +181,6 @@ CONTAINS
     CALL cp_print_key_finished_output(iw2,logger,mm_section,"POISSON%EWALD%PRINT%PROGRAM_RUN_INFO",error=error)
 
     CALL timestop(handle)
-
-END SUBROUTINE fist_pol_evaluate
+  END SUBROUTINE fist_pol_evaluate
 
 END MODULE fist_pol_scf

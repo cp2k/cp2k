@@ -358,11 +358,11 @@ CONTAINS
              ELSEIF (do_multipoles) THEN
                 CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
                      particle_set, local_particles, vg_coulomb, pot_nonbond, thermo%e_neut,&
-                     thermo%e_self, multipoles%task, do_forces=.TRUE., do_stress=use_virial,&
-                     do_efield=.FALSE., charges=multipoles%charges, dipoles=multipoles%dipoles,&
-                     quadrupoles=multipoles%quadrupoles, forces_local=fg_coulomb,forces_glob=f_nonbond,&
-                     pv_local=pv_g,pv_glob=pv_nonbond,iw=iw2,do_debug=.TRUE.,atomic_kind_set=atomic_kind_set,&
-                     mm_section=mm_section,error=error)
+                     thermo%e_self, multipoles%task, do_correction_bonded=.TRUE., do_forces=.TRUE.,&
+                     do_stress=use_virial, do_efield=.FALSE., charges=multipoles%charges,&
+                     dipoles=multipoles%dipoles, quadrupoles=multipoles%quadrupoles, forces_local=fg_coulomb,&
+                     forces_glob=f_nonbond, pv_local=pv_g,pv_glob=pv_nonbond,iw=iw2,do_debug=.TRUE.,&
+                     atomic_kind_set=atomic_kind_set, mm_section=mm_section,error=error)
              ELSE
                 CALL ewald_evaluate ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set, &
                      local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial, &

@@ -15,7 +15,7 @@
                 ir    = 1.0_dp/r
 
                 ! Compute the radial function
-#ifdef SCREENED_COULOMB
+#ifdef SCREENED_COULOMB_ERFC
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
                    tmp   = 0.0_dp
@@ -27,6 +27,20 @@
                 DO i = 1, 5
                    fac  = fac*REAL(2*i-1,KIND=dp)
                    f(i) = irab2*(f(i-1)+ tmp*((2.0_dp*alpha**2)**i)/(fac*alpha))
+                END DO
+#endif
+#ifdef SCREENED_COULOMB_ERF
+                IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
+                   f(0)  = ir
+                   tmp   = 0.0_dp
+                ELSE
+                   f(0)  = erf(alpha*r)*ir
+                   tmp   = EXP(-alpha**2*rab2)*oorootpi
+                END IF
+                fac = 1.0_dp
+                DO i = 1, 5
+                   fac  = fac*REAL(2*i-1,KIND=dp)
+                   f(i) = irab2*(f(i-1) - tmp*((2.0_dp*alpha**2)**i)/(fac*alpha))
                 END DO
 #endif
 #ifdef PURE_COULOMB

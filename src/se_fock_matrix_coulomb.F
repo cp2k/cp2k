@@ -768,11 +768,10 @@ CONTAINS
              
           CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
-                  do_forces=.TRUE., do_stress=use_virial, do_efield=.TRUE., charges=se_nddo_mpole%charge,&
-                  dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
+                  do_correction_bonded=.FALSE., do_forces=.TRUE., do_stress=use_virial, do_efield=.TRUE., &
+                  charges=se_nddo_mpole%charge, dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
                   forces_local=forces_g, forces_glob=forces_r, pv_glob=pv_glob, pv_local=pv_local,&
-                  efield0=se_nddo_mpole%efield0,&
-                  efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
+                  efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
                   do_debug=.TRUE.,error=error)
           ! Only SR force have to be summed up.. the one in g-space are already fully local..
           CALL mp_sum(forces_r, para_env%group)
@@ -783,8 +782,8 @@ CONTAINS
        ELSE
           CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
-                  do_forces=.FALSE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
-                  dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
+                  do_correction_bonded=.FALSE., do_forces=.FALSE., do_stress=.FALSE., do_efield=.TRUE.,&
+                  charges=se_nddo_mpole%charge, dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
                   efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1,&
                   efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.TRUE.,error=error)
        END IF
