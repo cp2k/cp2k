@@ -169,6 +169,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MULTIPLE_UNIT_CELL",&
+            description="Specifies the numbers of repetition in space (X, Y, Z) of the defined cell, "//&
+            "assuming it as a unit cell. This keyword affects only the CELL specification. The same keyword "//&
+            "in SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL should be modified in order to affect the coordinates "//&
+            "specification.", usage="MULTIPLE_UNIT_CELL 1 1 1", &
+            n_var=3,default_i_vals=(/1,1,1/),repeats=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        IF (TRIM(my_label)=="CELL") THEN
           CALL create_cell_section(subsection,periodic,"CELL_REF",error=error)
           CALL section_add_subsection(section,subsection,error=error)
@@ -1366,6 +1375,15 @@ CONTAINS
             description="Center the molecules in the computational box.",&
             usage="CENTER_COORDINATES logical",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MULTIPLE_UNIT_CELL",&
+            description="Specifies the numbers of repetition in space (X, Y, Z) of the defined cell, "//&
+            "assuming it as a unit cell. This keyword affects only the coordinates specification. The same keyword "//&
+            "in SUBSYS%CELL%MULTIPLE_UNIT_CELL should be modified in order to affect the cell "//&
+            "specification.", usage="MULTIPLE_UNIT_CELL 1 1 1", &
+            n_var=3,default_i_vals=(/1,1,1/),repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -1714,13 +1714,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
+    INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
-    NULLIFY(work, work_section, cell, cell_ref)
+    NULLIFY(work, work_section, cell, cell_ref, iwork)
     CALL timeset(routineN,handle)
     ! Handle case for parallel runs
     IF (ASSOCIATED(force_env)) THEN
@@ -1748,6 +1749,12 @@ CONTAINS
     ! CELL VECTORS - C
     work(1:3) = cell%hmat(1:3,3)
     CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
+    ! MULTIPLE_UNIT_CELL
+    ALLOCATE(iwork(3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    iwork = 1
+    CALL section_vals_val_set(work_section,"MULTIPLE_UNIT_CELL",i_vals_ptr=iwork,error=error)
+    ! Unset unused or misleading information
     CALL section_vals_val_unset(work_section,"ABC",error=error)
     CALL section_vals_val_unset(work_section,"ALPHA_BETA_GAMMA",error=error)
     ! CELL_REF
@@ -1768,6 +1775,12 @@ CONTAINS
        ! CELL VECTORS - C
        work(1:3) = cell_ref%hmat(1:3,3)
        CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
+       ! MULTIPLE_UNIT_CELL
+       ALLOCATE(iwork(3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       iwork = 1
+       CALL section_vals_val_set(work_section,"MULTIPLE_UNIT_CELL",i_vals_ptr=iwork,error=error)
+       ! Unset unused or misleading information
        CALL section_vals_val_unset(work_section,"ABC",error=error)
        CALL section_vals_val_unset(work_section,"ALPHA_BETA_GAMMA",error=error)
     END IF

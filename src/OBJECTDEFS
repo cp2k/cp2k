@@ -643,6 +643,7 @@ OBJECTS_GENERIC =\
  topology_generate_util.o\
  topology_gromos.o\
  topology_input.o\
+ topology_multiple_unit_cell.o\
  topology_pdb.o\
  topology_psf.o\
  topology_types.o\

@@ -18,6 +18,8 @@ pot_onfo_elec.inp        2
 gmax.inp                 2
 #
 # Example system test
+argon_muc.inp             2
+argon_muc-r.inp           2
 argon.inp                 2
 argon_npt.inp             2 
 water_1.inp               2

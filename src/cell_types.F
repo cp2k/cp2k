@@ -4,6 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
+!> \brief Handles all functions related to the CELL 
 !> \par History
 !>      11.2008 Teodoro Laino [tlaino] - deeply cleaning cell_type from units
 !> \author MK (16.01.2002, based on a earlier version of CJM and JGH)
@@ -515,6 +516,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: my_per
+    INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
     LOGICAL :: cell_read_a, cell_read_abc, cell_read_b, cell_read_c, &
       cell_read_file, check, failure, my_check
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_angles, cell_par
@@ -522,7 +524,7 @@ CONTAINS
 
     failure  = .FALSE.
     my_check = .TRUE.
-    NULLIFY(cell_ref_section, cell_par)
+    NULLIFY(cell_ref_section, cell_par, multiple_unit_cell)
     IF (.NOT.failure) THEN
        IF (.NOT.ASSOCIATED(cell)) CALL cell_create(cell,error=error)
        IF (.NOT.ASSOCIATED(cell_ref)) CALL cell_create(cell_ref,error=error)
@@ -580,6 +582,10 @@ CPSourceFileRef,&
           CALL section_vals_val_get(cell_section,"ALPHA_BETA_GAMMA",r_vals=cell_angles,error=error)
           CALL set_cell_param(cell,cell_par,cell_angles,do_init_cell=.FALSE.,error=error)
        END IF
+     
+       ! Multiple unit cell
+       CALL section_vals_val_get(cell_section,"MULTIPLE_UNIT_CELL",i_vals=multiple_unit_cell,error=error)
+       IF (ANY(multiple_unit_cell/=1)) CALL set_multiple_unit_cell(cell, cell_section, multiple_unit_cell, error)
 
        CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
        SELECT CASE(my_per)
@@ -603,6 +609,7 @@ CPSourceFileRef,&
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
 
+       ! Initialize cell
        CALL init_cell(cell)
 
        IF (.NOT.my_check) RETURN
@@ -618,6 +625,36 @@ CPSourceFileRef,&
        END IF
     END IF
   END SUBROUTINE read_cell
+
+! *****************************************************************************
+!> \brief   Setup of the multiple unit_cell
+!> \author  Teodoro Laino [tlaino]
+!> \date    05.2009
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE set_multiple_unit_cell(cell, cell_section, multiple_unit_cell, error)
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: cell_section
+    INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_multiple_unit_cell', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: abc, angles
+
+    failure = .FALSE.
+    ! Fail is one of the value is set to zero..
+    CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
+         "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
+         "A value of 0 or negative is meaningless!"//&
+CPSourceFileRef)
+    CALL get_cell_param(cell,abc,angles,cp_units_rad,error)
+    abc = abc * REAL(multiple_unit_cell,KIND=dp)
+    CALL set_cell_param(cell,abc,angles,do_init_cell=.FALSE.,error=error)
+
+  END SUBROUTINE set_multiple_unit_cell
 
 ! *****************************************************************************
 !> \brief   Read cell information from an external file

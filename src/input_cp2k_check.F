@@ -281,7 +281,7 @@ CONTAINS
                                                 iforce_eval, myi, n_rep_val, &
                                                 nforce_eval1, nforce_eval2, &
                                                 stat
-    INTEGER, DIMENSION(:), POINTER           :: iwalkers_status, &
+    INTEGER, DIMENSION(:), POINTER           :: ivec, iwalkers_status, iwork, &
                                                 rwalkers_status
     LOGICAL                                  :: bsse_check, check, explicit1, &
                                                 explicit2, failure, flag, &
@@ -298,7 +298,7 @@ CONTAINS
                                                 section1, section2, &
                                                 sections1, sections2
 
-    NULLIFY(restarted_infos,iwalkers_status,rwalkers_status)
+    NULLIFY(restarted_infos,iwalkers_status,rwalkers_status,vec,ivec,work,iwork)
     CALL timeset(routineN,handle)   
     failure=.FALSE. 
     IF (.NOT. failure) THEN
@@ -360,6 +360,14 @@ CONTAINS
                       section => section_vals_get_subs_vals(section1,"COORD",error=error)
                       CALL section_vals_set_subs_vals(section2,"COORD",section,error=error)
                       CALL set_restart_info("COORDINATES",restarted_infos,error)
+                      ! Copy over also the information on the multiple_unit_cell
+                      CALL section_vals_val_get(section1,"TOPOLOGY%MULTIPLE_UNIT_CELL",i_vals=ivec,&
+                                                error=error)
+                      ALLOCATE(iwork(3),stat=stat)
+                      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                      iwork=ivec
+                      CALL section_vals_val_set(section2,"TOPOLOGY%MULTIPLE_UNIT_CELL",i_vals_ptr=iwork,&
+                                                error=error)
                    END IF
 
                    CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,error=error)
@@ -423,7 +431,8 @@ CONTAINS
              IF (flag.AND.qmmm_check) THEN
                 CALL set_restart_info("QMMM TRANSLATION VECTOR",restarted_infos,error)
                 CALL section_vals_val_get(section1,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
-                ALLOCATE(work(3))
+                ALLOCATE(work(3),stat=stat)
+                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
                 work = vec
                 CALL section_vals_val_set(section2,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work,error=error)
              END IF

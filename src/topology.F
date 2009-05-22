@@ -11,7 +11,8 @@
 MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
-  USE cell_types,                      ONLY: read_cell
+  USE cell_types,                      ONLY: read_cell,&
+                                             write_cell
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              post_process_colvar
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -59,6 +60,7 @@ MODULE topology
                                              read_topology_gromos
   USE topology_input,                  ONLY: read_constraints_section,&
                                              read_topology_section
+  USE topology_multiple_unit_cell,     ONLY: topology_muc
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
                                              write_coordinate_pdb
   USE topology_psf,                    ONLY: idm_psf,&
@@ -153,8 +155,9 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Get the cell info
     !-----------------------------------------------------------------------------
-    CALL read_cell ( topology%cell, topology%cell_ref, cell_section=cell_section,&
-                     para_env=para_env, error=error)
+    CALL read_cell (topology%cell, topology%cell_ref, cell_section=cell_section,&
+                    para_env=para_env, error=error)
+    CALL write_cell(topology%cell, subsys_section, label="CELL_TOP|", error=error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -534,6 +537,8 @@ CONTAINS
     ! Parse &COORD section and in case overwrite..
     CALL read_atoms_input ( topology, overwrite=(topology%coord_type/=do_coord_off),&
          subsys_section=subsys_section,save_mem=save_mem,error=error)
+    ! Handle multiple unit_cell
+    CALL topology_muc( topology, subsys_section, error=error)
     CALL timestop(handle2)
     ! Check on atom numbers
     CALL cp_assert(topology%natoms>0,cp_fatal_level,cp_assertion_failed,routineP,&
