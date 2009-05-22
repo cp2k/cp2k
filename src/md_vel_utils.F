@@ -47,7 +47,8 @@ MODULE md_vel_utils
                                              section_vals_val_get
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathlib,                         ONLY: diamat_all
   USE md_ener_types,                   ONLY: md_ener_type
   USE md_environment_types,            ONLY: get_md_env,&
@@ -503,7 +504,7 @@ CONTAINS
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! *****************************************************************************
   SUBROUTINE initialize_velocities(simpar, part, force_env, para_env, globenv, md_env, &
-       molecule_kinds, print_section, subsys_section, shell_present, shell_part, &
+       molecule_kinds, label, print_section, subsys_section, shell_present, shell_part, &
        core_part, force_rescaling, error)
 
     TYPE(simpar_type), POINTER               :: simpar
@@ -514,6 +515,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(section_vals_type), POINTER         :: print_section, subsys_section
     LOGICAL, INTENT(IN)                      :: shell_present
     TYPE(particle_type), DIMENSION(:), &
@@ -524,9 +526,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: my_format
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, iw, natoms, &
-                                                nshell, shell_index, stat
+                                                nshell, num_x, shell_index, &
+                                                stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
     LOGICAL :: atomvel_explicit, corevel_explicit, failure, is_ok, &
       rescale_regions, shellvel_explicit
@@ -568,8 +572,9 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".log",error=error)
     IF (iw>0) THEN
-       WRITE ( iw, '( A, A, A )' ) ' **********************', &
-            ' begin of velocity initialization ', '***********************'
+       num_x = (79-LEN_TRIM(ADJUSTL(label))-2)/2
+       WRITE(my_format,'(A,I0,A,I0,A)')'(1X,',num_x,'("*"),1X,A,1X,',num_x,'("*"))'
+       WRITE ( iw, TRIM(my_format))TRIM(ADJUSTL(label))
     END IF
 
     ! Initializing parameters
@@ -785,7 +790,7 @@ CONTAINS
           WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM position:', rcom ( 1 ), rcom ( 2 ), rcom ( 3 )
           WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' Angular velocity:', vang ( 1 ), vang ( 2 ), vang ( 3 )
        END IF
-       WRITE ( iw, '( A, A, A, / )' ) ' ***********************', ' end of velocity initialization ', '************************'
+       WRITE ( iw, '( 1X,79("*"),/)' )
     END IF
     
     DEALLOCATE (is_fixed,STAT=stat)
@@ -1449,7 +1454,7 @@ CONTAINS
 
     CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
        force_env=force_env, para_env=para_env, globenv=globenv, md_env=md_env,&
-       print_section=print_section,&
+       label="Velocities initialization",print_section=print_section, &
        subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
        shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
        error=error)
@@ -1480,7 +1485,7 @@ CONTAINS
 
           CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
              force_env=force_env, para_env=para_env, globenv=globenv, md_env=md_env,&
-             print_section=print_section, &
+             label="Re-Initializing velocities after applying constraints",print_section=print_section, &
              subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
              shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.TRUE., &
              error=error)
