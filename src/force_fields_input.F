@@ -1044,11 +1044,9 @@ CPSourceFileRef,&
        CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=atm_name,&
             error=error)
        alpha_atm(start+isec) = atm_name
-       PRINT *, "NAME  ", atm_name
        CALL uppercase(alpha_atm(start+isec))
        CALL section_vals_val_get(section,"ALPHA",i_rep_section=isec,r_val=alpha(start+isec),&
             error=error)
-       PRINT *, "ALPHA ", alpha(start+isec)
     END DO
   END SUBROUTINE read_alpha_section
 
