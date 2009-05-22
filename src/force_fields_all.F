@@ -1842,6 +1842,7 @@ CPSourceFileRef,&
     IF (iw4>0) THEN
        WRITE(iw4,FMT='(T2,"CHARGE_INFO| Total Charge of the Classical System: ",T69,F12.6)')chrg_tot
     END IF
+    DEALLOCATE (alpha,STAT=stat)
     DEALLOCATE (charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle2)
