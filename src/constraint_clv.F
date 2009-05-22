@@ -4,6 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
+!> \brief Module that handles the COLLECTIVE constraints
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino]
@@ -513,11 +514,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iconst, irep, n_rep
-    REAL(KIND=dp)                            :: clv_target, value
+    LOGICAL                                  :: do_update_colvar, explicit, &
+                                                failure
+    REAL(KIND=dp)                            :: clv_target, limit, &
+                                                new_clv_target, value
     TYPE(section_vals_type), POINTER         :: collective_sections
 
-! Update globally for restart
-
+    failure = .FALSE.
+    ! Update globally for restart
     collective_sections => section_vals_get_subs_vals(motion_section,"CONSTRAINT%COLLECTIVE",error=error)
     CALL section_vals_get(collective_sections, n_repetition=n_rep, error=error)
     IF (n_rep/=0) THEN
@@ -527,9 +531,24 @@ CONTAINS
           IF ( value /= 0.0_dp ) THEN
              CALL section_vals_val_get(collective_sections, "TARGET", r_val=clv_target,&
                 i_rep_section=irep, error=error)
-             clv_target = clv_target + value * dt
-             CALL section_vals_val_set(collective_sections, "TARGET", r_val=clv_target,&
+             new_clv_target = clv_target + value * dt
+             ! Check limits..
+             CALL section_vals_val_get(collective_sections, "TARGET_LIMIT", explicit=explicit,&
                 i_rep_section=irep, error=error)
+             do_update_colvar = .TRUE.
+             IF (explicit) THEN
+                CALL section_vals_val_get(collective_sections, "TARGET_LIMIT", r_val=limit,&
+                   i_rep_section=irep, error=error)
+                IF ((clv_target-limit)*SIGN(1.0_dp,value)>=0.0_dp) THEN 
+                   do_update_colvar = .FALSE.
+                ELSE IF (ABS(new_clv_target)>ABS(limit)) THEN
+                   new_clv_target = limit
+                END IF
+             END IF
+             IF (do_update_colvar) THEN
+                CALL section_vals_val_set(collective_sections, "TARGET", r_val=new_clv_target,&
+                   i_rep_section=irep, error=error)
+             END IF
           END IF
        END DO
     END IF

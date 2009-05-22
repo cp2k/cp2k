@@ -337,9 +337,17 @@ CONTAINS
 
        CALL keyword_create(keyword, name="TARGET_GROWTH",&
             description="Specifies the growth speed of the target value of the constrained collective"//&
-            " variable (units depend on the colvar).",&
+            " variable.",&
             usage="TARGET_GROWTH {real}",&
             default_r_val=0.0_dp, unit_str="internal_cp2k",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TARGET_LIMIT",&
+            description="Specifies the limit of the growth of the target value of the constrained collective"//&
+            " variable. By default no limit at the colvar growth is set.",&
+            usage="TARGET_LIMIT {real}",type_of_var=real_t,&
+            unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

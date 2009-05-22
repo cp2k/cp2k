@@ -59,6 +59,7 @@ nh3_bfgs.inp              7
 nh3_bfgs_r.inp            7
 #Growth constraints
 ethene_colv1_growth.inp   2
+ethene_colv1_growth_lim.inp   2
 #combo restraint/constraint
 H2O-restraint_2.inp       2
 H2O-restraint_2r.inp      2
