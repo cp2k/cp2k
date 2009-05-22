@@ -813,7 +813,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_scf_dipole_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dipole_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -824,9 +824,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DIPOLE",&
-            description="This section specifies that we will perform an &
-                        & SCF dipole calculation of the MM atoms. &
-                        & Needs KEYWORD POL_SCF in POISSON secton",&
+            description="This section specifies that we will perform an SCF dipole calculation of the MM atoms. "//&
+                        "Needs KEYWORD POL_SCF in POISSON secton",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
