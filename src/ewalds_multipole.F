@@ -12,12 +12,14 @@ MODULE ewalds_multipole
   USE bibliography,                    ONLY: Aguado2003,&
                                              Laino2008,&
                                              cite_reference
-  USE cell_types,                      ONLY: cell_type, pbc
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE dg_rho0_types,                   ONLY: dg_rho0_type
   USE dg_types,                        ONLY: dg_get,&
                                              dg_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE erf_fn,                          ONLY: erfc, erf
+  USE erf_fn,                          ONLY: erf,&
+                                             erfc
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
@@ -116,11 +118,13 @@ CONTAINS
                                                 check_forces, do_task(3), &
                                                 failure
     LOGICAL, DIMENSION(3, 3)                 :: my_task
-    REAL(KIND=dp)                            :: e_rspace, e_rspace_t, &
-                                                energy_glob_t, e_bonded
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0_lr, efield0_sr, efield0_bonded
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1_lr, efield1_sr, efield1_bonded,&
-                                                efield2_lr, efield2_sr, efield2_bonded
+    REAL(KIND=dp)                            :: e_bonded, e_rspace, &
+                                                e_rspace_t, energy_glob_t
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0_bonded, efield0_lr, &
+                                                efield0_sr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1_bonded, efield1_lr, &
+                                                efield1_sr, efield2_bonded, &
+                                                efield2_lr, efield2_sr
 
     failure = .FALSE.
     CALL cite_reference(Aguado2003)
@@ -336,21 +340,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a, atom_a, atom_b, b, c, d, &
-                                                e, handle, i, igrp, &
-                                                ikind, iatom, iexcl, natoms_per_kind,  &
-                                                k, nkind
+                                                e, handle, i, iatom, iexcl, &
+                                                ikind, k, natoms_per_kind, &
+                                                nkind
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure, &
                                                 force_eval
     REAL(KIND=dp) :: alpha, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, fac_ij, ir, &
       irab2, ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, &
-      ptens32, ptens33, r, rab2, tij, tmp, tmp1, tmp11, &
-      tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, &
-      tmp_ji
+      ptens32, ptens33, r, rab2, tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, &
+      tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, tmp_ji
     REAL(KIND=dp), DIMENSION(0:5)            :: f
-    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, dp_i, dp_j, &
-                                                ef1_i, ef1_j, fr, rab, tij_a
+    REAL(KIND=dp), DIMENSION(3)              :: dp_i, dp_j, ef1_i, ef1_j, fr, &
+                                                rab, tij_a
     REAL(KIND=dp), DIMENSION(3, 3)           :: ef2_i, ef2_j, qp_i, qp_j, &
                                                 tij_ab
     REAL(KIND=dp), DIMENSION(3, 3, 3)        :: tij_abc

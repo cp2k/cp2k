@@ -13,10 +13,9 @@ MODULE fist_pol_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -24,19 +23,12 @@ MODULE fist_pol_scf
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE message_passing,                 ONLY: mp_sum
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: dp
   USE multipole_types,                 ONLY: multipole_type
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: debye
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -54,37 +46,40 @@ CONTAINS
                                  use_virial, pv_g, pv_nonbond, mm_section, para_env, error )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(multipole_type), POINTER            :: multipoles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(multipole_type), POINTER            :: multipoles
-    REAL(KIND=dp),  DIMENSION(:, :)          :: f_nonbond, fg_coulomb
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(fist_energy_type), POINTER          :: thermo
+    REAL(KIND=dp)                            :: vg_coulomb, pot_nonbond
+    REAL(KIND=dp), DIMENSION(:, :)           :: f_nonbond, fg_coulomb
+    LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_g, pv_nonbond
-    REAL ( KIND=dp )                         :: vg_coulomb, pot_nonbond
-    LOGICAL, INTENT ( IN )                   :: use_virial
-    INTEGER                                  :: max_ipol_iter, iter, iw, iw2, stat
-    INTEGER                                  :: nkind, natom_of_kind
-    INTEGER                                  :: ii, i, handle, natoms, ntot, iatom, ikind
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: efield0
-    REAL(KIND=dp), ALLOCATABLE,&
-      DIMENSION(:,:)                         :: efield1, efield2,&
-                                                local_dipoles
-    REAL(KIND=dp)                            :: diff, a_pol, eps_pol, pot_nonbond_local
-    LOGICAL                                  :: failure, iwarn
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_pol_evaluate', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iatom, ii, ikind, &
+                                                iter, iw, iw2, max_ipol_iter, &
+                                                natom_of_kind, natoms, nkind, &
+                                                ntot, stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure, iwarn
+    REAL(KIND=dp)                            :: a_pol, diff, eps_pol, &
+                                                pot_nonbond_local
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: efield0
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: efield1, efield2, &
+                                                local_dipoles
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
     failure = .FALSE.

@@ -106,7 +106,7 @@ CONTAINS
        rcut, do_multipoles, max_multipole,do_ipol_scf,max_ipol_iter, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
-    REAL(KIND=dp), OPTIONAL                  :: alpha, epsilon, eps_pol
+    REAL(KIND=dp), OPTIONAL                  :: alpha, eps_pol, epsilon
     INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline, &
                                                 group
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -115,8 +115,10 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
     REAL(KIND=dp), OPTIONAL                  :: rcut
-    LOGICAL, INTENT(OUT), OPTIONAL           :: do_multipoles, do_ipol_scf
-    INTEGER, INTENT(OUT), OPTIONAL           :: max_multipole, max_ipol_iter
+    LOGICAL, INTENT(OUT), OPTIONAL           :: do_multipoles
+    INTEGER, INTENT(OUT), OPTIONAL           :: max_multipole
+    LOGICAL, INTENT(OUT), OPTIONAL           :: do_ipol_scf
+    INTEGER, INTENT(OUT), OPTIONAL           :: max_ipol_iter
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 

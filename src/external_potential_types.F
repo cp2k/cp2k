@@ -498,7 +498,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nexp_ppl
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ppl_radius
     LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff, a_pol
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: a_pol, qeff
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_elp_potential', &
       routineP = moduleN//':'//routineN
@@ -1725,7 +1725,8 @@ CONTAINS
                                                 ccore_charge_radius
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: cexp_ppl
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cerf_ppl, qeff, a_pol, ppl_radius
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cerf_ppl, qeff, a_pol, &
+                                                ppl_radius
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: alpha_ppl
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nexp_ppl

@@ -1705,7 +1705,7 @@ CONTAINS
                                                 only_manybody, only_qm
     REAL(KIND=dp)                            :: chrg_tot, cs_charge, &
                                                 scale_factor
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, alpha
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha, charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
 

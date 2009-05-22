@@ -118,10 +118,9 @@ CONTAINS
     INTEGER :: ewald_type, fg_coulomb_size, handle, i, ii, ikind, &
       iparticle_kind, iparticle_local, iw, iw2, j, natoms, nlocal_particles, &
       node, nparticle_kind, nparticle_local, nshell, shell_index, stat
-    LOGICAL                                  :: do_multipoles, failure, &
-                                                shell_model_ad, &
-                                                shell_present, use_virial,&
-                                                do_ipol_scf
+    LOGICAL                                  :: do_ipol_scf, do_multipoles, &
+                                                failure, shell_model_ad, &
+                                                shell_present, use_virial
     REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
       pot_manybody, pot_nonbond, pot_onef, pot_shell, pot_torsion, &
       pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
@@ -152,8 +151,6 @@ CONTAINS
                                                 shell_particle_set
     TYPE(section_vals_type), POINTER         :: mm_section, print_section
     TYPE(shell_kind_type), POINTER           :: shell
-    INTEGER                                  :: iter
-    REAL(KIND=dp)                            :: diff, Upol
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
