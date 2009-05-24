@@ -1148,8 +1148,8 @@ CONTAINS
                                                 ng, ng_global, nspin
     LOGICAL                                  :: failure, use_zgemm, &
                                                 use_zgemm_rev
-    REAL(dp) :: alpha, f_mix, gn_norm, gn_norm_old, inv_err, norm, pgn_norm, &
-      prec, r_step, reg_par, sigma_max, sigma_tilde, step_size
+    REAL(dp) :: alpha, f_mix, gn_norm, gn_norm_old, inv_err, pgn_norm, prec, &
+      r_step, reg_par, sigma_max, sigma_tilde, step_size
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: norm_res
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: b_matrix, binv_matrix
     REAL(dp), SAVE                           :: sigma_old = 1.0_dp
