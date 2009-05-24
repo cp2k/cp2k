@@ -7320,13 +7320,20 @@ CONTAINS
                           repeats=.FALSE.,&
                           usage="METHOD KERKER_MIXING",&
                           default_i_val=direct_p_mix,&
-                          enum_c_vals=s2a("NONE","DIRECT_P_MIXING","KERKER_MIXING","PULAY_MIXING",&
-                          "BROYDEN_MIXING","BROYDEN_MIXING_NEW"),&
-                          enum_i_vals=(/no_mix,direct_p_mix,kerker_mix,pulay_mix,broy_mix,broy_mix_new/),&
+                          enum_c_vals=s2a("NONE",&
+                                          "DIRECT_P_MIXING",&
+                                          "KERKER_MIXING",&
+                                          "PULAY_MIXING",&
+                                          "BROYDEN_MIXING",&
+                                          "BROYDEN_MIXING_NEW",&
+                                          "MULTISECANT_MIXING"),&
+                          enum_i_vals=(/no_mix,direct_p_mix,kerker_mix,pulay_mix,broy_mix,&
+                          broy_mix_new,multisec_mix/),&
                           enum_desc=s2a("No mixing is applied",&
                              "Direct mixing of new and old density matrices",&
                              "Mixing of the potential in reciprocal space using the Kerker damping",&
-                             "Pulay mixing","Broyden mixing","Broyden mixing second version" ),&
+                             "Pulay mixing","Broyden mixing","Broyden mixing second version",&
+                             "Multisecant scheme for mixing" ),&
                           error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -7382,14 +7389,20 @@ CONTAINS
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="NPULAY",&
-            description="Size of the residual vector used for Pulay Mixing",&
+            description="Number of previous steps stored for the Pulay mixing scheme",&
             usage="NPULAY 1", default_i_val=4,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="NBROYDEN",&
-            description="Maximum size of the residual vector used for Broyden Mixing",&
+            description="Number of previous steps stored for the Broyden mixing scheme",&
             usage="NPULAY 10", default_i_val=8,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="NMULTISECANT",&
+            description="Number of previous steps stored for the multisecant mixing scheme",&
+            usage="NMULTISECANT 1", default_i_val=4,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
@@ -7432,12 +7445,62 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="NSKIP",&
+      CALL keyword_create(keyword,&
+                          name="REGOLARIZATION",&
+                          description="Regolarization parameter to stabilize "//&
+                          "the inversion of the residual matrix {Yn^t Yn} in the "//&
+                          "multisecant mixing scheme (noise)",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.00001_dp,&
+                          usage="REGOLARIZATION .000001",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="MAX_STEP",&
+                          description="Upper bound for the magnitude of the "//&
+                          "unpredicted step size in the update by the "//&
+                          "multisecant mixing scheme",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.1_dp,&
+                          usage="MAX_STEP .2",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="R_FACTOR",&
+                          description="Control factor for the magnitude of the "//&
+                          "unpredicted step size in the update by the "//&
+                          "multisecant mixing scheme",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.05_dp,&
+                          usage="R_FACTOR .12",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="NSKIP",&
             description="Number of initial iteration for which the mixing is skipped",&
             usage="NSKIP", default_i_val=0,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="NSIMPLEMIX",&
+            description="Number of kerker damping iteration before starting other mixing procedures",&
+            usage="NSIMPLEMIX", default_i_val=0,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
 
     END IF
 

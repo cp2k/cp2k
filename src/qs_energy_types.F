@@ -52,7 +52,8 @@ MODULE qs_energy_types
                        s2_restraint,&
                        dft_plus_u,& ! DFT+U energy contribution
                        ktS,& ! electronic entropic contribution
-                       total
+                       total,&
+                       tot_old
     REAL(KIND = dp), DIMENSION(:), POINTER :: ddapc_restraint
   END TYPE qs_energy_type
 

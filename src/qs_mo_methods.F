@@ -12,10 +12,12 @@
 MODULE qs_mo_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_syrk,&
                                              cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd,&
+  USE cp_fm_diag,                      ONLY: cp_fm_power,&
+                                             cp_fm_syevd,&
                                              cp_fm_syevx
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -56,7 +58,7 @@ MODULE qs_mo_methods
   END INTERFACE
 
   PUBLIC :: make_basis_simple, make_basis_cholesky, make_basis_sv, make_basis_sm, &
-            calculate_density_matrix, calculate_subspace_eigenvalues, &
+            make_basis_lowdin, calculate_density_matrix, calculate_subspace_eigenvalues, &
             calculate_orthonormality, calculate_magnitude
 
 CONTAINS
@@ -209,6 +211,64 @@ CONTAINS
     CALL timestop(handle)
 
     END SUBROUTINE make_basis_cholesky
+
+! *****************************************************************************
+!> \brief return a set of S orthonormal vectors (C^T S C == 1) where
+!>      a Loedwin transformation is applied to keep the rotated vectors as close
+!>      as possible to the original ones
+!> \param 
+!> \note
+!> \par History
+!>      05.2009 created [MI]
+! *****************************************************************************
+  SUBROUTINE make_basis_lowdin(vmatrix,ncol,matrix_s,error)
+
+    TYPE(cp_fm_type), POINTER                :: vmatrix
+    INTEGER, INTENT(IN)                      :: ncol
+    TYPE(real_matrix_type), POINTER          :: matrix_s
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_lowdin', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, n, ncol_global, ndep
+    REAL(dp)                                 :: threshold
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: csc, sc, work
+
+    IF (ncol.EQ.0) RETURN
+
+    CALL timeset(routineN,handle)
+    NULLIFY(fm_struct_tmp)
+    threshold = 1.0E-5_dp
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+
+    CALL cp_fm_create(sc,vmatrix%matrix_struct,"SC",error=error)
+    CALL cp_sm_fm_multiply(matrix_s,vmatrix,sc,ncol,error=error)
+
+    NULLIFY(fm_struct_tmp)
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
+                             para_env=vmatrix%matrix_struct%para_env, &
+                             context=vmatrix%matrix_struct%context,error=error)
+    CALL cp_fm_create(csc,fm_struct_tmp,"csc",error=error)
+    CALL cp_fm_create(work,fm_struct_tmp,"work",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,sc,rzero, csc,error=error)
+    CALL cp_fm_power(csc,work,-0.5_dp, threshold,ndep,error=error)
+    CALL cp_fm_gemm('N','N',n,ncol,ncol,rone,vmatrix,csc,rzero,sc,error=error)
+    CALL cp_fm_scale_and_add(rzero, vmatrix, rone, sc, error=error)
+
+    CALL cp_fm_release(csc,error=error)
+    CALL cp_fm_release(sc,error=error)
+    CALL cp_fm_release(work,error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE make_basis_lowdin
 
 ! *****************************************************************************
 !> \brief given a set of vectors, return an orthogonal (C^T C == 1) set

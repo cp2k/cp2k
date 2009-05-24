@@ -735,7 +735,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: no_mix =0, direct_p_mix=1,&
                                               kerker_mix =2,&
                                               pulay_mix=3, broy_mix=4,&
-                                              broy_mix_new=5
+                                              broy_mix_new=5,&
+                                              multisec_mix=6
 
   ! FFT library
   ! these might need sync with fft_lib.F

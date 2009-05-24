@@ -613,6 +613,9 @@ CONTAINS
                 WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
                      REPEAT("-",56),&
                      "Mixing method:      ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%mixing_method,error=error)))
+                IF(scf_control%mixing_method>1) THEN
+                WRITE (UNIT=output_unit,FMT="(T47,A34)") "charge density mixing in g-space"
+                END IF
              END IF
              IF (scf_control%smear%do_smear) THEN
                 keyword => section_get_keyword(section,"SMEAR%METHOD",error=error)

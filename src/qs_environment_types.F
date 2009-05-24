@@ -122,6 +122,7 @@ MODULE qs_environment_types
                                              mpools_retain,&
                                              qs_matrix_pools_type
   USE qs_mo_methods,                   ONLY: make_basis_cholesky,&
+                                             make_basis_lowdin,&
                                              make_basis_simple,&
                                              make_basis_sm
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
@@ -1612,7 +1613,8 @@ CONTAINS
 
     INTEGER                                  :: handle, my_n_col
     LOGICAL                                  :: failure, ortho_basis, &
-                                                ortho_contains_cholesky
+                                                ortho_contains_cholesky, &
+                                                smearing_is_used
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1655,9 +1657,17 @@ CONTAINS
           IF (qs_env%dft_control%qs_control%dftb_control%orthogonal_basis) &
                ortho_basis = .TRUE.
        END IF
+       smearing_is_used = .FALSE.
+       IF (qs_env%dft_control%smear) THEN
+           smearing_is_used = .TRUE.
+       END IF
+
 
        IF (ortho_basis) THEN
           CALL make_basis_simple(v_matrix,my_n_col,error=error)
+       ELSE IF (smearing_is_used) THEN
+          CALL make_basis_lowdin(vmatrix=v_matrix,ncol=my_n_col,&
+                 matrix_s=matrix_s(1)%matrix,error=error)
        ELSE IF (ortho_contains_cholesky) THEN
           CALL make_basis_cholesky(vmatrix=v_matrix,ncol=my_n_col,&
                ortho=scf_env%ortho,error=error)
