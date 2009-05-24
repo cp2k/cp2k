@@ -6,3 +6,6 @@ si8_pulay.inp
 si8_broy.inp
 # speedup changes for core_ppl 
 si8_pulay.inp
+#
+si8_pulay_md.inp
+si8_pulay_reduce.inp
