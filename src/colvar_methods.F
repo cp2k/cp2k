@@ -2776,8 +2776,9 @@ CPSourceFileRef,&
     END DO 
     xpcom(:) = xpcom(:)/mass_tot
 
-    func = 0.0_dp
-    ftmp = 0.0_dp
+    func  = 0.0_dp
+    ftmp  = 0.0_dp
+    dfunc = 0.0_dp
     DO ii = 1,n_atoms
        i=colvar%gyration_param%i_at(ii)
        CALL get_coordinates(colvar, i, xpi, my_particles)       
