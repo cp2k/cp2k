@@ -62,8 +62,10 @@ MODULE colvar_types
             colvar_check_points,&
             eval_point_der,&
             eval_point_pos,&
+            eval_point_mass,&
             post_process_colvar,&
-            diff_colvar
+            diff_colvar,&
+            gyration_colvar_type
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id                = -2,&
                                 dist_colvar_id              =  1,&
@@ -78,7 +80,8 @@ MODULE colvar_types
                                 reaction_path_colvar_id     = 10,&
                                 combine_colvar_id           = 11,&
                                 population_colvar_id        = 12,&
-                                plane_plane_angle_colvar_id = 13
+                                plane_plane_angle_colvar_id = 13,&
+                                gyration_colvar_id          = 14
 
 ! *****************************************************************************
 !> \brief parameters for the distance collective variable
@@ -124,6 +127,15 @@ MODULE colvar_types
                                                                     c_kinds_to
      REAL(KIND=dp)                   :: r_0,sigma
   END TYPE population_colvar_type
+
+! *****************************************************************************
+  TYPE gyration_colvar_type
+     LOGICAL                         :: use_kinds
+     INTEGER                         :: n_atoms
+     INTEGER, POINTER, DIMENSION (:) :: i_at
+     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds
+     REAL(KIND=dp)                   :: r_0
+  END TYPE gyration_colvar_type
 
 ! *****************************************************************************
   TYPE torsion_colvar_type
@@ -233,6 +245,7 @@ MODULE colvar_types
      TYPE(dist_colvar_type),POINTER              :: dist_param
      TYPE(coord_colvar_type),POINTER             :: coord_param
      TYPE(population_colvar_type),POINTER        :: population_param
+     TYPE(gyration_colvar_type),POINTER          :: gyration_param
      TYPE(torsion_colvar_type),POINTER           :: torsion_param
      TYPE(angle_colvar_type),POINTER             :: angle_param
      TYPE(plane_distance_colvar_type),POINTER    :: plane_distance_param
@@ -267,6 +280,7 @@ MODULE colvar_types
      INTEGER :: ncombinecvs
      INTEGER :: nrestraint
      INTEGER :: npopulation
+     INTEGER :: ngyration
      INTEGER :: ntot
   END TYPE colvar_counters
 
@@ -304,6 +318,7 @@ CONTAINS
     NULLIFY(colvar%dfunct_param)
     NULLIFY(colvar%coord_param)
     NULLIFY(colvar%population_param)
+    NULLIFY(colvar%gyration_param)
     NULLIFY(colvar%qparm_param)
     NULLIFY(colvar%hydronium_param)
     NULLIFY(colvar%reaction_path_param)
@@ -325,6 +340,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(population_colvar_id)
           ALLOCATE(colvar%population_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(gyration_colvar_id)
+          ALLOCATE(colvar%gyration_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(angle_colvar_id)
           ALLOCATE(colvar%angle_param, stat=stat)
@@ -545,6 +563,24 @@ CONTAINS
           DO ii=1,colvar%population_param%n_atoms_to
              idum = idum + 1
              i = colvar%population_param%i_at_to(ii)
+             list(idum) = i
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CASE(gyration_colvar_id)
+          np = colvar%gyration_param%n_atoms
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s=0
+          DO ii=1,colvar%gyration_param%n_atoms
+             i = colvar%gyration_param%i_at(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+         ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1,colvar%gyration_param%n_atoms
+             idum = idum + 1
+             i = colvar%gyration_param%i_at(ii)
              list(idum) = i
           ENDDO
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
@@ -919,6 +955,17 @@ CPSourceFileRef)
        END IF
        DEALLOCATE(colvar%population_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (gyration_colvar_id)
+       IF (ASSOCIATED(colvar%gyration_param%i_at)) THEN
+          DEALLOCATE(colvar%gyration_param%i_at, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       END IF
+       IF (ASSOCIATED(colvar%gyration_param%c_kinds)) THEN
+          DEALLOCATE(colvar%gyration_param%c_kinds, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       END IF
+       DEALLOCATE(colvar%gyration_param, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(angle_colvar_id)
        DEALLOCATE(colvar%angle_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)     
@@ -1111,7 +1158,23 @@ CPSourceFileRef)
           colvar_out%population_param%i_at_to      = colvar_in%population_param%i_at_to + my_offset
        END IF
 
-
+     CASE(gyration_colvar_id)
+       colvar_out%gyration_param%n_atoms   = colvar_in%gyration_param%n_atoms  
+       colvar_out%gyration_param%use_kinds    = colvar_in%gyration_param%use_kinds
+       NULLIFY(colvar_out%gyration_param%c_kinds, colvar_out%gyration_param%i_at)
+       IF(colvar_in%gyration_param%use_kinds) THEN
+          ! KINDS
+          ndim = SIZE(colvar_in%gyration_param%c_kinds)
+          ALLOCATE(colvar_out%gyration_param%c_kinds(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%gyration_param%c_kinds   = colvar_in%gyration_param%c_kinds
+       ELSE
+          ! INDEX
+          ndim = SIZE(colvar_in%gyration_param%i_at)
+          ALLOCATE(colvar_out%gyration_param%i_at(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%gyration_param%i_at    = colvar_in%gyration_param%i_at + my_offset
+       END IF
     CASE(angle_colvar_id)
        colvar_out%angle_param%i_at_angle   = colvar_in%angle_param%i_at_angle + my_offset
     CASE(torsion_colvar_id)
@@ -1369,6 +1432,26 @@ CPSourceFileRef)
 
   END SUBROUTINE eval_point_pos
 
+  SUBROUTINE eval_point_mass(point, particles, m)
+    TYPE(point_type)                         :: point
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    REAL(KIND=dp), INTENT(OUT)               :: m
+
+    INTEGER                                  :: i
+
+    SELECT CASE(point%type_id)
+    CASE(do_clv_geo_center)
+       m = 0.0_dp
+       DO i = 1,SIZE(point%atoms)
+          m = m + particles(point%atoms(i))%atomic_kind%mass*point%weights(i)
+       END DO
+    CASE(do_clv_fix_point )
+       m = 0.0_dp
+    END SELECT
+
+  END SUBROUTINE eval_point_mass
+
 ! *****************************************************************************
 !> \brief Evaluate the position of the geometrical point
 !> \author Teodoro Laino - 03.2007
@@ -1494,7 +1577,9 @@ CPSourceFileRef)
              nkinds = SIZE(colvar%population_param%c_kinds_from)
              DO i = 1, natoms
                 DO j = 1 , nkinds
-                   IF (TRIM(colvar%population_param%c_kinds_from(j))==TRIM(particles(i)%atomic_kind%name)) THEN
+                  name_kind = TRIM(particles(i)%atomic_kind%name)
+                  CALL uppercase(name_kind)
+                   IF (TRIM(colvar%population_param%c_kinds_from(j))==name_kind) THEN
                       CALL reallocate(colvar%population_param%i_at_from, 1, colvar%population_param%n_atoms_from+1)
                       colvar%population_param%n_atoms_from = colvar%population_param%n_atoms_from + 1
                       colvar%population_param%i_at_from(colvar%population_param%n_atoms_from) = i
@@ -1510,7 +1595,9 @@ CPSourceFileRef)
              nkinds = SIZE(colvar%population_param%c_kinds_to)
              DO i = 1, natoms
                 DO j = 1 , nkinds
-                   IF (TRIM(colvar%population_param%c_kinds_to(j))==TRIM(particles(i)%atomic_kind%name)) THEN
+                  name_kind = TRIM(particles(i)%atomic_kind%name)
+                  CALL uppercase(name_kind)
+                   IF (TRIM(colvar%population_param%c_kinds_to(j))==name_kind) THEN
                       CALL reallocate(colvar%population_param%i_at_to, 1, colvar%population_param%n_atoms_to+1)
                       colvar%population_param%n_atoms_to = colvar%population_param%n_atoms_to + 1
                       colvar%population_param%i_at_to(colvar%population_param%n_atoms_to) = i
@@ -1524,6 +1611,32 @@ CPSourceFileRef)
           CALL colvar_setup(colvar, error)
        END IF
 
+    END IF
+
+    IF (colvar%type_id == gyration_colvar_id) THEN
+
+       IF (colvar%gyration_param%use_kinds) THEN
+          ! Atoms from
+          IF (colvar%gyration_param%use_kinds) THEN
+             colvar%gyration_param%use_kinds = .FALSE.
+             nkinds = SIZE(colvar%gyration_param%c_kinds)
+             DO i = 1, natoms
+                DO j = 1 , nkinds
+                  name_kind = TRIM(particles(i)%atomic_kind%name)
+                  CALL uppercase(name_kind)
+                   IF (TRIM(colvar%gyration_param%c_kinds(j))==name_kind) THEN
+                      CALL reallocate(colvar%gyration_param%i_at, 1, colvar%gyration_param%n_atoms+1)
+                      colvar%gyration_param%n_atoms = colvar%gyration_param%n_atoms + 1
+                      colvar%gyration_param%i_at(colvar%gyration_param%n_atoms) = i
+                   END IF
+                END DO
+             END DO
+             stat=colvar%gyration_param%n_atoms
+             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+          END IF
+          ! Setup the colvar
+          CALL colvar_setup(colvar, error)
+       END IF
     END IF
   END SUBROUTINE post_process_colvar
       

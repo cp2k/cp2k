@@ -16,10 +16,10 @@ MODULE colvar_methods
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
        colvar_type, combine_colvar_id, coord_colvar_id, dfunct_colvar_id, &
-       dist_colvar_id, eval_point_der, eval_point_pos, hydronium_colvar_id, &
-       plane_distance_colvar_id, plane_plane_angle_colvar_id, &
-       population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
-       rotation_colvar_id, torsion_colvar_id
+       dist_colvar_id, eval_point_der, eval_point_mass, eval_point_pos, &
+       gyration_colvar_id, hydronium_colvar_id, plane_distance_colvar_id, &
+       plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
+       reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -111,7 +111,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     LOGICAL                                  :: check, failure
-    LOGICAL, DIMENSION(13)                   :: my_subsection
+    LOGICAL, DIMENSION(14)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp), DIMENSION(1)              :: my_val
@@ -120,10 +120,10 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
       combine_section, coordination_section, dfunct_section, &
-      distance_section, hydronium_section, plane_dist_section, &
-      plane_plane_angle_section, plane_sections, point_section, &
-      population_section, qparm_section, reaction_path_section, &
-      rotation_section, torsion_section, wrk_section
+      distance_section, gyration_section, hydronium_section, &
+      plane_dist_section, plane_plane_angle_section, plane_sections, &
+      point_section, population_section, qparm_section, &
+      reaction_path_section, rotation_section, torsion_section, wrk_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -149,6 +149,7 @@ CONTAINS
     combine_section      => section_vals_get_subs_vals(colvar_section,"COMBINE_COLVAR",i_rep_section=icol,&
                             can_return_null=.TRUE.,error=error)
     population_section   => section_vals_get_subs_vals(colvar_section,"POPULATION",i_rep_section=icol,error=error)
+    gyration_section   => section_vals_get_subs_vals(colvar_section,"GYRATION_RADIUS",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection( 1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection( 2), error=error)
@@ -170,6 +171,7 @@ CONTAINS
     CALL section_vals_get(population_section,   explicit=my_subsection(12), error=error)
     CALL section_vals_get(plane_plane_angle_section,&
          &                                      explicit=my_subsection(13), error=error)
+    CALL section_vals_get(gyration_section,     explicit=my_subsection(14), error=error)
 
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
@@ -657,6 +659,45 @@ CPSourceFileRef)
                i_vals=iatms,error=error)
           colvar%plane_plane_angle_param%plane2%points = iatms
        END IF
+    ELSE IF (my_subsection(14)) THEN
+       ! Gyration Radius
+       wrk_section => gyration_section
+       CALL colvar_create(colvar, gyration_colvar_id, error)
+       CALL colvar_check_points(colvar, gyration_section, error)
+
+       NULLIFY(colvar%gyration_param%i_at, colvar%gyration_param%c_kinds)
+       ! This section can be repeated
+
+       CALL section_vals_val_get(gyration_section,"ATOMS",n_rep_val=n_var,error=error)
+       ndim = 0
+       IF (n_var /= 0) THEN
+          ! INDEX LIST
+          DO k = 1, n_var
+             CALL section_vals_val_get(gyration_section,"ATOMS",i_rep_val=k,i_vals=iatms,error=error)
+             CALL reallocate(colvar%gyration_param%i_at,1, ndim+SIZE(iatms))
+             colvar%gyration_param%i_at(ndim+1:ndim+SIZE(iatms)) = iatms 
+             ndim = ndim + SIZE(iatms)
+          END DO
+          colvar%gyration_param%n_atoms = ndim
+          colvar%gyration_param%use_kinds = .FALSE.
+       ELSE
+          ! KINDS
+          CALL section_vals_val_get(gyration_section,"KINDS",n_rep_val=n_var,error=error)
+          CPPostcondition(n_var>0,cp_failure_level,routinep,error,failure)
+          DO k = 1, n_var
+             CALL section_vals_val_get(gyration_section,"KINDS",i_rep_val=k,c_vals=c_kinds,error=error)
+             CALL reallocate(colvar%gyration_param%c_kinds,1, ndim+SIZE(c_kinds))
+             colvar%gyration_param%c_kinds(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
+             ndim = ndim + SIZE(c_kinds)
+          END DO
+          colvar%gyration_param%n_atoms = 0
+          colvar%gyration_param%use_kinds = .TRUE.
+          ! Uppercase the label
+          DO k = 1, ndim
+             CALL uppercase(colvar%gyration_param%c_kinds(k))
+          END DO
+       END IF
+!       CALL section_vals_val_get(gyration_section,"R0",r_val=colvar%gyration_param%r_0,error=error)
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -769,6 +810,16 @@ CPSourceFileRef)
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',colvar%population_param%ndcrd
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| N0',colvar%population_param%n0
           WRITE ( iw, '( A,T71,F10.5)' )   ' COLVARS| SIGMA',colvar%population_param%sigma
+       CASE(gyration_colvar_id)
+          IF (colvar%gyration_param%use_kinds) THEN
+             WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| Gyration Radius >>> KINDS',&
+                  ADJUSTR(colvar%gyration_param%c_kinds(kk)(1:10)),&
+                  kk=1,SIZE(colvar%gyration_param%c_kinds))
+          ELSE
+             WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| Gyration Radius >>> ATOMS '//tag,&
+                  colvar%gyration_param%i_at(kk),&
+                  kk=1,SIZE(colvar%gyration_param%i_at))
+          END IF
        CASE(rotation_colvar_id)
           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 1 LINE 1  >>> '//tag,&
                colvar%rotation_param%i_at1_bond1
@@ -890,6 +941,8 @@ CPSourceFileRef)
           CALL coord_colvar(colvar,cell,particles=particles, error=error)
        CASE (population_colvar_id)
           CALL population_colvar(colvar,cell,particles=particles, error=error)
+       CASE (gyration_colvar_id)
+          CALL gyration_radius_colvar(colvar,cell,particles=particles, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar, cell, particles=particles, error=error)
        CASE (angle_colvar_id)
@@ -959,6 +1012,8 @@ CPSourceFileRef)
           CALL coord_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (population_colvar_id)
           CALL population_colvar(colvar,cell,subsys=subsys, error=error)
+       CASE (gyration_colvar_id)
+          CALL gyration_radius_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar,cell,subsys=subsys, no_riemann_sheet_op=.TRUE.,error=error)
        CASE (angle_colvar_id)
@@ -1063,6 +1118,23 @@ CPSourceFileRef)
     END IF
 
   END SUBROUTINE get_coordinates
+
+  SUBROUTINE get_mass(colvar, i, mi, my_particles)
+    TYPE(colvar_type), POINTER               :: colvar
+    INTEGER, INTENT(IN)                      :: i
+    REAL(KIND=dp), INTENT(OUT)               :: mi
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    IF (colvar%use_points) THEN
+       CALL eval_point_mass(colvar%points(i),&
+            my_particles,&
+            mi)
+    ELSE
+       mi = my_particles(i)%atomic_kind%mass
+    END IF
+
+  END SUBROUTINE get_mass
 
 ! *****************************************************************************
 !> \brief Transfer derivatives to ds/dr
@@ -2654,6 +2726,87 @@ CPSourceFileRef,&
     colvar%ss=population
   END SUBROUTINE population_colvar
 
+  SUBROUTINE gyration_radius_colvar(colvar,cell,subsys,particles,error)
+
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gyration_radius_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, n_atoms
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: dri2, func, gyration, inv_n, &
+                                                mass_tot, mi, r_0
+    REAL(dp), DIMENSION(3)                   :: dfunc, dxi, ftmp, ss, xpcom, &
+                                                xpi
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+
+    NULLIFY(particles_i)
+    CPPrecondition(colvar%type_id==gyration_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+    n_atoms=colvar%gyration_param%n_atoms
+    r_0=colvar%gyration_param%r_0
+    inv_n = 1.0_dp/n_atoms
+
+
+    !compute COM position
+    xpcom = 0.0_dp
+    mass_tot = 0.0_dp
+    DO ii = 1,n_atoms
+       i=colvar%gyration_param%i_at(ii)
+       CALL get_coordinates(colvar, i, xpi, my_particles)
+       CALL get_mass(colvar, i, mi, my_particles)
+        xpcom(:) = xpcom(:) + xpi(:)*mi
+       mass_tot = mass_tot + mi
+    END DO 
+    xpcom(:) = xpcom(:)/mass_tot
+
+    func = 0.0_dp
+    ftmp = 0.0_dp
+    DO ii = 1,n_atoms
+       i=colvar%gyration_param%i_at(ii)
+       CALL get_coordinates(colvar, i, xpi, my_particles)       
+       CALL get_mass(colvar, i, mi, my_particles)       
+       ss=MATMUL(cell%h_inv,xpi(:)-xpcom(:))
+       ss=ss-NINT(ss)
+       dxi=MATMUL(cell%hmat,ss)
+       dri2=(dxi(1)**2+dxi(2)**2+dxi(3)**2)
+       func = func + dri2
+       dfunc(:) = dfunc(:) + dxi(:)
+    END DO 
+    gyration = SQRT(inv_n*func)
+
+    DO ii = 1,n_atoms
+      i=colvar%gyration_param%i_at(ii)
+      CALL get_coordinates(colvar, i, xpi, my_particles)       
+      CALL get_mass(colvar, i, mi, my_particles)  
+      ss=MATMUL(cell%h_inv,xpi(:)-xpcom(:))
+      ss=ss-NINT(ss)
+      dxi=MATMUL(cell%hmat,ss)
+      ftmp(1) = dxi(1) - dfunc(1)*mi/mass_tot
+      ftmp(2) = dxi(2) - dfunc(2)*mi/mass_tot
+      ftmp(3) = dxi(3) - dfunc(3)*mi/mass_tot
+      ftmp(:) = ftmp(:)*inv_n/gyration
+      CALL put_derivative(colvar, ii, ftmp)
+    END DO
+    colvar%ss=gyration
+
+  END SUBROUTINE gyration_radius_colvar
 
 ! *****************************************************************************
 !> \brief used to print reaction_path function values on an arbitrary dimensional grid

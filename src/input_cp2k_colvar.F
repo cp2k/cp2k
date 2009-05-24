@@ -131,6 +131,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_colvar_gyr_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_colvar_d_pl_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -416,6 +420,60 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_pop_section
+
+
+  SUBROUTINE create_colvar_gyr_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_gyr_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       CALL section_create(section,name="GYRATION_RADIUS",&
+            description="Section to define the gyration radius as a collective variable.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(subsection, keyword)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            variants=(/"POINTS"/),&
+            description="Specify indexes of atoms/points defyining the gyration radius variable. ",&
+            usage="ATOMS {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="KINDS",&
+            description="Specify alternatively kinds of atoms defining the gyration radius.",&
+            usage="KINDS {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+!       CALL keyword_create(keyword, name="R0",&
+!            variants=(/"R_0"/),&
+!            description="Specify the R0 parameter.",&
+!            usage="R0 {real}",default_r_val=3.0_dp,&
+!            n_var=1, error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
+     END IF
+
+  END SUBROUTINE create_colvar_gyr_section
 
 ! *****************************************************************************
 !> \brief collective variables specifying torsion

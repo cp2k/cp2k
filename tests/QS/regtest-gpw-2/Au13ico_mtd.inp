@@ -1,0 +1,198 @@
+! **** Generic parameters
+! *** Project name
+@SET PNAME Au13-ico
+!
+! dinamica di una particella di Au 13
+!
+@SET PPATH ../ 
+
+! **** Global settings
+&GLOBAL
+ PROJECT      ${PNAME}
+ IOLEVEL      MEDIUM
+ PREFERRED_FFT_LIBRARY FFTW
+ RUN_TYPE     MD
+ WALLTIME     10500
+ FLUSH_SHOULD_FLUSH T
+&END
+
+
+&FORCE_EVAL
+
+  METHOD      Quickstep
+
+  &DFT
+    ! ** PATH for potentials
+    POTENTIAL_FILE_NAME ${PPATH}/GTH_POTENTIALS
+    BASIS_SET_FILE_NAME ${PPATH}/BASIS_MOLOPT
+
+    WFN_RESTART_FILE_NAME Au13-ico-RESTART.wfn
+    UKS
+    CHARGE 0
+    MULTIPLICITY 2
+    ! CHOLESKY OFF
+    &SCF
+      SCF_GUESS    ATOMIC
+      EPS_SCF      1.0E-3
+      MAX_SCF      3
+      &OUTER_SCF OFF
+        EPS_SCF    1.0E-5
+        MAX_SCF    50
+      &END
+      &OT
+         MINIMIZER CG
+!        MINIMIZER DIIS
+        N_DIIS 7
+        ! SAFE_DIIS FALSE
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        ENERGY_GAP 0.001
+      &END OT
+    &END
+
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END
+    &END
+
+    &QS
+      METHOD       GPW
+      EPS_DEFAULT  1.0E-12
+      MAP_CONSISTENT
+      EXTRAPOLATION ASPC
+      EXTRAPOLATION_ORDER 3
+    &END
+    &MGRID
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END
+      CUTOFF       40
+      NGRIDS        4
+    &END
+
+  &END SECTION DFT
+
+  &SUBSYS
+    &CELL
+       ABC  8 8 8 
+       PERIODIC NONE
+    &END CELL
+
+    &KIND  Au
+      ELEMENT Au
+      POTENTIAL GTH-PBE-q11
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+    &END
+
+    &TOPOLOGY
+      COORD_FILE_NAME Au13-ico.xyz
+      COORDINATE XYZ
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+
+   &COLVAR
+     &GYRATION_RADIUS
+       KINDS  Au
+     &END 
+   &END
+!   &COLVAR
+!     &COORDINATION
+!       KINDS_FROM  Au
+!       KINDS_TO  Au
+!        R0 3
+!        NN 8
+!        ND 12
+!     &END 
+!   &END
+  &END SUBSYS
+
+&END FORCE_EVAL
+&MOTION
+
+ &FREE_ENERGY
+   &METADYN
+     DO_HILLS T
+     LAGRANGE
+     NT_HILLS 2
+     WW 1.0e-3
+     &METAVAR
+       COLVAR 1
+       LAMBDA 0.1
+       MASS  20.0
+       SCALE  0.05
+!       ! &WALL
+!       !   POSITION 10.0
+!       !   TYPE QUADRATIC
+!       !   &QUADRATIC
+!       !     DIRECTION WALL_PLUS
+!       !     K 1.0
+!       !   &END
+!       ! &END
+     &END
+
+     &PRINT
+       &COLVAR
+          COMMON_ITERATION_LEVELS 3
+         &EACH
+           MD 1
+         &END
+       &END
+       &HILLS
+         COMMON_ITERATION_LEVELS 3
+          &EACH
+            MD 1
+          &END
+        &END
+     &END
+   &END METADYN
+ &END FREE_ENERGY
+
+  &MD
+    ENSEMBLE NVT
+    STEPS  3
+    TIMESTEP 1
+    TEMPERATURE 300.0
+!    TEMP_TOL 150
+
+    &THERMOSTAT
+      TYPE NOSE
+      &NOSE
+        LENGTH 6
+        YOSHIDA 3
+        TIMECON 1500
+        MTS 2
+      &END NOSE
+    &END THERMOSTAT
+
+    &PRINT
+      &ENERGY
+        &EACH
+          MD 10
+        &END
+        ADD_LAST NUMERIC
+      &END
+    &END PRINT
+  &END MD
+
+  &PRINT
+    &TRAJECTORY
+      &EACH
+        MD      10
+      &END
+    &END
+    &RESTART
+      &EACH
+        MD      10
+      &END
+    &END
+  &END
+
+&END MOTION
+
+!&EXT_RESTART
+!  ! RESTART_FILE_NAME restart
+!  RESTART_COUNTERS
+!  RESTART_POS
+!  RESTART_VEL
+!  RESTART_BAROSTAT
+!&END EXT_RESTART
+
