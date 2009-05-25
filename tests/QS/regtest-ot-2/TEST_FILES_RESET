@@ -727,3 +727,5 @@ N3-9.inp
 N3-10.inp
 # numerics
 H2_trip.inp
+#
+Al_fermi.inp
