@@ -21,7 +21,8 @@ MODULE qs_gspace_mixing
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_methods,                      ONLY: pw_scale,&
+  USE pw_methods,                      ONLY: pw_integrate_function,&
+                                             pw_scale,&
                                              pw_transfer,&
                                              pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -351,7 +352,12 @@ CONTAINS
             CALL multisecant_mixing(scf_env%mixing_store, rho, para_env, error)
        scf_env%mixing_store%iter_method= "MSec"
       END IF
-  
+
+    DO ispin=1,nspin
+      CALL pw_transfer(rho%rho_g(ispin)%pw,rho%rho_r(ispin)%pw)
+      rho%tot_rho_r(ispin) = pw_integrate_function(rho%rho_r(ispin)%pw,isign=-1)
+    END DO
+
     CALL timestop(handle)
 
   END SUBROUTINE gspace_mixing
