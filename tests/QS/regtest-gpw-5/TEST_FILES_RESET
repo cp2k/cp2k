@@ -9,3 +9,14 @@ si8_pulay.inp
 #
 si8_pulay_md.inp
 si8_pulay_reduce.inp
+# bug fix: syncronize g- and r-space density
+si8_broy.inp
+si8_kerker.inp
+si8_pmix.inp
+si8_pulay.inp
+si8_pulay_inverse.inp
+si8_pulay_md.inp
+si8_pulay_off.inp
+si8_pulay_reduce.inp
+si8_pulay_restore.inp
+si8_pulay_skip.inp
