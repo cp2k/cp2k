@@ -360,8 +360,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, maxlppl, &
-      maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, natom, &
-      nelectron, output_unit
+      maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, &
+      n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
                                                 explicit, harris_flag, &
@@ -802,13 +802,13 @@ CONTAINS
     END IF
 
     ! The transition potential method to calculate XAS needs LSD
-    IF(dft_control%do_xas_calculation ) THEN
-       IF(dft_control%nspins == 1) THEN
+    IF (dft_control%do_xas_calculation) THEN
+       IF (dft_control%nspins == 1) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Use the LSD option for XAS with transition potential.")
        END IF
-       IF(dft_control%xas_control%xas_restart .AND. &
-            scf_control%density_guess/= restart_guess ) THEN
+       IF (dft_control%xas_control%xas_restart.AND.&
+           scf_control%density_guess/= restart_guess) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Restart of XAS orbitals possible only if the GS orbitals"//&
                " are also read from restart file.")
@@ -851,15 +851,35 @@ CONTAINS
 
     END IF
 
-    scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao-n_mo(1))
+    ! Check and set number of added (unoccupied) MOs
 
+    CALL cp_assert((scf_control%added_mos(1) <= n_ao - n_mo(1)),cp_warning_level,&
+                   cp_assertion_failed,routineP,&
+                   "More added MOs requested than available. "//&
+                   "The full set of unoccupied MOs will be used.",&
+                   only_ionode=.TRUE.)
+    scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao - n_mo(1))
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
-    IF (n_mo(2) /= 0 .AND. scf_control%added_mos(2).GT.0) THEN
-        scf_control%added_mos(2) = MIN(scf_control%added_mos(2),n_ao-n_mo(2))
-        n_mo(2) = n_mo(2) + scf_control%added_mos(2)
-        ! we require n_mo(2)<=n_mo(1)
-        n_mo(2) = MIN(n_mo(1),n_mo(2))
-    ENDIF
+
+    IF (dft_control%nspins == 2) THEN
+      IF (scf_control%added_mos(2) > 0) THEN
+        n_mo_add = scf_control%added_mos(2)
+      ELSE
+        n_mo_add = scf_control%added_mos(1)
+      END IF
+      CALL cp_assert((n_mo_add <= n_ao - n_mo(2)),cp_warning_level,&
+                     cp_assertion_failed,routineP,&
+                     "More added MOs requested for beta spin than available.",&
+                     only_ionode=.TRUE.)
+      scf_control%added_mos(2) = MIN(n_mo_add,n_ao - n_mo(2))
+      n_mo(2) = n_mo(2) + scf_control%added_mos(2)
+      CALL cp_assert((n_mo(2) <= n_mo(1)),cp_warning_level,&
+                     cp_assertion_failed,routineP,&
+                     "More beta than alpha MOs requested. "//&
+                     "The number of beta MOs will be reduced to the number alpha MOs.",&
+                     only_ionode=.TRUE.)
+      n_mo(2) = MIN(n_mo(1),n_mo(2))
+    END IF
 
     IF (scf_control%smear%do_smear.AND.(scf_control%added_mos(1) == 0)) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
@@ -879,8 +899,8 @@ CONTAINS
     ! Compatibility checks for ROKS
     IF (dft_control%roks.AND.(.NOT.scf_control%use_ot)) THEN
        CALL cp_assert((scf_control%roks_scheme /= general_roks),cp_warning_level,&
-            cp_assertion_failed,routineP,"General ROKS scheme is not yet tested!"//&
-CPSourceFileRef,&
+            cp_assertion_failed,routineP,&
+            "General ROKS scheme is not yet tested!",&
             only_ionode=.TRUE.)
 
        IF (scf_control%smear%do_smear) THEN

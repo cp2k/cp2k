@@ -391,12 +391,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imo, nmo, nomo, stat
+    INTEGER                                  :: handle, imo, nmo, nomo, stat
     LOGICAL                                  :: equal_size, failure, is_large
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
                                                 lengthscale, nelec
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dfde
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -406,7 +408,10 @@ CONTAINS
     mo_set%occupation_numbers(:) = 0.0_dp
 
     ! Quick return, if no electrons are available
-    IF (mo_set%nelectron == 0) RETURN
+    IF (mo_set%nelectron == 0) THEN
+      CALL timestop(handle)
+      RETURN
+    END IF
 
     nomo = NINT(mo_set%nelectron/mo_set%maxocc)
     nmo  = SIZE(mo_set%eigenvalues)
@@ -415,7 +420,7 @@ CONTAINS
     CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,error,failure)
 
     ! Initialize MO occupations
-    mo_set%occupation_numbers(1:nomo) =  mo_set%maxocc
+    mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
     ! zeros don't count as uniform
     !MK mo_set%uniform_occupation = ALL(mo_set%occupation_numbers==mo_set%maxocc)
 
@@ -435,6 +440,7 @@ CONTAINS
       IF (PRESENT(eval_deriv)) THEN
         eval_deriv = 0.0_dp
       END IF
+      CALL timestop(handle)
       RETURN
     END IF
 
@@ -442,6 +448,7 @@ CONTAINS
     IF (smear%method /= smear_list) THEN
       IF ((ABS(mo_set%eigenvalues(1)) < 1.0E-12_dp).AND.&
           (ABS(mo_set%eigenvalues(nmo)) < 1.0E-12_dp)) THEN
+        CALL timestop(handle)
         RETURN
       END IF
     END IF
@@ -576,6 +583,8 @@ CONTAINS
       END IF
 
     END IF ! do smear
+
+    CALL timestop(handle)
 
   END SUBROUTINE set_mo_occupation
 

@@ -2032,7 +2032,7 @@ CPSourceFileRef)
 
     INTEGER                                  :: handle, homo, i, ispin, iw, &
                                                 nao, ndep, nelectron_spin, &
-                                                output_unit
+                                                nmo, output_unit
     LOGICAL :: cho_inverse, failure, gth_potential_present, id_equal, &
       my_transition_potential, s_minus_half_available
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -2096,33 +2096,35 @@ CPSourceFileRef)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
 
-! updates the total number of electrons
+    ! updates the total number of electrons
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          nelectron=scf_env%nelectron)
     scf_env%nelectron = scf_env%nelectron - dft_control%charge
-! print occupation numbers
-    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".scfLog",error=error)
-    IF (output_unit>0) THEN
+    ! print occupation numbers
+    output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+                                       extension=".scfLog",error=error)
+    IF (output_unit > 0) THEN
        DO ispin=1,dft_control%nspins
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
                homo=homo, &
                nelectron=nelectron_spin, &
-               nao=nao)
+               nao=nao,&
+               nmo=nmo)
           IF (dft_control%nspins > 1) THEN
             WRITE (UNIT=output_unit,FMT="(/,T3,A,I2)") "Spin",ispin
           END IF
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T31,I10))")&
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,I10))")&
             "Number of electrons:",nelectron_spin,&
-            "Number of occupied orbitals:",homo
-       ENDDO
-       WRITE (UNIT=output_unit,FMT="((T3,A,T31,I10))")&
+            "Number of occupied orbitals:",homo,&
+            "Number of molecular orbitals:",nmo
+       END DO
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,T44,I10)")&
          "Number of orbital functions:",nao
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
 
-! calc ortho matrix
+    ! calc ortho matrix
     ndep = 0
     IF (scf_env%method /= ot_method_nr .AND. &
         scf_env%method /= ot_diag_method_nr .AND. &
@@ -2183,7 +2185,7 @@ CPSourceFileRef)
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
                extension=".scfLog",error=error)
     IF (output_unit > 0) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,I10)")&
+       WRITE (UNIT=output_unit,FMT="(T3,A,T44,I10)")&
          "Number of independent orbital functions:",nao - ndep
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
