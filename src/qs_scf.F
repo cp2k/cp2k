@@ -530,11 +530,11 @@ CONTAINS
     IF (dft_control%qs_control%dftb) &
        has_unit_metric=dft_control%qs_control%dftb_control%orthogonal_basis
 
-    IF (output_unit>0) THEN
+    IF ((output_unit > 0).AND.(.NOT.scf_control%use_ot)) THEN
        WRITE (UNIT=output_unit,&
-            FMT="(/,T3,A,T11,A,T32,A,T38,A,T55,A,T70,A,/,T3,A)")&
-            "Step","Update Method","Time","Convergence","Total energy","E-diff",&
-            REPEAT("-",80)
+              FMT="(/,T3,A,T12,A,T31,A,T39,A,T59,A,T75,A,/,T3,A)")&
+         "Step","Update method","Time","Convergence","Total energy","Change",&
+         REPEAT("-",78)
     END IF
     CALL cp_add_iter_level(logger%iter_info,"QS_SCF",error=error)
     ! *** outer loop of the scf, can treat other variables, 
@@ -724,8 +724,7 @@ CONTAINS
           t2 = m_walltime()
           IF ((output_unit>0).AND.scf_env%print_iter_line) THEN
              WRITE (UNIT=output_unit,&
-!                  FMT="(T2,I5,2X,A,T18,E10.2,T30,F9.3,T39,E11.3,F20.10,E14.5)")&
-                  FMT="(I5,2X,A,1X,E8.2,T30,F8.2,T37,E12.4,F18.8 ,E13.4)")&
+                    FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)")&
                   scf_env%iter_count,TRIM(scf_env%iter_method),&
                   scf_env%iter_param,&
                   t2 - t1,scf_env%iter_delta,&
@@ -875,7 +874,7 @@ CONTAINS
        IF (.NOT. scf_control%outer_scf%have_scf) EXIT scf_outer_loop
 
        ! ** In case we use the OUTER SCF loop let's print some info..
-       IF (output_unit>0) WRITE(output_unit,'(/,T3,A,I4,A,E10.2,A,F21.10)') &
+       IF (output_unit>0) WRITE(output_unit,'(/,T3,A,I4,A,E10.2,A,F22.10)') &
                             "outer SCF iter = ",scf_env%outer_scf%iter_count, &
                             " RMS gradient = ",outer_loop_eps," energy =",energy%total
 
@@ -884,7 +883,7 @@ CONTAINS
                   "outer SCF loop converged in",scf_env%outer_scf%iter_count,&
                   " iterations or ",total_steps," steps"
             EXIT scf_outer_loop
-       ENDIF
+       END IF
 
        IF (scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf &
            .OR. should_stop ) THEN
@@ -892,7 +891,7 @@ CONTAINS
            "outer SCF loop FAILED to converge after ", &
            scf_env%outer_scf%iter_count," iterations or ",total_steps," steps"
          EXIT scf_outer_loop
-       ENDIF
+       END IF
 
        CALL outer_loop_optimize(scf_env,scf_control,error)
        CALL outer_loop_update_qs_env(qs_env,scf_env,error)
@@ -1315,24 +1314,24 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
 
     IF (output_unit>0) THEN
        IF(.NOT.(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb)) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
             "Total electronic density (r-space): ",&
             accurate_sum(rho%tot_rho_r),&
-            accurate_sum(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
+            accurate_sum(rho%tot_rho_r) + REAL(scf_env%nelectron,dp),&
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
             qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
-         IF(gapw) THEN
+         IF (gapw) THEN
             tot1_h =  qs_charges%total_rho1_hard(1)
             tot1_s =  qs_charges%total_rho1_soft(1)
             DO ispin=2,dft_control%nspins
               tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
               tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
             END DO
-            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
                   "Hard and soft densities (Lebedev):",&
                   tot1_h, tot1_s
-            WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
                  "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
                  accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s ,&
                  "Total charge density (r-space):      ",&
@@ -1341,7 +1340,7 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
                  "Total Rho_soft + Rho0_soft (g-space):",&
                  qs_charges%total_rho_gspace
          ELSE
-           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+           WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
               "Total charge density (r-space):     ",&
               accurate_sum(rho%tot_rho_r)+&
               qs_charges%total_rho_core_rspace,&
@@ -1349,72 +1348,72 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
          END IF
        END IF
        IF (dft_control%qs_control%semi_empirical) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Core-core repulsion energy [eV]:               ",energy%core_overlap*evolt,&
             "Core Hamiltonian energy [eV]:                  ",energy%core*evolt,&
             "Two-electron integral energy [eV]:             ",energy%hartree*evolt,&
             "Electronic energy [eV]:                        ",&
                                               (energy%core+0.5_dp*energy%hartree)*evolt
        ELSEIF (dft_control%qs_control%dftb) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Core Hamiltonian energy:                       ",energy%core,&
             "Repulsive potential energy:                    ",energy%repulsive,&
             "Electronic energy:                             ",energy%hartree,&
             "Dispersion energy:                             ",energy%dispersion
        ELSE
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
             "Core Hamiltonian energy:                       ",energy%core,&
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc
          IF (energy%e_hartree /= 0.0_dp) &
-              WRITE (UNIT=output_unit,FMT="(T3,A,/,T3,A,T55,F25.14)")&
+              WRITE (UNIT=output_unit,FMT="(T3,A,/,T3,A,T56,F25.14)")&
               "Coulomb Electron-Electron Interaction Energy ",&
               "- Already included in the total Hartree term ",energy%e_hartree
          IF (energy%ex /= 0.0_dp)&
-               WRITE (UNIT=output_unit,FMT="(T3,A,T55,F25.14)")&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
                "Hartree-Fock Exchange energy:                  ",energy%ex
          IF (energy%dispersion /= 0.0_dp)&
-               WRITE (UNIT=output_unit,FMT="(T3,A,T55,F25.14)")&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
                "Dispersion energy:                             ",energy%dispersion
          IF(gapw) THEN
-           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
               "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
               "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
               "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
               "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
          END IF
          IF(gapw_xc) THEN
-           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
               "GAPW_XC| Exc from hard and soft atomic rho1:      ",energy%exc1
          END IF
        END IF
        IF (dft_control%smear) THEN
-         WRITE (UNIT=output_unit,FMT="((T3,A,T55,F25.14))")&
+         WRITE (UNIT=output_unit,FMT="((T3,A,T56,F25.14))")&
           "Electronic entropic energy:",energy%kTS
        END IF
        IF (dft_control%dft_plus_u) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
           "DFT+U energy:",energy%dft_plus_u
        END IF
        IF  (qmmm) THEN
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+          WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
        END IF
        IF (dft_control%qs_control%mulliken_restraint) THEN
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+          WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
                 "Mulliken restraint energy: ",energy%mulliken
        END IF
        IF (dft_control%qs_control%semi_empirical) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Total energy [eV]:                             ",energy%total*evolt
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Atomic reference energy [eV]:                  ",energy%core_self*evolt,&
             "Heat of formation [kcal/mol]:                  ",&
             (energy%total+energy%core_self)*kcalmol
        ELSE
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Total energy:                                  ",energy%total
        END IF
        CALL m_flush(output_unit)
@@ -2111,14 +2110,14 @@ CPSourceFileRef)
                nao=nao,&
                nmo=nmo)
           IF (dft_control%nspins > 1) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A,I2)") "Spin",ispin
+            WRITE (UNIT=output_unit,FMT="(/,T2,A,I2)") "Spin",ispin
           END IF
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,I10))")&
+          WRITE (UNIT=output_unit,FMT="(/,(T2,A,T44,I10))")&
             "Number of electrons:",nelectron_spin,&
             "Number of occupied orbitals:",homo,&
             "Number of molecular orbitals:",nmo
        END DO
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,T44,I10)")&
+       WRITE (UNIT=output_unit,FMT="(/,T2,A,T44,I10)")&
          "Number of orbital functions:",nao
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
@@ -2185,7 +2184,7 @@ CPSourceFileRef)
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
                extension=".scfLog",error=error)
     IF (output_unit > 0) THEN
-       WRITE (UNIT=output_unit,FMT="(T3,A,T44,I10)")&
+       WRITE (UNIT=output_unit,FMT="(T2,A,T44,I10)")&
          "Number of independent orbital functions:",nao - ndep
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
@@ -2696,7 +2695,7 @@ CPSourceFileRef)
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".scfLog",error=error)
        IF (output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
+          WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
                "Extrapolation method: "//&
                TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))
        END IF
@@ -3008,8 +3007,6 @@ CPSourceFileRef)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eiga, eigb, occa, occb
     TYPE(cp_fm_type), POINTER                :: ksa, ksb, mo2ao, moa, mob, &
                                                 ortho, work
-
-! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

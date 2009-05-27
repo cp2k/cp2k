@@ -344,13 +344,13 @@ CONTAINS
        scf_env%mixing_store%iter_method= "Pulay"
       ELSEIF(scf_env%mixing_method==broyden_mixing_nr) THEN
             CALL broyden_mixing(scf_env%mixing_store, rho, para_env, error)
-       scf_env%mixing_store%iter_method= "Broy"
+       scf_env%mixing_store%iter_method= "Broy."
       ELSEIF(scf_env%mixing_method==broyden_mixing_new_nr) THEN
             CALL broyden_mixing_new(scf_env%mixing_store, rho, para_env, error)
-       scf_env%mixing_store%iter_method= "Broy"
+       scf_env%mixing_store%iter_method= "Broy."
       ELSEIF(scf_env%mixing_method==multisecant_mixing_nr) THEN
             CALL multisecant_mixing(scf_env%mixing_store, rho, para_env, error)
-       scf_env%mixing_store%iter_method= "MSec"
+       scf_env%mixing_store%iter_method= "MSec."
       END IF
 
     DO ispin=1,nspin

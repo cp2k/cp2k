@@ -881,9 +881,13 @@ CONTAINS
       n_mo(2) = MIN(n_mo(1),n_mo(2))
     END IF
 
-    IF (scf_control%smear%do_smear.AND.(scf_control%added_mos(1) == 0)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Added MOs are required for smearing.")
+    ! Compatibility checks for smearing
+
+    IF (scf_control%smear%do_smear) THEN
+      IF (scf_control%added_mos(1) == 0) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Extra MOs (ADDED_MOS) are required for smearing")
+      END IF
     END IF
 
     !   *** Some options require that all MOs are computed ... ***

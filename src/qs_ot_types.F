@@ -881,7 +881,7 @@ CONTAINS
 
     IF (output_unit>0) THEN
        WRITE(output_unit,'(A)') " "
-       WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
+       WRITE(output_unit,'(A)') "  ----------------------------------- OT ---------------------------------------"
        WRITE(output_unit,'(A)') " "
        WRITE(output_unit,'(A,L2)') "  Allowing for rotations: ",settings%do_rotation
        WRITE(output_unit,'(A,L2)') "  Optimizing orbital energies: ",settings%do_ener
@@ -946,7 +946,7 @@ CONTAINS
        WRITE(output_unit,'(A,F14.8)') "  energy_gap     :",settings%energy_gap
        WRITE(output_unit,'(A,E14.5)') "  eps_taylor     :",settings%eps_taylor
        WRITE(output_unit,'(A,I14)')   "  max_taylor     :",settings%max_taylor
-       WRITE(output_unit,'(A)') "  "
+       WRITE(output_unit,'(A)') ""
        IF(settings%ot_algorithm.EQ.'REF') THEN
           WRITE(output_unit,'(A,1X,A)') "  ortho_irac         :", settings%ortho_irac
           WRITE(output_unit,'(A,I14)')  "  irac_degree        :", settings%irac_degree
@@ -955,9 +955,13 @@ CONTAINS
           WRITE(output_unit,'(A,E14.5)')"  eps_irac_switch    :", settings%eps_irac_switch
           WRITE(output_unit,'(A,E14.5)')"  eps_irac_quick_exit:", settings%eps_irac_quick_exit
           WRITE(output_unit,'(A,L2)')   "  on_the_fly_loc     :", settings%on_the_fly_loc
-          WRITE(output_unit,'(A)') "  "
-       ENDIF
-       WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
+          WRITE(output_unit,'(A)') ""
+       END IF
+       WRITE(output_unit,'(A)') "  ----------------------------------- OT ---------------------------------------"
+       WRITE (UNIT=output_unit,&
+              FMT="(/,T3,A,T12,A,T31,A,T39,A,T59,A,T75,A,/,T3,A)")&
+         "Step","Update method","Time","Convergence","Total energy","Change",&
+         REPEAT("-",78)
     END IF
 
     CALL timestop(handle)
