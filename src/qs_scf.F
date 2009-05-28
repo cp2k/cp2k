@@ -1504,7 +1504,7 @@ END SUBROUTINE qs_scf_print_summary
        iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_ORTHONORMALITY",&
             extension=".scfLog",error=error)
        IF (iw>0) THEN
-          WRITE(iw,'(T8,A,T60,E20.4)')  &
+          WRITE(iw,'(T8,A,T61,E20.4)')  &
                  " Maximum deviation from MO S-orthonormality",orthonormality
        ENDIF
        CALL cp_print_key_finished_output(iw,logger,scf_section,&
@@ -1517,7 +1517,7 @@ END SUBROUTINE qs_scf_print_summary
        iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_MAGNITUDE",&
             extension=".scfLog",error=error)
        IF (iw>0) THEN
-          WRITE(iw,'(T8,A,T40,2E20.4)')  &
+          WRITE(iw,'(T8,A,T41,2E20.4)')  &
                  " Minimum/Maximum MO magnitude ",mo_mag_min,mo_mag_max
        ENDIF
        CALL cp_print_key_finished_output(iw,logger,scf_section,&

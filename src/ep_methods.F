@@ -202,31 +202,31 @@ CONTAINS
        NULLIFY(rho,energy,qs_charges,dft_control)
        CALL get_qs_env(qs_env,rho=rho,energy=energy,dft_control=dft_control,&
             qs_charges=qs_charges,error=error)
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
             "Total electronic density (r-space): ",&
             accurate_sum(rho%tot_rho_r),&
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace
-       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+       WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
             "Total charge density (r-space):     ",&
             accurate_sum(rho%tot_rho_r)+&
             qs_charges%total_rho_core_rspace,&
             "Total charge density (g-space):     ",qs_charges%total_rho_gspace
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
             "Core Hamiltonian energy:                       ",energy%core,&
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc
        IF (energy%e_hartree /= 0.0_dp) &
-            WRITE (UNIT=output_unit,FMT="(T3,A,/,T3,A,T55,F25.14)")&
+            WRITE (UNIT=output_unit,FMT="(T3,A,/,T3,A,T56,F25.14)")&
             "Coulomb Electron-Electron Interaction Energy ",&
             "- Already included in the total Hartree term ",energy%e_hartree
        IF (dft_control%qs_control%mulliken_restraint) THEN
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+          WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
                "Mulliken restraint energy: ",energy%mulliken
        END IF
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Total energy:                                  ",energy%total
        CALL m_flush(output_unit)
     END IF
@@ -763,14 +763,6 @@ CONTAINS
                         error,failure)
                    CALL cp_fm_get_submatrix(sub_orbitals,sub_mo_matrix,transpose=.TRUE.,&
                         start_col=icol+1, n_cols=blocksize2,error=new_error)
-!FM           IF (debug_this_module .AND. logger%print_keys%ep_matrixes) THEN
-!FM              WRITE (unit=unit_nr,fmt="(a,i4,a,i4,a,i4)")&
-!FM                   "Printing psi of sub_env ",isub,&
-!FM                   " spin=",ispin," nmo=",sub_nmo
-!FM              CALL cp_fm_write(sub_orbitals,unit_nr,&
-!FM                   long_description=.TRUE.,&
-!FM                   local=.FALSE.,error=error)
-!FM           END IF
                    CALL f_env_rm_defaults(f_env,new_error,ierr)
                    CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
                 END IF
@@ -1820,13 +1812,13 @@ CONTAINS
     output_unit=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",error=error)
     IF (output_unit>0) THEN
-       WRITE (UNIT=output_unit,FMT="(T3,A,T55,F25.14)")&
+       WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
             "no interaction energy:",ep_env%energy%e_no_int
-       WRITE (UNIT=output_unit,FMT="(T3,A,T55,F25.14)")&
+       WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
             "psi0 energy (e0):",ep_env%energy%e0
-       WRITE (UNIT=output_unit,FMT="(T3,A,T55,F25.14)")&
+       WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
             "correction energy (e1):",ep_env%energy%e1
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Total energy:                                  ",ep_env%energy%e_tot
        CALL cp_print_key_finished_output(unit_nr,logger,ep_env%input,&
             "PRINT%RUN_INFO",&

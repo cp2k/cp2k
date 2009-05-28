@@ -1242,57 +1242,57 @@ CONTAINS
             extension=".scfLog",error=error)
        IF (output_unit>0) THEN
           IF(my_kg_gpw) THEN
-            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
                "Core Hamiltonian energy of separated molecules:",energy%core,&
                "Hartree energy of the total density:           ",energy%hartree,&
                "XC and Kin. energy of the total density:       ",energy%exc,&
                "Kin. energy of the molecular densities:        ",energy%kg_gpw_ekin_mol
           ELSE
-            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
                "Hartree energy:                                ",energy%hartree,&
                "Exchange-correlation energy:                   ",energy%exc
           END IF
           IF (energy%e_hartree /= 0.0_dp)&
-               WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
                "Coulomb (electron-electron) energy:            ",energy%e_hartree
           IF (energy%dispersion/= 0.0_dp)&
-               WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
                "Dispersion energy:                             ",energy%dispersion
           IF(gapw) THEN
-             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
                 "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
                 "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
                 "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
           END IF
           IF(gapw_xc) THEN
-             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1
           END IF
           IF (dft_control%dft_plus_u) THEN
-            WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
               "DFT+U energy:",energy%dft_plus_u
           END IF
           IF  (qs_env%qmmm) THEN
-             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+             WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
           END IF
           IF (dft_control%qs_control%mulliken_restraint) THEN
-              WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
+              WRITE (UNIT=output_unit,FMT="(T3,A,T41,2F20.10)")&
                 "Mulliken restraint (order_p,energy) : ",mulliken_order_p,energy%mulliken
           ENDIF
           IF (dft_control%qs_control%ddapc_restraint) THEN
              DO n=1,SIZE( dft_control%qs_control%ddapc_restraint_control)
                 ddapc_order_p = &
                   dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control%ddapc_order_p
-                WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
+                WRITE (UNIT=output_unit,FMT="(T3,A,T41,2F20.10)")&
                      "DDAPC restraint (order_p,energy) : ",ddapc_order_p,energy%ddapc_restraint(n)
              END DO
           ENDIF
           IF (dft_control%qs_control%s2_restraint) THEN
              s2_order_p = dft_control%qs_control%s2_restraint_control%s2_order_p
-              WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
+              WRITE (UNIT=output_unit,FMT="(T3,A,T41,2F20.10)")&
                 "S2 restraint (order_p,energy) : ",s2_order_p,energy%s2_restraint
           ENDIF
 
@@ -1457,9 +1457,9 @@ CONTAINS
               extension=".scfLog",error=error)
    
        IF (iw>0) THEN
-           WRITE (UNIT=iw,FMT="((T3,A,T60,F20.10))")&
+           WRITE (UNIT=iw,FMT="((T3,A,T61,F20.10))")&
                     "HF_PW_HFX| PW exchange energy:",exchange_energy
-           WRITE (UNIT=iw,FMT="((T3,A,T60,F20.10),/)")&
+           WRITE (UNIT=iw,FMT="((T3,A,T61,F20.10),/)")&
                     "HF_PW_HFX| Gaussian exchange energy:",energy%ex
        ENDIF
    
@@ -2180,7 +2180,7 @@ CONTAINS
 
     tot_rho_r = accurate_sum(rho%tot_rho_r)
     IF(output_unit>0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+      WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
            "Total electronic density (r-space): ",&
            tot_rho_r,&
            tot_rho_r + &
@@ -2197,10 +2197,10 @@ CONTAINS
           tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
        END DO
        IF(output_unit>0) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
               "Hard and soft densities (Lebedev):",&
               tot1_h, tot1_s
-         WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+         WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
               tot_rho_r+ tot1_h - tot1_s ,&
               "Total charge density (r-space):      ",&
@@ -2219,10 +2219,10 @@ CONTAINS
           tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
        END DO
        IF(output_unit>0) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
               "Hard and soft densities (Lebedev):",&
               tot1_h, tot1_s
-         WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+         WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
               accurate_sum(rho_xc%tot_rho_r)+ tot1_h - tot1_s
        END IF
@@ -2230,7 +2230,7 @@ CONTAINS
                                     qs_charges%total_rho_core_rspace
     ELSE
        IF(output_unit>0) THEN
-         WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+         WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
               "Total charge density (r-space):     ",&
               tot_rho_r+&
               qs_charges%total_rho_core_rspace,&

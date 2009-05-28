@@ -106,21 +106,21 @@ CONTAINS
     ENDIF
     CALL rt_calculate_orthonormality(output_unit,orthonormality,mos_new,matrix_s(1)%matrix,error)
     IF(output_unit>0) THEN
-       WRITE (UNIT=output_unit,FMT="((T3,A,T40,2F20.10))")&
+       WRITE (UNIT=output_unit,FMT="((T3,A,T41,2F20.10))")&
             "Total electronic density (r-space): ",&
             tot_rho_r,&
             tot_rho_r + &
             REAL(n_electrons,dp)
-       WRITE (UNIT=output_unit,FMT="((T3,A,T60,F20.10))")&
+       WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.10))")&
                "Total energy:",rtp%energy_new
        IF(run_type==ehrenfest)&
-            WRITE (UNIT=output_unit,FMT="((T3,A,T60,F20.10))")&
+            WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.10))")&
             "Energy difference to previous iteration step:",rtp%energy_new-rtp%energy_old
        IF(run_type==real_time_propagation)&
-            WRITE (UNIT=output_unit,FMT="((T3,A,T60,F20.10))")&
+            WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.10))")&
             "Energy difference to initial state:",rtp%energy_new-rtp%energy_old
 
-       WRITE (UNIT=output_unit,FMT="((T3,A,T60,E20.10))")&
+       WRITE (UNIT=output_unit,FMT="((T3,A,T61,E20.10))")&
             "Convergence:",delta_iter
        IF(rtp%converged)&
             WRITE (UNIT=output_unit,FMT="(/,(T3,A,3X,F16.10))")&
