@@ -284,7 +284,7 @@ CPSourceFileRef,&
              ! where to add a new image
              DO j=1, input_nr_replica-1
                 CALL neb_replica_distance(particle_set, coords,j,j+1,distance(j),iw,&
-                     rotate=.TRUE.,error=error)
+                     rotate=neb_env%align_frames,error=error)
              END DO
              jtarg = MAXLOC(distance(1:input_nr_replica),1)
              IF (iw>0) THEN
@@ -321,7 +321,7 @@ CPSourceFileRef,&
        ! Rotate the frames in order to minimize the RMSD
        DO j=1, input_nr_replica-1
           CALL neb_replica_distance(particle_set, coords,j,j+1,distance(j),iw,&
-               rotate=.TRUE.,error=error)
+               rotate=neb_env%align_frames,error=error)
        END DO
        DEALLOCATE(distance,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

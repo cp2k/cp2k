@@ -2764,6 +2764,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ALIGN_FRAMES",&
+            description="Enables the alignment of the frames at the beginning of a BAND calculation. "//&
+            "This keyword does not affect the rotation of the replicas during a BAND calculation.",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="K_SPRING",&
             variants=(/"K"/),&
             description="Specify the value of the spring constant",&

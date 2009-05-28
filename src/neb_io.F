@@ -85,6 +85,7 @@ CONTAINS
     CALL section_vals_val_get(neb_section,"NUMBER_OF_REPLICA",i_val=neb_env%number_of_replica,error=error)
     CALL section_vals_val_get(neb_section,"K_SPRING",r_val=neb_env%K,error=error)
     CALL section_vals_val_get(neb_section,"ROTATE_FRAMES",l_val=neb_env%rotate_frames,error=error)
+    CALL section_vals_val_get(neb_section,"ALIGN_FRAMES",l_val=neb_env%align_frames,error=error)
     CALL section_vals_val_get(neb_section,"OPTIMIZE_BAND%OPTIMIZE_END_POINTS",l_val=neb_env%optimize_end_points,&
          error=error)
     ! Climb Image NEB

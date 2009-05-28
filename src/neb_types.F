@@ -43,7 +43,7 @@ MODULE neb_types
      INTEGER       :: number_of_replica, nsize_xyz, nsize_int
      INTEGER       :: nsteps_it, istep
      INTEGER       :: nr_HE_image
-     LOGICAL       :: rotate_frames
+     LOGICAL       :: rotate_frames, align_frames
      LOGICAL       :: optimize_end_points
      LOGICAL       :: use_colvar
      LOGICAL       :: reparametrize_frames
