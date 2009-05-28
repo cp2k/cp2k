@@ -36,9 +36,9 @@
                                                cp_subsys_type
     USE dimer_methods,                   ONLY: cp_eval_at_ts
     USE f77_blas
-    USE force_env_methods,               ONLY: force_env_calc_energy_force,&
+    USE force_env_methods,               ONLY: force_env_calc_energy_force
+    USE force_env_types,                 ONLY: force_env_get,&
                                                force_env_set_cell
-    USE force_env_types,                 ONLY: force_env_get
     USE geo_opt,                         ONLY: cp_geo_opt
     USE gopt_f_types,                    ONLY: gopt_f_type
     USE input_constants,                 ONLY: default_minimization_method_id,&

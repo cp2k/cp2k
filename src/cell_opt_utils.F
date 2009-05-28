@@ -18,8 +18,8 @@ MODULE cell_opt_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_units_rad
   USE f77_blas
-  USE force_env_methods,               ONLY: force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_set_cell,&
                                              force_env_type
   USE input_cp2k,                      ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&

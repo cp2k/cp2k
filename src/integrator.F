@@ -49,9 +49,9 @@ MODULE integrator
   USE extended_system_dynamics,        ONLY: shell_scale_comv
   USE extended_system_types,           ONLY: npt_info_type
   USE f77_blas
-  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-                                             force_env_set_cell
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_set_cell,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: npe_f_ensemble,&

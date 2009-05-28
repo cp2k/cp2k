@@ -22,9 +22,9 @@ MODULE mc_moves
                                              cp_subsys_set,&
                                              cp_subsys_type
   USE f77_blas
-  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-                                             force_env_set_cell
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_set_cell,&
                                              force_env_type,&
                                              use_fist_force
   USE kinds,                           ONLY: default_string_length,&

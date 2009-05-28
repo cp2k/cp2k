@@ -26,11 +26,11 @@ MODULE mc_ge_moves
                                              cp_subsys_set,&
                                              cp_subsys_type
   USE f77_blas
-  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-                                             force_env_set_cell
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
-                                             force_env_release
+                                             force_env_release,&
+                                             force_env_set_cell
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_vals_release
   USE kinds,                           ONLY: default_string_length,&

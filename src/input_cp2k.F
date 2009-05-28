@@ -857,26 +857,26 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
 
     CALL section_create(section,name="debug",&
-         description="Section to setup parameters for debugging runs",&
+         description="Section to setup parameters for debug runs.",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
     NULLIFY(keyword, print_key)
-    CALL keyword_create(keyword, name="numerical_pressure",&
-         description="Computes the numerical tensor",&
-         usage="NUMERICAL_PRESSURE <LOGICAL>",default_l_val=.FALSE.,&
+    CALL keyword_create(keyword, name="DEBUG_FORCES",&
+         description="Enables  the debug of the forces.",&
+         usage="DEBUG_FORCES <LOGICAL>",default_l_val=.TRUE.,&
          lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="DEBUG_PRESSURE",&
-         description="To skip the computation of the PRESSURE in a DEBUG run",&
-         usage="DEBUG_PRESSURE <LOGICAL>",default_l_val=.TRUE.,&
+    CALL keyword_create(keyword, name="DEBUG_STRESS_TENSOR",&
+         description="Enables the debug of the stress tensor",&
+         usage="DEBUG_STRESS_TENSOR <LOGICAL>",default_l_val=.TRUE.,&
          lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)    
 
-    CALL keyword_create(keyword, name="dx",&
+    CALL keyword_create(keyword, name="DX",&
          description=" Setup the DX parameter to evaluate numerical derivatives",&
          usage="DX <REAL>",default_r_val=0.001_dp,error=error)
     CALL section_add_keyword(section,keyword,error=error)
