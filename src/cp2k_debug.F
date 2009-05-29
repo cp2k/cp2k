@@ -150,17 +150,19 @@ CPSourceFileRef,&
              CALL cp_virial(virial, virial_numerical)
              
              ! Print results
-             WRITE (UNIT=iw,FMT="(/,'  *** DEBUG PV_VIRIAL - START ***',/)")
-             WRITE (UNIT=iw,FMT="((T34,A))") "Numerical pv_virial"
-             WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial_numerical%pv_virial(i,1:3), i=1,3)
-             WRITE (UNIT=iw,FMT="(/)")
-             WRITE (UNIT=iw,FMT="((T34,A))") "Analytical pv_virial"
-             WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial_analytical%pv_virial(i,1:3), i=1,3)
-             WRITE (UNIT=iw,FMT="(/)")
-             WRITE (UNIT=iw,FMT="((T34,A))") "Difference pv_virial"
-             WRITE (UNIT=iw,FMT="((T34,3F16.10))")&
-                  (virial_numerical%pv_virial(i,1:3)-virial_analytical%pv_virial(i,1:3), i=1,3)
-             WRITE (UNIT=iw,FMT="(/,'  *** DEBUG PV_VIRIAL - END   ***',/)")
+             IF (iw>0) THEN
+                WRITE (UNIT=iw,FMT="(/,'  *** DEBUG PV_VIRIAL - START ***',/)")
+                WRITE (UNIT=iw,FMT="((T34,A))") "Numerical pv_virial"
+                WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial_numerical%pv_virial(i,1:3), i=1,3)
+                WRITE (UNIT=iw,FMT="(/)")
+                WRITE (UNIT=iw,FMT="((T34,A))") "Analytical pv_virial"
+                WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial_analytical%pv_virial(i,1:3), i=1,3)
+                WRITE (UNIT=iw,FMT="(/)")
+                WRITE (UNIT=iw,FMT="((T34,A))") "Difference pv_virial"
+                WRITE (UNIT=iw,FMT="((T34,3F16.10))")&
+                     (virial_numerical%pv_virial(i,1:3)-virial_analytical%pv_virial(i,1:3), i=1,3)
+                WRITE (UNIT=iw,FMT="(/,'  *** DEBUG PV_VIRIAL - END   ***',/)")
+             END IF
              CALL virial_release(virial_analytical, error=error)
              CALL virial_release(virial_numerical, error=error)
           END IF
