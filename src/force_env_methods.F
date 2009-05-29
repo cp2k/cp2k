@@ -501,7 +501,7 @@ CONTAINS
           DO j = 1, 3
              DO k = 1, 3
                 virial%pv_virial(i,j) = virial%pv_virial(i,j) +&
-                     (-1.0_dp)*0.5_dp*(numer_stress(i,k)+numer_stress(k,i))*cell_local%hmat(j,k)
+                     (-1.0_dp)*0.5_dp*(numer_stress(i,k)*cell_local%hmat(j,k)+numer_stress(j,k)*cell_local%hmat(i,k))
              END DO
           END DO
        END DO

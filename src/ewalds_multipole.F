@@ -416,11 +416,11 @@ CONTAINS
        pv(1,1) = pv(1,1) +  ptens11
        pv(1,2) = pv(1,2) + (ptens12+ptens21)*0.5_dp
        pv(1,3) = pv(1,3) + (ptens13+ptens31)*0.5_dp
-       pv(2,1) = pv(2,1) + (ptens21+ptens12)*0.5_dp
+       pv(2,1) = pv(1,2)
        pv(2,2) = pv(2,2) +  ptens22
        pv(2,3) = pv(2,3) + (ptens23+ptens32)*0.5_dp
-       pv(3,1) = pv(3,1) + (ptens31+ptens13)*0.5_dp
-       pv(3,2) = pv(3,2) + (ptens32+ptens23)*0.5_dp
+       pv(3,1) = pv(1,3)
+       pv(3,2) = pv(2,3)
        pv(3,3) = pv(3,3) +  ptens33
     END IF
 
@@ -531,11 +531,11 @@ CONTAINS
        pv(1,1) = pv(1,1) +  ptens11
        pv(1,2) = pv(1,2) + (ptens12+ptens21)*0.5_dp
        pv(1,3) = pv(1,3) + (ptens13+ptens31)*0.5_dp
-       pv(2,1) = pv(2,1) + (ptens21+ptens12)*0.5_dp
+       pv(2,1) = pv(1,2)
        pv(2,2) = pv(2,2) +  ptens22
        pv(2,3) = pv(2,3) + (ptens23+ptens32)*0.5_dp
-       pv(3,1) = pv(3,1) + (ptens31+ptens13)*0.5_dp
-       pv(3,2) = pv(3,2) + (ptens32+ptens23)*0.5_dp
+       pv(3,1) = pv(1,3)
+       pv(3,2) = pv(2,3)
        pv(3,3) = pv(3,3) +  ptens33
     END IF
 
@@ -848,15 +848,15 @@ CONTAINS
     IF (do_stress) THEN
        pv_local = pv_local * pref
        ! Symmetrize the tensor
-       pv(1,1) =  pv_local(1,1) 
-       pv(1,2) = (pv_local(1,2) + pv_local(2,1))*0.5_dp
-       pv(1,3) = (pv_local(1,3) + pv_local(3,1))*0.5_dp
-       pv(2,1) = (pv_local(2,1) + pv_local(1,2))*0.5_dp
-       pv(2,2) =  pv_local(2,2)
-       pv(2,3) = (pv_local(2,3) + pv_local(3,2))*0.5_dp
-       pv(3,1) = (pv_local(3,1) + pv_local(1,3))*0.5_dp
-       pv(3,2) = (pv_local(3,2) + pv_local(2,3))*0.5_dp
-       pv(3,3) =  pv_local(3,3)
+       pv(1,1) = pv(1,1) +  pv_local(1,1) 
+       pv(1,2) = pv(1,2) + (pv_local(1,2) + pv_local(2,1))*0.5_dp
+       pv(1,3) = pv(1,3) + (pv_local(1,3) + pv_local(3,1))*0.5_dp
+       pv(2,1) = pv(1,2)
+       pv(2,2) = pv(2,2) +  pv_local(2,2)
+       pv(2,3) = pv(2,3) + (pv_local(2,3) + pv_local(3,2))*0.5_dp
+       pv(3,1) = pv(1,3)
+       pv(3,2) = pv(2,3)
+       pv(3,3) = pv(3,3) +  pv_local(3,3)
        DEALLOCATE (summe_st, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
