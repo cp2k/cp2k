@@ -103,7 +103,8 @@ CONTAINS
 !>      cjm, 28-Feb-2006: box_change is gone
 !> \author CJM & JGH
 ! *****************************************************************************
-  SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_section, error)
+  SUBROUTINE fist_force_control(fist_env, virial, para_env, debug, force_env_section,&
+       error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(virial_type), POINTER               :: virial
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -177,7 +178,7 @@ CONTAINS
          multipoles=multipoles, error=error)
 
     CALL ewald_env_get (ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
-    do_ipol_scf=do_ipol_scf,error=error)
+         do_ipol_scf=do_ipol_scf,error=error)
 
     natoms = SIZE ( particle_set )
     nlocal_particles = 0
@@ -339,66 +340,101 @@ CONTAINS
           CALL ewald_self ( ewald_env, cell, atomic_kind_set, local_particles, &
                thermo % e_self, thermo % e_neut ,error=error)
        END IF
-       ! Compute g-space part of the ewald sum
-       SELECT CASE ( ewald_type )
-       CASE ( do_ewald_ewald )
-          ! Parallelisation over atoms --> allocate local atoms
-          IF(shell_present) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Ewald sum and Core-Shell model not implemented.", &
-                  error=error, error_level=cp_failure_level)
-          ELSE
-             IF (do_ipol_scf) THEN
-! converge the dipoles self-consistently
-                CALL  fist_pol_evaluate ( atomic_kind_set, multipoles, ewald_env, ewald_pw,  &
-                      fist_nonbond_env, cell, particle_set, local_particles, & 
-                      thermo, vg_coulomb, pot_nonbond, f_nonbond, fg_coulomb,&
-                      use_virial, pv_g, pv_nonbond, mm_section, para_env, error )
 
-             ELSEIF (do_multipoles) THEN
-                CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
-                     particle_set, local_particles, vg_coulomb, pot_nonbond, thermo%e_neut,&
-                     thermo%e_self, multipoles%task, do_correction_bonded=.TRUE., do_forces=.TRUE.,&
-                     do_stress=use_virial, do_efield=.FALSE., charges=multipoles%charges,&
-                     dipoles=multipoles%dipoles, quadrupoles=multipoles%quadrupoles, forces_local=fg_coulomb,&
-                     forces_glob=f_nonbond, pv_local=pv_g,pv_glob=pv_nonbond,iw=iw2,do_debug=.TRUE.,&
-                     atomic_kind_set=atomic_kind_set, mm_section=mm_section,error=error)
+       ! Polarizable force-field
+       IF (do_ipol_scf) THEN
+          ! Converge the dipoles self-consistently
+          CALL fist_pol_evaluate(atomic_kind_set, multipoles, ewald_env, ewald_pw,&
+               fist_nonbond_env, cell, particle_set, local_particles, thermo, vg_coulomb,&
+               pot_nonbond, f_nonbond, fg_coulomb, use_virial, pv_g, pv_nonbond, mm_section,&
+               para_env, error)
+       ELSE
+          ! Non-Polarizable force-field
+          SELECT CASE ( ewald_type )
+          CASE ( do_ewald_ewald )
+             ! Parallelisation over atoms --> allocate local atoms
+             IF(shell_present) THEN
+                IF (do_multipoles) THEN
+                   CALL cp_unimplemented_error(fromWhere=routineP, &
+                        message="Multipole Ewald and CORE-SHELL not yet implemented within Ewald sum!", &
+                        error=error, error_level=cp_fatal_level)
+                ELSE
+                   CALL cp_unimplemented_error(fromWhere=routineP, &
+                        message="Core-Shell model not yet implemented within Ewald sums.", &
+                        error=error, error_level=cp_failure_level)
+                END IF
              ELSE
-                CALL ewald_evaluate ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set, &
-                     local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial, &
-                     error=error)
+                IF (do_multipoles) THEN
+                   CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
+                        particle_set, local_particles, vg_coulomb, pot_nonbond, thermo%e_neut,&
+                        thermo%e_self, multipoles%task, do_correction_bonded=.TRUE., do_forces=.TRUE.,&
+                        do_stress=use_virial, do_efield=.FALSE., charges=multipoles%charges,&
+                        dipoles=multipoles%dipoles, quadrupoles=multipoles%quadrupoles, &
+                        forces_local=fg_coulomb, forces_glob=f_nonbond, pv_local=pv_g,&
+                        pv_glob=pv_nonbond,iw=iw2,do_debug=.TRUE.,atomic_kind_set=atomic_kind_set,&
+                        mm_section=mm_section,error=error)
+                ELSE
+                   CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
+                        local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial,&
+                        error=error)
+                END IF
              END IF
-          END IF
-       CASE ( do_ewald_pme )
-          ! Parallelisation over grids --> allocate all atoms
-          IF(shell_present) THEN
-             CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
-                  pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
-                  fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb, use_virial=use_virial,&
-                  error=error)
-             CALL mp_sum ( fgshell_coulomb, para_env%group )
-             CALL mp_sum ( fgcore_coulomb, para_env%group )
-          ELSE
-             CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
-                  pv_g, use_virial=use_virial, error=error)
-          END IF
-          CALL mp_sum ( fg_coulomb, para_env%group )
-       CASE ( do_ewald_spme )
-          ! Parallelisation over grids --> allocate all atoms
-          IF(shell_present) THEN
-             CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
-                  pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
-                  fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb,use_virial=use_virial,&
-                  error=error)
-             CALL mp_sum ( fgshell_coulomb, para_env%group )
-             CALL mp_sum ( fgcore_coulomb, para_env%group )
-          ELSE
-             CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
-                  pv_g, use_virial=use_virial, error=error)
-          END IF
-          CALL mp_sum (fg_coulomb, para_env%group)
-       END SELECT
-       
+          CASE ( do_ewald_pme )
+             ! Parallelisation over grids --> allocate all atoms
+             IF(shell_present) THEN
+                IF (do_multipoles) THEN
+                   CALL cp_unimplemented_error(fromWhere=routineP, &
+                        message="Multipole Ewald and CORE-SHELL not yet implemented within a PME scheme!", &
+                        error=error, error_level=cp_fatal_level)
+                ELSE
+                   CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
+                        pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
+                        fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb, use_virial=use_virial,&
+                        error=error)
+                   CALL mp_sum (fgshell_coulomb, para_env%group)
+                   CALL mp_sum (fgcore_coulomb, para_env%group)
+                END IF
+             ELSE
+                IF (do_multipoles) THEN
+                   CALL cp_unimplemented_error(fromWhere=routineP, &
+                        message="Multipole Ewald not yet implemented within a PME scheme!", &
+                        error=error, error_level=cp_fatal_level)
+                ELSE
+                   CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
+                        pv_g, use_virial=use_virial, error=error)
+                END IF
+             END IF
+             CALL mp_sum ( fg_coulomb, para_env%group )
+          CASE ( do_ewald_spme )
+             ! Parallelisation over grids --> allocate all atoms
+             IF(shell_present) THEN
+                IF (do_multipoles) THEN
+                   CALL cp_unimplemented_error(fromWhere=routineP, &
+                        message="Multipole Ewald and CORE-SHELL not yet implemented within a SPME scheme!", &
+                        error=error, error_level=cp_fatal_level)
+                ELSE
+                   CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
+                        pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
+                        fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb,use_virial=use_virial,&
+                        error=error)
+                   CALL mp_sum ( fgshell_coulomb, para_env%group )
+                   CALL mp_sum ( fgcore_coulomb, para_env%group )
+                END IF
+             ELSE
+                IF (do_multipoles) THEN
+                   CALL cp_unimplemented_error(fromWhere=routineP, &
+                        message="Multipole Ewald not yet implemented within a SPME scheme!", &
+                        error=error, error_level=cp_fatal_level)
+                ELSE
+                   CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
+                        pv_g, use_virial=use_virial, error=error)
+                END IF
+             END IF
+             CALL mp_sum (fg_coulomb, para_env%group)
+          END SELECT
+       END IF
+
+       ! Correction for core-shell model
        IF(shell_present) THEN
           CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, particle_set,&
                ewald_env, thermo%e_bonded, pv_bc, shell_particle_set=shell_particle_set,&

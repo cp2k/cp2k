@@ -183,6 +183,13 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"ITER_INFO",&
+            description="Activates the printing of iteration info during the self-consistent "//&
+            "calculation of a polarizable forcefield.", &
+            print_level=medium_print_level,filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"SUBCELL",&
             description="Activates the printing of the subcells used for the"//&
             "generation of neighbor lists.", &
