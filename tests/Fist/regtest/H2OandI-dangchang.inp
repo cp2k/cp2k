@@ -200,6 +200,10 @@
        &END MULTIPOLES
      &END EWALD
     &END POISSON
+    &PRINT
+      &ITER_INFO
+      &END
+    &END
   &END MM
    &SUBSYS
      &CELL
