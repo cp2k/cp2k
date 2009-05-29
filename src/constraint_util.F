@@ -88,11 +88,11 @@ CONTAINS
     nkind = SIZE ( molecule_kind_set )
     ! Intramolecular constraints
     MOL: DO ikind = 1, nkind
-       nmol_per_kind = local_molecules % n_el ( ikind )
+       nmol_per_kind = local_molecules%n_el ( ikind )
        DO imol = 1, nmol_per_kind
-          i = local_molecules % list ( ikind ) % array ( imol )
+          i = local_molecules%list ( ikind )%array ( imol )
           molecule => molecule_set ( i )
-          molecule_kind => molecule % molecule_kind
+          molecule_kind => molecule%molecule_kind
           CALL get_molecule_kind ( molecule_kind, ng3x3=n3x3con, ng4x6=n4x6con, & 
                colv_list=colv_list, g3x3_list=g3x3_list, g4x6_list=g4x6_list,&
                fixd_list=fixd_list )
@@ -151,29 +151,29 @@ CONTAINS
     IF (ASSOCIATED(colv_list)) THEN
        ! Collective constraints
        DO iconst = 1, SIZE(colv_list)
-          CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
+          CALL colvar_eval_mol_f(lcolv ( iconst )%colvar_old, cell,&
                particles=particle_set, fixd_list=fixd_list, error=error)
        ENDDO
     END IF
     ! 3x3 constraints
     DO iconst = 1, n3x3con
-       index = g3x3_list ( iconst ) % a + first_atom - 1
-       lg3x3 ( iconst ) % ra_old = particle_set ( index ) % r 
-       index = g3x3_list ( iconst ) % b + first_atom - 1
-       lg3x3 ( iconst ) % rb_old = particle_set ( index ) % r 
-       index = g3x3_list ( iconst ) % c + first_atom - 1
-       lg3x3 ( iconst ) % rc_old = particle_set ( index ) % r 
+       index = g3x3_list ( iconst )%a + first_atom - 1
+       lg3x3 ( iconst )%ra_old = particle_set ( index )%r 
+       index = g3x3_list ( iconst )%b + first_atom - 1
+       lg3x3 ( iconst )%rb_old = particle_set ( index )%r 
+       index = g3x3_list ( iconst )%c + first_atom - 1
+       lg3x3 ( iconst )%rc_old = particle_set ( index )%r 
     ENDDO
     ! 4x6 constraints
     DO iconst = 1, n4x6con
-       index = g4x6_list ( iconst ) % a + first_atom - 1
-       lg4x6 ( iconst ) % ra_old = particle_set ( index ) % r 
-       index = g4x6_list ( iconst ) % b + first_atom - 1
-       lg4x6 ( iconst ) % rb_old = particle_set ( index ) % r 
-       index = g4x6_list ( iconst ) % c + first_atom - 1
-       lg4x6 ( iconst ) % rc_old = particle_set ( index ) % r 
-       index = g4x6_list ( iconst ) % d + first_atom - 1
-       lg4x6 ( iconst ) % rd_old = particle_set ( index ) % r 
+       index = g4x6_list ( iconst )%a + first_atom - 1
+       lg4x6 ( iconst )%ra_old = particle_set ( index )%r 
+       index = g4x6_list ( iconst )%b + first_atom - 1
+       lg4x6 ( iconst )%rb_old = particle_set ( index )%r 
+       index = g4x6_list ( iconst )%c + first_atom - 1
+       lg4x6 ( iconst )%rc_old = particle_set ( index )%r 
+       index = g4x6_list ( iconst )%d + first_atom - 1
+       lg4x6 ( iconst )%rd_old = particle_set ( index )%r 
     ENDDO
 
   END SUBROUTINE getold_low
@@ -216,11 +216,11 @@ CONTAINS
     nkind = SIZE ( molecule_kind_set )
     ! Intramolecular Constraints
     MOL: DO ikind = 1, nkind
-       nmol_per_kind = local_molecules % n_el ( ikind )
+       nmol_per_kind = local_molecules%n_el ( ikind )
        DO imol = 1, nmol_per_kind
-          i = local_molecules % list ( ikind ) % array ( imol )
+          i = local_molecules%list ( ikind )%array ( imol )
           molecule => molecule_set ( i ) 
-          molecule_kind => molecule % molecule_kind
+          molecule_kind => molecule%molecule_kind
           CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, &
                ng4x6 = ng4x6, g3x3_list=g3x3_list, g4x6_list=g4x6_list, &
                colv_list = colv_list )
@@ -244,7 +244,15 @@ CONTAINS
             1, lg3x3, lg4x6, lcolv, particle_set, pv )
     END IF
     CALL mp_sum ( pv, group )
-    virial % pv_constraint = pv
+    ! Symmetrize PV
+    pv(1,2) = 0.5_dp*(pv(1,2)+pv(2,1))
+    pv(2,1) = pv(1,2)
+    pv(1,3) = 0.5_dp*(pv(1,3)+pv(3,1))
+    pv(3,1) = pv(1,3)
+    pv(3,2) = 0.5_dp*(pv(3,2)+pv(2,3))
+    pv(2,3) = pv(3,2)
+    ! Store in virial type
+    virial%pv_constraint = pv
 
   END SUBROUTINE pv_constraint
 
@@ -289,7 +297,7 @@ CONTAINS
     ! 3x3
     DO iconst = 1, ng3x3
        !  pv gets updated with FULL multiplier
-       lambda_3x3 = lg3x3 ( iconst ) % lambda
+       lambda_3x3 = lg3x3 ( iconst )%lambda
 
        fc1= lambda_3x3(1)*lg3x3 ( iconst ) %fa+ &
             lambda_3x3(2)*lg3x3 ( iconst ) %fb
@@ -297,52 +305,52 @@ CONTAINS
             lambda_3x3(3)*lg3x3 ( iconst ) %fc
        fc3=-lambda_3x3(2)*lg3x3 ( iconst ) %fb- &
             lambda_3x3(3)*lg3x3 ( iconst ) %fc
-       index_a = g3x3_list ( iconst ) % a + first_atom -1
-       index_b = g3x3_list ( iconst ) % b + first_atom -1
-       index_c = g3x3_list ( iconst ) % c + first_atom -1
+       index_a = g3x3_list ( iconst )%a + first_atom -1
+       index_b = g3x3_list ( iconst )%b + first_atom -1
+       index_c = g3x3_list ( iconst )%c + first_atom -1
 
        !pv(1,1)
-       pv(1,1) = pv(1,1) + fc1(1)*particle_set ( index_a ) % r ( 1 )
-       pv(1,1) = pv(1,1) + fc2(1)*particle_set ( index_b ) % r ( 1 )
-       pv(1,1) = pv(1,1) + fc3(1)*particle_set ( index_c ) % r ( 1 )
+       pv(1,1) = pv(1,1) + fc1(1)*particle_set ( index_a )%r ( 1 )
+       pv(1,1) = pv(1,1) + fc2(1)*particle_set ( index_b )%r ( 1 )
+       pv(1,1) = pv(1,1) + fc3(1)*particle_set ( index_c )%r ( 1 )
        !pv(1,2)
-       pv(1,2) = pv(1,2) + fc1(1)*particle_set ( index_a ) % r ( 2 )
-       pv(1,2) = pv(1,2) + fc2(1)*particle_set ( index_b ) % r ( 2 )
-       pv(1,2) = pv(1,2) + fc3(1)*particle_set ( index_c ) % r ( 2 )
+       pv(1,2) = pv(1,2) + fc1(1)*particle_set ( index_a )%r ( 2 )
+       pv(1,2) = pv(1,2) + fc2(1)*particle_set ( index_b )%r ( 2 )
+       pv(1,2) = pv(1,2) + fc3(1)*particle_set ( index_c )%r ( 2 )
        !pv(1,3)
-       pv(1,3) = pv(1,3) + fc1(1)*particle_set ( index_a ) % r ( 3 )
-       pv(1,3) = pv(1,3) + fc2(1)*particle_set ( index_b ) % r ( 3 )
-       pv(1,3) = pv(1,3) + fc3(1)*particle_set ( index_c ) % r ( 3 )
+       pv(1,3) = pv(1,3) + fc1(1)*particle_set ( index_a )%r ( 3 )
+       pv(1,3) = pv(1,3) + fc2(1)*particle_set ( index_b )%r ( 3 )
+       pv(1,3) = pv(1,3) + fc3(1)*particle_set ( index_c )%r ( 3 )
        !pv(2,1)
-       pv(2,1) = pv(2,1) + fc1(2)*particle_set ( index_a ) % r ( 1 )
-       pv(2,1) = pv(2,1) + fc2(2)*particle_set ( index_b ) % r ( 1 )
-       pv(2,1) = pv(2,1) + fc3(2)*particle_set ( index_c ) % r ( 1 )
+       pv(2,1) = pv(2,1) + fc1(2)*particle_set ( index_a )%r ( 1 )
+       pv(2,1) = pv(2,1) + fc2(2)*particle_set ( index_b )%r ( 1 )
+       pv(2,1) = pv(2,1) + fc3(2)*particle_set ( index_c )%r ( 1 )
        !pv(2,2)
-       pv(2,2) = pv(2,2) + fc1(2)*particle_set ( index_a ) % r ( 2 )
-       pv(2,2) = pv(2,2) + fc2(2)*particle_set ( index_b ) % r ( 2 )
-       pv(2,2) = pv(2,2) + fc3(2)*particle_set ( index_c ) % r ( 2 )
+       pv(2,2) = pv(2,2) + fc1(2)*particle_set ( index_a )%r ( 2 )
+       pv(2,2) = pv(2,2) + fc2(2)*particle_set ( index_b )%r ( 2 )
+       pv(2,2) = pv(2,2) + fc3(2)*particle_set ( index_c )%r ( 2 )
        !pv(2,3)
-       pv(2,3) = pv(2,3) + fc1(2)*particle_set ( index_a ) % r ( 3 )
-       pv(2,3) = pv(2,3) + fc2(2)*particle_set ( index_b ) % r ( 3 )
-       pv(2,3) = pv(2,3) + fc3(2)*particle_set ( index_c ) % r ( 3 )
+       pv(2,3) = pv(2,3) + fc1(2)*particle_set ( index_a )%r ( 3 )
+       pv(2,3) = pv(2,3) + fc2(2)*particle_set ( index_b )%r ( 3 )
+       pv(2,3) = pv(2,3) + fc3(2)*particle_set ( index_c )%r ( 3 )
        !pv(3,1)
-       pv(3,1) = pv(3,1) + fc1(3)*particle_set ( index_a ) % r ( 1 )
-       pv(3,1) = pv(3,1) + fc2(3)*particle_set ( index_b ) % r ( 1 )
-       pv(3,1) = pv(3,1) + fc3(3)*particle_set ( index_c ) % r ( 1 )
+       pv(3,1) = pv(3,1) + fc1(3)*particle_set ( index_a )%r ( 1 )
+       pv(3,1) = pv(3,1) + fc2(3)*particle_set ( index_b )%r ( 1 )
+       pv(3,1) = pv(3,1) + fc3(3)*particle_set ( index_c )%r ( 1 )
        !pv(3,2)
-       pv(3,2) = pv(3,2) + fc1(3)*particle_set ( index_a ) % r ( 2 )
-       pv(3,2) = pv(3,2) + fc2(3)*particle_set ( index_b ) % r ( 2 )
-       pv(3,2) = pv(3,2) + fc3(3)*particle_set ( index_c ) % r ( 2 )
+       pv(3,2) = pv(3,2) + fc1(3)*particle_set ( index_a )%r ( 2 )
+       pv(3,2) = pv(3,2) + fc2(3)*particle_set ( index_b )%r ( 2 )
+       pv(3,2) = pv(3,2) + fc3(3)*particle_set ( index_c )%r ( 2 )
        !pv(3,3)
-       pv(3,3) = pv(3,3) + fc1(3)*particle_set ( index_a ) % r ( 3 )
-       pv(3,3) = pv(3,3) + fc2(3)*particle_set ( index_b ) % r ( 3 )
-       pv(3,3) = pv(3,3) + fc3(3)*particle_set ( index_c ) % r ( 3 )
+       pv(3,3) = pv(3,3) + fc1(3)*particle_set ( index_a )%r ( 3 )
+       pv(3,3) = pv(3,3) + fc2(3)*particle_set ( index_b )%r ( 3 )
+       pv(3,3) = pv(3,3) + fc3(3)*particle_set ( index_c )%r ( 3 )
     END DO
 
     ! 4x6
     DO iconst = 1, ng4x6
        !  pv gets updated with FULL multiplier
-       lambda_4x6 = lg4x6 ( iconst ) % lambda
+       lambda_4x6 = lg4x6 ( iconst )%lambda
 
        fc1= lambda_4x6(1)*lg4x6 ( iconst ) %fa+ &
             lambda_4x6(2)*lg4x6 ( iconst ) %fb+ &
@@ -356,10 +364,10 @@ CONTAINS
        fc4=-lambda_4x6(3)*lg4x6 ( iconst ) %fc- &
             lambda_4x6(5)*lg4x6 ( iconst ) %fe- &
             lambda_4x6(6)*lg4x6 ( iconst ) %ff
-       index_a = g4x6_list ( iconst ) % a + first_atom -1
-       index_b = g4x6_list ( iconst ) % b + first_atom -1
-       index_c = g4x6_list ( iconst ) % c + first_atom -1
-       index_d = g4x6_list ( iconst ) % d + first_atom -1
+       index_a = g4x6_list ( iconst )%a + first_atom -1
+       index_b = g4x6_list ( iconst )%b + first_atom -1
+       index_c = g4x6_list ( iconst )%c + first_atom -1
+       index_d = g4x6_list ( iconst )%d + first_atom -1
 
        !pv(1,1)
        pv(1,1) = pv(1,1) + fc1(1)*particle_set(index_a)%r(1)
@@ -426,11 +434,11 @@ CONTAINS
     REAL(KIND=dp)                            :: lambda, tmp
     REAL(KIND=dp), DIMENSION(3)              :: f
 
-    DO iatm = 1, SIZE( lcolv % colvar_old % i_atom )
-       ind =   lcolv % colvar_old % i_atom (iatm)
-       f   = - lcolv % colvar_old % dsdr(:,iatm)
+    DO iatm = 1, SIZE( lcolv%colvar_old%i_atom )
+       ind =   lcolv%colvar_old%i_atom (iatm)
+       f   = - lcolv%colvar_old%dsdr(:,iatm)
        !  pv gets updated with FULL multiplier                      
-       lambda = lcolv % lambda
+       lambda = lcolv%lambda
        DO i = 1,3
           tmp = lambda * particle_set(ind)%r(i)
           DO j = 1,3

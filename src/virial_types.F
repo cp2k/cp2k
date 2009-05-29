@@ -14,14 +14,12 @@ MODULE virial_types
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
   PRIVATE
-  PUBLIC:: virial_type, virial_p_type, virial_set, virial_get, cp_virial,&
-       virial_create, virial_retain, virial_release, zero_virial
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_types'
-
   INTEGER, PRIVATE, SAVE :: last_virial_id_nr=0
+
+  PUBLIC:: virial_type, virial_p_type, virial_set, virial_get, cp_virial,&
+       virial_create, virial_retain, virial_release, zero_virial, sym_virial
 
 ! *****************************************************************************
   TYPE virial_type
@@ -49,7 +47,6 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE cp_virial ( virial_in, virial_out )
-
     TYPE(virial_type), POINTER               :: virial_in, virial_out
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_virial', &
@@ -66,6 +63,41 @@ CONTAINS
     virial_out % pv_diagonal = virial_in % pv_diagonal
 
   END SUBROUTINE  cp_virial
+
+! *****************************************************************************
+!> \brief   symmetrize the virial components
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE sym_virial (virial, error)
+    TYPE(virial_type), POINTER               :: virial
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sym_virial', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j
+
+    DO i = 1,3
+       DO j = 1, i-1
+          ! Symmetrize total
+          virial%pv_total(j,i) = (virial%pv_total(i,j) + virial%pv_total(j,i))*0.5_dp
+          virial%pv_total(i,j) =  virial%pv_total(j,i)
+          ! Symmetrize Kinetic
+          virial%pv_kinetic(j,i) = (virial%pv_kinetic(i,j) + virial%pv_kinetic(j,i))*0.5_dp
+          virial%pv_kinetic(i,j) =  virial%pv_kinetic(j,i)
+          ! Symmetrize Virial
+          virial%pv_virial(j,i) = (virial%pv_virial(i,j) + virial%pv_virial(j,i))*0.5_dp
+          virial%pv_virial(i,j) =  virial%pv_virial(j,i)
+          ! Symmetrize XC
+          virial%pv_xc(j,i) = (virial%pv_xc(i,j) + virial%pv_xc(j,i))*0.5_dp
+          virial%pv_xc(i,j) =  virial%pv_xc(j,i)
+          ! Symmetrize constraints
+          virial%pv_constraint(j,i) = (virial%pv_constraint(i,j) + virial%pv_constraint(j,i))*0.5_dp
+          virial%pv_constraint(i,j) =  virial%pv_constraint(j,i)
+       END DO
+    END DO
+
+  END SUBROUTINE sym_virial
 
 ! *****************************************************************************
   SUBROUTINE zero_virial ( virial, reset )

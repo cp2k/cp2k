@@ -142,14 +142,9 @@ MODULE force_env_methods
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_types,                    ONLY: cp_virial,&
-                                             virial_create,&
-                                             virial_p_type,&
-                                             virial_release,&
-                                             virial_retain,&
-                                             virial_set,&
-                                             virial_type,&
-                                             zero_virial
+  USE virial_types,                    ONLY: &
+       cp_virial, sym_virial, virial_create, virial_p_type, virial_release, &
+       virial_retain, virial_set, virial_type, zero_virial
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -273,8 +268,14 @@ CONTAINS
           END SELECT
        END IF
        ! In case it is requested, we evaluate the stress tensor numerically
-       IF (virial%pv_availability.AND.virial%pv_numer.AND.eval_st) THEN
-          CALL force_env_calc_num_pressure(force_env, error=error)
+       IF (virial%pv_availability.AND.eval_st) THEN
+          IF (virial%pv_numer) THEN
+             ! Compute the numerical stress tensor
+             CALL force_env_calc_num_pressure(force_env, error=error)
+          ELSE
+             ! Symmetrize analytical stress tensor
+             CALL sym_virial(virial, error)
+          END IF
        END IF
        ! Some additional tasks..
        IF (.NOT.my_skip) THEN
@@ -282,8 +283,7 @@ CONTAINS
           IF (ASSOCIATED(force_env%fp_env)) THEN
              IF (force_env%fp_env%use_fp) THEN
                 CALL force_env_get(force_env,cell=cell,error=error)
-                CALL fp_eval(force_env%fp_env,force_env%subsys, &
-                     cell,error=error)
+                CALL fp_eval(force_env%fp_env,force_env%subsys,cell,error=error)
              ENDIF
           ENDIF
           ! Constraints ONLY of Fixed Atom type

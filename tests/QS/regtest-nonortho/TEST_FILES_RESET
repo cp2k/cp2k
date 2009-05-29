@@ -98,3 +98,5 @@ graphite.inp
 graphite2.inp
 # speedup changes for core_ppl 
 graphite3.inp
+# bug fix: symmetric stress tensor
+graphite2.inp

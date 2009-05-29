@@ -88,16 +88,14 @@ CONTAINS
     REAL(KIND=dp)                            :: mass, mfl
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    IF ( virial % pv_availability ) THEN
-
+    IF ( virial%pv_availability ) THEN
        CALL timeset(routineN,handle)
-
        NULLIFY(atomic_kind)
        mfl = 0.0_dp
        nparticle_kind = SIZE ( atomic_kind_set )
-       virial % pv_kinetic = 0.0_dp
+       virial%pv_kinetic = 0.0_dp
        DO i = 1, 3
-          DO j = 1, 3
+          DO j = 1, i
              nnodes = 0
              DO iparticle_kind=1,nparticle_kind
                 atomic_kind => atomic_kind_set(iparticle_kind)
@@ -106,11 +104,11 @@ CONTAINS
                 DO iparticle_local=1,nparticle_local
                    nnodes = nnodes + 1
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                   virial % pv_kinetic ( i, j ) = virial % pv_kinetic ( i, j ) + &
-                        mass * particle_set ( iparticle ) % v ( i )* &
-                        particle_set ( iparticle ) % v ( j )
+                   virial%pv_kinetic(i,j) = virial%pv_kinetic(i,j) + &
+                        mass * particle_set(iparticle)%v(i)*particle_set(iparticle)%v(j)
                 END DO
              END DO
+             virial%pv_kinetic(j,i) = virial%pv_kinetic(i,j) 
           END DO
        END DO
        mfl = REAL( 9 * nnodes, KIND=dp) * 2.0_dp * 1.e-6_dp
@@ -121,7 +119,6 @@ CONTAINS
        virial%pv_total = virial%pv_virial + virial%pv_kinetic + virial%pv_constraint
 
        CALL timestop(handle)
-
     ENDIF
 
   END SUBROUTINE virial_evaluate
