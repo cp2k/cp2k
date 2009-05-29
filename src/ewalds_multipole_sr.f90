@@ -1,6 +1,4 @@
                 ! Compute the Short Range constribution according the task
-                ! these initializations can be deleted after debug
-
                 IF (debug_this_module) THEN
                    f         = HUGE(0.0_dp)
                    tij       = HUGE(0.0_dp)
@@ -50,21 +48,21 @@
                 END DO
 #endif
                 ! Compute the Tensor components
-                force_eval = .FALSE.
+                force_eval = do_stress
                 IF (task(1,1)) THEN
                    tij         = f(0)*fac_ij
                                                  force_eval = do_forces .OR.do_efield1
                 END IF
                 IF (task(2,2))                   force_eval = force_eval.OR.do_efield0  
                 IF (task(1,2).OR.force_eval) THEN
-                   force_eval = .FALSE.
+                   force_eval = do_stress
                    tij_a    = - rab*f(1)*fac_ij
-                   IF (task(1,2))                force_eval = do_forces
+                   IF (task(1,2))                force_eval = force_eval.OR. do_forces
                 END IF
                 IF (task(1,1))                   force_eval = force_eval.OR.do_efield2
                 IF (task(3,3))                   force_eval = force_eval.OR.do_efield0
                 IF (task(2,2).OR.task(3,1).OR.force_eval) THEN
-                   force_eval = .FALSE.
+                   force_eval = do_stress
                    DO b = 1,3
                       DO a = 1,3
                          tmp = rab(a)*rab(b)*fac_ij
@@ -72,12 +70,12 @@
                          IF (a==b) tij_ab(a,b) = tij_ab(a,b) - f(1)*fac_ij
                       END DO
                    END DO
-                   IF (task(2,2).OR.task(3,1))   force_eval = do_forces
+                   IF (task(2,2).OR.task(3,1))   force_eval = force_eval.OR. do_forces
                 END IF
                 IF (task(2,2))                   force_eval = force_eval.OR.do_efield2
                 IF (task(3,3))                   force_eval = force_eval.OR.do_efield1
                 IF (task(3,2).OR.force_eval) THEN
-                   force_eval = .FALSE.
+                   force_eval = do_stress
                    DO c = 1, 3
                       DO b = 1, 3
                          DO a = 1, 3
@@ -90,10 +88,10 @@
                          END DO
                       END DO
                    END DO
-                   IF (task(3,2))                force_eval = do_forces
+                   IF (task(3,2))                force_eval = force_eval.OR. do_forces
                 END IF
                 IF (task(3,3).OR.force_eval) THEN
-                   force_eval = .FALSE.
+                   force_eval = do_stress
                    DO d = 1, 3
                       DO c = 1, 3
                          DO b = 1, 3
@@ -121,10 +119,10 @@
                          END DO
                       END DO
                    END DO
-                   IF (task(3,3))                force_eval = do_forces
+                   IF (task(3,3))                force_eval = force_eval.OR. do_forces
                 END IF
                 IF (force_eval) THEN
-                   force_eval = .FALSE.
+                   force_eval = do_stress
                    DO e = 1, 3
                       DO d = 1, 3
                          DO c = 1, 3

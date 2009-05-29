@@ -413,15 +413,15 @@ CONTAINS
        END DO Kind_Group_Loop
     END DO Lists
     IF (do_stress) THEN
-       pv(1,1) = pv(1,1) + ptens11
-       pv(1,2) = pv(1,2) + ptens12
-       pv(1,3) = pv(1,3) + ptens13
-       pv(2,1) = pv(2,1) + ptens21
-       pv(2,2) = pv(2,2) + ptens22
-       pv(2,3) = pv(2,3) + ptens23
-       pv(3,1) = pv(3,1) + ptens31
-       pv(3,2) = pv(3,2) + ptens32
-       pv(3,3) = pv(3,3) + ptens33
+       pv(1,1) = pv(1,1) +  ptens11
+       pv(1,2) = pv(1,2) + (ptens12+ptens21)*0.5_dp
+       pv(1,3) = pv(1,3) + (ptens13+ptens31)*0.5_dp
+       pv(2,1) = pv(2,1) + (ptens21+ptens12)*0.5_dp
+       pv(2,2) = pv(2,2) +  ptens22
+       pv(2,3) = pv(2,3) + (ptens23+ptens32)*0.5_dp
+       pv(3,1) = pv(3,1) + (ptens31+ptens13)*0.5_dp
+       pv(3,2) = pv(3,2) + (ptens32+ptens23)*0.5_dp
+       pv(3,3) = pv(3,3) +  ptens33
     END IF
 
     CALL timestop ( handle )
@@ -464,7 +464,6 @@ CONTAINS
                                                 e, handle, i, iatom, iexcl, &
                                                 ikind, k, natoms_per_kind, &
                                                 nkind
-    INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure, &
                                                 force_eval
@@ -529,20 +528,19 @@ CONTAINS
        END DO atom
     END DO kinds
     IF (do_stress) THEN
-       pv(1,1) = pv(1,1) + ptens11
-       pv(1,2) = pv(1,2) + ptens12
-       pv(1,3) = pv(1,3) + ptens13
-       pv(2,1) = pv(2,1) + ptens21
-       pv(2,2) = pv(2,2) + ptens22
-       pv(2,3) = pv(2,3) + ptens23
-       pv(3,1) = pv(3,1) + ptens31
-       pv(3,2) = pv(3,2) + ptens32
-       pv(3,3) = pv(3,3) + ptens33
+       pv(1,1) = pv(1,1) +  ptens11
+       pv(1,2) = pv(1,2) + (ptens12+ptens21)*0.5_dp
+       pv(1,3) = pv(1,3) + (ptens13+ptens31)*0.5_dp
+       pv(2,1) = pv(2,1) + (ptens21+ptens12)*0.5_dp
+       pv(2,2) = pv(2,2) +  ptens22
+       pv(2,3) = pv(2,3) + (ptens23+ptens32)*0.5_dp
+       pv(3,1) = pv(3,1) + (ptens31+ptens13)*0.5_dp
+       pv(3,2) = pv(3,2) + (ptens32+ptens23)*0.5_dp
+       pv(3,3) = pv(3,3) +  ptens33
     END IF
 
     CALL timestop ( handle )
   END SUBROUTINE ewald_multipole_bonded
-
   
 ! *****************************************************************************
 !> \brief computes the potential and the force for a lattice sum of multipoles
@@ -590,9 +588,10 @@ CONTAINS
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure
     REAL(KIND=dp)                            :: alpha, denom, dipole_t(3), &
-                                                factor, four_alpha_sq, gauss, &
-                                                pref, q_t, tmp, trq_t
+                                                f0, factor, four_alpha_sq, &
+                                                gauss, pref, q_t, tmp, trq_t
     REAL(KIND=dp), DIMENSION(3)              :: tmp_v, vec
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_local
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
@@ -627,6 +626,7 @@ CONTAINS
     summe_ef = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     ! Stress Tensor
     IF (do_stress) THEN
+       pv_local = 0.0_dp
        ALLOCATE (summe_st(3,1:pw_grid%ngpts_cut), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        summe_st = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
@@ -716,6 +716,12 @@ CONTAINS
           ! G=0 vector for dipole-dipole and charge-quadrupole
           energy = energy + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t,dipole_t)&
                           - (1.0_dp/9.0_dp)*q_t*trq_t
+          ! Stress tensor
+          IF (do_stress) THEN
+             pv_local(1,1) = pv_local(1,1) + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t,dipole_t)
+             pv_local(2,2) = pv_local(2,2) + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t,dipole_t)
+             pv_local(3,3) = pv_local(3,3) + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t,dipole_t)
+          END IF
           ! Corrections for G=0 to potential, field and field gradient
           IF (do_efield.AND.(debug_e_field_en.OR.(.NOT.debug_this_module))) THEN
              ! This term is important and may give problems if one is debugging
@@ -811,25 +817,26 @@ CONTAINS
           ! The Stress Tensor can be decomposed in two main components.
           ! The first one is just a normal ewald component for reciprocal space
           denom = 1.0_dp/four_alpha_sq + 1.0_dp/pw_grid%gsq(gpt)
-          pv(1,1) = pv(1,1) + factor*(1.0_dp - 2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(1,gpt)*denom)
-          pv(1,2) = pv(1,2) - factor*(         2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(2,gpt)*denom)
-          pv(1,3) = pv(1,3) - factor*(         2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(3,gpt)*denom)
-          pv(2,1) = pv(2,1) - factor*(         2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(1,gpt)*denom)
-          pv(2,2) = pv(2,2) + factor*(1.0_dp - 2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(2,gpt)*denom)
-          pv(2,3) = pv(2,3) - factor*(         2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(3,gpt)*denom)
-          pv(3,1) = pv(3,1) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(1,gpt)*denom)
-          pv(3,2) = pv(3,2) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(2,gpt)*denom)
-          pv(3,3) = pv(3,3) + factor*(1.0_dp - 2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(3,gpt)*denom)
+          pv_local(1,1) = pv_local(1,1) + factor*(1.0_dp - 2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(1,gpt)*denom)
+          pv_local(1,2) = pv_local(1,2) - factor*(         2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(2,gpt)*denom)
+          pv_local(1,3) = pv_local(1,3) - factor*(         2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(3,gpt)*denom)
+          pv_local(2,1) = pv_local(2,1) - factor*(         2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(1,gpt)*denom)
+          pv_local(2,2) = pv_local(2,2) + factor*(1.0_dp - 2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(2,gpt)*denom)
+          pv_local(2,3) = pv_local(2,3) - factor*(         2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(3,gpt)*denom)
+          pv_local(3,1) = pv_local(3,1) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(1,gpt)*denom)
+          pv_local(3,2) = pv_local(3,2) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(2,gpt)*denom)
+          pv_local(3,3) = pv_local(3,3) + factor*(1.0_dp - 2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(3,gpt)*denom)
           ! The second one can be written in the following way
-          pv(1,1) = pv(1,1) + 2.0_dp * gauss * pw_grid%g(1,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
-          pv(1,2) = pv(1,2) + 2.0_dp * gauss * pw_grid%g(1,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
-          pv(1,3) = pv(1,3) + 2.0_dp * gauss * pw_grid%g(1,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
-          pv(2,1) = pv(2,1) + 2.0_dp * gauss * pw_grid%g(2,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
-          pv(2,2) = pv(2,2) + 2.0_dp * gauss * pw_grid%g(2,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
-          pv(2,3) = pv(2,3) + 2.0_dp * gauss * pw_grid%g(2,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
-          pv(3,1) = pv(3,1) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
-          pv(3,2) = pv(3,2) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
-          pv(3,3) = pv(3,3) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          f0 = 2.0_dp * gauss
+          pv_local(1,1) = pv_local(1,1) + f0 * pw_grid%g(1,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv_local(1,2) = pv_local(1,2) + f0 * pw_grid%g(1,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv_local(1,3) = pv_local(1,3) + f0 * pw_grid%g(1,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv_local(2,1) = pv_local(2,1) + f0 * pw_grid%g(2,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv_local(2,2) = pv_local(2,2) + f0 * pw_grid%g(2,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv_local(2,3) = pv_local(2,3) + f0 * pw_grid%g(2,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv_local(3,1) = pv_local(3,1) + f0 * pw_grid%g(3,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv_local(3,2) = pv_local(3,2) + f0 * pw_grid%g(3,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv_local(3,3) = pv_local(3,3) + f0 * pw_grid%g(3,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
        END IF
     END DO
     pref   = fourpi/pw_grid%vol
@@ -839,7 +846,17 @@ CONTAINS
     DEALLOCATE (summe_ef, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (do_stress) THEN
-       pv = pv * pref
+       pv_local = pv_local * pref
+       ! Symmetrize the tensor
+       pv(1,1) =  pv_local(1,1) 
+       pv(1,2) = (pv_local(1,2) + pv_local(2,1))*0.5_dp
+       pv(1,3) = (pv_local(1,3) + pv_local(3,1))*0.5_dp
+       pv(2,1) = (pv_local(2,1) + pv_local(1,2))*0.5_dp
+       pv(2,2) =  pv_local(2,2)
+       pv(2,3) = (pv_local(2,3) + pv_local(3,2))*0.5_dp
+       pv(3,1) = (pv_local(3,1) + pv_local(1,3))*0.5_dp
+       pv(3,2) = (pv_local(3,2) + pv_local(2,3))*0.5_dp
+       pv(3,3) =  pv_local(3,3)
        DEALLOCATE (summe_st, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF

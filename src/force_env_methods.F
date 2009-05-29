@@ -494,13 +494,14 @@ CONTAINS
           particles(ip)%r = pos_ref(iseq,:)
        END DO
        CALL init_cell(cell)
-
+       
        ! computing pv_test
        virial%pv_virial = 0.0_dp
        DO i = 1, 3
           DO j = 1, 3
              DO k = 1, 3
-                virial%pv_virial(i,j) = virial%pv_virial(i,j) + (-1.0_dp)*numer_stress(i,k)*cell_local%hmat(j,k)
+                virial%pv_virial(i,j) = virial%pv_virial(i,j) +&
+                     (-1.0_dp)*0.5_dp*(numer_stress(i,k)+numer_stress(k,i))*cell_local%hmat(j,k)
              END DO
           END DO
        END DO

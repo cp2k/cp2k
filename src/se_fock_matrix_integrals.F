@@ -1011,11 +1011,12 @@ CONTAINS
 !> \date   05.2009 [tlaino]
 ! *****************************************************************************
   SUBROUTINE se_coulomb_ij_interaction (atom_a, atom_b, my_task, do_forces, do_efield,&
-       charges, dipoles, quadrupoles, force_ab, efield0, efield1, efield2, rab2, rab,&
-       integral_value, error)
+       do_stress, charges, dipoles, quadrupoles, force_ab, efield0, efield1, efield2, &
+       rab2, rab, integral_value, error)
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     LOGICAL, DIMENSION(3)                    :: my_task
-    LOGICAL, INTENT(IN)                      :: do_forces, do_efield
+    LOGICAL, INTENT(IN)                      :: do_forces, do_efield, &
+                                                do_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &

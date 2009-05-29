@@ -104,3 +104,11 @@ deca_ala_noavg.inp                    2
 # dang-chang model
 H2O-dimer-dangchang.inp               2
 H2OandI-dangchang.inp                 2
+# multipole stress tensor
+multipole_ch_dip.dbg_st.inp          11
+multipole_ch_dip_qu.dbg_st.inp       11
+multipole_ch_qu.dbg_st.inp           11
+multipole_charge.dbg_st.inp          11
+multipole_dip_qu.dbg_st.inp          11
+multipole_dipole.dbg_st.inp          11
+multipole_quadrupole.dbg_st.inp      11

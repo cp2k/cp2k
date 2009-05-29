@@ -1114,9 +1114,10 @@ CONTAINS
 
                       ! Point-like interaction corrections
                       CALL se_coulomb_ij_interaction (iatom, jatom, task, do_forces=calculate_forces,&
-                           do_efield=.TRUE., charges=se_nddo_mpole%charge, dipoles=se_nddo_mpole%dipole,&
-                           quadrupoles=se_nddo_mpole%quadrupole, force_ab=force_ab0, efield0=efield0,&
-                           efield1=efield1, efield2=efield2, rab2=dr1, rab=rij, error=error)
+                           do_efield=.TRUE., do_stress=use_virial, charges=se_nddo_mpole%charge, &
+                           dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole, &
+                           force_ab=force_ab0, efield0=efield0, efield1=efield1, efield2=efield2,&
+                           rab2=dr1, rab=rij, error=error)
                       
                       ! Retrieve blocks for KS and P
                       CALL get_block_node(matrix=diagmat_p(1)%matrix,&

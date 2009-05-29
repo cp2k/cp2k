@@ -16,12 +16,6 @@ INTERFACE
     USE ewald_environment_types,         ONLY: ewald_environment_type
     USE ewald_pw_types,                  ONLY: ewald_pw_type
     USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
-    USE kinds,                           ONLY: dp
-    USE parallel_rng_types,              ONLY: UNIFORM,&
-                                               create_rng_stream,&
-                                               delete_rng_stream,&
-                                               next_random_number,&
-                                               rng_stream_type
     USE particle_types,                  ONLY: particle_type
 #include "cp_common_uses.h"
     TYPE(ewald_environment_type), POINTER    :: ewald_env

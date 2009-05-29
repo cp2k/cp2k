@@ -49,9 +49,9 @@ MODULE cp2k_debug
   IMPLICIT NONE
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_debug'
+  REAL(KIND=dp), PRIVATE, PARAMETER :: MaxErr = 5.0_dp
 
   PUBLIC :: cp2k_debug_energy_and_forces
-  REAL(KIND=dp), PRIVATE, PARAMETER :: MaxErr = 5.0_dp
 
 CONTAINS
 
@@ -163,6 +163,20 @@ CPSourceFileRef,&
                      (virial_numerical%pv_virial(i,1:3)-virial_analytical%pv_virial(i,1:3), i=1,3)
                 WRITE (UNIT=iw,FMT="(/,'  *** DEBUG PV_VIRIAL - END   ***',/)")
              END IF
+             
+             ! Checkd and abort (in case..)
+             DO i = 1,3
+                Err = 0.0_dp
+                DO K = 1, 3
+                   IF (ABS(virial_numerical%pv_virial(i,K)) >= 1.0E-6_dp) THEN
+                      Err(K) = (virial_numerical%pv_virial(i,K)-&
+                           virial_analytical%pv_virial(i,K))/virial_numerical%pv_virial(i,K)*100.0_dp
+                   END IF
+                END DO
+                CPPostcondition(ABS(Err(1))<=MaxErr,cp_failure_level,routineP,error,failure)
+                CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,error,failure)
+                CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,error,failure)
+             END DO
              CALL virial_release(virial_analytical, error=error)
              CALL virial_release(virial_numerical, error=error)
           END IF
