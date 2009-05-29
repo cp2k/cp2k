@@ -14,6 +14,12 @@ MODULE qs_gspace_mixing
   USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
                                              copy_sm_to_fm,&
                                              cp_sm_fm_multiply
+  USE input_constants,                 ONLY: broy_mix,&
+                                             broy_mix_new,&
+                                             kerker_mix,&
+                                             multisec_mix,&
+                                             no_mix,&
+                                             pulay_mix
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
                                              invert_matrix
@@ -39,14 +45,11 @@ MODULE qs_gspace_mixing
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: cp_sm_mix
-  USE qs_scf_types,                    ONLY: broyden_mixing_new_nr,&
-                                             broyden_mixing_nr,&
-                                             cp_1d_z_p_type,&
-                                             gspace_mixing_nr,&
+  USE qs_scf_types,                    ONLY: cp_1d_z_p_type,&
                                              mixing_storage_type,&
-                                             multisecant_mixing_nr,&
-                                             pulay_mixing_nr,&
                                              qs_scf_env_type
+  USE scf_control_types,               ONLY: mixing_type,&
+                                             scf_control_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
                                              get_matrix_info,&
@@ -160,17 +163,20 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_q, matrix_s, p_in
+    TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(p_out),cp_failure_level,routineP,error,failure)
-    NULLIFY(auxbas_pw_pool, matrix_s, rho, matrix_q, p_in, para_env, pw_env)
-    NULLIFY(g2, pw_grid)
+    NULLIFY (auxbas_pw_pool, matrix_s, rho, matrix_q, p_in, para_env, pw_env)
+    NULLIFY (g2, pw_grid)
+    NULLIFY (scf_control)
 
     CALL get_qs_env(qs_env=qs_env,  &
                     dft_control=dft_control,&
+                    scf_control=scf_control,&
                     matrix_s=matrix_s,&
                     pw_env=pw_env,&
                     rho=rho,& 
@@ -200,8 +206,8 @@ CONTAINS
       RETURN
     END IF
 
-    a_mix = scf_env%mixing_store%alpha
-    b_mix = scf_env%mixing_store%beta
+    a_mix = scf_control%mixing%alpha
+    b_mix = scf_control%mixing%beta
 
     !Collocate the density difference on the grid in realspace
     gapw = dft_control%qs_control%gapw
@@ -262,25 +268,27 @@ CONTAINS
        CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,scf_env%s_minus_one,&
             scf_env%scf_work2,0.0_dp,scf_env%scf_work1(ispin)%matrix,error=error )
 
-!       a_mix = 1.0_dp-scf_env%p_mix_alpha
+!       a_mix = 1.0_dp-scf_control%mixing%alpha
 !       CALL copy_fm_to_sm(scf_env%scf_work1(ispin)%matrix,&
 !            p_out(ispin)%matrix,a_mix,1.0_dp)
 
-       a_mix = scf_env%p_mix_alpha
+       a_mix = scf_control%mixing%alpha
        CALL copy_fm_to_sm(scf_env%scf_work1(ispin)%matrix,&
             p_out(ispin)%matrix,a_mix,0.0_dp)
        CALL cp_sm_scale_and_add(p_out(ispin)%matrix,1.0_dp,p_in(ispin)%matrix,1.0_dp,error)
        CALL cp_sm_sm_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, para_env, error)
-       t2 =t1/ trace
+       t2 = t1/trace
        CALL scale_matrix(p_out(ispin)%matrix,t2)
        
     END DO  !ispin
+
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhog%pw,error=error)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,kerker_pot_rspace%pw,error=error)
 
     CALL timestop(handle)
 
   END SUBROUTINE gspace_density_mixing
+
 ! *****************************************************************************
 !> \brief  Driver for the g-space mixing, calls the proper routine given the
 !requested method
@@ -288,8 +296,9 @@ CONTAINS
 !>      05.2009 
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE gspace_mixing(scf_env, rho, para_env, error)
+  SUBROUTINE gspace_mixing(scf_env, scf_control, rho, para_env, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -305,22 +314,23 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_env%mixing_store),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
 
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(rho%rho_g(1)%pw%pw_grid%gsq)
-    alpha = scf_env%mixing_store%alpha
+    alpha = scf_control%mixing%alpha
 
-    IF(scf_env%iter_count+1 <= scf_env%nskip_mixing) THEN
+    IF (scf_env%iter_count+1 <= scf_control%mixing%nskip_mixing) THEN
       ! skip mixing
       DO ispin = 1,nspin
         DO ig = 1,ng
           scf_env%mixing_store%rhoin_buffer(1,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
         END DO
       END DO
-       scf_env%mixing_store%iter_method= "NoMix"
+      scf_env%mixing_store%iter_method= "NoMix"
       RETURN
     END IF
-    IF((scf_env%iter_count+1 - scf_env%nskip_mixing) <= scf_env%mixing_store%n_simple_mix) THEN
+    IF((scf_env%iter_count+1 - scf_control%mixing%nskip_mixing) <= scf_control%mixing%n_simple_mix) THEN
       ! Simple Kerker damping : rho(G)=rho_in(G)-alpha k(G)*(rho_out(G)-rho_in(G))
       DO ispin = 1,nspin
         DO ig = 1,ng
@@ -336,22 +346,25 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-      IF(scf_env%mixing_method==gspace_mixing_nr) THEN
-            CALL gmix_potential_only(scf_env%mixing_store, rho, error)
-       scf_env%mixing_store%iter_method= "Kerker"
-      ELSEIF(scf_env%mixing_method==pulay_mixing_nr) THEN
-            CALL pulay_mixing(scf_env%mixing_store, rho, para_env, error)
-       scf_env%mixing_store%iter_method= "Pulay"
-      ELSEIF(scf_env%mixing_method==broyden_mixing_nr) THEN
-            CALL broyden_mixing(scf_env%mixing_store, rho, para_env, error)
-       scf_env%mixing_store%iter_method= "Broy."
-      ELSEIF(scf_env%mixing_method==broyden_mixing_new_nr) THEN
-            CALL broyden_mixing_new(scf_env%mixing_store, rho, para_env, error)
-       scf_env%mixing_store%iter_method= "Broy."
-      ELSEIF(scf_env%mixing_method==multisecant_mixing_nr) THEN
-            CALL multisecant_mixing(scf_env%mixing_store, rho, para_env, error)
-       scf_env%mixing_store%iter_method= "MSec."
-      END IF
+    SELECT CASE (scf_control%mixing%method)
+    CASE (no_mix)
+      scf_env%mixing_store%iter_method= "NoMix"
+    CASE (kerker_mix)
+      CALL gmix_potential_only(scf_env%mixing_store,scf_control%mixing,rho,error)
+      scf_env%mixing_store%iter_method = "Kerker"
+    CASE (pulay_mix)
+      CALL pulay_mixing(scf_env%mixing_store,scf_control%mixing,rho,para_env,error)
+      scf_env%mixing_store%iter_method = "Pulay"
+    CASE (broy_mix)
+      CALL broyden_mixing(scf_env%mixing_store,scf_control%mixing,rho,para_env,error)
+      scf_env%mixing_store%iter_method = "Broy."
+    CASE (broy_mix_new)
+      CALL broyden_mixing_new(scf_env%mixing_store,scf_control%mixing,rho,para_env,error)
+      scf_env%mixing_store%iter_method = "Broy."
+    CASE (multisec_mix)
+      CALL multisecant_mixing(scf_env%mixing_store,scf_control%mixing,rho,para_env,error)
+      scf_env%mixing_store%iter_method = "MSec."
+    END SELECT
 
     DO ispin=1,nspin
       CALL pw_transfer(rho%rho_g(ispin)%pw,rho%rho_r(ispin)%pw)
@@ -371,9 +384,10 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
 
-  SUBROUTINE gmix_potential_only (mixing_store, rho, error)
+  SUBROUTINE gmix_potential_only (mixing_store, mixing, rho, error)
 
     TYPE(mixing_storage_type), POINTER       :: mixing_store
+    TYPE(mixing_type), INTENT(IN)            :: mixing
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -388,7 +402,7 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(mixing_store%rhoin_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store%kerker_factor),cp_failure_level,routineP,error,failure)
-    CPPrecondition(mixing_store%nbuffer==1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(mixing%nbuffer==1,cp_failure_level,routineP,error,failure)
 
     CALL timeset(routineN,handle)
 
@@ -400,8 +414,8 @@ CONTAINS
     DO ispin = 1,nspin
       cc_new =>  rho%rho_g(ispin)%pw%cc
       DO ig = 1,ng
-         f_mix = mixing_store%alpha*mixing_store%kerker_factor(ig)
-         cc_new(ig) = (1.0_dp-f_mix)*mixing_store%rhoin_buffer(1,ispin)%cc(ig)+f_mix*cc_new(ig) 
+         f_mix = mixing%alpha*mixing_store%kerker_factor(ig)
+         cc_new(ig) = (1.0_dp - f_mix)*mixing_store%rhoin_buffer(1,ispin)%cc(ig) + f_mix*cc_new(ig) 
          mixing_store%rhoin_buffer(1,ispin)%cc(ig) = cc_new(ig)
       END DO
     END DO
@@ -420,9 +434,10 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
 
-  SUBROUTINE pulay_mixing(mixing_store, rho, para_env, error)
+  SUBROUTINE pulay_mixing(mixing_store, mixing, rho, para_env, error)
 
     TYPE(mixing_storage_type), POINTER       :: mixing_store
+    TYPE(mixing_type), INTENT(IN)            :: mixing
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -451,10 +466,10 @@ CONTAINS
     ng = SIZE(mixing_store%res_buffer(1,1)%cc)
     vol = rho%rho_g(1)%pw%pw_grid%vol
 
-    alpha_kerker=mixing_store%alpha
-    beta=mixing_store%beta
-    alpha_pulay = mixing_store%pulay_alpha
-    nbuffer = mixing_store%nbuffer
+    alpha_kerker = mixing%alpha
+    beta = mixing%beta
+    alpha_pulay = mixing%pulay_alpha
+    nbuffer = mixing%nbuffer
 
     ib = MODULO(mixing_store%ncall,nbuffer) + 1
     mixing_store%ncall = mixing_store%ncall + 1
@@ -522,7 +537,7 @@ CONTAINS
          mixing_store%pulay_matrix(ib,jb) = mixing_store%pulay_matrix(jb,ib)
       END DO
 
-      IF( nb==1) THEN
+      IF (nb == 1) THEN
         DO ig = 1,ng
            f_mix = alpha_kerker*mixing_store%kerker_factor(ig)
            cc_mix(ig) = rho%rho_g(ispin)%pw%cc(ig) -&
@@ -610,9 +625,10 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
 
-  SUBROUTINE broyden_mixing(mixing_store, rho, para_env, error)
+  SUBROUTINE broyden_mixing(mixing_store, mixing, rho, para_env, error)
 
     TYPE(mixing_storage_type), POINTER       :: mixing_store
+    TYPE(mixing_type), INTENT(IN)            :: mixing
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -641,10 +657,10 @@ CONTAINS
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(mixing_store%res_buffer(1,1)%cc)
 
-    alpha=mixing_store%alpha
-    beta=mixing_store%beta
-    w0 = mixing_store%broy_w0
-    nbuffer = mixing_store%nbuffer
+    alpha = mixing%alpha
+    beta = mixing%beta
+    w0 = mixing%broy_w0
+    nbuffer = mixing%nbuffer
 
     ib = MODULO(mixing_store%ncall,nbuffer) + 1
     mixing_store%ncall = mixing_store%ncall + 1
@@ -771,9 +787,10 @@ CONTAINS
 
  END SUBROUTINE broyden_mixing
 
- SUBROUTINE broyden_mixing_new(mixing_store, rho, para_env,  error)
+ SUBROUTINE broyden_mixing_new(mixing_store, mixing, rho, para_env,  error)
 
     TYPE(mixing_storage_type), POINTER       :: mixing_store
+    TYPE(mixing_type), INTENT(IN)            :: mixing
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -808,13 +825,12 @@ CONTAINS
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(mixing_store%rhoin_buffer(1,1)%cc)
     vol = rho%rho_g(1)%pw%pw_grid%vol
-    alpha=mixing_store%alpha
-    beta=mixing_store%beta
+    alpha = mixing%alpha
+    beta = mixing%beta
 
-
-    wc = mixing_store%wc
-    wmax = mixing_store%wmax
-    nbuffer = mixing_store%nbuffer
+    wc = mixing%broy_wref
+    wmax = mixing%broy_wmax
+    nbuffer = mixing%nbuffer
 
     mixing_store%ncall = mixing_store%ncall + 1
     ib = MIN(mixing_store%ncall,nbuffer) 
@@ -882,12 +898,12 @@ CONTAINS
       delta_rhog = delta_rhog + delta
       delta_rhog_p = delta_rhog_p + delta_p
 
-      weight(ib,ispin) = mixing_store%wc
-      IF(wc< 0.0_dp) weight(ib,ispin) = 0.01_dp*ABS(wc)/(delta_p*delta_p)
-      IF(weight(ib,ispin)==0.0_dp) weight(ib,ispin) = 100.0_dp
-      IF(weight(ib,ispin)<1.0_dp) weight(ib,ispin) = 1.0_dp
+      weight(ib,ispin) = wc
+      IF (wc < 0.0_dp) weight(ib,ispin) = 0.01_dp*ABS(wc)/(delta_p*delta_p)
+      IF (weight(ib,ispin) == 0.0_dp) weight(ib,ispin) = 100.0_dp
+      IF (weight(ib,ispin) < 1.0_dp) weight(ib,ispin) = 1.0_dp
 
-      IF(ib==1) THEN
+      IF (ib == 1) THEN
         ! Simple Kerker damping : linear mixing rho(G) = rho_in(G) - alpha k(G)*(rho_out(G)-rho_in(G))
         DO ig = 1,ng
           f_mix = alpha*mixing_store%kerker_factor(ig)
@@ -1004,7 +1020,7 @@ CONTAINS
         ! Broyden second method requires also bq (NYI) 
         skip_bq = .TRUE.
         DO jb = 1,ib-1
-          skip_bq = skip_bq .AND. (weight(jb,ispin)>mixing_store%wmax) 
+          skip_bq = skip_bq .AND. (weight(jb,ispin) > wmax) 
           DO kb = 1, ib - 2
             bq(jb,kb) = 0.0_dp
             DO kkb = 1, ib-1
@@ -1028,7 +1044,7 @@ CONTAINS
             ! sum_{kb} bq(jb,kb) * z_vec_{kb,iter-2}
             ! added only for small weights
             DO kb = 1,ib-2
-               IF(weight(kb,ispin) >=(10._dp*mixing_store%wmax))  CYCLE
+               IF (weight(kb,ispin) >= (10.0_dp*wmax)) CYCLE
                DO ig = 1,ng
                  tmp(ig) = tmp(ig) + bq(jb,kb)*z_vec(kb,ispin)%cc(ig)
                END DO
@@ -1043,7 +1059,7 @@ CONTAINS
           END DO
 
           ! store the new z_vec(jb)
-          IF(skip_bq .OR. (weight(jb,ispin) >=(10._dp*mixing_store%wmax))) THEN
+          IF (skip_bq .OR. (weight(jb,ispin) >= (10.0_dp*wmax))) THEN
              z_vec(jb,ispin)%cc(:) = tmp(:)
           ELSE
              ! temporary array: old z_vec may still be needed
@@ -1053,7 +1069,7 @@ CONTAINS
 
         IF(.NOT. skip_bq ) THEN
           DO jb = 1,ib-1
-             IF (weight(jb,ispin) < (10._dp*mixing_store%wmax))  z_vec(jb,ispin)%cc(:) = tmp_z(jb)%cc(:)
+             IF (weight(jb,ispin) < (10.0_dp*wmax))  z_vec(jb,ispin)%cc(:) = tmp_z(jb)%cc(:)
              DEALLOCATE(tmp_z(jb)%cc,STAT=istat)
           END DO
           DEALLOCATE(tmp_z,STAT=istat)
@@ -1086,7 +1102,7 @@ CONTAINS
       END IF  ! ib
 
       mixing_store%last_res(ispin)%cc(:) = res_rho(:)
-      IF(mixing_store%ncall>=nbuffer) THEN
+      IF (mixing_store%ncall >= nbuffer) THEN
           DO jb = 1,nbuffer - 2
              mixing_store%rhoin_buffer(jb,ispin)%cc(:) = mixing_store%rhoin_buffer(jb+1,ispin)%cc(:)
              mixing_store%delta_res(jb,ispin)%cc(:) = mixing_store%delta_res(jb+1,ispin)%cc(:)
@@ -1127,9 +1143,10 @@ CONTAINS
 !>      03.2009 
 !> \author MI
 ! *****************************************************************************
- SUBROUTINE multisecant_mixing(mixing_store,rho,para_env,error)
+ SUBROUTINE multisecant_mixing(mixing_store,mixing,rho,para_env,error)
 
     TYPE(mixing_storage_type), POINTER       :: mixing_store
+    TYPE(mixing_type), INTENT(IN)            :: mixing
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1174,12 +1191,12 @@ CONTAINS
     nspin = SIZE(rho%rho_g,1)
     ng_global = rho%rho_g(1)%pw%pw_grid%ngpts
     ng = SIZE(mixing_store%rhoin_buffer(1,1)%cc)
-    alpha=mixing_store%alpha
-  
-    sigma_max = mixing_store%sigma_max
-    reg_par = mixing_store%reg_par
-    r_step  =  mixing_store%r_step
-    nbuffer = mixing_store%nbuffer
+
+    alpha = mixing%alpha
+    sigma_max = mixing%sigma_max
+    reg_par = mixing%reg_par
+    r_step = mixing%r_step
+    nbuffer = mixing%nbuffer
 
     ! determine the step number, and multisecant iteration 
     nb  = MIN(mixing_store%ncall,nbuffer-1)
@@ -1211,7 +1228,7 @@ CONTAINS
         DO ig = 1,ng
           f_mix = alpha*mixing_store%kerker_factor(ig)
           rho%rho_g(ispin)%pw%cc(ig) = mixing_store%rhoin_buffer(1,ispin)%cc(ig) + &
-              f_mix*  mixing_store%res_buffer(1,ispin)%cc(ig)
+              f_mix*mixing_store%res_buffer(1,ispin)%cc(ig)
           mixing_store%rhoin_buffer(ib_next,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
         END DO
       END DO

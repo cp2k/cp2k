@@ -41,8 +41,7 @@ TYPE kg_scf_env_type
    INTEGER :: mixing_method
    REAL(KIND = dp) :: iter_param
    REAL(KIND = dp) :: iter_delta
-   REAL(KIND = dp) :: p_mix_alpha
-   CHARACTER (len=15) :: iter_method
+   CHARACTER (LEN=15) :: iter_method
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new
    TYPE(kg_diis_buffer_type), POINTER :: scf_diis_buffer
 END TYPE kg_scf_env_type

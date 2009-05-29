@@ -732,9 +732,11 @@ MODULE input_constants
 
   ! Define identifier codes for mixing method
 
-  INTEGER, PARAMETER, PUBLIC               :: no_mix =0, direct_p_mix=1,&
-                                              kerker_mix =2,&
-                                              pulay_mix=3, broy_mix=4,&
+  INTEGER, PARAMETER, PUBLIC               :: no_mix=0,&
+                                              direct_p_mix=1,&
+                                              kerker_mix=2,&
+                                              pulay_mix=3,&
+                                              broy_mix=4,&
                                               broy_mix_new=5,&
                                               multisec_mix=6
 

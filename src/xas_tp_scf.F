@@ -38,6 +38,7 @@ MODULE xas_tp_scf
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: core_guess,&
+                                             direct_p_mix,&
                                              ot_precond_full_kinetic,&
                                              ot_precond_solver_default,&
                                              xas_dscf,&
@@ -84,8 +85,7 @@ MODULE xas_tp_scf
                                              scf_env_do_scf
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              scf_env_density_mixing
-  USE qs_scf_types,                    ONLY: direct_mixing_nr,&
-                                             qs_scf_env_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              transfer_matrix
@@ -269,9 +269,9 @@ CONTAINS
             calculate_forces=.FALSE.,just_energy=energy_only)
 
        scf_env%iter_param = 0.0_dp
-       IF (scf_env%mixing_method==direct_mixing_nr) THEN
-            scf_env%p_mix_alpha = xas_env%p_mix
-            scf_env%iter_param = scf_env%p_mix_alpha
+       IF (scf_control%mixing%method == direct_p_mix) THEN
+            scf_control%mixing%alpha = xas_env%p_mix
+            scf_env%iter_param = scf_control%mixing%alpha
        END IF
 
        SELECT CASE (xas_env%scf_method)
@@ -418,7 +418,7 @@ CONTAINS
 
        END SELECT
 
-       IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
+       IF (scf_control%mixing%method == direct_p_mix) THEN
           CALL scf_env_density_mixing(scf_env%p_mix_new,&
                scf_env,scf_env%iter_delta,&
                qs_env=qs_env,diis=diis_step, error=error)
@@ -470,7 +470,7 @@ CONTAINS
          xas_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
        !   *** mixing methods have the new density matrix in p_mix_new
-       IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
+       IF (scf_control%mixing%method == direct_p_mix) THEN
           DO ispin=1,dft_control%nspins
              CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
                   rho%rho_ao(ispin)%matrix,error=error)

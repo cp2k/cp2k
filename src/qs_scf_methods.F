@@ -106,9 +106,9 @@ CONTAINS
     failure=.FALSE.
     my_invert=.FALSE.
     IF (PRESENT(invert)) my_invert=invert
-    my_p_mix = scf_env%p_mix_alpha
-    IF (diis .OR. scf_env%iter_count<scf_env%nskip_mixing) THEN
-        my_p_mix = 1.0_dp
+    my_p_mix = qs_env%scf_control%mixing%alpha
+    IF (diis.OR.(scf_env%iter_count < qs_env%scf_control%mixing%nskip_mixing)) THEN
+       my_p_mix = 1.0_dp
     END IF
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)

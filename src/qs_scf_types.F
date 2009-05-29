@@ -40,11 +40,6 @@ MODULE qs_scf_types
                                 special_diag_method_nr=2,&
                                 ot_diag_method_nr=3,&
                                 ot_method_nr=10
-  INTEGER, PARAMETER, PUBLIC :: no_mixing_nr=0, direct_mixing_nr=1,&
-                                 gspace_mixing_nr=2, pulay_mixing_nr=3,&
-                                 broyden_mixing_nr=4, &
-                                 broyden_mixing_new_nr=5,&
-                                 multisecant_mixing_nr=6
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
@@ -59,31 +54,27 @@ MODULE qs_scf_types
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-TYPE qs_outer_scf_type
-   INTEGER :: iter_count
-
-   ! these are the variable of outer loop.
-   ! right now, we assume that they can be easily written as
-   ! small arrays, but we might want to go the cp_fm_types
-   ! at a later stage
-   ! also, we just store the full iteration history
-   REAL(KIND=dp), DIMENSION(:), POINTER :: energy
-   REAL(KIND=dp), DIMENSION(:,:), POINTER :: variables
-   REAL(KIND=dp), DIMENSION(:,:), POINTER :: gradient
-   INTEGER, DIMENSION(:), POINTER :: count
-
-END TYPE qs_outer_scf_type
+  TYPE qs_outer_scf_type
+     INTEGER :: iter_count
+     ! these are the variable of outer loop.
+     ! right now, we assume that they can be easily written as
+     ! small arrays, but we might want to go the cp_fm_types
+     ! at a later stage
+     ! also, we just store the full iteration history
+     REAL(KIND=dp), DIMENSION(:), POINTER :: energy
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: variables
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: gradient
+     INTEGER, DIMENSION(:), POINTER :: count
+  END TYPE qs_outer_scf_type
 
   TYPE cp_1d_z_p_type
      COMPLEX(dp), DIMENSION(:), POINTER :: cc
   END TYPE cp_1d_z_p_type
 
   TYPE mixing_storage_type
-     INTEGER :: ref_count, ncall, nbuffer, n_simple_mix, p_metric_method
+     CHARACTER (LEN=15) :: iter_method
+     INTEGER :: ref_count, ncall
      INTEGER, POINTER, DIMENSION(:) :: ig_global_index
-     CHARACTER (len=15) :: iter_method
-     REAL(dp) :: alpha, bconst, beta, broy_w0, pulay_alpha, r_step,&
-                 reg_par, sigma_max, wc, wmax
      REAL(dp), DIMENSION(:), POINTER :: p_metric
      REAL(KIND=dp), DIMENSION(:), POINTER :: kerker_factor
      REAL(dp), DIMENSION(:,:), POINTER :: weight
@@ -91,27 +82,26 @@ END TYPE qs_outer_scf_type
      REAL(dp), DIMENSION(:,:,:), POINTER :: fmat, gmat, smat
      TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: last_res
      TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: delta_res, u_vec, z_vec
-     TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER ::drho_buffer, rhoin_buffer, &
+     TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: drho_buffer, rhoin_buffer, &
       res_buffer
   END TYPE mixing_storage_type
 
-! *****************************************************************************
-TYPE qs_scf_env_type
-   TYPE(qs_outer_scf_type) :: outer_scf
-   INTEGER :: ref_count, id_nr, print_count, iter_count
-   INTEGER :: cholesky_method, nelectron, method, mixing_method, nskip_mixing
-   REAL(KIND = dp) :: iter_param, iter_delta, p_mix_alpha
-   CHARACTER (len=15) :: iter_method
-   COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
-   LOGICAL :: print_iter_line, skip_mixing, skip_diis
-   TYPE(mixing_storage_type), POINTER :: mixing_store
-   TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
-   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, s_half, s_minus_one
-   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
-   TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
-   TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
-END TYPE qs_scf_env_type
+  TYPE qs_scf_env_type
+     TYPE(qs_outer_scf_type) :: outer_scf
+     INTEGER :: ref_count, id_nr, print_count, iter_count
+     INTEGER :: cholesky_method, nelectron, method
+     REAL(KIND = dp) :: iter_param, iter_delta
+     CHARACTER (LEN=15) :: iter_method
+     COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
+     LOGICAL :: print_iter_line, skip_mixing, skip_diis
+     TYPE(mixing_storage_type), POINTER :: mixing_store
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
+     TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, s_half, s_minus_one
+     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
+     TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
+     TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
+     TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
+  END TYPE qs_scf_env_type
 
 CONTAINS
 
@@ -157,21 +147,19 @@ CONTAINS
        scf_env%skip_diis=.FALSE.
 
        scf_env%method= -1
-       scf_env%mixing_method = -1
-       scf_env%p_mix_alpha=1.0_dp
-       scf_env%nskip_mixing = 0
        scf_env%cholesky_method = -1
 
        scf_env%outer_scf%iter_count=0
-       NULLIFY(scf_env%outer_scf%variables, &
-            scf_env%outer_scf%gradient,scf_env%outer_scf%energy,scf_env%outer_scf%count)
+       NULLIFY (scf_env%outer_scf%variables, &
+                scf_env%outer_scf%gradient,scf_env%outer_scf%energy,&
+                scf_env%outer_scf%count)
 
-       NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
-            scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
-            scf_env%scf_diis_buffer)
+       NULLIFY (scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
+                scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
+                scf_env%scf_diis_buffer)
        NULLIFY (scf_env%s_half, scf_env%p_delta,  scf_env%s_minus_one)
-       NULLIFY(scf_env%cc_buffer)
-       NULLIFY(scf_env%mixing_store)
+       NULLIFY (scf_env%cc_buffer)
+       NULLIFY (scf_env%mixing_store)
 
     END IF
 
@@ -359,30 +347,26 @@ CONTAINS
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       IF (.NOT.failure) THEN
 
-        mixing_store%ref_count=1
-        mixing_store%nbuffer=0
-        mixing_store%n_simple_mix=0
-        mixing_store%ncall=0
-        mixing_store%alpha=1.0_dp
-        mixing_store%beta=1.0_dp
+        mixing_store%ref_count = 1
+        mixing_store%ncall = 0
         mixing_store%iter_method = "NoMix"
-     
-        NULLIFY(mixing_store%p_metric)
-        NULLIFY(mixing_store%kerker_factor)
-        NULLIFY(mixing_store%pulay_matrix)
-        NULLIFY(mixing_store%weight)
-        NULLIFY(mixing_store%fmat)
-        NULLIFY(mixing_store%gmat)
-        NULLIFY(mixing_store%smat)
-        NULLIFY(mixing_store%last_res)
-        NULLIFY(mixing_store%delta_res)
-        NULLIFY(mixing_store%u_vec)
-        NULLIFY(mixing_store%z_vec)
-        NULLIFY(mixing_store%drho_buffer)
-        NULLIFY(mixing_store%rhoin_buffer)
-        NULLIFY(mixing_store%res_buffer)
-        NULLIFY(mixing_store%norm_res_buffer)
-        NULLIFY(mixing_store%ig_global_index)
+
+        NULLIFY (mixing_store%p_metric)
+        NULLIFY (mixing_store%kerker_factor)
+        NULLIFY (mixing_store%pulay_matrix)
+        NULLIFY (mixing_store%weight)
+        NULLIFY (mixing_store%fmat)
+        NULLIFY (mixing_store%gmat)
+        NULLIFY (mixing_store%smat)
+        NULLIFY (mixing_store%last_res)
+        NULLIFY (mixing_store%delta_res)
+        NULLIFY (mixing_store%u_vec)
+        NULLIFY (mixing_store%z_vec)
+        NULLIFY (mixing_store%drho_buffer)
+        NULLIFY (mixing_store%rhoin_buffer)
+        NULLIFY (mixing_store%res_buffer)
+        NULLIFY (mixing_store%norm_res_buffer)
+        NULLIFY (mixing_store%ig_global_index)
 
       END IF
     END IF
@@ -529,7 +513,8 @@ CONTAINS
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
-  NULLIFY(mixing_store)
+
+  NULLIFY (mixing_store)
 
 END SUBROUTINE mixing_storage_release
 

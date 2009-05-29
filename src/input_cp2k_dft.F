@@ -282,9 +282,7 @@ CONTAINS
 
     CALL keyword_create(keyword=keyword,&
          name="UKS",&
-         variants=s2a("UNRESTRICTED_KOHN_SHAM",&
-         "LSD",&
-         "SPIN_POLARIZED"),&
+         variants=s2a("UNRESTRICTED_KOHN_SHAM","LSD","SPIN_POLARIZED"),&
          description="Requests a spin-polarized calculation using alpha "//&
          "and beta orbitals, i.e. no spin restriction is applied",&
          usage="LSD",&
@@ -7290,12 +7288,12 @@ CONTAINS
 
       CALL section_create(section,&
                           name="MIXING",&
-                          description="Define the type and parameters for mixing"//&
+                          description="Define type and the parameters for mixing"//&
                           "procedures to be applied to the density matrix. Normally, "//&
                           "only one type of mixing method should be accepted. The mixing "//&
-                          "procedures activated by this section are only active for diagonalization"//&
-                         " methods, i.e. not with minimization methods based on OT.",&
-                          n_keywords=6,&
+                          "procedures activated by this section are only active for diagonalization "//&
+                          "methods, i.e. not with minimization methods based on OT.",&
+                          n_keywords=15,&
                           n_subsections=0,&
                           repeats=.FALSE.,&
                           required=.FALSE.,&
@@ -7303,15 +7301,15 @@ CONTAINS
 
       NULLIFY (keyword)
 
-!      CALL keyword_create(keyword,&
-!                          name="_SECTION_PARAMETERS_",&
-!                          description="Controls the activation of mixing",&
-!                          usage="&MIXING ON",&
-!                          default_l_val=.TRUE.,&
-!                          lone_keyword_l_val=.TRUE.,&
-!                          error=error)
-!      CALL section_add_keyword(section,keyword,error=error)
-!      CALL keyword_release(keyword,error=error)
+      CALL keyword_create(keyword,&
+                          name="_SECTION_PARAMETERS_",&
+                          description="Controls the activation of the mixing procedures",&
+                          usage="&MIXING ON",&
+                          default_l_val=.TRUE.,&
+                          lone_keyword_l_val=.TRUE.,&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword,&
                           name="METHOD",&
@@ -7353,8 +7351,8 @@ CONTAINS
 
       CALL keyword_create(keyword,&
                           name="BETA",&
-                          description="Denominator parameter in Kerker damping"//&
-                             " introduced to suppress charge sloshing: rho_mix(g) ="//&
+                          description="Denominator parameter in Kerker damping "//&
+                             "introduced to suppress charge sloshing: rho_mix(g) ="//&
                              "rho_in(g) + alpha*g^2/(g^2 + beta^2)*(rho_out(g)-"//&
                              "rho_in(g))",&
                           required=.FALSE.,&
@@ -7370,7 +7368,7 @@ CONTAINS
 
       CALL keyword_create(keyword,&
                           name="PULAY_ALPHA",&
-                          description="Fraction of new density to be added to the Pulay expansiond",&
+                          description="Fraction of new density to be added to the Pulay expansion",&
                           required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
@@ -7382,27 +7380,20 @@ CONTAINS
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="NMIXING",&
-            description="Minimal number of density mixing (should be greater than 0),"//&
-            "before starting DIIS",&
-            usage="NMIXING 1", default_i_val=2,error=error)
+                          description="Minimal number of density mixing (should be greater than 0),"//&
+                                      "before starting DIIS",&
+                          usage="NMIXING 1",&
+                          default_i_val=2,&
+                          error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="NPULAY",&
-            description="Number of previous steps stored for the Pulay mixing scheme",&
-            usage="NPULAY 1", default_i_val=4,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
-
-      CALL keyword_create(keyword, name="NBROYDEN",&
-            description="Number of previous steps stored for the Broyden mixing scheme",&
-            usage="NPULAY 10", default_i_val=8,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
-
-      CALL keyword_create(keyword, name="NMULTISECANT",&
-            description="Number of previous steps stored for the multisecant mixing scheme",&
-            usage="NMULTISECANT 1", default_i_val=4,error=error)
+      CALL keyword_create(keyword, name="NBUFFER",&
+                          variants=s2a("NPULAY","NBROYDEN","NMULTISECANT"),&
+                          description="Number of previous steps stored for the actual mixing scheme",&
+                          usage="NBUFFER 2",&
+                          default_i_val=4,&
+                          error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
@@ -7440,14 +7431,14 @@ CONTAINS
                           n_var=1,&
                           type_of_var=real_t,&
                           default_r_val=30.0_dp,&
-                          usage="BROY_WMAX 10.",&
+                          usage="BROY_WMAX 10.0",&
                           error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword,&
-                          name="REGOLARIZATION",&
-                          description="Regolarization parameter to stabilize "//&
+                          name="REGULARIZATION",&
+                          description="Regularization parameter to stabilize "//&
                           "the inversion of the residual matrix {Yn^t Yn} in the "//&
                           "multisecant mixing scheme (noise)",&
                           required=.FALSE.,&
@@ -7455,7 +7446,7 @@ CONTAINS
                           n_var=1,&
                           type_of_var=real_t,&
                           default_r_val=0.00001_dp,&
-                          usage="REGOLARIZATION .000001",&
+                          usage="REGULARIZATION 0.000001",&
                           error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -7491,14 +7482,20 @@ CONTAINS
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="NSKIP",&
-            description="Number of initial iteration for which the mixing is skipped",&
-            usage="NSKIP", default_i_val=0,error=error)
+                          variants=(/"NSKIP_MIXING"/),&
+                          description="Number of initial iteration for which the mixing is skipped",&
+                          usage="NSKIP 10",&
+                          default_i_val=0,&
+                          error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="NSIMPLEMIX",&
-            description="Number of kerker damping iteration before starting other mixing procedures",&
-            usage="NSIMPLEMIX", default_i_val=0,error=error)
+      CALL keyword_create(keyword, name="N_SIMPLE_MIX",&
+                          variants=(/"NSIMPLEMIX"/),&
+                          description="Number of Kerker damping iteration before starting other mixing procedures",&
+                          usage="N_SIMPLE_MIX 4",&
+                          default_i_val=0,&
+                          error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 

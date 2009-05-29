@@ -43,10 +43,10 @@ MODULE xas_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_loc_none, state_loc_all, state_loc_list, state_loc_range, &
-       xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, &
-       xas_dscf, xas_scf_general, xas_tp_fh, xas_tp_hh, xas_tp_xfh, &
-       xas_tp_xhh, xes_tp_val
+       direct_p_mix, do_loc_none, state_loc_all, state_loc_list, &
+       state_loc_range, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, &
+       xas_dip_vel, xas_dscf, xas_scf_general, xas_tp_fh, xas_tp_hh, &
+       xas_tp_xfh, xas_tp_xhh, xes_tp_val
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -87,8 +87,7 @@ MODULE xas_methods
   USE qs_scf,                          ONLY: init_scf_loop,&
                                              init_scf_run,&
                                              scf_env_cleanup
-  USE qs_scf_types,                    ONLY: direct_mixing_nr,&
-                                             general_diag_method_nr,&
+  USE qs_scf_types,                    ONLY: general_diag_method_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
@@ -464,8 +463,8 @@ CONTAINS
         CPPostcondition( xas_env%scf_method==xas_scf_general,cp_failure_level,routineP,error,failure)
             method0 = scf_env%method
             scf_env%method = general_diag_method_nr
-            mixing0 = scf_env%mixing_method
-            scf_env%mixing_method = direct_mixing_nr
+            mixing0 = scf_control%mixing%method
+            scf_control%mixing%method = direct_p_mix
             ch_method_flags = .TRUE.
           END IF
 
@@ -489,7 +488,7 @@ CONTAINS
           ! Set back the original method for the optimize
           IF(ch_method_flags) THEN
             scf_env%method = method0
-            scf_env%mixing_method = mixing0
+            scf_control%mixing%method = mixing0
           END IF
 
         END IF
@@ -640,7 +639,7 @@ CONTAINS
       xas_env%eps_diis = xas_control%eps_diis
       IF(xas_env%eps_diis .LT. 0.0_dp) xas_env%eps_diis = scf_control%eps_diis
       xas_env%p_mix = xas_control%p_mix
-      IF(xas_env%p_mix .LT. 0.0_dp) xas_env%p_mix = scf_env%p_mix_alpha
+      IF(xas_env%p_mix < 0.0_dp) xas_env%p_mix = scf_control%mixing%alpha
       xas_env%scf_method = xas_control%scf_method
 
       CALL mpools_get(mpools, ao_mo_fm_pools= xas_env%ao_mo_fm_pools,error=error)

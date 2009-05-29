@@ -29,11 +29,11 @@ MODULE kg_scf
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       atomic_guess, core_guess, direct_p_mix, kerker_mix, no_mix, pulay_mix, &
-       random_guess, restart_guess, wfi_use_guess_method_nr
+       atomic_guess, broy_mix, broy_mix_new, core_guess, direct_p_mix, &
+       kerker_mix, multisec_mix, pulay_mix, random_guess, restart_guess, &
+       wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_diis_methods,                 ONLY: kg_diis_b_clear,&
                                              kg_diis_b_create,&
@@ -90,10 +90,7 @@ MODULE kg_scf
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: cp_sm_mix
-  USE qs_scf_types,                    ONLY: direct_mixing_nr,&
-                                             general_diag_method_nr,&
-                                             gspace_mixing_nr,&
-                                             no_mixing_nr,&
+  USE qs_scf_types,                    ONLY: general_diag_method_nr,&
                                              ot_method_nr,&
                                              special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
@@ -188,29 +185,25 @@ CONTAINS
 
        dft_section => section_vals_get_subs_vals(kg_env%input,"DFT",error=error)
        scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
-       SELECT CASE(scf_control%mixing_method)
-       CASE(no_mix)
-             scf_env%mixing_method=no_mixing_nr
-             scf_env%p_mix_alpha = 1.0_dp
-       CASE(direct_p_mix) 
-             scf_env%mixing_method=direct_mixing_nr
 
-             CALL section_vals_val_get(scf_section,"MIXING%ALPHA",&
-                   r_val=scf_env%p_mix_alpha,error=error)
-       CASE(kerker_mix)
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"KG Gspace mixing NYI",error,failure)
-             scf_env%mixing_method=gspace_mixing_nr
-       CASE(pulay_mix)
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"Pulay mixing NYI",error,failure)
-       CASE DEFAULT        
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP," unknown mixing method",error,failure)
+       SELECT CASE (scf_control%mixing%method)
+       CASE (kerker_mix)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                         routineP,"KG Gspace mixing NYI",error,failure)
+       CASE (pulay_mix)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                         routineP,"Pulay mixing NYI",error,failure)
+       CASE (broy_mix,broy_mix_new)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                         routineP,"Broyden mixing NYI",error,failure)
+       CASE (multisec_mix)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                         routineP,"Multisecant mixing NYI",error,failure)
        END SELECT
-       IF( scf_env%method==ot_method_nr ) THEN
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"OT for KG not implemented",error,failure)
+
+       IF (scf_env%method==ot_method_nr ) THEN
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                         routineP,"OT for KG not implemented",error,failure)
        END IF
 
        scf_env%iter_param=0.0_dp
@@ -469,9 +462,7 @@ CONTAINS
        ENDIF
 
        scf_env%iter_param = 0.0_dp
-       IF (scf_env%mixing_method==direct_mixing_nr)THEN
-          scf_env%iter_param = scf_env%p_mix_alpha
-       END IF
+       IF (scf_control%mixing%method == direct_p_mix) scf_env%iter_param = scf_control%mixing%alpha
 
        SELECT CASE (scf_env%method)
          CASE DEFAULT
@@ -602,9 +593,9 @@ CONTAINS
                      "Ot_method_nr not implemented with KG_GPW yet")
        END SELECT
 
-       IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
+       IF (scf_control%mixing%method == direct_p_mix) THEN
 
-          my_p_mix = scf_env%p_mix_alpha
+          my_p_mix = scf_control%mixing%alpha
           IF (diis_step .OR. scf_env%skip_mixing) THEN
              scf_env%skip_mixing = .FALSE.
              my_p_mix = 1.0_dp
@@ -659,7 +650,7 @@ CONTAINS
          scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 !
 !   *** mixing methods have the new density matrix in p_mix_new
-       IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
+       IF (scf_control%mixing%method == direct_p_mix) THEN
            DO ispin=1,dft_control%nspins
               CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
                                        rho%rho_ao(ispin)%matrix,error=error)
@@ -717,8 +708,8 @@ CONTAINS
 
 !   *** mixing methods need to undo mixing of the density matrix
 !       (restore original density) ***
-    IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
-          my_p_mix = scf_env%p_mix_alpha
+    IF (scf_control%mixing%method == direct_p_mix) THEN
+          my_p_mix = scf_control%mixing%alpha
           IF (diis_step .OR. scf_env%skip_mixing) THEN
              scf_env%skip_mixing = .FALSE.
              my_p_mix = 1.0_dp
@@ -855,7 +846,7 @@ CONTAINS
       END IF
 
 !   *** allocate p_mix_new ***
-      IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
+      IF (scf_control%mixing%method == direct_p_mix) THEN
          IF (.not.ASSOCIATED(scf_env%p_mix_new)) THEN
             CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
