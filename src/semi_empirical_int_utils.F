@@ -11,7 +11,6 @@ MODULE semi_empirical_int_utils
 
   USE f77_blas
   USE input_constants,                 ONLY: do_method_pchg,&
-                                             do_multipole_none,&
                                              do_se_IS_kdso_d
   USE kinds,                           ONLY: dp
   USE semi_empirical_int3_utils,       ONLY: charg_int_3,&
@@ -113,7 +112,7 @@ CONTAINS
        IF (.NOT.se_int_control%pc_coulomb_int) THEN
           dfs = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                             se_int_control%integral_screening, .FALSE., .FALSE., &
-                            do_multipole_none, itype, dcharg_int_nri_fs, error)
+                            se_int_control%max_multipole, itype, dcharg_int_nri_fs, error)
           res = res + dfs*se_int_screen%dft
 
           ! In case we need the shortrange part we have to evaluate an additional derivative
@@ -121,7 +120,7 @@ CONTAINS
           IF (se_int_control%shortrange) THEN
              srd = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                                se_int_control%integral_screening, .FALSE., .TRUE., &
-                               do_multipole_none, itype, dcharg_int_nri_fs, error)
+                               se_int_control%max_multipole, itype, dcharg_int_nri, error)
              res = res - srd
           END IF
        END IF
@@ -963,7 +962,7 @@ CONTAINS
        IF (.NOT.se_int_control%pc_coulomb_int) THEN
           dfs = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
                         se_int_control%integral_screening, .FALSE., .FALSE.,&
-                        se_int_control%max_multipole, itype, dcharg_int_ri, error)
+                        se_int_control%max_multipole, itype, dcharg_int_ri_fs, error)
           res = res + dfs*se_int_screen%dft
 
           ! In case we need the shortrange part we have to evaluate an additional derivative

@@ -1631,6 +1631,7 @@ CONTAINS
     ! Evaluate additional taper function for dumped integrals
     IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
        se_int_screen%ft  =  taper_eval(se_taper%taper_add, rij, error)
+       IF (lgrad) &
        se_int_screen%dft = dtaper_eval(se_taper%taper_add, rij, error)
     END IF
 
