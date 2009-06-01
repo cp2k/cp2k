@@ -1012,7 +1012,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE se_coulomb_ij_interaction (atom_a, atom_b, my_task, do_forces, do_efield,&
        do_stress, charges, dipoles, quadrupoles, force_ab, efield0, efield1, efield2, &
-       rab2, rab, integral_value, error)
+       rab2, rab, integral_value, ptens11, ptens12, ptens13, ptens21, ptens22, ptens23,&
+       ptens31, ptens32, ptens33, error)
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     LOGICAL, DIMENSION(3)                    :: my_task
     LOGICAL, INTENT(IN)                      :: do_forces, do_efield, &
@@ -1027,6 +1028,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rab2
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: integral_value
+    REAL(KIND=dp), INTENT(INOUT)             :: ptens11, ptens12, ptens13, &
+                                                ptens21, ptens22, ptens23, &
+                                                ptens31, ptens32, ptens33
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_coulomb_ij_interaction', &
@@ -1087,7 +1091,6 @@ CONTAINS
     IF (do_forces) THEN
        force_ab = fr
     END IF
-
   END SUBROUTINE se_coulomb_ij_interaction
 
 END MODULE se_fock_matrix_integrals

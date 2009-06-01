@@ -11,6 +11,7 @@
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : d-orbitals
 !>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Speed-up
 !>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Periodic SE
+!>      Teodoro Laino (05.2009) [tlaino] - Stress Tensor
 !>      
 ! *****************************************************************************
 MODULE se_fock_matrix_coulomb
@@ -401,9 +402,8 @@ CONTAINS
                                     se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                     error=error)
                             END IF
-
                             IF (use_virial) THEN
-                               CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
+                               CALL virial_pair_force (virial%pv_virial, -1.0_dp, force_ab, rij, error)
                             END IF
 
                             ! Sum up force components
@@ -746,6 +746,11 @@ CONTAINS
        CALL mp_sum(se_nddo_mpole%dipole, para_env%group)
        CALL mp_sum(se_nddo_mpole%quadrupole, para_env%group)
 
+       IF (use_virial) THEN
+          pv_glob  = 0.0_dp
+          pv_local = 0.0_dp
+       END IF
+
        ! Ewald Multipoles Sum
        iw = cp_print_key_unit_nr(logger,se_section,"PRINT%EWALD_INFO",extension=".seLog",error=error)
        IF(calculate_forces) THEN
@@ -763,36 +768,39 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           forces_g = 0.0_dp
           forces_r = 0.0_dp
-          pv_glob  = 0.0_dp
-          pv_local = 0.0_dp
-             
           CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
                   do_correction_bonded=.FALSE., do_forces=.TRUE., do_stress=use_virial, do_efield=.TRUE., &
                   charges=se_nddo_mpole%charge, dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
                   forces_local=forces_g, forces_glob=forces_r, pv_glob=pv_glob, pv_local=pv_local,&
-                  efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
+                  efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw,&
                   do_debug=.TRUE.,error=error)
           ! Only SR force have to be summed up.. the one in g-space are already fully local..
           CALL mp_sum(forces_r, para_env%group)
-          IF ( use_virial ) THEN
-             ! why do we not need pv_local?
-             virial%pv_virial = virial%pv_virial + pv_glob 
-          END IF
        ELSE
           CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
-                  do_correction_bonded=.FALSE., do_forces=.FALSE., do_stress=.FALSE., do_efield=.TRUE.,&
+                  do_correction_bonded=.FALSE., do_forces=.FALSE., do_stress=use_virial, do_efield=.TRUE.,&
                   charges=se_nddo_mpole%charge, dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
-                  efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1,&
+                  pv_glob=pv_glob, pv_local=pv_local, efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1,&
                   efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.TRUE.,error=error)
        END IF
        CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
-
+       
        ! Apply correction only when the Integral Scheme is different from Slater
        IF (se_control%integral_screening/=do_se_IS_slater) THEN
           CALL build_fock_matrix_coul_lrc(qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
-               store_int_env, se_nddo_mpole, task, diagmat_p, diagmat_ks, ks_scp, pscp, error)
+               store_int_env, se_nddo_mpole, task, diagmat_p, diagmat_ks, ks_scp, pscp, virial,&
+               pv_glob, error)
+       END IF
+
+       ! Virial for the long-range part and correction
+       IF (use_virial) THEN
+          ! Sum up contribution of pv_glob on each thread and keep only one copy of pv_local
+          virial%pv_virial = virial%pv_virial + pv_glob
+          IF (para_env%mepos==para_env%source) THEN
+             virial%pv_virial = virial%pv_virial + pv_local
+          END IF
        END IF
 
        ! Debug Statements
@@ -911,7 +919,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lrc (qs_env,ks_matrix,matrix_p,energy,&
        calculate_forces, store_int_env,se_nddo_mpole,task,diagmat_p,diagmat_ks,&
-       ks_scp, pscp, error)
+       ks_scp, pscp, virial, pv_glob, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -924,6 +932,9 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_p, diagmat_ks
     TYPE(real_matrix_type), POINTER          :: ks_scp, pscp
+    TYPE(virial_type), POINTER               :: virial
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(INOUT)                          :: pv_glob
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lrc', &
@@ -936,8 +947,8 @@ CONTAINS
     LOGICAL                                  :: anag, check, defined, &
                                                 failure, scp_nddo, switch, &
                                                 use_virial
-    REAL(KIND=dp)                            :: delta, dr1, ecore2, enuc, &
-                                                enuclear
+    REAL(KIND=dp) :: delta, dr1, ecore2, enuc, enuclear, ptens11, ptens12, &
+      ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_ab0, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
@@ -964,7 +975,6 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -974,7 +984,7 @@ CONTAINS
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_lrc=sab_lrc, atomic_kind_set=atomic_kind_set, &
-            particle_set=particle_set, virial=virial, error=error)
+            particle_set=particle_set, error=error)
       
        ! Parameters
        CALL initialize_se_taper(se_taper,lr_corr=.TRUE.,error=error)
@@ -1020,7 +1030,14 @@ CONTAINS
        ALLOCATE (efield2(size1,size2), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        efield2 = 0.0_dp
-
+       
+       ! Initialize if virial is requested
+       IF (use_virial) THEN 
+          ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
+          ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
+          ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
+       END IF
+       
        ! Start of the loop for the correction of the pair interactions
        ecore2   = 0.0_dp
        enuclear = 0.0_dp
@@ -1117,7 +1134,9 @@ CONTAINS
                            do_efield=.TRUE., do_stress=use_virial, charges=se_nddo_mpole%charge, &
                            dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole, &
                            force_ab=force_ab0, efield0=efield0, efield1=efield1, efield2=efield2,&
-                           rab2=dr1, rab=rij, error=error)
+                           rab2=dr1, rab=rij, ptens11=ptens11, ptens12=ptens12, ptens13=ptens13,&
+                           ptens21=ptens21, ptens22=ptens22, ptens23=ptens23, ptens31=ptens31,&
+                           ptens32=ptens32, ptens33=ptens33, error=error)
                       
                       ! Retrieve blocks for KS and P
                       CALL get_block_node(matrix=diagmat_p(1)%matrix,&
@@ -1230,7 +1249,6 @@ CONTAINS
                                     error=error)
                             END IF
                             force_ab = force_ab + force_ab0
-
                             IF (use_virial) THEN
                                CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
                             END IF
@@ -1289,6 +1307,20 @@ CONTAINS
           END DO ! jkind
        END DO ! ikind
 
+       ! Sum-up Virial constribution (long-range correction)
+       IF (use_virial) THEN
+          pv_glob(1,1) = pv_glob(1,1) +  ptens11
+          pv_glob(1,2) = pv_glob(1,2) + (ptens12+ptens21)*0.5_dp
+          pv_glob(1,3) = pv_glob(1,3) + (ptens13+ptens31)*0.5_dp
+          pv_glob(2,1) = pv_glob(1,2)
+          pv_glob(2,2) = pv_glob(2,2) +  ptens22
+          pv_glob(2,3) = pv_glob(2,3) + (ptens23+ptens32)*0.5_dp
+          pv_glob(3,1) = pv_glob(1,3)
+          pv_glob(3,2) = pv_glob(2,3)
+          pv_glob(3,3) = pv_glob(3,3) +  ptens33
+       END IF
+
+       ! SCP
        IF ( scp_nddo ) THEN
           ! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
           CALL transfer_matrix ( diagmat_ks(1)%matrix, ks_scp, error )

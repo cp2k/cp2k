@@ -211,7 +211,7 @@
                    ! Charge - Charge
                    eloc = eloc + ch_i*tij*ch_j
                    ! Forces on particle i (locally b)
-                   IF (do_forces) THEN
+                   IF (do_forces.OR.do_stress) THEN
                       fr(1) = fr(1) - ch_j * tij_a(1) * ch_i
                       fr(2) = fr(2) - ch_j * tij_a(2) * ch_i
                       fr(3) = fr(3) - ch_j * tij_a(3) * ch_i
@@ -271,7 +271,7 @@
                                     tij_ab(3,3)*dp_j(3)))
                    eloc = eloc + tmp
                    ! Forces on particle i (locally b)
-                   IF (do_forces) THEN
+                   IF (do_forces.OR.do_stress) THEN
                       DO k = 1, 3
                          fr(k) = fr(k) +  dp_i(1)*(tij_abc(1,1,k)*dp_j(1)+&
                                                    tij_abc(2,1,k)*dp_j(2)+&
@@ -388,7 +388,7 @@
                                 tij_a(3)*dp_j(3))
                    eloc = eloc + tmp
                    ! Forces on particle i (locally b)
-                   IF (do_forces) THEN
+                   IF (do_forces.OR.do_stress) THEN
                       DO k = 1, 3
                          fr(k) = fr(k) -  ch_j *(tij_ab(1,k)*dp_i(1)+&
                                                  tij_ab(2,k)*dp_i(2)+&
@@ -465,7 +465,7 @@
 
                    eloc = eloc + fac*tmp
                    ! Forces on particle i (locally b)
-                   IF (do_forces) THEN
+                   IF (do_forces.OR.do_stress) THEN
                       DO k = 1, 3
                          tmp11 = qp_i(1,1)*(tij_abcde(1,1,1,1,k)*qp_j(1,1)+&
                                             tij_abcde(2,1,1,1,k)*qp_j(2,1)+&
@@ -809,7 +809,7 @@
 
                    tmp= fac * (tmp_ij - tmp_ji)
                    eloc = eloc + tmp
-                   IF (do_forces) THEN
+                   IF (do_forces.OR.do_stress) THEN
                       DO k = 1, 3
                          ! Dipole i (locally B) - Quadrupole j (locally A)
                          tmp_ij = dp_i(1)*(tij_abcd(1,1,1,k)*qp_j(1,1)+& 
@@ -900,7 +900,7 @@
                                     tij_ab(3,3)*qp_i(3,3))  
 
                    eloc = eloc + fac*(tmp_ij+tmp_ji)
-                   IF (do_forces) THEN
+                   IF (do_forces.OR.do_stress) THEN
                       DO k = 1, 3
                          ! Quadrupole j (locally A) - Charge i (locally B)  
                          tmp_ij = ch_i * (tij_abc(1,1,k)*qp_j(1,1)+&    
@@ -981,4 +981,15 @@
                       efield2(8,atom_b) = efield2(8,atom_b) + ef2_i(3,2)
                       efield2(9,atom_b) = efield2(9,atom_b) + ef2_i(3,3)
                    END IF
+                END IF
+                IF (do_stress) THEN
+                   ptens11 = ptens11 + rab(1) * fr(1)
+                   ptens21 = ptens21 + rab(2) * fr(1)
+                   ptens31 = ptens31 + rab(3) * fr(1)
+                   ptens12 = ptens12 + rab(1) * fr(2)
+                   ptens22 = ptens22 + rab(2) * fr(2)
+                   ptens32 = ptens32 + rab(3) * fr(2)
+                   ptens13 = ptens13 + rab(1) * fr(3)
+                   ptens23 = ptens23 + rab(2) * fr(3)
+                   ptens33 = ptens33 + rab(3) * fr(3)
                 END IF

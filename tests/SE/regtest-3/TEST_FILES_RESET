@@ -51,3 +51,5 @@ H-0.inp
 H2O-MNDO.inp
 LiH.inp
 O2.inp
+# bug fix
+LiH.inp
