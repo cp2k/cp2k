@@ -68,6 +68,7 @@ CONTAINS
 
        WRITE(*,*)ispin,"ECOUL ",ecoul
     END DO
+    WRITE(*,*)"ENUC in DBG:",energy%core_overlap
 
     ! Debug statements
     WRITE(*,*)"TOTAL ENE",0.5_dp*energy%hartree+energy%core_overlap
