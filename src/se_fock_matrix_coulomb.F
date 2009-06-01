@@ -613,7 +613,7 @@ CONTAINS
        se_control => dft_control%qs_control%se_control
        scp_nddo   =  se_control%scp
        anag       =  se_control%analytical_gradients
-       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
        
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
@@ -746,6 +746,7 @@ CONTAINS
        CALL mp_sum(se_nddo_mpole%dipole, para_env%group)
        CALL mp_sum(se_nddo_mpole%quadrupole, para_env%group)
 
+       ! Initialize for virial
        IF (use_virial) THEN
           pv_glob  = 0.0_dp
           pv_local = 0.0_dp
@@ -780,15 +781,15 @@ CONTAINS
        ELSE
           CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
-                  do_correction_bonded=.FALSE., do_forces=.FALSE., do_stress=use_virial, do_efield=.TRUE.,&
+                  do_correction_bonded=.FALSE., do_forces=.FALSE., do_stress=.FALSE., do_efield=.TRUE.,&
                   charges=se_nddo_mpole%charge, dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
-                  pv_glob=pv_glob, pv_local=pv_local, efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1,&
-                  efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.TRUE.,error=error)
+                  efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2,&
+                  iw=iw, do_debug=.TRUE.,error=error)
        END IF
        CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
        
        ! Apply correction only when the Integral Scheme is different from Slater
-       IF (se_control%integral_screening/=do_se_IS_slater) THEN
+       IF ((se_control%integral_screening/=do_se_IS_slater).AND.(.NOT.debug_this_module)) THEN
           CALL build_fock_matrix_coul_lrc(qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
                store_int_env, se_nddo_mpole, task, diagmat_p, diagmat_ks, ks_scp, pscp, virial,&
                pv_glob, error)
@@ -991,7 +992,7 @@ CONTAINS
        se_control  => dft_control%qs_control%se_control
        anag        =  se_control%analytical_gradients
        scp_nddo    =  se_control%scp
-       use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+       use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
 
        CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
             do_ewald_gks=.FALSE., integral_screening=se_control%integral_screening,&
@@ -1248,10 +1249,10 @@ CONTAINS
                                     se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                     error=error)
                             END IF
-                            force_ab = force_ab + force_ab0
                             IF (use_virial) THEN
                                CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
                             END IF
+                            force_ab = force_ab + force_ab0
 
                             ! Sum up force components
                             force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
