@@ -5640,7 +5640,6 @@ CONTAINS
             default_i_val=ot_precond_full_kinetic,&
             enum_c_vals=s2a("FULL_ALL","FULL_SINGLE_INVERSE","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE",&
             "SPARSE_DIAG","SPARSE_KINETIC",&
-            "FULL_STABLE_APPROXIMATE_INVERSE",&
             "SPARSE_STABLE_APPROXIMATE_INVERSE",&
             "NONE"),&
             enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "//&
@@ -5656,14 +5655,12 @@ CONTAINS
             "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.",&
             "Only based on atomic blocks, very cheap in construction but quite poor.",&
             "Toward -sparse- linear solver for T-eS.",&
-            "Stabilized Approximate INVerse preconditioning using full matrices "//&
-            "(not efficient at all!, will be removed shortly).",&
             "Stabilized Approximate INVerse preconditioning using DBCSR sparse matrices (not working yet).",&
             "skip preconditioning"),&
             enum_i_vals=(/ot_precond_full_all,ot_precond_full_single_inverse,ot_precond_full_single, &
             ot_precond_full_kinetic,ot_precond_s_inverse,&
             ot_precond_sparse_diag,ot_precond_sparse_kinetic,&
-            ot_precond_full_kinetic_sainv,ot_precond_sparse_kinetic_sainv,&
+            ot_precond_sparse_kinetic_sainv,&
             ot_precond_none/),&
             citations=(/VandeVondele2003/),&
             error=error)
@@ -5674,12 +5671,16 @@ CONTAINS
             description="How the preconditioner is applied to the residual.",&
             usage="PRECOND_SOLVER DIRECT",&
             default_i_val=ot_precond_solver_default,&
-            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY"),&
+            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY","SAINV"),&
             enum_desc=s2a("the default","Cholesky decomposition followed by triangular solve "//&
             "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
             "Cholesky decomposition followed by explicit inversion "//&
-            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
-            enum_i_vals=(/ot_precond_solver_default,ot_precond_solver_direct,ot_precond_solver_inv_chol/),&
+            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
+            "SAINV inversion (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
+            enum_i_vals=(/ot_precond_solver_default,&
+            ot_precond_solver_direct,&
+            ot_precond_solver_inv_chol,&
+            ot_precond_solver_sainv/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

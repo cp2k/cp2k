@@ -24,10 +24,9 @@ MODULE qs_linres_module
                                              use_qs_force
   USE input_constants,                 ONLY: &
        lr_current, lr_none, ot_precond_full_all, ot_precond_full_kinetic, &
-       ot_precond_full_kinetic_sainv, ot_precond_full_single, &
-       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-       ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
-       ot_precond_sparse_kinetic_sainv
+       ot_precond_full_single, ot_precond_full_single_inverse, &
+       ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
+       ot_precond_sparse_kinetic, ot_precond_sparse_kinetic_sainv
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -436,9 +435,6 @@ CONTAINS
          CASE(ot_precond_sparse_kinetic)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
                  "LINRES| Preconditioner","      SPARSE_KINETIC"
-         CASE(ot_precond_full_kinetic_sainv)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner","  SAINV FULL KINETIC"
          CASE(ot_precond_sparse_kinetic_sainv)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
                  "LINRES| Preconditioner","SAINV SPARSE KINETIC"

@@ -382,11 +382,11 @@ MODULE input_constants
                                               ot_precond_full_all=6,&
                                               ot_precond_full_single_inverse=7,&
                                               ot_precond_sparse_kinetic=8,&
-                                              ot_precond_full_kinetic_sainv=9,&
-                                              ot_precond_sparse_kinetic_sainv=10
+                                              ot_precond_sparse_kinetic_sainv=9
   INTEGER, PARAMETER, PUBLIC               :: ot_precond_solver_default=1,&
                                               ot_precond_solver_inv_chol=2,&
-                                              ot_precond_solver_direct=3
+                                              ot_precond_solver_direct=3,&
+                                              ot_precond_solver_sainv=4
                                            
   INTEGER, PARAMETER, PUBLIC               :: diag_standard=1,&
                                               diag_ot=2

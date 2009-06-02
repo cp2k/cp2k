@@ -36,10 +36,10 @@ MODULE qs_ot_types
        ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &
        ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_cg, &
        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
-       ot_precond_full_kinetic, ot_precond_full_kinetic_sainv, &
-       ot_precond_full_single, ot_precond_full_single_inverse, &
-       ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
-       ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+       ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+       ot_precond_solver_default, ot_precond_solver_direct, &
+       ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
        ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
        ot_precond_sparse_kinetic_sainv
   USE input_section_types,             ONLY: section_vals_type,&
@@ -837,6 +837,8 @@ CONTAINS
        settings%precond_solver_name="INVERSE_CHOLESKY"
     CASE(ot_precond_solver_direct)
        settings%precond_solver_name="DIRECT"
+    CASE(ot_precond_solver_sainv)
+       settings%precond_solver_name="SAINV"
     CASE DEFAULT
        CALL stop_program("READ OTSCF SOLVER","VALUE UNKNOWN")
     END SELECT
@@ -859,8 +861,6 @@ CONTAINS
        settings%preconditioner_name="SPARSE_DIAG"
     CASE(ot_precond_sparse_kinetic)
        settings%preconditioner_name="SPARSE_KINETIC"
-    CASE(ot_precond_full_kinetic_sainv)
-       settings%preconditioner_name="FULL_SAINV_KINETIC"
     CASE(ot_precond_sparse_kinetic_sainv)
        settings%preconditioner_name="SPARSE_SAINV_KINETIC"
     CASE DEFAULT

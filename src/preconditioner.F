@@ -54,13 +54,12 @@ MODULE preconditioner
                                              distribution_2d_type
 !USE f77_blas_generic,                ONLY: BL_DOT
   USE input_constants,                 ONLY: &
-       ot_precond_full_all, ot_precond_full_kinetic, &
-       ot_precond_full_kinetic_sainv, ot_precond_full_single, &
+       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
-       ot_precond_solver_inv_chol, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder, ot_precond_sparse_kinetic, &
-       ot_precond_sparse_kinetic_sainv
+       ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
+       ot_precond_sparse_diag, ot_precond_sparse_firstorder, &
+       ot_precond_sparse_kinetic, ot_precond_sparse_kinetic_sainv
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
@@ -245,15 +244,6 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
                               matrix_t, matrix_s, energy_homo, energy_gap ,error=error)
      CALL make_diag_inner_precond(preconditioner_env, preconditioner_env%sparse_matrix,&
                                   preconditioner_env%sparse_matrix_inner, error=error)
-  CASE (ot_precond_full_kinetic_sainv)
-    preconditioner_env%in_use=ot_precond_full_kinetic_sainv
-    IF (my_solver_type .NE. ot_precond_solver_inv_chol&
-         .AND. my_solver_type .NE. ot_precond_solver_default) THEN
-       CALL stop_program ("make preconditioner",&
-            "Only PRECOND_SOLVER INVERSE_CHOLESKY (or DEFAULT) for the moment")
-    ENDIF
-    CALL make_full_kinetic_sainv(preconditioner_env, preconditioner_env%fm,&
-         matrix_t, matrix_s, energy_homo, energy_gap, error=error)
   CASE (ot_precond_sparse_kinetic_sainv)
     preconditioner_env%in_use=ot_precond_sparse_kinetic_sainv
     IF (my_solver_type .NE. ot_precond_solver_inv_chol&
@@ -264,7 +254,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
     CALL make_sparse_kinetic_sainv(preconditioner_env,&
          preconditioner_env%dbcsr_matrix, matrix_t, matrix_s,&
          energy_homo, energy_gap ,error=error)
-    CALL make_full_kinetic_sainv(preconditioner_env, preconditioner_env%fm,&
+    CALL make_full_kinetic_sainv_old(preconditioner_env, preconditioner_env%fm,&
          matrix_t, matrix_s, energy_homo, energy_gap, error=error)
   CASE DEFAULT
      CALL stop_program("make preconditioner","Type not implemented")
@@ -278,6 +268,16 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      preconditioner_env%solver=ot_precond_solver_inv_chol
      CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
           &                          error=error)
+  CASE (ot_precond_solver_sainv)
+     !
+     ! compute the full inverse (this one is useless, only its sparse version should remain)
+     preconditioner_env%solver=ot_precond_solver_sainv
+     CALL make_full_inverse_sainv(preconditioner_env, preconditioner_env%fm, error=error)     
+     !   !
+     !   ! compute the (hopefully) sparse inverse
+     !   preconditioner_env%solver=ot_precond_solver_sparse_sainv
+     !   CALL make_sparse_inverse_sainv(preconditioner_env, preconditioner_env%fm, matrix_s, &
+     !        &                         error=error)     
   CASE (ot_precond_solver_direct)
      !
      ! prepare for the direct solver
@@ -327,24 +327,17 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
      CALL apply_full_all(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE(ot_precond_sparse_kinetic)
      CALL apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out, error=error)
-  CASE (ot_precond_full_kinetic_sainv)
-     SELECT CASE (preconditioner_env%solver)
-     CASE (ot_precond_solver_inv_chol, ot_precond_solver_default)
-        CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
-     CASE DEFAULT
-        CALL stop_program("apply preconditioner","solver not implemented")
-     END SELECT
   CASE (ot_precond_sparse_kinetic_sainv)
      SELECT CASE (preconditioner_env%solver)
-     CASE (ot_precond_solver_inv_chol, ot_precond_solver_default)
+     CASE (ot_precond_solver_sainv)
         CALL apply_sparse_single(preconditioner_env, matrix_in, matrix_out,error=error)
-        CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
+        !CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
      CASE DEFAULT
         CALL stop_program("apply preconditioner","solver not implemented")
      END SELECT
   CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
      SELECT CASE (preconditioner_env%solver)
-     CASE(ot_precond_solver_inv_chol)
+     CASE(ot_precond_solver_inv_chol,ot_precond_solver_sainv)
         CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
      CASE(ot_precond_solver_direct)
         CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out,error=error)        
@@ -1853,7 +1846,204 @@ END SUBROUTINE make_full_all_ortho
   END SUBROUTINE apply_solve_lin_system
 
 ! *****************************************************************************
-!> \brief Kinetic Stable Approximate Inverse Preconditioner
+!> \brief Stabilized Approximate INVerse Preconditioner
+!> \param[in,out] preconditioner_env    The preconditioner environment
+!> \param         fm                    The precondition matrix
+!> \param[in,out] error       cp2k error
+!> \author Valery Weber
+!> \par History
+!>      - Created by VW
+!>      - 2009-05-13 UB: Merged and brought up-to-date
+! *****************************************************************************
+  SUBROUTINE make_full_inverse_sainv(preconditioner_env, fm, error)
+    !
+    TYPE(preconditioner_type), INTENT(INOUT) :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: fm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_sainv', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: thresh_inner = 1.0E-16_dp, &
+                                                thresh_post = 1.0E-16_dp
+
+    INTEGER                                  :: i, j, k, n, ncol_local, &
+                                                nrow_local, nz
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: mx
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: p, v
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: buf1, buf2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_work1, fm_work2, fs_work, &
+                                                fv_work
+
+!
+!
+! These threshould should be make specifiable in the input. -UB
+!
+
+    failure = .FALSE.
+    !
+    WRITE(*,*)'enter sainv thresh_inner=',thresh_inner,' thresh_post=',thresh_post
+    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
+    !
+    ! some infos
+    CALL cp_fm_get_info(fm,nrow_global=n,error=error)
+    !
+    ! allocate
+    ALLOCATE(buf1(n,1),buf2(n,1),p(n),v(n))
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
+         context=preconditioner_env%ctxt, &
+         para_env=preconditioner_env%para_env,error=error)
+    !
+    CALL cp_fm_create(fm_work1,fm_struct_tmp, name="preconditioner_work1",error=error)
+    CALL cp_fm_create(fm_work2,fm_struct_tmp, name="preconditioner_work2",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=1,&
+         context=preconditioner_env%ctxt, &
+         para_env=preconditioner_env%para_env,error=error)
+    CALL cp_fm_create(fv_work,fm_struct_tmp, name="preconditioner_work3",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=1,ncol_global=1,&
+         context=preconditioner_env%ctxt, &
+         para_env=preconditioner_env%para_env,error=error)
+    CALL cp_fm_create(fs_work,fm_struct_tmp, name="preconditioner_work4",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    !
+    ! here fm should contain the matrix to inverse
+    CALL cp_fm_to_fm(fm,fm_work1,error=error)
+    CALL cp_fm_upper_to_full(fm_work1,fm_work2,error=error)
+    !
+    ! occupation
+    CALL cp_fm_get_info(fm_work1,nrow_local=nrow_local,ncol_local=ncol_local, &
+         local_data=local_data,error=error)
+    nz=0
+    DO j=1,ncol_local
+       DO i=1,nrow_local
+          IF(ABS(local_data(i,j)).LT.1.0E-10) THEN
+             local_data(i,j)=0.0_dp
+             nz=nz+1
+          ENDIF
+       ENDDO
+    ENDDO
+    CALL mp_sum(nz,preconditioner_env%para_env%group)
+    WRITE(*,*) 'non0(T-epsilon*S)=',DBLE(n**2-nz)/DBLE(n**2)
+    !
+    ! max(abs(A))
+    CALL cp_fm_get_info(fm_work1,nrow_local=nrow_local,ncol_local=ncol_local, &
+         local_data=local_data,error=error)
+    mx = MAXVAL(ABS(local_data(1:nrow_local,1:ncol_local)))
+    CALL mp_max(mx,preconditioner_env%para_env%group)
+    WRITE(*,*) 'max(abs(A))=',mx
+    !
+    ! cond(A)
+    CALL cp_fm_to_fm(fm_work1,fm,error=error)
+    CALL cp_fm_syevd(fm,fm_work2,v,error=error)
+    WRITE(*,*) 'cond(A)=',MAXVAL(ABS(v))/MAX(MINVAL(ABS(v)),EPSILON(0.0_dp))
+    WRITE(*,*) 'min(eig(A))=',MINVAL(v),'max(eig(A))=',MAXVAL(v)
+    !
+    ! Z = diag(ones(n,1));
+    CALL cp_fm_set_all(fm_work2,0.0_dp,1.0_dp,error=error)
+    !
+    ! Let's ainv
+    DO i = 1,n
+       !
+       ! v=A*Z(:,i);
+       CALL cp_fm_gemm('N','N',n,1,n,1.0_dp,fm_work1,fm_work2,&
+            0.0_dp,fv_work,b_first_col=i,error=error)
+       !
+       DO j = i,n
+          !
+          ! p(j) = v(:)'*Z(:,j);
+          CALL cp_fm_gemm('T','N',1,1,n,1.0_dp,fv_work,fm_work2,&
+               0.0_dp,fs_work,b_first_col=j,error=error)
+          CALL cp_fm_get_submatrix(fs_work,buf2,&
+               &                   1,1,1,1,transpose=.FALSE.,&
+               &                   error=error)
+          p(j) = buf2(1,1)
+       ENDDO
+       !
+       IF(i.LT.n) THEN
+          CALL cp_fm_get_submatrix(fm_work2,buf1 ,&
+               &                   1,i,n,1,transpose=.FALSE.,&
+               &                   error=error)
+          DO j = i+1,n
+             !
+             ! Z(:,j) = Z(:,j)-(p(j)/p(i))*Z(:,i);
+             CALL cp_fm_get_submatrix(fm_work2,buf2 ,&
+                  &                   1,j,n,1,transpose=.FALSE.,&
+                  &                   error=error)
+             IF(p(i).LT.0.0_dp) THEN
+                WRITE(*,*) 'make_full_inverse_sainv: i=',i,' p(i)=',p(i)
+                CALL stop_program("make_full_inverse_sainv", "Ooops pivot negative")
+             ENDIF
+             IF(p(i).LT.1.0E-12_dp.AND.p(i).GE.0.0_dp) THEN
+                WRITE(*,*) 'make_full_inverse_sainv: i=',i,' p(i)=',p(i)
+                CALL stop_program("make_full_inverse_sainv", "Ooops pivot too small")
+             ENDIF
+             buf2 = buf2 - p(j) / p(i) * buf1
+             !
+             ! filter...           
+             DO k=1,j-1
+                IF(ABS(buf2(k,1)).LT.mx*thresh_inner) THEN
+                   buf2(k,1)=0.0_dp
+                ENDIF
+             ENDDO
+             CALL cp_fm_set_submatrix(fm_work2,buf2 ,&
+                  &                   1,j,n,1,transpose=.FALSE.,&
+                  &                   error=error)
+          ENDDO
+       ENDIF
+    ENDDO
+    !
+    ! M = Z * D^(-1) * Z'
+    DO i = 1,n
+       p(i) = 1.0_dp / p(i)
+    ENDDO
+    CALL cp_fm_to_fm(fm_work2,fm_work1,error=error)
+    CALL cp_fm_column_scale(fm_work1,p)
+    CALL cp_fm_gemm('N','T',n,n,n,1.0_dp,fm_work2,fm_work1,0.0_dp,fm,error=error)
+    !
+    ! post-filter...
+    CALL cp_fm_get_info(fm,nrow_local=nrow_local,ncol_local=ncol_local, &
+         local_data=local_data,error=error)
+    nz=0
+    DO j=1,ncol_local
+       DO i=1,nrow_local
+          IF(i.NE.j) THEN
+             IF(ABS(local_data(i,j)).LT.mx*thresh_post) THEN
+                local_data(i,j)=0.0_dp
+                nz=nz+1
+             ENDIF
+          ENDIF
+       ENDDO
+    ENDDO
+    CALL mp_sum(nz,preconditioner_env%para_env%group)
+    WRITE(*,*) 'non0(M)=',DBLE(n**2-nz)/DBLE(n**2)
+    mx = MAXVAL(ABS(local_data(1:nrow_local,1:ncol_local)))
+    CALL mp_max(mx,preconditioner_env%para_env%group)
+    WRITE(*,*) 'max(abs(M))=',mx
+    !
+    ! eig(M)
+    CALL cp_fm_to_fm(fm,fm_work1,error=error)
+    CALL cp_fm_syevd(fm_work1,fm_work2,v,error=error)
+    WRITE(*,*) 'cond(M)=',MAXVAL(ABS(v))/MAX(MINVAL(ABS(v)),EPSILON(0.0_dp))
+    WRITE(*,*) 'min(eig(M))=',MINVAL(v),'max(eig(M))=',MAXVAL(v)
+    !
+    !
+    DEALLOCATE(buf1,buf2,p,v)
+    CALL cp_fm_release(fm_work1,error=error)
+    CALL cp_fm_release(fm_work2,error=error)
+    CALL cp_fm_release(fv_work,error=error)
+    CALL cp_fm_release(fs_work,error=error)
+
+  END SUBROUTINE make_full_inverse_sainv
+
+! *****************************************************************************
+!> \brief Stabilized Approximate INVerse Preconditioner
 !> \param[in,out] preconditioner_env    The preconditioner environment
 !> \param         fm                    The precondition matrix
 !> \param         matrix_t              The MO matrix
@@ -1866,7 +2056,7 @@ END SUBROUTINE make_full_all_ortho
 !>      - Created by VW
 !>      - 2009-05-13 UB: Merged and brought up-to-date
 ! *****************************************************************************
-  SUBROUTINE make_full_kinetic_sainv(preconditioner_env,&
+  SUBROUTINE make_full_kinetic_sainv_old(preconditioner_env,&
        fm, matrix_t, matrix_s, energy_homo, energy_gap, error)
     !
     TYPE(preconditioner_type), INTENT(INOUT) :: preconditioner_env
@@ -1875,7 +2065,7 @@ END SUBROUTINE make_full_all_ortho
     REAL(KIND=dp)                            :: energy_homo, energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic_sainv', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic_sainv_old', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: thresh_inner = 1.0E-2_dp, &
                                                 thresh_post = 1.0E-5_dp
@@ -2051,7 +2241,7 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_fm_set_all(fm,0.0_dp,1.0_dp,error=error)
     ENDIF multiproc
 
-  END SUBROUTINE make_full_kinetic_sainv
+  END SUBROUTINE make_full_kinetic_sainv_old
 
 
 ! *****************************************************************************
