@@ -11,13 +11,13 @@
 !> \author Joost VandeVondele (09.2002)
 ! *****************************************************************************
 MODULE preconditioner
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_data,&
+  USE array_types,                     ONLY: array_data,&
+                                             array_i1d_obj,&
                                              array_new,&
                                              array_release
-  USE cp_dbcsr_operations,             ONLY: dbcsr_sm_sm_multiply,&
-                                             cp_dbcsr_add_dist2d,&
-                                             cp_dbcsr_get_dist2d
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
+                                             cp_dbcsr_get_dist2d,&
+                                             dbcsr_sm_sm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -31,57 +31,39 @@ MODULE preconditioner
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_diag,&
-                                             cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type,&
-                                             cp_fm_get_submatrix,&
-                                             cp_fm_set_submatrix
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, &
+       cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
+       cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE dbcsr_types,                     ONLY: dbcsr_type,&
-                                             dbcsr_meta_size,&
-                                             dbcsr_slot_row_p,&
-                                             dbcsr_slot_col_i,&
-                                             dbcsr_slot_blk_p,&
-                                             dbcsr_distribution_obj
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
-  USE dbcsr_util,                      ONLY: dbcsr_from_sm,&
-                                             dbcsr_get_info,&
-                                             dbcsr_work_create,&
-                                             dbcsr_create,&
-                                             dbcsr_destroy,&
-                                             dbcsr_create_dist2d_r,&
-                                             dbcsr_create_dist2d_r_unrot,&
-                                             dbcsr_init,&
-                                             dbcsr_from_fm,&
-                                             dbcsr_extract_column,&
-                                             dbcsr_set_diagonal,&
-                                             dbcsr_copy_block_sizes,&
-                                             dbcsr_finalize,&
-                                             dbcsr_checksum,&
-                                             dbcsr_verify_matrix,&
-                                             dbcsr_print,&
-                                             dbcsr_addto_index_array,&
-                                             dbcsr_ensure_data_size,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_new_transposed,&
-                                             dbcsr_work_destroy
-  USE distribution_2d_types,           ONLY: distribution_2d_type,&
-                                             distribution_2d_release
-  !USE f77_blas_generic,                ONLY: BL_DOT
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_slot_blk_p,&
+                                             dbcsr_slot_col_i,&
+                                             dbcsr_slot_row_p,&
+                                             dbcsr_type
+  USE dbcsr_util,                      ONLY: &
+       dbcsr_addto_index_array, dbcsr_checksum, dbcsr_create, &
+       dbcsr_create_dist2d_r, dbcsr_create_dist2d_r_unrot, dbcsr_destroy, &
+       dbcsr_dist2d_to_dist, dbcsr_ensure_data_size, dbcsr_extract_column, &
+       dbcsr_finalize, dbcsr_from_fm, dbcsr_from_sm, dbcsr_get_info, &
+       dbcsr_init, dbcsr_new_transposed, dbcsr_set_diagonal, &
+       dbcsr_verify_matrix, dbcsr_work_create, dbcsr_work_destroy
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
+                                             distribution_2d_type
+!USE f77_blas_generic,                ONLY: BL_DOT
   USE input_constants,                 ONLY: &
-       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_precond_full_all, ot_precond_full_kinetic, &
+       ot_precond_full_kinetic_sainv, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
        ot_precond_solver_inv_chol, ot_precond_sparse_diag, &
        ot_precond_sparse_firstorder, ot_precond_sparse_kinetic, &
-       ot_precond_full_kinetic_sainv, ot_precond_sparse_kinetic_sainv
+       ot_precond_sparse_kinetic_sainv
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum, mp_max
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE sparse_matrix_types,             ONLY: &
@@ -1887,36 +1869,38 @@ END SUBROUTINE make_full_all_ortho
   SUBROUTINE make_full_kinetic_sainv(preconditioner_env,&
        fm, matrix_t, matrix_s, energy_homo, energy_gap, error)
     !
-    TYPE(preconditioner_type),INTENT(INOUT)  :: preconditioner_env
+    TYPE(preconditioner_type), INTENT(INOUT) :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(real_matrix_type), POINTER          :: matrix_t, matrix_s
     REAL(KIND=dp)                            :: energy_homo, energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
-    !
-    LOGICAL                                  :: failure
-    INTEGER                                  :: n,i,j,k
-    REAL(KIND=dp)                            :: shift
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: fm_work1,fm_work2
-    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   :: p
-    REAL(KIND=dp),DIMENSION(:,:),ALLOCATABLE :: buf1,buf2
+
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic_sainv', &
-         routineP = moduleN//':'//routineN
-    !
-    REAL(KIND=dp)                            :: DDOT
-    REAL(KIND=dp)                            :: mx
-    INTEGER                                  :: nrow_local,ncol_local,nz
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: local_data
-    ! These threshould should be make specifiable in the input. -UB
-    REAL(KIND=dp), PARAMETER                 :: thresh_inner=1.0E-2_dp,&
-                                                thresh_post=1.0E-5_dp
-    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   ::v
-    !
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: thresh_inner = 1.0E-2_dp, &
+                                                thresh_post = 1.0E-5_dp
+
+    INTEGER                                  :: i, j, k, n, ncol_local, &
+                                                nrow_local, nz
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: DDOT, mx, shift
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: p, v
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: buf1, buf2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_work1, fm_work2
+
+!
+!
+! These threshould should be make specifiable in the input. -UB
+!
+
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
     !
-    write(*,*)'enter sainv thresh_inner=',thresh_inner,' thresh_post=',thresh_post
+    WRITE(*,*)'enter sainv thresh_inner=',thresh_inner,' thresh_post=',thresh_post
     IF(ASSOCIATED(fm)) THEN
        CALL cp_fm_release(fm,error=error)
     ENDIF
@@ -1955,20 +1939,20 @@ END SUBROUTINE make_full_all_ortho
           ENDIF
        ENDDO
     ENDDO
-    write(*,*) 'non0(T-epsilon*S)=',DBLE(n**2-nz)/DBLE(n**2)
+    WRITE(*,*) 'non0(T-epsilon*S)=',DBLE(n**2-nz)/DBLE(n**2)
     !
     ! max(abs(A))
     CALL cp_fm_get_info(fm_work1,nrow_local=nrow_local,ncol_local=ncol_local, &
          local_data=local_data,error=error)
-    mx = maxval(abs(local_data(1:nrow_local,1:ncol_local)))
+    mx = MAXVAL(ABS(local_data(1:nrow_local,1:ncol_local)))
     CALL mp_max(mx,preconditioner_env%para_env%group)
-    write(*,*) 'max(abs(A))=',mx
+    WRITE(*,*) 'max(abs(A))=',mx
     !
     ! cond(A)
     CALL cp_fm_to_fm(fm_work1,fm,error=error)
     CALL cp_fm_syevd(fm,fm_work2,v,error=error)
-    write(*,*) 'cond(A)=',MAXVAL(abs(v))/MAX(MINVAL(abs(v)),EPSILON(0.0_dp))
-    write(*,*) 'min(eig(A))=',MINVAL(v),'max(eig(A))=',MAXVAL(v)
+    WRITE(*,*) 'cond(A)=',MAXVAL(ABS(v))/MAX(MINVAL(ABS(v)),EPSILON(0.0_dp))
+    WRITE(*,*) 'min(eig(A))=',MINVAL(v),'max(eig(A))=',MAXVAL(v)
     !
     ! Z = diag(ones(n,1));
     CALL cp_fm_set_all(fm_work2,0.0_dp,1.0_dp,error=error)
@@ -2003,11 +1987,11 @@ END SUBROUTINE make_full_all_ortho
                   &                   1,j,n,1,transpose=.FALSE.,&
                   &                   error=error)
              IF(p(i).LT.0.0_dp) THEN
-                write(*,*) 'make_kinetic_sainv: i=',i,' p(i)=',p(i)
+                WRITE(*,*) 'make_kinetic_sainv: i=',i,' p(i)=',p(i)
                 CALL stop_program("make_kinetic_sainv", "Ooops pivot negative")
              ENDIF
              IF(p(i).LT.1.0E-12_dp.AND.p(i).GE.0.0_dp) THEN
-                write(*,*) 'make_kinetic_sainv: i=',i,' p(i)=',p(i)
+                WRITE(*,*) 'make_kinetic_sainv: i=',i,' p(i)=',p(i)
                 CALL stop_program("make_kinetic_sainv", "Ooops pivot too small")
              ENDIF
              buf2 = buf2 - p(j) / p(i) * buf1
@@ -2048,16 +2032,16 @@ END SUBROUTINE make_full_all_ortho
        ENDDO
     ENDDO
     CALL mp_sum(nz,preconditioner_env%para_env%group)
-    write(*,*) 'non0(M)=',DBLE(n**2-nz)/DBLE(n**2)
-    mx = maxval(abs(local_data(1:nrow_local,1:ncol_local)))
+    WRITE(*,*) 'non0(M)=',DBLE(n**2-nz)/DBLE(n**2)
+    mx = MAXVAL(ABS(local_data(1:nrow_local,1:ncol_local)))
     CALL mp_max(mx,preconditioner_env%para_env%group)
-    write(*,*) 'max(abs(M))=',mx
+    WRITE(*,*) 'max(abs(M))=',mx
     !
     ! eig(M)
     CALL cp_fm_to_fm(fm,fm_work1,error=error)
     CALL cp_fm_syevd(fm_work1,fm_work2,v,error=error)
-    write(*,*) 'cond(M)=',MAXVAL(abs(v))/MAX(MINVAL(abs(v)),EPSILON(0.0_dp))
-    write(*,*) 'min(eig(M))=',MINVAL(v),'max(eig(M))=',MAXVAL(v)
+    WRITE(*,*) 'cond(M)=',MAXVAL(ABS(v))/MAX(MINVAL(ABS(v)),EPSILON(0.0_dp))
+    WRITE(*,*) 'min(eig(M))=',MINVAL(v),'max(eig(M))=',MAXVAL(v)
     !
     !
     DEALLOCATE(buf1,buf2,p,v)
@@ -2087,50 +2071,40 @@ END SUBROUTINE make_full_all_ortho
   SUBROUTINE make_sparse_kinetic_sainv(preconditioner_env,&
        pc, matrix_t, matrix_s, energy_homo, energy_gap, error)
     !
-    TYPE(preconditioner_type),INTENT(INOUT)  :: preconditioner_env
+    TYPE(preconditioner_type), INTENT(INOUT) :: preconditioner_env
     TYPE(dbcsr_type), POINTER                :: pc
     TYPE(real_matrix_type), POINTER          :: matrix_t, matrix_s
     REAL(KIND=dp)                            :: energy_homo, energy_gap
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    !
-    LOGICAL                                  :: failure
-    INTEGER                                  :: n,i,j,k
-    REAL(KIND=dp)                            :: shift
-    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   :: p
-    REAL(KIND=dp),DIMENSION(:,:),ALLOCATABLE :: buf1,buf2
+
     CHARACTER(len=*), PARAMETER :: routineN = 'make_sparse_kinetic_sainv', &
-         routineP = moduleN//':'//routineN
-    !
-    TYPE(dbcsr_type)                         :: mat_t, mat_s
-    !
-    REAL(KIND=dp)                            :: DDOT
-    REAL(KIND=dp)                            :: mx
-    INTEGER                                  :: nfullrows_local,&
-                                                nfullcols_local,&
-                                                nblkrows_local,&
-                                                nblkcols_local,&
-                                                nblkrows_total,&
-                                                nblkcols_total,&
-                                                nfullrows_total,&
-                                                nfullcols_total
-    INTEGER                                  :: stat
-    INTEGER                                  :: nz
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: local_data
-    ! These threshould should be make specifiable in the input. -UB
-    REAL(KIND=dp), PARAMETER                 :: thresh_inner=1.0E-2_dp,&
-                                                thresh_post=1.0E-5_dp
-    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   :: v
-    TYPE(dbcsr_type)                         :: w1_m, w2_m,&
-                                                col1_m, col2_m, v_m, p_m,&
-                                                col2_t_m
-    TYPE(array_i1d_obj)                      :: row_blk_size_array,&
-                                                col_blk_size_array,&
-                                                col_col_blk_size_array
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: thresh_inner = 1.0E-2_dp, &
+                                                thresh_post = 1.0E-5_dp
+
+    INTEGER                                  :: i, j, n, nblkcols_total, &
+                                                nblkrows_total, &
+                                                nfullrows_total, nz, stat
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_col_blk_size
-    TYPE(dbcsr_distribution_obj)             :: dist_main, dist_col, dist_row
-    TYPE(distribution_2d_type), POINTER      :: dist2d_main, dist2d_col,&
-                                                dist2d_row
-    !
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: shift
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: p, v
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: buf1, buf2
+    TYPE(array_i1d_obj)                      :: col_blk_size_array, &
+                                                col_col_blk_size_array, &
+                                                row_blk_size_array
+    TYPE(dbcsr_distribution_obj)             :: dist_col, dist_main
+    TYPE(dbcsr_type)                         :: col1_m, col2_m, col2_t_m, &
+                                                mat_t, p_m, v_m, w1_m, w2_m
+    TYPE(distribution_2d_type), POINTER      :: dist2d_col, dist2d_main
+
+!
+!
+!
+! These threshould should be make specifiable in the input. -UB
+!
+
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
@@ -2360,18 +2334,17 @@ END SUBROUTINE make_full_all_ortho
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-    !TYPE(dbcsr_type), INTENT(IN)             :: matrix_in
-    !TYPE(dbcsr_type), INTENT(OUT)            :: matrix_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    TYPE(dbcsr_type)                         :: matrix_right
-    TYPE(dbcsr_type)                         :: matrix_result
-    INTEGER                                  :: k, n
-    TYPE(distribution_2d_type), POINTER      :: dist2d_result, dist2d_precond
-    TYPE(dbcsr_distribution_obj)             :: dist_result, dist_precond
+    INTEGER                                  :: k
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size
     TYPE(array_i1d_obj)                      :: precond_row_blk_size_array
+    TYPE(dbcsr_distribution_obj)             :: dist_result
+    TYPE(dbcsr_type)                         :: matrix_result, matrix_right
+    TYPE(distribution_2d_type), POINTER      :: dist2d_precond, dist2d_result
 
+!TYPE(dbcsr_type), INTENT(IN)             :: matrix_in
+!TYPE(dbcsr_type), INTENT(OUT)            :: matrix_out
 !----
 
     WRITE(*,*)' APPLYING SPARSE SINGLE KINETIC'

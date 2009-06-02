@@ -14,16 +14,15 @@
 ! *****************************************************************************
 MODULE dbcsr_operations
   USE array_types,                     ONLY: array_data
-  USE btree_I8_k_I4_v,                 ONLY: btree_I8_I4 => btree,&
-                                             btree_add,&
+  USE btree_I8_k_I4_v,                 ONLY: btree_add,&
                                              btree_delete,&
                                              btree_find,&
                                              btree_get_entries,&
                                              btree_new
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_mp_group,&
-                                             dbcsr_mp_mypcol,&
                                              dbcsr_mp_mynode,&
+                                             dbcsr_mp_mypcol,&
                                              dbcsr_mp_myprow,&
                                              dbcsr_mp_nprows,&
                                              dbcsr_mp_numnodes,&
@@ -33,18 +32,10 @@ MODULE dbcsr_operations
                                              dbcsr_mp_obj,&
                                              dbcsr_type,&
                                              dbcsr_work_type
-  USE dbcsr_util,                      ONLY: add_work_coordinate,&
-                                             dbcsr_init,&
-                                             dbcsr_create,&
-                                             dbcsr_destroy_array,&
-                                             dbcsr_finalize,&
-                                             dbcsr_pack_meta,&
-                                             dbcsr_print,&
-                                             dbcsr_repoint_index,&
-                                             dbcsr_set_debug,&
-                                             dbcsr_unpack_i8_2i4,&
-                                             ensure_array_size,&
-                                             dbcsr_block_transpose
+  USE dbcsr_util,                      ONLY: &
+       add_work_coordinate, dbcsr_create, dbcsr_destroy_array, &
+       dbcsr_finalize, dbcsr_init, dbcsr_pack_meta, dbcsr_repoint_index, &
+       dbcsr_set_debug, dbcsr_unpack_i8_2i4, ensure_array_size
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8
@@ -97,9 +88,9 @@ CONTAINS
 
     INTEGER :: entries, flop, flop_total, i, left_nprows, left_prow, &
       left_prow_i, left_rep, left_reps, left_src_p_calc, left_src_p_comm, &
-      mp_group, mypcol, mynode, myprow, numnodes, rep, right_nprows, &
-      right_prow, right_prow_i, right_rep, right_reps, right_src_p_calc, &
-      right_src_p_comm, timing_handle, nze, nblks
+      mp_group, mynode, mypcol, myprow, nblks, numnodes, nze, rep, &
+      right_nprows, right_prow, right_prow_i, right_rep, right_reps, &
+      right_src_p_calc, right_src_p_comm, timing_handle
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: keys
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
@@ -424,7 +415,7 @@ CONTAINS
 
     INTEGER :: entries, flop, flop_total, i, left_nprows, left_prow, &
       left_prow_i, left_rep, left_reps, left_src_p_calc, left_src_p_comm, &
-      mp_group, mypcol, mynode, myprow, numnodes, rep, right_dst_p_comm, &
+      mp_group, mynode, mypcol, myprow, numnodes, rep, right_dst_p_comm, &
       right_nprows, right_prow, right_prow_i, right_rep, right_reps, &
       right_src_p_calc, right_src_p_comm, timing_handle
     INTEGER(KIND=int_8), ALLOCATABLE, &
@@ -830,20 +821,20 @@ CONTAINS
                                                 beta_add = 1.0_dp, &
                                                 beta_new = 0.0_dp
 
-    TYPE(dbcsr_work_type)                    :: wm
     CHARACTER                                :: a_type, b_type
     INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, b_blk, &
       b_col, b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_col, c_nze, &
       c_row, lda, ldb, lflop, timing_handle
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate
+    INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
+                                                left_row_blk_size, &
+                                                right_col_blk_size, &
+                                                right_row_blk_size
     LOGICAL                                  :: block_exists
     REAL(KIND=dp)                            :: beta, tstart, tstop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data, b_data, c_data
-    INTEGER, DIMENSION(:), POINTER           :: left_row_blk_size,&
-                                                left_col_blk_size,&
-                                                right_row_blk_size,&
-                                                right_col_blk_size
+    TYPE(dbcsr_work_type)                    :: wm
 
 !.!INTEGER, DIMENSION(:), ALLOCATABLE   :: c_blk_ps
 
@@ -986,12 +977,10 @@ CONTAINS
     INTEGER :: addee_blk, addee_col, addee_col_size, addee_nze, addee_row, &
       addee_row_size, ldaddee, ldsum, lflop, sum_blk, sum_blk_p, &
       sum_col_size, sum_row_size, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: addee_col_blk_size, &
+                                                addee_row_blk_size
     REAL(KIND=dp)                            :: tstart, tstop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: addee_data, sum_data
-    INTEGER, DIMENSION(:), POINTER           :: addee_row_blk_size,&
-                                                addee_col_blk_size
-
-
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------

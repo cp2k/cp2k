@@ -19,9 +19,7 @@ MODULE preconditioner_types
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type
-  USE dbcsr_util,                      ONLY: dbcsr_create,&
-                                             dbcsr_destroy,&
-                                             dbcsr_init
+  USE dbcsr_util,                      ONLY: dbcsr_destroy
   USE input_constants,                 ONLY: ot_precond_solver_default
   USE kinds,                           ONLY: dp
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&

@@ -15,16 +15,14 @@
 MODULE dbcsr_util
 
   USE array_types,                     ONLY: array_data,&
+                                             array_hold,&
                                              array_i1d_obj,&
                                              array_new,&
                                              array_nullify,&
                                              array_release,&
-                                             array_size,&
-                                             array_hold,&
-                                             array_nullify
+                                             array_size
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_retain,&
                                              cp_blacs_env_type,&
                                              cp_blacs_env_write,&
                                              get_blacs_info
@@ -35,27 +33,24 @@ MODULE dbcsr_util
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution_init,&
        dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_distribution_processor,&
-       dbcsr_distribution_row_dist, dbcsr_distribution_col_dist,&
-       dbcsr_distribution_nrows, dbcsr_distribution_ncols,&
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nlocal_cols,&
-       dbcsr_distribution_local_rows, dbcsr_distribution_local_cols,&
-       dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mp_release, dbcsr_mp_new_transposed,&
-       dbcsr_mp_myprow, dbcsr_mp_mypcol, dbcsr_mp_mynode,&
-       dbcsr_mp_nprows, dbcsr_mp_npcols
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_mp_group, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
+       dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release
   USE dbcsr_types,                     ONLY: &
-       dbcsr_array_type, dbcsr_distribution_obj, dbcsr_meta_size, &
-       dbcsr_mp_obj, dbcsr_num_slots, dbcsr_imagedistribution_type, &
-       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
-       dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, dbcsr_work_type
+       dbcsr_array_type, dbcsr_distribution_obj, &
+       dbcsr_imagedistribution_type, dbcsr_meta_size, dbcsr_mp_obj, &
+       dbcsr_num_slots, dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, &
+       dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
+       dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
-                                             distribution_2d_release,&
-                                             distribution_2d_retain,&
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE f77_blas
@@ -63,9 +58,10 @@ MODULE dbcsr_util
                                              int_4,&
                                              int_8
   USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: &
-       mp_allocate, mp_alltoall, mp_deallocate, mp_rma_put, mp_sum, &
-       mp_window_create, mp_window_destroy, mp_window_fence, mp_window_type
+  USE message_passing,                 ONLY: mp_allocate,&
+                                             mp_alltoall,&
+                                             mp_deallocate,&
+                                             mp_sum
   USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
                                              next_block_node,&
@@ -169,7 +165,7 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: transpose
     INTEGER, INTENT(OUT), OPTIONAL           :: processor
 
-    INTEGER                                  :: timing_handle, tmp
+    INTEGER                                  :: tmp
     LOGICAL                                  :: straight
 
 !   ---------------------------------------------------------------------------
@@ -210,12 +206,12 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: block_number
     INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
 
-    INTEGER                                  :: blk, timing_handle
+    INTEGER                                  :: blk
     LOGICAL                                  :: found
 
 !   ---------------------------------------------------------------------------
+!CALL timeset("dbcsr_get_block_info", timing_handle)
 
-    !CALL timeset("dbcsr_get_block_info", timing_handle)
     found = .FALSE.
     blk = matrix%row_p(row)+1
     DO WHILE (.NOT. found)
@@ -253,7 +249,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init', &
       routineP = moduleN//':'//routineN
+
 !   ---------------------------------------------------------------------------
+
     matrix%initialized = .TRUE.
     matrix%valid = .FALSE.
     ! Nullifies all pointers.
@@ -286,10 +284,9 @@ CONTAINS
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     CHARACTER, INTENT(IN)                    :: matrix_type
+    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
     INTEGER, INTENT(IN)                      :: nblks, nze
     LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse
-    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
-    TYPE(real_matrix_type)                   :: sm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create', &
@@ -297,8 +294,8 @@ CONTAINS
 
     CHARACTER                                :: mt
     INTEGER                                  :: stat
-    LOGICAL                                  :: hijack
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
+    LOGICAL                                  :: hijack
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -412,21 +409,23 @@ CONTAINS
        local_rows, local_cols, proc_row_dist, proc_col_dist,&
        row_blk_size, col_blk_size, meta, distribution,&
        error)
-    TYPE(dbcsr_type), INTENT(IN)    :: matrix
-    INTEGER, INTENT(OUT), OPTIONAL  :: nblkrows_total, nblkcols_total,&
-                                       nfullrows_total, nfullcols_total,&
-                                       nblkrows_local, nblkcols_local,&
-                                       nfullrows_local, nfullcols_local,&
-                                       my_prow, my_pcol
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL  :: local_rows, local_cols,&
-                                                 proc_row_dist, proc_col_dist
-    TYPE (array_i1d_obj), INTENT(OUT), OPTIONAL :: row_blk_size, col_blk_size
-    INTEGER, DIMENSION(dbcsr_meta_size), INTENT(OUT), OPTIONAL :: meta
-    TYPE(dbcsr_distribution_obj), INTENT(OUT), OPTIONAL :: distribution
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, &
+      nfullrows_total, nfullcols_total, nblkrows_local, nblkcols_local, &
+      nfullrows_local, nfullcols_local, my_prow, my_pcol
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_rows, local_cols, &
+                                                proc_row_dist, proc_col_dist
+    TYPE(array_i1d_obj), INTENT(OUT), &
+      OPTIONAL                               :: row_blk_size, col_blk_size
+    INTEGER, DIMENSION(dbcsr_meta_size), &
+      INTENT(OUT), OPTIONAL                  :: meta
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT), OPTIONAL                  :: distribution
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_info', &
       routineP = moduleN//':'//routineN
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -498,10 +497,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nblks, nze, stat, &
-                                                timing_handle
+    INTEGER                                  :: nblks, nze, stat
 
 !   ---------------------------------------------------------------------------
+
     matrix%w%lastblk = 0
     matrix%w%datasize = 0
     IF(PRESENT(nblks_guess)) THEN
@@ -552,14 +551,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_finalize', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_work_type)                    :: wm
     INTEGER                                  :: blk, blk_p_p, col_i_p, &
-                                                col_size, prev_row, row, &
-                                                row_p_p, row_size, stat, &
+                                                prev_row, row, row_p_p, stat, &
                                                 timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: shfl, srt
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, col_blk_size
+    TYPE(dbcsr_work_type)                    :: wm
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -683,8 +681,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: nosd
-
 !   ---------------------------------------------------------------------------
 
     IF (matrix%special_memory) THEN
@@ -802,13 +798,13 @@ CONTAINS
     LOGICAL                                  :: dbg, failure = .FALSE.
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: thefmrow
+    TYPE(array_i1d_obj)                      :: col_blk_size_array, &
+                                                row_blk_size_array
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_work_type)                    :: wm
     TYPE(dbcsr_distribution_obj)             :: dist
-    TYPE(array_i1d_obj)                      :: row_blk_size_array,&
-                                                col_blk_size_array
+    TYPE(dbcsr_work_type)                    :: wm
 
 !   ---------------------------------------------------------------------------
 
@@ -960,43 +956,36 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_from_sm', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: data_exchange_info_cnt = 3
+    INTEGER, PARAMETER                       :: data_exchange_info_cnt = 3, &
+                                                metalen = 2
 
-    INTEGER :: absrow, blk, blk_l, block_col, block_row, datap, i, j, &
-      mypcol, myprow, nblkcols_local, nblkcols_total, nblkrows_local, &
+    INTEGER :: absrow, blk, blk_l, blk_p, block_col, col, dst_p, mp_group, &
+      mynod, mypcol, myprow, nblkcols_local, nblkcols_total, nblkrows_local, &
       nblkrows_total, nblks, newpcol, newprow, nfullcols_local, &
-      nfullcols_total, nfullrows_local, nfullrows_total, npcols, &
-      nprows, numnod, nze, p, row_l
-    INTEGER :: stat, timing_handle
-    INTEGER, DIMENSION(:), POINTER :: blkcols_local, blkrows_local, &
-      col_blk_begin, col_blk_end, pcol_dist, prow_dist, row_blk_begin, &
-      row_blk_end, row_blk_size, col_blk_size
-    TYPE(array_i1d_obj)                      :: rbs_array, cbs_array
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: empty, &
-                                                failure = .FALSE., symmetric, &
-                                                tr
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: blkdata_1d
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d
-
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_2d_type), POINTER      :: dist2d
-    TYPE(real_block_node_type), POINTER      :: sm_block_node
-    TYPE(dbcsr_distribution_obj)             :: dist
-    INTEGER, PARAMETER                       :: metalen = 2
-    INTEGER :: blk_p, col, dst_p, mp_group, mynod, numproc, &
-      pcol, prow, row, src_p, stored_col, stored_row
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_meta, &
-                                                send_meta
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, rm_disp, sd_disp, &
-                                                sdp, sm_disp, smp
+      nfullcols_total, nfullrows_local, nfullrows_total, npcols, nprows, &
+      numproc, nze, p, row, row_l, src_p, stat, stored_col, stored_row, &
+      timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
+                                                sd_disp, sdp, send_meta, &
+                                                sm_disp, smp
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count
-    INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
+    INTEGER, DIMENSION(:), POINTER :: blkcols_local, blkrows_local, &
+      col_blk_begin, col_blk_end, col_blk_size, pcol_dist, prow_dist, &
+      row_blk_begin, row_blk_end, row_blk_size
+    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
+    LOGICAL                                  :: symmetric, tr
     REAL(KIND=dp)                            :: tstart, tstop
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d
+    TYPE(array_i1d_obj)                      :: cbs_array, rbs_array
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(distribution_2d_type), POINTER      :: dist2d
+    TYPE(real_block_node_type), POINTER      :: sm_block_node
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -1258,19 +1247,20 @@ CONTAINS
        transpose_data, transpose_distribution, reuse, error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: transposed
     TYPE(dbcsr_type), INTENT(IN)             :: normal
-    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reshuffle,&
-                                                transpose_data,&
-                                                transpose_distribution
+    LOGICAL, INTENT(IN), OPTIONAL            :: reshuffle, transpose_data, &
+                                                transpose_distribution, reuse
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_transposed', &
       routineP = moduleN//':'//routineN
-    LOGICAL                                  :: hijack, shuffle, tr_blocks,&
+
+    CHARACTER                                :: new_type
+    INTEGER                                  :: stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
+    LOGICAL                                  :: hijack, shuffle, tr_blocks, &
                                                 tr_dist
     TYPE(dbcsr_distribution_obj)             :: new_dist
-    CHARACTER                                :: new_type
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: blk_p
-    INTEGER                                  :: stat
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -1350,8 +1340,9 @@ CONTAINS
 !> \param[in] old_type        current matrix_type
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE dbcsr_transposed_type (new_type, old_type)
-    CHARACTER, INTENT(OUT)    :: new_type
-    CHARACTER, INTENT(IN)     :: old_type
+    CHARACTER, INTENT(OUT)                   :: new_type
+    CHARACTER, INTENT(IN)                    :: old_type
+
     SELECT CASE (old_type)
     CASE ('N')
        new_type = 'T'
@@ -1374,17 +1365,22 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE transpose_index_local (new_col_p, new_row_i, old_row_p,&
        old_col_i, new_blk_p, old_blk_p)
-    INTEGER, DIMENSION(:), INTENT(OUT)  :: new_col_p, new_row_i
-    INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL  :: new_blk_p
-    INTEGER, DIMENSION(:), INTENT(IN)   :: old_row_p, old_col_i
-    INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL   :: old_blk_p
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: new_col_p, new_row_i
+    INTEGER, DIMENSION(:), INTENT(IN)        :: old_row_p, old_col_i
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: new_blk_p
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: old_blk_p
+
     CHARACTER(len=*), PARAMETER :: routineN = 'transpose_index_local', &
       routineP = moduleN//':'//routineN
-    INTEGER                             :: old_row, curcol, mincol, prev_col,&
-                                           nblks
-    INTEGER                             :: new_ncols, old_nrows, old_max_col
-    INTEGER, DIMENSION(:), ALLOCATABLE  :: col_cntr, row_p
-    LOGICAL                             :: column_le
+
+    INTEGER                                  :: curcol, mincol, nblks, &
+                                                new_ncols, old_max_col, &
+                                                old_nrows, old_row, prev_col
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_p
+    LOGICAL                                  :: column_le
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -1496,21 +1492,24 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE meta_from_dist (meta, dist, row_blk_size, col_blk_size, error)
-    INTEGER, DIMENSION(dbcsr_meta_size), INTENT(OUT)   :: meta
+    INTEGER, DIMENSION(dbcsr_meta_size), &
+      INTENT(OUT)                            :: meta
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size,&
-                                                col_blk_size
+    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_from_dist', &
-         routineP = moduleN//':'//routineN
-    INTEGER, DIMENSION(:), POINTER      :: blkrows_local, blkcols_local,&
-                                           rbs, cbs
-    INTEGER                             :: nblkrows_total, nblkcols_total,&
-                                           nblkrows_local, nblkcols_local
-    INTEGER                             :: nfullrows_total, nfullcols_total,&
-                                           nfullrows_local, nfullcols_local
-    !INTEGER                             :: row_l, absrow, stat
-    INTEGER                             :: i
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, nfullcols_local, &
+                                                nfullcols_total, &
+                                                nfullrows_local, &
+                                                nfullrows_total
+    INTEGER, DIMENSION(:), POINTER           :: blkcols_local, blkrows_local, &
+                                                cbs, rbs
+
+!INTEGER                             :: row_l, absrow, stat
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -1544,11 +1543,14 @@ CONTAINS
   END SUBROUTINE meta_from_dist
 
   SUBROUTINE test_create_blocked_linear_distribution(error)
-    TYPE(cp_error_type), INTENT(INOUT) :: error
-    TYPE(array_i1d_obj) :: block_distribution, block_size
-    REAL :: rn
-    INTEGER, PARAMETER :: rpt = 10
-    INTEGER :: i, elements, bins
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER, PARAMETER                       :: rpt = 10
+
+    INTEGER                                  :: bins, elements, i
+    REAL                                     :: rn
+    TYPE(array_i1d_obj)                      :: block_distribution, block_size
+
     DO i = 1, rpt
        CALL RANDOM_NUMBER (rn)
        elements = INT(rn * 500)
@@ -1570,20 +1572,19 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE create_blocked_linear_distribution (block_distribution,&
        block_size, nelements, nbins, error)
-    TYPE(array_i1d_obj), INTENT(OUT)    :: block_distribution, block_size
-    INTEGER, INTENT(IN)                 :: nelements, nbins
-    TYPE(cp_error_type), INTENT(INOUT)  :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_blocked_linear_distribution', & 
+    TYPE(array_i1d_obj), INTENT(OUT)         :: block_distribution, block_size
+    INTEGER, INTENT(IN)                      :: nelements, nbins
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_blocked_linear_distribution', &
       routineP = moduleN//':'//routineN
-    INTEGER                             :: max_elements_per_bin,&
-                                           element_stack, nblks, bin,&
-                                           max_elements_per_block,&
-                                           max_blocks_per_bin,&
-                                           els, blk_layer, estimated_blocks
-    INTEGER                             :: stat
-    INTEGER                             :: max_block_size = 32
-    INTEGER, DIMENSION(:), POINTER      :: blk_dist, blk_sizes
-    LOGICAL                             :: arrays_are_gifts
+
+    INTEGER :: bin, blk_layer, element_stack, els, estimated_blocks, &
+      max_block_size = 32, max_blocks_per_bin, max_elements_per_bin, &
+      max_elements_per_block, nblks, stat
+    INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -1877,27 +1878,26 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_normal
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist2d_transposed', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_create_dist2d_transposed', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: at, at_high, at_low, i, k
-    INTEGER                                  :: mynod, mypcol_tr, &
-      mypcol_normal, myprow_tr, myprow_normal, nblkcols_tr, nblkcols_normal,&
-      nblkrows_normal, nblkrows_tr, &
-      nblks, ncols, npcols_tr, npcols_normal, nprows_tr, nprows_normal
-    INTEGER                                  :: stat
-    INTEGER, DIMENSION(:), POINTER :: n_at_local_rows_tr, n_at_local_cols_tr,&
-         n_at_local_rows_normal, n_at_local_cols_normal,&
-         row_dist_tr, col_dist_tr,&
-         row_dist_normal, col_dist_normal
+    INTEGER :: at_high, at_low, i, mynod, mypcol_normal, mypcol_tr, &
+      myprow_normal, myprow_tr, nblkcols_normal, nblkcols_tr, &
+      nblkrows_normal, nblkrows_tr, npcols_normal, npcols_tr, nprows_normal, &
+      nprows_tr, stat
+    INTEGER, DIMENSION(:), POINTER :: col_dist_normal, col_dist_tr, &
+      n_at_local_cols_normal, n_at_local_cols_tr, n_at_local_rows_normal, &
+      n_at_local_rows_tr, row_dist_normal, row_dist_tr
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi, mpi2blacs
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
-      POINTER                                :: at_local_cols_tr, &
-                                                at_local_cols_normal, &
-                                                at_local_rows_normal,&
+      POINTER                                :: at_local_cols_normal, &
+                                                at_local_cols_tr, &
+                                                at_local_rows_normal, &
                                                 at_local_rows_tr
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_tr, blacs_env_normal
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_normal, blacs_env_tr
     TYPE(cp_para_env_type), POINTER          :: para_env
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -2383,16 +2383,21 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_r_unrot(dist_right, dist_left, ncolumns,&
        right_col_blk_sizes, error)
-    TYPE(dbcsr_distribution_obj), INTENT(OUT):: dist_right
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist_right
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_left
     INTEGER, INTENT(IN)                      :: ncolumns
     TYPE(array_i1d_obj), INTENT(OUT)         :: right_col_blk_sizes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_unrot', &
       routineP = moduleN//':'//routineN
+
     TYPE(array_i1d_obj)                      :: right_col_dist
     TYPE(dbcsr_mp_obj)                       :: right_mp_env
+
 !   ---------------------------------------------------------------------------
+
     right_mp_env = dbcsr_distribution_mp (dist_left)
     CALL create_blocked_linear_distribution (right_col_dist,&
          right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env), error)
@@ -2416,17 +2421,22 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_r_rot(dist_right, dist_left, ncolumns,&
        right_col_blk_sizes, error)
-    TYPE(dbcsr_distribution_obj), INTENT(OUT):: dist_right
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist_right
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_left
     INTEGER, INTENT(IN)                      :: ncolumns
     TYPE(array_i1d_obj), INTENT(OUT)         :: right_col_blk_sizes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_rot', &
       routineP = moduleN//':'//routineN
+
     TYPE(array_i1d_obj)                      :: right_col_dist
     TYPE(dbcsr_mp_obj)                       :: right_mp_env
+
 !   ---------------------------------------------------------------------------
-    !CALL test_create_blocked_linear_distribution (error)
+!CALL test_create_blocked_linear_distribution (error)
+
     CALL dbcsr_mp_new_transposed (right_mp_env,&
          dbcsr_distribution_mp (dist_left))
     CALL create_blocked_linear_distribution (right_col_dist,&
@@ -2452,16 +2462,21 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_l_unrot(dist_left, dist_right, nrows,&
        left_row_blk_sizes, error)
-    TYPE(dbcsr_distribution_obj), INTENT(OUT):: dist_left
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist_left
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_right
     INTEGER, INTENT(IN)                      :: nrows
     TYPE(array_i1d_obj), INTENT(OUT)         :: left_row_blk_sizes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_l_unrot', &
       routineP = moduleN//':'//routineN
+
     TYPE(array_i1d_obj)                      :: left_row_dist
     TYPE(dbcsr_mp_obj)                       :: left_mp_env
+
 !   ---------------------------------------------------------------------------
+
     left_mp_env = dbcsr_distribution_mp (dist_left)
     CALL create_blocked_linear_distribution (left_row_dist,&
          left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env), error)
@@ -2485,16 +2500,21 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_l_rot(dist_right, dist_left, nrows,&
        left_row_blk_sizes, error)
-    TYPE(dbcsr_distribution_obj), INTENT(OUT):: dist_left
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_right
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist_left
     INTEGER, INTENT(IN)                      :: nrows
     TYPE(array_i1d_obj), INTENT(OUT)         :: left_row_blk_sizes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_l_rot', &
       routineP = moduleN//':'//routineN
+
     TYPE(array_i1d_obj)                      :: left_row_dist
     TYPE(dbcsr_mp_obj)                       :: left_mp_env
+
 !   ---------------------------------------------------------------------------
+
     CALL dbcsr_mp_new_transposed (left_mp_env,&
          dbcsr_distribution_mp (dist_right))
     CALL create_blocked_linear_distribution (left_row_dist,&
@@ -2721,9 +2741,9 @@ CONTAINS
 
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     REAL(KIND=dp)                            :: blk_cs, local_cs
     TYPE(cp_error_type)                      :: e
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, col_blk_size
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -2773,9 +2793,9 @@ CONTAINS
 
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: tr
     REAL(KIND=dp)                            :: blk_cs
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, col_blk_size
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -2825,13 +2845,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_verify_matrix', &
       r = moduleN//':'//routineN
 
-    INTEGER :: bc, blk, blk_p, br, i, mb, mn, n, n_full_blocks_total, &
+    INTEGER :: bc, blk, blk_p, br, dbg, i, mb, mn, n, n_full_blocks_total, &
       n_have_blocks_local, n_have_blocks_total, prev_br, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     REAL(KIND=dp)                            :: sparsity_total
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, col_blk_size
-    INTEGER                                  :: dbg
-    
+
 !   ---------------------------------------------------------------------------
+
     dbg = 2
     IF (PRESENT (verbosity)) dbg = verbosity
     CALL timeset(routineN, timing_handle)
@@ -3022,8 +3042,8 @@ CONTAINS
     INTEGER                                  :: blk, col_size, row, row_size, &
                                                 stat, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     REAL(KIND=dp), DIMENSION(:), POINTER     :: new_data
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, col_blk_size
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3134,9 +3154,12 @@ CONTAINS
 
 
   SUBROUTINE calc_blk_sizes(sizes, row_p, col_i, rbs, cbs)
-    INTEGER, DIMENSION(:), INTENT(OUT)  :: sizes
-    INTEGER, DIMENSION(:), INTENT(IN)   :: row_p, col_i, rbs, cbs
-    INTEGER                             :: row, blk, row_size, col_size, nrows
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: sizes
+    INTEGER, DIMENSION(:), INTENT(IN)        :: row_p, col_i, rbs, cbs
+
+    INTEGER                                  :: blk, col_size, nrows, row, &
+                                                row_size
+
     nrows = SIZE (row_p)-1
 !$OMP PARALLEL DO PRIVATE (row, blk, row_size, col_size)
     DO row = 1, nrows
@@ -3211,9 +3234,10 @@ CONTAINS
 !> \param[in] val   reverse the sign of the new block offset
 ! *****************************************************************************
   ELEMENTAL FUNCTION sgn (n, old, x) RESULT (val)
-    INTEGER, INTENT(IN) :: n, old
-    LOGICAL, INTENT(IN) :: x
-    INTEGER             :: val
+    INTEGER, INTENT(IN)                      :: n, old
+    LOGICAL, INTENT(IN)                      :: x
+    INTEGER                                  :: val
+
     IF (.NOT.x) THEN
        val = SIGN (n, old)
     ELSE
@@ -3240,19 +3264,19 @@ CONTAINS
   SUBROUTINE dbcsr_copy_sort_data(blk_p, old_blk_p, row_p, col_i, rbs, cbs,&
        dst, src, mark_transposed, transpose_blocks, error)
     INTEGER, DIMENSION(:), INTENT(OUT)       :: blk_p
-    INTEGER, DIMENSION(:), INTENT(IN)        :: old_blk_p, rbs, cbs,&
-                                                row_p, col_i
+    INTEGER, DIMENSION(:), INTENT(IN)        :: old_blk_p, row_p, col_i, rbs, &
+                                                cbs
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: dst
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: src
-    LOGICAL, INTENT(IN), OPTIONAL            :: mark_transposed,&
+    LOGICAL, INTENT(IN), OPTIONAL            :: mark_transposed, &
                                                 transpose_blocks
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_sort_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: row, blk, nblks, row_size,&
-                                                col_size, nze, nze_prev, nrows
+    INTEGER                                  :: blk, col_size, nblks, nrows, &
+                                                nze, nze_prev, row, row_size
     LOGICAL                                  :: mark, trb
 
     DEBUG_HEADER
@@ -3373,7 +3397,8 @@ CONTAINS
                                                 total_recv_count, &
                                                 total_send_count
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: recv_count, send_count
-    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist, &
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
+                                                row_blk_size, row_dist, &
                                                 row_rep_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
@@ -3386,8 +3411,7 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_work_type), ALLOCATABLE, &
       DIMENSION(:)                           :: wms
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, col_blk_size
-    
+
 !TYPE(dbcsr_work_type)                    :: wm
 !TYPE(dbcsr_type), POINTER                :: um
 
@@ -3677,7 +3701,8 @@ CONTAINS
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count
-    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
+                                                row_blk_size, row_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
     REAL(KIND=dp)                            :: tstart, tstop
@@ -3688,7 +3713,6 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_type), POINTER                :: um
     TYPE(dbcsr_work_type)                    :: wm
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, col_blk_size
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3854,7 +3878,8 @@ CONTAINS
       INTENT(IN)                             :: target_imgdist
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_normalize_normal_images', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_normalize_normal_images', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: metalen = 2
 
@@ -3868,7 +3893,8 @@ CONTAINS
                                                 total_recv_count, &
                                                 total_send_count
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: recv_count, send_count
-    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist, &
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
+                                                row_blk_size, row_dist, &
                                                 row_rep_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
@@ -3881,8 +3907,7 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_work_type), ALLOCATABLE, &
       DIMENSION(:)                           :: wms
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, col_blk_size
-    
+
 !TYPE(dbcsr_work_type)                    :: wm
 !TYPE(dbcsr_type), POINTER                :: um
 
@@ -4482,8 +4507,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'add_work_coordinate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
-
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -4529,7 +4552,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ensure_data_size', &
       routineP = moduleN//':'//routineN
+
 !   ---------------------------------------------------------------------------
+
     CALL ensure_array_size (matrix%data, ub=size, factor=factor, nocopy=nocopy,&
          special=matrix%special_memory, error=error)
   END SUBROUTINE dbcsr_ensure_data_size
@@ -4788,10 +4813,9 @@ CONTAINS
       INTENT(INOUT)                          :: extent
     INTEGER, INTENT(IN)                      :: rows, columns
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_inplace', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_block_transpose_inplace', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: dbg
 
 !   ---------------------------------------------------------------------------
 
@@ -4807,16 +4831,12 @@ CONTAINS
 ! *****************************************************************************
   PURE SUBROUTINE dbcsr_block_transpose_copy(extent_out, extent_in,&
        rows, columns)
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(OUT)                            :: extent_out
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(IN)                             :: extent_in
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: extent_out
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: extent_in
     INTEGER, INTENT(IN)                      :: rows, columns
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_copy', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: dbg
 
 !   ---------------------------------------------------------------------------
 
@@ -4882,8 +4902,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_block_sizes', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
 
 !   ---------------------------------------------------------------------------
 
@@ -4976,10 +4994,9 @@ CONTAINS
   SUBROUTINE dbcsr_transpose_distribution(dist_tr, dist_normal)
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist_tr
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(IN)                             :: dist_normal
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_normal
 
-    TYPE(array_i1d_obj)                      :: cd, rd, lr, lc
+    TYPE(array_i1d_obj)                      :: cd, lc, lr, rd
     TYPE(dbcsr_mp_obj)                       :: mp_env_tr
 
 !   ---------------------------------------------------------------------------
@@ -5081,10 +5098,12 @@ CONTAINS
   SUBROUTINE dbcsr_create_image_dist(imgdist, dist)
     TYPE(dbcsr_imagedistribution_type), &
       INTENT(OUT)                            :: imgdist
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(IN)                             :: dist
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+
     INTEGER                                  :: i
+
 !   ---------------------------------------------------------------------------
+
     imgdist%nrow_images = 1
     imgdist%ncol_images = 1
     !CALL array_nullify(imgdist%row_image)
@@ -5187,15 +5206,19 @@ CONTAINS
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     INTEGER, INTENT(IN)                      :: column
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_extract_column', &
       routineP = moduleN//':'//routineN
-    INTEGER, DIMENSION(dbcsr_meta_size)      :: meta, new_meta
-    INTEGER                                  :: src_nblk_rows_total
-    INTEGER                                  :: row, src_blk, col, src_blk_p
-    INTEGER                                  :: nblks, next_data_p, block_nze
+
+    INTEGER                                  :: block_nze, col, nblks, &
+                                                next_data_p, row, src_blk, &
+                                                src_blk_p, src_nblk_rows_total
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    INTEGER, DIMENSION(dbcsr_meta_size)      :: meta
     LOGICAL                                  :: symmetric_src, transposed_src
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, col_blk_size
+
 !   ---------------------------------------------------------------------------
+
     symmetric_src = (matrix%matrix_type.EQ.'S'.OR.matrix%matrix_type.EQ.'A')
     transposed_src = (matrix%matrix_type.EQ.'T')
     row_blk_size => array_data (matrix%row_blk_size)
@@ -5255,9 +5278,11 @@ CONTAINS
 !> \param[out] valid_index    index validity
 ! *****************************************************************************
   PURE FUNCTION dbcsr_valid_index (matrix) RESULT (valid_index)
-    TYPE(dbcsr_type), INTENT(IN)        :: matrix
-    LOGICAL                             :: valid_index
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    LOGICAL                                  :: valid_index
+
 !   ---------------------------------------------------------------------------
+
     valid_index = .FALSE.
     IF (ASSOCIATED (matrix%row_p)) THEN
        valid_index = SIZE (matrix%row_p) .GT. 0
@@ -5274,15 +5299,16 @@ CONTAINS
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     REAL(KIND=dp), INTENT(IN)                :: value
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diagonal', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: i
-    INTEGER                                  :: local_row, row, blk, col,&
-                                                blk_p, nze,&
-                                                row_size, my_pcol
+
+    INTEGER                                  :: blk, blk_p, col, local_row, &
+                                                my_pcol, nze, row, row_size
+    INTEGER, DIMENSION(:), POINTER           :: local_rows, pcol_dist, &
+                                                row_blk_size
     LOGICAL                                  :: in_this_row, valid_index
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size, local_rows,&
-         pcol_dist
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -5346,8 +5372,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: block_data
     REAL(KIND=dp), INTENT(IN)                :: value
     INTEGER, INTENT(IN)                      :: d
+
     INTEGER                                  :: i
+
 !   ---------------------------------------------------------------------------
+
     block_data(:) = 0
     FORALL (i = 0 : d-1)
        block_data(1 + i*d + i) = value

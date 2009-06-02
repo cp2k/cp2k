@@ -13,41 +13,31 @@
 !> - Created
 ! *****************************************************************************
 MODULE cp_dbcsr_operations
-  USE array_types,                     ONLY: array_data, array_hold,&
-                                             array_i1d_obj, array_release
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                             cp_blacs_env_type
+  USE array_types,                     ONLY: array_data
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_distribution_mp,&
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
+                                             dbcsr_distribution_release,&
                                              dbcsr_mp_group
   USE dbcsr_operations,                ONLY: dbcsr_multiply_sets,&
                                              dbcsr_multiply_sets_sqrt
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_imagedistribution_type,&
-                                             dbcsr_type,&
-                                             dbcsr_work_type
+                                             dbcsr_type
   USE dbcsr_util,                      ONLY: &
-       dbcsr_checksum, dbcsr_init, dbcsr_create, dbcsr_create_dist2d_r_unrot, &
-       dbcsr_create_dist2d_r, &
-       dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot,&
-       dbcsr_create_dist_l_rot, dbcsr_create_dist_l_unrot,&
-       dbcsr_create_image_dist_left, dbcsr_create_image_dist, dbcsr_destroy, &
-       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, &
-       dbcsr_from_fm, dbcsr_from_sm, dbcsr_normalize, dbcsr_print, &
-       dbcsr_set_debug, dbcsr_verify_matrix, dbcsr_work_create,&
-       dbcsr_create_dist2d_transposed, dbcsr_new_transposed,&
-       dbcsr_transpose_distribution
-  USE distribution_2d_types,           ONLY: distribution_2d_get,&
+       dbcsr_checksum, dbcsr_create, dbcsr_create_dist2d_r_unrot, &
+       dbcsr_create_image_dist, dbcsr_create_image_dist_left, dbcsr_destroy, &
+       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_from_fm, &
+       dbcsr_from_sm, dbcsr_init, dbcsr_new_transposed, dbcsr_normalize, &
+       dbcsr_set_debug, dbcsr_transpose_distribution, dbcsr_verify_matrix, &
+       dbcsr_work_create
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
-                                             distribution_2d_release,&
                                              distribution_2d_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
@@ -101,13 +91,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sm_sm_multiply', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: flop, i, nblkcols_local, &
-                                                nblkrows_local, timing_handle
+    INTEGER                                  :: flop, timing_handle
     REAL(KIND=dp)                            :: checksum, flops
     TYPE(dbcsr_array_type)                   :: ms_left, ms_right
-    !TYPE(dbcsr_distribution_obj)             :: dist_left, dist_right
     TYPE(dbcsr_imagedistribution_type)       :: rdist_left, rdist_right
     TYPE(dbcsr_type)                         :: matrix_d, matrix_e
+
+!TYPE(dbcsr_distribution_obj)             :: dist_left, dist_right
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -200,15 +190,14 @@ CONTAINS
 
     INTEGER                                  :: handle, k
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: dbg = .FALSE., failure
+    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: checksum, newtime, oldtime, &
                                                 walltime1, walltime2
     TYPE(cp_fm_type), POINTER                :: fmout
-    TYPE(dbcsr_type)                         :: matrix_a, matrix_b, matrix_c,&
-                                                matrix_at, matrix_bt
-    TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_left, dist2d_result
-    TYPE(dbcsr_distribution_obj)             :: dist_right, dist_result
-    TYPE(array_i1d_obj)                      :: col_blk_size_array
+    TYPE(dbcsr_distribution_obj)             :: dist_result
+    TYPE(dbcsr_type)                         :: matrix_a, matrix_b, &
+                                                matrix_bt, matrix_c
+    TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_left
 
     CALL timeset(routineN,handle)
 
@@ -308,10 +297,12 @@ CONTAINS
 !> \date    2009-05-27
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_add_dist2d (matrix, distribution_2d, error)
-    TYPE(dbcsr_type), INTENT(INOUT)     :: matrix
-    TYPE(distribution_2d_type), POINTER :: distribution_2d
-    TYPE(cp_error_type), INTENT(INOUT)  :: error
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
 !   ---------------------------------------------------------------------------
+
     CALL distribution_2d_retain (distribution_2d, error)
     matrix%dist2d => distribution_2d
   END SUBROUTINE cp_dbcsr_add_dist2d
@@ -322,10 +313,12 @@ CONTAINS
 !> \date    2008-05-27
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_get_dist2d (matrix, distribution_2d, error)
-    TYPE(dbcsr_type), INTENT(IN)        :: matrix
-    TYPE(distribution_2d_type), POINTER :: distribution_2d
-    TYPE(cp_error_type), INTENT(INOUT)  :: error
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
 !   ---------------------------------------------------------------------------
+
     distribution_2d => matrix%dist2d
   END SUBROUTINE cp_dbcsr_get_dist2d
 
@@ -335,9 +328,11 @@ CONTAINS
 !> \date    2008-05-27
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_remove_dist2d (matrix, error)
-    TYPE(dbcsr_type), INTENT(INOUT)     :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)  :: error
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
 !   ---------------------------------------------------------------------------
+
     CALL distribution_2d_release (matrix%dist2d, error)
     NULLIFY (matrix%dist2d)
   END SUBROUTINE cp_dbcsr_remove_dist2d

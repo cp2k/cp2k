@@ -15,7 +15,6 @@
 MODULE dbcsr_types
   USE array_types,                     ONLY: array_i1d_obj
   USE btree_I8_k_I4_v,                 ONLY: btree_I8_I4 => btree
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_window_type

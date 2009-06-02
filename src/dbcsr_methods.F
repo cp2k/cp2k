@@ -13,15 +13,14 @@
 !> - Created
 ! *****************************************************************************
 MODULE dbcsr_methods
-  USE array_types,                     ONLY: array_hold,&
+  USE array_types,                     ONLY: array_data,&
+                                             array_hold,&
                                              array_i1d_obj,&
+                                             array_new,&
                                              array_release,&
-                                             array_size,&
-                                             array_data,&
-                                             array_new
+                                             array_size
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_mp_obj
-  USE distribution_2d_types,           ONLY: distribution_2d_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -212,9 +211,10 @@ CONTAINS
       INTENT(OUT)                            :: dist
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     TYPE(array_i1d_obj), INTENT(IN)          :: row_dist, col_dist
-    TYPE(array_i1d_obj), INTENT(IN), OPTIONAL     :: local_rows, local_cols
-    TYPE(distribution_2d_type), POINTER      :: dist2d
-    INTEGER                                  :: i, seq, mypcoor
+    TYPE(array_i1d_obj), INTENT(IN), &
+      OPTIONAL                               :: local_rows, local_cols
+
+    INTEGER                                  :: i, mypcoor, seq
     INTEGER, DIMENSION(:), POINTER           :: dd, ld
 
 !   ---------------------------------------------------------------------------
@@ -307,7 +307,9 @@ CONTAINS
   END SUBROUTINE dbcsr_distribution_release
 
   SUBROUTINE dbcsr_distribution_init (dist)
-    TYPE (dbcsr_distribution_obj), INTENT(OUT) :: dist
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist
+
     NULLIFY (dist%d)
   END SUBROUTINE dbcsr_distribution_init
 
@@ -322,11 +324,13 @@ CONTAINS
   PURE FUNCTION dbcsr_distribution_nrows(dist) RESULT (nrows)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: nrows
+
     nrows = array_size (dist%d%row_dist)
   END FUNCTION dbcsr_distribution_nrows
   PURE FUNCTION dbcsr_distribution_ncols(dist) RESULT (ncols)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: ncols
+
     ncols = array_size (dist%d%col_dist)
   END FUNCTION dbcsr_distribution_ncols
   FUNCTION dbcsr_distribution_row_dist(dist) RESULT (row_dist)
@@ -349,21 +353,25 @@ CONTAINS
   PURE FUNCTION dbcsr_distribution_nlocal_rows(dist) RESULT (nlocalrows)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: nlocalrows
+
     nlocalrows = array_size (dist%d%local_rows)
   END FUNCTION dbcsr_distribution_nlocal_rows
   PURE FUNCTION dbcsr_distribution_nlocal_cols(dist) RESULT (nlocalcols)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: nlocalcols
+
     nlocalcols = array_size (dist%d%local_cols)
   END FUNCTION dbcsr_distribution_nlocal_cols
   FUNCTION dbcsr_distribution_local_rows(dist) RESULT (local_rows)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     TYPE(array_i1d_obj)                      :: local_rows
+
     local_rows = dist%d%local_rows
   END FUNCTION dbcsr_distribution_local_rows
   FUNCTION dbcsr_distribution_local_cols(dist) RESULT (local_cols)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     TYPE(array_i1d_obj)                      :: local_cols
+
     local_cols = dist%d%local_cols
   END FUNCTION dbcsr_distribution_local_cols
   !
@@ -372,6 +380,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER, INTENT(IN)                      :: row, col
     INTEGER                                  :: processor
+
     processor = dist%d%mp_env%mp%pgrid(dist%d%row_dist%low%data(row),&
          dist%d%col_dist%low%data(col))
   END FUNCTION dbcsr_distribution_processor
