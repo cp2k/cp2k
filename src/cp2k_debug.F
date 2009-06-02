@@ -220,7 +220,7 @@ CPSourceFileRef,&
                    particles(ip)%r(k) = std_value - (-1.0_dp)**j * Dx
                    CALL write_qs_particle_coordinates(particles,cell,subsys_section,"DEBUG",error)
                    ! Compute forces..
-                   CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
+                   CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                         consistent_energies=(.NOT.harris_flag), error=error)
                    CALL force_env_get (force_env, potential_energy=numer_energy(j), error=error)
                 END DO
