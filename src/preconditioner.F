@@ -7,10 +7,17 @@
 !> \brief computes preconditioners, and implements methods to apply them
 !>      currently used in qs_ot
 !> \par History
-!>      None
+!>      - [UB] 2009-05-13 Adding stable approximate inverse (full and sparse)
 !> \author Joost VandeVondele (09.2002)
 ! *****************************************************************************
 MODULE preconditioner
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_data,&
+                                             array_new,&
+                                             array_release
+  USE cp_dbcsr_operations,             ONLY: dbcsr_sm_sm_multiply,&
+                                             cp_dbcsr_add_dist2d,&
+                                             cp_dbcsr_get_dist2d
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -30,17 +37,51 @@ MODULE preconditioner
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_set_submatrix
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
+  USE dbcsr_types,                     ONLY: dbcsr_type,&
+                                             dbcsr_meta_size,&
+                                             dbcsr_slot_row_p,&
+                                             dbcsr_slot_col_i,&
+                                             dbcsr_slot_blk_p,&
+                                             dbcsr_distribution_obj
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
+  USE dbcsr_util,                      ONLY: dbcsr_from_sm,&
+                                             dbcsr_get_info,&
+                                             dbcsr_work_create,&
+                                             dbcsr_create,&
+                                             dbcsr_destroy,&
+                                             dbcsr_create_dist2d_r,&
+                                             dbcsr_create_dist2d_r_unrot,&
+                                             dbcsr_init,&
+                                             dbcsr_from_fm,&
+                                             dbcsr_extract_column,&
+                                             dbcsr_set_diagonal,&
+                                             dbcsr_copy_block_sizes,&
+                                             dbcsr_finalize,&
+                                             dbcsr_checksum,&
+                                             dbcsr_verify_matrix,&
+                                             dbcsr_print,&
+                                             dbcsr_addto_index_array,&
+                                             dbcsr_ensure_data_size,&
+                                             dbcsr_dist2d_to_dist,&
+                                             dbcsr_new_transposed,&
+                                             dbcsr_work_destroy
+  USE distribution_2d_types,           ONLY: distribution_2d_type,&
+                                             distribution_2d_release
+  !USE f77_blas_generic,                ONLY: BL_DOT
   USE input_constants,                 ONLY: &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
        ot_precond_solver_inv_chol, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder, ot_precond_sparse_kinetic
+       ot_precond_sparse_firstorder, ot_precond_sparse_kinetic, &
+       ot_precond_full_kinetic_sainv, ot_precond_sparse_kinetic_sainv
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_sum, mp_max
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE sparse_matrix_types,             ONLY: &
@@ -222,6 +263,27 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
                               matrix_t, matrix_s, energy_homo, energy_gap ,error=error)
      CALL make_diag_inner_precond(preconditioner_env, preconditioner_env%sparse_matrix,&
                                   preconditioner_env%sparse_matrix_inner, error=error)
+  CASE (ot_precond_full_kinetic_sainv)
+    preconditioner_env%in_use=ot_precond_full_kinetic_sainv
+    IF (my_solver_type .NE. ot_precond_solver_inv_chol&
+         .AND. my_solver_type .NE. ot_precond_solver_default) THEN
+       CALL stop_program ("make preconditioner",&
+            "Only PRECOND_SOLVER INVERSE_CHOLESKY (or DEFAULT) for the moment")
+    ENDIF
+    CALL make_full_kinetic_sainv(preconditioner_env, preconditioner_env%fm,&
+         matrix_t, matrix_s, energy_homo, energy_gap, error=error)
+  CASE (ot_precond_sparse_kinetic_sainv)
+    preconditioner_env%in_use=ot_precond_sparse_kinetic_sainv
+    IF (my_solver_type .NE. ot_precond_solver_inv_chol&
+         .AND. my_solver_type .NE. ot_precond_solver_default) THEN
+       CALL stop_program ("make preconditioner",&
+            "Only PRECOND_SOLVER INVERSE_CHOLESKY (or DEFAULT) for the moment")
+    ENDIF
+    CALL make_sparse_kinetic_sainv(preconditioner_env,&
+         preconditioner_env%dbcsr_matrix, matrix_t, matrix_s,&
+         energy_homo, energy_gap ,error=error)
+    CALL make_full_kinetic_sainv(preconditioner_env, preconditioner_env%fm,&
+         matrix_t, matrix_s, energy_homo, energy_gap, error=error)
   CASE DEFAULT
      CALL stop_program("make preconditioner","Type not implemented")
   END SELECT
@@ -283,6 +345,21 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
      CALL apply_full_all(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE(ot_precond_sparse_kinetic)
      CALL apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out, error=error)
+  CASE (ot_precond_full_kinetic_sainv)
+     SELECT CASE (preconditioner_env%solver)
+     CASE (ot_precond_solver_inv_chol, ot_precond_solver_default)
+        CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
+     CASE DEFAULT
+        CALL stop_program("apply preconditioner","solver not implemented")
+     END SELECT
+  CASE (ot_precond_sparse_kinetic_sainv)
+     SELECT CASE (preconditioner_env%solver)
+     CASE (ot_precond_solver_inv_chol, ot_precond_solver_default)
+        CALL apply_sparse_single(preconditioner_env, matrix_in, matrix_out,error=error)
+        CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
+     CASE DEFAULT
+        CALL stop_program("apply preconditioner","solver not implemented")
+     END SELECT
   CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
      SELECT CASE (preconditioner_env%solver)
      CASE(ot_precond_solver_inv_chol)
@@ -1792,6 +1869,546 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_fm_release(s ,error=error)
     CALL cp_fm_release(Ap,error=error)
   END SUBROUTINE apply_solve_lin_system
+
+! *****************************************************************************
+!> \brief Kinetic Stable Approximate Inverse Preconditioner
+!> \param[in,out] preconditioner_env    The preconditioner environment
+!> \param         fm                    The precondition matrix
+!> \param         matrix_t              The MO matrix
+!> \param         matrix_s              The overlap matrix
+!> \param[in]     energy_homo           HOMO energy
+!> \param[in]     energy_gap            energy gap
+!> \param[in,out] error       cp2k error
+!> \author Valery Weber
+!> \par History
+!>      - Created by VW
+!>      - 2009-05-13 UB: Merged and brought up-to-date
+! *****************************************************************************
+  SUBROUTINE make_full_kinetic_sainv(preconditioner_env,&
+       fm, matrix_t, matrix_s, energy_homo, energy_gap, error)
+    !
+    TYPE(preconditioner_type),INTENT(INOUT)  :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: fm
+    TYPE(real_matrix_type), POINTER          :: matrix_t, matrix_s
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    !
+    LOGICAL                                  :: failure
+    INTEGER                                  :: n,i,j,k
+    REAL(KIND=dp)                            :: shift
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_work1,fm_work2
+    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   :: p
+    REAL(KIND=dp),DIMENSION(:,:),ALLOCATABLE :: buf1,buf2
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic_sainv', &
+         routineP = moduleN//':'//routineN
+    !
+    REAL(KIND=dp)                            :: DDOT
+    REAL(KIND=dp)                            :: mx
+    INTEGER                                  :: nrow_local,ncol_local,nz
+    REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: local_data
+    ! These threshould should be make specifiable in the input. -UB
+    REAL(KIND=dp), PARAMETER                 :: thresh_inner=1.0E-2_dp,&
+                                                thresh_post=1.0E-5_dp
+    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   ::v
+    !
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+    !
+    write(*,*)'enter sainv thresh_inner=',thresh_inner,' thresh_post=',thresh_post
+    IF(ASSOCIATED(fm)) THEN
+       CALL cp_fm_release(fm,error=error)
+    ENDIF
+    !
+    ! some infos
+    CALL get_matrix_info(matrix_t,nrow=n)
+    !
+    ! allocate
+    ALLOCATE(buf1(n,1),buf2(n,1),p(n),v(n))
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
+         context=preconditioner_env%ctxt, &
+         para_env=preconditioner_env%para_env,error=error)
+    CALL cp_fm_create(fm,fm_struct_tmp, name="preconditioner",error=error)
+    !
+    multiproc: IF (preconditioner_env%para_env%num_pe .EQ. 1) THEN
+    !
+    CALL cp_fm_create(fm_work1,fm_struct_tmp, name="preconditioner_work1",error=error)
+    CALL cp_fm_create(fm_work2,fm_struct_tmp, name="preconditioner_work2",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    !
+    ! T = T - epsilon * S
+    shift=MAX(-energy_homo,energy_gap)
+    CALL add_matrices(matrix_t,1.0_dp,matrix_t,shift,matrix_s)
+    CALL copy_sm_to_fm(matrix_t,fm_work1,error=error)
+    CALL cp_fm_upper_to_full(fm_work1,fm_work2,error=error)
+    !
+    ! occupation
+    CALL cp_fm_get_info(fm_work1,nrow_local=nrow_local,ncol_local=ncol_local, &
+         local_data=local_data,error=error)
+    nz=0
+    DO j=1,ncol_local
+       DO i=1,nrow_local
+          IF(ABS(local_data(i,j)).LT.1.0E-10) THEN
+             local_data(i,j)=0.0_dp
+             nz=nz+1
+          ENDIF
+       ENDDO
+    ENDDO
+    write(*,*) 'non0(T-epsilon*S)=',DBLE(n**2-nz)/DBLE(n**2)
+    !
+    ! max(abs(A))
+    CALL cp_fm_get_info(fm_work1,nrow_local=nrow_local,ncol_local=ncol_local, &
+         local_data=local_data,error=error)
+    mx = maxval(abs(local_data(1:nrow_local,1:ncol_local)))
+    CALL mp_max(mx,preconditioner_env%para_env%group)
+    write(*,*) 'max(abs(A))=',mx
+    !
+    ! cond(A)
+    CALL cp_fm_to_fm(fm_work1,fm,error=error)
+    CALL cp_fm_syevd(fm,fm_work2,v,error=error)
+    write(*,*) 'cond(A)=',MAXVAL(abs(v))/MAX(MINVAL(abs(v)),EPSILON(0.0_dp))
+    write(*,*) 'min(eig(A))=',MINVAL(v),'max(eig(A))=',MAXVAL(v)
+    !
+    ! Z = diag(ones(n,1));
+    CALL cp_fm_set_all(fm_work2,0.0_dp,1.0_dp,error=error)
+    !
+    ! Let's ainv
+    DO i = 1,n
+       !
+       ! v=A*Z(:,i);
+       CALL cp_fm_get_submatrix(fm_work2,buf2 ,&
+            &                   1,i,n,1,transpose=.FALSE.,&
+            &                   error=error)     
+       CALL dgemv('N',n,n,1.0_dp,fm_work1%local_data(1,1),n,buf2(1,1),1,0.0_dp,v(1),1)
+       !
+       DO j = i,n
+          !
+          ! p(j) = v(:)'*Z(:,j);
+          CALL cp_fm_get_submatrix(fm_work2,buf2 ,&
+               &                   1,j,n,1,transpose=.FALSE.,&
+               &                   error=error)     
+          !p(j) = BL_DOT(n,v(1:n),1,buf2(1:n,1),1)
+          p(j) = DDOT(n,v(1:n),1,buf2(1:n,1),1)
+       ENDDO
+       !
+       IF(i.LT.n) THEN
+          CALL cp_fm_get_submatrix(fm_work2,buf1 ,&
+               &                   1,i,n,1,transpose=.FALSE.,&
+               &                   error=error)
+          DO j = i+1,n
+             !
+             ! Z(:,j) = Z(:,j)-(p(j)/p(i))*Z(:,i);
+             CALL cp_fm_get_submatrix(fm_work2,buf2 ,&
+                  &                   1,j,n,1,transpose=.FALSE.,&
+                  &                   error=error)
+             IF(p(i).LT.0.0_dp) THEN
+                write(*,*) 'make_kinetic_sainv: i=',i,' p(i)=',p(i)
+                CALL stop_program("make_kinetic_sainv", "Ooops pivot negative")
+             ENDIF
+             IF(p(i).LT.1.0E-12_dp.AND.p(i).GE.0.0_dp) THEN
+                write(*,*) 'make_kinetic_sainv: i=',i,' p(i)=',p(i)
+                CALL stop_program("make_kinetic_sainv", "Ooops pivot too small")
+             ENDIF
+             buf2 = buf2 - p(j) / p(i) * buf1
+             !
+             ! filter...           
+             DO k=1,j-1
+                IF(ABS(buf2(k,1)).LT.mx*thresh_inner) THEN
+                   buf2(k,1)=0.0_dp
+                ENDIF
+             ENDDO
+             CALL cp_fm_set_submatrix(fm_work2,buf2 ,&
+                  &                   1,j,n,1,transpose=.FALSE.,&
+                  &                   error=error)
+          ENDDO
+       ENDIF
+    ENDDO
+    !
+    ! M = Z * D^(-1) * Z'
+    DO i = 1,n
+       p(i) = 1.0_dp / p(i)
+    ENDDO
+    CALL cp_fm_to_fm(fm_work2,fm_work1,error=error)
+    CALL cp_fm_column_scale(fm_work1,p)
+    CALL cp_fm_gemm('N','T',n,n,n,1.0_dp,fm_work2,fm_work1,0.0_dp,fm,error=error)
+    !
+    ! post-filter...
+    CALL cp_fm_get_info(fm,nrow_local=nrow_local,ncol_local=ncol_local, &
+         local_data=local_data,error=error)
+    nz=0
+    DO j=1,ncol_local
+       DO i=1,nrow_local
+          IF(i.NE.j) THEN
+             IF(ABS(local_data(i,j)).LT.mx*thresh_post) THEN
+                local_data(i,j)=0.0_dp
+                nz=nz+1
+             ENDIF
+          ENDIF
+       ENDDO
+    ENDDO
+    CALL mp_sum(nz,preconditioner_env%para_env%group)
+    write(*,*) 'non0(M)=',DBLE(n**2-nz)/DBLE(n**2)
+    mx = maxval(abs(local_data(1:nrow_local,1:ncol_local)))
+    CALL mp_max(mx,preconditioner_env%para_env%group)
+    write(*,*) 'max(abs(M))=',mx
+    !
+    ! eig(M)
+    CALL cp_fm_to_fm(fm,fm_work1,error=error)
+    CALL cp_fm_syevd(fm_work1,fm_work2,v,error=error)
+    write(*,*) 'cond(M)=',MAXVAL(abs(v))/MAX(MINVAL(abs(v)),EPSILON(0.0_dp))
+    write(*,*) 'min(eig(M))=',MINVAL(v),'max(eig(M))=',MAXVAL(v)
+    !
+    !
+    DEALLOCATE(buf1,buf2,p,v)
+    CALL cp_fm_release(fm_work1,error=error)
+    CALL cp_fm_release(fm_work2,error=error)
+    ELSE ! multiproc
+    CALL cp_fm_set_all(fm,0.0_dp,1.0_dp,error=error)
+    ENDIF multiproc
+
+  END SUBROUTINE make_full_kinetic_sainv
+
+
+! *****************************************************************************
+!> \brief DBCSR Kinetic Stable Approximate Inverse Preconditioner with
+!> \param[in,out] preconditioner_env    The preconditioner environment
+!> \param         pc                    The precondition matrix
+!> \param         matrix_t              The MO matrix
+!> \param         matrix_s              The overlap matrix
+!> \param[in]     energy_homo           HOMO energy
+!> \param[in]     energy_gap            energy gap
+!> \param[in,out] error       cp2k error
+!> \author Valery Weber
+!> \par History
+!>      - Created by VW
+!>      - 2009-05-13 Converted to use DBCSR matrices
+! *****************************************************************************
+  SUBROUTINE make_sparse_kinetic_sainv(preconditioner_env,&
+       pc, matrix_t, matrix_s, energy_homo, energy_gap, error)
+    !
+    TYPE(preconditioner_type),INTENT(INOUT)  :: preconditioner_env
+    TYPE(dbcsr_type), POINTER                :: pc
+    TYPE(real_matrix_type), POINTER          :: matrix_t, matrix_s
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    !
+    LOGICAL                                  :: failure
+    INTEGER                                  :: n,i,j,k
+    REAL(KIND=dp)                            :: shift
+    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   :: p
+    REAL(KIND=dp),DIMENSION(:,:),ALLOCATABLE :: buf1,buf2
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_sparse_kinetic_sainv', &
+         routineP = moduleN//':'//routineN
+    !
+    TYPE(dbcsr_type)                         :: mat_t, mat_s
+    !
+    REAL(KIND=dp)                            :: DDOT
+    REAL(KIND=dp)                            :: mx
+    INTEGER                                  :: nfullrows_local,&
+                                                nfullcols_local,&
+                                                nblkrows_local,&
+                                                nblkcols_local,&
+                                                nblkrows_total,&
+                                                nblkcols_total,&
+                                                nfullrows_total,&
+                                                nfullcols_total
+    INTEGER                                  :: stat
+    INTEGER                                  :: nz
+    REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: local_data
+    ! These threshould should be make specifiable in the input. -UB
+    REAL(KIND=dp), PARAMETER                 :: thresh_inner=1.0E-2_dp,&
+                                                thresh_post=1.0E-5_dp
+    REAL(KIND=dp),DIMENSION(:),ALLOCATABLE   :: v
+    TYPE(dbcsr_type)                         :: w1_m, w2_m,&
+                                                col1_m, col2_m, v_m, p_m,&
+                                                col2_t_m
+    TYPE(array_i1d_obj)                      :: row_blk_size_array,&
+                                                col_blk_size_array,&
+                                                col_col_blk_size_array
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_col_blk_size
+    TYPE(dbcsr_distribution_obj)             :: dist_main, dist_col, dist_row
+    TYPE(distribution_2d_type), POINTER      :: dist2d_main, dist2d_col,&
+                                                dist2d_row
+    !
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+    CALL cp_assert (.NOT. ASSOCIATED (pc), cp_warning_level,&
+         cp_wrong_args_error, routineP,&
+         "Precondition matrix should not pre-exist.", error=error)
+    ALLOCATE (pc, stat=stat)
+    IF (stat /= 0) CALL stop_memory (routineP, "pc", 1)
+    !CALL dbcsr_from_sm (mat_t, matrix_t, error)
+    !CALL dbcsr_from_sm (mat_s, matrix_s, error)
+    !
+    ! some infos
+    CALL get_matrix_info(matrix_t,nrow=n)
+    !
+    ! allocate
+    ALLOCATE(buf1(n,1),buf2(n,1),p(n),v(n))
+    !CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
+    !     context=preconditioner_env%ctxt, &
+    !     para_env=preconditioner_env%para_env,error=error)
+    !> T = T - epsilon * S
+    shift=MAX(-energy_homo,energy_gap)
+    CALL add_matrices(matrix_t,1.0_dp,matrix_t,shift,matrix_s)
+    !CALL copy_sm_to_fm(matrix_t,fm_work1,error=error)
+    CALL dbcsr_init (mat_t, error)
+    CALL dbcsr_from_sm (mat_t, matrix_t, error=error)
+    !
+    NULLIFY (dist2d_main)
+    CALL dbcsr_get_info (mat_t, row_blk_size=row_blk_size_array,&
+         col_blk_size=col_blk_size_array, nblkrows_total=nblkrows_total,&
+         nblkcols_total=nblkcols_total, nfullrows_total=nfullrows_total,&
+         distribution=dist_main, error=error)
+    CALL cp_dbcsr_get_dist2d (mat_t, dist2d_main, error)
+    col_blk_size => array_data (col_blk_size_array)
+    ! Create the square matrices.
+    CALL dbcsr_init (w1_m, error)
+    CALL dbcsr_create (w1_m, "w1", dist_main, "N", row_blk_size_array,&
+         col_blk_size_array, nze=nz, nblks=nblkrows_total, error=error)
+    CALL dbcsr_work_create (w1_m, nblks_guess=nblkrows_total,&
+         sizedata_guess=nz, error=error)
+    CALL dbcsr_init (w2_m, error)
+    CALL dbcsr_create (w2_m, "w2", dist_main, "N", row_blk_size_array,&
+         col_blk_size_array, nze=nz, nblks=nblkrows_total, error=error)
+    CALL dbcsr_work_create (w1_m, nblks_guess=nblkrows_total,&
+         sizedata_guess=nz, error=error)
+    ! Create the column matrices
+    ! The col_col_blk_size array is modified to reflect the changing column
+    ! widths.
+    NULLIFY (dist2d_col)
+    CALL dbcsr_create_dist2d_r (dist2d_col, dist2d_main, ncolumns=1,&
+         error=error)
+    CALL dbcsr_dist2d_to_dist (dist2d_col, dist_col, error)
+    ALLOCATE (col_col_blk_size(1), stat=stat)
+    IF (stat /= 0) CALL stop_memory (routineP, "col_col_blk_size", 1)
+    col_col_blk_size(1) = 1
+    CALL array_new (col_col_blk_size_array, col_col_blk_size, gift=.TRUE.)
+    CALL dbcsr_init (col1_m, error)
+    CALL dbcsr_create (col1_m, "col1", dist_col, "N", row_blk_size_array,&
+         col_col_blk_size_array, nze=nz, nblks=nblkrows_total, error=error)
+    CALL dbcsr_work_create (col1_m, nblks_guess=nblkrows_total,&
+         sizedata_guess=nz, error=error)
+    CALL dbcsr_addto_index_array(col1_m, dbcsr_slot_row_p,&
+         reservation=nblkrows_total+1, error=error)
+    CALL dbcsr_addto_index_array(col1_m, dbcsr_slot_col_i,&
+         reservation=nblkrows_total, error=error)
+    CALL dbcsr_addto_index_array(col1_m, dbcsr_slot_blk_p,&
+         reservation=nblkrows_total, error=error)
+    CALL dbcsr_ensure_data_size(col1_m, MAXVAL(col_blk_size)*nfullrows_total,&
+         nocopy=.TRUE., error=error)
+    CALL dbcsr_init (col2_m, error)
+    CALL dbcsr_create (col2_m, "col2", dist_col, "N", row_blk_size_array,&
+         col_col_blk_size_array, nze=nz, nblks=nblkrows_total, error=error)
+    CALL dbcsr_work_create (col2_m, nblks_guess=nblkrows_total,&
+         sizedata_guess=nz, error=error)
+    CALL dbcsr_addto_index_array(col2_m, dbcsr_slot_row_p,&
+         reservation=nblkrows_total+1, extra=nblkrows_total*2, error=error)
+    CALL dbcsr_addto_index_array(col2_m, dbcsr_slot_col_i,&
+         reservation=nblkrows_total, error=error)
+    CALL dbcsr_addto_index_array(col2_m, dbcsr_slot_blk_p,&
+         reservation=nblkrows_total, error=error)
+    CALL dbcsr_ensure_data_size(col2_m, MAXVAL(col_blk_size)*nfullrows_total,&
+         nocopy=.TRUE., error=error)
+    CALL dbcsr_init (v_m, error)
+    CALL dbcsr_create (v_m, "v_m", dist_col, "T", row_blk_size_array,&
+         col_col_blk_size_array, nze=nz, nblks=nblkrows_total, error=error)
+    CALL dbcsr_work_create (v_m, nblks_guess=nblkrows_total,&
+         sizedata_guess=nz, error=error)
+    CALL dbcsr_init (p_m, error)
+    CALL dbcsr_create (p_m, "p_m", dist_col, "T", row_blk_size_array,&
+         col_col_blk_size_array, nze=nz, nblks=nblkrows_total, error=error)
+    CALL dbcsr_work_create (p_m, nblks_guess=nblkrows_total,&
+         sizedata_guess=nz, error=error)
+    CALL distribution_2d_release (dist2d_col, error)
+    CALL dbcsr_distribution_release (dist_col)
+    !
+    ! Z = diag(ones(n,1));
+    !!CALL cp_fm_set_all(fm_work2,0.0_dp,1.0_dp,error=error)
+    CALL dbcsr_set_diagonal (w2_m, 1.0_dp, error=error)
+    CALL dbcsr_finalize (w2_m, resort=.TRUE., reshuffle=.TRUE.,&
+         error=error)
+    !
+    ! Let's ainv
+    DO i = 1,nblkrows_total
+       !
+       ! v=A*Z(:,i);
+       !!CALL cp_fm_get_submatrix(fm_work2,buf2 ,&
+       !!     &                   1,i,n,1,transpose=.FALSE.,&
+       !!     &                   error=error)     
+       failure = .FALSE.
+       CPPrecondition(i.GE.1.AND.i.LE.SIZE(col_blk_size),cp_warning_level,routineP,error,failure)
+       col_col_blk_size(1) = col_blk_size(i)
+       WRITE(*,*)'i',i,'column size',col_blk_size(i)
+       CALL dbcsr_extract_column (col2_m, w2_m, i, error)
+       !CALL dbcsr_print (col2_m, error)
+       CALL dbcsr_verify_matrix (col2_m, error, verbosity=1)
+       CALL dbcsr_new_transposed (col2_t_m, col2_m, error=error)
+       CALL dbcsr_verify_matrix (col2_t_m, error, verbosity=1)
+       !!CALL dgemv('N',n,n,1.0_dp,fm_work1%local_data(1,1),n,buf2(1,1),1,0.0_dp,v(1),1)
+       !
+       !!DO j = i,n
+       !!   !
+       !!   ! p(j) = v(:)'*Z(:,j);
+       !!   !!CALL cp_fm_get_submatrix(fm_work2,buf2 ,&
+       !!   !!     &                   1,j,n,1,transpose=.FALSE.,&
+       !!   !!     &                   error=error)     
+       !!   p(j) = DDOT(n,v(1:n),1,buf2(1:n,1),1)
+       !!ENDDO
+       !CALL
+       !
+       !WRITE (*,*)'Multiplying...'
+       !CALL dbcsr_sm_sm_multiply (col2_t_m, w2_m, w1_m, col2_t_m%dist, 0,&
+       !     error=error)
+       IF(i.LT.n) THEN
+          !!CALL cp_fm_get_submatrix(fm_work2,buf1 ,&
+          !1     &                   1,i,n,1,transpose=.FALSE.,&
+          !!     &                   error=error)
+          DO j = i+1,n
+             !
+             ! Z(:,j) = Z(:,j)-(p(j)/p(i))*Z(:,i);
+             !!CALL cp_fm_get_submatrix(fm_work2,buf2 ,&
+             !1     &                   1,j,n,1,transpose=.FALSE.,&
+             !!     &                   error=error)
+             !IF(p(i).LT.0.0_dp) THEN
+             !   write(*,*) 'make_kinetic_sainv: i=',i,' p(i)=',p(i)
+             !   CALL stop_program("make_kinetic_sainv", "Ooops pivot negative")
+             !ENDIF
+             !IF(p(i).LT.1.0E-12_dp.AND.p(i).GE.0.0_dp) THEN
+             !   write(*,*) 'make_kinetic_sainv: i=',i,' p(i)=',p(i)
+             !   CALL stop_program("make_kinetic_sainv", "Ooops pivot too small")
+             !ENDIF
+             !buf2 = buf2 - p(j) / p(i) * buf1
+             !
+             ! filter...           
+             !DO k=1,j-1
+             !   IF(ABS(buf2(k,1)).LT.mx*thresh_inner) THEN
+             !      buf2(k,1)=0.0_dp
+             !   ENDIF
+             !ENDDO
+             !!CALL cp_fm_set_submatrix(fm_work2,buf2 ,&
+             !!     &                   1,j,n,1,transpose=.FALSE.,&
+             !!     &                   error=error)
+          ENDDO
+       ENDIF
+    ENDDO
+    !
+    ! M = Z * D^(-1) * Z'
+    !!DO i = 1,n
+    !!   p(i) = 1.0_dp / p(i)
+    !!ENDDO
+    !CALL cp_fm_to_fm(fm_work2,fm_work1,error=error)
+    !CALL cp_fm_column_scale(fm_work1,p)
+    !CALL cp_fm_gemm('N','T',n,n,n,1.0_dp,fm_work2,fm_work1,0.0_dp,fm,error=error)
+    !!
+    !! post-filter...
+    !CALL cp_fm_get_info(fm,nrow_local=nrow_local,ncol_local=ncol_local, &
+    !     local_data=local_data,error=error)
+    !nz=0
+    !DO j=1,ncol_local
+    !   DO i=1,nrow_local
+    !      IF(i.NE.j) THEN
+    !         IF(ABS(local_data(i,j)).LT.mx*thresh_post) THEN
+    !            local_data(i,j)=0.0_dp
+    !            nz=nz+1
+    !         ENDIF
+    !      ENDIF
+    !   ENDDO
+    !ENDDO
+    !CALL mp_sum(nz,preconditioner_env%para_env%group)
+    !write(*,*) 'non0(M)=',DBLE(n**2-nz)/DBLE(n**2)
+    !mx = maxval(abs(local_data(1:nrow_local,1:ncol_local)))
+    !CALL mp_max(mx,preconditioner_env%para_env%group)
+    !write(*,*) 'max(abs(M))=',mx
+    !!
+    !! eig(M)
+    !CALL cp_fm_to_fm(fm,fm_work1,error=error)
+    !CALL cp_fm_syevd(fm_work1,fm_work2,v,error=error)
+    !write(*,*) 'cond(M)=',MAXVAL(abs(v))/MAX(MINVAL(abs(v)),EPSILON(0.0_dp))
+    !write(*,*) 'min(eig(M))=',MINVAL(v),'max(eig(M))=',MAXVAL(v)
+    !!
+    !!
+    !DEALLOCATE(buf1,buf2,p,v)
+    !CALL cp_fm_release(fm_work1,error=error)
+    !CALL cp_fm_release(fm_work2,error=error)
+    !
+    CALL dbcsr_destroy (mat_t, error)
+    CALL dbcsr_init (pc, error)
+    pc = w2_m
+    CALL cp_dbcsr_add_dist2d (pc, dist2d_main, error)
+    CALL dbcsr_work_destroy (col1_m%w, error)
+    CALL dbcsr_work_destroy (col2_m%w, error)
+    CALL dbcsr_work_destroy (w1_m%w, error)
+    CALL dbcsr_work_destroy (w2_m%w, error)
+    CALL dbcsr_destroy (col1_m, error)
+    CALL dbcsr_destroy (col2_m, error)
+    CALL dbcsr_destroy (col2_t_m, error)
+    CALL dbcsr_destroy (p_m, error)
+    CALL dbcsr_destroy (v_m, error)
+    CALL dbcsr_destroy (w1_m, error)
+    ! CALL dbcsr_destroy (w2_m, error) ! pc takes it over
+    CALL array_release (col_col_blk_size_array)
+    CALL dbcsr_verify_matrix (pc, error)
+    !CALL dbcsr_print (pc, error)
+  END SUBROUTINE make_sparse_kinetic_sainv
+
+
+  SUBROUTINE apply_sparse_single(preconditioner_env, matrix_in, matrix_out,&
+       error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
+    !TYPE(dbcsr_type), INTENT(IN)             :: matrix_in
+    !TYPE(dbcsr_type), INTENT(OUT)            :: matrix_out
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    TYPE(dbcsr_type)                         :: matrix_right
+    TYPE(dbcsr_type)                         :: matrix_result
+    INTEGER                                  :: k, n
+    TYPE(distribution_2d_type), POINTER      :: dist2d_result, dist2d_precond
+    TYPE(dbcsr_distribution_obj)             :: dist_result, dist_precond
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size
+    TYPE(array_i1d_obj)                      :: precond_row_blk_size_array
+
+!----
+
+    WRITE(*,*)' APPLYING SPARSE SINGLE KINETIC'
+    !CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
+    !CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
+    !     matrix_in,0.0_dp,matrix_out,error=error)
+    CALL cp_fm_get_info(matrix_in, ncol_global=k, error=error)
+    NULLIFY (dist2d_precond, dist2d_result, col_blk_size)
+    CALL cp_dbcsr_get_dist2d (preconditioner_env%dbcsr_matrix, dist2d_precond,&
+         error)
+    CALL dbcsr_create_dist2d_r_unrot(dist2d_result, dist2d_precond, k,&
+         col_blk_size, error=error)
+    CALL dbcsr_dist2d_to_dist (dist2d_result, dist_result, error)
+    CALL dbcsr_init (matrix_right, error)
+    precond_row_blk_size_array =&
+         preconditioner_env%dbcsr_matrix%row_blk_size
+    CALL dbcsr_from_fm (matrix_right, matrix_in, 0.0d0, dist2d_result,&
+         row_blk_size = array_data (precond_row_blk_size_array),&
+         col_blk_size = col_blk_size, error=error)
+    WRITE(*,*)'Pre checksum:',dbcsr_checksum (matrix_right, error)
+    !CALL dbcsr_get_info (matrix_in, dist2d=dist2d, error=error)
+    CALL dbcsr_init (matrix_result, error)
+    !CALL dbcsr_print (preconditioner_env%dbcsr_matrix, error)
+    !CALL dbcsr_print (matrix_right, error)
+    CALL dbcsr_sm_sm_multiply (preconditioner_env%dbcsr_matrix,&
+         matrix_right, matrix_result, dist_result, 0, error)
+    ! CALL dbcsr_to_fm (matrix_result, matrix_out, error)
+    !CALL dbcsr_verify_matrix (matrix_result, error)
+    CALL dbcsr_distribution_release (dist_result)
+    CALL dbcsr_destroy (matrix_right, error)
+    WRITE(*,*)'Post checksum:',dbcsr_checksum (matrix_result, error)
+    CALL dbcsr_destroy (matrix_result, error)
+    CALL distribution_2d_release (dist2d_result, error)
+    WRITE(*,*)' DONE'
+  END SUBROUTINE apply_sparse_single
+
+
 
   SUBROUTINE make_sparse_kinetic(preconditioner_env, sm, matrix_t, matrix_s, &
        &                         energy_homo, energy_gap, error)

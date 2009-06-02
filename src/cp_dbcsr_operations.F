@@ -13,6 +13,8 @@
 !> - Created
 ! *****************************************************************************
 MODULE cp_dbcsr_operations
+  USE array_types,                     ONLY: array_data, array_hold,&
+                                             array_i1d_obj, array_release
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm
@@ -22,20 +24,29 @@ MODULE cp_dbcsr_operations
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
-  USE dbcsr_operations,                ONLY: dbcsr_multiply_sets
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_mp_group
+  USE dbcsr_operations,                ONLY: dbcsr_multiply_sets,&
+                                             dbcsr_multiply_sets_sqrt
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
                                              dbcsr_distribution_obj,&
-                                             dbcsr_rptdistribution_type,&
+                                             dbcsr_imagedistribution_type,&
                                              dbcsr_type,&
                                              dbcsr_work_type
   USE dbcsr_util,                      ONLY: &
-       dbcsr_checksum, dbcsr_create, dbcsr_create_dist2d_r_unrot, &
-       dbcsr_create_dist_left, dbcsr_create_rdist, dbcsr_destroy, &
-       dbcsr_destroy_array, dbcsr_destroy_rdist, dbcsr_dist2d_to_dist, &
+       dbcsr_checksum, dbcsr_init, dbcsr_create, dbcsr_create_dist2d_r_unrot, &
+       dbcsr_create_dist2d_r, &
+       dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot,&
+       dbcsr_create_dist_l_rot, dbcsr_create_dist_l_unrot,&
+       dbcsr_create_image_dist_left, dbcsr_create_image_dist, dbcsr_destroy, &
+       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, &
        dbcsr_from_fm, dbcsr_from_sm, dbcsr_normalize, dbcsr_print, &
-       dbcsr_set_debug, dbcsr_verify_matrix, dbcsr_work_create
+       dbcsr_set_debug, dbcsr_verify_matrix, dbcsr_work_create,&
+       dbcsr_create_dist2d_transposed, dbcsr_new_transposed,&
+       dbcsr_transpose_distribution
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
+                                             distribution_2d_retain,&
                                              distribution_2d_release,&
                                              distribution_2d_type
   USE kinds,                           ONLY: dp
@@ -53,6 +64,7 @@ MODULE cp_dbcsr_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
 
   PUBLIC :: dbcsr_sm_sm_multiply, dbcsr_check
+  PUBLIC :: cp_dbcsr_add_dist2d, cp_dbcsr_get_dist2d, cp_dbcsr_remove_dist2d
 
   PRIVATE
 
@@ -74,14 +86,16 @@ CONTAINS
 !> \param[in] matrix_a        left BCSR matrix
 !> \param[in] matrix_b        right BCSR matrix
 !> \param[out] matrix_c       resulting BCSR product matrix.
-!> \param[in] dist2d          optional distribution_2d for the product matrix.
+!> \param[in] dist          distribution for the product matrix.
+!> \param[in] hint            code path selection
 !> \param error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c, dist2d,&
-       error)
+  SUBROUTINE dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c, distribution, &
+       hint, error)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix_a, matrix_b
     TYPE(dbcsr_type), INTENT(OUT)            :: matrix_c
-    TYPE(distribution_2d_type), POINTER      :: dist2d
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: distribution
+    INTEGER, INTENT(IN)                      :: hint
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sm_sm_multiply', &
@@ -91,10 +105,9 @@ CONTAINS
                                                 nblkrows_local, timing_handle
     REAL(KIND=dp)                            :: checksum, flops
     TYPE(dbcsr_array_type)                   :: ms_left, ms_right
-    TYPE(dbcsr_distribution_obj)             :: dist_left, dist_right
-    TYPE(dbcsr_rptdistribution_type)         :: rdist_left, rdist_right
+    !TYPE(dbcsr_distribution_obj)             :: dist_left, dist_right
+    TYPE(dbcsr_imagedistribution_type)       :: rdist_left, rdist_right
     TYPE(dbcsr_type)                         :: matrix_d, matrix_e
-    TYPE(dbcsr_work_type)                    :: wm
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -104,98 +117,64 @@ CONTAINS
     ! Assign new dist2d
     ! Create & initialize the final & working matrix.
     IF (dbg) WRITE(*,*)routineP//'Creating 2-d distribution...'
-    CALL mp_sync(matrix_a%dist2d%blacs_env%para_env%group)
-    CALL distribution_2d_get(matrix_b%dist2d, error=error,&
-         n_flat_local_rows=nblkrows_local, n_flat_local_cols=nblkcols_local)
-    CALL dbcsr_create(matrix_c, "C", matrix_b%dist2d, 'N',&
-         (/0, 0,&
-         matrix_b%nblkrows_total, matrix_b%nblkcols_total,&
-         matrix_b%nfullrows_total, matrix_b%nfullrows_total,&
-         matrix_b%nblkrows_local, matrix_b%nblkcols_local,&
-         matrix_b%nfullrows_local, matrix_b%nfullcols_local/),&
+    CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    CALL dbcsr_init (matrix_c, error)
+    CALL dbcsr_create(matrix_c, "C", distribution, 'N',&
+         matrix_a%row_blk_size, matrix_b%col_blk_size,&
          0, 0, error=error)
     IF (dbg) WRITE(*,*)routineP//'Updating new matrix...'
-    CALL mp_sync(matrix_a%dist2d%blacs_env%para_env%group)
-    ALLOCATE(matrix_c%row_blk_size(matrix_a%nblkrows_total),&
-         matrix_c%col_blk_size(matrix_b%nblkcols_total))
-    matrix_c%row_blk_size(:) =&
-         matrix_a%row_blk_size(:)
-    matrix_c%col_blk_size(:) =&
-         matrix_b%col_blk_size(:)
+    CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
     !IF (dbg) WRITE(*,*)routineP//' C initial index is', matrix_c%index
     IF (dbg) WRITE(*,*)routineP//'Creating work matrix...'
-    CALL mp_sync(matrix_a%dist2d%blacs_env%para_env%group)
-    CALL dbcsr_work_create(wm, matrix_c,&
-         sizedata_guess=INT(1.5_dp*SIZE(matrix_a%data)), error=error)
+    CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    CALL dbcsr_work_create(matrix_c,&
+         sizedata_guess=INT(1.5*SIZE(matrix_a%data)), error=error)
     IF (dbg) WRITE(*,*)routineP//'Multiplying...'
-    CALL mp_sync(matrix_a%dist2d%blacs_env%para_env%group)
-    !CALL dbcsr_sm2_mult_overlap(matrix_a, matrix_b, wm, error)
-    !CALL dbcsr_sm2_mult_general(matrix_a, matrix_b, wm, error)
-    !CALL dbcsr_sm2_mult_ls_rn(matrix_a, matrix_b, wm, error)
-    CALL dbcsr_print(matrix_a, error)
-    DBG 'Creating repetition distribution'
-    CALL dbcsr_dist2d_to_dist(matrix_a%dist2d, dist_left, error)
-    CALL dbcsr_dist2d_to_dist(matrix_b%dist2d, dist_right, error)
-    CALL dbcsr_create_rdist (rdist_right, dist_right)
-    CALL dbcsr_create_dist_left(rdist_left, dist_left, dist_right)
+    CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    !
+    DBG 'Creating image distribution'
+    CALL dbcsr_create_image_dist (rdist_right, matrix_b%dist)
+    CALL dbcsr_create_image_dist_left(rdist_left, matrix_a%dist, matrix_b%dist)
+    !
     DBG 'Normalizing A'
     CALL dbcsr_normalize(matrix_a, ms_left, rdist_left, error)
-    ms_left%rdist = rdist_left
+    !ms_left%image_dist = rdist_left
     matrix_d = ms_left%mats(1)
     DBG 'master name', ms_left%mats(1)%name
     DBG "Verifying A->D"
     CALL dbcsr_verify_matrix(matrix_d, error)
-    DO i = 1, SIZE (ms_left%mats)
-       CALL dbcsr_print (ms_left%mats(i), error)
-    ENDDO
     flops = dbcsr_checksum(matrix_d, error)
     DBG "DBCSR norm. S checksum", flops
-    CALL dbcsr_print (matrix_b, error)
     DBG 'Normalizing B'
     CALL dbcsr_normalize(matrix_b, ms_right, rdist_right, error)
-    ms_right%mats(1)%dist = dist_right
     matrix_e = ms_right%mats(1)
     DBG "Verifying B->E"
     CALL dbcsr_verify_matrix(matrix_e, error)
-    CALL dbcsr_print(matrix_e, error)
+    !CALL dbcsr_print(matrix_e, error)
     flops = dbcsr_checksum(matrix_e, error)
     DBG "DBCSR norm. x checksum", flops
-    !DBG "Matrix A"
-    !CALL dbcsr_print(matrix_a, error)
-    !DBG "Matrix D"
-    !CALL dbcsr_print(matrix_d, error)
-    !DBG "Matrix B"
-    !CALL dbcsr_print(matrix_b, error)
-    !DBG "Matrix E"
-    !CALL dbcsr_print(matrix_e, error)
     DBG 'Multiplying normalized matrices'
-    !DO i = 1, SIZE (ms_left%mats)
-    !   CALL dbcsr_nn_mult(ms_left%mats(i), matrix_e, matrix_c, wm, error)
-    !ENDDO
-    CALL dbcsr_dist2d_to_dist (matrix_c%dist2d, matrix_c%dist, error)
     !
-    CALL dbcsr_multiply_sets(ms_left, ms_right, matrix_c, wm, error)
-    !CALL dbcsr_multiply_sets_sqrt(ms_left, ms_right, matrix_c, wm, error)
+    IF (hint .EQ. 1) THEN
+       CALL dbcsr_multiply_sets_sqrt(ms_left, ms_right, matrix_c, error)
+    ELSE
+       CALL dbcsr_multiply_sets(ms_left, ms_right, matrix_c, error)
+    ENDIF
     !
-    !IF (dbg) WRITE(*,*)routineP//' C prefinal index is', matrix_c%index
-    !CALL dbcsr_finalize(wm, matrix_c, .TRUE., .FALSE., error)
-    !IF (dbg) WRITE(*,*)routineP//' C final   index is', matrix_c%index
     IF (dbg) THEN
        CALL dbcsr_verify_matrix(matrix_c, error)
        checksum = dbcsr_checksum(matrix_c, error)
        WRITE(*,*)routineP//' BCSR Sx Matrix checksum is', checksum
     ENDIF
     flop = 0
-    CALL mp_sum(flop, matrix_a%dist2d%blacs_env%para_env%group)
+    CALL mp_sum(flop, dbcsr_mp_group (dbcsr_distribution_mp (matrix_a%dist)))
     WRITE(*,*)'FLOP=',flop
     DBG "Result matrix"
-    CALL dbcsr_print(matrix_c, error)
     !
-    CALL dbcsr_distribution_release (matrix_c%dist)
-    CALL dbcsr_distribution_release (dist_left)
-    CALL dbcsr_distribution_release (dist_right)
-    CALL dbcsr_destroy_rdist (rdist_left)
-    CALL dbcsr_destroy_rdist (rdist_right)
+    !CALL dbcsr_distribution_release (dist_left)
+    !CALL dbcsr_distribution_release (dist_right)
+    CALL dbcsr_destroy_image_dist (rdist_left)
+    CALL dbcsr_destroy_image_dist (rdist_right)
     CALL dbcsr_destroy_array (ms_left, error)
     CALL dbcsr_destroy_array (ms_right, error)
     ! Perform multiplication
@@ -209,10 +188,11 @@ CONTAINS
 !> \author  Urban
 !> \date    2008-10-07
 ! *****************************************************************************
-  SUBROUTINE dbcsr_check(matrix_s, matrix_x, error)
+  SUBROUTINE dbcsr_check(matrix_s, matrix_x, hint, error)
 
     TYPE(real_matrix_type), POINTER          :: matrix_s
     TYPE(cp_fm_type), POINTER                :: matrix_x
+    INTEGER, INTENT(IN)                      :: hint
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check', &
@@ -223,10 +203,12 @@ CONTAINS
     LOGICAL                                  :: dbg = .FALSE., failure
     REAL(kind=dp)                            :: checksum, newtime, oldtime, &
                                                 walltime1, walltime2
-    TYPE(cp_blacs_env_type), POINTER         :: tmp_blacs_env
     TYPE(cp_fm_type), POINTER                :: fmout
-    TYPE(dbcsr_type)                         :: matrix_a, matrix_b, matrix_c
-    TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_left
+    TYPE(dbcsr_type)                         :: matrix_a, matrix_b, matrix_c,&
+                                                matrix_at, matrix_bt
+    TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_left, dist2d_result
+    TYPE(dbcsr_distribution_obj)             :: dist_right, dist_result
+    TYPE(array_i1d_obj)                      :: col_blk_size_array
 
     CALL timeset(routineN,handle)
 
@@ -234,8 +216,7 @@ CONTAINS
 
     !Do the new multiplication
     dist2d_left => matrix_s%distribution_2d
-    IF (dbg) WRITE(*,*)'left-1',dist2d_left%ref_count,dist2d_left%blacs_env%ref_count,&
-         dist2d_left%blacs_env%para_env%ref_count
+    CALL dbcsr_init (matrix_a, error)
     CALL dbcsr_from_sm(matrix_a, matrix_s, error)
     CALL dbcsr_verify_matrix(matrix_a, error)
     WRITE(*,*)'S checksum=',&
@@ -243,49 +224,56 @@ CONTAINS
     checksum = 0.0_dp
     checksum = dbcsr_checksum(matrix_a, error)
     WRITE(*,*)'BCSR S checksum',checksum
-    !row_blk_begin => matrix_a%row_blk_begin
-    !row_blk_end => matrix_a%row_blk_end
     CALL cp_fm_frobenius_norm(matrix_x, checksum, error)
     CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
+    
     CALL dbcsr_create_dist2d_r_unrot(dist2d, dist2d_left, k,&
          col_blk_size, error=error)
-    IF (dbg) WRITE(*,*)'right0=',dist2d%ref_count,dist2d%blacs_env%ref_count,&
-         dist2d%blacs_env%para_env%ref_count
-    CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist2d,&
-         row_blk_size=matrix_a%row_blk_size,&
+    !CALL dbcsr_create_dist2d_r(dist2d, dist2d_left, k,&
+    !     col_blk_size, error=error)
+
+    CALL dbcsr_init (matrix_b, error)
+    CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0d0, dist2d,&
+         row_blk_size=array_data(matrix_a%row_blk_size),&
          col_blk_size=col_blk_size,&
          error=error)
-    IF (dbg) WRITE(*,*)'right1=',dist2d%ref_count,dist2d%blacs_env%ref_count,&
-         dist2d%blacs_env%para_env%ref_count
     CALL dbcsr_verify_matrix(matrix_b, error)
+
     WRITE(*,*)'x checksum',checksum*checksum
     checksum = dbcsr_checksum(matrix_b, error)
     WRITE(*,*)'DBCSR x checksum',checksum
     !
+    ! Transpose of the row (transposed column) matrix
+    !CALL dbcsr_create_dist2d_transposed (dist2d_result, dist2d, error)
+    CALL dbcsr_transpose_distribution (dist_result, matrix_b%dist)
+    !CALL dbcsr_create_dist_r_rot(dist_result, matrix_x%dist, k,&
+    !     col_blk_size_array, error=error)
+    !CALL array_release (col_blk_size_array)
+    !CALL dbcsr_distribution_release (dist_right) ! Not used now
+
+   !
+    CALL dbcsr_new_transposed (matrix_bt, matrix_b, error=error)
+    CALL dbcsr_verify_matrix (matrix_bt, error)
+    !CALL dbcsr_destroy (matrix_bt, error)
+    !
+    !
     walltime1 = m_walltime()
-    !!CALL dbcsr_desymmetrize(matrix_a, matrix_afull, error)
-    CALL dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c, dist2d, error)
-    IF (dbg) WRITE(*,*)'right2=',dist2d%ref_count,dist2d%blacs_env%ref_count,&
-         dist2d%blacs_env%para_env%ref_count
+    CALL dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c,&
+         matrix_b%dist, hint, error)
+    !CALL dbcsr_sm_sm_multiply(matrix_bt, matrix_a, matrix_c,&
+    !     dist_result, hint, error)
+    CALL dbcsr_distribution_release (dist_result)
     walltime2 = m_walltime()
     newtime = walltime2-walltime1
+    CALL dbcsr_destroy (matrix_bt, error)
     !
     CALL dbcsr_verify_matrix(matrix_c, error)
     !
     checksum = dbcsr_checksum(matrix_c, error)
     WRITE(*,*)'BCSR Sx checksum',checksum,'time=',newtime
-    CALL dbcsr_destroy(matrix_b,error)
-    CALL dbcsr_destroy(matrix_c,error)
-    IF (dbg) WRITE(*,*)'right3=',dist2d%ref_count,dist2d%blacs_env%ref_count,&
-         dist2d%blacs_env%para_env%ref_count
-    tmp_blacs_env => dist2d%blacs_env
-    IF (dbg) WRITE(*,*)'right4=','"',0,'"',tmp_blacs_env%ref_count,&
-         tmp_blacs_env%para_env%ref_count
-    CALL cp_blacs_env_release(tmp_blacs_env, error)
-    IF (dbg) WRITE(*,*)'left99',dist2d_left%ref_count,dist2d_left%blacs_env%ref_count,&
-         dist2d_left%blacs_env%para_env%ref_count
-    !WRITE(*,*)'right4=',dist2d%ref_count,dist2d%blacs_env%ref_count,&
-    !     dist2d%blacs_env%para_env%ref_count
+    CALL dbcsr_destroy (matrix_b, error)
+    CALL dbcsr_init (matrix_b, error)
+    CALL dbcsr_destroy (matrix_c, error)
 
     CALL timestop(handle)
 
@@ -299,20 +287,59 @@ CONTAINS
     oldtime = walltime2-walltime1
     CALL cp_fm_frobenius_norm(fmout, checksum, error)
     WRITE(*,*)'Sx checksum',checksum*checksum,'time=',oldtime
-    CALL dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist2d,&
-         row_blk_size=matrix_a%row_blk_size,&
+    CALL dbcsr_from_fm(matrix_b, fmout, 0.0d0, dist2d,&
+         row_blk_size=array_data(matrix_a%row_blk_size),&
          col_blk_size=col_blk_size,&
          error=error)
     DEALLOCATE(col_blk_size)
-    CALL distribution_2d_release(dist2d, error)
-    CALL dbcsr_destroy(matrix_a,error)
-    CALL cp_fm_release(fmout, error)
+    CALL distribution_2d_release (dist2d, error)
+    CALL dbcsr_destroy (matrix_a,error)
     CALL dbcsr_destroy (matrix_b, error)
+    CALL cp_fm_release (fmout, error)
 
     CALL timestop(handle)
 
 
   END SUBROUTINE dbcsr_check
 
+! *****************************************************************************
+!> \brief   Adds distribution_2d_type to a DBCSR matrix
+!> \author  Urban
+!> \date    2009-05-27
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_add_dist2d (matrix, distribution_2d, error)
+    TYPE(dbcsr_type), INTENT(INOUT)     :: matrix
+    TYPE(distribution_2d_type), POINTER :: distribution_2d
+    TYPE(cp_error_type), INTENT(INOUT)  :: error
+!   ---------------------------------------------------------------------------
+    CALL distribution_2d_retain (distribution_2d, error)
+    matrix%dist2d => distribution_2d
+  END SUBROUTINE cp_dbcsr_add_dist2d
+
+! *****************************************************************************
+!> \brief   Gets the distibution_2d of a DBCSR matrix.
+!> \author  Urban
+!> \date    2008-05-27
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_get_dist2d (matrix, distribution_2d, error)
+    TYPE(dbcsr_type), INTENT(IN)        :: matrix
+    TYPE(distribution_2d_type), POINTER :: distribution_2d
+    TYPE(cp_error_type), INTENT(INOUT)  :: error
+!   ---------------------------------------------------------------------------
+    distribution_2d => matrix%dist2d
+  END SUBROUTINE cp_dbcsr_get_dist2d
+
+! *****************************************************************************
+!> \brief   Removes distibution_2d from a DBCSR matrix.
+!> \author  Urban
+!> \date    2008-05-27
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_remove_dist2d (matrix, error)
+    TYPE(dbcsr_type), INTENT(INOUT)     :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)  :: error
+!   ---------------------------------------------------------------------------
+    CALL distribution_2d_release (matrix%dist2d, error)
+    NULLIFY (matrix%dist2d)
+  END SUBROUTINE cp_dbcsr_remove_dist2d
 
 END MODULE cp_dbcsr_operations

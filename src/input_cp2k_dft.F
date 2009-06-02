@@ -1908,6 +1908,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="BCSR_CODE",&
+            description="Selects BCSR pathway.",&
+            usage="BCSR_CODE 0",&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! Integers
        CALL keyword_create(keyword, name="LMAXN1",&
             variants=(/"LMAXRHO1"/),&
@@ -5632,7 +5639,10 @@ CONTAINS
             usage="PRECONDITIONER FULL_ALL",&
             default_i_val=ot_precond_full_kinetic,&
             enum_c_vals=s2a("FULL_ALL","FULL_SINGLE_INVERSE","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE",&
-            "SPARSE_DIAG","SPARSE_KINETIC","NONE"),&
+            "SPARSE_DIAG","SPARSE_KINETIC",&
+            "FULL_STABLE_APPROXIMATE_INVERSE",&
+            "SPARSE_STABLE_APPROXIMATE_INVERSE",&
+            "NONE"),&
             enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "//&
             "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "//&
             "This preconditioner is recommended for almost all systems, except very large systems where "//&
@@ -5646,10 +5656,15 @@ CONTAINS
             "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.",&
             "Only based on atomic blocks, very cheap in construction but quite poor.",&
             "Toward -sparse- linear solver for T-eS.",&
+            "Stabilized Approximate INVerse preconditioning using full matrices "//&
+            "(not efficient at all!, will be removed shortly).",&
+            "Stabilized Approximate INVerse preconditioning using DBCSR sparse matrices (not working yet).",&
             "skip preconditioning"),&
             enum_i_vals=(/ot_precond_full_all,ot_precond_full_single_inverse,ot_precond_full_single, &
             ot_precond_full_kinetic,ot_precond_s_inverse,&
-            ot_precond_sparse_diag,ot_precond_sparse_kinetic,ot_precond_none/),&
+            ot_precond_sparse_diag,ot_precond_sparse_kinetic,&
+            ot_precond_full_kinetic_sainv,ot_precond_sparse_kinetic_sainv,&
+            ot_precond_none/),&
             citations=(/VandeVondele2003/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)

@@ -477,6 +477,7 @@ CPSourceFileRef,&
     CALL section_vals_val_get(qs_section,"FULL_GAPW",l_val=qs_control%gapw_control%full_gapw,error=error)
     CALL section_vals_val_get(qs_section,"FORCE_PAW",l_val=qs_control%gapw_control%force_paw,error=error)
     CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
+    CALL section_vals_val_get(qs_section,"BCSR_CODE",i_val=qs_control%bcsr_code,error=error)
 
     ! Logicals
     CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)

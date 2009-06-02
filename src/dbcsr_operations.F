@@ -13,6 +13,7 @@
 !> - [ADD MODIFICATION HISTORY or CREATION]
 ! *****************************************************************************
 MODULE dbcsr_operations
+  USE array_types,                     ONLY: array_data
   USE btree_I8_k_I4_v,                 ONLY: btree_I8_I4 => btree,&
                                              btree_add,&
                                              btree_delete,&
@@ -22,20 +23,28 @@ MODULE dbcsr_operations
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_mp_group,&
                                              dbcsr_mp_mypcol,&
-                                             dbcsr_mp_myproc,&
+                                             dbcsr_mp_mynode,&
                                              dbcsr_mp_myprow,&
                                              dbcsr_mp_nprows,&
-                                             dbcsr_mp_numproc,&
+                                             dbcsr_mp_numnodes,&
                                              dbcsr_mp_pgrid
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
                                              dbcsr_meta_size,&
                                              dbcsr_mp_obj,&
                                              dbcsr_type,&
                                              dbcsr_work_type
-  USE dbcsr_util,                      ONLY: &
-       add_work_coordinate, dbcsr_create, dbcsr_destroy_array, &
-       dbcsr_finalize, dbcsr_pack_meta, dbcsr_print, dbcsr_repoint_index, &
-       dbcsr_set_debug, dbcsr_unpack_i8_2i4, ensure_array_size
+  USE dbcsr_util,                      ONLY: add_work_coordinate,&
+                                             dbcsr_init,&
+                                             dbcsr_create,&
+                                             dbcsr_destroy_array,&
+                                             dbcsr_finalize,&
+                                             dbcsr_pack_meta,&
+                                             dbcsr_print,&
+                                             dbcsr_repoint_index,&
+                                             dbcsr_set_debug,&
+                                             dbcsr_unpack_i8_2i4,&
+                                             ensure_array_size,&
+                                             dbcsr_block_transpose
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8
@@ -78,10 +87,9 @@ CONTAINS
 !> \param[in,out] error            cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_sets (left_set, right_set, product_matrix,&
-       product_wm, error)
+       error)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set, right_set
     TYPE(dbcsr_type), INTENT(INOUT)          :: product_matrix
-    TYPE(dbcsr_work_type), INTENT(INOUT)     :: product_wm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_sets', &
@@ -89,9 +97,9 @@ CONTAINS
 
     INTEGER :: entries, flop, flop_total, i, left_nprows, left_prow, &
       left_prow_i, left_rep, left_reps, left_src_p_calc, left_src_p_comm, &
-      mp_group, mypcol, myproc, myprow, numproc, rep, right_nprows, &
+      mp_group, mypcol, mynode, myprow, numnodes, rep, right_nprows, &
       right_prow, right_prow_i, right_rep, right_reps, right_src_p_calc, &
-      right_src_p_comm, timing_handle
+      right_src_p_comm, timing_handle, nze, nblks
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: keys
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
@@ -100,7 +108,6 @@ CONTAINS
                                                 right_pgrid
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
     REAL(KIND=dp)                            :: trun, trun_t, tstart, tstop
-    TYPE(btree_I8_I4)                        :: windex
     TYPE(dbcsr_array_type), POINTER          :: lbuffer_set_calc, &
                                                 lbuffer_set_comm, &
                                                 rbuffer_set_calc, &
@@ -113,22 +120,23 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset (routineN, timing_handle)
-    CALL btree_new (windex)
-    tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
+    CALL btree_new (product_matrix%w%tree)
+    tstart = 0.0d0 ; tstop = 0.0d0 ; trun = 0.0d0
+    flop_total = 0
     trun_t = m_walltime ()
     left_reps = SIZE (left_set%mats)
     right_reps = SIZE (right_set%mats)
     mp_obj = dbcsr_distribution_mp (product_matrix%dist)
-    numproc = dbcsr_mp_numproc (mp_obj)
-    myproc = dbcsr_mp_myproc (mp_obj)
+    numnodes = dbcsr_mp_numnodes (mp_obj)
+    mynode = dbcsr_mp_mynode (mp_obj)
     myprow = dbcsr_mp_myprow (mp_obj)
     mypcol = dbcsr_mp_mypcol (mp_obj)
     mp_group = dbcsr_mp_group (mp_obj)
     product_pgrid => dbcsr_mp_pgrid (mp_obj)
     left_pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (&
-         left_set%rdist%main))
+         left_set%image_dist%main))
     left_nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (&
-         left_set%rdist%main))
+         left_set%image_dist%main))
     right_pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (&
          right_set%mats(1)%dist))
     DBG 'product pgrid shape', SHAPE (dbcsr_mp_pgrid (mp_obj))
@@ -152,11 +160,13 @@ CONTAINS
        my_sizes(3, rep) = SIZE (right_set%mats(rep)%data)
        my_sizes(4, rep) = SIZE (right_set%mats(rep)%index)
     ENDDO
-    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numproc-1))
+    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numnodes-1))
     DO i = 1, 4
        DBG 'my sizes', my_sizes(i,:)
     ENDDO
     CALL mp_allgather(my_sizes, all_sizes, mp_group)
+    nblks = MAXVAL (all_sizes (2, :, :))
+    nze = MAXVAL (all_sizes(1, :, :))
     DBG 'data sizes', all_sizes
     ! Setup the buffer matrices
     DO rep = 1, left_reps
@@ -164,21 +174,13 @@ CONTAINS
             left_set%mats(rep)%data, gid=mp_group)
        CALL mp_window_create (left_set%index_windows(rep),&
             left_set%mats(rep)%index, gid=mp_group)
-       !CALL mp_window_fence (left_set%data_windows(rep))
-       !CALL mp_window_fence (left_set%index_windows(rep))
     ENDDO
     DO left_prow = 0, left_nprows-1
-       DBG 'setting up left buffer for repetition', left_prow
-       CALL dbcsr_pack_meta(left_set%mats(1), new_meta, error)
-       DBG 'meta for right matrix',new_meta
+       CALL dbcsr_init (lbuffer_set1%mats(left_prow), error)
        CALL dbcsr_create (lbuffer_set1%mats(left_prow),&
-            'lbufferl1'//left_set%mats(1)%name,&
-            left_set%mats(1)%dist2d,&
-            'N', new_meta, 0, 0, special=.FALSE., error=error)
-       lbuffer_set1%mats(left_prow)%row_blk_size =>&
-            left_set%mats(1)%row_blk_size
-       lbuffer_set1%mats(left_prow)%col_blk_size =>&
-            left_set%mats(1)%col_blk_size
+            'lbufferl1'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
+            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+            nblks, nze, special=.FALSE., error=error)
        CALL ensure_array_size (lbuffer_set1%mats(left_prow)%data,&
             ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
@@ -186,14 +188,11 @@ CONTAINS
             ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
        !
+       CALL dbcsr_init (lbuffer_set2%mats(left_prow), error)
        CALL dbcsr_create (lbuffer_set2%mats(left_prow),&
-            'lbuffer2'//left_set%mats(1)%name,&
-            left_set%mats(1)%dist2d,&
-            'N', new_meta, 0, 0, special=.FALSE., error=error)
-       lbuffer_set2%mats(left_prow)%row_blk_size =>&
-            left_set%mats(1)%row_blk_size
-       lbuffer_set2%mats(left_prow)%col_blk_size =>&
-            left_set%mats(1)%col_blk_size
+            'lbuffer2'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
+            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+            nblks, nze, special=.FALSE., error=error)
        CALL ensure_array_size (lbuffer_set2%mats(left_prow)%data,&
             ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
@@ -206,11 +205,13 @@ CONTAINS
     DO rep = 1, right_reps
        DBG 'setting up right buffer for repetition', rep
        CALL dbcsr_pack_meta(right_set%mats(rep), new_meta, error)
+       CALL dbcsr_init (rbuffer_set1%mats(rep), error)
        CALL dbcsr_create (rbuffer_set1%mats(rep),&
-            'rbuffer1'//right_set%mats(rep)%name, right_set%mats(rep)%dist2d,&
-            'N', new_meta, 0, 0, special=.FALSE., error=error)
-       rbuffer_set1%mats(rep)%row_blk_size => right_set%mats(rep)%row_blk_size
-       rbuffer_set1%mats(rep)%col_blk_size => right_set%mats(rep)%col_blk_size
+            'rbuffer1'//right_set%mats(rep)%name, right_set%mats(rep)%dist,&
+            'N',&
+            right_set%mats(rep)%row_blk_size,&
+            right_set%mats(rep)%col_blk_size,&
+            0, 0, special=.FALSE., error=error)
        CALL ensure_array_size (rbuffer_set1%mats(rep)%data,&
             ub=MAXVAL (all_sizes(3, rep, :)), nocopy=.TRUE., special=.FALSE.,&
             error=error)
@@ -218,11 +219,13 @@ CONTAINS
             ub=MAXVAL (all_sizes(4, rep, :)), nocopy=.TRUE., special=.FALSE.,&
             error=error)
        !
+       CALL dbcsr_init (rbuffer_set2%mats(rep), error)
        CALL dbcsr_create (rbuffer_set2%mats(rep),&
-            'rbuffer2'//right_set%mats(rep)%name, right_set%mats(rep)%dist2d,&
-            'N', new_meta, 0, 0, special=.FALSE., error=error)
-       rbuffer_set2%mats(rep)%row_blk_size => right_set%mats(rep)%row_blk_size
-       rbuffer_set2%mats(rep)%col_blk_size => right_set%mats(rep)%col_blk_size
+            'rbuffer2'//right_set%mats(rep)%name, right_set%mats(rep)%dist,&
+            'N',&
+            right_set%mats(rep)%row_blk_size,&
+            right_set%mats(rep)%col_blk_size,&
+            0, 0, special=.FALSE., error=error)
        CALL ensure_array_size (rbuffer_set2%mats(rep)%data,&
             ub=MAXVAL (all_sizes(3, rep, :)), nocopy=.TRUE., special=.FALSE.,&
             error=error)
@@ -312,12 +315,12 @@ CONTAINS
              !left_src_p_calc = left_pgrid (left_prow, right_prow-1)
              CALL dbcsr_repoint_index (lbuffer_set_calc%mats(left_prow),&
                   error=error)
-             CALL dbcsr_print (lbuffer_set_calc%mats(left_prow), error)
-             CALL dbcsr_print (rbuffer_set_calc%mats(1), error)
+             !CALL dbcsr_print (lbuffer_set_calc%mats(left_prow), error)
+             !CALL dbcsr_print (rbuffer_set_calc%mats(1), error)
              tstart = m_walltime ()
              CALL dbcsr_nn_mult(lbuffer_set_calc%mats(left_prow),&
                   rbuffer_set_calc%mats(1),&
-                  product_matrix, product_wm, error, windex, flop=flop)
+                  product_matrix, error, flop=flop)
              flop_total = flop_total + flop
              tstop = m_walltime ()
              IF (tstop-tstart .NE. 0) THEN
@@ -335,8 +338,8 @@ CONTAINS
     IF (trun_t .EQ. 0) trun_t = 0.001_dp
     WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
          routineN//' Total Local Multiplication time',&
-         trun,' and',&
-         (REAL(flop_total, dp)/1000000.0_dp)/trun_t,' MFLOPS',flop_total
+         trun_t,' and',&
+         (REAL(flop_total, dp)/1000000.0d0)/trun_t,' MFLOPS',flop_total
     DO rep = 1, left_reps
        CALL mp_window_destroy (left_set%data_windows(rep))
        CALL mp_window_destroy (left_set%index_windows(rep))
@@ -346,31 +349,21 @@ CONTAINS
        CALL mp_window_destroy (right_set%index_windows(rep))
     ENDDO
     !
-    entries = btree_get_entries (windex)
-    CALL ensure_array_size (product_wm%blk_p, ub=entries, error=error)
+    entries = btree_get_entries (product_matrix%w%tree)
+    CALL ensure_array_size (product_matrix%w%blk_p, ub=entries, error=error)
     ALLOCATE (keys (entries))
-    CALL btree_delete (windex, keys, product_wm%blk_p)
-    ! Recreate the row, column arrays from the B-tree.
-    !lmask = 0 ; umask = 0
-    !DO i = 0, 31
-    !   lmask = IOR (lmask, IBSET (lmask, i))
-    !   umask = IOR (umask, IBSET (umask, i+32))
-    !ENDDO
-    !lmask8 = lmask
-    CALL ensure_array_size(product_wm%row_i, ub=entries, error=error)
-    CALL ensure_array_size(product_wm%col_i, ub=entries, error=error)
-    !DO i = 1, entries
-    !   product_wm%row_i(i) = ISHFT (keys(i), -32)
-    !   product_wm%col_i(i) = IAND (keys(i), lmask8)
-    !ENDDO
-    CALL dbcsr_unpack_i8_2i4 (keys, product_wm%row_i, product_wm%col_i)
+    CALL btree_delete (product_matrix%w%tree, keys, product_matrix%w%blk_p)
+    CALL ensure_array_size(product_matrix%w%row_i, ub=entries, error=error)
+    CALL ensure_array_size(product_matrix%w%col_i, ub=entries, error=error)
+    CALL dbcsr_unpack_i8_2i4 (keys, product_matrix%w%row_i,&
+         product_matrix%w%col_i)
     DEALLOCATE (keys)
-    CALL dbcsr_finalize(product_wm, product_matrix, .TRUE., .FALSE., error)
+    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error)
     !
-    CALL dbcsr_destroy_array (rbuffer_set1, error, no_sizes = .TRUE.)
-    CALL dbcsr_destroy_array (rbuffer_set2, error, no_sizes = .TRUE.)
-    CALL dbcsr_destroy_array (lbuffer_set1, error, no_sizes = .TRUE.)
-    CALL dbcsr_destroy_array (lbuffer_set2, error, no_sizes = .TRUE.)
+    CALL dbcsr_destroy_array (rbuffer_set1, error)
+    CALL dbcsr_destroy_array (rbuffer_set2, error)
+    CALL dbcsr_destroy_array (lbuffer_set1, error)
+    CALL dbcsr_destroy_array (lbuffer_set2, error)
     DEALLOCATE (left_set%data_windows)
     DEALLOCATE (left_set%index_windows)
     DEALLOCATE (right_set%data_windows)
@@ -401,7 +394,7 @@ CONTAINS
 !> \brief Makes an MPI tag
 !> \param[in,out] set1p, set2p
 ! *****************************************************************************
-  SUBROUTINE make_tag (tag, to, from, seq)
+  ELEMENTAL SUBROUTINE make_tag (tag, to, from, seq)
     INTEGER, INTENT(OUT)                     :: tag
     INTEGER, INTENT(IN)                      :: to, from, seq
 
@@ -421,10 +414,9 @@ CONTAINS
 !> \param[in,out] error            cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_sets_sqrt (left_set, right_set, product_matrix,&
-       product_wm, error)
+       error)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set, right_set
     TYPE(dbcsr_type), INTENT(INOUT)          :: product_matrix
-    TYPE(dbcsr_work_type), INTENT(INOUT)     :: product_wm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_sets_sqrt', &
@@ -432,7 +424,7 @@ CONTAINS
 
     INTEGER :: entries, flop, flop_total, i, left_nprows, left_prow, &
       left_prow_i, left_rep, left_reps, left_src_p_calc, left_src_p_comm, &
-      mp_group, mypcol, myproc, myprow, numproc, rep, right_dst_p_comm, &
+      mp_group, mypcol, mynode, myprow, numnodes, rep, right_dst_p_comm, &
       right_nprows, right_prow, right_prow_i, right_rep, right_reps, &
       right_src_p_calc, right_src_p_comm, timing_handle
     INTEGER(KIND=int_8), ALLOCATABLE, &
@@ -445,7 +437,6 @@ CONTAINS
                                                 right_pgrid
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
     REAL(KIND=dp)                            :: trun, tstart, tstop
-    TYPE(btree_I8_I4)                        :: windex
     TYPE(dbcsr_array_type), POINTER          :: lbuffer_set_calc, &
                                                 lbuffer_set_comm, &
                                                 rbuffer_set_calc, &
@@ -458,7 +449,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset (routineN, timing_handle)
-    CALL btree_new (windex)
+    CALL btree_new (product_matrix%w%tree)
     !
     ! An overview of the algorithm: a processor multiplies the local
     ! left matrices (i.e., the left_set) and the local right matrix
@@ -474,16 +465,16 @@ CONTAINS
     left_reps = SIZE (left_set%mats)
     right_reps = SIZE (right_set%mats)
     mp_obj = dbcsr_distribution_mp (product_matrix%dist)
-    numproc = dbcsr_mp_numproc (mp_obj)
-    myproc = dbcsr_mp_myproc (mp_obj)
+    numnodes = dbcsr_mp_numnodes (mp_obj)
+    mynode = dbcsr_mp_mynode (mp_obj)
     myprow = dbcsr_mp_myprow (mp_obj)
     mypcol = dbcsr_mp_mypcol (mp_obj)
     mp_group = dbcsr_mp_group (mp_obj)
     product_pgrid => dbcsr_mp_pgrid (mp_obj)
     left_pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (&
-         left_set%rdist%main))
+         left_set%image_dist%main))
     left_nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (&
-         left_set%rdist%main))
+         left_set%image_dist%main))
     right_pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (&
          right_set%mats(1)%dist))
     DBG 'product pgrid shape', SHAPE (dbcsr_mp_pgrid (mp_obj))
@@ -511,7 +502,7 @@ CONTAINS
        my_sizes(3, rep) = SIZE (right_set%mats(rep)%data)
        my_sizes(4, rep) = SIZE (right_set%mats(rep)%index)
     ENDDO
-    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numproc-1))
+    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numnodes-1))
     DO i = 1, 4
        DBG 'my sizes', my_sizes(i,:)
     ENDDO
@@ -530,14 +521,14 @@ CONTAINS
        DBG 'setting up left buffer for repetition', left_prow
        CALL dbcsr_pack_meta(left_set%mats(1), new_meta, error)
        DBG 'meta for right matrix',new_meta
+       CALL dbcsr_init (lbuffer_set1%mats(left_prow), error)
        CALL dbcsr_create (lbuffer_set1%mats(left_prow),&
             'lbufferl1'//left_set%mats(1)%name,&
-            left_set%mats(1)%dist2d,&
-            'N', new_meta, 0, 0, special=.FALSE., error=error)
-       lbuffer_set1%mats(left_prow)%row_blk_size =>&
-            left_set%mats(1)%row_blk_size
-       lbuffer_set1%mats(left_prow)%col_blk_size =>&
-            left_set%mats(1)%col_blk_size
+            left_set%mats(1)%dist,&
+            'N',&
+            left_set%mats(1)%row_blk_size,&
+            left_set%mats(1)%col_blk_size,&
+            0, 0, special=.FALSE., error=error)
        CALL ensure_array_size (lbuffer_set1%mats(left_prow)%data,&
             ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
@@ -545,14 +536,14 @@ CONTAINS
             ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
        !
+       CALL dbcsr_init (lbuffer_set2%mats(left_prow), error)
        CALL dbcsr_create (lbuffer_set2%mats(left_prow),&
             'lbuffer2'//left_set%mats(1)%name,&
-            left_set%mats(1)%dist2d,&
-            'N', new_meta, 0, 0, special=.FALSE., error=error)
-       lbuffer_set2%mats(left_prow)%row_blk_size =>&
-            left_set%mats(1)%row_blk_size
-       lbuffer_set2%mats(left_prow)%col_blk_size =>&
-            left_set%mats(1)%col_blk_size
+            left_set%mats(1)%dist,&
+            'N',&
+            left_set%mats(1)%row_blk_size,&
+            left_set%mats(1)%col_blk_size,&
+            0, 0, special=.FALSE., error=error)
        CALL ensure_array_size (lbuffer_set2%mats(left_prow)%data,&
             ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
@@ -565,11 +556,13 @@ CONTAINS
     DO rep = 1, right_reps
        DBG 'setting up right buffer for repetition', rep
        CALL dbcsr_pack_meta(right_set%mats(rep), new_meta, error)
+       CALL dbcsr_init (rbuffer_set1%mats(rep), error)
        CALL dbcsr_create (rbuffer_set1%mats(rep),&
-            'rbuffer1'//right_set%mats(rep)%name, right_set%mats(rep)%dist2d,&
-            'N', new_meta, 0, 0, special=.FALSE., error=error)
-       rbuffer_set1%mats(rep)%row_blk_size => right_set%mats(rep)%row_blk_size
-       rbuffer_set1%mats(rep)%col_blk_size => right_set%mats(rep)%col_blk_size
+            'rbuffer1'//right_set%mats(rep)%name, right_set%mats(rep)%dist,&
+            'N',&
+            right_set%mats(rep)%row_blk_size,&
+            right_set%mats(rep)%col_blk_size,&
+            0, 0, special=.FALSE., error=error)
        CALL ensure_array_size (rbuffer_set1%mats(rep)%data,&
             ub=MAXVAL (all_sizes(3, rep, :)), nocopy=.TRUE., special=.FALSE.,&
             error=error)
@@ -577,11 +570,13 @@ CONTAINS
             ub=MAXVAL (all_sizes(4, rep, :)), nocopy=.TRUE., special=.FALSE.,&
             error=error)
        !
+       CALL dbcsr_init (rbuffer_set2%mats(rep), error)
        CALL dbcsr_create (rbuffer_set2%mats(rep),&
-            'rbuffer2'//right_set%mats(rep)%name, right_set%mats(rep)%dist2d,&
-            'N', new_meta, 0, 0, special=.FALSE., error=error)
-       rbuffer_set2%mats(rep)%row_blk_size => right_set%mats(rep)%row_blk_size
-       rbuffer_set2%mats(rep)%col_blk_size => right_set%mats(rep)%col_blk_size
+            'rbuffer2'//right_set%mats(rep)%name, right_set%mats(rep)%dist,&
+            'N',&
+            right_set%mats(rep)%row_blk_size,&
+            right_set%mats(rep)%col_blk_size,&
+            0, 0, special=.FALSE., error=error)
        CALL ensure_array_size (rbuffer_set2%mats(rep)%data,&
             ub=MAXVAL (all_sizes(3, rep, :)), nocopy=.TRUE., special=.FALSE.,&
             error=error)
@@ -766,12 +761,12 @@ CONTAINS
              !left_src_p_calc = left_pgrid (left_prow, right_prow-1)
              CALL dbcsr_repoint_index (lbuffer_set_calc%mats(left_prow),&
                   error=error)
-             CALL dbcsr_print (lbuffer_set_calc%mats(left_prow), error)
-             CALL dbcsr_print (rbuffer_set_calc%mats(1), error)
+             !CALL dbcsr_print (lbuffer_set_calc%mats(left_prow), error)
+             !CALL dbcsr_print (rbuffer_set_calc%mats(1), error)
              tstart = m_walltime ()
              CALL dbcsr_nn_mult(lbuffer_set_calc%mats(left_prow),&
                   rbuffer_set_calc%mats(1),&
-                  product_matrix, product_wm, error, windex, flop=flop)
+                  product_matrix, error, flop=flop)
              flop_total = flop_total + flop
              tstop = m_walltime ()
              IF (tstop-tstart .NE. 0) THEN
@@ -800,24 +795,16 @@ CONTAINS
        CALL mp_window_destroy (right_set%index_windows(rep))
     ENDDO
     !
-    entries = btree_get_entries (windex)
-    CALL ensure_array_size(product_wm%blk_p, ub=entries, error=error)
+    entries = btree_get_entries (product_matrix%w%tree)
+    CALL ensure_array_size(product_matrix%w%blk_p, ub=entries, error=error)
     ALLOCATE (keys(entries))
-    CALL btree_delete (windex, keys, product_wm%blk_p)
-    !lmask = 0 ; umask = 0
-    !DO i = 0, 31
-    !   lmask = IOR (lmask, IBSET (lmask, i))
-    !   umask = IOR (umask, IBSET (umask, i+32))
-    !ENDDO
-    CALL ensure_array_size(product_wm%row_i, ub=entries, error=error)
-    CALL ensure_array_size(product_wm%col_i, ub=entries, error=error)
-    !DO i = 1, entries
-    !   product_wm%row_i(i) = ISHFT (keys(i), -32)
-    !   product_wm%col_i(i) = IAND (keys(i), lmask)
-    !ENDDO
-    CALL dbcsr_unpack_i8_2i4 (keys, product_wm%row_i, product_wm%col_i)
+    CALL btree_delete (product_matrix%w%tree, keys, product_matrix%w%blk_p)
+    CALL ensure_array_size(product_matrix%w%row_i, ub=entries, error=error)
+    CALL ensure_array_size(product_matrix%w%col_i, ub=entries, error=error)
+    CALL dbcsr_unpack_i8_2i4 (keys, product_matrix%w%row_i,&
+         product_matrix%w%col_i)
     DEALLOCATE (keys)
-    CALL dbcsr_finalize(product_wm, product_matrix, .TRUE., .FALSE., error)
+    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error)
     CALL timestop (timing_handle)
   END SUBROUTINE dbcsr_multiply_sets_sqrt
 
@@ -831,12 +818,10 @@ CONTAINS
 !> \param[out] flop           (optional) number of effective double-precision
 !>                            floating point operations performed
 ! *****************************************************************************
-  SUBROUTINE dbcsr_nn_mult(left, right, product, wm, error, index, flop)
+  SUBROUTINE dbcsr_nn_mult(left, right, product, error, flop)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
-    TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    TYPE(btree_I8_I4), INTENT(INOUT)         :: index
     INTEGER, INTENT(OUT), OPTIONAL           :: flop
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult', &
@@ -845,6 +830,7 @@ CONTAINS
                                                 beta_add = 1.0_dp, &
                                                 beta_new = 0.0_dp
 
+    TYPE(dbcsr_work_type)                    :: wm
     CHARACTER                                :: a_type, b_type
     INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, b_blk, &
       b_col, b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_col, c_nze, &
@@ -854,6 +840,10 @@ CONTAINS
     LOGICAL                                  :: block_exists
     REAL(KIND=dp)                            :: beta, tstart, tstop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data, b_data, c_data
+    INTEGER, DIMENSION(:), POINTER           :: left_row_blk_size,&
+                                                left_col_blk_size,&
+                                                right_row_blk_size,&
+                                                right_col_blk_size
 
 !.!INTEGER, DIMENSION(:), ALLOCATABLE   :: c_blk_ps
 
@@ -863,6 +853,7 @@ CONTAINS
     CALL timeset(routineN, timing_handle)
     !IF (dbg) tstart = m_walltime ()
     tstart = m_walltime ()
+    wm = product%w
     DBG "Doing NN matrix multiplication",left%name,' x ',right%name
     DBG "Pre-mult blk sizes, data", wm%lastblk, wm%datasize
     ! c_blk_ps contains the block pointers in the product's current row
@@ -870,6 +861,10 @@ CONTAINS
     !IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
     !     product%nblkcols_total)
     lflop = 0
+    left_row_blk_size => array_data (left%row_blk_size)
+    left_col_blk_size => array_data (left%col_blk_size)
+    right_row_blk_size => array_data (right%row_blk_size)
+    right_col_blk_size => array_data (right%col_blk_size)
     c_blk_p = wm%datasize + 1
     DBG 'A rows:',left%nblkrows_total
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
@@ -877,7 +872,7 @@ CONTAINS
     !     ub=wm%datasize+left%nfullrows_total*right%nfullcols_total, error=error)
     DO a_row = 1, left%nblkrows_total
        DBG 'A row', a_row,' with #cols=',left%row_p(a_row+1)-left%row_p(a_row)
-       a_row_size = left%row_blk_size(a_row)
+       a_row_size = left_row_blk_size(a_row)
        CALL ensure_array_size(wm%data,&
             ub=wm%datasize+a_row_size*right%nfullcols_total &
             * MAX(1, (left%nblkrows_total-a_row)/4), error=error)
@@ -885,7 +880,7 @@ CONTAINS
           a_col = left%col_i(a_blk)
           DBG 'A col', a_col
           b_row = a_col ; c_row = a_row
-          a_col_size = left%col_blk_size(a_col)
+          a_col_size = left_col_blk_size(a_col)
           a_nze = a_row_size * a_col_size
           b_row_size = a_col_size
           a_data => left%data(ABS(left%blk_p(a_blk))&
@@ -898,7 +893,7 @@ CONTAINS
           DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
              b_col = right%col_i(b_blk) ; c_col = b_col
              DBG 'B col', b_col
-             b_col_size = right%col_blk_size(b_col)
+             b_col_size = right_col_blk_size(b_col)
              b_nze = b_row_size * b_col_size
              b_data => right%data(&
                   ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
@@ -910,13 +905,13 @@ CONTAINS
              c_nze = a_row_size * b_col_size
              ! If this c column does not yet exist, "allocate" it.
              coordinate = make_coordinate_tuple (c_row, c_col)
-             CALL btree_find (index, coordinate, offset, block_exists)
+             CALL btree_find (wm%tree, coordinate, offset, block_exists)
              !.!IF (c_blk_ps(c_col) .EQ. 0) THEN
              IF (.NOT. block_exists) THEN
                 !.!c_blk_ps(c_col) = c_blk_p
                 !.!CALL add_work_coordinate(wm, c_row, c_col, c_blk_p, error=error)
                 offset = c_blk_p
-                CALL btree_add (index, coordinate, offset)
+                CALL btree_add (wm%tree, coordinate, offset)
                 wm%lastblk = wm%lastblk + 1
                 c_blk_p = c_blk_p + c_nze
                 wm%datasize = wm%datasize + c_nze
@@ -954,10 +949,11 @@ CONTAINS
        ENDIF
     ENDIF
     IF (PRESENT (flop)) flop = lflop
+    product%w = wm
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_nn_mult
 
-  FUNCTION make_coordinate_tuple (most, least) RESULT (tuple)
+  ELEMENTAL FUNCTION make_coordinate_tuple (most, least) RESULT (tuple)
     INTEGER, INTENT(IN)                      :: most, least
     INTEGER(KIND=int_8)                      :: tuple
 
@@ -992,6 +988,10 @@ CONTAINS
       sum_col_size, sum_row_size, timing_handle
     REAL(KIND=dp)                            :: tstart, tstop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: addee_data, sum_data
+    INTEGER, DIMENSION(:), POINTER           :: addee_row_blk_size,&
+                                                addee_col_blk_size
+
+
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -1001,6 +1001,8 @@ CONTAINS
     DBG "Doing WM matrix sum",' += ',addee%name
     DBG "Pre-mult blk sizes, data", wm%lastblk, wm%datasize
     DBG "Addee blk sizes, data", addee%nblks, addee%nze
+    addee_row_blk_size => array_data (addee%row_blk_size)
+    addee_col_blk_size => array_data (addee%col_blk_size)
     !
     ! The algorithm is a follows: go through all of addee's
     ! blocks. For every block, see if a corresponding block already
@@ -1017,14 +1019,14 @@ CONTAINS
        DBG 'Addee row', addee_row,' with #cols=',&
             addee%row_p(addee_row+1)-addee%row_p(addee_row)
        ! Find the blocks present in addee_row.
-       addee_row_size = addee%row_blk_size(addee_row)
+       addee_row_size = addee_row_blk_size(addee_row)
        CALL ensure_array_size(wm%data,&
             ub=wm%datasize+addee_row_size*addee%nfullcols_total &
             * MAX(1, (addee%nblkrows_total-addee_row)/4), error=error)
        DO addee_blk = addee%row_p(addee_row)+1, addee%row_p(addee_row+1)
           addee_col = addee%col_i(addee_blk)
           DBG 'Addee col', addee_col
-          addee_col_size = addee%col_blk_size(addee_col)
+          addee_col_size = addee_col_blk_size(addee_col)
           addee_nze = addee_row_size * addee_col_size
           addee_data => addee%data(ABS(addee%blk_p(addee_blk))&
                              :ABS(addee%blk_p(addee_blk))+addee_nze-1)

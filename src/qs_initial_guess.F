@@ -860,7 +860,8 @@ CPSourceFileRef,&
              WRITE(output_unit,'(T2,A)') "Report errors, and use the input keyword CHECK_BCSR_CODE to circumvent them"
           ENDIF
           CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
-          CALL dbcsr_check(s_sparse(1)%matrix, mo_coeff, error)
+          CALL dbcsr_check(s_sparse(1)%matrix, mo_coeff,&
+               qs_env%dft_control%qs_control%bcsr_code, error)
           qs_env%dft_control%qs_control%check_bcsr_code=.FALSE.
        ENDIF
     ENDIF

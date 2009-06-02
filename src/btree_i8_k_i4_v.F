@@ -1,3 +1,17 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2009  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief   B-tree implementation template
+!> \author  Urban Borstnik
+!> \date    2000-05-12
+!> \version 1.0
+!> <b>Modification history:</b>
+!> - Created
+! *****************************************************************************
+
 MODULE btree_i8_k_i4_v
 
   IMPLICIT NONE
@@ -152,18 +166,20 @@ CONTAINS
     TYPE(btree_node), POINTER                :: node
 
 !
-!
-!
-!CALL btree_find_full (tree, key, node, position, ge_pos)
 
-    CALL btree_find_leaf (tree, key, node, ge_pos)
-    IF (position .NE. 0 .AND. PRESENT (exists)) THEN
-       exists = .TRUE.
-       existing_value = node%values(position)
-       RETURN
+    IF (PRESENT (exists)) THEN
+       CALL btree_find_full (tree, key, node, position, ge_pos, short=.TRUE.)
+       IF (position .GT. 0) THEN
+          exists = .TRUE.
+          existing_value = node%values(position)
+          RETURN
+       ELSE
+          exists = .FALSE.
+       ENDIF
     ELSE
-       CALL btree_add_into (tree, node, key, value, before=ge_pos)
+       CALL btree_find_leaf (tree, key, node, ge_pos)
     ENDIF
+    CALL btree_add_into (tree, node, key, value, before=ge_pos)
     tree%b%n = tree%b%n+1
   END SUBROUTINE btree_add
 
@@ -997,7 +1013,7 @@ CONTAINS
        ! we are searching for. If it is found and we are just
        ! searching for one equal element (i.e., user search), we can
        ! return.
-       IF (position .LE. node%filled .AND. stop_short) THEN
+       IF (stop_short .AND. position .LE. node%filled) THEN
           IF (node%keys(position) .EQ. key) THEN
              IF (PRESENT (ge_position)) ge_position = position
              RETURN

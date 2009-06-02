@@ -241,22 +241,22 @@ CONTAINS
 
   !
 
-  SUBROUTINE array_hold_i1d (array)
+  PURE SUBROUTINE array_hold_i1d (array)
     TYPE(array_i1d_obj), INTENT(INOUT)       :: array
 
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_i1d
-  SUBROUTINE array_hold_i2d (array)
+  PURE SUBROUTINE array_hold_i2d (array)
     TYPE(array_i2d_obj), INTENT(INOUT)       :: array
 
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_i2d
-  SUBROUTINE array_hold_d1d (array)
+  PURE SUBROUTINE array_hold_d1d (array)
     TYPE(array_d1d_obj), INTENT(INOUT)       :: array
 
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_d1d
-  SUBROUTINE array_hold_d2d (array)
+  PURE SUBROUTINE array_hold_d2d (array)
     TYPE(array_d2d_obj), INTENT(INOUT)       :: array
 
     array%low%refcount = array%low%refcount + 1
@@ -315,22 +315,22 @@ CONTAINS
 
   !
 
-  SUBROUTINE array_nullify_i1d (array)
+  PURE SUBROUTINE array_nullify_i1d (array)
     TYPE(array_i1d_obj), INTENT(INOUT)       :: array
 
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_i1d
-  SUBROUTINE array_nullify_i2d (array)
+  PURE SUBROUTINE array_nullify_i2d (array)
     TYPE(array_i2d_obj), INTENT(INOUT)       :: array
 
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_i2d
-  SUBROUTINE array_nullify_d1d (array)
+  PURE SUBROUTINE array_nullify_d1d (array)
     TYPE(array_d1d_obj), INTENT(INOUT)       :: array
 
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_d1d
-  SUBROUTINE array_nullify_d2d (array)
+  PURE SUBROUTINE array_nullify_d2d (array)
     TYPE(array_d2d_obj), INTENT(INOUT)       :: array
 
     NULLIFY (array%low)
@@ -365,25 +365,25 @@ CONTAINS
 
   !
 
-  FUNCTION array_size_i1d(array) RESULT (the_size)
+  PURE FUNCTION array_size_i1d(array) RESULT (the_size)
     TYPE(array_i1d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
 
     the_size = SIZE(array%low%data)
   END FUNCTION array_size_i1d
-  FUNCTION array_size_i2d(array) RESULT (the_size)
+  PURE FUNCTION array_size_i2d(array) RESULT (the_size)
     TYPE(array_i2d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
 
     the_size = SIZE(array%low%data)
   END FUNCTION array_size_i2d
-  FUNCTION array_size_d1d(array) RESULT (the_size)
+  PURE FUNCTION array_size_d1d(array) RESULT (the_size)
     TYPE(array_d1d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
 
     the_size = SIZE(array%low%data)
   END FUNCTION array_size_d1d
-  FUNCTION array_size_d2d(array) RESULT (the_size)
+  PURE FUNCTION array_size_d2d(array) RESULT (the_size)
     TYPE(array_d2d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
 

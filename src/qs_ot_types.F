@@ -40,7 +40,8 @@ MODULE qs_ot_types
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
        ot_precond_solver_inv_chol, ot_precond_sparse_diag, &
-       ot_precond_sparse_kinetic
+       ot_precond_sparse_kinetic, ot_precond_full_kinetic_sainv,&
+       ot_precond_sparse_kinetic_sainv
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -858,6 +859,10 @@ CONTAINS
        settings%preconditioner_name="SPARSE_DIAG"
     CASE(ot_precond_sparse_kinetic)
        settings%preconditioner_name="SPARSE_KINETIC"
+    CASE(ot_precond_full_kinetic_sainv)
+       settings%preconditioner_name="FULL_SAINV_KINETIC"
+    CASE(ot_precond_sparse_kinetic_sainv)
+       settings%preconditioner_name="SPARSE_SAINV_KINETIC"
     CASE DEFAULT
        CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
     END SELECT
