@@ -1542,7 +1542,7 @@ CONTAINS
     meta(10) = nfullcols_local
   END SUBROUTINE meta_from_dist
 
-  SUBROUTINE test_create_blocked_linear_distribution(error)
+  SUBROUTINE test_create_bl_distribution(error)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER, PARAMETER                       :: rpt = 10
@@ -1556,12 +1556,12 @@ CONTAINS
        elements = INT(rn * 500)
        CALL RANDOM_NUMBER (rn)
        bins = MAX(1, INT(rn*8))
-       CALL create_blocked_linear_distribution (block_distribution,&
+       CALL create_bl_distribution (block_distribution,&
             block_size, elements, bins, error)
        CALL array_release (block_distribution)
        CALL array_release (block_size)
     ENDDO
-  END SUBROUTINE test_create_blocked_linear_distribution
+  END SUBROUTINE test_create_bl_distribution
 
 ! *****************************************************************************
 !> \brief Distributes elements into blocks and into bins
@@ -1570,14 +1570,13 @@ CONTAINS
 !> \param[in] elements          number of elements to bin
 !> \param[in] nbins             number of bins
 ! *****************************************************************************
-  SUBROUTINE create_blocked_linear_distribution (block_distribution,&
+  SUBROUTINE create_bl_distribution (block_distribution,&
        block_size, nelements, nbins, error)
     TYPE(array_i1d_obj), INTENT(OUT)         :: block_distribution, block_size
     INTEGER, INTENT(IN)                      :: nelements, nbins
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'create_blocked_linear_distribution', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: bin, blk_layer, element_stack, els, estimated_blocks, &
@@ -1652,7 +1651,7 @@ CONTAINS
        WRITE(*,'(1X,A,A)')routineP//" Sizes"
        WRITE(*,1579)array_data (block_size)
     ENDIF
-  END SUBROUTINE create_blocked_linear_distribution
+  END SUBROUTINE create_bl_distribution
 
 
 ! *****************************************************************************
@@ -2399,7 +2398,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     right_mp_env = dbcsr_distribution_mp (dist_left)
-    CALL create_blocked_linear_distribution (right_col_dist,&
+    CALL create_bl_distribution (right_col_dist,&
          right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env), error)
     CALL dbcsr_distribution_new (dist_right, right_mp_env,&
          dbcsr_distribution_row_dist (dist_left), right_col_dist,&
@@ -2435,11 +2434,11 @@ CONTAINS
     TYPE(dbcsr_mp_obj)                       :: right_mp_env
 
 !   ---------------------------------------------------------------------------
-!CALL test_create_blocked_linear_distribution (error)
+!CALL test_create_bl_distribution (error)
 
     CALL dbcsr_mp_new_transposed (right_mp_env,&
          dbcsr_distribution_mp (dist_left))
-    CALL create_blocked_linear_distribution (right_col_dist,&
+    CALL create_bl_distribution (right_col_dist,&
          right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env), error)
     CALL dbcsr_distribution_new (dist_right, right_mp_env,&
          dbcsr_distribution_col_dist (dist_left), right_col_dist,&
@@ -2478,7 +2477,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     left_mp_env = dbcsr_distribution_mp (dist_left)
-    CALL create_blocked_linear_distribution (left_row_dist,&
+    CALL create_bl_distribution (left_row_dist,&
          left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env), error)
     CALL dbcsr_distribution_new (dist_left, left_mp_env,&
          left_row_dist, dbcsr_distribution_col_dist (dist_right),&
@@ -2517,7 +2516,7 @@ CONTAINS
 
     CALL dbcsr_mp_new_transposed (left_mp_env,&
          dbcsr_distribution_mp (dist_right))
-    CALL create_blocked_linear_distribution (left_row_dist,&
+    CALL create_bl_distribution (left_row_dist,&
          left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env), error)
     CALL dbcsr_distribution_new (dist_left, left_mp_env,&
          left_row_dist, dbcsr_distribution_row_dist (dist_right),&
