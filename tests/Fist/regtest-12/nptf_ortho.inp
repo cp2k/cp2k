@@ -45,6 +45,7 @@
         EWALD_TYPE spme
         ALPHA .2
         GMAX 32
+        EWALD_ACCURACY 1.0E-1
         O_SPLINE 4
       &END EWALD
     &END POISSON

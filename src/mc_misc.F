@@ -497,7 +497,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       imul, itorsion, itype, jbend, jbond, jtorsion, jtype, natoms, nbend, &
       nbond, nchains, ns_max, ntorsion, ntypes, o_spline, stat, unit
     LOGICAL                                  :: check, failure, use_ref_cell
-    REAL(KIND=dp)                            :: alpha, charge, epsilon, r_val
+    REAL(KIND=dp)                            :: alpha, charge, epsilon, &
+                                                precs, r_val
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -549,7 +550,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
             fist_nonbond_env=fist_nonbond_env,error=error)
          CALL ewald_env_get(ewald_env,&
             ewald_type=ewald_type,alpha=alpha,gmax=gmax,o_spline=o_spline,&
-            ns_max=ns_max,epsilon=epsilon,error=error)
+            ns_max=ns_max,epsilon=epsilon,precs=precs,error=error)
          CALL get_cell(cell,abc=abc)
       CASE ( use_qs_force )
          CALL force_env_get(force_env,qs_env=qs_env,subsys=subsys,error=error)
@@ -628,6 +629,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
             WRITE(unit,20014) "       GMAX ",gmax
             WRITE(unit,20003) "       O_SPLINE ",o_spline
          END SELECT
+         WRITE(unit,20000) "       EWALD_ACCURACY ",precs
          WRITE(unit,10000) "      &END EWALD"
          WRITE(unit,10000) "    &END POISSON"
 

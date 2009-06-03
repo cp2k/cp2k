@@ -409,7 +409,7 @@ SUBROUTINE create_ewald_section(section,error)
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of ewald setup",&
-         print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+         print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
          error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)

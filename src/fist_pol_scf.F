@@ -92,7 +92,7 @@ CONTAINS
 
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%ITER_INFO",&
          extension=".mmLog",error=error)
-    iw2= cp_print_key_unit_nr(logger,mm_section,"POISSON%EWALD%PRINT%PROGRAM_RUN_INFO",&
+    iw2= cp_print_key_unit_nr(logger,mm_section,"PRINT%EWALD_INFO",&
          extension=".mmLog",error=error)
 
     CALL ewald_env_get (ewald_env, max_ipol_iter=max_ipol_iter, eps_pol=eps_pol,&
@@ -181,7 +181,7 @@ CPSourceFileRef,&
     DEALLOCATE(local_dipoles,stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_print_key_finished_output(iw2,logger,mm_section,&
-         "POISSON%EWALD%PRINT%PROGRAM_RUN_INFO",error=error)
+         "PRINT%EWALD_INFO",error=error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%ITER_INFO",error=error)
 

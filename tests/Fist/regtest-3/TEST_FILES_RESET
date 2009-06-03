@@ -105,3 +105,6 @@ ace_ala_nme-amber.inp
 ace_ala_nme.inp
 # bug fix potential EAM
 agpt.inp
+# bug fix
+al2o3.inp
+al2o3-res.inp

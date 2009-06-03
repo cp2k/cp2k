@@ -49,6 +49,7 @@
       &EWALD
         EWALD_TYPE ewald
         ALPHA .23
+        EWALD_ACCURACY 1.0E-2
         GMAX 11
       &END EWALD
     &END POISSON

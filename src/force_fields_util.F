@@ -265,8 +265,9 @@ CONTAINS
     ! 15. Set spline_nonbond_env
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded) THEN
-       CALL force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env, fatal, iw, &
-            Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond, error)
+       CALL force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env, ewald_env, &
+            fatal, iw, Ainfo, chm_info, inp_info, gro_info, amb_info, &
+            potparm_nonbond, error)
        ! Give information and abort if any pair potential spline is missing..
        CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------

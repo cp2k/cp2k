@@ -135,6 +135,14 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"EWALD_INFO",&
+            description="Controls the printing of Ewald energy components during the "//&
+            "evaluation of the electrostatics.", &
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"DIPOLE",&
             description="Controls the printing of dipole information. Computed with"//&
             " the Berry phase formalism. Results in atomic Units.", &

@@ -59,6 +59,7 @@ MODULE ewald_environment_types
     INTEGER   :: gmax(3)                  ! max Miller index
     INTEGER   :: ns_max                   ! # grid points for small grid (PME)
     INTEGER   :: o_spline                 ! order of spline (SPME)
+    REAL (KIND=dp) :: precs               ! precision achieved when evaluating the real-space part
     REAL (KIND=dp) :: alpha, rcut         ! ewald alpha and real-space cutoff
     REAL (KIND=dp) :: epsilon             ! tolerance for small grid (PME)
     REAL (KIND=dp) :: eps_pol             ! tolerance for convergence of induced dipoles
@@ -102,7 +103,7 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, eps_pol,  epsilon, gmax,&
-       ns_max, o_spline, group, para_env, id_nr, poisson_section,&
+       ns_max, o_spline, group, para_env, id_nr, poisson_section, precs, &
        rcut, do_multipoles, max_multipole,do_ipol_scf,max_ipol_iter, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
@@ -114,7 +115,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
-    REAL(KIND=dp), OPTIONAL                  :: rcut
+    REAL(KIND=dp), OPTIONAL                  :: precs, rcut
     LOGICAL, INTENT(OUT), OPTIONAL           :: do_multipoles
     INTEGER, INTENT(OUT), OPTIONAL           :: max_multipole
     LOGICAL, INTENT(OUT), OPTIONAL           :: do_ipol_scf
@@ -137,6 +138,7 @@ CONTAINS
     IF (PRESENT(max_multipole)) max_multipole = ewald_env%max_multipole
     IF (PRESENT(max_ipol_iter)) max_ipol_iter = ewald_env%max_ipol_iter
     IF (PRESENT(alpha)) alpha = ewald_env%alpha
+    IF (PRESENT(precs)) precs = ewald_env%precs
     IF (PRESENT(rcut)) rcut = ewald_env%rcut
     IF (PRESENT(epsilon)) epsilon = ewald_env%epsilon
     IF (PRESENT(eps_pol)) eps_pol = ewald_env%eps_pol
@@ -156,13 +158,15 @@ CONTAINS
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_env_set( ewald_env, ewald_type, alpha, epsilon, eps_pol, gmax, ns_max,&
-       o_spline, para_env, id_nr, poisson_section, error )
+  SUBROUTINE ewald_env_set( ewald_env, ewald_type, alpha, epsilon, eps_pol, &
+       gmax, ns_max, precs, o_spline, para_env, id_nr, poisson_section, error )
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, epsilon, eps_pol
-    INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline
+    INTEGER, OPTIONAL                        :: gmax(3), ns_max
+    REAL(KIND=dp), OPTIONAL                  :: precs
+    INTEGER, OPTIONAL                        :: o_spline
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: id_nr
@@ -183,6 +187,7 @@ CONTAINS
        IF (PRESENT(id_nr)) ewald_env%id_nr = id_nr
        IF (PRESENT(ewald_type)) ewald_env%ewald_type = ewald_type
        IF (PRESENT(alpha)) ewald_env%alpha = alpha
+       IF (PRESENT(precs)) ewald_env%precs = precs
        IF (PRESENT(epsilon)) ewald_env%epsilon = epsilon
        IF (PRESENT(eps_pol)) ewald_env%eps_pol = eps_pol
        IF (PRESENT(gmax)) ewald_env%gmax = gmax
@@ -321,9 +326,13 @@ CONTAINS
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)
        CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha,error=error)
-       CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=precs,error=error)
+       CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=ewald_env%precs,error=error)
        
-       ewald_env%rcut = find_ewald_optimal_value(precs,error)/ewald_env%alpha
+       IF (ewald_env%ewald_type==do_ewald_none) THEN
+          ewald_env%rcut = 0.0_dp
+       ELSE
+          ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs,error)/ewald_env%alpha
+       END IF
        ! we have no defaults for gmax, gmax is only needed for ewald and spme
        SELECT CASE ( ewald_env%ewald_type )
        CASE (do_ewald_ewald, do_ewald_spme)

@@ -447,3 +447,6 @@ sio2-qmmm-gauss-1.inp
 sio2-qmmm-gauss-2.inp
 # New initial guess ATOMIC 
 sio2-qmmm-gauss-3.inp
+# bug fix
+sio2-qmmm-gauss-1.inp
+sio2-qmmm-gauss-2.inp

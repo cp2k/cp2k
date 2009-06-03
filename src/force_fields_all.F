@@ -17,7 +17,8 @@ MODULE force_fields_all
                                              set_atomic_kind
   USE atoms_input,                     ONLY: read_shell_coord_input
   USE cell_types,                      ONLY: cell_type
-  USE ewald_environment_types,         ONLY: ewald_environment_type
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              set_potential
@@ -2075,11 +2076,11 @@ CPSourceFileRef,&
                                                 name_atm_b, name_atm_b_local
     INTEGER                                  :: handle2, i, ii, ikind, j, jj, &
                                                 jkind, k, match_names, n
-    LOGICAL                                  :: allocate_spline_bond_env, &
-                                                failure, found, found_a, &
-                                                found_b, only_qm, use_qmmm_ff
+    LOGICAL :: allocate_spline_bond_env, do_multipoles, failure, found, &
+      found_a, found_b, only_qm, use_qmmm_ff
     REAL(KIND=dp)                            :: epsilon0, epsilon_a, &
-                                                epsilon_b, rmin, rmin2_a, &
+                                                epsilon_b, ewald_rcut, &
+                                                ewald_rcut2, rmin, rmin2_a, &
                                                 rmin2_b
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pair_potential_single_type), &
@@ -2090,6 +2091,9 @@ CPSourceFileRef,&
     failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     allocate_spline_bond_env = .FALSE.
+    CALL ewald_env_get(ewald_env,rcut=ewald_rcut,do_multipoles=do_multipoles,error=error)
+    IF (do_multipoles) ewald_rcut = 0.0_dp
+    ewald_rcut2 = ewald_rcut**2
     NULLIFY(pot)
     CALL timeset(routineN,handle2)
     CALL pair_potential_pp_create (potparm_bond, SIZE(atomic_kind_set), error)
@@ -2330,6 +2334,8 @@ CPSourceFileRef,&
           IF(ff_type%rcut_nb>0.0_dp) THEN
              pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           END IF
+          ! Cutoff is defined always as the maximum between the FF and Ewald
+          pot%rcutsq = MAX(pot%rcutsq, ewald_rcut2)
           IF (only_qm) THEN
              CALL pair_potential_single_clean( pot ,error=error)
           END IF
@@ -2437,7 +2443,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Pack in spline nonbond env the information needed for the force_field
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env,&
+  SUBROUTINE force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env, ewald_env,&
        fatal, iw, Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond,&
        error)
 
@@ -2445,6 +2451,7 @@ CPSourceFileRef,&
       POINTER                                :: atomic_kind_set
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
     LOGICAL                                  :: fatal
     INTEGER                                  :: iw
     CHARACTER(LEN=default_string_length), &
@@ -2463,10 +2470,12 @@ CPSourceFileRef,&
                                                 name_atm_b, name_atm_b_local
     INTEGER                                  :: handle2, i, ii, j, jj, k, &
                                                 match_names
-    LOGICAL                                  :: failure, found, is_a_shell, &
+    LOGICAL                                  :: do_multipoles, failure, &
+                                                found, is_a_shell, &
                                                 is_b_shell, only_qm, &
                                                 use_qmmm_ff
-    REAL(KIND=dp)                            :: epsilon0, rmin
+    REAL(KIND=dp)                            :: epsilon0, ewald_rcut, &
+                                                ewald_rcut2, rmin
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
@@ -2475,6 +2484,9 @@ CPSourceFileRef,&
     failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     NULLIFY(pot)
+    CALL ewald_env_get(ewald_env,rcut=ewald_rcut,do_multipoles=do_multipoles,error=error)
+    IF (do_multipoles) ewald_rcut = 0.0_dp
+    ewald_rcut2 = ewald_rcut**2
     
     CALL pair_potential_pp_create ( potparm_nonbond, SIZE(atomic_kind_set),error )
     DO i=1,SIZE(atomic_kind_set)
@@ -2671,6 +2683,8 @@ CPSourceFileRef,&
           IF(ff_type%rcut_nb>0.0_dp) THEN
              pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           END IF
+          ! Cutoff is defined always as the maximum between the FF and Ewald
+          pot%rcutsq = MAX(pot%rcutsq, ewald_rcut2)
           IF((is_a_shell .AND. .NOT. is_b_shell) .OR. (is_b_shell .AND. .NOT. is_a_shell)) THEN
              pot%shell_type  = nosh_sh
           ELSE IF (is_a_shell .AND. is_b_shell) THEN

@@ -32,3 +32,8 @@ water_2.inp
 water_vel.inp
 # numerics 
 water.inp
+# bug fix
+G87_2.inp
+G87.inp
+G96_ei_scale.inp
+G96.inp

@@ -340,3 +340,7 @@ Ar-qmmm.inp
 Ar-qmmm.inp
 # speedup changes for core_ppl 
 Ar-qmmm.inp
+# bug fix
+H2O-qmmm-gauss-11.inp
+H2O-qmmm-gauss-4.inp
+H2O-qmmm-none-1.inp

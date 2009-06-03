@@ -185,14 +185,14 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, potparm,&
-       nonbonded14, nonbonded, verlet_skin, global_rcut, error)
+       nonbonded14, nonbonded, verlet_skin, ewald_rcut, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
-    REAL(KIND=dp), INTENT(IN)                :: verlet_skin, global_rcut
+    REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create', &
@@ -215,7 +215,7 @@ CONTAINS
     NULLIFY(fist_nonbond_env%rshell_last_update_pbc)
     NULLIFY(fist_nonbond_env%rcore_last_update_pbc)
     CALL init_fist_nonbond_env( fist_nonbond_env, atomic_kind_set, potparm,&
-         nonbonded14, nonbonded, verlet_skin, global_rcut, error)
+         nonbonded14, nonbonded, verlet_skin, ewald_rcut, error)
   END SUBROUTINE fist_nonbond_env_create
 
 ! *****************************************************************************
@@ -225,7 +225,7 @@ CONTAINS
 !>        see module cp_error_handling 
 ! *****************************************************************************
   SUBROUTINE init_fist_nonbond_env ( fist_nonbond_env, atomic_kind_set, potparm,&
-       nonbonded14, nonbonded, verlet_skin, global_rcut, error)
+       nonbonded14, nonbonded, verlet_skin, ewald_rcut, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -233,7 +233,7 @@ CONTAINS
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
-    REAL(KIND=dp), INTENT(IN)                :: verlet_skin, global_rcut
+    REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_nonbond_env', &
@@ -284,8 +284,8 @@ CONTAINS
           DO jdim = idim, natom_types
              IF (use_potparm) THEN
                 fac  = potparm%pot(idim,jdim)%pot%spl_f%rscale(2)
-                rcut = SQRT(potparm%pot(idim,jdim)%pot%rcutsq) + verlet_skin
-                rcut = MAX(rcut, global_rcut)
+                rcut = SQRT(potparm%pot(idim,jdim)%pot%rcutsq)
+                rcut = MAX(rcut, ewald_rcut) + verlet_skin
                 fist_nonbond_env % rlist_cutsq(idim,jdim) = rcut
                 fist_nonbond_env % rlist_cutsq(jdim,idim) = rcut
                 rcut = fac / (potparm%pot(idim,jdim)%pot%pair_spline_data(1)%spline_data%xn)
@@ -300,8 +300,8 @@ CONTAINS
              ELSE
                 ! In case we don't use potparm for initialization let's account only
                 ! for the real part of Ewald
-                fist_nonbond_env % rlist_cutsq(idim,jdim) = global_rcut
-                fist_nonbond_env % rlist_cutsq(jdim,idim) = global_rcut
+                fist_nonbond_env % rlist_cutsq(idim,jdim) = ewald_rcut
+                fist_nonbond_env % rlist_cutsq(jdim,idim) = ewald_rcut
                 fist_nonbond_env%rlist_lowsq(idim,jdim) = 0.0_dp
                 fist_nonbond_env%rlist_lowsq(jdim,idim) = 0.0_dp
              END IF

@@ -93,3 +93,5 @@ ethene_colv2_g.inp
 water_3_dist_centers.inp
 # 
 ethene_colv1_g.inp
+# bug fix
+cf_genpot.inp
