@@ -427,3 +427,5 @@ H2O-fixed.inp
 h2o_dip_berry.inp
 # New initial guess ATOMIC 
 h2o_dip_iso.inp
+# bug fix self-interaction with periodic images
+Ar-13.inp

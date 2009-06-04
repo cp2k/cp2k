@@ -549,8 +549,8 @@ CONTAINS
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
     LOGICAL                                  :: analyt, failure
     REAL(KIND=dp) :: alpha, eps, ew_neut, fac, fac3, fs, g_ewald, galpha, &
-      gsq, gsqi, my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, rcut, &
-      rcut2, t1, tol, tol1
+      gsq, gsqi, ij_fac, my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, &
+      rcut, rcut2, t1, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: EwM
 
@@ -600,6 +600,9 @@ CONTAINS
        DO iparticle1 = 1, SIZE(particle_set)
           ip1 = (iparticle1-1)*SIZE(radii)          
           DO iparticle2 = 1, iparticle1
+             ij_fac = 1.0_dp
+             IF (iparticle1==iparticle2) ij_fac=0.5_dp
+
              ip2 = (iparticle2-1)*SIZE(radii)
              idim = idim + 1
              !
@@ -612,7 +615,7 @@ CONTAINS
                 ra = rvec 
                 r2tmp  = DOT_PRODUCT(ra,ra)
                 IF (r2tmp<=rcut2) THEN 
-                    r  = SQRT(r2tmp)
+                   r  = SQRT(r2tmp)
                    t1 = erfc(alpha*r) / r
                    r_ewald = t1
                 END IF
@@ -625,10 +628,10 @@ CONTAINS
                       ra(2) = rvec(2) + cell%hmat(2,2)*r2 
                       ra(3) = rvec(3) + cell%hmat(3,3)*r3 
                       r2tmp  = DOT_PRODUCT(ra,ra)
-                      IF (r2tmp<=rcut2) THEN 
+                      IF (r2tmp<=rcut2) THEN
                          r  = SQRT(r2tmp)
                          t1 = erfc(alpha*r) / r
-                         r_ewald = r_ewald + t1                           
+                         r_ewald = r_ewald + t1*ij_fac           
                       END IF
                    END DO
                 END DO

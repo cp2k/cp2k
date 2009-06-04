@@ -109,7 +109,7 @@
     &PERIODIC 
       GMAX 0.1
       &MULTIPOLE
-        RCUT 65.0
+        RCUT 15.0
         EWALD_PRECISION 0.000001
       &END
     &END

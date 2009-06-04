@@ -84,9 +84,9 @@ CONTAINS
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
     LOGICAL                                  :: analyt, failure
     REAL(KIND=dp)                            :: alpha, eps, fac, fac3, fs, &
-                                                galpha, gsq, gsqi, q1t, q2t, &
-                                                r, r2tmp, rcut, rcut2, t1, &
-                                                t2, tol, tol1
+                                                galpha, gsq, gsqi, ij_fac, &
+                                                q1t, q2t, r, r2tmp, rcut, &
+                                                rcut2, t1, t2, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: drvec, fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
 
@@ -131,6 +131,9 @@ CONTAINS
           ip1 = (iparticle1-1)*SIZE(radii)
           q1t   = SUM(charges(ip1+1:ip1+SIZE(radii)))
           DO iparticle2 = 1, iparticle1
+             ij_fac = 1.0_dp
+             IF (iparticle1==iparticle2) ij_fac=0.5_dp
+             
              ip2 = (iparticle2-1)*SIZE(radii)
              q2t   = SUM(charges(ip2+1:ip2+SIZE(radii)))
              !
@@ -160,7 +163,7 @@ CONTAINS
                       IF (r2tmp<=rcut2) THEN
                          r  = SQRT(r2tmp)
                          t1 = erfc(alpha*r) / r
-                         drvec = ra / r * q1t * q2t * sfact
+                         drvec = ra / r * q1t * q2t * sfact * ij_fac
                          t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
                          d_el(1,iparticle1) = d_el(1,iparticle1) - t2 * drvec(1)
                          d_el(2,iparticle1) = d_el(2,iparticle1) - t2 * drvec(2)

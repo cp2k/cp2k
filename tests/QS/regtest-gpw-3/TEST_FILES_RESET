@@ -735,3 +735,5 @@ H2O-bloechl-restraint.inp
 dynamics.inp
 H2O-solv.inp
 H2O-ata.inp
+# bug fix self-interaction with periodic images
+He2H-bloechl-md.inp
