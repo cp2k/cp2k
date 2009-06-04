@@ -323,8 +323,8 @@ CONTAINS
     LOGICAL                                  :: defined, failure, ghost_a, &
                                                 ghost_b, use_virial
     REAL(KIND=dp)                            :: c6, c6a, c6b, dd, devdw, &
-                                                dfdmp, dr, er, evdw, fdmp, &
-                                                rc, rc_a, rc_b, s6, xp, fac
+                                                dfdmp, dr, er, evdw, fac, &
+                                                fdmp, rc, rc_a, rc_b, s6, xp
     REAL(KIND=dp), DIMENSION(3)              :: fdij, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
