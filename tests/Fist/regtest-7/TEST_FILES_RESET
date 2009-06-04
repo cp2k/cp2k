@@ -195,3 +195,6 @@ uo2_shell_nve_zbl.inp
 uo2_shell_nve_cascade.inp
 #it is not a bug
 uo2_shell_nve_cascade.inp
+# bug fix for a(zero-cell)-a(non-zero-cell) interaction.
+uo2_nvt-1.inp
+uo2_nvt.inp

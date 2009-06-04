@@ -586,3 +586,5 @@ dip-mixed.inp
 vib-int-mixed.inp
 # more numerics
 H2O-OT-1.inp
+# bug fix for a(zero-cell)-a(non-zero-cell) interaction.
+dip-mixed.inp

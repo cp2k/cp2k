@@ -60,8 +60,8 @@ CONTAINS
 !>      tlaino [2007] - New algorithm for tersoff potential
 !> \author CJM, I-Feng W. Kuo, Teodoro Laino 
 ! *****************************************************************************
-  SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
-       local_particles, particle_set, cell, pot_manybody, para_env, error )
+  SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, local_particles,&
+       particle_set, cell, pot_manybody, para_env, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -118,7 +118,7 @@ CONTAINS
          DO iparticle_local=1,nparticle_local
             iparticle = local_particles%list(ikind)%array(iparticle_local)
             index = INT ( particle_set(iparticle)%rho / eam%drhoar) + 1
-            IF ( index > eam%npoints-1 ) index = eam%npoints
+            IF (index > eam%npoints-1) index = eam%npoints-1
             qr = particle_set(iparticle)%rho  -  eam%rhoval(index)
 
             embed = eam%frho(index) +  qr*eam%frhop(index)
@@ -257,7 +257,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
     LOGICAL                                  :: any_tersoff, failure
-    REAL(KIND=dp) :: f_eam, fr(3), ptens11, ptens12, ptens13, ptens21, &
+    REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, &
       ptens22, ptens23, ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, &
       rtmp(3)
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
@@ -285,8 +285,8 @@ CONTAINS
        ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
        ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
     END IF
-    ! starting the force loop
 
+    ! starting the force loop
     DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
        npairs=neighbor_kind_pair%npairs
@@ -309,6 +309,8 @@ CONTAINS
                 DO ipair = istart, iend
                    atom_a = list(1,ipair)
                    atom_b = list(2,ipair)
+                   fac    = 1.0_dp
+                   IF (atom_a==atom_b) fac = 0.5_dp
                    kind_a = particle_set(atom_a)%atomic_kind%kind_number
                    kind_b = particle_set(atom_b)%atomic_kind%kind_number
                    eam_a => potparm%pot(kind_a,kind_a)%pot%set(i)%eam
@@ -321,7 +323,8 @@ CONTAINS
                    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                    IF (rab2 <= rab2_max) THEN
                       CALL get_force_eam ( rab2, eam_a, eam_b, particle_set, atom_a, atom_b, f_eam )
-          
+                      f_eam = f_eam * fac
+
                       fr(1) = - f_eam * rab(1)
                       fr(2) = - f_eam * rab(2)
                       fr(3) = - f_eam * rab(3)

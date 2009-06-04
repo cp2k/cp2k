@@ -99,3 +99,6 @@ water_3_g3x3_ext.inp
 H2O-constr_1_ext.inp
 #  
 water_3_g3x3_ext.inp
+# bug fix for a(zero-cell)-a(non-zero-cell) interaction.
+water32_hbonds_3.inp
+water32_hbonds_4.inp

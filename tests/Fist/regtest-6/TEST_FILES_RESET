@@ -95,3 +95,5 @@ water_3_dist_centers.inp
 ethene_colv1_g.inp
 # bug fix
 cf_genpot.inp
+# bug fix for a(zero-cell)-a(non-zero-cell) interaction.
+H2O-32_PME_distr.inp

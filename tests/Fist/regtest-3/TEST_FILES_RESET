@@ -108,3 +108,11 @@ agpt.inp
 # bug fix
 al2o3.inp
 al2o3-res.inp
+# bug fix for a(zero-cell)-a(non-zero-cell) interaction.
+NaCl-H2O.inp
+silicon_cluster_2.inp
+silicon_cluster_3.inp
+silicon_cluster_4.inp
+silicon_cluster_5.inp
+silicon_cluster_6.inp
+silicon_cluster.inp

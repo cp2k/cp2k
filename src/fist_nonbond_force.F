@@ -35,7 +35,8 @@ MODULE fist_nonbond_force
                                              nosh_sh,&
                                              pair_potential_pp_type,&
                                              pair_potential_single_type,&
-                                             sh_sh
+                                             sh_sh,&
+                                             tersoff_type
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE splines_methods,                 ONLY: potential_s
@@ -86,10 +87,11 @@ CONTAINS
       shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_shell, failure, &
-                                                shell_present, swap_ab
-    REAL(KIND=dp) :: energy, fac, fscalar, ptens11, ptens12, ptens13, &
-      ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, rab2, rab2_com, &
-      rab2_max
+                                                full_nl, shell_present, &
+                                                swap_ab
+    REAL(KIND=dp) :: energy, fac, fac_kind, fscalar, ptens11, ptens12, &
+      ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, rab2, &
+      rab2_com, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, fr, rab, rab_cc, &
                                                 rab_com, rab_cs, rab_sc, &
                                                 rab_ss
@@ -149,12 +151,13 @@ CONTAINS
        cvi   =  neighbor_kind_pair%cell_vector
        CALL matvec_3x3(cell_v, cell%hmat, cvi)
        Kind_Group_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
-          istart  = neighbor_kind_pair%grp_kind_start(igrp)
-          iend    = neighbor_kind_pair%grp_kind_end(igrp)
-          ikind   = neighbor_kind_pair%ij_kind(1,igrp)
-          jkind   = neighbor_kind_pair%ij_kind(2,igrp)
-          fac     = ij_kind_full_fac(ikind, jkind)
+          istart   = neighbor_kind_pair%grp_kind_start(igrp)
+          iend     = neighbor_kind_pair%grp_kind_end(igrp)
+          ikind    = neighbor_kind_pair%ij_kind(1,igrp)
+          jkind    = neighbor_kind_pair%ij_kind(2,igrp)
+          fac_kind = ij_kind_full_fac(ikind, jkind)
           pot     => potparm%pot(ikind,jkind)%pot
+          full_nl  = ANY(pot%type==tersoff_type)
           ! In case we have manybody potentials only they will be handled in the manybody routine...
           IF (pot%only_mb) CYCLE
           ! Setup spline_data set
@@ -181,6 +184,8 @@ CONTAINS
           Pairs: DO ipair = istart, iend
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
+             fac    = fac_kind
+             IF ((.NOT.full_nl).AND.(atom_a==atom_b)) fac = fac*0.5_dp
              IF (do_shell) THEN
                 all_terms = .TRUE.
                 a_kind  = particle_set(atom_a)%atomic_kind%kind_number

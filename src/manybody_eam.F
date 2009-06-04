@@ -34,7 +34,7 @@ MODULE manybody_eam
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: get_force_eam,density_nonbond
+  PUBLIC :: get_force_eam, density_nonbond
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_eam'
 
 CONTAINS
@@ -44,7 +44,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, para_env, error )
+  SUBROUTINE density_nonbond (fist_nonbond_env, particle_set, cell, para_env, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: particle_set
@@ -59,7 +59,7 @@ CONTAINS
       iparticle, istart, jkind, kind_a, kind_b, nkinds, nparticle, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: pot_types
     LOGICAL                                  :: check, do_eam, failure
-    REAL(KIND=dp)                            :: rab2, rab2_max
+    REAL(KIND=dp)                            :: fac, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
     TYPE(eam_pot_type), POINTER              :: eam_a, eam_b
@@ -118,6 +118,8 @@ CONTAINS
                 DO ipair = istart, iend
                    atom_a = neighbor_kind_pair%list(1,ipair)
                    atom_b = neighbor_kind_pair%list(2,ipair)
+                   fac    = 1.0_dp
+                   IF (atom_a==atom_b) fac = 0.5_dp
                    rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
                    rab = rab+cell_v
                    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -126,7 +128,7 @@ CONTAINS
                       kind_b = particle_set(atom_b)%atomic_kind%kind_number
                       eam_a => potparm%pot(kind_a,kind_a)%pot%set(i)%eam
                       eam_b => potparm%pot(kind_b,kind_b)%pot%set(i)%eam
-                      CALL get_rho_eam ( eam_a, eam_b, rab2, atom_a, atom_b, rho  )
+                      CALL get_rho_eam ( eam_a, eam_b, rab2, atom_a, atom_b, rho, fac)
                    END IF
                 END DO
              END DO
@@ -149,11 +151,12 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE get_rho_eam ( eam_a, eam_b, rab2, atom_a, atom_b, rho )
+  SUBROUTINE get_rho_eam ( eam_a, eam_b, rab2, atom_a, atom_b, rho, fac)
     TYPE(eam_pot_type), POINTER              :: eam_a, eam_b
     REAL(dp), INTENT(IN)                     :: rab2
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     REAL(dp), INTENT(INOUT)                  :: rho(:)
+    REAL(dp), INTENT(IN)                     :: fac
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rho_eam', &
       routineP = moduleN//':'//routineN
@@ -161,30 +164,30 @@ CONTAINS
     INTEGER                                  :: index
     REAL(dp)                                 :: qq, rab, rhoi, rhoj
 
-    rab = SQRT ( rab2 )
+    rab = SQRT(rab2)
 
     ! Particle A
-    index = INT ( rab / eam_b % drar ) + 1
+    index = INT(rab/eam_b%drar) + 1
     IF ( index > eam_b%npoints) THEN
        index = eam_b%npoints
-    ELSEIF ( index < 1 ) THEN
+    ELSEIF (index < 1) THEN
        index = 1
     ENDIF
-    qq = rab - eam_b% rval ( index )
-    rhoi = eam_b% rho ( index ) + qq * eam_b% rhop ( index )
+    qq = rab - eam_b%rval(index)
+    rhoi = eam_b%rho(index) + qq * eam_b%rhop(index)
 
     ! Particle B
-    index = INT ( rab / eam_a % drar ) + 1
-    IF ( index > eam_a%npoints) THEN
+    index = INT(rab / eam_a%drar) + 1
+    IF (index > eam_a%npoints) THEN
        index = eam_a%npoints
-    ELSEIF ( index < 1 ) THEN
+    ELSEIF (index < 1) THEN
        index = 1
     ENDIF
-    qq = rab - eam_a % rval ( index )
-    rhoj = eam_a% rho ( index ) + qq * eam_a% rhop ( index )
+    qq = rab - eam_a%rval(index)
+    rhoj = eam_a%rho(index) + qq * eam_a%rhop(index)
 
-    rho ( atom_a ) = rho ( atom_a ) + rhoi
-    rho ( atom_b ) = rho ( atom_b ) + rhoj
+    rho(atom_a) = rho(atom_a) + rhoi*fac
+    rho(atom_b) = rho(atom_b) + rhoj*fac
   END SUBROUTINE get_rho_eam
 
 ! *****************************************************************************
@@ -205,37 +208,30 @@ CONTAINS
     INTEGER                                  :: index
     REAL(KIND=dp)                            :: denspi, denspj, fcp, qq, rab
 
-    rab  = SQRT ( rab2 )
+    rab  = SQRT(rab2)
 
     ! Particle A
-    index = INT ( rab / eam_a%drar ) + 1
-    IF ( index > eam_a%npoints ) THEN
+    index = INT(rab/eam_a%drar) + 1
+    IF (index > eam_a%npoints) THEN
        index = eam_a%npoints
-    ELSEIF ( index < 1 ) THEN
+    ELSEIF (index < 1) THEN
        index = 1
     ENDIF
-    qq = rab - eam_a% rval ( index )
-
-    denspi = eam_a % rhop ( index ) +  &
-         qq * ( eam_a % rhop ( index + 1 ) - &
-         eam_a % rhop ( index ) ) / eam_a % drar
+    qq = rab - eam_a%rval(index)
+    denspi = eam_a%rhop(index) +  qq*(eam_a%rhop(index+1) - eam_a%rhop(index))/eam_a%drar
 
 
     ! Particle B
-    index = INT ( rab / eam_b%drar ) + 1
-    IF ( index > eam_b%npoints ) THEN
+    index = INT(rab/eam_b%drar) + 1
+    IF (index > eam_b%npoints) THEN
        index = eam_b%npoints
     ELSEIF ( index < 1 ) THEN
        index = 1
     ENDIF
-    qq = rab - eam_b% rval ( index )
+    qq = rab - eam_b%rval(index)
+    denspj = eam_b%rhop(index) + qq*(eam_b%rhop(index+1) - eam_b%rhop(index))/eam_b%drar
 
-    denspj = eam_b % rhop ( index ) + &
-         qq *( eam_b % rhop ( index + 1 ) - &
-         eam_b % rhop ( index ) ) / eam_b % drar
-
-    fcp = denspj * particle_set ( atom_a ) % f_embed + &
-         denspi * particle_set ( atom_b ) % f_embed
+    fcp = denspj * particle_set(atom_a)%f_embed + denspi * particle_set(atom_b)%f_embed
     f_eam =  fcp / rab
   END SUBROUTINE get_force_eam
 
