@@ -469,22 +469,23 @@ CPSourceFileRef,&
              ELSE
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                 mo_coeff=mo_coeff,&
-                                nmo=nmo, nao=nao, homo=homo)
+                                nmo=nmo, nelectron=nelectron, maxocc=maxocc)
                 CALL cp_fm_init_random(mo_coeff,nmo,error=error)
                 CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
                 ! multiply times PS
                 IF (ortho_basis) THEN
                    CALL cp_fm_to_fm(mo_coeff,sv,error=error)
                 ELSE
-                   CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+                   ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
+                   CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,NINT(nelectron/maxocc),error=error)
                 END IF
-                CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo,error=error)
+                CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,NINT(nelectron/maxocc),error=error)
                 CALL cp_fm_release(sv,error=error)
                 ! and ortho the result
                 IF (ortho_basis) THEN
                    CALL make_basis_simple(mo_coeff,nmo,error=error)
                 ELSE
-                   CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
+                   CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
                 END IF
              END IF
 
