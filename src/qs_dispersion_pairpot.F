@@ -324,7 +324,7 @@ CONTAINS
                                                 ghost_b, use_virial
     REAL(KIND=dp)                            :: c6, c6a, c6b, dd, devdw, &
                                                 dfdmp, dr, er, evdw, fdmp, &
-                                                rc, rc_a, rc_b, s6, xp
+                                                rc, rc_a, rc_b, s6, xp, fac
     REAL(KIND=dp), DIMENSION(3)              :: fdij, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -434,25 +434,25 @@ CONTAINS
                    dr = SQRT(SUM(rij(:)**2))
                    IF (dr <= dispersion_env%rc_disp) THEN
                       IF ( disp_a%type == grimme_pp .AND. dr > 0.001_dp ) THEN
+                         fac = 1._dp
+                         IF(iatom==jatom) fac = 0.5_dp
                          er = EXP(-dd*(dr/rc-1._dp))
                          fdmp = 1._dp/(1._dp+er)
                          xp = s6*c6/dr**6
-                         evdw = evdw - xp*fdmp
+                         evdw = evdw - xp*fdmp*fac
                          IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
                             dfdmp = dd/rc * er * fdmp*fdmp
                             devdw = -xp*(-6._dp*fdmp/dr + dfdmp)
-                         END IF
-                      END IF
-                      IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
-                         fdij(:) = devdw * rij(:)/dr
-                         atom_a = atom_of_kind(iatom)
-                         atom_b = atom_of_kind(jatom)
-                         force(ikind)%dispersion(:,atom_a) =&
+                            fdij(:) = devdw * rij(:)/dr * fac
+                            atom_a = atom_of_kind(iatom)
+                            atom_b = atom_of_kind(jatom)
+                            force(ikind)%dispersion(:,atom_a) =&
                               force(ikind)%dispersion(:,atom_a) - fdij(:)
-                         force(jkind)%dispersion(:,atom_b) =&
+                            force(jkind)%dispersion(:,atom_b) =&
                               force(jkind)%dispersion(:,atom_b) + fdij(:)
-                         IF ( use_virial ) THEN
-                            CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)
+                            IF ( use_virial ) THEN
+                               CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)
+                            END IF
                          END IF
                       END IF
                    END IF

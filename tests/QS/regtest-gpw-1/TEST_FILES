@@ -45,3 +45,6 @@ vdW_PP_GRIMME.inp  33
 # core_ppl on grid
 core_pp_1.inp     1
 core_pp_2.inp     1
+# vdW correction
+vdW_PP_GRIMME_p1.inp 33
+vdW_PP_GRIMME_p2.inp 33
