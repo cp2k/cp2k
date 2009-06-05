@@ -50,3 +50,6 @@ h2o_gks.inp        3
 h2o_gks_p.inp      3
 # GKS INTEGRALS + EWALD
 h2o_gks_e.inp      3
+# SCP ice
+ice-scp-ewald.inp 3
+ice-scp-ewald_gks.inp 3

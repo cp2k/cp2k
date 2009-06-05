@@ -374,3 +374,6 @@ h2o_gks_p.inp
 # reset after mod to gks
 h2o_gks_e.inp
 h2o_gks.inp
+# initial tests
+ice-scp-ewald.inp
+ice-scp-ewald_gks.inp
