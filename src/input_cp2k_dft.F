@@ -1387,11 +1387,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        !Printing of Moments
-       CALL cp_print_key_section_create(print_key,"MOMENTS",&
-            description="Controls printing of electric moments", &
-            print_level=high_print_level,filename="__STD_OUT__",&
-            error=error)
-
+       CALL create_dipoles_section(print_key,"MOMENTS",error)
        CALL keyword_create(keyword=keyword,&
             name="MAX_MOMENT",&
             description="Maximum moment to be calculated",&
@@ -1404,53 +1400,10 @@ CONTAINS
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword,&
-            name="PERIODIC",&
-            description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F)",&
-            usage="PERIODIC {logical}",&
-            repeats=.FALSE.,&
-            required=.FALSE.,&
-            n_var=1,&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword, name="REFERENCE",&
-            variants=s2a("REF"),&
-            description="Define the reference point for electrical moment calculations.",&
-            usage="REFERENCE COM",&
-            enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO"),&
-            enum_desc=s2a("Use Center of Mass",&
-                          "Use Center of Atomic Charges",&
-                          "Use User Defined Point (Keyword:REF_POINT)",&
-                          "Use Origin of Coordinate System"),&
-            enum_i_vals=(/ use_mom_ref_com,&
-                           use_mom_ref_coac,&
-                           use_mom_ref_user,&
-                           use_mom_ref_zero /),&
-            default_i_val=use_mom_ref_zero, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword, name="REFERENCE_POINT",&
-            variants=s2a("REF_POINT"),&
-            description="Fixed reference point for electrical moment calculations.",&
-            usage="REFERENCE_POINT x y z",&
-            repeats=.FALSE.,&
-            required=.FALSE.,&
-            n_var=3,default_r_vals=(/0._dp,0._dp,0._dp/),&
-            type_of_var=real_t, &
-            unit_str='bohr',&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key,error=error)
-       !End of Printing of Moments
 
+       ! Mulliken charges
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
             description="Controls the printing of the Mulliken (spin) population analysis.", &
             print_level=medium_print_level,filename="__STD_OUT__",&
@@ -1659,7 +1612,7 @@ CONTAINS
 
        CALL keyword_create(keyword=keyword, name="REFERENCE",&
             variants=s2a("REF"),&
-            description="Define the reference point for dipole calculations.",&
+            description="Define the reference point for the calculation of the electrostatic moment.",&
             usage="REFERENCE COM",&
             enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO"),&
             enum_desc=s2a("Use Center of Mass",&
@@ -1676,7 +1629,7 @@ CONTAINS
 
        CALL keyword_create(keyword=keyword, name="REFERENCE_POINT",&
             variants=s2a("REF_POINT"),&
-            description="Fixed reference point for dipole calculations.",&
+            description="Fixed reference point for the calculations of the electrostatic moment.",&
             usage="REFERENCE_POINT x y z", &
             repeats=.FALSE.,&
             required=.FALSE.,&
