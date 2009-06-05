@@ -50,12 +50,14 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE wfc_to_molecule ( qs_env, qs_loc_env, loc_print_key, center, molecule_set, error )
+  SUBROUTINE wfc_to_molecule(qs_env, qs_loc_env, loc_print_key, center, &
+       molecule_set, nspins, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), INTENT(IN)    :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_print_key
     REAL(KIND=dp), INTENT(IN)                :: center( :, : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
+    INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfc_to_molecule', &
@@ -87,6 +89,13 @@ CONTAINS
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
+    
+    ! Molecular Dipoles availables only for nspin == 1
+    IF (nspins>1) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Molecular Dipoles not implemented for SPIN multiplicity "//&
+            "larger than 1!", error=error, error_level=cp_failure_level)
+    END IF
 
     ! Setup reference point and some warning..
     reference = section_get_ival(loc_print_key,keyword_name="MOLECULAR_DIPOLES%REFERENCE",error=error)
@@ -109,8 +118,7 @@ CONTAINS
        DO imol=1,nmol
           i = local_molecules%list(ikind)%array(imol)
           molecule_kind => molecule_set(i)%molecule_kind
-          CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               natom=natom)
+          CALL get_molecule_kind(molecule_kind=molecule_kind,natom=natom)
           natom_max = natom_max + natom
           molecule_set(i)%lmi%nstates=0
           IF(ASSOCIATED(molecule_set(i)%lmi%states)) THEN
@@ -166,7 +174,7 @@ CONTAINS
        END DO
 
        !combine distance() from all procs
-       local_location = MINLOC(distance,DIM=1)
+       local_location = MAX(1,MINLOC(distance,DIM=1))
 
        mydist(1) = distance(local_location)
        mydist(2) = para_env%mepos
@@ -192,8 +200,7 @@ CONTAINS
                 DO imol=1,nmol
                    imol_now = local_molecules%list(ikind)%array(imol)
                    molecule_kind => molecule_set(imol_now)%molecule_kind
-                   CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                        natom=natom)
+                   CALL get_molecule_kind(molecule_kind=molecule_kind,natom=natom)
                    counter = counter + natom
                    IF(counter>=iatom) EXIT
                 END DO
@@ -219,7 +226,8 @@ CONTAINS
     ALLOCATE(charge_set(SIZE(molecule_set)))
     dipole_set=0.0_dp
     charge_set=0.0_dp
-    cell => qs_loc_env%cell
+    cell      => qs_loc_env%cell
+    zwfc      = 3.0_dp - REAL(nspins, KIND=dp)
     nkind = SIZE (local_molecules%n_el)
     DO ikind=1,nkind ! loop over different molecules
        nmol = SIZE ( local_molecules%list(ikind)%array )
@@ -236,9 +244,6 @@ CONTAINS
                                    ilast=first_atom+natom-1,error=error)
 
           dipole=0.0_dp
-          ! XXXXXXXXXXXXXXXXXXXX double occupation FIXME XXXXXXXXX (where are the spins?)
-          zwfc = 2.0_dp
-
           IF (do_berry) THEN
              rcc = pbc(rcc,cell)
              ! Find out the total charge of the molecule

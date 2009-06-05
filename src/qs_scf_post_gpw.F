@@ -445,7 +445,8 @@ CPSourceFileRef,&
                         "MOLECULAR_DIPOLES",error=error),cp_p_file) .OR. &
                         BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
                         "MOLECULAR_STATES",error=error),cp_p_file) ) THEN
-                      CALL wfc_to_molecule(qs_env, qs_loc_env, localization_section, scenter, molecule_set, error)
+                      CALL wfc_to_molecule(qs_env, qs_loc_env, localization_section, scenter,&
+                           molecule_set, dft_control%nspins, error)
                    END IF
 
                    ! Compute the molecular states
