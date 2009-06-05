@@ -26,7 +26,8 @@ MODULE input_cp2k_dft
   USE input_constants
   USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
-  USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
+  USE input_cp2k_mm,                   ONLY: create_dipoles_section,&
+                                             create_neighbor_lists_section
   USE input_cp2k_motion,               ONLY: add_format_keyword
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_resp,                 ONLY: create_resp_section
@@ -1372,11 +1373,11 @@ CONTAINS
        ! Add printing of wannier infos
        CALL print_wanniers(print_key, error)
        ! Total Dipoles with wannier
-       CALL create_dipoles_section(subsection,"TOTAL_DIPOLE",error)
+       CALL create_dipoles_section(subsection,"TOTAL_DIPOLE",debug_print_level+1,error)
        CALL section_add_subsection(print_key, subsection, error=error)
        CALL section_release(subsection,error=error)
        ! Molecular Dipoles with wannier
-       CALL create_dipoles_section(subsection,"MOLECULAR_DIPOLES",error)
+       CALL create_dipoles_section(subsection,"MOLECULAR_DIPOLES",debug_print_level+1,error)
        CALL section_add_subsection(print_key, subsection, error=error)
        CALL section_release(subsection,error=error)
        ! Molecular States with wannier
@@ -1387,7 +1388,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        !Printing of Moments
-       CALL create_dipoles_section(print_key,"MOMENTS",error)
+       CALL create_dipoles_section(print_key,"MOMENTS",high_print_level,error)
        CALL keyword_create(keyword=keyword,&
             name="MAX_MOMENT",&
             description="Maximum moment to be calculated",&
@@ -1568,79 +1569,6 @@ CONTAINS
        CALL section_release(print_key2,error=error)
     END IF
   END SUBROUTINE create_molecular_states_section
-
-! *****************************************************************************
-!> \brief creates the input section for the qs part
-!> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author teo
-! *****************************************************************************
-  SUBROUTINE create_dipoles_section(print_key,label,error)
-    TYPE(section_type), POINTER              :: print_key
-    CHARACTER(LEN=*), INTENT(IN)             :: label
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_dipoles_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL cp_print_key_section_create(print_key_section=print_key,name=TRIM(label),&
-            description="Section controlling the calculation of "//TRIM(label)//"."//&
-            " Note that the result in the periodic case might be defined modulo a certain period,"//&
-            " determined by the lattice vectors. During MD, this can lead to jumps.",&
-            print_level=debug_print_level+1,filename="__STD_OUT__",error=error)
-
-       NULLIFY(keyword)
-       CALL keyword_create(keyword=keyword,&
-            name="PERIODIC",&
-            description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F). "//&
-                        "The latter normally requires that the CELL is periodic NONE.",&
-            usage="PERIODIC {logical}",&
-            repeats=.FALSE.,&
-            required=.FALSE.,&
-            n_var=1,&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword, name="REFERENCE",&
-            variants=s2a("REF"),&
-            description="Define the reference point for the calculation of the electrostatic moment.",&
-            usage="REFERENCE COM",&
-            enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO"),&
-            enum_desc=s2a("Use Center of Mass",&
-                          "Use Center of Atomic Charges",&
-                          "Use User Defined Point (Keyword:REF_POINT)",&
-                          "Use Origin of Coordinate System"),&
-            enum_i_vals=(/ use_mom_ref_com,&
-                           use_mom_ref_coac,&
-                           use_mom_ref_user,&
-                           use_mom_ref_zero /),&
-            default_i_val=use_mom_ref_zero, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword, name="REFERENCE_POINT",&
-            variants=s2a("REF_POINT"),&
-            description="Fixed reference point for the calculations of the electrostatic moment.",&
-            usage="REFERENCE_POINT x y z", &
-            repeats=.FALSE.,&
-            required=.FALSE.,&
-            n_var=3,default_r_vals=(/0._dp,0._dp,0._dp/),&
-            type_of_var=real_t, &
-            unit_str='bohr',&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-    END IF
-  END SUBROUTINE create_dipoles_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the qs part

@@ -935,12 +935,6 @@ END SUBROUTINE fist_force_control
        CALL get_fist_env( fist_env=fist_env,results=results,error=error)
        CALL cp_results_erase(results,description,error=error)
        CALL put_results(results,description,dipole,error=error)
-
-       IF (unit_nr>0) THEN
-          WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] ( A.U.)|",dipole
-          WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] (Debye)|",dipole*debye
-          WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] DERIVATIVE (A.U.)|",dipole_deriv
-       END IF
     ELSE
        DO i = 1, SIZE(particle_set)
           atomic_kind => particle_set(i)%atomic_kind
@@ -952,12 +946,11 @@ END SUBROUTINE fist_force_control
        CALL get_fist_env( fist_env=fist_env,results=results,error=error)
        CALL cp_results_erase(results,description,error=error)
        CALL put_results(results,description,dipole,error=error)
-
-       IF (unit_nr>0) THEN
-          WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [NON-PERIODIC] ( A.U.)|",dipole
-          WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [NON-PERIODIC] (Debye)|",dipole*debye
-          WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [NON-PERIODIC] DERIVATIVE (A.U.)|",dipole_deriv
-       END IF
+    END IF
+    IF (unit_nr>0) THEN
+       WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] ( A.U.)|",dipole
+       WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] (Debye)|",dipole*debye
+       WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] DERIVATIVE (A.U.)|",dipole_deriv
     END IF
 
   END SUBROUTINE fist_dipole

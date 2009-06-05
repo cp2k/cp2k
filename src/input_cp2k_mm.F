@@ -45,7 +45,7 @@ MODULE input_cp2k_mm
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mm'
 
-  PUBLIC :: create_mm_section
+  PUBLIC :: create_mm_section, create_dipoles_section
   PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, &
             create_Goodwin_section, create_Buck4r_section, create_Buckmorse_section,&
             create_GENPOT_section, create_neighbor_lists_section
@@ -143,44 +143,7 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"DIPOLE",&
-            description="Controls the printing of dipole information. Computed with"//&
-            " the Berry phase formalism. Results in atomic Units.", &
-            print_level=medium_print_level,filename="__STD_OUT__",&
-            error=error)
-
-       CALL keyword_create(keyword=keyword, name="PERIODIC",&
-            description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F)",&
-            usage="PERIODIC {logical}",repeats=.FALSE.,&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword, name="REFERENCE",&
-            variants=s2a("REF"),&
-            description="Define the reference point for electrical moment calculations.",&
-            usage="REFERENCE COM",&
-            enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO"),&
-            enum_desc=s2a("Use Center of Mass",&
-                          "Use Center of Atomic Charges",&
-                          "Use User Defined Point (Keyword:REF_POINT)",&
-                          "Use Origin of Coordinate System"),&
-            enum_i_vals=(/ use_mom_ref_com,&
-                           use_mom_ref_coac,&
-                           use_mom_ref_user,&
-                           use_mom_ref_zero/),&
-            default_i_val=use_mom_ref_zero, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword, name="REFERENCE_POINT",&
-            variants=s2a("REF_POINT"),&
-            description="Fixed reference point for dipole moment calculations.",&
-            usage="REFERENCE_POINT x y z", repeats=.FALSE., required=.FALSE.,&
-            n_var=3, default_r_vals=(/0._dp,0._dp,0._dp/), unit_str='bohr', error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       CALL create_dipoles_section(print_key,"DIPOLE",medium_print_level,error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -2104,5 +2067,79 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_Tersoff_section
+
+! *****************************************************************************
+!> \brief creates the input section for the qs part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_dipoles_section(print_key,label,print_level,error)
+    TYPE(section_type), POINTER              :: print_key
+    CHARACTER(LEN=*), INTENT(IN)             :: label
+    INTEGER, INTENT(IN)                      :: print_level
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dipoles_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL cp_print_key_section_create(print_key_section=print_key,name=TRIM(label),&
+            description="Section controlling the calculation of "//TRIM(label)//"."//&
+            " Note that the result in the periodic case might be defined modulo a certain period,"//&
+            " determined by the lattice vectors. During MD, this can lead to jumps.",&
+            print_level=print_level,filename="__STD_OUT__",error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword=keyword,&
+            name="PERIODIC",&
+            description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F). "//&
+                        "The latter normally requires that the CELL is periodic NONE.",&
+            usage="PERIODIC {logical}",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword, name="REFERENCE",&
+            variants=s2a("REF"),&
+            description="Define the reference point for the calculation of the electrostatic moment.",&
+            usage="REFERENCE COM",&
+            enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO"),&
+            enum_desc=s2a("Use Center of Mass",&
+                          "Use Center of Atomic Charges",&
+                          "Use User Defined Point (Keyword:REF_POINT)",&
+                          "Use Origin of Coordinate System"),&
+            enum_i_vals=(/ use_mom_ref_com,&
+                           use_mom_ref_coac,&
+                           use_mom_ref_user,&
+                           use_mom_ref_zero /),&
+            default_i_val=use_mom_ref_zero, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword, name="REFERENCE_POINT",&
+            variants=s2a("REF_POINT"),&
+            description="Fixed reference point for the calculations of the electrostatic moment.",&
+            usage="REFERENCE_POINT x y z", &
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=3,default_r_vals=(/0._dp,0._dp,0._dp/),&
+            type_of_var=real_t, &
+            unit_str='bohr',&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_dipoles_section
 
 END MODULE input_cp2k_mm
