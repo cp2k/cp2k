@@ -75,6 +75,7 @@ CONTAINS
        rc = MAX(0.25*plane_distance(1,0,0,cell),&
                 0.25*plane_distance(0,1,0,cell),&
                 0.25*plane_distance(0,0,1,cell))
+       rc = 2.0_dp * rc
        IF (rc /= se_control%cutoff_cou) THEN
           IF (output_unit>0) THEN
              WRITE(output_unit,*)

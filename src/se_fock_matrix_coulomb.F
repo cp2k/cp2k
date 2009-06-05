@@ -176,7 +176,7 @@ CONTAINS
             shortrange=(se_control%do_ewald.OR.se_control%do_ewald_gks),&
             max_multipole=se_control%max_multipole,pc_coulomb_int=.FALSE.)
        IF(se_control%do_ewald_gks) THEN
-         CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+         CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw, error=error)
          CALL ewald_env_get (ewald_env, alpha=se_int_control%ewald_gks%alpha, error=error)
          CALL ewald_pw_get (ewald_pw, pw_big_pool=se_int_control%ewald_gks%pw_pool, &
                             dg=se_int_control%ewald_gks%dg)

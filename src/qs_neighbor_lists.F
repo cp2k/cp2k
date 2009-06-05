@@ -782,12 +782,22 @@ CONTAINS
        c_radius = qs_env%dft_control%qs_control%se_control%cutoff_cou
 
        ! Build the neighbor lists for the Hartree terms
-       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
-                                 unit_conv,unit_str,output_unit,semi_present,&
-                                 semi_present,c_radius,c_radius,&
-                                 name="HARTREE INTERACTIONS",&
-                                 subcells=subcells,&
-                                 error=error)
+       IF (qs_env%dft_control%qs_control%se_control%do_ewald_gks)  THEN
+! Use MIC for the periodic code of GKS
+         CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
+                                   unit_conv,unit_str,output_unit,semi_present,&
+                                   semi_present,c_radius,c_radius, mic=mic, &
+                                   name="HARTREE INTERACTIONS",&
+                                   subcells=subcells,&
+                                   error=error)
+       ELSE
+         CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
+                                   unit_conv,unit_str,output_unit,semi_present,&
+                                   semi_present,c_radius,c_radius,&
+                                   name="HARTREE INTERACTIONS",&
+                                   subcells=subcells,&
+                                   error=error)
+       END IF
        CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
 
        ! Dump neighbor list if requested

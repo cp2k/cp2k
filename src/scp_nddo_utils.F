@@ -121,7 +121,7 @@ CONTAINS
       sum_adiag = SUM ( ascp_diag )
       ratio = sum_ksdiag/sum_adiag
       DO ii = 1, n_el
-         ksdiag ( ii ) = ksdiag ( ii ) + ascp_diag ( ii ) * ratio 
+         ksdiag ( ii ) = ksdiag ( ii ) - ascp_diag ( ii ) * ratio 
       END DO
       CALL set_matrix_diagonal ( ks_scp, ksdiag )
       DEALLOCATE (ksdiag,STAT=stat)
