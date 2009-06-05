@@ -251,9 +251,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond_manybody', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, i, iend, ifirst, igrp, ikind, ilast, &
-      ilist, ipair, istart, iunique, jkind, junique, kind_a, kind_b, mpair, &
-      nkinds, nloc_size, npairs, nunique, stat
+    INTEGER :: atom_a, atom_b, handle, i, i_a, i_b, iend, ifirst, igrp, &
+      ikind, ilast, ilist, ipair, istart, iunique, jkind, junique, kind_a, &
+      kind_b, mpair, nkinds, nloc_size, npairs, nunique, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: eam_kinds_index
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
     LOGICAL                                  :: any_tersoff, failure
@@ -285,7 +286,25 @@ CONTAINS
        ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
        ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
     END IF
-
+ 
+    nkinds = SIZE(potparm%pot,1)
+    ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    eam_kinds_index = -1
+    DO ikind = 1, nkinds
+       DO jkind = ikind, nkinds
+          DO i = 1, SIZE(potparm%pot(ikind,jkind)%pot%type)
+             IF (potparm%pot(ikind,jkind)%pot%type(i)==ea_type) THEN
+                ! At the moment we allow only 1 EAM per each kinds pair..
+                CPPostcondition(eam_kinds_index(ikind,jkind)==-1,cp_failure_level,routineP,error,failure)
+                CPPostcondition(eam_kinds_index(jkind,ikind)==-1,cp_failure_level,routineP,error,failure)
+                eam_kinds_index(ikind,jkind) = i
+                eam_kinds_index(jkind,ikind) = i
+             END IF
+          END DO
+       END DO
+    END DO
+ 
     ! starting the force loop
     DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
@@ -296,62 +315,65 @@ CONTAINS
           iend    = neighbor_kind_pair%grp_kind_end(igrp)
           ikind   = neighbor_kind_pair%ij_kind(1,igrp)
           jkind   = neighbor_kind_pair%ij_kind(2,igrp)
-          list  =>neighbor_kind_pair%list
-          cvi   = neighbor_kind_pair%cell_vector
+          list  => neighbor_kind_pair%list
+          cvi   =  neighbor_kind_pair%cell_vector
           pot   => potparm %pot( ikind, jkind )%pot
           IF (pot%only_pp) CYCLE
           rab2_max = pot%rcutsq
           CALL matvec_3x3(cell_v, cell%hmat,cvi)
-          DO i = 1, SIZE(pot%type)
-             ! EAM
-             any_tersoff = any_tersoff.OR.ANY(pot%type==tersoff_type)
-             IF (pot%type(i)==ea_type) THEN
-                DO ipair = istart, iend
-                   atom_a = list(1,ipair)
-                   atom_b = list(2,ipair)
-                   fac    = 1.0_dp
-                   IF (atom_a==atom_b) fac = 0.5_dp
-                   kind_a = particle_set(atom_a)%atomic_kind%kind_number
-                   kind_b = particle_set(atom_b)%atomic_kind%kind_number
-                   eam_a => potparm%pot(kind_a,kind_a)%pot%set(i)%eam
-                   eam_b => potparm%pot(kind_b,kind_b)%pot%set(i)%eam
-                   
-                   !set this outside the potential type in case need multiple potentials
-                   !Do everything necessary for EAM here
-                   rab  = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-                   rab  = rab+cell_v
-                   rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                   IF (rab2 <= rab2_max) THEN
-                      CALL get_force_eam ( rab2, eam_a, eam_b, particle_set, atom_a, atom_b, f_eam )
-                      f_eam = f_eam * fac
+          any_tersoff = any_tersoff.OR.ANY(pot%type==tersoff_type)
+          i = eam_kinds_index(ikind,jkind)
+          IF (i==-1) CYCLE
+          ! EAM
+          DO ipair = istart, iend
+             atom_a = list(1,ipair)
+             atom_b = list(2,ipair)
+             fac    = 1.0_dp
+             IF (atom_a==atom_b) fac = 0.5_dp
+             kind_a = particle_set(atom_a)%atomic_kind%kind_number
+             kind_b = particle_set(atom_b)%atomic_kind%kind_number
+             i_a    = eam_kinds_index(kind_a,kind_a)
+             i_b    = eam_kinds_index(kind_b,kind_b)
+             eam_a => potparm%pot(kind_a,kind_a)%pot%set(i_a)%eam
+             eam_b => potparm%pot(kind_b,kind_b)%pot%set(i_b)%eam
+             
+             !set this outside the potential type in case need multiple potentials
+             !Do everything necessary for EAM here
+             rab  = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+             rab  = rab+cell_v
+             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+             IF (rab2 <= rab2_max) THEN
+                CALL get_force_eam ( rab2, eam_a, eam_b, particle_set, atom_a, atom_b, f_eam )
+                f_eam = f_eam * fac
 
-                      fr(1) = - f_eam * rab(1)
-                      fr(2) = - f_eam * rab(2)
-                      fr(3) = - f_eam * rab(3)
-                      f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-                      f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-                      f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+                fr(1) = - f_eam * rab(1)
+                fr(2) = - f_eam * rab(2)
+                fr(3) = - f_eam * rab(3)
+                f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
+                f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
+                f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
           
-                      f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-                      f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-                      f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                      IF (use_virial) THEN
-                         ptens11 = ptens11 + rab(1)*fr(1)
-                         ptens21 = ptens21 + rab(2)*fr(1)
-                         ptens31 = ptens31 + rab(3)*fr(1)
-                         ptens12 = ptens12 + rab(1)*fr(2)
-                         ptens22 = ptens22 + rab(2)*fr(2)
-                         ptens32 = ptens32 + rab(3)*fr(2)
-                         ptens13 = ptens13 + rab(1)*fr(3)
-                         ptens23 = ptens23 + rab(2)*fr(3)
-                         ptens33 = ptens33 + rab(3)*fr(3)
-                      END IF
-                   ENDIF
-                END DO
-             END IF
+                f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
+                f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
+                f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+                IF (use_virial) THEN
+                   ptens11 = ptens11 + rab(1)*fr(1)
+                   ptens21 = ptens21 + rab(2)*fr(1)
+                   ptens31 = ptens31 + rab(3)*fr(1)
+                   ptens12 = ptens12 + rab(1)*fr(2)
+                   ptens22 = ptens22 + rab(2)*fr(2)
+                   ptens32 = ptens32 + rab(3)*fr(2)
+                   ptens13 = ptens13 + rab(1)*fr(3)
+                   ptens23 = ptens23 + rab(2)*fr(3)
+                   ptens33 = ptens33 + rab(3)*fr(3)
+                END IF
+             ENDIF
           END DO
        END DO Kind_Group_Loop1
     END DO
+    DEALLOCATE (eam_kinds_index, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     ! Special way of handling the tersoff potential..
     IF (any_tersoff) THEN
        NULLIFY(glob_loc_list, glob_cell_v, glob_loc_list_a)

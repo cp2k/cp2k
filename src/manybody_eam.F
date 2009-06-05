@@ -55,10 +55,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_nonbond', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, i, iend, igrp, ikind, ilist, ipair, &
-      iparticle, istart, jkind, kind_a, kind_b, nkinds, nparticle, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pot_types
-    LOGICAL                                  :: check, do_eam, failure
+    INTEGER :: atom_a, atom_b, handle, i, i_a, i_b, iend, igrp, ikind, ilist, &
+      ipair, iparticle, istart, jkind, kind_a, kind_b, nkinds, nparticle, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: eam_kinds_index
+    LOGICAL                                  :: do_eam, failure
     REAL(KIND=dp)                            :: fac, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
@@ -75,23 +75,29 @@ CONTAINS
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update,&
          r_last_update_pbc=r_last_update_pbc,error=error)
-    nkinds = SIZE ( potparm%pot, 1 )
+    nkinds = SIZE(potparm%pot, 1)
+    ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    eam_kinds_index = -1
     DO ikind = 1, nkinds
        DO jkind = ikind, nkinds
-          IF (ANY(potparm%pot(ikind,jkind)%pot%type==ea_type)) do_eam = .TRUE.
+          DO i = 1, SIZE(potparm%pot(ikind,jkind)%pot%type)
+             IF (potparm%pot(ikind,jkind)%pot%type(i)==ea_type) THEN
+                ! At the moment we allow only 1 EAM per each kinds pair..
+                CPPostcondition(eam_kinds_index(ikind,jkind)==-1,cp_failure_level,routineP,error,failure)
+                CPPostcondition(eam_kinds_index(jkind,ikind)==-1,cp_failure_level,routineP,error,failure)
+                eam_kinds_index(ikind,jkind) = i
+                eam_kinds_index(jkind,ikind) = i
+                do_eam = .TRUE.
+             END IF
+          END DO
        END DO
     END DO
+
     ! Only if EAM potential are present
     IF (do_eam) THEN
        ! Add citation
        CALL cite_reference(Foiles1986)
-       ! Check that order of multiple defined potential in case we do EAM
-       ALLOCATE(pot_types(SIZE(potparm%pot(1,1)%pot%type)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, SIZE(potparm%pot(1,1)%pot%type)
-          pot_types(i) = potparm%pot(1,1)%pot%type(i)
-       END DO
-
        NULLIFY(eam_a, eam_b)
        nparticle = SIZE (particle_set)
        ALLOCATE ( rho(nparticle), STAT = stat )
@@ -106,31 +112,28 @@ CONTAINS
              iend   = neighbor_kind_pair%grp_kind_end(igrp)
              ikind  = neighbor_kind_pair%ij_kind(1,igrp)
              jkind  = neighbor_kind_pair%ij_kind(2,igrp)
-             check  = (SIZE(pot_types)==SIZE(potparm%pot(ikind,jkind)%pot%type))
-             CPPrecondition(check,cp_failure_level,routineP,error,failure)
-             check  = ALL(pot_types==potparm%pot(ikind,jkind)%pot%type)
-             CPPrecondition(check,cp_failure_level,routineP,error,failure)
 
-             DO i = 1, SIZE(potparm%pot(ikind,jkind)%pot%type)
-                IF (potparm%pot(ikind,jkind)%pot%type(i)/=ea_type) CYCLE
-                rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
-                CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
-                DO ipair = istart, iend
-                   atom_a = neighbor_kind_pair%list(1,ipair)
-                   atom_b = neighbor_kind_pair%list(2,ipair)
-                   fac    = 1.0_dp
-                   IF (atom_a==atom_b) fac = 0.5_dp
-                   rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-                   rab = rab+cell_v
-                   rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                   IF (rab2 <= rab2_max) THEN
-                      kind_a = particle_set(atom_a)%atomic_kind%kind_number
-                      kind_b = particle_set(atom_b)%atomic_kind%kind_number
-                      eam_a => potparm%pot(kind_a,kind_a)%pot%set(i)%eam
-                      eam_b => potparm%pot(kind_b,kind_b)%pot%set(i)%eam
-                      CALL get_rho_eam ( eam_a, eam_b, rab2, atom_a, atom_b, rho, fac)
-                   END IF
-                END DO
+             i = eam_kinds_index(ikind,jkind)
+             IF (i==-1) CYCLE
+             rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
+             CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
+             DO ipair = istart, iend
+                atom_a = neighbor_kind_pair%list(1,ipair)
+                atom_b = neighbor_kind_pair%list(2,ipair)
+                fac    = 1.0_dp
+                IF (atom_a==atom_b) fac = 0.5_dp
+                rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+                rab = rab+cell_v
+                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                IF (rab2 <= rab2_max) THEN
+                   kind_a = particle_set(atom_a)%atomic_kind%kind_number
+                   kind_b = particle_set(atom_b)%atomic_kind%kind_number
+                   i_a    = eam_kinds_index(kind_a,kind_a)
+                   i_b    = eam_kinds_index(kind_b,kind_b)
+                   eam_a => potparm%pot(kind_a,kind_a)%pot%set(i_a)%eam
+                   eam_b => potparm%pot(kind_b,kind_b)%pot%set(i_b)%eam
+                   CALL get_rho_eam ( eam_a, eam_b, rab2, atom_a, atom_b, rho, fac)
+                END IF
              END DO
           END DO Kind_Group_Loop
        END DO
@@ -139,9 +142,11 @@ CONTAINS
           particle_set(iparticle)%rho = rho(iparticle)
        END DO
 
-       DEALLOCATE ( rho, STAT = stat )
+       DEALLOCATE (rho,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    DEALLOCATE (eam_kinds_index, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
 
   END SUBROUTINE density_nonbond
