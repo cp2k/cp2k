@@ -7,6 +7,7 @@
 !> \brief Calculates the moment integrals <a|r^m|b>
 !> \par History
 !>      12.2007 [tlaino] - Splitting common routines to QS and FIST
+!>      06.2009 [tlaino] - Extending to molecular dipoles (interval of atoms)
 !> \author JGH (20.07.2006)
 ! *****************************************************************************
 MODULE moments_utils
@@ -43,7 +44,8 @@ MODULE moments_utils
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE get_reference_point(rpoint,drpoint,qs_env,fist_env,reference,ref_point,error)
+  SUBROUTINE get_reference_point(rpoint,drpoint,qs_env,fist_env,reference,ref_point,&
+             ifirst, ilast, error)
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: rpoint
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: drpoint
@@ -53,12 +55,14 @@ CONTAINS
       POINTER                                :: fist_env
     INTEGER, INTENT(IN)                      :: reference
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
+    INTEGER, INTENT(IN), OPTIONAL            :: ifirst, ilast
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_reference_point', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, iatom, ikind
+    LOGICAL                                  :: do_molecule, failure
     REAL(dp)                                 :: charge, mass, mtot, ztot
     REAL(dp), DIMENSION(3)                   :: ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -68,6 +72,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
+    failure = .FALSE.
+    CPPostcondition(PRESENT(ifirst).EQV.PRESENT(ilast),cp_failure_level,routineP,error,failure)
     NULLIFY ( cell, particle_set, local_particles, para_env )
     IF (PRESENT(qs_env)) THEN
        CALL get_qs_env ( qs_env, cell=cell, particle_set=particle_set, &
@@ -77,6 +83,8 @@ CONTAINS
        CALL get_fist_env( fist_env, cell=cell, particle_set=particle_set, &
             local_particles=local_particles, para_env=para_env, error=error)
     END IF
+    do_molecule = .FALSE.
+    IF (PRESENT(ifirst).AND.PRESENT(ilast)) do_molecule = .TRUE.
     IF (PRESENT(drpoint)) drpoint = 0.0_dp
     SELECT CASE (reference)
     CASE DEFAULT
@@ -86,9 +94,8 @@ CONTAINS
     CASE (use_mom_ref_com)
        rpoint = 0._dp
        mtot = 0._dp
-       DO ikind = 1,SIZE(local_particles%n_el)
-          DO ia = 1,local_particles%n_el(ikind)
-             iatom = local_particles%list(ikind)%array(ia)
+       IF (do_molecule) THEN
+          DO iatom = ifirst, ilast
              ria = particle_set(iatom)%r
              ria = pbc(ria,cell)
              atomic_kind => particle_set(iatom)%atomic_kind
@@ -97,9 +104,22 @@ CONTAINS
              IF (PRESENT(drpoint)) drpoint = drpoint + mass*particle_set(iatom)%v
              mtot = mtot + mass
           END DO
-       END DO
-       CALL mp_sum(rpoint,para_env%group)
-       CALL mp_sum(mtot,para_env%group)
+       ELSE
+          DO ikind = 1,SIZE(local_particles%n_el)
+             DO ia = 1,local_particles%n_el(ikind)
+                iatom = local_particles%list(ikind)%array(ia)
+                ria = particle_set(iatom)%r
+                ria = pbc(ria,cell)
+                atomic_kind => particle_set(iatom)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+                rpoint(:) = rpoint(:) + mass*ria(:)
+                IF (PRESENT(drpoint)) drpoint = drpoint + mass*particle_set(iatom)%v
+                mtot = mtot + mass
+             END DO
+          END DO
+          CALL mp_sum(rpoint,para_env%group)
+          CALL mp_sum(mtot,para_env%group)
+       END IF
        IF (ABS(mtot) > 0._dp) THEN 
           rpoint(:) = rpoint(:)/mtot
           IF (PRESENT(drpoint)) drpoint = drpoint / mtot
@@ -107,9 +127,8 @@ CONTAINS
     CASE (use_mom_ref_coac)
        rpoint = 0._dp
        ztot = 0._dp
-       DO ikind = 1,SIZE(local_particles%n_el)
-          DO ia = 1,local_particles%n_el(ikind)
-             iatom = local_particles%list(ikind)%array(ia)
+       IF (do_molecule) THEN
+          DO iatom = ifirst, ilast
              ria = particle_set(iatom)%r
              ria = pbc(ria,cell)
              atomic_kind => particle_set(iatom)%atomic_kind
@@ -118,9 +137,22 @@ CONTAINS
              IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
              ztot = ztot + charge
           END DO
-       END DO
-       CALL mp_sum(rpoint,para_env%group)
-       CALL mp_sum(ztot,para_env%group)
+       ELSE
+          DO ikind = 1,SIZE(local_particles%n_el)
+             DO ia = 1,local_particles%n_el(ikind)
+                iatom = local_particles%list(ikind)%array(ia)
+                ria = particle_set(iatom)%r
+                ria = pbc(ria,cell)
+                atomic_kind => particle_set(iatom)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+                rpoint(:) = rpoint(:) + charge*ria(:)
+                IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
+                ztot = ztot + charge
+             END DO
+          END DO
+          CALL mp_sum(rpoint,para_env%group)
+          CALL mp_sum(ztot,para_env%group)
+       END IF
        IF (ABS(ztot) > 0._dp) THEN 
           rpoint(:) = rpoint(:)/ztot
           IF (PRESENT(drpoint)) drpoint = drpoint / ztot
