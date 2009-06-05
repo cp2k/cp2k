@@ -444,7 +444,7 @@ CONTAINS
          IF(jdir < 4) THEN
            DO idir=1,3
              c(idir) =  c(idir) + &
-                    ( cell % hmat ( idir, jdir ) / twopi ) * AIMAG ( LOG ( z ) )
+                    ( cell % hmat ( jdir, idir ) / twopi ) * AIMAG ( LOG ( z ) )
            ENDDO
          END IF
        END DO
