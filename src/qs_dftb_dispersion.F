@@ -60,8 +60,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure, use_virial
     REAL(KIND=dp)                            :: a, b, c, devdw, dij, dr, &
-                                                evdw, rc, rc_a, rc_b, x0ij, &
-                                                xij, xp
+                                                evdw, fac, rc, rc_a, rc_b, &
+                                                x0ij, xij, xp
     REAL(KIND=dp), DIMENSION(3)              :: fdij, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -180,13 +180,15 @@ CONTAINS
                ! vdW potential
                dr = SQRT(SUM(rij(:)**2))
                IF (dr <= rc) THEN
+                 fac = 1._dp
+                 IF(iatom==jatom) fac=0.5_dp
                  IF ( dr > x0ij ) THEN
                    ! This is the standard London contribution.
                    ! UFF1 - Eq. 20 (long-range)
                    xp = xij/dr
-                   evdw = evdw + dij*(-2._dp*xp**6 + xp**12 ) 
+                   evdw = evdw + dij*(-2._dp*xp**6 + xp**12 )  * fac
                    IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
-                     devdw = dij*12._dp*(xp**6 - xp**12)/dr
+                     devdw = dij*12._dp*(xp**6 - xp**12)/dr * fac
                      atom_a = atom_of_kind(iatom)
                      atom_b = atom_of_kind(jatom)
                      fdij(:) = devdw * rij(:)/dr
@@ -201,11 +203,11 @@ CONTAINS
                    ! Using a parabola of the form (y = A - Bx**5 -Cx**10). 
                    ! Analytic parameters by forcing energy, first and second
                    ! derivatives to be continuous.
-                   evdw = evdw + A-B*dr**5-C*dr**10
+                   evdw = evdw + A-B*dr**5-C*dr**10 * fac
                    IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
                      atom_a = atom_of_kind(iatom)
                      atom_b = atom_of_kind(jatom)
-                     devdw = -5*B*dr**4 -10*C*dr**9
+                     devdw = -5*B*dr**4 -10*C*dr**9 * fac
                      fdij(:) = devdw * rij(:)/dr
                      force(ikind)%dispersion(:,atom_a) =&
                          force(ikind)%dispersion(:,atom_a) - fdij(:)

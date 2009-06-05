@@ -134,3 +134,6 @@ ch2o-5.inp
 h2o_hb_corr.inp
 #syevd
 co.inp
+# dispersion bug
+h2o.inp
+h2o_hb_corr.inp
