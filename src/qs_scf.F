@@ -672,12 +672,18 @@ CONTAINS
 
           t2 = m_walltime()
           IF ((output_unit > 0).AND.scf_env%print_iter_line) THEN
-             WRITE (UNIT=output_unit,&
-                    FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)")&
-                  scf_env%iter_count,TRIM(scf_env%iter_method),&
-                  scf_env%iter_param,&
-                  t2 - t1,scf_env%iter_delta,&
-                  energy%total,energy%total-energy%tot_old
+            IF ((ABS(scf_env%iter_delta) < 1.0E-8_dp).OR.&
+                (ABS(scf_env%iter_delta) >= 1.0E5_dp)) THEN
+              WRITE (UNIT=output_unit,&
+                     FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,ES14.4,1X,F20.10,1X,ES9.2)")&
+                scf_env%iter_count,TRIM(scf_env%iter_method),scf_env%iter_param,&
+                t2 - t1,scf_env%iter_delta,energy%total,energy%total-energy%tot_old
+            ELSE
+              WRITE (UNIT=output_unit,&
+                     FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)")&
+                scf_env%iter_count,TRIM(scf_env%iter_method),scf_env%iter_param,&
+                t2 - t1,scf_env%iter_delta,energy%total,energy%total-energy%tot_old
+            END IF
           END IF
           energy%tot_old = energy%total
 
@@ -2668,9 +2674,9 @@ CPSourceFileRef)
           END IF
           g2 => qs_env%rho%rho_g(1)%pw%pw_grid%gsq
           beta = qs_env%scf_control%mixing%beta
-          kmin = 0.1_dp
+          kmin = qs_env%scf_control%mixing%kerker_min
           DO ig=1,ng
-             qs_env%scf_env%mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig)+beta*beta),kmin)
+             qs_env%scf_env%mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig) + beta*beta),kmin)
           END DO
 
           nbuffer = qs_env%scf_control%mixing%nbuffer

@@ -137,6 +137,7 @@ MODULE scf_control_types
                      broy_w0,&
                      broy_wmax,&
                      broy_wref,&
+                     kerker_min,&
                      max_step,&
                      pulay_alpha,&
                      r_step,&
@@ -600,6 +601,9 @@ CONTAINS
           CALL section_vals_val_get(mixing_section,"MAX_STEP",&
                                     r_val=scf_control%mixing%sigma_max,&
                                     error=error)
+          CALL section_vals_val_get(mixing_section,"KERKER_MIN",&
+                                    r_val=scf_control%mixing%kerker_min,&
+                                    error=error)
        ELSE
           scf_control%mixing%method = no_mix
           scf_control%mixing%alpha = 1.0_dp
@@ -673,8 +677,8 @@ CONTAINS
 
              WRITE (UNIT=output_unit,&
                   FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/,"//&
-                  "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
-                  "1(/,T25,A,T76,F5.2))")&
+                      "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
+                      "1(/,T25,A,T72,ES9.2))")&
                   "SCF PARAMETERS",&
                   "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess,error=error))),&
                   "max_scf:           ",scf_control%max_scf,&
@@ -698,40 +702,48 @@ CONTAINS
                      "Mixing method:      ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%mixing%method,error=error)))
                 SELECT CASE (scf_control%mixing%method)
                 CASE (direct_p_mix)
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,F9.3)")&
+                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,ES9.2)")&
                         "alpha:",scf_control%mixing%alpha
                 CASE (kerker_mix)
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,F9.3)")&
-                        "alpha:",scf_control%mixing%alpha,&
-                        "beta:",scf_control%mixing%beta
-                CASE (pulay_mix)
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,F9.3)")&
+                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,ES9.2)")&
                         "alpha:",scf_control%mixing%alpha,&
                         "beta:",scf_control%mixing%beta,&
+                        "kerker_min:",scf_control%mixing%kerker_min
+                CASE (pulay_mix)
+                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,ES9.2)")&
+                        "alpha:",scf_control%mixing%alpha,&
+                        "beta:",scf_control%mixing%beta,&
+                        "kerker_min:",scf_control%mixing%kerker_min,&
                         "pulay_alpha:",scf_control%mixing%pulay_alpha
                 CASE (broy_mix)
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,F9.3)")&
+                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,ES9.2)")&
                         "alpha:",scf_control%mixing%alpha,&
                         "beta:",scf_control%mixing%beta,&
+                        "kerker_min:",scf_control%mixing%kerker_min,&
                         "broy_w0:",scf_control%mixing%broy_w0
                 CASE (broy_mix_new)
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,F9.3)")&
+                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,ES9.2)")&
                         "alpha:",scf_control%mixing%alpha,&
                         "beta:",scf_control%mixing%beta,&
+                        "kerker_min:",scf_control%mixing%kerker_min,&
                         "broy_wmax:",scf_control%mixing%broy_wmax,&
                         "broy_wref:",scf_control%mixing%broy_wref
                 CASE (multisec_mix)
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,F9.3)")&
+                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,ES9.2)")&
                         "alpha:",scf_control%mixing%alpha,&
                         "max_step:",scf_control%mixing%sigma_max,&
                         "r_factor:",scf_control%mixing%r_step
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T71,ES10.3)")&
+                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,ES9.2)")&
                         "regularization:",scf_control%mixing%reg_par
                 CASE DEFAULT
                    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                                   routineP,"Unknown density mixing method requested",&
                                   error,failure)
                 END SELECT
+                IF (scf_control%mixing%method > direct_p_mix) THEN
+                   WRITE (UNIT=output_unit,FMT="(T25,A,T72,I9)")&
+                        "Buffer size:",scf_control%mixing%nbuffer
+                END IF
              END IF
 
              IF (scf_control%smear%do_smear) THEN
