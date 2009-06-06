@@ -5140,7 +5140,7 @@ CONTAINS
 !> \param[out] array_lower    array to fill with the lower bytes of the merged
 !>                            values
 ! *****************************************************************************
-  PURE SUBROUTINE dbcsr_unpack_i8_2i4 (merged, array_upper, array_lower)
+  SUBROUTINE dbcsr_unpack_i8_2i4 (merged, array_upper, array_lower)
     INTEGER(KIND=int_8), DIMENSION(:), &
       INTENT(IN)                             :: merged
     INTEGER(KIND=int_4), DIMENSION(:), &
