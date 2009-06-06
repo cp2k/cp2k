@@ -221,6 +221,9 @@ CONTAINS
        IF (do_langevin) THEN
           ALLOCATE (meta_env%rng(meta_env%n_colvar),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO i=1,meta_env%n_colvar
+             NULLIFY(meta_env%rng(meta_env%n_colvar)%stream)
+          END DO
        ENDIF
     END IF
   END SUBROUTINE metadyn_create
@@ -323,7 +326,9 @@ CONTAINS
           ! Langevin on COLVARS
           IF (meta_env%langevin) THEN
              DO i = 1, SIZE(meta_env%rng)
-                CALL delete_rng_stream(meta_env%rng(i)%stream,error=error)
+                IF (ASSOCIATED(meta_env%rng(i)%stream)) THEN
+                   CALL delete_rng_stream(meta_env%rng(i)%stream,error=error)
+                END IF
              END DO
              DEALLOCATE (meta_env%rng,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

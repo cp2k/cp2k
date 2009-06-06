@@ -307,6 +307,12 @@ CPSourceFileRef,&
        END IF
        conn_info%bond_a(nbond_prev+1:)=conn_info%bond_a(nbond_prev+1:)+natom_prev
        conn_info%bond_b(nbond_prev+1:)=conn_info%bond_b(nbond_prev+1:)+natom_prev
+       IF (ANY(conn_info%bond_a(nbond_prev+1:)<=0) .OR. &
+            ANY(conn_info%bond_a(nbond_prev+1:)>natom) .OR. &
+            ANY(conn_info%bond_b(nbond_prev+1:)<=0) .OR. &
+            ANY(conn_info%bond_b(nbond_prev+1:)>natom)) THEN
+          CPAssert(.FALSE.,cp_failure_level,"topology_read, invalid bond",error,failure)
+       END IF
     END IF
     !
     ! THETA section
