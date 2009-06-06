@@ -364,7 +364,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, &
       jneighbor, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlprj, maxprj, &
       maxsgf, maxsoa, maxsob, mlprj, natom, ncoa_sum, nkind, nlist, &
-      nneighbor, np_car, np_sph, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, &
+      nneighbor, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, &
       nsobtot, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sgf_list
     INTEGER, DIMENSION(3)                    :: cell_b
@@ -471,8 +471,6 @@ CONTAINS
            CALL get_paw_proj_set(paw_proj_set=paw_proj_b,&
                                  maxl=mlprj,&
                                  nprj=nprjla,&
-                                 ncgauprj=np_car,&
-                                 nsgauprj=np_sph,&
                                  nsatbas=nsatbas,&
                                  rcprj=rcprj, &
                                  first_prj=fp_car,&
@@ -669,7 +667,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'prj_gather', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ip, j, jp, np_sph
+    INTEGER                                  :: i, ip, j, jp, nbas
     INTEGER, DIMENSION(:), POINTER           :: n2oindex
     LOGICAL                                  :: paw_atom
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -677,11 +675,11 @@ CONTAINS
     NULLIFY(paw_proj)
     CALL get_atomic_kind(atomic_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
     NULLIFY(n2oindex)
-    CALL get_paw_proj_set(paw_proj_set=paw_proj,nsgauprj=np_sph,n2oindex=n2oindex)
+    CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nbas,n2oindex=n2oindex)
 
-    DO i=1,np_sph
+    DO i=1,nbas
       ip = n2oindex(i)
-      DO j=1,np_sph
+      DO j=1,nbas
         jp = n2oindex(j)
         aout(j,i) = ain(jp,ip)
       END DO
@@ -701,26 +699,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'prj_scatter', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ip, j, jp, np_sph
+    INTEGER                                  :: i, ip, j, jp, nbas
     INTEGER, DIMENSION(:), POINTER           :: n2oindex
     LOGICAL                                  :: paw_atom
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
-!    CALL timeset(routineN,handle)
-
     NULLIFY(paw_proj)
     CALL get_atomic_kind(atomic_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
     NULLIFY(n2oindex)
-    CALL get_paw_proj_set(paw_proj_set=paw_proj,nsgauprj=np_sph,n2oindex=n2oindex)
+    CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nbas,n2oindex=n2oindex)
 
-    DO i=1,np_sph
+    DO i=1,nbas
       ip = n2oindex(i)
-      DO j=1,np_sph
+      DO j=1,nbas
         jp = n2oindex(j)
         aout(jp,ip) = aout(jp,ip) + ain(j,i)
       END DO
     END DO
-!    CALL timestop(handle)
 
   END SUBROUTINE prj_scatter
 !==========================================================================================================
