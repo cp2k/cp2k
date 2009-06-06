@@ -364,8 +364,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, &
       jneighbor, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlprj, maxprj, &
       maxsgf, maxsoa, maxsob, mlprj, natom, ncoa_sum, nkind, nlist, &
-      nneighbor, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, &
-      nsobtot, stat
+      nneighbor, nsatbas, nseta, nsetb, nsgf_cnt, nsgfa, nsobtot, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sgf_list
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: fp_car, fp_sph, la_max, &
