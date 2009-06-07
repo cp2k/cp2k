@@ -222,7 +222,7 @@ CONTAINS
     !     col_blk_size, error=error)
 
     CALL dbcsr_init (matrix_b, error)
-    CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0d0, dist2d,&
+    CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist2d,&
          row_blk_size=array_data(matrix_a%row_blk_size),&
          col_blk_size=col_blk_size,&
          error=error)
@@ -276,7 +276,7 @@ CONTAINS
     oldtime = walltime2-walltime1
     CALL cp_fm_frobenius_norm(fmout, checksum, error)
     WRITE(*,*)'Sx checksum',checksum*checksum,'time=',oldtime
-    CALL dbcsr_from_fm(matrix_b, fmout, 0.0d0, dist2d,&
+    CALL dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist2d,&
          row_blk_size=array_data(matrix_a%row_blk_size),&
          col_blk_size=col_blk_size,&
          error=error)

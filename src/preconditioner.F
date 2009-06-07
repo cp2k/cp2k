@@ -2551,7 +2551,7 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_init (matrix_right, error)
     precond_row_blk_size_array =&
          preconditioner_env%dbcsr_matrix%row_blk_size
-    CALL dbcsr_from_fm (matrix_right, matrix_in, 0.0d0, dist2d_result,&
+    CALL dbcsr_from_fm (matrix_right, matrix_in, 0.0_dp, dist2d_result,&
          row_blk_size = array_data (precond_row_blk_size_array),&
          col_blk_size = col_blk_size, error=error)
     WRITE(*,*)'Pre checksum:',dbcsr_checksum (matrix_right, error)
