@@ -104,12 +104,12 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iatomlist, kind_of, list, &
                                                 list2, molecule_list, &
                                                 natom_of_kind, wlist
-    LOGICAL                                  :: check, do_center, failure, &
-                                                found, my_qmmm
+    LOGICAL                                  :: check, do_center, explicit, &
+                                                failure, found, my_qmmm
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 bounds(2,3), cdims(3), &
-                                                dims(3), qeff
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, mass
+                                                dims(3), qeff, vec(3)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, cpoint, mass
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: ex_bend_list, ex_bond_list, &
                                                 ex_onfo_list
@@ -316,7 +316,8 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 7. Possibly center the coordinates and fill in coordinates in particle_set
     !-----------------------------------------------------------------------------
-    CALL section_vals_val_get(subsys_section,"TOPOLOGY%CENTER_COORDINATES",l_val=do_center,&
+    CALL section_vals_val_get(subsys_section,&
+         "TOPOLOGY%CENTER_COORDINATES%_SECTION_PARAMETERS_",l_val=do_center,&
          error=error)
     CALL timeset(routineN//'_7a',handle2)
     bounds(1,1) = MINVAL(atom_info%r(1,:))
@@ -347,7 +348,18 @@ CONTAINS
 CPSourceFileRef,&
          only_ionode=.TRUE.)
     IF (do_center) THEN
-       dims = (bounds(2,:)+bounds(1,:))/2.0_dp - cdims/2.0_dp
+       CALL section_vals_val_get(subsys_section,&
+            "TOPOLOGY%CENTER_COORDINATES%CENTER_POINT",explicit=explicit,&
+            error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(subsys_section,&
+               "TOPOLOGY%CENTER_COORDINATES%CENTER_POINT",r_vals=cpoint,&
+               error=error)
+          vec = cpoint
+       ELSE
+          vec = cdims/2.0_dp
+       END IF
+       dims = (bounds(2,:)+bounds(1,:))/2.0_dp - vec
     ELSE
        dims = 0.0_dp
     END IF

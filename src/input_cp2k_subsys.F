@@ -1371,13 +1371,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CENTER_COORDINATES",&
-            description="Center the molecules in the computational box.",&
-            usage="CENTER_COORDINATES logical",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="MULTIPLE_UNIT_CELL",&
             description="Specifies the numbers of repetition in space (X, Y, Z) of the defined cell, "//&
             "assuming it as a unit cell. This keyword affects only the coordinates specification. The same keyword "//&
@@ -1400,6 +1393,10 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        NULLIFY(subsection)
+       CALL create_center_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
        CALL create_generate_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -1410,6 +1407,51 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_topology_section
+
+! *****************************************************************************
+!> \brief Specify keywords used to center molecule in the box
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino [tlaino] - University of Zurich - 06.2009
+! *****************************************************************************
+  SUBROUTINE create_center_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_center_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(keyword)
+       CALL section_create(section,"CENTER_COORDINATES",&
+            description="Allows centering the coordinates of the system in the box. "//&
+            "The centering point can be defined by the user.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="Controls the activation of the centering method",&
+            usage="&CENTER_COORDINATES T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CENTER_POINT",&
+            description="Specify the point used for centering the coordinates. Default is to "//&
+            "center the system in cell/2. ", type_of_var=real_t, n_var=3,&
+            repeats=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_center_section
 
 ! *****************************************************************************
 !> \brief Specify keywords used to setup several molecules with few connectivity files
