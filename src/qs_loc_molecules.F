@@ -273,7 +273,7 @@ CONTAINS
                 CALL get_atomic_kind(atomic_kind,ghost=ghost)
                 IF (.NOT.ghost) THEN
                    CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=zeff)
-                   ria = pbc(particle_set(i)%r,cell) - rcc
+                   ria = pbc(particle_set(i)%r,cell)
                    DO j = 1, 3
                       gvec  = twopi*cell%h_inv(j,:)
                       theta = SUM(ria(:)*gvec(:))
