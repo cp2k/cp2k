@@ -602,12 +602,12 @@ CONTAINS
 
     kvec = 0.0_dp
     vector_k = 0.0_dp
-    vector_k(:,1) = twopi*cell%h_inv(:,1)
-    vector_k(:,2) = twopi*cell%h_inv(:,2)
-    vector_k(:,3) = twopi*cell%h_inv(:,3)
-    vector_k(:,4) = twopi*(cell%h_inv(:,1)+cell%h_inv(:,2))
-    vector_k(:,5) = twopi*(cell%h_inv(:,1)+cell%h_inv(:,3))
-    vector_k(:,6) = twopi*(cell%h_inv(:,2)+cell%h_inv(:,3))
+    vector_k(:,1) = twopi*cell%h_inv(1,:)
+    vector_k(:,2) = twopi*cell%h_inv(2,:)
+    vector_k(:,3) = twopi*cell%h_inv(3,:)
+    vector_k(:,4) = twopi*(cell%h_inv(1,:)+cell%h_inv(2,:))
+    vector_k(:,5) = twopi*(cell%h_inv(1,:)+cell%h_inv(3,:))
+    vector_k(:,6) = twopi*(cell%h_inv(2,:)+cell%h_inv(3,:))
 
 
     ! This operator can be used only for periodic systems

@@ -221,3 +221,6 @@ Be_GAPW.inp
 OF_gapw_all_lsd_LB.inp
 #syevd
 OF_gapw_all_lsd_LB.inp
+# bug fix WANNIER non-orthorombic
+H2O-gapw-all_localize_crazy_noortho.inp
+H2O-gapw-all_localize_noortho.inp

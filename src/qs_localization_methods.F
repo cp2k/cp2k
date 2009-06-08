@@ -248,14 +248,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: metric
 
     metric = 0.0_dp
-    CALL dgemm('N','T',3,3,3,1._dp,cell%hmat,3,cell%hmat,3,0.0_dp,metric,3)
+    CALL dgemm('T','N',3,3,3,1._dp,cell%hmat,3,cell%hmat,3,0.0_dp,metric,3)
     
-      weights(1) = METRIC(1,1)-METRIC(1,2)-METRIC(1,3)
-      weights(2) = METRIC(2,2)-METRIC(1,2)-METRIC(2,3)
-      weights(3) = METRIC(3,3)-METRIC(1,3)-METRIC(2,3)
-      weights(4) = METRIC(1,2)
-      weights(5) = METRIC(1,3)
-      weights(6) = METRIC(2,3)
+    weights(1) = METRIC(1,1)-METRIC(1,2)-METRIC(1,3)
+    weights(2) = METRIC(2,2)-METRIC(1,2)-METRIC(2,3)
+    weights(3) = METRIC(3,3)-METRIC(1,3)-METRIC(2,3)
+    weights(4) = METRIC(1,2)
+    weights(5) = METRIC(1,3)
+    weights(6) = METRIC(2,3)
 
   END SUBROUTINE initialize_weights
 
