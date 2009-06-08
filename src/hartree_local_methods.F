@@ -37,6 +37,7 @@ MODULE  hartree_local_methods
   USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                              harmonics_atom_type
   USE qs_local_rho_types,              ONLY: rhoz_type
+  USE qs_oce_methods,                  ONLY: prj_scatter
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_atom_type,&
@@ -239,7 +240,7 @@ CONTAINS
                                                 gVg_h, gVg_s
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: gexp, sqrtwr
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: aVh1b_00, aVh1b_hh, aVh1b_ss, &
-                                                g0_h_w
+                                                cpc_atom, g0_h_w
     REAL(dp), DIMENSION(:), POINTER          :: rrad_z, vrrad_z
     REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, gsph, rrad_0, Vh1_h, &
                                                 Vh1_s, vrrad_0, zet
@@ -374,7 +375,7 @@ CONTAINS
             g0_h_w(1:nr,l_ang) = g0_h(1:nr,l_ang)*grid_atom%wr(1:nr)
          END DO
 
-       !     Distribute the atoms of this kind
+       ! Distribute the atoms of this kind
          num_pe = para_env%num_pe
          mepos  = para_env%mepos
          bo = get_limit( nat, num_pe, mepos )
@@ -383,11 +384,7 @@ CONTAINS
             iatom = atom_list(iat)
 
             NULLIFY(rho_atom)
-!            NULLIFY(int_local_h,int_local_s)
             rho_atom => rho_atom_set(iatom)
-!            CALL get_rho_atom(rho_atom=rho_atom,&
-!                 ga_Vlocal_gb_h=int_local_h,&
-!                 ga_Vlocal_gb_s=int_local_s)
 
             NULLIFY(rrad_0,vrrad_0)
             rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
@@ -672,31 +669,21 @@ CONTAINS
                m1 = m1 + maxso
             END DO  !iset1
    
-            !       Symmetry
-            !        DO iset1 = 1,nset
-            !          DO is1 = 1,maxso
-            !           iso1 = is1 + (iset1 - 1)*maxso
-            !            DO iset2 = iset1+1,nset
-            !              DO is2 = 1,maxso
-            !                iso2 = is2 + (iset2 - 1)*maxso
-            !                aVh1b_h(iso2,iso1) = aVh1b_h(iso1,iso2)
-            !                aVh1b_s(iso2,iso1) = aVh1b_s(iso1,iso2)
-            !                aVh1b_0(iso2,iso1) = aVh1b_0(iso1,iso2)
-            !              END DO
-            !            END DO
-            !          END DO
-            !        END DO
-   
             !       Calculate the contributions to Ecoul coming from Vh1_h*rho1_h and Vh1_s*rho1_s
+
+            ALLOCATE(cpc_atom(nsotot,nsotot),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
    
             ecoul_1_h = 0.0_dp
             ecoul_1_s = 0.0_dp
             DO ispin = 1,nspins
-               ecoul_1_h  = ecoul_1_h + trace_r_AxB(aVh1b_hh,nsotot,&
-                    cpc_h(ispin)%r_coef,nsotot, nsotot,nsotot)
+               cpc_atom=0._dp
+               CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_atom,atom_kind,error)
+               ecoul_1_h  = ecoul_1_h + trace_r_AxB(aVh1b_hh,nsotot,cpc_atom,nsotot,nsotot,nsotot)
    
-               ecoul_1_s  =  ecoul_1_s + trace_r_AxB(aVh1b_ss,nsotot,&
-                    cpc_s(ispin)%r_coef,nsotot, nsotot,nsotot)
+               cpc_atom=0._dp
+               CALL prj_scatter(cpc_s(ispin)%r_coef,cpc_atom,atom_kind,error)
+               ecoul_1_s  =  ecoul_1_s + trace_r_AxB(aVh1b_ss,nsotot,cpc_atom,nsotot,nsotot,nsotot)
    
                CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_hh,1,int_local_h(ispin)%r_coef,1)
                CALL daxpy(nsotot*nsotot,1.0_dp,aVh1b_ss,1,int_local_s(ispin)%r_coef,1)
@@ -704,6 +691,9 @@ CONTAINS
                CALL daxpy(nsotot*nsotot,-1.0_dp,aVh1b_00,1,int_local_s(ispin)%r_coef,1)
    
             END DO  ! ispin
+
+            DEALLOCATE(cpc_atom,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
    
             ecoul_1_h = 0.5_dp*ecoul_1_h
             ecoul_1_s = 0.5_dp*ecoul_1_s

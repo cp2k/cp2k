@@ -556,11 +556,11 @@ CONTAINS
 
               CPC_sphere = 0.0_dp
               DO i=1,nspins
-                coeff => rho_atom_set(iatom)%cpc_hx(i)%r_coef
+                coeff => rho_atom_set(iatom)%cpc_h(i)%r_coef
                 CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) = &
                   CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) + &
                   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
-                coeff => rho_atom_set(iatom)%cpc_sx(i)%r_coef
+                coeff => rho_atom_set(iatom)%cpc_s(i)%r_coef
                 CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) = &
                   CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) - &
                   coeff(iso1_first:iso1_last,iso2_first:iso2_last)

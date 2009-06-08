@@ -45,6 +45,7 @@ MODULE qs_rho0_methods
                                              calculate_rhoz,&
                                              local_rho_type,&
                                              rhoz_type
+  USE qs_oce_methods,                  ONLY: prj_scatter
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
   USE qs_rho0_types,                   ONLY: &
        allocate_multipoles, allocate_rho0_atom, allocate_rho0_atom_rad, &
@@ -167,7 +168,7 @@ MODULE qs_rho0_methods
 ! *****************************************************************************
   SUBROUTINE calculate_rho0_atom(gapw_control,rho_atom_set, rho0_atom_set, &
                                  rho0_mp,a_list,g_atom,&
-                                 paw_atom,natom,ikind,harmonics,&
+                                 paw_atom,natom,ikind,atom_kind,harmonics,&
                                  rho0_h_tot,rho0_s_tot,error)
 
     TYPE(gapw_control_type), POINTER         :: gapw_control
@@ -180,6 +181,7 @@ MODULE qs_rho0_methods
     TYPE(grid_atom_type), INTENT(IN)         :: g_atom
     LOGICAL, INTENT(IN)                      :: paw_atom
     INTEGER, INTENT(IN)                      :: natom, ikind
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     REAL(dp), INTENT(INOUT)                  :: rho0_h_tot, rho0_s_tot
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -188,13 +190,19 @@ MODULE qs_rho0_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iat, iatom, ic, ico, &
-                                                ir, is, iso, l, lmax0, &
-                                                lshell, lx, ly, lz, nr
+                                                ir, is, iso, ispin, istat, l, &
+                                                lmax0, lshell, lx, ly, lz, &
+                                                nr, nsotot, nspins
+    LOGICAL                                  :: failure = .FALSE.
     REAL(dp)                                 :: sum1, sum2
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: cpc_ah, cpc_as
     REAL(dp), DIMENSION(:), POINTER          :: norm_g0l_h, norm_g0l_s
     REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, g0_s, vg0_h
     TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
     TYPE(mpole_rho_atom), POINTER            :: mpole_rho
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: cpc_h, cpc_s
     TYPE(rho_atom_type), POINTER             :: rho_atom
 
     CALL timeset(routineN,handle)
@@ -222,32 +230,70 @@ MODULE qs_rho0_methods
     ENDDO
 
     IF(.NOT.(.NOT. paw_atom .AND. gapw_control%nopaw_as_gpw)) THEN
-    DO iso = 1, nsoset(lmax0)
-      l = indso(1,iso)
       DO iat = 1,natom
          iatom = a_list(iat)
          mpole_rho => rho0_mp%mp_rho(iatom)
          rho_atom => rho_atom_set(iatom)
-         IF(paw_atom) CALL calculate_Qlm_atom(mpole_gau,mpole_rho,rho_atom,iso)
-         rho0_atom_set(iatom)%rho0_rad_h%r_coef(1:nr,iso) = &
+
+         IF(paw_atom) THEN
+            NULLIFY(cpc_h,cpc_s)
+            CALL get_rho_atom(rho_atom=rho_atom,cpc_h=cpc_h,cpc_s=cpc_s)
+            nspins = SIZE(cpc_h)
+            nsotot = SIZE(mpole_gau%Qlm_gg,1)
+            ALLOCATE(cpc_ah(nsotot,nsotot,nspins),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            cpc_ah=0._dp
+            ALLOCATE(cpc_as(nsotot,nsotot,nspins),STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            cpc_as=0._dp
+            DO ispin = 1,nspins
+              CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_ah(:,:,ispin),atom_kind,error)
+              CALL prj_scatter(cpc_s(ispin)%r_coef,cpc_as(:,:,ispin),atom_kind,error)
+            END DO
+         END IF
+
+         DO iso = 1, nsoset(lmax0)
+            l = indso(1,iso)
+            IF(paw_atom) THEN
+               mpole_rho%Qlm_h(iso) = 0.0_dp
+               mpole_rho%Qlm_s(iso) = 0.0_dp
+   
+               DO ispin = 1,nspins
+                 mpole_rho%Qlm_h(iso) =  mpole_rho%Qlm_h(iso) + &
+                       trace_r_AxB(mpole_gau%Qlm_gg(:,:,iso),nsotot,&
+                           cpc_ah(:,:,ispin),nsotot,nsotot,nsotot)
+                 mpole_rho%Qlm_s(iso) =  mpole_rho%Qlm_s(iso) + &
+                       trace_r_AxB(mpole_gau%Qlm_gg(:,:,iso),nsotot,&
+                           cpc_as(:,:,ispin),nsotot,nsotot,nsotot)
+               END DO  ! ispin
+   
+               mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) + &
+                                        mpole_rho%Qlm_h(iso)-mpole_rho%Qlm_s(iso)
+            END IF
+
+            rho0_atom_set(iatom)%rho0_rad_h%r_coef(1:nr,iso) = &
               g0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)
-         rho0_atom_set(iatom)%rho0_rad_s%r_coef(1:nr,iso) = &
+            rho0_atom_set(iatom)%rho0_rad_s%r_coef(1:nr,iso) = &
               g0_s(1:nr,l) * mpole_rho%Qlm_tot(iso)
-         rho0_atom_set(iatom)%vrho0_rad_h%r_coef(1:nr,iso) = &
+            rho0_atom_set(iatom)%vrho0_rad_h%r_coef(1:nr,iso) = &
               vg0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)
 
-         sum1 = 0.0_dp
-         sum2 = 0.0_dp
-         DO ir = 1,nr
-           sum1 = sum1 + g_atom%wr(ir)*&
-                  rho0_atom_set(iatom)%rho0_rad_h%r_coef(ir,iso)
-           sum2 = sum2 + g_atom%wr(ir)*&
-                  rho0_atom_set(iatom)%rho0_rad_s%r_coef(ir,iso)
-         ENDDO
-         rho0_h_tot = rho0_h_tot + sum1* harmonics%slm_int(iso)
-         rho0_s_tot = rho0_s_tot + sum2* harmonics%slm_int(iso)
+            sum1 = 0.0_dp
+            sum2 = 0.0_dp
+            DO ir = 1,nr
+              sum1 = sum1 + g_atom%wr(ir)*&
+                     rho0_atom_set(iatom)%rho0_rad_h%r_coef(ir,iso)
+              sum2 = sum2 + g_atom%wr(ir)*&
+                     rho0_atom_set(iatom)%rho0_rad_s%r_coef(ir,iso)
+            ENDDO
+            rho0_h_tot = rho0_h_tot + sum1* harmonics%slm_int(iso)
+            rho0_s_tot = rho0_s_tot + sum2* harmonics%slm_int(iso)
+         END DO  ! iso
+         IF(paw_atom) THEN
+            DEALLOCATE(cpc_ah,cpc_as,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         END IF
       END DO  ! iat
-    END DO  ! iso
     END IF
 
 !   Transform the coefficinets from spherical to cartesian
@@ -301,43 +347,6 @@ MODULE qs_rho0_methods
    CALL timestop(handle)
 
   END SUBROUTINE calculate_rho0_atom
-
-! *****************************************************************************
-  SUBROUTINE calculate_Qlm_atom(mpole_gau,mpole_rho,rho_atom,iso)
-
-    TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
-    TYPE(mpole_rho_atom), POINTER            :: mpole_rho
-    TYPE(rho_atom_type), POINTER             :: rho_atom
-    INTEGER, INTENT(IN)                      :: iso
-
-    INTEGER                                  :: ispin, nsotot, nspins
-    TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: cpc_h, cpc_s
-
-    NULLIFY(cpc_h,cpc_s)
-    CALL get_rho_atom(rho_atom=rho_atom,cpc_h=cpc_h,cpc_s=cpc_s)
-
-    nspins = SIZE(cpc_h)
-    nsotot = SIZE(mpole_gau%Qlm_gg,1)
-
-    mpole_rho%Qlm_h(iso) = 0.0_dp
-    mpole_rho%Qlm_s(iso) = 0.0_dp
-
-    DO ispin = 1,nspins
-      mpole_rho%Qlm_h(iso) =  mpole_rho%Qlm_h(iso) + &
-            trace_r_AxB(mpole_gau%Qlm_gg(:,:,iso),nsotot,&
-                        cpc_h(ispin)%r_coef,nsotot,&
-                        nsotot,nsotot)
-      mpole_rho%Qlm_s(iso) =  mpole_rho%Qlm_s(iso) + &
-            trace_r_AxB(mpole_gau%Qlm_gg(:,:,iso),nsotot,&
-                        cpc_s(ispin)%r_coef,nsotot,&
-                        nsotot,nsotot)
-    END DO  ! ispin
-
-    mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) + &
-                             mpole_rho%Qlm_h(iso)-mpole_rho%Qlm_s(iso)
-
-  END SUBROUTINE calculate_Qlm_atom
 
 ! *****************************************************************************
   SUBROUTINE init_rho0(qs_env, gapw_control, cell, &

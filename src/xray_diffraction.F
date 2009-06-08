@@ -683,8 +683,8 @@ CONTAINS
           rho_atom => rho_atom_set(atom)
 
           CALL get_rho_atom(rho_atom=rho_atom,&
-                            cpc_hx=cpc_h,&
-                            cpc_sx=cpc_s)
+                            cpc_h=cpc_h,&
+                            cpc_s=cpc_s)
 
           ra(:) = pbc(particle_set(iatom)%r,cell)
 

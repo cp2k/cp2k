@@ -211,11 +211,11 @@ CONTAINS
             iatom =  atom_list(iat)
             DO ispin = 1,nspins
               CALL prj_gather(rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
-                              rho_atom(iatom)%cpc_hx(ispin)%r_coef,atomic_kind,error)
+                              rho_atom(iatom)%cpc_h(ispin)%r_coef,atomic_kind,error)
               CALL prj_gather(rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
-                              rho_atom(iatom)%cpc_sx(ispin)%r_coef,atomic_kind,error)
-              CALL  mp_sum(rho_atom(iatom)%cpc_hx(ispin)%r_coef,para_env%group)
-              CALL  mp_sum(rho_atom(iatom)%cpc_sx(ispin)%r_coef,para_env%group)
+                              rho_atom(iatom)%cpc_s(ispin)%r_coef,atomic_kind,error)
+              CALL  mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef,para_env%group)
+              CALL  mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef,para_env%group)
             END DO
          END DO
        END IF
@@ -469,9 +469,7 @@ CONTAINS
       POINTER                                :: int_local_h, int_local_s
 
     NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
-!   CALL get_rho_atom(rho_atom=rho_atom,&
-!                     ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
-    CALL get_rho_atom(rho_atom=rho_atom,cpc_hx=int_local_h,cpc_sx=int_local_s)
+    CALL get_rho_atom(rho_atom=rho_atom,cpc_h=int_local_h,cpc_s=int_local_s)
 
     DO ispin = 1,nspins
        h_block => mat_h(ispin)%array
@@ -612,9 +610,7 @@ CONTAINS
     IF(ia == ja) ieqj = 1.0_dp
 
     NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
-!   CALL get_rho_atom(rho_atom=rho_atom,&
-!                    ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
-    CALL get_rho_atom(rho_atom=rho_atom,cpc_hx=int_local_h,cpc_sx=int_local_s)
+    CALL get_rho_atom(rho_atom=rho_atom,cpc_h=int_local_h,cpc_s=int_local_s)
 
     DO ispin = 1,nspins
       p_block => mat_p(ispin)%array

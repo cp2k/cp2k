@@ -144,8 +144,8 @@ CONTAINS
 
 !     Calculate rho0_h and rho0_s on the radial gris centered on the atomic position
       IF (my_do_rho0) &
-           CALL calculate_rho0_atom(gapw_control, rho_atom_set,rho0_atom_set,rho0_mpole,atom_list,grid_atom,&
-                                    paw_atom,natom,ikind,harmonics,rho0_h_tot,rho0_s_tot,error=error)
+           CALL calculate_rho0_atom(gapw_control,rho_atom_set,rho0_atom_set,rho0_mpole,atom_list,grid_atom,&
+                   paw_atom,natom,ikind,atom_kind,harmonics,rho0_h_tot,rho0_s_tot,error=error)
 
     ENDDO
 
