@@ -1390,7 +1390,11 @@ CONTAINS
     old_nrows = SIZE (old_row_p)-1
     ALLOCATE (row_p (SIZE (old_row_p)))
     row_p(:) = old_row_p(:)+1
-    old_max_col = MAXVAL (old_col_i)
+    IF (SIZE (old_col_i) .GT. 0) THEN
+       old_max_col = MAXVAL (old_col_i)
+    ELSE
+       old_max_col = 0
+    ENDIF
     mincol = old_max_col
     !new_col_p(:) = 1
     IF (dbg) THEN
@@ -1408,6 +1412,7 @@ CONTAINS
     ! mincol is use to jump ahead for very sparse matrices
     nblks = 0
     new_col_p(1) = 0
+    new_col_p(:) = 0
     prev_col = 0
     curcol = 1
     DO WHILE (curcol .LE. new_ncols)
@@ -1431,6 +1436,7 @@ CONTAINS
           DO WHILE (column_le)
              IF (old_col_i(row_p(old_row)) .EQ. curcol) THEN
                 nblks = nblks + 1
+                DBG 'Adding block',nblks,'at old row/new col',old_row
                 !new_col_p(curcol+1) = i = new_col_p(curcol+1) + 1
                 new_row_i(nblks) = old_row
                 IF (PRESENT (new_blk_p) .AND. PRESENT (old_blk_p)) THEN
@@ -3362,6 +3368,7 @@ CONTAINS
        CALL cp_assert(.FALSE., cp_failure_level,&
             cp_wrong_args_error, routineP, "Invalid matrix type.", error)
     END SELECT
+    normalized%image_dist = target_image_dist
     DBG 'parent ums(1) name', normalized%mats(1)%name
   END SUBROUTINE dbcsr_normalize
 
