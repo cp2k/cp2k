@@ -294,12 +294,12 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_free_mem_i(DATA, stat)
-     INTEGER, DIMENSION(:), POINTER        :: DATA
-     INTEGER, INTENT(OUT), OPTIONAL        :: stat
-     
-     INTEGER                        :: mp_res
+    INTEGER, DIMENSION(:), POINTER           :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
-     CALL MPI_FREE_MEM(data, mp_res)
+    INTEGER                                  :: mp_res
+
+     CALL MPI_FREE_MEM(DATA, mp_res)
      !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_i
@@ -313,12 +313,12 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_free_mem_d(DATA, stat)
-     REAL(KIND=dp), DIMENSION(:), POINTER  :: DATA
-     INTEGER, INTENT(OUT), OPTIONAL        :: stat
-     
-     INTEGER                        :: mp_res
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
-     CALL MPI_FREE_MEM(data, mp_res)
+    INTEGER                                  :: mp_res
+
+     CALL MPI_FREE_MEM(DATA, mp_res)
      !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_d
