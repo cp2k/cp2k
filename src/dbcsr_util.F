@@ -2757,7 +2757,7 @@ CONTAINS
     e = error
     row_blk_size => array_data (matrix%row_blk_size)
     col_blk_size => array_data (matrix%col_blk_size)
-    local_cs = 0.0d0
+    local_cs = 0.0_dp
     DO br = 1, matrix%nblkrows_total
        m = row_blk_size(br)
        DO blk = matrix%row_p(br)+1, matrix%row_p(br+1)

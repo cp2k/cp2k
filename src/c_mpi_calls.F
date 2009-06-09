@@ -53,7 +53,7 @@
 ! *****************************************************************************
 
 MODULE c_mpi_calls
-
+  USE kinds,                           ONLY: dp
 ! Do not use C bindings if we can use CRAY pointers.
 #ifdef __cray_pointers
 #undef __c_bindings
@@ -91,7 +91,6 @@ MODULE c_mpi_calls
 
   PRIVATE 
 
-  INTEGER, PARAMETER :: dp=KIND(0.0D0)
 #if defined(__c_bindings) || defined(__cray_pointers)
   INCLUDE "mpif.h"
 #endif

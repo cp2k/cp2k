@@ -39,14 +39,10 @@ CONTAINS
     INTEGER                                  :: la, lam1, lap1, lb, lbm1, lbp1
     REAL(dp)                                 :: g
 
-!
-! initialize
-!     
-
     g = 0.5_dp/zet
-    rr(0,0,1)=1.0D0
-    rr(0,0,2)=1.0D0
-    rr(0,0,3)=1.0D0
+    rr(0,0,1)=1.0_dp
+    rr(0,0,2)=1.0_dp
+    rr(0,0,3)=1.0_dp
     !
     ! recursion along la for lb=0
     !

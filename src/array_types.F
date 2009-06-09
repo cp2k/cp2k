@@ -13,6 +13,7 @@
 !> - Created 
 ! *****************************************************************************
 MODULE array_types
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
   PRIVATE
@@ -59,9 +60,6 @@ MODULE array_types
      MODULE PROCEDURE array_size_i1d, array_size_i2d,&
                       array_size_d1d, array_size_d2d
   END INTERFACE
-
-
-  INTEGER, PARAMETER :: dp = KIND(0.0d0)
 
   TYPE array_i1d_type
      INTEGER, DIMENSION(:), POINTER     :: DATA

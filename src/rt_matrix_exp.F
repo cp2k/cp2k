@@ -274,7 +274,7 @@ CONTAINS
                    IF(i.LE.p)N=N+scaleN*eval**i
                    D=D+scaleD*eval**i
                 END DO
-                IF(ABS((EXP(norm)-(N/D)**(2.0_dp**iscale))/MAX(1.d0,EXP(norm))).LE.eps_exp)THEN
+                IF(ABS((EXP(norm)-(N/D)**(2.0_dp**iscale))/MAX(1.0_dp,EXP(norm))).LE.eps_exp)THEN
                    IF(do_emd)THEN
                       cost=iscale+q
                       prev_cost=orders(1)+orders(2)
@@ -307,7 +307,7 @@ CONTAINS
                 scaleN=1.0_dp/fac(i)
                 N=N+scaleN*(eval**i)
              END DO
-             IF(ABS((EXP(norm)-N**(2.0_dp**iscale))/MAX(1.d0,EXP(norm))).LE.eps_exp)THEN
+             IF(ABS((EXP(norm)-N**(2.0_dp**iscale))/MAX(1.0_dp,EXP(norm))).LE.eps_exp)THEN
                 IF(do_emd)THEN
                    cost=iscale+q
                    prev_cost=orders(1)+orders(2)

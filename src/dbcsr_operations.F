@@ -116,7 +116,7 @@ CONTAINS
     DEBUG_BODY
     CALL timeset (routineN, timing_handle)
     CALL btree_new (product_matrix%w%tree)
-    tstart = 0.0d0 ; tstop = 0.0d0 ; trun = 0.0d0
+    tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
     flop_total = 0
     trun_t = m_walltime ()
     left_reps = SIZE (left_set%mats)
@@ -334,7 +334,7 @@ CONTAINS
     WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
          routineN//' Total Local Multiplication time',&
          trun_t,' and',&
-         (REAL(flop_total, dp)/1000000.0d0)/trun_t,' MFLOPS',flop_total
+         (REAL(flop_total, dp)/1000000.0_dp)/trun_t,' MFLOPS',flop_total
     DO rep = 1, left_reps
        CALL mp_window_destroy (left_set%data_windows(rep))
        CALL mp_window_destroy (left_set%index_windows(rep))
@@ -1011,7 +1011,7 @@ CONTAINS
                      c_data, a_row_size_logical)
                 !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
                 !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
-                lflop = lflop + a_row_size * b_col_size * a_row_size * 2.0d0
+                lflop = lflop + a_row_size * b_col_size * a_row_size * 2.0_dp
              ENDDO ! b
           ENDDO ! symmetry
        ENDDO ! a_col
