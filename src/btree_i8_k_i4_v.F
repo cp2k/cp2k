@@ -14,6 +14,8 @@
 
 MODULE btree_i8_k_i4_v
 
+  !$ USE OMP_LIB
+
   IMPLICIT NONE
 
   PUBLIC :: btree
@@ -48,6 +50,8 @@ MODULE btree_i8_k_i4_v
      INTEGER :: n
      INTEGER :: lastid
      INTEGER :: refcount
+     !$ INTEGER :: reading_count
+     !$ INTEGER(KIND=omp_lock_kind) :: read_lock, modify_lock, lock_lock
      TYPE(btree_node), POINTER :: root
   END TYPE btree_node_structure
 
@@ -56,6 +60,46 @@ MODULE btree_i8_k_i4_v
   END TYPE btree
 
 CONTAINS
+
+  SUBROUTINE read_lock (tree)
+    TYPE(btree), INTENT(INOUT)               :: tree
+
+!
+
+    !$ CALL OMP_SET_LOCK (tree%b%modify_lock)
+    !$ IF (tree%b%reading_count .EQ. 0) THEN
+    !$    CALL OMP_SET_LOCK (tree%b%read_lock)
+    !$ ENDIF
+    !$ tree%b%reading_count = tree%b%reading_count + 1
+    !$ CALL OMP_UNSET_LOCK (tree%b%modify_lock)
+  END SUBROUTINE read_lock
+  SUBROUTINE read_unlock (tree)
+    TYPE(btree), INTENT(INOUT)               :: tree
+
+!
+
+    !$OMP ATOMIC
+    !$ tree%b%reading_count = tree%b%reading_count - 1
+    !!$ IF (tree%b%reading_count .EQ. 0) THEN
+    !$ CALL OMP_UNSET_LOCK (tree%b%read_lock)
+    !!$ ENDIF
+  END SUBROUTINE read_unlock
+  SUBROUTINE modify_lock (tree)
+    TYPE(btree), INTENT(INOUT)               :: tree
+
+!
+
+    !$ CALL OMP_SET_LOCK (tree%b%modify_lock)
+    !$ CALL OMP_SET_LOCK (tree%b%read_lock)
+  END SUBROUTINE modify_lock
+  SUBROUTINE modify_unlock (tree)
+    TYPE(btree), INTENT(INOUT)               :: tree
+
+!
+
+    !$ CALL OMP_UNSET_LOCK (tree%b%modify_lock)
+    !$ CALL OMP_UNSET_LOCK (tree%b%read_lock)
+  END SUBROUTINE modify_unlock
 
   SUBROUTINE btree_new (tree, order)
     TYPE(btree), INTENT(OUT)                 :: tree
@@ -80,13 +124,19 @@ CONTAINS
     tree%b%n = 0
     NULLIFY(tree%b%root)
     tree%b%lastid = 0
+    !$ tree%b%reading_count = 0
+    !$ CALL OMP_INIT_LOCK (tree%b%modify_lock)
+    !$ CALL OMP_INIT_LOCK (tree%b%read_lock)
+    !$ CALL OMP_INIT_LOCK (tree%b%lock_lock)
   END SUBROUTINE btree_new
 
   FUNCTION btree_get_entries (tree) RESULT (num_entries)
-    TYPE(btree), INTENT(IN)                  :: tree
+    TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER                                  :: num_entries
 
+    !$ CALL read_lock (tree)
     num_entries = tree%b%n
+    !$ CALL read_unlock (tree)
   END FUNCTION btree_get_entries
 
 
@@ -101,6 +151,7 @@ CONTAINS
 
 !
 
+    !$ CALL modify_lock (tree)
     IF (ASSOCIATED (tree%b%root)) THEN
        pos = 0
        IF (PRESENT (keys) .AND. PRESENT (values)) THEN
@@ -111,6 +162,10 @@ CONTAINS
        ENDIF
     ENDIF
     NULLIFY (tree%b%root)
+    !$ CALL modify_unlock (tree)
+    !$ CALL OMP_DESTROY_LOCK (tree%b%modify_lock)
+    !$ CALL OMP_DESTROY_LOCK (tree%b%read_lock)
+    !$ CALL OMP_DESTROY_LOCK (tree%b%lock_lock)
   END SUBROUTINE btree_delete
 
   RECURSIVE SUBROUTINE btree_delete_node (node, pos, keys, values)
@@ -166,7 +221,9 @@ CONTAINS
     TYPE(btree_node), POINTER                :: node
 
 !
+!
 
+    !$ CALL modify_lock (tree)
     IF (PRESENT (exists)) THEN
        CALL btree_find_full (tree, key, node, position, ge_pos, short=.TRUE.)
        IF (position .GT. 0) THEN
@@ -181,6 +238,7 @@ CONTAINS
     ENDIF
     CALL btree_add_into (tree, node, key, value, before=ge_pos)
     tree%b%n = tree%b%n+1
+    !$ CALL modify_unlock (tree)
   END SUBROUTINE btree_add
 
 
@@ -409,6 +467,7 @@ CONTAINS
 !
 !
 
+    !$ CALL modify_lock (tree)
     CALL btree_find_full (tree, key, node, position, ge_pos, short=.TRUE.)
     IF (position .NE. 0) THEN
        IF (PRESENT (exists)) exists = .TRUE.
@@ -419,6 +478,7 @@ CONTAINS
        IF (PRESENT (exists)) exists = .FALSE.
        RETURN
     ENDIF
+    !$ CALL modify_unlock (tree)
   END SUBROUTINE btree_remove
 
 
@@ -781,7 +841,7 @@ CONTAINS
 
 
   SUBROUTINE btree_find (tree, key, value, exists)
-    TYPE(btree), INTENT(IN)                  :: tree
+    TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER(KIND=keyt), INTENT(IN)           :: key
     INTEGER(KIND=valt), INTENT(OUT)          :: value
     LOGICAL, INTENT(OUT), OPTIONAL           :: exists
@@ -792,7 +852,9 @@ CONTAINS
 !
 !
 
+    !$ CALL read_lock (tree)
     CALL btree_find_full (tree, key, node, position, short=.TRUE.)
+    !$ CALL read_unlock (tree)
     IF (PRESENT (exists)) THEN
        exists = position .GT. 0
     ENDIF
@@ -1103,7 +1165,7 @@ CONTAINS
 
 
   SUBROUTINE btree_print (tree)
-    TYPE(btree), INTENT(IN)                  :: tree
+    TYPE(btree), INTENT(INOUT)               :: tree
 
     INTEGER                                  :: count, max_leaf_level, &
                                                 min_leaf_level, num_nodes
@@ -1113,6 +1175,7 @@ CONTAINS
 !
 !
 
+    !$ CALL read_lock (tree)
     CALL btree_verify (tree)
     IF (ASSOCIATED (tree%b%root)) THEN
        printing = .FALSE.
@@ -1127,6 +1190,7 @@ CONTAINS
     ELSE
        ! WRITE(*,*)'Tree is empty.'
     ENDIF
+    !$ CALL read_unlock (tree)
   END SUBROUTINE btree_print
 
 
@@ -1210,7 +1274,7 @@ CONTAINS
 
 
   SUBROUTINE btree_verify (tree)
-    TYPE(btree), INTENT(IN)                  :: tree
+    TYPE(btree), INTENT(INOUT)               :: tree
 
     INTEGER                                  :: count, max_leaf_level, &
                                                 min_leaf_level, num_nodes
@@ -1221,6 +1285,7 @@ CONTAINS
 !
 !
 
+    !$ CALL read_lock (tree)
     printing = .FALSE.
     count = 0
     num_nodes = 0
@@ -1238,6 +1303,7 @@ CONTAINS
     ENDIF
     IF (min_leaf_level .NE. max_leaf_level) WRITE(*,*)'Error: unbalanced tree',min_leaf_level,max_leaf_level
     IF (tree%b%n .NE. count) WRITE(*,*)'Error: inconsistent number of elements',tree%b%n,count
+    !$ CALL read_unlock (tree)
   END SUBROUTINE btree_verify
 
 

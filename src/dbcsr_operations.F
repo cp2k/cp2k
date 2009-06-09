@@ -18,7 +18,8 @@ MODULE dbcsr_operations
                                              btree_delete,&
                                              btree_find,&
                                              btree_get_entries,&
-                                             btree_new
+                                             btree_new,&
+                                             btree_verify
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_mp_group,&
                                              dbcsr_mp_mynode,&
@@ -35,7 +36,7 @@ MODULE dbcsr_operations
   USE dbcsr_util,                      ONLY: &
        add_work_coordinate, dbcsr_create, dbcsr_destroy_array, &
        dbcsr_finalize, dbcsr_init, dbcsr_pack_meta, dbcsr_repoint_index, &
-       dbcsr_set_debug, dbcsr_unpack_i8_2i4, ensure_array_size
+       dbcsr_set_debug, dbcsr_unpack_i8_2i4, ensure_array_size, swap
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8
@@ -47,6 +48,9 @@ MODULE dbcsr_operations
                                              mp_window_create,&
                                              mp_window_destroy,&
                                              mp_window_fence
+
+  !$ USE OMP_LIB
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -822,28 +826,29 @@ CONTAINS
                                                 beta_new = 0.0_dp
 
     CHARACTER                                :: a_type, b_type
-    INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, b_blk, &
-      b_col, b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_col, c_nze, &
-      c_row, lda, ldb, lflop, timing_handle
+    INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
+      a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
+      b_col_size, b_nze, b_row, b_row_size, c_blk, c_blk_p, c_col, c_nze, &
+      c_row, lda, ldb, ldc, lflop, num_symmetries, stat, symmetry, &
+      timing_handle
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps
     INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
                                                 left_row_blk_size, &
                                                 right_col_blk_size, &
                                                 right_row_blk_size
-    LOGICAL                                  :: block_exists
+    LOGICAL                                  :: block_exists, tr_a, tr_b
     REAL(KIND=dp)                            :: beta, tstart, tstop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data, b_data, c_data
     TYPE(dbcsr_work_type)                    :: wm
 
-!.!INTEGER, DIMENSION(:), ALLOCATABLE   :: c_blk_ps
-
+    !$ INTEGER                           :: ithread, nthreads
+    !$ INTEGER(KIND=omp_lock_kind)       :: data_lock, index_lock
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
-    !IF (dbg) tstart = m_walltime ()
-    tstart = m_walltime ()
     wm = product%w
     DBG "Doing NN matrix multiplication",left%name,' x ',right%name
     DBG "Pre-mult blk sizes, data", wm%lastblk, wm%datasize
@@ -852,6 +857,7 @@ CONTAINS
     !IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
     !     product%nblkcols_total)
     lflop = 0
+    num_symmetries = 1
     left_row_blk_size => array_data (left%row_blk_size)
     left_col_blk_size => array_data (left%col_blk_size)
     right_row_blk_size => array_data (right%row_blk_size)
@@ -859,79 +865,171 @@ CONTAINS
     c_blk_p = wm%datasize + 1
     DBG 'A rows:',left%nblkrows_total
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
-    !CALL ensure_array_size(wm%data,&
-    !     ub=wm%datasize+left%nfullrows_total*right%nfullcols_total, error=error)
+    CALL ensure_array_size(wm%data,&
+         ub=wm%datasize+left%nfullrows_total*right%nfullcols_total, error=error)
+       !CALL ensure_array_size(wm%data,&
+       !     ub=wm%datasize+a_row_size*right%nfullcols_total &
+       !     * MAX(1, (left%nblkrows_total-a_row)/4), error=error)
+    !$OMP PARALLEL DEFAULT (SHARED) PRIVATE(a_row, a_col, a_blk,&
+    !$OMP                                   b_row, b_col, b_blk,&
+    !$OMP                                   c_row, c_col, c_blk,&
+    !$OMP                                   a_row_log, a_col_log,&
+    !$OMP                                   a_row_size_logical,&
+    !$OMP                                   a_col_size_logical,&
+    !$OMP                                   a_row_size, a_col_size, a_nze,&
+    !$OMP                                   b_row_size, b_col_size, b_nze, c_nze,&
+    !$OMP                                   lda, ldb, ldc,&
+    !$OMP                                   tr_a, tr_b,&
+    !$OMP                                   c_blk_ps,&
+    !$OMP                                   a_data, b_data, c_data,&
+    !$OMP                                   beta,&
+    !$OMP                                   a_type, b_type,&
+    !$OMP                                   symmetry,&
+    !$OMP                                   coordinate,&
+    !$OMP                                   offset,&
+    !$OMP                                   block_exists,&
+    !$OMP                                   tstart, tstop,&
+    !$OMP                                   ithread)&
+    !$OMP          REDUCTION (+: lflop)
+    !
+    !$ CALL OMP_INIT_LOCK (index_lock)
+    !$ CALL OMP_INIT_LOCK (data_lock)
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    !!$ WRITE (*,*)"Hello! I'm thread number", ithread
+    !$OMP SINGLE
+    !$ nthreads = OMP_GET_NUM_THREADS ()
+    !!$ WRITE (*,*)'And there are', nthreads, 'threads, from', ithread
+    !$OMP FLUSH (nthreads)
+    !$OMP END SINGLE
+    ! c_blk_ps contains the block pointers in the product's current row
+    ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
+    IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
+         product%nblkcols_total)
+    !
+    !$OMP DO
     DO a_row = 1, left%nblkrows_total
+       a_row_log = a_row
        DBG 'A row', a_row,' with #cols=',left%row_p(a_row+1)-left%row_p(a_row)
-       a_row_size = left_row_blk_size(a_row)
-       CALL ensure_array_size(wm%data,&
-            ub=wm%datasize+a_row_size*right%nfullcols_total &
-            * MAX(1, (left%nblkrows_total-a_row)/4), error=error)
+       a_row_size = left_row_blk_size(a_row) ! stored
+       c_blk_ps(:) = 0
        DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
-          a_col = left%col_i(a_blk)
-          DBG 'A col', a_col
-          b_row = a_col ; c_row = a_row
-          a_col_size = left_col_blk_size(a_col)
-          a_nze = a_row_size * a_col_size
-          b_row_size = a_col_size
-          a_data => left%data(ABS(left%blk_p(a_blk))&
-                             :ABS(left%blk_p(a_blk))+a_nze-1)
-          IF (left%blk_p(a_blk) .LT. 0) THEN
-             a_type = 'T'; lda = a_col_size
-          ELSE
-             a_type = 'N'; lda = a_row_size
-          ENDIF
-          DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
-             b_col = right%col_i(b_blk) ; c_col = b_col
-             DBG 'B col', b_col
-             b_col_size = right_col_blk_size(b_col)
-             b_nze = b_row_size * b_col_size
-             b_data => right%data(&
-                  ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
-             IF (right%blk_p(b_blk) .LT. 0) THEN
-                b_type = 'T'; ldb = b_col_size
+          DO symmetry = 1, num_symmetries
+             a_col = left%col_i(a_blk)
+             IF (a_col .EQ. a_row .AND. symmetry .GT. 1) CYCLE
+             a_col_size = left_col_blk_size(a_col) !stored
+             a_row_log = a_row
+             a_col_log = a_col
+             a_row_size_logical = a_row_size
+             a_col_size_logical = a_col_size
+             lda = a_row_size
+             ! For regular symmetric matrices
+             IF (symmetry .GT. 1) THEN
+                CALL swap (a_row_log, a_col_log)
+                CALL swap (a_row_size_logical, a_col_size_logical)
+                tr_a = .TRUE.
+                a_type = 'T'
              ELSE
-                b_type = 'N'; ldb = b_row_size
+                tr_a = .FALSE.
+                a_type = 'N'
              ENDIF
-             c_nze = a_row_size * b_col_size
-             ! If this c column does not yet exist, "allocate" it.
-             coordinate = make_coordinate_tuple (c_row, c_col)
-             CALL btree_find (wm%tree, coordinate, offset, block_exists)
-             !.!IF (c_blk_ps(c_col) .EQ. 0) THEN
-             IF (.NOT. block_exists) THEN
-                !.!c_blk_ps(c_col) = c_blk_p
-                !.!CALL add_work_coordinate(wm, c_row, c_col, c_blk_p, error=error)
-                offset = c_blk_p
-                CALL btree_add (wm%tree, coordinate, offset)
-                wm%lastblk = wm%lastblk + 1
-                c_blk_p = c_blk_p + c_nze
-                wm%datasize = wm%datasize + c_nze
-                beta = beta_new
-             ELSE
-                beta = beta_add
+             DBG 'A col', a_col, '=>',a_col_log
+             b_row = a_col_log
+             c_row = a_row_log
+             a_nze = a_row_size * a_col_size
+             a_data => left%data(ABS(left%blk_p(a_blk))&
+                  :ABS(left%blk_p(a_blk))+a_nze-1)
+             b_row_size = a_col_size_logical
+             ! For index-augmented matrices.
+             IF (left%blk_p(a_blk) .LT. 0) THEN
+                lda = a_col_size
+                a_type = 'T'
              ENDIF
-             !.!c_data => wm%data(c_blk_ps(c_col):c_blk_ps(c_col)+c_nze-1)
-             DBG 'offset:',offset,offset+c_nze-1,'of',wm%datasize,UBOUND(wm%data),'ex',block_exists
-             c_data => wm%data(offset:offset+c_nze-1)
-             IF (dbg) WRITE(*,&
-                  "(1X,A,A1,1X,A1,A,I6,A,F4.1,' (',I3,',',I3,')=(',I3,',',I3,')x(',I3,',',I3,')')")&
-                  !routineN//' DGEMM ',a_type,b_type,' at',c_blk_ps(c_col),' beta=', beta,&
-                  routineN//' DGEMM ',a_type,b_type,' at',offset,' beta=', beta,&
-                  c_row,c_col,a_row,a_col,b_row,b_col
-             CALL DGEMM(a_type, b_type, a_row_size, b_col_size, a_col_size,&
-                  alpha,&
-                  a_data, lda,&
-                  b_data, ldb, beta,&
-                  c_data, a_row_size)
-             lflop = lflop + a_row_size * b_col_size * a_row_size * 2.0_dp
-          ENDDO
+             DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
+                b_col = right%col_i(b_blk)
+                c_col = b_col
+                DBG 'B col', b_col
+                b_col_size = right_col_blk_size(b_col)
+                b_nze = b_row_size * b_col_size
+                b_data => right%data(&
+                     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
+                IF (right%blk_p(b_blk) .LT. 0) THEN
+                   b_type = 'T'
+                   ldb = b_col_size
+                ELSE
+                   b_type = 'N'
+                   ldb = b_row_size
+                ENDIF
+                c_nze = a_row_size * b_col_size
+                ! If this c column does not yet exist, "allocate" it.
+                coordinate = make_coordinate_tuple (c_row, c_col)
+                IF (c_blk_ps(c_col) .EQ. 0 .AND. .NOT. tr_a) THEN
+                   CALL btree_find (wm%tree, coordinate, offset, block_exists)
+                ELSE
+                   block_exists = .TRUE.
+                   offset = c_blk_ps(c_col)
+                ENDIF
+                IF (.NOT. block_exists) THEN
+                   !.!CALL add_work_coordinate(wm, c_row, c_col, c_blk_p, error=error)
+                   !$ CALL OMP_SET_LOCK (data_lock)
+                   offset = c_blk_p
+                   c_blk_p = c_blk_p + c_nze
+                   wm%datasize = wm%datasize + c_nze
+                   wm%lastblk = wm%lastblk + 1
+                   !$ CALL OMP_UNSET_LOCK (data_lock)
+                   CALL btree_add (wm%tree, coordinate, offset, block_exists,&
+                        existing_value = offset)
+                   !CALL btree_verify (index)
+                   IF (block_exists) THEN
+                      IF (dbg) WRITE(*,*)routineP//' EXISTS'
+                      ! We can not rewind c_blk_p!
+                      !$OMP ATOMIC
+                      wm%datasize = wm%datasize - c_nze
+                      !$OMP ATOMIC
+                      wm%lastblk = wm%lastblk - 1
+                   ENDIF
+                   c_blk_ps(c_col) = offset
+                   beta = beta_new
+                ELSE
+                   beta = beta_add
+                ENDIF
+                !offset = 1 + ithread * 4096
+                !.!c_data => wm%data(c_blk_ps(c_col):c_blk_ps(c_col)+c_nze-1)
+                DBG 'offset:',offset,offset+c_nze-1,'of',wm%datasize,UBOUND(wm%data),'ex',block_exists
+                !% CALL OMP_SET_LOCK (data_lock)
+                c_data => wm%data(offset:offset+c_nze-1)
+                !% CALL OMP_UNSET_LOCK (data_lock)
+                IF (dbg) WRITE(*,&
+                     "(1X,A,A1,1X,A1,A,I6,A,F4.1,' (',I3,',',I3,')=(',I3,',',I3,')x(',I3,',',I3,')')")&
+                                !routineN//' DGEMM ',a_type,b_type,' at',c_blk_ps(c_col),' beta=', beta,&
+                     routineN//' DGEMM ',a_type,b_type,' at',offset,' beta=', beta,&
+                     c_row,c_col,a_row,a_col,b_row,b_col
+                CALL DGEMM(a_type, b_type,&
+                     a_row_size_logical, b_col_size, a_col_size_logical,&
+                     alpha,&
+                     a_data, lda,&
+                     b_data, ldb, beta,&
+                     c_data, a_row_size_logical)
+                !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
+                !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
+                lflop = lflop + a_row_size * b_col_size * a_row_size * 2.0d0
+             ENDDO ! b
+          ENDDO ! symmetry
        ENDDO ! a_col
     ENDDO ! a_row
+
+!    !$OMP END DO
+    !$ CALL OMP_DESTROY_LOCK (index_lock)
+    !$ CALL OMP_DESTROY_LOCK (data_lock)
+    DEALLOCATE (c_blk_ps)
+    !$OMP END PARALLEL
     ELSE
        DBG 'One of the matrices is empty!'
     ENDIF
-    !.!DEALLOCATE (c_blk_ps)
+    IF (dbg) CALL btree_verify (wm%tree)
+    !DEALLOCATE (c_blk_ps)
+    !WRITE(*,*)'NEW TOTAL TIME', nanotot, REAL(nanotot)/(2.3*REAL(10**6)),'ms'
     DBG "Post-mult blk sizes, data", wm%lastblk, wm%datasize
+    !dbg = .TRUE.
     IF (dbg) THEN
        tstop = m_walltime ()
        IF (tstop-tstart .NE. 0) THEN
@@ -943,6 +1041,7 @@ CONTAINS
     product%w = wm
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_nn_mult
+
 
   ELEMENTAL FUNCTION make_coordinate_tuple (most, least) RESULT (tuple)
     INTEGER, INTENT(IN)                      :: most, least
