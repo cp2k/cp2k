@@ -3481,7 +3481,7 @@ CONTAINS
        CALL dbcsr_init (ums%mats(row_rep), error)
        CALL dbcsr_create(ums%mats(row_rep), 'norm '//sm%name, sm%dist,&
             'N', sm%row_blk_size, sm%col_blk_size,&
-            0, 0, error=error)
+            0, 0, error=error, special=.TRUE.)
     ENDDO
     ! Count initial sizes for sending.
     DBG 'A'

@@ -4,13 +4,52 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief   Wrapper for various memory allocation methods and bindings
+!> \brief Wrapper for various memory allocation methods and bindings
+!> \par Purpose
+!>       An MPI implementation may require memory allocation throught its own
+!>      interface for remote memory access. Using its memory allocation may
+!>      also be more efficient for other, non-RMA routines.
+!> \par Choices
+!>      There are four possible memory (de)allocation calling scenarios
+!>      selected by compile-time options.
+!>      <ol>
+!> <li> By default memory management is not handled by MPI but regular
+!>           ALLOCATE and DEALLOCATE statements.
+!> <li> If __cray_pointers is declared, then the MPI MPI_ALLOC_MEM and
+!>            MPI_FREE_MEM routine is called through its default
+!>            binding as present in mpif.h, but the fortran compiler
+!>            must support the Cray pointers extension.
+!> <li> If __c_bindings and __mpi_f_bindings are declared, then the
+!>           allocation is performed by a call to the assumed binding
+!>           MPI_ALLOC_MEM_; this name can be overidden with the
+!>           __MPI_F_ALLOC_DECL declaration. Deallocation is through
+!>           the default binding MPI_FREE_MEM as present in
+!>           mpif.h. This option is a type-safe alternative to
+!>           CRAY-pointers.
+!> <li> If __c_bindings and __mpi_c_bindings are declared, then the
+!>           allocation is performed by a direct call to the
+!>           mpi_alloc_mem C function. While in this case the function
+!>           name should exist in a correctly-linked program, the
+!>           parameter types are not guaranteed to match the ones
+!>           declared in the C header.
+!>      </ol>
+!> \par Multiple declarations
+!>      In case of multiple declarations, Cray pointers are preferred
+!>      to the fortran or C bindings using the C binding interface. In
+!>      case the C binding interface is used, the fortran binding is
+!>      preferred due to its type safety.
+!> \par Suggested choice
+!>      The suggested choice is either Cray pointers or __c_bindings
+!>      and __mpi_f_bindings. The routines themselves are meant to be
+!>      called from the mp_allocate and mp_deallocate routines
+!>      declared in message_passing.F
 !> \author  Urban Borstnik
 !> \date    2009-05-12
-!> \version 1.0
+!> \version 1.1
 !>
 !> <b>Modification history:</b>
-!> - Created
+!> - Created 2009-05-12
+!> - 2009-06-09 Fixes for the C interface to the C routines.
 ! *****************************************************************************
 
 MODULE c_mpi_calls
@@ -20,14 +59,14 @@ MODULE c_mpi_calls
 #undef __c_bindings
 #endif
 
-! Can not use any bindings if we can not use bindings at all
+! Do not use fortran or C bindings if we can not use C bindings at all.
 #ifndef __c_bindings
 #undef __mpi_f_bindings
 #undef __mpi_c_bindings
 #endif
 
 ! Can only use fortran or C bindings, not both. fortran takes precedence
-#if !defined(__mpi_f_bindings) && !defined(__mpi_f_bindings)
+#ifdef __c_bindings && !defined(__mpi_f_bindings) && !defined(__mpi_c_bindings)
 #define __mpi_f_bindings
 #endif
 
@@ -58,6 +97,7 @@ MODULE c_mpi_calls
 #endif
 
 #ifdef __c_bindings
+
 #ifndef __mpi_f_bindings
   INTERFACE
     !> We assume that the type for the argument size corresponds to intptr_t.
@@ -71,16 +111,6 @@ MODULE c_mpi_calls
       TYPE(C_PTR), INTENT(INOUT)                        :: baseptr
       INTEGER(KIND=C_INT)                               :: res
     END FUNCTION mpi_alloc_mem_c
-  END INTERFACE
-
-  INTERFACE
-    FUNCTION mpi_free_mem_c(baseptr)&
-         RESULT(res) BIND(C, name="MPI_Free_mem")
-      USE ISO_C_BINDING
-      INCLUDE "mpif.h"
-      TYPE(C_PTR), INTENT(IN)                           :: baseptr
-      INTEGER(KIND=C_INT)                               :: res
-    END FUNCTION mpi_free_mem_c
   END INTERFACE
 
 #else /* !__mpi_f_bindings */
@@ -115,6 +145,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Points a FORTRAN 90 pointer to an existing array, integer version
+!> \par It is intended that the input array is aliased to a Cray pointer.
 !> \author UB
 !> \param[in] iarray     data array
 !> \param fp             pointer to assign
@@ -129,6 +160,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Points a FORTRAN 90 pointer to an existing array, double version
+!> \par It is intended that the input array is aliased to a Cray pointer.
 !> \author UB
 !> \param[in] darray     data array
 !> \param fp             pointer to assign
@@ -164,12 +196,12 @@ CONTAINS
      INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
      INTEGER                            :: mp_info, mp_res
 #endif
-#else
+#else /* (__c_bindings) */
      INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
      INTEGER                            :: mp_info, mp_res
      INTEGER                            :: dynmem(1:*)
      POINTER (icp, dynmem)
-#endif
+#endif /* (__c_bindings) */
      INTEGER                  :: integer_size, length, ierr
 
      length = MAX(len,1)
@@ -179,10 +211,13 @@ CONTAINS
      mp_info = MPI_INFO_NULL
 #ifdef __c_bindings
 #ifndef __mpi_f_bindings
+     WRITE(*,*)'Using C bindings'
      mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
 #else
+     WRITE(*,*)'Using fortran bindings'
      CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
 #endif
+     WRITE(*,*)'base ptr',mp_baseptr
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
@@ -237,6 +272,7 @@ CONTAINS
 #else
      CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
 #endif
+     WRITE(*,*)'base ptr',mp_baseptr,length
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
@@ -261,25 +297,9 @@ CONTAINS
      INTEGER, DIMENSION(:), POINTER        :: DATA
      INTEGER, INTENT(OUT), OPTIONAL        :: stat
      
-#if defined(__c_bindings) && !defined (__mpi_f_bindings)
-     INTEGER, POINTER               :: felement
-     INTEGER(KIND=C_INT)            :: mp_res
-     TYPE(C_PTR)                    :: mp_baseptr
-#else
      INTEGER                        :: mp_res
-#endif
 
-#if (defined __c_bindings) && !defined(__mpi_f_bindings)
-     IF (SIZE (DATA) .GT. 0) THEN
-        felement => DATA(1)
-        mp_baseptr = C_LOC(felement)
-        mp_res = mpi_free_mem_c(mp_baseptr)
-     ELSE
-        mp_res = 0
-     ENDIF
-#else
-     CALL MPI_FREE_MEM(DATA, mp_res)
-#endif
+     CALL MPI_FREE_MEM(data, mp_res)
      !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_i
@@ -295,26 +315,11 @@ CONTAINS
   SUBROUTINE mp_free_mem_d(DATA, stat)
      REAL(KIND=dp), DIMENSION(:), POINTER  :: DATA
      INTEGER, INTENT(OUT), OPTIONAL        :: stat
-#if defined(__c_bindings) && !defined (__mpi_f_bindings)
-     REAL(KIND=dp), POINTER         :: felement
-     INTEGER(KIND=C_INT)            :: mp_res
-     TYPE(C_PTR)                    :: mp_baseptr
-#else
+     
      INTEGER                        :: mp_res
-#endif
 
-#if (defined __c_bindings) && !defined(__mpi_f_bindings)
-     IF (SIZE (DATA) .GT. 0) THEN
-        felement => DATA(1)
-        mp_baseptr = C_LOC(felement)
-        mp_res = mpi_free_mem_c(mp_baseptr)
-     ELSE
-        mp_res = 0
-     ENDIF
-#else
-     CALL MPI_FREE_MEM(DATA, mp_res)
-#endif
-     !write(6,*)'double free', ASSOCIATED(data), 'res=', mp_res
+     CALL MPI_FREE_MEM(data, mp_res)
+     !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_d
 
