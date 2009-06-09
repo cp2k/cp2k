@@ -24,6 +24,7 @@ MODULE hfx_load_balance_methods
   USE message_passing,                 ONLY: mp_isendrecv,&
                                              mp_max,&
                                              mp_sum,&
+                                             mp_sum_i8,&
                                              mp_sync,&
                                              mp_waitall
   USE orbital_pointers
@@ -202,6 +203,7 @@ MODULE hfx_load_balance_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_energy', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=512)                       :: error_msg
     INTEGER :: block_size, data_from, dest, handle, handle_inner, i, &
       i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, &
       i_set_list_ij_stop, i_set_list_kl, i_set_list_kl_start, &
@@ -210,17 +212,21 @@ MODULE hfx_load_balance_methods
       latom, latom_block, lkind, lset, my_process_id, natom, nbins, req(2), &
       source, stat
     INTEGER(int_8) :: atom_block, current_counter, distribution_counter_end, &
-      distribution_counter_start, int_per_cpu, mepos, n_processes, nblocks, &
-      ncpu, restore_counter, tmp_block, total_integrals
+      distribution_counter_start, global_quartet_counter, int_per_cpu, &
+      local_quartet_counter, mepos, n_processes, nblocks, ncpu, &
+      restore_counter, tmp_block, total_integrals
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
       SAVE                                   :: cost_matrix
+    INTEGER(int_8), SAVE                     :: shm_global_quartet_counter, &
+                                                shm_local_quartet_counter
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, &
+                                                last_bin_needs_to_be_filled
     REAL(dp) :: coeffs_kind_max0, log10_eps_schwarz, max_val1, max_val2, &
       omega2Inv, pmax_entry, ra(3), rab2, rb(3), rc(3), rcd2, rd(3)
     TYPE(hfx_distribution), DIMENSION(:), &
@@ -413,6 +419,9 @@ MODULE hfx_load_balance_methods
       distribution_counter_end = 0
       ibin = 1
 
+      global_quartet_counter = 0
+      local_quartet_counter = 0
+      last_bin_needs_to_be_filled = .FALSE.
       DO atom_block = my_process_id,nblocks**4-1,n_processes
         latom_block = MODULO(atom_block,nblocks)+1
         tmp_block = atom_block/nblocks
@@ -425,6 +434,8 @@ MODULE hfx_load_balance_methods
         IF(jatom_block<iatom_block) CYCLE
 
         distribution_counter_end = distribution_counter_end + 1
+        global_quartet_counter = global_quartet_counter + 1
+        last_bin_needs_to_be_filled = .TRUE.
 
         IF(binned_dist(ibin)%istart == -1_int_8 ) binned_dist(ibin)%istart = atom_block
         IF(binned_dist(ibin)%jstart == 0_int_8 ) binned_dist(ibin)%jstart = jatom_block
@@ -518,13 +529,18 @@ MODULE hfx_load_balance_methods
         ENDDO ! i_list_ij
 
         IF( current_counter >= int_per_cpu) THEN
-          binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
+          IF( ibin==nbins) THEN
+            binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
+                               distribution_counter_end - distribution_counter_start + 1
+          ELSE
+            binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
+          END IF
           binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
-          ! protect against int_per_cpu==0 and possibly roundoff
           ibin = MIN(ibin + 1,nbins)
           distribution_counter_start = distribution_counter_end + 1
           restore_counter = current_counter
           current_counter = 0
+          last_bin_needs_to_be_filled = .FALSE.
         END IF
       ENDDO
 
@@ -535,10 +551,48 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
       !! Fill the last bin if necessary
-      IF( current_counter /= 0 ) THEN  
+      IF( last_bin_needs_to_be_filled ) THEN
         binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
-        binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
+        IF( ibin == nbins ) THEN
+          binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
+                                                   distribution_counter_end-distribution_counter_start+1
+        ELSE
+          binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
+        END IF
       END IF
+
+      !! Sanity-Check
+      DO ibin=1,nbins
+        local_quartet_counter = local_quartet_counter + binned_dist(ibin)%number_of_atom_quartets
+      END DO
+!$OMP BARRIER
+!$OMP MASTER
+      shm_local_quartet_counter = 0
+      shm_global_quartet_counter = 0
+!$OMP END MASTER
+!$OMP BARRIER
+!$OMP ATOMIC
+      shm_local_quartet_counter = shm_local_quartet_counter + local_quartet_counter
+!$OMP ATOMIC
+      shm_global_quartet_counter = shm_global_quartet_counter + global_quartet_counter
+
+!$OMP BARRIER
+!$OMP MASTER
+      CALL mp_sum_i8(shm_local_quartet_counter, para_env%group)
+      CALL mp_sum_i8(shm_global_quartet_counter, para_env%group)
+      IF(para_env%mepos == 0 ) THEN
+        IF( shm_local_quartet_counter /= shm_global_quartet_counter ) THEN
+          WRITE(error_msg,'(A,I0,A,I0,A)') "HFX Sanity check for parallel distribution failed. "//&
+                "Number of local quartets (", shm_local_quartet_counter, &
+                ") and number of global quartets (", shm_global_quartet_counter,&
+                ") are different. Please send in a bug report."
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                         error_msg,&
+                         error,&
+                         only_ionode=.TRUE.)
+        END IF
+      END IF 
+!$OMP END MASTER
 
       !! store the original cpu_id
       binned_dist(:)%original_cpu_id = my_process_id + 1 !para_env%mepos + 1
@@ -823,6 +877,7 @@ MODULE hfx_load_balance_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_forces', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=512)                       :: error_msg
     INTEGER :: block_size, data_from, dest, i, i_list_ij, i_list_kl, &
       i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl, &
       i_set_list_kl_start, i_set_list_kl_stop, iatom, iatom_block, ibin, &
@@ -830,17 +885,21 @@ MODULE hfx_load_balance_methods
       katom_block, kkind, kset, latom, latom_block, lkind, lset, &
       my_process_id, natom, nbins, req(2), source, stat
     INTEGER(int_8) :: atom_block, current_counter, distribution_counter_end, &
-      distribution_counter_start, int_per_cpu, mepos, n_processes, nblocks, &
-      ncpu, restore_counter, tmp_block, total_integrals
+      distribution_counter_start, global_quartet_counter, int_per_cpu, &
+      local_quartet_counter, mepos, n_processes, nblocks, ncpu, &
+      restore_counter, tmp_block, total_integrals
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
       SAVE                                   :: cost_matrix
+    INTEGER(int_8), SAVE                     :: shm_global_quartet_counter, &
+                                                shm_local_quartet_counter
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, &
+                                                last_bin_needs_to_be_filled
     REAL(dp) :: coeffs_kind_max0, log10_eps_schwarz, log10_pmax, log_2, &
       max_val1, max_val2, omega2Inv, ra(3), rab2, rb(3), rc(3), rcd2, rd(3)
     TYPE(hfx_distribution), DIMENSION(:), &
@@ -1005,6 +1064,11 @@ MODULE hfx_load_balance_methods
       distribution_counter_start = 1
       distribution_counter_end = 0
       ibin = 1
+
+      global_quartet_counter = 0
+      local_quartet_counter = 0
+      last_bin_needs_to_be_filled = .FALSE.
+
       DO atom_block = my_process_id,nblocks**4-1,n_processes
         latom_block = MODULO(atom_block,nblocks)+1
         tmp_block = atom_block/nblocks
@@ -1017,6 +1081,8 @@ MODULE hfx_load_balance_methods
         IF(jatom_block<iatom_block) CYCLE
 
         distribution_counter_end = distribution_counter_end + 1
+        global_quartet_counter = global_quartet_counter + 1
+        last_bin_needs_to_be_filled = .TRUE.
 
         IF(binned_dist(ibin)%istart == -1_int_8 ) binned_dist(ibin)%istart = atom_block
         IF(binned_dist(ibin)%jstart == 0_int_8 ) binned_dist(ibin)%jstart = jatom_block
@@ -1106,22 +1172,64 @@ MODULE hfx_load_balance_methods
           ENDDO
         ENDDO
         IF( current_counter >= int_per_cpu) THEN
-          binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
+          IF( ibin==nbins) THEN
+            binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
+                               distribution_counter_end - distribution_counter_start + 1
+          ELSE
+            binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
+          END IF
           binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
-          ! protect against int_per_cpu==0 and possibly roundoff
           ibin = MIN(ibin + 1,nbins)
           distribution_counter_start = distribution_counter_end + 1
           restore_counter = current_counter
           current_counter = 0
+          last_bin_needs_to_be_filled = .FALSE.
         END IF
       ENDDO
 
       !! Fill the last bin if necessary
-      IF( current_counter /= 0 ) THEN  
+      IF( last_bin_needs_to_be_filled ) THEN
         binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
-        binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
+        IF( ibin == nbins ) THEN
+          binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
+                                                   distribution_counter_end-distribution_counter_start+1
+        ELSE
+          binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
+        END IF
       END IF
 
+      !! Sanity-Check
+      DO ibin=1,nbins
+        local_quartet_counter = local_quartet_counter + binned_dist(ibin)%number_of_atom_quartets
+      END DO
+!$OMP BARRIER
+!$OMP MASTER
+      shm_local_quartet_counter = 0
+      shm_global_quartet_counter = 0
+!$OMP END MASTER
+!$OMP BARRIER
+!$OMP ATOMIC
+      shm_local_quartet_counter = shm_local_quartet_counter + local_quartet_counter
+!$OMP ATOMIC
+      shm_global_quartet_counter = shm_global_quartet_counter + global_quartet_counter
+
+!$OMP BARRIER
+!$OMP MASTER
+      CALL mp_sum_i8(shm_local_quartet_counter, para_env%group)
+      CALL mp_sum_i8(shm_global_quartet_counter, para_env%group)
+      IF(para_env%mepos == 0 ) THEN
+        IF( shm_local_quartet_counter /= shm_global_quartet_counter ) THEN
+          WRITE(error_msg,'(A,I0,A,I0,A)') "HFX Sanity check for parallel distribution failed. "//&
+                "Number of local quartets (", shm_local_quartet_counter, &
+                ") and number of global quartets (", shm_global_quartet_counter,&
+                ") are different. Please send in a bug report."
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                         error_msg,&
+                         error,&
+                         only_ionode=.TRUE.)
+        END IF
+      END IF 
+!$OMP END MASTER
       !! store the original cpu_di
       binned_dist(:)%original_cpu_id = my_process_id + 1 !para_env%mepos + 1
     
