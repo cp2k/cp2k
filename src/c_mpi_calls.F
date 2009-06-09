@@ -66,7 +66,7 @@ MODULE c_mpi_calls
 #endif
 
 ! Can only use fortran or C bindings, not both. fortran takes precedence
-#ifdef __c_bindings && !defined(__mpi_f_bindings) && !defined(__mpi_c_bindings)
+#if defined(__c_bindings) && !defined(__mpi_f_bindings) && !defined(__mpi_c_bindings)
 #define __mpi_f_bindings
 #endif
 
