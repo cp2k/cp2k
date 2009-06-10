@@ -581,17 +581,14 @@ CONTAINS
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: cmult_p
     TYPE(cp_cfm_type), POINTER               :: Dpq, fin_p, Npq, T1
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mult_p
     TYPE(cp_fm_type), POINTER                :: T2, Tres
 
-    p=2*npade
-    q=2*npade
+    p=npade
+    q=npade
     
     CALL cp_fm_get_info(im_part,local_data=local_data_im,ncol_local=ldim,nrow_global=ndim,error=error)
     square_fac=2.0_dp**REAL(nsquare,dp)
     ALLOCATE(cmult_p(2))
-    ALLOCATE(mult_p(2))
 
     CALL cp_cfm_create(Dpq,&
                        matrix_struct=im_part%matrix_struct,&
@@ -623,8 +620,6 @@ CONTAINS
     END DO
 
     CALL cp_fm_to_fm(im_part,T2,error)
-    mult_p(1)%matrix=>T2
-    mult_p(2)%matrix=>Tres
 
     CALL cp_cfm_set_all(Npq,zero,one,error)
     CALL cp_cfm_set_all(Dpq,zero,one,error)
@@ -638,29 +633,27 @@ CONTAINS
 
     
     IF(npade.GT.2)THEN
-       DO j=1,npade
+       DO j=1,FLOOR(npade/2.0_dp)
           i=2*j
           my_fac=(-1.0_dp)**j
           IF(i.LE.p)scaleN=my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i ))
-          scaleD=my_fac*(-1.0_dp)**i  * fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,rone,im_part,mult_p(MOD(i,2)+1)%matrix,rzero,&
-               mult_p(MOD(i+1,2)+1)%matrix,error)
+          scaleD=my_fac* fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,rone,im_part,T2,rzero,Tres,error)
           
           DO k=1,ldim
-             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX( mult_p(MOD(i+1,2)+1)%matrix%local_data(:,k),0.0_dp,dp)
-             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX( mult_p(MOD(i+1,2)+1)%matrix%local_data(:,k),0.0_dp,dp)
+             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX( Tres%local_data(:,k),0.0_dp,dp)
+             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX( Tres%local_data(:,k),0.0_dp,dp)
           END DO
 
           IF(2*j+1.le.q)THEN
           i=2*j+1
           IF(i.LE.p)scaleN=my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i ))
-          scaleD=my_fac*(-1.0_dp)**i  * fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,rone,im_part,mult_p(MOD(i+1,2)+1)%matrix,rzero,&
-               mult_p(MOD(i,2)+1)%matrix,error)
+          scaleD=-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,rone,im_part,Tres,rzero,T2,error)
 
           DO k=1,ldim
-             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX(0.0_dp, mult_p(MOD(i,2)+1)%matrix%local_data(:,k),dp)
-             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX(0.0_dp, mult_p(MOD(i,2)+1)%matrix%local_data(:,k),dp)
+             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX(0.0_dp, T2%local_data(:,k),dp)
+             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX(0.0_dp, T2%local_data(:,k),dp)
           END DO
           ENDIF
        END DO
@@ -690,7 +683,6 @@ CONTAINS
     CALL cp_cfm_release(T1,error)
     CALL cp_fm_release(T2,error)
     CALL cp_fm_release(Tres,error)
-    DEALLOCATE(mult_p)
     DEALLOCATE(cmult_p)
   END SUBROUTINE exp_pade_only_imaginary
   
