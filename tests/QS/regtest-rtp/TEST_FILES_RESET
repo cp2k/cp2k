@@ -8,3 +8,5 @@ H2-emd_restart.inp
 H2-emd_restart-1.inp
 H2-rtp-efield.inp
 H2-emd-efield.inp
+#
+H2-rtp_ETRS_PADE.inp
