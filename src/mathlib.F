@@ -26,9 +26,9 @@ MODULE mathlib
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mathlib'
-  REAL(KIND = dp), PARAMETER           :: eps_geo = 1.0E-6_dp
+  REAL(KIND=dp), PARAMETER             :: eps_geo = 1.0E-6_dp
 
-  ! *** Public subroutines ***
+  ! Public subroutines
 
   PUBLIC :: build_rotmat,&
             jacobi,&
@@ -39,7 +39,7 @@ MODULE mathlib
             symmetrize_matrix,&
             unit_matrix
 
-  ! *** Public functions ***
+  ! Public functions
 
   PUBLIC :: angle,&
             binomial,&
@@ -59,22 +59,31 @@ MODULE mathlib
             expint
 
   INTERFACE det_3x3
-     MODULE PROCEDURE det_3x3_1,det_3x3_2
+    MODULE PROCEDURE det_3x3_1,det_3x3_2
+  END INTERFACE
+
+  INTERFACE invert_matrix
+    MODULE PROCEDURE invert_matrix_d,invert_matrix_z
   END INTERFACE
 
   INTERFACE set_diag
-     MODULE PROCEDURE set_diag_scalar,set_diag_vector
+    MODULE PROCEDURE set_diag_scalar_d,set_diag_scalar_z,&
+                     set_diag_vector_d,set_diag_vector_z
   END INTERFACE
 
   INTERFACE swap
     MODULE PROCEDURE swap_scalar,swap_vector
   END INTERFACE
 
+  INTERFACE unit_matrix
+    MODULE PROCEDURE unit_matrix_d,unit_matrix_z
+  END INTERFACE
+
 CONTAINS
 
 ! *****************************************************************************
 !> \brief  Calculation of the angle between the vectors a and b.
-!>         The angle is returned in radians. 
+!>         The angle is returned in radians.
 !> \author  MK
 !> \date    14.10.1998
 !> \version 1.0
@@ -308,7 +317,7 @@ CONTAINS
 !> \brief   Returns the dihedral angle, i.e. the angle between the planes
 !>          defined by the vectors (-ab,bc) and (cd,-bc).
 !>          The dihedral angle is returned in radians.
-!> \author  MK  
+!> \author  MK
 !> \date    13.03.2004
 !> \version 1.0
 ! *****************************************************************************
@@ -358,7 +367,7 @@ CONTAINS
   END FUNCTION gauss_exponent
 
 ! *****************************************************************************
-!> \brief   Return the diagonal elements of matrix a as a vector. 
+!> \brief   Return the diagonal elements of matrix a as a vector.
 !> \author  MK
 !> \date    20.11.1998
 !> \version 1.0
@@ -401,7 +410,7 @@ CONTAINS
 
     a_inv(1,2) = (a(1,3)*a(3,2) - a(3,3)*a(1,2))*det_a
     a_inv(2,2) = (a(1,1)*a(3,3) - a(3,1)*a(1,3))*det_a
-    a_inv(3,2) = (a(1,2)*a(3,1) - a(3,2)*a(1,1))*det_a   
+    a_inv(3,2) = (a(1,2)*a(3,1) - a(3,2)*a(1,1))*det_a
 
     a_inv(1,3) = (a(1,2)*a(2,3) - a(2,2)*a(1,3))*det_a
     a_inv(2,3) = (a(1,3)*a(2,1) - a(2,3)*a(1,1))*det_a
@@ -410,12 +419,12 @@ CONTAINS
   END FUNCTION inv_3x3
 
 ! *****************************************************************************
-!> \brief  Compute the inverse of the n by n matrix a using the LAPACK
-!>         library. 
-!> \author  MK
-!> \date    23.03.1999
+!> \brief  Compute the inverse of the n by n real matrix a using the LAPACK
+!>         library
+!> \author MK
+!> \date   23.03.1999
 !> \par Variables
-!>       - a        : Matrix to be inverted (input).
+!>       - a        : Real matrix to be inverted (input).
 !>       - a_inverse: Inverse of the matrix a (output).
 !>       - a_lu     : LU factorization of matrix a.
 !>       - a_norm   : Norm of matrix a.
@@ -425,7 +434,7 @@ CONTAINS
 !>       -            "T" => invert transpose(a)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE invert_matrix(a,a_inverse,eval_error,option, error)
+  SUBROUTINE invert_matrix_d(a,a_inverse,eval_error,option,error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: a
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -434,7 +443,7 @@ CONTAINS
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: option
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'invert_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_matrix_d', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: norm, trans
@@ -448,39 +457,38 @@ CONTAINS
       DIMENSION(:, :)                        :: a_lu, b
     REAL(KIND=dp), EXTERNAL                  :: dlange
 
-!   *** Externals (LAPACK 3.0) ***
-
     EXTERNAL dgecon,dgerfs,dgetrf,dgetrs
 
     failure = .FALSE.
-    !   *** Check for optional parameter ***
+
+    ! Check for optional parameter
     IF (PRESENT(option)) THEN
-       trans = option
+      trans = option
     ELSE
-       trans = "N"
+      trans = "N"
     END IF
 
-    !   *** Get the dimension of matrix a ***
+    ! Get the dimension of matrix a
     n = SIZE(a,1)
 
-    !   *** Check array dimensions ***
+    ! Check array dimensions
     IF (n == 0) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "Matrix to be inverted of zero size")
-    ENDIF
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Matrix to be inverted of zero size")
+    END IF
 
     IF (n /= SIZE(a,2)) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "Check the array bounds of parameter #1")
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Check the array bounds of parameter #1")
     END IF
 
     IF ((n /= SIZE(a_inverse,1)).OR.&
-         (n /= SIZE(a_inverse,2))) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "Check the array bounds of parameter #2")
+        (n /= SIZE(a_inverse,2))) THEN
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Check the array bounds of parameter #2")
     END IF
 
-    !   *** Allocate work storage ***
+    ! Allocate work storage
     ALLOCATE (a_lu(n,n),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -495,86 +503,85 @@ CONTAINS
 
     ALLOCATE (ipiv(n),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     ALLOCATE (iwork(n),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE (work(4*n),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     a_lu(1:n,1:n) = a(1:n,1:n)
 
-    !   *** Compute the LU factorization of the matrix a ***
+    ! Compute the LU factorization of the matrix a
     CALL dgetrf(n,n,a_lu,n,ipiv,info)
 
     IF (info /= 0) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "The LU factorization in dgetrf failed")
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "The LU factorization in dgetrf failed")
     END IF
 
-    !   *** Compute the norm of the matrix a ***
+    ! Compute the norm of the matrix a
 
     IF (trans == "N") THEN
-       norm = '1'
+      norm = '1'
     ELSE
-       norm = 'I'
+      norm = 'I'
     END IF
 
     a_norm = dlange(norm,n,n,a,n,work)
 
-    !   *** Compute the reciprocal of the condition number of a ***
+    ! Compute the reciprocal of the condition number of a
 
     CALL dgecon(norm,n,a_lu,n,a_norm,r_cond,work,iwork,info)
 
     IF (info /= 0) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "The computation of the condition number in "//&
-            "dgecon failed")
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "The computation of the condition number in "//&
+                        "dgecon failed")
     END IF
 
     IF (r_cond < EPSILON(0.0_dp)) THEN
-       WRITE (message,"(A,ES10.3)") "R_COND =",r_cond
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "Bad condition number "//TRIM(message)//" (smaller than the machine "//&
-            "working precision)")
+      WRITE (message,"(A,ES10.3)") "R_COND =",r_cond
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Bad condition number "//TRIM(message)//" (smaller than the machine "//&
+                        "working precision)")
     END IF
 
-    !   *** Solve a system of linear equations using ***
-    !   *** the LU factorization computed by dgetrf  ***
+    ! Solve a system of linear equations using the LU factorization computed by dgetrf
 
     CALL unit_matrix(a_inverse)
 
     CALL dgetrs(trans,n,n,a_lu,n,ipiv,a_inverse,n,info)
 
     IF (info /= 0) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "Solving the system of linear equations in dgetrs "//&
-            "failed")
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Solving the system of linear equations in dgetrs "//&
+                        "failed")
     END IF
 
-    !   *** Improve the computed solution iteratively ***
+    ! Improve the computed solution iteratively
     CALL unit_matrix(b) ! Initialize right-hand sides
 
     eval_error = 0.0_dp
 
     DO iter=1,10
 
-       CALL dgerfs(trans,n,n,a,n,a_lu,n,ipiv,b,n,a_inverse,n,ferr,berr,&
-            work,iwork,info)
+      CALL dgerfs(trans,n,n,a,n,a_lu,n,ipiv,b,n,a_inverse,n,ferr,berr,&
+                  work,iwork,info)
 
-       IF (info /= 0) THEN
-          CALL stop_program(moduleN,routineN,__LINE__,&
-               "Improving the computed solution in dgerfs failed")
-       END IF
+      IF (info /= 0) THEN
+        CALL stop_program(moduleN,routineN,__LINE__,&
+                          "Improving the computed solution in dgerfs failed")
+      END IF
 
-       old_eval_error = eval_error
-       eval_error = MAXVAL(ferr)
+      old_eval_error = eval_error
+      eval_error = MAXVAL(ferr)
 
-       IF (ABS(eval_error - old_eval_error) <= EPSILON(1.0_dp)) EXIT
+      IF (ABS(eval_error - old_eval_error) <= EPSILON(1.0_dp)) EXIT
 
     END DO
 
-    !   *** Release work storage ***
+    ! Release work storage
     DEALLOCATE (work,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (iwork,STAT=stat)
@@ -589,14 +596,197 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (a_lu,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-  END SUBROUTINE invert_matrix
+
+  END SUBROUTINE invert_matrix_d
+
+! *****************************************************************************
+!> \brief  Compute the inverse of the n by n complex matrix a using the LAPACK
+!>         library
+!> \author MK
+!> \date   08.06.2009
+!> \par Variables
+!>       - a        : Complex matrix to be inverted (input).
+!>       - a_inverse: Inverse of the matrix a (output).
+!>       - a_lu     : LU factorization of matrix a.
+!>       - a_norm   : Norm of matrix a.
+!>       - error    : Estimated error of the inversion.
+!>       - r_cond   : Reciprocal condition number of the matrix a.
+!>       - trans    : "N" => invert a
+!>       -            "T" => invert transpose(a)
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE invert_matrix_z(a,a_inverse,eval_error,option,error)
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: a
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: a_inverse
+    REAL(KIND=dp), INTENT(OUT)               :: eval_error
+    CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: option
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_matrix_z', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=1)                         :: norm, trans
+    CHARACTER(LEN=80)                        :: message
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: work
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: a_lu, b
+    INTEGER                                  :: info, iter, n, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a_norm, old_eval_error, r_cond
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, rwork
+    REAL(KIND=dp), EXTERNAL                  :: zlange
+
+    EXTERNAL zgecon,zgerfs,zgetrf,zgetrs
+
+    failure = .FALSE.
+
+    ! Check for optional parameter
+    IF (PRESENT(option)) THEN
+      trans = option
+    ELSE
+      trans = "N"
+    END IF
+
+    ! Get the dimension of matrix a
+    n = SIZE(a,1)
+
+    ! Check array dimensions
+    IF (n == 0) THEN
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Matrix to be inverted of zero size")
+    END IF
+
+    IF (n /= SIZE(a,2)) THEN
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Check the array bounds of parameter #1")
+    END IF
+
+    IF ((n /= SIZE(a_inverse,1)).OR.&
+        (n /= SIZE(a_inverse,2))) THEN
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Check the array bounds of parameter #2")
+    END IF
+
+    ! Allocate work storage
+    ALLOCATE (a_lu(n,n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (b(n,n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (berr(n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (ferr(n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (ipiv(n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (rwork(2*n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (work(2*n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    a_lu(1:n,1:n) = a(1:n,1:n)
+
+    ! Compute the LU factorization of the matrix a
+    CALL zgetrf(n,n,a_lu,n,ipiv,info)
+
+    IF (info /= 0) THEN
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "The LU factorization in dgetrf failed")
+    END IF
+
+    ! Compute the norm of the matrix a
+
+    IF (trans == "N") THEN
+      norm = '1'
+    ELSE
+      norm = 'I'
+    END IF
+
+    a_norm = zlange(norm,n,n,a,n,work)
+
+    ! Compute the reciprocal of the condition number of a
+
+    CALL zgecon(norm,n,a_lu,n,a_norm,r_cond,work,rwork,info)
+
+    IF (info /= 0) THEN
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "The computation of the condition number in "//&
+                        "dgecon failed")
+    END IF
+
+    IF (r_cond < EPSILON(0.0_dp)) THEN
+      WRITE (message,"(A,ES10.3)") "R_COND =",r_cond
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Bad condition number "//TRIM(message)//" (smaller than the machine "//&
+                        "working precision)")
+    END IF
+
+    ! Solve a system of linear equations using the LU factorization computed by dgetrf
+
+    CALL unit_matrix(a_inverse)
+
+    CALL zgetrs(trans,n,n,a_lu,n,ipiv,a_inverse,n,info)
+
+    IF (info /= 0) THEN
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Solving the system of linear equations in dgetrs "//&
+                        "failed")
+    END IF
+
+    ! Improve the computed solution iteratively
+    CALL unit_matrix(b) ! Initialize right-hand sides
+
+    eval_error = 0.0_dp
+
+    DO iter=1,10
+
+      CALL zgerfs(trans,n,n,a,n,a_lu,n,ipiv,b,n,a_inverse,n,ferr,berr,&
+                  work,rwork,info)
+
+      IF (info /= 0) THEN
+        CALL stop_program(moduleN,routineN,__LINE__,&
+                          "Improving the computed solution in dgerfs failed")
+      END IF
+
+      old_eval_error = eval_error
+      eval_error = MAXVAL(ferr)
+
+      IF (ABS(eval_error - old_eval_error) <= EPSILON(1.0_dp)) EXIT
+
+    END DO
+
+    ! Release work storage
+    DEALLOCATE (work,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (rwork,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (ipiv,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (ferr,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (berr,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (b,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (a_lu,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE invert_matrix_z
 
 ! *****************************************************************************
 !> \brief  Raise the real symmetric n by n matrix a to the power given by
 !>         exponent. All eigenvectors with a corresponding eigenvalue lower
 !>         than threshold are quenched. Only the upper triangle of matrix a
-!>         is used. 
+!>         is used.
 !> \author  MK
 !> \date    29.03.1999
 !> \par Variables
@@ -701,7 +891,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Reflection of the vector a through a mirror plane defined by the
-!>         normal vector b. The reflected vector a is stored in a_mirror. 
+!>         normal vector b. The reflected vector a is stored in a_mirror.
 !> \author  MK
 !> \date    16.10.1998
 !> \version 1.0
@@ -773,7 +963,7 @@ CONTAINS
 !> \date    20.11.1998
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_diag_scalar(a,b)
+  SUBROUTINE set_diag_scalar_d(a,b)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), INTENT(IN)                :: b
@@ -782,10 +972,24 @@ CONTAINS
 
     n = MIN(SIZE(a,1),SIZE(a,2))
     DO i=1,n
-       a(i,i) = b
+      a(i,i) = b
     END DO
 
-  END SUBROUTINE set_diag_scalar
+  END SUBROUTINE set_diag_scalar_d
+
+  SUBROUTINE set_diag_scalar_z(a,b)
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+    COMPLEX(KIND=dp), INTENT(IN)             :: b
+
+    INTEGER                                  :: i, n
+
+    n = MIN(SIZE(a,1),SIZE(a,2))
+    DO i=1,n
+      a(i,i) = b
+    END DO
+
+  END SUBROUTINE set_diag_scalar_z
 
 ! *****************************************************************************
 !> \brief   Set the diagonal elements of matrix a to the values of vector b.
@@ -793,27 +997,50 @@ CONTAINS
 !> \date    20.11.1998
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_diag_vector(a,b)
+  SUBROUTINE set_diag_vector_d(a,b)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_diag_vector', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_diag_vector_d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n
 
     n = MIN(SIZE(a,1),SIZE(a,2))
     IF (SIZE(b) == n) THEN
-       DO i=1,n
-          a(i,i) = b(i)
-       END DO
+      DO i=1,n
+        a(i,i) = b(i)
+      END DO
     ELSE
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "Check the array bounds of the parameters")
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Check the array bounds of the parameters")
     END IF
 
-  END SUBROUTINE set_diag_vector
+  END SUBROUTINE set_diag_vector_d
+
+  SUBROUTINE set_diag_vector_z(a,b)
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+    COMPLEX(KIND=dp), DIMENSION(:), &
+      INTENT(IN)                             :: b
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_diag_vector_z', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, n
+
+    n = MIN(SIZE(a,1),SIZE(a,2))
+    IF (SIZE(b) == n) THEN
+      DO i=1,n
+        a(i,i) = b(i)
+      END DO
+    ELSE
+      CALL stop_program(moduleN,routineN,__LINE__,&
+                        "Check the array bounds of the parameters")
+    END IF
+
+  END SUBROUTINE set_diag_vector_z
 
 ! *****************************************************************************
 !> \brief   Symmetrize the matrix a.
@@ -864,14 +1091,23 @@ CONTAINS
 !> \date    16.10.1998
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE unit_matrix(a)
+  SUBROUTINE unit_matrix_d(a)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
 
     a(:,:) = 0.0_dp
     CALL set_diag(a,1.0_dp)
 
-  END SUBROUTINE unit_matrix
+  END SUBROUTINE unit_matrix_d
+
+  SUBROUTINE unit_matrix_z(a)
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+
+    a(:,:) = (0.0_dp,0.0_dp)
+    CALL set_diag(a,(1.0_dp,0.0_dp))
+
+  END SUBROUTINE unit_matrix_z
 
 ! *****************************************************************************
 !> \brief   Calculation of the vector product c = a x b.
@@ -1082,7 +1318,7 @@ CONTAINS
       DO i = 1,MAXIT
         a=-i*(nm1+i)
         b=b+2.0_dp
-        d=1.0_dp/(a*d+b) 
+        d=1.0_dp/(a*d+b)
         c=b+a/c
         del=c*d
         h=h*del
@@ -1172,7 +1408,7 @@ CONTAINS
     d(:) = b(:)
     z(:) = 0.0_dp
 
-    !   *** Go for 50 iterations ***
+    ! Go for 50 iterations
     DO i=1,50
        d_min = MAX(1.0E-3_dp,MINVAL(ABS(d(:))))
        a_max = 0.0_dp
@@ -1242,7 +1478,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Sort the values in vector d in ascending order and swap the
-!>        corresponding columns of matrix v. 
+!>        corresponding columns of matrix v.
 !>
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
