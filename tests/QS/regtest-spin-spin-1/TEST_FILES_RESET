@@ -24,3 +24,5 @@ ch4-gapw-issc-2.inp
 no-gapw-issc-1.inp
 #
 nh3-issc-op-1.inp
+# GAPW memory reduction
+no-gapw-issc-1.inp

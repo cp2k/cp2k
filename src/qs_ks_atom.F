@@ -18,7 +18,7 @@ MODULE qs_ks_atom
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_bcast
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -42,6 +42,7 @@ MODULE qs_ks_atom
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: get_limit
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
@@ -90,11 +91,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_ks_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ia_kind, iab, iac, iat, iatom, ibc, ikind, ilist, &
-      inode, ispin, istat, ja_kind, jatom, jkind, ka_kind, kac, katom, kbc, &
-      kkind, lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, n_cont_a, &
-      n_cont_b, nat, natom, nkind, nlist, nnode, nsetc, nsgfa, nsgfb, &
-      nsoctot, nspins
+    INTEGER :: bo(2), handle, ia_kind, iab, iac, iat, iatom, ibc, ikind, &
+      ilist, inode, ip, ispin, istat, ja_kind, jatom, jkind, ka_kind, kac, &
+      katom, kbc, kkind, lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, &
+      mepos, n_cont_a, n_cont_b, nat, natom, nkind, nlist, nnode, nsetc, &
+      nsgfa, nsgfb, nsoctot, nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
@@ -201,22 +202,35 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set,1)
     ! Collect the local potential contributions from all the processors
+    mepos = para_env%mepos
+    num_pe = para_env%num_pe
     DO ikind = 1,nkind
        NULLIFY(atomic_kind,atom_list)
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,atom_list=atom_list,&
             paw_atom=paw_atom, natom=nat)
        IF(paw_atom) THEN
-         DO iat = 1,nat
-            iatom =  atom_list(iat)
+         ! gather the atomic block integrals in a more compressed format
+         bo = get_limit( nat, num_pe, mepos )
+         DO iat = bo(1), bo(2)
+            iatom = atom_list(iat)
             DO ispin = 1,nspins
               CALL prj_gather(rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
                               rho_atom(iatom)%cpc_h(ispin)%r_coef,atomic_kind,error)
               CALL prj_gather(rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
                               rho_atom(iatom)%cpc_s(ispin)%r_coef,atomic_kind,error)
-              CALL  mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef,para_env%group)
-              CALL  mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef,para_env%group)
             END DO
+         END DO
+         ! broadcast the CPC arrays to all processors (replicated data)
+         DO ip=0,num_pe-1
+           bo = get_limit( nat, num_pe, ip )
+           DO iat = bo(1), bo(2)
+             iatom = atom_list(iat)
+             DO ispin = 1,nspins
+               CALL mp_bcast(rho_atom(iatom)%cpc_h(ispin)%r_coef,ip,para_env%group)
+               CALL mp_bcast(rho_atom(iatom)%cpc_s(ispin)%r_coef,ip,para_env%group)
+             END DO
+           END DO
          END DO
        END IF
     END DO

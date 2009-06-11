@@ -21,6 +21,7 @@ MODULE qs_rho0_ggrid
   USE mathconstants,                   ONLY: dfac,&
                                              fourpi
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indco,&
                                              nco,&
                                              ncoset,&
@@ -65,6 +66,7 @@ MODULE qs_rho0_ggrid
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -226,7 +228,8 @@ MODULE qs_rho0_ggrid
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
            rs_grid,cell, cube_info(igrid),eps_rho_rspace,ga_gb_function=401,&
-           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,&
+           use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
 
       END DO  !  j
 
@@ -354,24 +357,22 @@ MODULE qs_rho0_ggrid
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, dir, handle, iat, iatom, ic, icg, ico, ig1, ig2, &
-      igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, ispin, &
-      istat, ithread, j, l0_ikind, llmax, lmax0, lshell, lx, ly, lz, m1, m2, &
-      max_iso_not0_local, max_s_harm, maxl, maxso, n1, n2, nat, nch_ik, &
-      nch_max, ncurr, npme, nset, nspins, nthread, tp(3)
+    INTEGER :: auxbas_grid, bo(2), handle, iat, iatom, ic, icg, ico, ig1, &
+      ig2, igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, &
+      ispin, istat, j, l0_ikind, llmax, lmax0, lshell, lx, ly, lz, m1, m2, &
+      max_iso_not0_local, max_s_harm, maxl, maxso, mepos, n1, n2, nat, &
+      nch_ik, nch_max, ncurr, nset, nsotot, nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, lmax, lmin, &
-                                                npgf
-    LOGICAL                                  :: failure, my_tddft, paw_atom
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
+    LOGICAL                                  :: failure, grid_distributed, &
+                                                my_tddft, paw_atom
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
                                                 force_tmp(3), r_V0, ra(3), &
                                                 rpgf0_s, scale, zet0_s
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph, norm_l, Qlm
-    REAL(dp), DIMENSION(:, :), POINTER       :: hab, hab_spht, hdab_sph, pab
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: habt, hadb, hdab, hdab_spht, &
-                                                Qlm_gg
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: hadbt, hdabt
+    REAL(dp), DIMENSION(:, :), POINTER       :: hab, hdab_sph, intloc, pab
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: hadb, hdab, Qlm_gg
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -409,7 +410,7 @@ MODULE qs_rho0_ggrid
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,dft_control,para_env,particle_set)
-    NULLIFY(cell,force,pw_env,rho0_mpole,rho_atom_set,cores)
+    NULLIFY(cell, force, pw_env, rho0_mpole, rho_atom_set)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -458,9 +459,9 @@ MODULE qs_rho0_ggrid
     pw_pool => pw_pools(igrid)%pool
 
     ALLOCATE(coeff_gspace, STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(coeff_rspace, STAT=istat)
-    IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", &
-                                         "coeff_gspace,coeff_rspace")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL pw_pool_create_pw(pw_pool,coeff_gspace%pw,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
@@ -471,8 +472,7 @@ MODULE qs_rho0_ggrid
     IF (igrid /= auxbas_grid) THEN
        pw_aux => pw_pools(auxbas_grid)%pool
        ALLOCATE(coeff_gaux,STAT=istat)
-       IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
-                                           "coeff_gaux")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL pw_pool_create_pw(pw_aux, coeff_gaux%pw,&
                                use_data = COMPLEXDATA1D,&
                                in_space = RECIPROCALSPACE, error=error)
@@ -481,19 +481,16 @@ MODULE qs_rho0_ggrid
        CALL pw_transfer(coeff_gspace%pw,coeff_rspace%pw)
        CALL pw_pool_give_back_pw(pw_aux,coeff_gaux%pw,error=error)
        DEALLOCATE(coeff_gaux, STAT=istat)
-       IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
-                                           "coeff_gaux")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(coeff_raux,STAT=istat)
-       IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
-                                           "coeff_raux")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL pw_pool_create_pw(pw_aux, coeff_raux%pw,use_data=REALDATA3D,&
                                in_space=REALSPACE,error=error)
        scale = coeff_rspace%pw%pw_grid%dvol/coeff_raux%pw%pw_grid%dvol
        coeff_rspace%pw%cr3d = scale*coeff_rspace%pw%cr3d
        CALL pw_pool_give_back_pw(pw_aux,coeff_raux%pw,error=error)
        DEALLOCATE(coeff_raux, STAT=istat)
-       IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
-                                           "coeff_raux")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ELSE
 
        IF(coeff_gspace%pw%pw_grid%spherical) THEN
@@ -505,8 +502,7 @@ MODULE qs_rho0_ggrid
     END IF
     CALL pw_pool_give_back_pw(pw_pool,coeff_gspace%pw,error=error)
     DEALLOCATE(coeff_gspace, STAT=istat)
-    IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
-                                        "coeff_gspace")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! *** set up the rs grid at level igrid
     CALL rs_grid_create(rs_v, rs_desc, error=error)
@@ -515,26 +511,26 @@ MODULE qs_rho0_ggrid
 
     CALL pw_pool_give_back_pw(pw_pool,coeff_rspace%pw,error=error)
     DEALLOCATE(coeff_rspace, STAT=istat)
-    IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
-                                        "coeff_rspace")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! *** Now the potential is on the right grid => integration
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-    nthread = 1
-!   *** Allocate work storage ***
+    !   *** Allocate work storage ***
 
-    NULLIFY(habt,hab_spht,hdabt,hdab_spht,hadbt,pab)
+    NULLIFY(hab,hab_sph,hdab,hdab_sph,hadb,pab)
     nch_max = ncoset(lmax0)
-    CALL reallocate(habt,1,nch_max,1,1,0,nthread)
-    CALL reallocate(hab_spht,1,nch_max,0,nthread)
-    CALL reallocate(hdabt,1,3,1,nch_max,1,1,0,nthread)
-    CALL reallocate(hadbt,1,3,1,nch_max,1,1,0,nthread)
-    CALL reallocate(hdab_spht,1,3,1,nch_max,0,nthread)
+    CALL reallocate(hab,1,nch_max,1,1)
+    CALL reallocate(hab_sph,1,nch_max)
+    CALL reallocate(hdab,1,3,1,nch_max,1,1)
+    CALL reallocate(hadb,1,3,1,nch_max,1,1)
+    CALL reallocate(hdab_sph,1,3,1,nch_max)
     CALL reallocate(pab,1,nch_max,1,1)
 
     ncurr = -1
+
+    grid_distributed = rs_v%desc%distributed
 
     DO ikind = 1,SIZE(atomic_kind_set,1)
       atom_kind => atomic_kind_set(ikind)
@@ -556,7 +552,11 @@ MODULE qs_rho0_ggrid
                              maxso=maxso,maxl=maxl,&
                              nset=nset, npgf=npgf)
 
-!     Initialize the local KS integrals
+      nsotot = maxso*nset
+      ALLOCATE(intloc(nsotot,nsotot),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+      ! Initialize the local KS integrals
 
       nch_ik = ncoset(l0_ikind)
       pab = 1.0_dp
@@ -566,60 +566,34 @@ MODULE qs_rho0_ggrid
       ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-      CALL reallocate ( cores, 1, nat )
-      npme = 0
-      cores = 0
+      num_pe = para_env%num_pe
+      mepos  = para_env%mepos
+      DO j=0,num_pe-1
+        bo = get_limit( nat, num_pe, j )
+        IF(.NOT. grid_distributed .AND. j /= mepos) CYCLE
 
-      DO iat=1,nat
-         iatom = atom_list(iat)
-         ra(:) = pbc(particle_set(iatom)%r,cell)
-         DO dir = 1,3
-            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v%desc%npts(dir))
-            tp(dir) = MODULO ( tp(dir), rs_v%desc%npts(dir) )
-            tp(dir) = tp(dir) + rs_v%desc%lb(dir)
-         END DO
-         IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
-             ! replicated realspace grid, split the atoms up between procs
-             IF (MODULO(nat,rs_v%desc%group_size) == rs_v % desc % my_pos ) THEN
-                npme = npme + 1
-                cores (npme) = iat
-             ENDIF
-         ELSE
-             npme = npme + 1
-             cores (npme) = iat
-         ENDIF
-      END DO
+        DO iat = bo(1), bo(2)
+          iatom = atom_list(iat)
+          ra(:) = pbc(particle_set(iatom)%r,cell)
 
-      ithread=0
-      DO j=1,npme
+          NULLIFY(Qlm)
+          CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=iatom, Qlm_tot=Qlm)
 
-        iat =  cores(j)
-        iatom = atom_list(iat)
-        ra(:) = pbc(particle_set(iatom)%r,cell)
+          hab = 0.0_dp
+          hdab = 0.0_dp
+          intloc = 0._dp
 
-        NULLIFY(Qlm)
-        CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=iatom,&
-                             Qlm_tot=Qlm)
-
-        hab => habt(:,:,ithread)
-        hdab => hdabt(:,:,:,ithread)
-        hadb => hadbt(:,:,:,ithread)
-        hab_sph => hab_spht(:,ithread)
-        hdab_sph => hdab_spht(:,:,ithread)
-        hab = 0.0_dp
-        hdab = 0.0_dp
-
-        CALL integrate_pgf_product_rspace(&
+          CALL integrate_pgf_product_rspace(&
              l0_ikind,zet0_s,0,0,0.0_dp,0,&
              ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp,rs_v,cell,&
              cube_info(igrid),hab,pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
-             hdab=hdab,hadb=hadb,ithread=ithread,&
-             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
+             hdab=hdab,hadb=hadb,ithread=0,&
+             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,&
+             use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
 
-! Convert from cartesian to spherical
-        IF (calculate_forces) THEN
+          ! Convert from cartesian to spherical
           DO lshell = 0,l0_ikind
             DO is = 1,nso(lshell)
               iso = is + nsoset(lshell-1)
@@ -637,145 +611,82 @@ MODULE qs_rho0_ggrid
                     SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                     dfac(2*lshell+1))
 
-                hdab_sph(1:3,iso) = hdab_sph(1:3,iso) +&
+                IF (calculate_forces) THEN
+                  hdab_sph(1:3,iso) = hdab_sph(1:3,iso) +&
                     orbtramat(lshell)%c2s(is,ic)*hdab(1:3,ico,1)*&
                     norm_l(lshell)/&
                     SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                     dfac(2*lshell+1))
+                END IF
 
               END DO  ! ic
             END DO  ! is
           END DO  ! lshell
-        ELSE
-          DO lshell = 0,l0_ikind
-            DO is = 1,nso(lshell)
-              iso = is + nsoset(lshell-1)
-              hab_sph(iso) = 0.0_dp
-              DO ic = 1,nco(lshell)
-                ico = ic + ncoset(lshell-1)
-                lx = indco(1,ico)
-                ly = indco(2,ico)
-                lz = indco(3,ico)
 
-                hab_sph(iso) = hab_sph(iso) + &
-                    orbtramat(lshell)%c2s(is,ic)*hab(ico,1)*&
-                    norm_l(lshell)/&
-                    SQRT(c4pi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
-                    dfac(2*lshell+1))
-
-              END DO  ! ic
-            END DO  ! is
-          END DO  ! lshell
-        END IF
-
-! Calculate Integrals <aVb> and forces on iatom from the gradient og g0_s
-        rho_atom => rho_atom_set(iatom)
-        CALL get_rho_atom(rho_atom=rho_atom,&
-              ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
-
-        IF (calculate_forces) THEN
-
-          force_tmp(1:3) = 0.0_dp
-
-          DO iso = 1,nsoset(l0_ikind)
-            force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1,iso)
-            force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2,iso)
-            force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3,iso)
-          END DO
+          IF (calculate_forces) THEN
+            force_tmp(1:3) = 0.0_dp
+            DO iso = 1,nsoset(l0_ikind)
+              force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1,iso)
+              force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2,iso)
+              force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3,iso)
+            END DO
+          END IF
 
           m1 = 0
           DO iset1 = 1,nset
 
-             m2 = 0
-             DO iset2 = 1,nset
-                CALL get_none0_cg_list(harmonics%my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
-                                       max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
-                n1 = nsoset(lmax(iset1))
-                DO ipgf1 = 1,npgf(iset1)
-                   n2 = nsoset(lmax(iset2))
-                   DO ipgf2 = 1,npgf(iset2)
+            m2 = 0
+            DO iset2 = 1,nset
+              CALL get_none0_cg_list(harmonics%my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
+                                     max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
+              n1 = nsoset(lmax(iset1))
+              DO ipgf1 = 1,npgf(iset1)
+                 n2 = nsoset(lmax(iset2))
+                 DO ipgf2 = 1,npgf(iset2)
 
-                      DO iso = 1,MIN(nsoset(l0_ikind),max_iso_not0_local)
-                         DO icg = 1,cg_n_list(iso)
-                            iso1 = cg_list(1,icg,iso)
-                            iso2 = cg_list(2,icg,iso)
+                    DO iso = 1,MIN(nsoset(l0_ikind),max_iso_not0_local)
+                       DO icg = 1,cg_n_list(iso)
+                          iso1 = cg_list(1,icg,iso)
+                          iso2 = cg_list(2,icg,iso)
 
-                            ig1 = iso1 + n1*(ipgf1-1) + m1
-                            ig2 = iso2 + n2*(ipgf2-1) + m2
+                          ig1 = iso1 + n1*(ipgf1-1) + m1
+                          ig2 = iso2 + n2*(ipgf2-1) + m2
 
-                            ! sum up the contribution
+                          intloc(ig1,ig2) = intloc(ig1,ig2) + Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
 
-                            DO ispin = 1,nspins
+                       END DO  ! icg
+                    END DO  ! iso
 
-                               int_local_h(ispin)%r_coef(ig1,ig2) = &
-                                    int_local_h(ispin)%r_coef(ig1,ig2) + &
-                                    Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
-
-                               int_local_s(ispin)%r_coef(ig1,ig2) = &
-                                    int_local_s(ispin)%r_coef(ig1,ig2) + &
-                                    Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
-                            END DO
-
-                         END DO  ! icg
-                      END DO  ! iso
-
-                   END DO  ! ipgf2
-                END DO ! ipgf1
-                m2 = m2 + maxso
-             END DO  ! iset2
-             m1 = m1 + maxso
+                 END DO  ! ipgf2
+              END DO ! ipgf1
+              m2 = m2 + maxso
+            END DO  ! iset2
+            m1 = m1 + maxso
           END DO  ! iset1
 
-          force(ikind)%g0s_Vh_elec(1:3,iat) =  force(ikind)%g0s_Vh_elec(1:3,iat) + &
-                                            force_tmp(1:3)
+          IF(grid_distributed) THEN
+            ! sum result over all processors
+            CALL  mp_sum(intloc,para_env%group)
+          END IF
 
-        ELSE
+          IF(j == mepos) THEN
+            rho_atom => rho_atom_set(iatom)
+            CALL get_rho_atom(rho_atom=rho_atom,ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
+            DO ispin = 1,nspins
+              int_local_h(ispin)%r_coef = int_local_h(ispin)%r_coef + intloc
+              int_local_s(ispin)%r_coef = int_local_s(ispin)%r_coef + intloc
+            END DO
+          END IF
 
-           m1 = 0
-           DO iset1 = 1,nset
-              m2 = 0
-              DO iset2 = 1,nset
-                 CALL get_none0_cg_list(harmonics%my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
-                                        max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local,error)
-                 n1 = nsoset(lmax(iset1))
-                 DO ipgf1 = 1,npgf(iset1)
-                    n2 = nsoset(lmax(iset2))
-                    DO ipgf2 = 1,npgf(iset2)
+          IF (calculate_forces) THEN
+            force(ikind)%g0s_Vh_elec(1:3,iat) =  force(ikind)%g0s_Vh_elec(1:3,iat) + force_tmp(1:3)
+          END IF
 
-                       DO iso = 1,MIN(nsoset(l0_ikind),max_iso_not0_local)
-                          DO icg = 1,cg_n_list(iso)
-                             iso1 = cg_list(1,icg,iso)
-                             iso2 = cg_list(2,icg,iso)
+        END DO
+      END DO
 
-                             ig1 = iso1 + n1*(ipgf1-1) + m1
-                             ig2 = iso2 + n2*(ipgf2-1) + m2
-                             ! sum up the contribution
-
-                             DO ispin = 1,nspins
-
-                                int_local_h(ispin)%r_coef(ig1,ig2) = &
-                                     int_local_h(ispin)%r_coef(ig1,ig2) + &
-                                     Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
-
-                                int_local_s(ispin)%r_coef(ig1,ig2) = &
-                                     int_local_s(ispin)%r_coef(ig1,ig2) + &
-                                     Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
-                             END DO
-
-                          END DO  ! icg
-                       END DO  ! iso
-
-                    END DO  ! ipgf2
-                 END DO ! ipgf1
-                 m2 = m2 + maxso
-              END DO  ! iset2
-              m1 = m1 + maxso
-           END DO  ! iset1
-
-        END IF
-
-      END DO  ! j
-
+      DEALLOCATE(intloc,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(cg_list,cg_n_list,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -783,13 +694,9 @@ MODULE qs_rho0_ggrid
 
     CALL rs_grid_release(rs_v, error=error)
 
-    IF (ASSOCIATED(cores)) THEN
-      DEALLOCATE (cores,STAT=istat)
-      IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", "cores" )
-    END IF
-    DEALLOCATE (habt,hdabt,hadbt,hab_spht,hdab_spht,pab, STAT= istat)
-    IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", &
-       "habt,hdabt,hadbt,hab_spht,hdab_spht,pab")
+    DEALLOCATE (hab,hdab,hadb,hab_sph,hdab_sph,pab,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
     CALL timestop(handle)
 
   END SUBROUTINE integrate_vhg0_rspace

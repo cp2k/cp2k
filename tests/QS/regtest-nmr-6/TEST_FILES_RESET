@@ -657,3 +657,10 @@ ch3p-gapw-1.inp
 w2_qmmm-1.inp
 w2_qmmm-2.inp
 w2_qmmm-3.inp
+# GAPW memory reduction
+no-gapw-1.inp
+no-gapw-3.inp
+no-gapw-4.inp
+no-gapw-1-distributed.inp
+no-gapw-1-replicated.inp
+
