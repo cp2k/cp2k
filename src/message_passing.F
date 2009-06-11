@@ -4936,8 +4936,11 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL        :: len
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_create_d', &
          routineP = moduleN//':'//routineN
-    INTEGER                   :: ierr, handle
-    INTEGER                   :: winsize, double_size
+    INTEGER                              :: ierr, handle
+    INTEGER                              :: double_size
+#if defined(__parallel)
+    INTEGER(KIND=MPI_ADDRESS_KIND)       :: winsize
+#endif
 !   ---------------------------------------------------------------------------
 #if defined(__mp_timeset__)
     CALL timeset_mp(routineN, handle)
@@ -4952,7 +4955,9 @@ CONTAINS
     ENDIF
     CALL MPI_TYPE_SIZE(MPI_DOUBLE_PRECISION, double_size, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_type_size @ mp_win_create_d")
-    CALL MPI_WIN_CREATE(range, winsize, double_size, MPI_INFO_NULL, gid, window%id, ierr)
+    winsize = winsize*double_size
+    CALL MPI_WIN_CREATE(range, winsize, double_size,&
+      MPI_INFO_NULL, gid, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_create @ mp_win_create_d")
     t_end = m_walltime()
     CALL add_perf(perf_id=20, time=t_end-t_start)
@@ -4975,14 +4980,17 @@ CONTAINS
 !> \param[in] gid          communicator
 ! *****************************************************************************
   SUBROUTINE mp_win_create_i(window, range, len, gid)
-    TYPE(mp_window_type), INTENT(OUT)   :: window
-    INTEGER, DIMENSION(:), POINTER      :: range
-    INTEGER, INTENT(IN)       :: gid
-    INTEGER, INTENT(IN), OPTIONAL       :: len
+    TYPE(mp_window_type), INTENT(OUT) :: window
+    INTEGER, DIMENSION(:), POINTER    :: range
+    INTEGER, INTENT(IN)               :: gid
+    INTEGER, INTENT(IN), OPTIONAL     :: len
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_create_i', &
          routineP = moduleN//':'//routineN
-    INTEGER                   :: ierr, handle
-    INTEGER                   :: winsize, integer_size
+    INTEGER                             :: ierr, handle
+    INTEGER                             :: integer_size
+#if defined(__parallel)
+    INTEGER(KIND=MPI_ADDRESS_KIND)      :: winsize
+#endif
 !   ---------------------------------------------------------------------------
 #if defined(__mp_timeset__)
     CALL timeset_mp(routineN, handle)
@@ -4997,7 +5005,9 @@ CONTAINS
     ENDIF
     CALL MPI_TYPE_SIZE(MPI_INTEGER, integer_size, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_type_size @ mp_win_create_i")
-    CALL MPI_WIN_CREATE(range, winsize, integer_size, MPI_INFO_NULL, gid, window%id, ierr)
+    winsize = winsize*integer_size
+    CALL MPI_WIN_CREATE(range, winsize, integer_size,&
+      MPI_INFO_NULL, gid, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_create @ mp_win_create_i")
     t_end = m_walltime()
     CALL add_perf(perf_id=20, count=1, time=t_end-t_start)
@@ -5180,9 +5190,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE mp_rma_get_i(window, remote, offset, len, storage)
     TYPE(mp_window_type), INTENT(IN) :: window
-    INTEGER, INTENT(IN)      :: remote, offset
-    INTEGER, DIMENSION(:), POINTER :: storage
-    INTEGER, INTENT(IN)       :: len
+    INTEGER, INTENT(IN)              :: remote
+    INTEGER, INTENT(IN)              :: offset
+    INTEGER, DIMENSION(:), POINTER   :: storage
+    INTEGER, INTENT(IN)              :: len
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_get_i', &
          routineP = moduleN//':'//routineN
     INTEGER                   :: ierr, handle
@@ -5193,8 +5204,8 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
-    CALL MPI_GET(storage, len, MPI_INTEGER, remote, offset, len,&
-         MPI_INTEGER, window%id, ierr)
+    CALL MPI_GET(storage, len, MPI_INTEGER, remote,&
+         INT (offset, MPI_ADDRESS_KIND), len, MPI_INTEGER, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_get @ mp_rma_get_i")
     t_end = m_walltime()
     CALL add_perf(perf_id=17, count=1, time=t_end-t_start,&
@@ -5221,9 +5232,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE mp_rma_get_d(window, remote, offset, len, storage)
     TYPE(mp_window_type), INTENT(IN) :: window
-    INTEGER, INTENT(IN)      :: remote, offset
-    REAL(KIND=dp), DIMENSION(:), POINTER :: storage
-    INTEGER, INTENT(IN)       :: len
+    INTEGER, INTENT(IN)              :: remote
+    INTEGER, INTENT(IN)              :: offset
+    REAL(KIND=dp), DIMENSION(:), POINTER       :: storage
+    INTEGER, INTENT(IN)                        :: len
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_get_d', &
          routineP = moduleN//':'//routineN
     INTEGER                   :: ierr, handle
@@ -5234,8 +5246,9 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
-    CALL MPI_GET(storage, len, MPI_DOUBLE_PRECISION, remote, offset, len,&
-         MPI_DOUBLE_PRECISION, window%id, ierr)
+    CALL MPI_GET(storage, len, MPI_DOUBLE_PRECISION, remote,&
+         INT (offset, MPI_ADDRESS_KIND), len, MPI_DOUBLE_PRECISION,&
+         window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_get @ mp_rma_get_d")
     t_end = m_walltime()
     CALL add_perf(perf_id=17, count=1,time=t_end-t_start,&
@@ -5261,10 +5274,11 @@ CONTAINS
 !> \param[in] offset       offset in remote window (starting at 0)
 ! *****************************************************************************
   SUBROUTINE mp_rma_put_i(window, storage, len, remote, offset)
-    TYPE(mp_window_type), INTENT(IN)  :: window
-    INTEGER, INTENT(IN)               :: remote, offset
-    INTEGER, DIMENSION(:), POINTER    :: storage
-    INTEGER, INTENT(IN)         :: len
+    TYPE(mp_window_type), INTENT(IN) :: window
+    INTEGER, INTENT(IN)              :: remote
+    INTEGER, INTENT(IN)              :: offset
+    INTEGER, DIMENSION(:), POINTER   :: storage
+    INTEGER, INTENT(IN)              :: len
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_put_i', &
          routineP = moduleN//':'//routineN
     INTEGER                        :: ierr, handle
@@ -5276,8 +5290,8 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
-    CALL MPI_PUT(storage, len, MPI_INTEGER, remote, offset, len, MPI_INTEGER,&
-         window, ierr)
+    CALL MPI_PUT(storage, len, MPI_INTEGER, remote,&
+         INT (offset, MPI_ADDRESS_KIND), len, MPI_INTEGER, window, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_put @ mp_rma_put_i")
     t_end = m_walltime()
     CALL add_perf(perf_id=16, count=1, time=t_end-t_start,&
@@ -5304,9 +5318,10 @@ CONTAINS
 !> \param[in] offset       offset in remote window (starting at 0)
 ! *****************************************************************************
   SUBROUTINE mp_rma_put_d(window, storage, len, remote, offset)
-    TYPE(mp_window_type), INTENT(IN)      :: window
-    INTEGER, INTENT(IN)                   :: remote, offset
-    REAL(KIND=dp), DIMENSION(:), POINTER  :: storage
+    TYPE(mp_window_type), INTENT(IN)     :: window
+    INTEGER, INTENT(IN)                  :: remote
+    INTEGER, INTENT(IN)                  :: offset
+    REAL(KIND=dp), DIMENSION(:), POINTER :: storage
     INTEGER, INTENT(IN)         :: len
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_put_d', &
          routineP = moduleN//':'//routineN
@@ -5319,8 +5334,9 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
-    CALL MPI_PUT(storage, len, MPI_DOUBLE_PRECISION, remote, offset, len,&
-         MPI_DOUBLE_PRECISION, window, ierr)
+    CALL MPI_PUT(storage, len, MPI_DOUBLE_PRECISION, remote,&
+         INT (offset, MPI_ADDRESS_KIND), len, MPI_DOUBLE_PRECISION,&
+         window, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_put @ mp_rma_put_d")
     t_end = m_walltime()
     CALL add_perf(perf_id=16, count=1, time=t_end-t_start,&
