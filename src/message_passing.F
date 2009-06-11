@@ -4952,7 +4952,7 @@ CONTAINS
     ENDIF
     CALL MPI_TYPE_SIZE(MPI_DOUBLE_PRECISION, double_size, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_type_size @ mp_win_create_d")
-    CALL MPI_WIN_CREATE(range, winsize, double_size, 0, gid, window%id, ierr)
+    CALL MPI_WIN_CREATE(range, winsize, double_size, MPI_INFO_NULL, gid, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_create @ mp_win_create_d")
     t_end = m_walltime()
     CALL add_perf(perf_id=20, time=t_end-t_start)
@@ -4997,7 +4997,7 @@ CONTAINS
     ENDIF
     CALL MPI_TYPE_SIZE(MPI_INTEGER, integer_size, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_type_size @ mp_win_create_i")
-    CALL MPI_WIN_CREATE(range, winsize, integer_size, 0, gid, window%id, ierr)
+    CALL MPI_WIN_CREATE(range, winsize, integer_size, MPI_INFO_NULL, gid, window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_create @ mp_win_create_i")
     t_end = m_walltime()
     CALL add_perf(perf_id=20, count=1, time=t_end-t_start)
