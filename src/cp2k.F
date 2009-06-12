@@ -184,7 +184,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
        command_line_error = .TRUE.
      END IF
 
-     ! some first info concerning how to run CP2K
+     ! some first info concerning how to run CP2K 
 
      IF (usage.OR.command_line_error) THEN
        IF (default_para_env%source == default_para_env%mepos) THEN
