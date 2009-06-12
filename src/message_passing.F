@@ -4939,6 +4939,8 @@ CONTAINS
     INTEGER                              :: ierr, handle
     INTEGER                              :: double_size
 #if defined(__parallel)
+    ! requires that your MPI installation matches your Fortran compiler... be aware
+    ! e.g. on a 64 bit machine, NAG will require MPI_ADDRESS_KIND=4, and gfortran MPI_ADDRESS_KIND=8
     INTEGER(KIND=MPI_ADDRESS_KIND)       :: winsize
 #endif
 !   ---------------------------------------------------------------------------
