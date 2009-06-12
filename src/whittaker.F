@@ -65,7 +65,7 @@ CONTAINS
     y = REAL(l,dp)
     DO i = 1, n
       x  = r(i)
-      IF ( x < epsilon ) THEN
+      IF ( t1*x < epsilon ) THEN
         wc(i) = x**l1 * ( x**2/(3._dp+y) - alpha*x**4/(5._dp+y) + &
                    alpha**2*x**6/(14._dp+2._dp*y) - &
                    alpha**3*x**8/(54._dp+6._dp*y) + &

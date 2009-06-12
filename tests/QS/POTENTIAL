@@ -193,6 +193,10 @@ Br ALLELECTRON ALL
 Kr ALLELECTRON ALL
     8   18   10
      0.50000000
+#
+I  ALLELECTRON ALL
+   10   23   20
+     0.50000000
 ################################################################################
 #
 # Pseudopotentials of Goedecker, Teter and Hutter (GTH)
