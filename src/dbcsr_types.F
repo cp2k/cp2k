@@ -95,18 +95,27 @@ MODULE dbcsr_types
   END TYPE dbcsr_distribution_obj
 
 ! *****************************************************************************
-!> \brief Describes the image distributions, which are used to map incompatible
-!>        processor row and column distributions.
+!> \brief Image distributions are used to map incompatible processor row and
+!>        column distributions.
+!>
+!> Used to ease storage or transfer between two different-sizes
+!> sets. For example, if there are 4 real processor rows that are
+!> mapped to 8 "virtual" processor rows, then there are two images for
+!> every real processor row.
 !> \var main                            the main distribution
-!> \var nrow_images, ncol_images        number of row and column images
 !> \var row_image, col_image            distribution of matrix elements' rows
 !>                                      and columns into image  rows and
 !>                                      columns
+!> \var row_decimation, col_decimation  Number of imaged rows/columns mapped
+!>                                      to a real row/column
+!> \var row_multiplicity, col_multiplicity   Number of real rows/columns mapped
+!>                                      to a virtual row/column
 ! *****************************************************************************
   TYPE dbcsr_imagedistribution_type
      TYPE(dbcsr_distribution_obj)       :: main
-     INTEGER                            :: nrow_images, ncol_images
      TYPE(array_i1d_obj)                :: row_image, col_image
+     INTEGER                            :: row_decimation, col_decimation
+     INTEGER                            :: row_multiplicity, col_multiplicity
   END TYPE dbcsr_imagedistribution_type
 
 ! *****************************************************************************

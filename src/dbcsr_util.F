@@ -23,6 +23,7 @@ MODULE dbcsr_util
                                              array_size
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_release,&
                                              cp_blacs_env_type,&
                                              cp_blacs_env_write,&
                                              get_blacs_info
@@ -58,6 +59,8 @@ MODULE dbcsr_util
                                              int_4,&
                                              int_8
   USE machine,                         ONLY: m_walltime
+  USE mathlib,                         ONLY: gcd,&
+                                             lcm
   USE message_passing,                 ONLY: mp_allocate,&
                                              mp_alltoall,&
                                              mp_deallocate,&
@@ -107,11 +110,11 @@ MODULE dbcsr_util
        dbcsr_transpose_distribution
   PUBLIC :: dbcsr_addto_index_array,&
        addto_array, swap, ensure_array_size, dbcsr_ensure_data_size,&
-       dbcsr_set_debug,&
+       dbcsr_set_debug, dbcsr_sleep,&
        dbcsr_destroy, dbcsr_work_destroy,&
-       checker_tr,&
+       checker_tr, bcsr_assert,&
        dbcsr_get_lookup, dbcsr_get_block_info,&
-       dbcsr_print, dbcsr_normalize, dbcsr_order, add_work_coordinate,&
+       dbcsr_print, dbcsr_make_row_images, dbcsr_order, add_work_coordinate,&
        dbcsr_destroy_array, dbcsr_copy_block_sizes, dbcsr_block_transpose
   PUBLIC :: dbcsr_dist2d_to_dist, dbcsr_create_image_dist_left,&
        dbcsr_create_image_dist, dbcsr_destroy_image_dist
@@ -1865,7 +1868,7 @@ CONTAINS
          row_distribution_ptr=row_dist, col_distribution_ptr=col_dist)
     DEALLOCATE(n_at_local_rows)
     DEALLOCATE(n_at_local_cols)
-    !CALL cp_blacs_env_release(blacs_env_right, error)
+    CALL cp_blacs_env_release(blacs_env_right, error)
     IF (dbg) CALL distribution_2d_write(dist2d, 6, long_description=.TRUE.,&
         error=error, local=.TRUE.)
     IF (dbg) &
@@ -2186,192 +2189,6 @@ CONTAINS
          error=error, local=.TRUE.)
   END SUBROUTINE dbcsr_create_dist2d_r_unrot
 
-
-!! *****************************************************************************
-!!> \brief Create a distribution_2d for a row as a selection of an existing
-!!>        distribution_2d.
-!!> \par The column distribution is the same as the original distribution_2d
-!!> \param[out] dist2d         new distribution_2d for a row matrix
-!!> \param[in] dist2d_left     the distribution_2d of the left matrix
-!!> \param error     cp2k error
-!! *****************************************************************************
-!  SUBROUTINE dbcsr_create_row_dist2d_from_dist2d(dist2d, dist2d_main, error)
-!    TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_main
-!    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: row_blk_size
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
-!
-!    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_row_dist2d_from_dist2d', &
-!      routineP = moduleN//':'//routineN
-!    INTEGER, PARAMETER                       :: blksize_default = 3
-!
-!    INTEGER :: at, at_high, at_low, column_stack, i, k, mynod, mypcol, &
-!      mypcol_main, myprow, myprow_main, nblkcols, nblkrows, nblkrows_main, &
-!      nblks, ncols, npcols, npcols_main, nprows, nprows_main, pcol, pcsize
-!      stat
-!    INTEGER                                  :: stat
-!    INTEGER                                  :: nrows
-!    INTEGER, DIMENSION(:), POINTER :: col_dist, col_dist_main, &
-!      n_at_local_cols, n_at_local_rows, n_at_local_rows_main, row_dist, &
-!      row_dist_main
-!    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi, mpi2blacs
-!    TYPE(cp_1d_i_p_type), DIMENSION(:), &
-!      POINTER                                :: at_local_cols, at_local_rows, &
-!                                                at_local_rows_main
-!    TYPE(cp_blacs_env_type), POINTER         :: blacs_env, blacs_env_right
-!    TYPE(cp_para_env_type), POINTER          :: para_env
-!
-!    DEBUG_HEADER
-!!   ---------------------------------------------------------------------------
-!    DEBUG_BODYY
-!    IF (dbg) &
-!         CALL distribution_2d_write(dist2d_main, 6, long_description=.TRUE.,&
-!         error=error, local=.TRUE.)
-!    CALL distribution_2d_get(dist2d_main, error=error,&
-!         row_distribution=row_dist_main, col_distribution=col_dist_main,&
-!         local_rows=at_local_rows_main, n_local_rows=n_at_local_rows_main,&
-!         n_row_distribution=nblkrows_main, blacs_env=blacs_env)
-!    CALL get_blacs_info(blacs_env, my_process_row=myprow_main,&
-!         my_process_column=mypcol_main, number_of_process_rows=nprows_main,&
-!         number_of_process_columns=npcols_main, para_env=para_env,&
-!         blacs2mpi=blacs2mpi, mpi2blacs=mpi2blacs)
-!    !
-!    IF (dbg) WRITE(*,*)routineP//' MAIN prows, pcols:', nprows_left, npcols_left
-!    blacs_env_right => blacs_env
-!    CALL cp_blacs_env_retain(blacs_env, error)
-!    CALL get_blacs_info(blacs_env_right, my_process_row=myprow,&
-!         my_process_column=mypcol, number_of_process_rows=nprows,&
-!         number_of_process_columns=npcols,&
-!         blacs2mpi=blacs2mpi, mpi2blacs=mpi2blacs)
-!    IF (dbg) WRITE(*,*)routineP//' RIGHT prows, pcols:', nprows, npcols
-!    IF (dbg) WRITE(*,*)routineP//' myprow, mypcol',myprow,'/',nprows,';',&
-!         mypcol,'/',npcols
-!    IF (dbg) CALL cp_blacs_env_write(blacs_env_right, 6, error)
-!    !
-!    mynod = para_env%mepos
-!    !> Handle row distribution. This is based on the column distribution of the
-!    !> left matrix.
-!    ALLOCATE(at_local_rows(LBOUND(at_local_rows_left,1):&
-!         UBOUND(at_local_rows_left,1)), stat=stat)
-!    IF(stat /= 0) CALL stop_memory(routineP, 'at_local_rows',&
-!         SIZE(at_local_rows_left,1))
-!    at_low = LBOUND(n_at_local_rows_left,1) 
-!    at_high = UBOUND(n_at_local_rows_left,1)
-!    ALLOCATE(n_at_local_rows(at_low:at_high), stat=stat)
-!    IF(stat /= 0) CALL stop_memory(routineP, 'n_at_local_rows',&
-!         SIZE(n_at_local_rows_left,1))
-!    nblkrows = nblkrows_left
-!    ALLOCATE(row_dist(nblkrows), stat=stat)
-!    IF(stat /= 0) CALL stop_memory(routineP, 'row_dist', nblkrows)
-!    n_at_local_rows(:) = n_at_local_rows_left(:)
-!    DO i = LBOUND(at_local_rows_left,1), UBOUND(at_local_rows_left,1)
-!       ALLOCATE(at_local_rows(i)%array(&
-!            LBOUND(at_local_rows_left(i)%array,1):&
-!            UBOUND(at_local_rows_left(i)%array,1)), stat=stat)
-!       IF(stat /= 0) CALL stop_memory(routineP, 'at_local_rows(?)%array',&
-!            SIZE(at_local_rows_left(i)%array))
-!       at_local_rows(i)%array(:) = at_local_rows_left(i)%array(:)
-!    ENDDO
-!    n_at_local_rows(:) = n_at_local_rows_left(:)
-!    row_dist(:) = row_dist_left(:)
-!    ! Handle column distribution.
-!    ! Estimate the number of full columns per processor column, but it
-!    ! must be at least 1.
-!    pcsize = CEILING((1.0*ncolumns)/(1.0*npcols)) ! Full columns per processor column.
-!    column_stack = ncolumns
-!    nblkcols = 0
-!    DO pcol = 0, npcols-1
-!       at_low = nblkcols+1
-!       at_high = nblkcols
-!       IF (column_stack .GT. 0) THEN
-!          ncols = MIN(column_stack, pcsize)
-!          column_stack = column_stack - ncols
-!          nblks = CEILING ((1.0*ncols)/(1.0*blksize_default))
-!          nblkcols = nblkcols + nblks
-!          at_high = nblkcols
-!       ENDIF
-!       IF (dbg) WRITE(*,*)routineP//' pcol',pcol,'has blkcols',at_low,':',&
-!            at_high,'col stack is',column_stack
-!    ENDDO
-!
-!    IF (dbg) WRITE(*,*)routineP//' There are',nblkcols,'blocked columns in',&
-!         npcols,'pcols for',ncolumns,'full columns.'
-!
-!    at_low = 1
-!    at_high = nblkcols
-!    ALLOCATE(col_dist(nblkcols), stat=stat)
-!    IF(stat /= 0) CALL stop_memory(routineP, 'col_dist', nblkcols)
-!    col_dist(:) = -999
-!    ALLOCATE(n_at_local_cols(at_high), stat=stat)
-!    IF(stat /= 0) CALL stop_memory(routineP, 'n_at_local_cols', at_high)
-!    ALLOCATE(at_local_cols(at_high), stat=stat)
-!    IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols', at_high)
-!    n_at_local_cols(:) = 0
-!
-!    IF (PRESENT(col_blk_size)) THEN
-!       ALLOCATE(col_blk_size(nblkcols), stat=stat)
-!       IF (stat /= 0) CALL stop_memory(routineP,&
-!            'col_blk_begin, col_blk_end', nblkcols)
-!    ENDIF
-!    column_stack = ncolumns
-!    nblkcols = 0
-!    i = 1
-!    DO pcol = 0, npcols-1
-!       at_low = nblkcols+1
-!       at_high = nblkcols
-!       nblks = 0
-!       IF (column_stack .GT. 0) THEN
-!          ncols = MIN(column_stack, pcsize)
-!          column_stack = column_stack - ncols
-!          nblks = CEILING ((1.0*ncols)/(1.0*blksize_default))
-!          nblkcols = nblkcols + nblks
-!          at_high = nblkcols
-!       ENDIF
-!       IF (dbg) WRITE(*,*)routineP//' pcol',pcol,'has blkcols',at_low,':',&
-!            at_high,'col stack is',column_stack
-!       col_dist(at_low:at_high) = pcol
-!       DO at = at_low, at_high
-!          IF (pcol.EQ.mypcol) THEN
-!             ALLOCATE(at_local_cols(at)%array(1), stat=stat)
-!             IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols(?)', 1)
-!             at_local_cols(at)%array(1) = at
-!             n_at_local_cols(at) = 1
-!          ELSE
-!             ALLOCATE(at_local_cols(at)%array(0), stat=stat)
-!             IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols(?)', 1)
-!          ENDIF
-!          IF (PRESENT(col_blk_size)) THEN
-!             k = MIN(ncols,blksize_default)
-!             col_blk_size(at) = k
-!             i = i + k
-!             ncols = ncols - k
-!             IF (dbg) WRITE(*,*)routineP//' col',at,'has',k-1,&
-!                  'full colums; ncols, i',ncols, i,&
-!                  'nblks',nblks
-!          ENDIF
-!       ENDDO
-!    ENDDO
-!
-!    IF(dbg) WRITE(*,*)routineP//' Col. distribution',col_dist
-!    IF (PRESENT (col_blk_size)) THEN
-!       IF(dbg) WRITE(*,*)routineP//' Col. block sizes',col_blk_size
-!    ENDIF
-!    IF(dbg) WRITE(*,*)routineP//' Col. at_local_cols=',n_at_local_cols
-!    IF(dbg) WRITE(*,*)routineP//' Col. n_at_local_cols=',n_at_local_cols
-!
-!    NULLIFY(dist2d)
-!    CALL distribution_2d_create(dist2d, blacs_env_right, error=error,&
-!         local_rows_ptr=at_local_rows, n_local_rows=n_at_local_rows,&
-!         local_cols_ptr=at_local_cols, n_local_cols=n_at_local_cols,&
-!         row_distribution_ptr=row_dist, col_distribution_ptr=col_dist)
-!    DEALLOCATE(n_at_local_rows)
-!    DEALLOCATE(n_at_local_cols)
-!    !CALL cp_blacs_env_release(blacs_env_right, error)
-!    IF (dbg) CALL distribution_2d_write(dist2d, 6, long_description=.TRUE.,&
-!        error=error, local=.TRUE.)
-!    IF (dbg) &
-!         CALL distribution_2d_write(dist2d, 6, long_description=.TRUE.,&
-!         error=error, local=.TRUE.)
-!  END SUBROUTINE dbcsr_create_row_dist2d_from_dist2d
 
 
 ! *****************************************************************************
@@ -3338,31 +3155,29 @@ CONTAINS
 !> \param[in] target_image_dist          normalize to this image distribution
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_normalize(source, normalized, target_image_dist, error)
+  SUBROUTINE dbcsr_make_row_images(source, normalized, target_image_dist, error)
     TYPE(dbcsr_type), INTENT(IN)             :: source
     TYPE(dbcsr_array_type), INTENT(OUT)      :: normalized
     TYPE(dbcsr_imagedistribution_type), &
       INTENT(IN)                             :: target_image_dist
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_normalize', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_row_images', &
       routineP = moduleN//':'//routineN
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    DBG 'Normalizing',source%matrix_type,source%name
+    DBG 'Make images for matrix',source%matrix_type,source%name
     normalized%image_dist = target_image_dist
     SELECT CASE (source%matrix_type)
-    CASE ('N')
-       CALL dbcsr_normalize_normal_images(source, normalized, target_image_dist, error)
-    CASE ('S')
-       CALL dbcsr_normalize_symmetric(source, normalized, target_image_dist,&
-            error)
-    CASE ('T', 'A')
+    CASE ('N', 'S', 'A')
+       CALL make_row_images(source, normalized,&
+            target_image_dist, desymmetrize=.TRUE., error=error)
+    CASE ('T')
        CALL cp_assert(.FALSE., cp_failure_level,&
             cp_unimplemented_error_nr, routineP,&
-            "Normalization of transposed or antisymmetric matrices not "//&
+            "Making images of transposed matrices not "//&
             "supported yet.", error)
     CASE DEFAULT
        CALL cp_assert(.FALSE., cp_failure_level,&
@@ -3370,7 +3185,7 @@ CONTAINS
     END SELECT
     normalized%image_dist = target_image_dist
     DBG 'parent ums(1) name', normalized%mats(1)%name
-  END SUBROUTINE dbcsr_normalize
+  END SUBROUTINE dbcsr_make_row_images
 
 
 ! *****************************************************************************
@@ -3379,23 +3194,26 @@ CONTAINS
 !> \param[in,out] ums         normalied matrices
 !> \param[in] row_dist, col_dist        normalize to these distributions
 !> \param[in] blacs2mpi       normalize to this processor grid
+!> \param[in] desymmetrize    (optional) desymmetrize a symmetric matrix
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_normalize_symmetric(sm, ums, target_imgdist, error)
+  SUBROUTINE make_row_images(sm, ums, target_imgdist, desymmetrize,&
+       error)
     TYPE(dbcsr_type), INTENT(IN)             :: sm
     TYPE(dbcsr_array_type), INTENT(OUT), &
       TARGET                                 :: ums
     TYPE(dbcsr_imagedistribution_type), &
       INTENT(IN)                             :: target_imgdist
+    LOGICAL, INTENT(IN), OPTIONAL            :: desymmetrize
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_normalize_symmetric', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_row_images', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: metalen = 2
+    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
-    INTEGER :: blk, blk_l, blk_p, col, dst_p, i, mp_group, numproc, nze, &
-      pcol, prow, row, row_rep, row_repeats, src_p, stored_col, stored_row, &
-      timing_handle
+    INTEGER :: blk, blk_l, blk_p, col, dst_p, mp_group, nsymmetries, numproc, &
+      nze, pcol, prow, row, row_images, row_img, src_p, stored_col, &
+      stored_row, symmetry_i, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_ps, blks, recv_meta, &
                                                 send_meta
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: rd_disp, rm_disp, sd_disp, &
@@ -3405,9 +3223,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: recv_count, send_count
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
                                                 row_blk_size, row_dist, &
-                                                row_rep_dist
+                                                row_img_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
     LOGICAL                                  :: tr
     REAL(KIND=dp)                            :: tstart, tstop
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
@@ -3415,8 +3232,6 @@ CONTAINS
       DIMENSION(:), TARGET                   :: recv_data
     TYPE(dbcsr_distribution_obj)             :: target_dist
     TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_work_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: wms
 
 !TYPE(dbcsr_work_type)                    :: wm
 !TYPE(dbcsr_type), POINTER                :: um
@@ -3426,11 +3241,18 @@ CONTAINS
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     tstart = m_walltime ()
+    nsymmetries = 1
+    IF (PRESENT (desymmetrize)) THEN
+       IF (desymmetrize .AND. (&
+            sm%matrix_type .EQ. 'S' .OR. sm%matrix_type .EQ. 'A')) THEN
+          nsymmetries = 2
+       ENDIF
+    ENDIF
     row_blk_size => array_data (sm%row_blk_size)
     col_blk_size => array_data (sm%col_blk_size)
     target_dist = target_imgdist%main
     row_dist => array_data (dbcsr_distribution_row_dist (target_dist))
-    row_rep_dist => array_data (target_imgdist%row_image)
+    row_img_dist => array_data (target_imgdist%row_image)
     col_dist => array_data (dbcsr_distribution_col_dist (target_dist))
     mp_obj = dbcsr_distribution_mp (target_dist)
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
@@ -3442,14 +3264,14 @@ CONTAINS
     DBG 'blacs2mpi',blacs2mpi
     DBG 'blacs2mpi LB',LBOUND(blacs2mpi)
     DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
-    row_repeats = target_imgdist%nrow_images
-    DBG 'row_repeats',row_repeats
-    ALLOCATE (ums%mats(row_repeats))
-    ALLOCATE (wms(row_repeats))
-    !um => ums%mats(1)
-    CALL cp_assert(SIZE(row_dist) .EQ. SIZE(col_dist), cp_warning_level,&
-         cp_wrong_args_error, routineN,&
-         'Unequal row and column distributions for symmetric matrix.', error)
+    row_images = target_imgdist%row_decimation
+    DBG 'row_repeats',row_images
+    ALLOCATE (ums%mats(row_images))
+    IF (sm%matrix_type .EQ. 'S' .OR. sm%matrix_type .EQ. 'A') THEN
+       CALL cp_assert(SIZE(row_dist) .EQ. SIZE(col_dist), cp_warning_level,&
+            cp_wrong_args_error, routineN,&
+            'Unequal row and column distributions for symmetric matrix.', error)
+    ENDIF
     CALL cp_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), cp_failure_level,&
          cp_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows', error)
@@ -3462,24 +3284,22 @@ CONTAINS
     CALL cp_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
          cp_wrong_args_error, routineN,&
          'Range of col distribution not equal to processor cols', error)
-    ALLOCATE (send_count(2, row_repeats, 0:numproc-1))
-    ALLOCATE (recv_count(2, row_repeats, 0:numproc-1))
+    ALLOCATE (send_count(2, row_images, 0:numproc-1))
+    ALLOCATE (recv_count(2, row_images, 0:numproc-1))
     ALLOCATE (total_send_count(2, 0:numproc-1))
     ALLOCATE (total_recv_count(2, 0:numproc-1))
-    ALLOCATE (sdp(row_repeats, 0:numproc-1))
-    ALLOCATE (sd_disp(row_repeats, 0:numproc-1))
-    ALLOCATE (smp(row_repeats, 0:numproc-1))
-    ALLOCATE (sm_disp(row_repeats, 0:numproc-1))
-    ALLOCATE (rd_disp(row_repeats, 0:numproc-1))
-    ALLOCATE (rm_disp(row_repeats, 0:numproc-1))
+    ALLOCATE (sdp(row_images, 0:numproc-1))
+    ALLOCATE (sd_disp(row_images, 0:numproc-1))
+    ALLOCATE (smp(row_images, 0:numproc-1))
+    ALLOCATE (sm_disp(row_images, 0:numproc-1))
+    ALLOCATE (rd_disp(row_images, 0:numproc-1))
+    ALLOCATE (rm_disp(row_images, 0:numproc-1))
     ! We know the upper bound of how big the new matrix will be, so we can
     ! easily allocate the new one.
-    CALL dbcsr_pack_meta(sm, new_meta, error)
-    new_meta(1:2) = 2 * new_meta(1:2)
     DBG 'A0'
-    DO row_rep = 1, row_repeats
-       CALL dbcsr_init (ums%mats(row_rep), error)
-       CALL dbcsr_create(ums%mats(row_rep), 'norm '//sm%name, sm%dist,&
+    DO row_img = 1, row_images
+       CALL dbcsr_init (ums%mats(row_img), error)
+       CALL dbcsr_create(ums%mats(row_img), 'norm '//sm%name, sm%dist,&
             'N', sm%row_blk_size, sm%col_blk_size,&
             0, 0, error=error, special=.TRUE.)
     ENDDO
@@ -3489,8 +3309,8 @@ CONTAINS
     DO row = 1, sm%nblkrows_total
        DO blk = sm%row_p(row)+1, sm%row_p(row+1)
           col = sm%col_i(blk)
-          DO i = 1, 2
-             IF (i .EQ. 1) THEN
+          DO symmetry_i = 1, nsymmetries
+             IF (symmetry_i .EQ. 1) THEN
                 stored_row = row ; stored_col = col
              ELSE
                 IF (row .EQ. col) CYCLE
@@ -3500,15 +3320,15 @@ CONTAINS
              prow = row_dist(stored_row)
              pcol = col_dist(stored_col)
              dst_p = blacs2mpi(prow, pcol)
-             row_rep = row_rep_dist (stored_row)
+             row_img = row_img_dist (stored_row)
              nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             send_count(1, row_rep, dst_p) = send_count(1, row_rep, dst_p) + 1
-             send_count(2, row_rep, dst_p) = send_count(2, row_rep, dst_p) + nze
-          ENDDO !i
+             send_count(1, row_img, dst_p) = send_count(1, row_img, dst_p) + 1
+             send_count(2, row_img, dst_p) = send_count(2, row_img, dst_p) + nze
+          ENDDO ! symmetry_i
        ENDDO ! col_i
     ENDDO ! row
     DBG 'B'
-    CALL mp_alltoall(send_count, recv_count, 2*row_repeats, mp_group)
+    CALL mp_alltoall(send_count, recv_count, 2*row_images, mp_group)
     DBG 'C'
     DBG 'send counts',send_count
     DBG 'recv counts',recv_count
@@ -3543,18 +3363,19 @@ CONTAINS
                         + total_recv_count(2, dst_p-1)
     ENDDO
     DO dst_p = 0, numproc-1
-       DO row_rep = 2, row_repeats
-          sm_disp (row_rep, dst_p) = sm_disp (row_rep-1, dst_p)&
-                                   + metalen*send_count(1, row_rep-1, dst_p)
-          sd_disp (row_rep, dst_p) = sd_disp (row_rep-1, dst_p)&
-                                   + send_count(2, row_rep-1, dst_p)
-          rm_disp (row_rep, dst_p) = rm_disp (row_rep-1, dst_p)&
-                                   + metalen*recv_count(1, row_rep-1, dst_p)
-          rd_disp (row_rep, dst_p) = rd_disp (row_rep-1, dst_p)&
-                                   + recv_count(2, row_rep-1, dst_p)
+       DO row_img = 2, row_images
+          sm_disp (row_img, dst_p) = sm_disp (row_img-1, dst_p)&
+                                   + metalen*send_count(1, row_img-1, dst_p)
+          sd_disp (row_img, dst_p) = sd_disp (row_img-1, dst_p)&
+                                   + send_count(2, row_img-1, dst_p)
+          rm_disp (row_img, dst_p) = rm_disp (row_img-1, dst_p)&
+                                   + metalen*recv_count(1, row_img-1, dst_p)
+          rd_disp (row_img, dst_p) = rd_disp (row_img-1, dst_p)&
+                                   + recv_count(2, row_img-1, dst_p)
        ENDDO
     ENDDO
-    sdp = sd_disp ; smp = sm_disp
+    sdp = sd_disp
+    smp = sm_disp
     DBG 'send disps data',sd_disp
     DBG 'send disps meta',sm_disp
     DBG 'recv disps data',rd_disp
@@ -3564,8 +3385,8 @@ CONTAINS
        DO blk = sm%row_p(row)+1, sm%row_p(row+1)
           col = sm%col_i(blk)
           blk_p = sm%blk_p(blk)
-          DO i = 1, 2
-             IF (i .EQ. 1) THEN
+          DO symmetry_i = 1, nsymmetries
+             IF (symmetry_i .EQ. 1) THEN
                 stored_row = row ; stored_col = col; tr = .FALSE.
              ELSE                                                
                 IF (row .EQ. col) CYCLE
@@ -3575,22 +3396,22 @@ CONTAINS
              prow = row_dist(stored_row)
              pcol = col_dist(stored_col)
              dst_p = blacs2mpi(prow, pcol)
-             row_rep = row_rep_dist(stored_row)
+             row_img = row_img_dist(stored_row)
              nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             send_meta(smp(row_rep, dst_p)) = stored_row
-             send_meta(smp(row_rep, dst_p)+1) = stored_col
+             send_meta(smp(row_img, dst_p)) = stored_row
+             send_meta(smp(row_img, dst_p)+1) = stored_col
              DBG stored_row, stored_col, blk_p, tr, nze
              IF (.NOT. tr) THEN
-                send_data(sdp(row_rep, dst_p):sdp(row_rep, dst_p)+nze-1) =&
+                send_data(sdp(row_img, dst_p):sdp(row_img, dst_p)+nze-1) =&
                      sm%data(blk_p:blk_p+nze-1)
              ELSE
-                send_meta(smp(row_rep, dst_p)) = -stored_row
-                send_data(sdp(row_rep, dst_p):sdp(row_rep, dst_p)+nze-1) =&
+                send_meta(smp(row_img, dst_p)) = -stored_row
+                send_data(sdp(row_img, dst_p):sdp(row_img, dst_p)+nze-1) =&
                      sm%data(blk_p:blk_p+nze-1)
              ENDIF
-             smp(row_rep, dst_p) = smp(row_rep, dst_p) + metalen
-             sdp(row_rep, dst_p) = sdp(row_rep, dst_p) + nze
-          ENDDO ! i
+             smp(row_img, dst_p) = smp(row_img, dst_p) + metalen
+             sdp(row_img, dst_p) = sdp(row_img, dst_p) + nze
+          ENDDO ! symmetry_i
        ENDDO ! col_i
     ENDDO ! row
     ! Exchange the data and metadata structures.
@@ -3604,18 +3425,17 @@ CONTAINS
     DBG 'recv_meta',recv_meta
     DBG 'G'
     ! Now fill in the data.
-    DO row_rep = 1, row_repeats
-       CALL dbcsr_work_create(ums%mats(row_rep),&
-            SUM(recv_count(1,row_rep,:)),&
-            SUM(recv_count(2,row_rep,:)), error=error)
-       wms(row_rep) = ums%mats(row_rep)%w
+    DO row_img = 1, row_images
+       CALL dbcsr_work_create(ums%mats(row_img),&
+            SUM(recv_count(1,row_img,:)),&
+            SUM(recv_count(2,row_img,:)), error=error)
     ENDDO
     !DBG 'send disps data',sd_disp
     !DBG 'send disps meta',sm_disp
     !DBG 'recv disps data',rd_disp
     !DBG 'recv disps meta',rm_disp
-    ALLOCATE (blk_ps(row_repeats))
-    ALLOCATE (blks (row_repeats))
+    ALLOCATE (blk_ps(row_images))
+    ALLOCATE (blks (row_images))
     !blk_p = 1
     !blk = 1
     blk_ps(:) = 1
@@ -3624,42 +3444,41 @@ CONTAINS
        !wm%data(blk_p : blk_p+recv_count(2,src_p)-1) =&
        !     recv_data(rd_disp(src_p) :&
        !               rd_disp(src_p)+recv_count(2,src_p)-1)
-       DO row_rep = 1, row_repeats
-          nze = recv_count(2, row_rep, src_p)
-          wms(row_rep)%data(blk_ps(row_rep):blk_ps(row_rep)+nze-1) =&
-               recv_data(rd_disp(row_rep, src_p):rd_disp(row_rep, src_p)+nze-1)
+       DO row_img = 1, row_images
+          nze = recv_count(2, row_img, src_p)
+          ums%mats(row_img)%w%data(blk_ps(row_img):blk_ps(row_img)+nze-1) =&
+               recv_data(rd_disp(row_img, src_p):rd_disp(row_img, src_p)+nze-1)
           DBG 'processing from',src_p,'counts',send_count(1, :, src_p)
-          DO blk_l = 1, recv_count(1, row_rep, src_p)
-             stored_row = recv_meta(rm_disp(row_rep,src_p)+metalen*(blk_l-1))
-             stored_col = recv_meta(rm_disp(row_rep,src_p)+metalen*(blk_l-1)+1)
+          DO blk_l = 1, recv_count(1, row_img, src_p)
+             stored_row = recv_meta(rm_disp(row_img,src_p)+metalen*(blk_l-1))
+             stored_col = recv_meta(rm_disp(row_img,src_p)+metalen*(blk_l-1)+1)
              !DBG 'blk: p',blk,src_p,'; row, col',stored_row,stored_col,&
              !     '; blk_p',blk_p,'; row_rep, imgdist',row_rep,&
              !     row_rep_dist (ABS (stored_row))
-             DBG 'blk: p',blks(row_rep),src_p,'; row, col',&
+             DBG 'blk: p',blks(row_img),src_p,'; row, col',&
                   stored_row,stored_col,&
-                  '; blk_ps',blk_ps,'; row_rep, imgdist',row_rep,&
-                  row_rep_dist (ABS (stored_row))
+                  '; blk_ps',blk_ps,'; row_rep, imgdist',row_img,&
+                  row_img_dist (ABS (stored_row))
              !row_rep = row_rep_dist (ABS(stored_row))
-             wms(row_rep)%row_i(blks(row_rep)) = ABS(stored_row)
-             wms(row_rep)%col_i(blks(row_rep)) = stored_col
-             wms(row_rep)%blk_p(blks(row_rep)) =&
-                  SIGN(blk_ps(row_rep), stored_row)
+             ums%mats(row_img)%w%row_i(blks(row_img)) = ABS(stored_row)
+             ums%mats(row_img)%w%col_i(blks(row_img)) = stored_col
+             ums%mats(row_img)%w%blk_p(blks(row_img)) =&
+                  SIGN(blk_ps(row_img), stored_row)
              nze = row_blk_size(ABS(stored_row))&
                   * col_blk_size(stored_col)
              !blk_p = blk_p + nze
              !blk = blk + 1
-             blk_ps(row_rep) = blk_ps(row_rep) + nze
-             blks(row_rep) = blks(row_rep) + 1
+             blk_ps(row_img) = blk_ps(row_img) + nze
+             blks(row_img) = blks(row_img) + 1
           ENDDO
        ENDDO
     ENDDO
     !
-    DO row_rep = 1, row_repeats
-       wms(row_rep)%lastblk = blks(row_rep) - 1
-       wms(row_rep)%datasize = blk_ps(row_rep) - 1
+    DO row_img = 1, row_images
+       ums%mats(row_img)%w%lastblk = blks(row_img) - 1
+       ums%mats(row_img)%w%datasize = blk_ps(row_img) - 1
        DBG 'Finalizing normalization'
-       ums%mats(row_rep)%w = wms(row_rep)
-       CALL dbcsr_finalize(ums%mats(row_rep),&
+       CALL dbcsr_finalize(ums%mats(row_img),&
             resort=.TRUE., reshuffle=.TRUE.,&
             error=error)
     ENDDO
@@ -3675,504 +3494,10 @@ CONTAINS
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
-    DEALLOCATE (wms)
     DBG 'ums(1) name',ums%mats(1)%name
     DBG 'Done desymmetrizing!'
     CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_normalize_symmetric
-
-
-! *****************************************************************************
-!> \brief Prepares a matrix to be multiplied
-!> \param[in] sm    input matrix
-!> \param[in,out] um          normalied matrix
-!> \param[in] row_dist, col_dist        normalize to these distributions
-!> \param[in] blacs2mpi       normalize to this processor grid
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_normalize_normal(sm, ums, target_imgdist, error)
-    TYPE(dbcsr_type), INTENT(IN)             :: sm
-    TYPE(dbcsr_array_type), INTENT(OUT), &
-      TARGET                                 :: ums
-    TYPE(dbcsr_imagedistribution_type), &
-      INTENT(IN)                             :: target_imgdist
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_normalize_normal', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: blk, blk_l, blk_p, col, dst_p, mp_group, numproc, nze, pcol, &
-      prow, row, src_p, stored_col, stored_row, timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
-                                                sd_disp, sdp, send_meta, &
-                                                sm_disp, smp
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
-    REAL(KIND=dp)                            :: tstart, tstop
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), TARGET                   :: recv_data
-    TYPE(dbcsr_distribution_obj)             :: target_dist
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_type), POINTER                :: um
-    TYPE(dbcsr_work_type)                    :: wm
-
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
-    tstart = m_walltime ()
-    row_blk_size => array_data (sm%row_blk_size)
-    col_blk_size => array_data (sm%col_blk_size)
-    target_dist = target_imgdist%main
-    row_dist => array_data (dbcsr_distribution_row_dist (target_dist))
-    col_dist => array_data (dbcsr_distribution_col_dist (target_dist))
-    mp_obj = dbcsr_distribution_mp (target_dist)
-    blacs2mpi => dbcsr_mp_pgrid (mp_obj)
-    numproc = dbcsr_mp_numnodes (mp_obj)
-    mp_group = dbcsr_mp_group (mp_obj)
-    DBG 'blacs2mpi',blacs2mpi
-    ALLOCATE (send_count(2, 0:numproc-1))
-    ALLOCATE (recv_count(2, 0:numproc-1))
-    ALLOCATE (sdp(0:numproc-1))
-    ALLOCATE (sd_disp(0:numproc-1))
-    ALLOCATE (smp(0:numproc-1))
-    ALLOCATE (sm_disp(0:numproc-1))
-    ALLOCATE (rd_disp(0:numproc-1))
-    ALLOCATE (rm_disp(0:numproc-1))
-    ALLOCATE (ums%mats(1))
-    um => ums%mats(1)
-    ! We know the upper bound of how big the new matrix will be, so we can
-    ! easily allocate the new one.
-    CALL dbcsr_pack_meta(sm, new_meta, error)
-    new_meta(1:2) = 2 * new_meta(1:2)
-    DBG 'A0'
-    CALL dbcsr_init (ums%mats(1), error)
-    CALL dbcsr_create(ums%mats(1), 'norm '//sm%name, sm%dist, 'N',&
-         sm%row_blk_size, sm%col_blk_size, 0, 0, error=error)
-    um => ums%mats(1)
-    ! Count initial sizes for sending.
-    DBG 'A'
-    send_count(:,:) = 0
-    DO row = 1, sm%nblkrows_total
-       DO blk = sm%row_p(row)+1, sm%row_p(row+1)
-          col = sm%col_i(blk)
-          stored_row = row ; stored_col = col
-          ! Where do we send this block?
-          prow = row_dist(stored_row)
-          pcol = col_dist(stored_col)
-          dst_p = blacs2mpi(prow, pcol)
-          nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-          send_count(1, dst_p) = send_count(1, dst_p) + 1
-          send_count(2, dst_p) = send_count(2, dst_p) + nze
-       ENDDO ! col_i
-    ENDDO ! row
-    DBG 'B'
-    CALL mp_alltoall(send_count, recv_count, 2, mp_group)
-    DBG 'C'
-    DBG 'send counts',send_count
-    DBG 'recv counts',recv_count
-    ! Allocate data structures needed for data exchange.
-    ALLOCATE (recv_data(SUM(recv_count(2, :))))
-    ALLOCATE (recv_meta(2*SUM(recv_count(1, :))))
-    ALLOCATE (send_data(SUM(send_count(2, :))))
-    ALLOCATE (send_meta(2*SUM(send_count(1, :))))
-    ! Fill in the meta data structures and copy the data.
-    sd_disp(0) = 1 ; sm_disp(0) = 1
-    rd_disp(0) = 1 ; rm_disp(0) = 1
-    DO dst_p = 1, numproc-1
-       sm_disp(dst_p) = sm_disp(dst_p-1) + 2*send_count(1, dst_p-1)
-       sd_disp(dst_p) = sd_disp(dst_p-1) + send_count(2, dst_p-1)
-       rm_disp(dst_p) = rm_disp(dst_p-1) + 2*recv_count(1, dst_p-1)
-       rd_disp(dst_p) = rd_disp(dst_p-1) + recv_count(2, dst_p-1)
-    ENDDO
-    sdp = sd_disp ; smp = sm_disp
-    DBG 'D'
-    DO row = 1, sm%nblkrows_total
-       DO blk = sm%row_p(row)+1, sm%row_p(row+1)
-          col = sm%col_i(blk)
-          blk_p = sm%blk_p(blk)
-          stored_row = row ; stored_col = col
-          ! Where do we send this block?
-          prow = row_dist(stored_row)
-          pcol = col_dist(stored_col)
-          dst_p = blacs2mpi(prow, pcol)
-          nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-          send_meta(smp(dst_p)) = stored_row
-          send_meta(smp(dst_p)+1) = stored_col
-          smp(dst_p) = smp(dst_p) + 2
-          send_data(sdp(dst_p):sdp(dst_p)+nze-1) = sm%data(blk_p:blk_p+nze-1)
-          sdp(dst_p) = sdp(dst_p) + nze
-       ENDDO ! col_i
-    ENDDO ! row
-    ! Exchange the data and metadata structures.
-    DBG 'E'
-    CALL mp_alltoall(send_data(:), send_count(2,:), sd_disp(:)-1,&
-         recv_data(:), recv_count(2,:), rd_disp(:)-1, mp_group)
-    DBG 'F'
-    DBG 'send_meta',send_meta
-    CALL mp_alltoall(send_meta(:), 2*send_count(1,:), sm_disp(:)-1,&
-         recv_meta(:), 2*recv_count(1,:), rm_disp(:)-1, mp_group)
-    DBG 'recv_meta',recv_meta
-    DBG 'G'
-    ! Now fill in the data.
-    CALL dbcsr_work_create(um, SUM(recv_count(1,:)),&
-         SUM(recv_count(2,:)), error=error)
-    wm = um%w
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
-    blk_p = 1
-    blk = 1
-    DO src_p = 0, numproc-1
-       wm%data(blk_p : blk_p+recv_count(2,src_p)-1) =&
-            recv_data(rd_disp(src_p) :&
-                      rd_disp(src_p)+recv_count(2,src_p)-1)
-       DBG 'processing from',src_p,'count',send_count(1, src_p)
-       DO blk_l = 1, recv_count(1, src_p)
-          stored_row = recv_meta(rm_disp(src_p)+2*(blk_l-1))
-          stored_col = recv_meta(rm_disp(src_p)+2*(blk_l-1)+1)
-          DBG 'blk: p',blk,src_p,'; row, col',stored_row,stored_col,&
-               '; blk_p',blk_p
-          wm%row_i(blk) = stored_row
-          wm%col_i(blk) = stored_col
-          wm%blk_p(blk) = blk_p
-          nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-          blk_p = blk_p + nze
-          blk = blk + 1
-       ENDDO
-    ENDDO
-    !
-    wm%lastblk = blk-1
-    wm%datasize = blk_p - 1
-    DBG 'Finalizing normalization'
-    um%w = wm
-    CALL dbcsr_finalize(um, resort=.TRUE., reshuffle=.TRUE., error=error)
-    DEALLOCATE(send_count)
-    DEALLOCATE(recv_count)
-    DEALLOCATE(sdp); DEALLOCATE(sd_disp)
-    DEALLOCATE(smp); DEALLOCATE(sm_disp)
-    DEALLOCATE(rd_disp)
-    DEALLOCATE(rm_disp)
-    DEALLOCATE(recv_data)
-    DEALLOCATE(recv_meta)
-    DEALLOCATE(send_data)
-    DEALLOCATE(send_meta)
-    tstop = m_walltime ()
-    DBG 'time:',tstop-tstart
-    DBG 'Done normalizing.'
-    CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_normalize_normal
-
-! *****************************************************************************
-!> \brief Prepares a matrix to be multiplied
-!> \param[in] sm    input matrix
-!> \param[in,out] um          normalied matrix
-!> \param[in] row_dist, col_dist        normalize to these distributions
-!> \param[in] blacs2mpi       normalize to this processor grid
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_normalize_normal_images(sm, ums, target_imgdist, error)
-    TYPE(dbcsr_type), INTENT(IN)             :: sm
-    TYPE(dbcsr_array_type), INTENT(OUT), &
-      TARGET                                 :: ums
-    TYPE(dbcsr_imagedistribution_type), &
-      INTENT(IN)                             :: target_imgdist
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_normalize_normal_images', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: metalen = 2
-
-    INTEGER :: blk, blk_l, blk_p, col, dst_p, i, mp_group, numproc, nze, &
-      pcol, prow, row, row_rep, row_repeats, src_p, stored_col, stored_row, &
-      timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_ps, blks, recv_meta, &
-                                                send_meta
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: rd_disp, rm_disp, sd_disp, &
-                                                sdp, sm_disp, smp, &
-                                                total_recv_count, &
-                                                total_send_count
-    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: recv_count, send_count
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist, &
-                                                row_rep_dist
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
-    LOGICAL                                  :: tr
-    REAL(KIND=dp)                            :: tstart, tstop
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), TARGET                   :: recv_data
-    TYPE(dbcsr_distribution_obj)             :: target_dist
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_work_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: wms
-
-!TYPE(dbcsr_work_type)                    :: wm
-!TYPE(dbcsr_type), POINTER                :: um
-
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
-    tstart = m_walltime ()
-    row_blk_size => array_data (sm%row_blk_size)
-    col_blk_size => array_data (sm%col_blk_size)
-    target_dist = target_imgdist%main
-    row_dist => array_data (dbcsr_distribution_row_dist (target_dist))
-    row_rep_dist => array_data (target_imgdist%row_image)
-    col_dist => array_data (dbcsr_distribution_col_dist (target_dist))
-    mp_obj = dbcsr_distribution_mp (target_dist)
-    blacs2mpi => dbcsr_mp_pgrid (mp_obj)
-    numproc = dbcsr_mp_numnodes (mp_obj)
-    mp_group = dbcsr_mp_group (mp_obj)
-    DBGV 'row_dist', row_dist
-    DBGV 'col_dist', col_dist
-    DBG 'row, col maxval:', MAXVAL(row_dist), MAXVAL(col_dist)
-    DBG 'blacs2mpi',blacs2mpi
-    DBG 'blacs2mpi LB',LBOUND(blacs2mpi)
-    DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
-    row_repeats = target_imgdist%nrow_images
-    DBG 'row_repeats',row_repeats
-    ALLOCATE (ums%mats(row_repeats))
-    ALLOCATE (wms(row_repeats))
-    !um => ums%mats(1)
-    CALL cp_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows', error)
-    CALL cp_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
-         cp_wrong_args_error, routineN,&
-         'Range of row distribution not equal to processor rows', error)
-    CALL cp_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols', error)
-    CALL cp_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
-         cp_wrong_args_error, routineN,&
-         'Range of col distribution not equal to processor cols', error)
-    ALLOCATE (send_count(2, row_repeats, 0:numproc-1))
-    ALLOCATE (recv_count(2, row_repeats, 0:numproc-1))
-    ALLOCATE (total_send_count(2, 0:numproc-1))
-    ALLOCATE (total_recv_count(2, 0:numproc-1))
-    ALLOCATE (sdp(row_repeats, 0:numproc-1))
-    ALLOCATE (sd_disp(row_repeats, 0:numproc-1))
-    ALLOCATE (smp(row_repeats, 0:numproc-1))
-    ALLOCATE (sm_disp(row_repeats, 0:numproc-1))
-    ALLOCATE (rd_disp(row_repeats, 0:numproc-1))
-    ALLOCATE (rm_disp(row_repeats, 0:numproc-1))
-    ! We know the upper bound of how big the new matrix will be, so we can
-    ! easily allocate the new one.
-    CALL dbcsr_pack_meta(sm, new_meta, error)
-    new_meta(1:2) = 2 * new_meta(1:2)
-    DBG 'A0'
-    DO row_rep = 1, row_repeats
-       CALL dbcsr_init (ums%mats(row_rep), error)
-       CALL dbcsr_create(ums%mats(row_rep), 'norm '//sm%name, sm%dist,&
-            'N', sm%row_blk_size, sm%col_blk_size,&
-            0, 0, error=error)
-    ENDDO
-    ! Count initial sizes for sending.
-    DBG 'A'
-    send_count(:,:,:) = 0
-    DO row = 1, sm%nblkrows_total
-       DO blk = sm%row_p(row)+1, sm%row_p(row+1)
-          col = sm%col_i(blk)
-          DO i = 1, 1
-             IF (i .EQ. 1) THEN
-                stored_row = row ; stored_col = col
-             ELSE
-                IF (row .EQ. col) CYCLE
-                stored_row = col ; stored_col = row
-             ENDIF
-             ! Where do we send this block?
-             prow = row_dist(stored_row)
-             pcol = col_dist(stored_col)
-             dst_p = blacs2mpi(prow, pcol)
-             row_rep = row_rep_dist (stored_row)
-             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             send_count(1, row_rep, dst_p) = send_count(1, row_rep, dst_p) + 1
-             send_count(2, row_rep, dst_p) = send_count(2, row_rep, dst_p) + nze
-          ENDDO !i
-       ENDDO ! col_i
-    ENDDO ! row
-    DBG 'B'
-    CALL mp_alltoall(send_count, recv_count, 2*row_repeats, mp_group)
-    DBG 'C'
-    DBG 'send counts',send_count
-    DBG 'recv counts',recv_count
-    ! Allocate data structures needed for data exchange.
-    ALLOCATE (recv_data(SUM(recv_count(2, :, :))))
-    ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :, :))))
-    ALLOCATE (send_data(SUM(send_count(2, :, :))))
-    ALLOCATE (send_meta(metalen*SUM(send_count(1, :, :))))
-    DBG 'send data len',SIZE (send_data)
-    DBG 'send meta len',SIZE (send_meta)
-    DBG 'recv data len',SIZE (recv_data)
-    DBG 'recv meta len',SIZE (recv_meta)
-    ! Fill in the meta data structures and copy the data.
-    DO dst_p = 0, numproc-1
-       total_send_count(1, dst_p) = SUM (send_count (1, :, dst_p))
-       total_send_count(2, dst_p) = SUM (send_count (2, :, dst_p))
-       total_recv_count(1, dst_p) = SUM (recv_count (1, :, dst_p))
-       total_recv_count(2, dst_p) = SUM (recv_count (2, :, dst_p))
-    ENDDO
-    sd_disp = -1 ; sm_disp = -1
-    rd_disp = -1 ; rm_disp = -1
-    sd_disp(1,0) = 1 ; sm_disp(1,0) = 1
-    rd_disp(1,0) = 1 ; rm_disp(1,0) = 1
-    DO dst_p = 1, numproc-1
-       sm_disp(1,dst_p) = sm_disp(1,dst_p-1)&
-                        + metalen*total_send_count(1, dst_p-1)
-       sd_disp(1,dst_p) = sd_disp(1,dst_p-1)&
-                        + total_send_count(2, dst_p-1)
-       rm_disp(1,dst_p) = rm_disp(1,dst_p-1)&
-                        + metalen*total_recv_count(1, dst_p-1)
-       rd_disp(1,dst_p) = rd_disp(1,dst_p-1)&
-                        + total_recv_count(2, dst_p-1)
-    ENDDO
-    DO dst_p = 0, numproc-1
-       DO row_rep = 2, row_repeats
-          sm_disp (row_rep, dst_p) = sm_disp (row_rep-1, dst_p)&
-                                   + metalen*send_count(1, row_rep-1, dst_p)
-          sd_disp (row_rep, dst_p) = sd_disp (row_rep-1, dst_p)&
-                                   + send_count(2, row_rep-1, dst_p)
-          rm_disp (row_rep, dst_p) = rm_disp (row_rep-1, dst_p)&
-                                   + metalen*recv_count(1, row_rep-1, dst_p)
-          rd_disp (row_rep, dst_p) = rd_disp (row_rep-1, dst_p)&
-                                   + recv_count(2, row_rep-1, dst_p)
-       ENDDO
-    ENDDO
-    sdp = sd_disp ; smp = sm_disp
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
-    DBG 'D'
-    DO row = 1, sm%nblkrows_total
-       DO blk = sm%row_p(row)+1, sm%row_p(row+1)
-          col = sm%col_i(blk)
-          blk_p = sm%blk_p(blk)
-          DO i = 1, 1
-             IF (i .EQ. 1) THEN
-                stored_row = row ; stored_col = col; tr = .FALSE.
-             ELSE                                                
-                IF (row .EQ. col) CYCLE
-                stored_row = col ; stored_col = row; tr = .TRUE.
-             ENDIF
-             ! Where do we send this block?
-             prow = row_dist(stored_row)
-             pcol = col_dist(stored_col)
-             dst_p = blacs2mpi(prow, pcol)
-             row_rep = row_rep_dist(stored_row)
-             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             send_meta(smp(row_rep, dst_p)) = stored_row
-             send_meta(smp(row_rep, dst_p)+1) = stored_col
-             DBG stored_row, stored_col, blk_p, tr, nze
-             IF (.NOT. tr) THEN
-                send_data(sdp(row_rep, dst_p):sdp(row_rep, dst_p)+nze-1) =&
-                     sm%data(blk_p:blk_p+nze-1)
-             ELSE
-                send_meta(smp(row_rep, dst_p)) = -stored_row
-                send_data(sdp(row_rep, dst_p):sdp(row_rep, dst_p)+nze-1) =&
-                     sm%data(blk_p:blk_p+nze-1)
-             ENDIF
-             smp(row_rep, dst_p) = smp(row_rep, dst_p) + metalen
-             sdp(row_rep, dst_p) = sdp(row_rep, dst_p) + nze
-          ENDDO ! i
-       ENDDO ! col_i
-    ENDDO ! row
-    ! Exchange the data and metadata structures.
-    DBG 'E'
-    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(1,:)-1,&
-         recv_data(:), total_recv_count(2,:), rd_disp(1,:)-1, mp_group)
-    DBG 'F'
-    DBG 'send_meta',send_meta
-    CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(1,:)-1,&
-         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(1,:)-1, mp_group)
-    DBG 'recv_meta',recv_meta
-    DBG 'G'
-    ! Now fill in the data.
-    DO row_rep = 1, row_repeats
-       CALL dbcsr_work_create(ums%mats(row_rep),&
-            SUM(recv_count(1,row_rep,:)),&
-            SUM(recv_count(2,row_rep,:)), error=error)
-       wms(row_rep) = ums%mats(row_rep)%w
-    ENDDO
-    !DBG 'send disps data',sd_disp
-    !DBG 'send disps meta',sm_disp
-    !DBG 'recv disps data',rd_disp
-    !DBG 'recv disps meta',rm_disp
-    ALLOCATE (blk_ps(row_repeats))
-    ALLOCATE (blks (row_repeats))
-    !blk_p = 1
-    !blk = 1
-    blk_ps(:) = 1
-    blks(:) = 1
-    DO src_p = 0, numproc-1
-       !wm%data(blk_p : blk_p+recv_count(2,src_p)-1) =&
-       !     recv_data(rd_disp(src_p) :&
-       !               rd_disp(src_p)+recv_count(2,src_p)-1)
-       DO row_rep = 1, row_repeats
-          nze = recv_count(2, row_rep, src_p)
-          wms(row_rep)%data(blk_ps(row_rep):blk_ps(row_rep)+nze-1) =&
-               recv_data(rd_disp(row_rep, src_p):rd_disp(row_rep, src_p)+nze-1)
-          DBG 'processing from',src_p,'counts',send_count(1, :, src_p)
-          DO blk_l = 1, recv_count(1, row_rep, src_p)
-             stored_row = recv_meta(rm_disp(row_rep,src_p)+metalen*(blk_l-1))
-             stored_col = recv_meta(rm_disp(row_rep,src_p)+metalen*(blk_l-1)+1)
-             !DBG 'blk: p',blk,src_p,'; row, col',stored_row,stored_col,&
-             !     '; blk_p',blk_p,'; row_rep, imgdist',row_rep,&
-             !     row_rep_dist (ABS (stored_row))
-             DBG 'blk: p',blks(row_rep),src_p,'; row, col',&
-                  stored_row,stored_col,&
-                  '; blk_ps',blk_ps,'; row_rep, imgdist',row_rep,&
-                  row_rep_dist (ABS (stored_row))
-             !row_rep = row_rep_dist (ABS(stored_row))
-             wms(row_rep)%row_i(blks(row_rep)) = ABS(stored_row)
-             wms(row_rep)%col_i(blks(row_rep)) = stored_col
-             wms(row_rep)%blk_p(blks(row_rep)) =&
-                  SIGN(blk_ps(row_rep), stored_row)
-             nze = row_blk_size(ABS(stored_row))&
-                  * col_blk_size(stored_col)
-             !blk_p = blk_p + nze
-             !blk = blk + 1
-             blk_ps(row_rep) = blk_ps(row_rep) + nze
-             blks(row_rep) = blks(row_rep) + 1
-          ENDDO
-       ENDDO
-    ENDDO
-    !
-    DO row_rep = 1, row_repeats
-       wms(row_rep)%lastblk = blks(row_rep) - 1
-       wms(row_rep)%datasize = blk_ps(row_rep) - 1
-       DBG 'Finalizing normalization'
-       ums%mats(row_rep)%w = wms(row_rep)
-       CALL dbcsr_finalize(ums%mats(row_rep),&
-            resort=.TRUE., reshuffle=.TRUE.,&
-            error=error)
-    ENDDO
-    tstop = m_walltime ()
-    DBG 'time:',tstop-tstart
-    DEALLOCATE(send_count)
-    DEALLOCATE(recv_count)
-    DEALLOCATE(sdp); DEALLOCATE(sd_disp)
-    DEALLOCATE(smp); DEALLOCATE(sm_disp)
-    DEALLOCATE(rd_disp)
-    DEALLOCATE(rm_disp)
-    DEALLOCATE(recv_data)
-    DEALLOCATE(recv_meta)
-    DEALLOCATE(send_data)
-    DEALLOCATE(send_meta)
-    DEALLOCATE (wms)
-    DBG 'ums(1) name',ums%mats(1)%name
-    DBG 'Done desymmetrizing!'
-    CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_normalize_normal_images
+  END SUBROUTINE make_row_images
 
 
 ! *****************************************************************************
@@ -4945,6 +4270,22 @@ CONTAINS
   END SUBROUTINE dbcsr_set_debug
 
 
+  SUBROUTINE dbcsr_sleep(duration)
+    REAL(KIND=dp), INTENT(IN)                :: duration
+
+    REAL(KIND=dp)                            :: t_now, t_start
+
+!   ---------------------------------------------------------------------------
+
+    t_start = m_walltime ()
+    t_now = t_start
+    DO WHILE (t_now .LT. t_start + duration)
+       t_now = m_walltime ()
+    ENDDO
+  END SUBROUTINE dbcsr_sleep
+
+
+
 ! *****************************************************************************
 !> \brief Creates a DBCSR distribution from a distribution_2d
 !> \param[in] dist2d          distribution_2d
@@ -5018,16 +4359,137 @@ CONTAINS
   END SUBROUTINE dbcsr_transpose_distribution
 
 
+  PURE SUBROUTINE evenly_bin (array, nbins)
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: array
+    INTEGER, INTENT(IN)                      :: nbins
+
+    INTEGER                                  :: bin, first, last, maxbinsize
+
+!
+
+    maxbinsize = CEILING (REAL(SIZE (array)) / REAL(nbins))
+    DO bin = 1, nbins
+       first = 1 + (bin-1)*maxbinsize
+       last = MIN (1 + (bin)*maxbinsize-1, SIZE (array))
+       array (first : last) = bin
+    ENDDO
+  END SUBROUTINE evenly_bin
+
+  SUBROUTINE evenly_bin_images (array, images, nbins, nimages)
+    INTEGER, DIMENSION(:), INTENT(IN)        :: array
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: images
+    INTEGER, INTENT(IN)                      :: nbins, nimages
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'evenly_bin_images', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: debug_level = 2
+
+    INTEGER                                  :: bin, i, maxbinsize, maximgsize
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: img_count, put_in_img
+
+! nimages/bin
+!
+
+    CALL bcsr_assert (debug_level, SIZE(array).EQ.SIZE(images), routineN,&
+         "array sizes unequal")
+    maxbinsize = CEILING (REAL(SIZE (array)) / REAL(nbins))
+    maximgsize = CEILING (REAL(maxbinsize) / REAL(nimages))
+    ALLOCATE (img_count (0:nbins), put_in_img(0:nbins))
+    img_count(:) = 0
+    put_in_img(:) = 1
+    DO i = 1, SIZE (array)
+       bin = array(i)
+       img_count(bin) = img_count(bin) + 1
+       IF (debug_level .GE. 2) &
+            CALL bcsr_assert (debug_level, put_in_img(bin) .LE. nimages,&
+            routineN, "not enough images")
+       images (i) = put_in_img(bin)
+       IF (img_count(bin) .GT. maximgsize) THEN
+          img_count(bin) = 0
+          put_in_img(bin) = put_in_img(bin)+1
+       ENDIF
+    ENDDO
+  END SUBROUTINE evenly_bin_images
 
 ! *****************************************************************************
-!> \brief Creates a left-matrix DBCSR repeated distribution for a matrix
+!> \brief Makes new distribution and image distribution in one dimension
+!> \param[out] new_bins  new real distribution
+!> \param[out] images    new image distribution
+!> \param[in] target_bins    Basis for the new distribution and images
+!> \param[in] nbins     number of bins in the new real distribution
+!> \param[in] nimages   number of images per bin in the new distribution
+! *****************************************************************************
+  SUBROUTINE bin_images (new_bins, images, target_bins, nbins, nimages)
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: new_bins, images
+    INTEGER, DIMENSION(:), INTENT(IN)        :: target_bins
+    INTEGER, INTENT(IN)                      :: nbins, nimages
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'bin_images', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: debug_level = 2
+
+    INTEGER                                  :: bin, i, old_nbins
+
+!
+
+    CALL bcsr_assert (debug_level, SIZE(target_bins).EQ.SIZE(images) .AND.&
+         SIZE(target_bins).EQ.SIZE(new_bins), routineN,&
+         "array sizes not equal")
+    old_nbins = nbins * nimages
+    DO i = 1, SIZE (target_bins)
+       bin = target_bins (i)
+       new_bins (i) = bin / nimages
+       images (i) = 1 + MOD (bin, nimages)
+    ENDDO
+  END SUBROUTINE bin_images
+
+
+! *****************************************************************************
+!> \brief Makes new distribution with multiplicity
+!> \param[out] new_bins  new real distribution
+!> \param[in] target_bins    Basis for the new distribution and images
+!> \param[in] nbins     number of bins in the new real distribution
+!> \param[in] multiplicity   multiplicity
+! *****************************************************************************
+  SUBROUTINE bin_multiplicity (new_bins, target_bins, nbins, multiplicity)
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: new_bins
+    INTEGER, DIMENSION(:), INTENT(IN)        :: target_bins
+    INTEGER, INTENT(IN)                      :: nbins, multiplicity
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'bin_multiplicity', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: debug_level = 2
+
+    INTEGER                                  :: bin, i, old_nbins
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
+
+!
+
+    CALL bcsr_assert (debug_level, SIZE(target_bins).EQ.SIZE(new_bins),&
+         routineN, "array sizes not equal")
+    CALL bcsr_assert (debug_level, MOD (nbins, multiplicity) .EQ. 0,&
+         routineN, "mulitplicity is not divisor of new process grid coordinate")
+    old_nbins = nbins / multiplicity
+    ALLOCATE (bin_multiplier(0:nbins-1))
+    bin_multiplier(:) = 0
+    DO i = 1, SIZE (target_bins)
+       bin = target_bins (i)
+       bin_multiplier(bin) = bin_multiplier(bin)+1
+       IF (bin_multiplier(bin) .GE. multiplicity) THEN
+          bin_multiplier(bin) = 0
+       ENDIF
+       new_bins (i) = bin + old_nbins*bin_multiplier(bin)
+    ENDDO
+  END SUBROUTINE bin_multiplicity
+
+
+
+! *****************************************************************************
+!> \brief Creates a left-matrix DBCSR image distribution for a matrix
 !>        multiplication based on the right matrix
-!> \par The processor grid is a transpose of the right matrix and the column
-!>      distribution is is right matrix's row distribution. The row
-!>      is a cycle of the *new* processor rows (i.e., same as processor
-!>      columns of the right while the old row distribution becomes the new
-!>      image distribution. In other words, the number of row images are the
-!>      same as the previous number of processor rows.
+!>
+!> The processor grid is a transpose of the right matrix and the
+!> column distribution is is right matrix's row distribution.
 !> \param[out] imgdist_product          product distribution repetition
 !> \param[in] dist_left, dist_right     distributions of the left and right
 !>                                      matrices
@@ -5038,60 +4500,89 @@ CONTAINS
       INTENT(OUT)                            :: imgdist_left
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_left, dist_right
 
-    INTEGER                                  :: i, nprows, nrows, row
-    INTEGER, DIMENSION(:), POINTER           :: rd, row_dist_data, &
-                                                row_rep_data
-    INTEGER, DIMENSION(:, :), POINTER        :: right_pgrid
-    TYPE(array_i1d_obj)                      :: col_dist, row_dist, &
-                                                row_repetition
-    TYPE(dbcsr_distribution_obj)             :: new_dist_left
-    TYPE(dbcsr_mp_obj)                       :: mp_env, old_mp_env
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_image_dist_left', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, image, nimages, &
+                                                nprows_left, nprows_right, &
+                                                nrows, row
+    INTEGER, DIMENSION(:), POINTER           :: rd, row_dist_data, &
+                                                row_img_data
+    INTEGER, DIMENSION(:, :), POINTER        :: right_pgrid
+    LOGICAL                                  :: compatible
+    TYPE(array_i1d_obj)                      :: col_dist, row_dist, row_image
+    TYPE(dbcsr_distribution_obj)             :: new_dist_left
+    TYPE(dbcsr_mp_obj)                       :: mp_env, mp_env_right, &
+                                                old_mp_env_left
+
+    DEBUG_HEADER
 !
 !   ---------------------------------------------------------------------------
-! Set up the basic data: the row repetition is the left matrix row
+    DEBUG_BODY
+! Set up the basic data: the row image is the left matrix row
 ! distribution.
-!row_repetition = dbcsr_distribution_row_dist (dist_left)
+!row_image = dbcsr_distribution_row_dist (dist_left)
 
     CALL dbcsr_distribution_init (new_dist_left)
     CALL dbcsr_distribution_init (imgdist_left%main)
     CALL array_nullify (imgdist_left%col_image)
     CALL array_nullify (imgdist_left%row_image)
-    rd => array_data (dbcsr_distribution_row_dist (dist_left))
-    ALLOCATE (row_rep_data (SIZE (rd)))
-    row_rep_data(:) = rd(:) + 1
-    CALL array_new (row_repetition, row_rep_data, gift=.TRUE.)
-    nrows = array_size (row_repetition)
-    right_pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (dist_right))
-    imgdist_left%nrow_images = SIZE (right_pgrid, 1)
-    imgdist_left%ncol_images = 1
-    ! Calculate the row distribution. It would be nicer to calculate
-    ! this in a distributed manner and more load-balanced. For now we must
-    ! just be sure all processors calculate the same thing.
+    old_mp_env_left = dbcsr_distribution_mp (dist_left)
+    mp_env_right = dbcsr_distribution_mp (dist_right)
+    DBG 'right pgrid shape', SHAPE (dbcsr_mp_pgrid (mp_env_right))
+    compatible = dbcsr_mp_npcols (old_mp_env_left) .EQ.&
+         dbcsr_mp_nprows (mp_env_right)
+    ! Determine the factors.
+    nrows = array_size (dbcsr_distribution_row_dist (dist_left))
+    right_pgrid => dbcsr_mp_pgrid (mp_env_right)
+    nprows_right = dbcsr_mp_nprows (mp_env_right)
+    nprows_left = dbcsr_mp_npcols (mp_env_right)
+    imgdist_left%row_decimation = lcm (nprows_right, nprows_left)&
+         / nprows_left
+    imgdist_left%row_multiplicity = nprows_left &
+         / gcd (nprows_left, nprows_right)
+    DBG 'image row decimation, multiplicity',&
+         imgdist_left%row_decimation, imgdist_left%row_multiplicity
+    imgdist_left%col_decimation = 1
+    imgdist_left%col_multiplicity = 1
+    ! Create row distribution and image distribution
     ALLOCATE (row_dist_data (nrows))
-    nprows = SIZE (right_pgrid, 2)
-    i = 0
-    DO row = 1, nrows
-       row_dist_data (row) = i
-       i = i+1
-       IF (i .GE. nprows) i = 0
-    ENDDO
+    ALLOCATE (row_img_data (nrows))
+    rd => array_data (dbcsr_distribution_row_dist (dist_right))
+    nimages = imgdist_left%row_decimation
+    IF (imgdist_left%row_multiplicity .GT. 1) THEN
+       CALL bin_multiplicity (row_dist_data, rd, nprows_left, imgdist_left%row_multiplicity)
+       row_img_data(:) = (/ (1, i=1, nrows) /)
+    ELSE
+       CALL bin_images (row_dist_data, row_img_data, rd, nprows_left, nimages)
+       
+    ENDIF
+!4528 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
+!    IF (dbg) THEN
+!       WRITE(*,*)routineP//' row_dist_data'
+!       WRITE(*,4528)row_dist_data
+!    ENDIF
     CALL array_new (row_dist, row_dist_data, gift=.TRUE.)
-    !
+    CALL array_new (row_image, row_img_data, gift=.TRUE.)
+    ! Now copy the column distribution from the right matrix's row dist.
     col_dist = dbcsr_distribution_row_dist (dist_right)
-    old_mp_env = dbcsr_distribution_mp (dist_right)
-    CALL dbcsr_mp_new_transposed (mp_env, old_mp_env)
+    IF (compatible) THEN
+       mp_env = old_mp_env_left
+    ELSE
+       CALL dbcsr_mp_new_transposed (mp_env, old_mp_env_left)
+    ENDIF
     CALL dbcsr_distribution_new(new_dist_left,&
          mp_env,&
          row_dist, col_dist)
-    WRITE(*,*)'left pgrid shape',&
+    DBG 'left pgrid shape',&
          SHAPE (dbcsr_mp_pgrid (dbcsr_distribution_mp (dist_left)))
-    ! Now finish the distribution repetition.
+    ! Now finish the distribution image.
     imgdist_left%main = new_dist_left
-    !CALL array_hold (row_repetition)
-    imgdist_left%row_image = row_repetition
-    CALL dbcsr_mp_release (mp_env)
+    imgdist_left%row_image = row_image
     CALL array_release (row_dist)
+    IF (.NOT.compatible) THEN
+       CALL dbcsr_mp_release (mp_env)
+    ENDIF
   END SUBROUTINE dbcsr_create_image_dist_left
 
 ! *****************************************************************************
@@ -5110,10 +4601,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    imgdist%nrow_images = 1
-    imgdist%ncol_images = 1
-    !CALL array_nullify(imgdist%row_image)
-    !CALL array_nullify(imgdist%col_image)
+    imgdist%row_decimation = 1
+    imgdist%col_decimation = 1
+    imgdist%row_multiplicity = 1
+    imgdist%col_multiplicity = 1
     CALL array_new (imgdist%row_image,&
          (/ (1, i=1, dbcsr_distribution_nrows (dist)) /), lb=1)
     CALL array_new (imgdist%col_image,&
@@ -5390,5 +4881,3 @@ CONTAINS
   END SUBROUTINE set_block_diagonal
 
 END MODULE dbcsr_util
-
-

@@ -173,7 +173,7 @@ MODULE message_passing
   INTERFACE mp_allgather
      MODULE PROCEDURE mp_allgather_i1, mp_allgatherv_rv,&
                       mp_allgather_i12, mp_allgather_i23,&
-                      mp_allgatherv_iv
+                      mp_allgather_r23, mp_allgatherv_iv
   END INTERFACE
 
   INTERFACE mp_sum_scatter
@@ -3636,6 +3636,37 @@ CONTAINS
   END SUBROUTINE mp_allgather_i23
 
 ! *****************************************************************************
+  SUBROUTINE mp_allgather_r23(msgout, msgin,gid)
+    REAL(KIND=dp), INTENT(IN)                :: msgout(:,:)
+    REAL(KIND=dp), INTENT(OUT)               :: msgin(:, :, :)
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgather_r23', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, rcount, scount
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    scount = SIZE (msgout(:,:))
+    rcount = scount
+    CALL MPI_ALLGATHER(msgout, scount, MP_STD_REAL, &
+                       msgin , rcount, MP_STD_REAL, &
+                       gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_r23" )
+#else
+    msgin(:,:,1) = msgout(:,:)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allgather_r23
+
+! *****************************************************************************
   SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
     REAL(KIND=dp), INTENT(IN)                :: msgout( : )
     REAL(KIND=dp), INTENT(OUT)               :: msgin( : )
@@ -4955,7 +4986,7 @@ CONTAINS
     ELSE
        winsize = SIZE (range)
     ENDIF
-    CALL MPI_TYPE_SIZE(MPI_DOUBLE_PRECISION, double_size, ierr)
+    CALL MPI_TYPE_SIZE(MP_STD_REAL, double_size, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_type_size @ mp_win_create_d")
     winsize = winsize*double_size
     CALL MPI_WIN_CREATE(range, winsize, double_size,&
@@ -5248,8 +5279,8 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
-    CALL MPI_GET(storage, len, MPI_DOUBLE_PRECISION, remote,&
-         INT (offset, MPI_ADDRESS_KIND), len, MPI_DOUBLE_PRECISION,&
+    CALL MPI_GET(storage, len, MP_STD_REAL, remote,&
+         INT (offset, MPI_ADDRESS_KIND), len, MP_STD_REAL,&
          window%id, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_get @ mp_rma_get_d")
     t_end = m_walltime()
@@ -5336,8 +5367,8 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime()
     ierr = 0
-    CALL MPI_PUT(storage, len, MPI_DOUBLE_PRECISION, remote,&
-         INT (offset, MPI_ADDRESS_KIND), len, MPI_DOUBLE_PRECISION,&
+    CALL MPI_PUT(storage, len, MP_STD_REAL, remote,&
+         INT (offset, MPI_ADDRESS_KIND), len, MP_STD_REAL,&
          window, ierr)
     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_put @ mp_rma_put_d")
     t_end = m_walltime()

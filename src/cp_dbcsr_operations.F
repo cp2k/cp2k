@@ -21,28 +21,25 @@ MODULE cp_dbcsr_operations
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_release,&
                                              dbcsr_mp_group
-  USE dbcsr_operations,                ONLY: dbcsr_multiply_sets,&
-                                             dbcsr_multiply_sets_sqrt
+  USE dbcsr_operations,                ONLY: dbcsr_multiply_from_left
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_imagedistribution_type,&
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: &
-       dbcsr_checksum, dbcsr_create, dbcsr_create_dist2d_r_unrot, &
-       dbcsr_create_image_dist, dbcsr_create_image_dist_left, dbcsr_destroy, &
-       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_from_fm, &
-       dbcsr_from_sm, dbcsr_init, dbcsr_new_transposed, dbcsr_normalize, &
-       dbcsr_set_debug, dbcsr_transpose_distribution, dbcsr_verify_matrix, &
+       dbcsr_checksum, dbcsr_create, dbcsr_create_dist2d_r, &
+       dbcsr_create_dist2d_r_unrot, dbcsr_create_image_dist_left, &
+       dbcsr_destroy, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
+       dbcsr_from_fm, dbcsr_from_sm, dbcsr_init, dbcsr_make_row_images, &
+       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix, &
        dbcsr_work_create
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: mp_sum,&
-                                             mp_sync
+  USE message_passing,                 ONLY: mp_sync
   USE sparse_matrix_types,             ONLY: checksum_matrix,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
@@ -91,82 +88,71 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sm_sm_multiply', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: flop, timing_handle
+    INTEGER                                  :: flop, i, timing_handle
     REAL(KIND=dp)                            :: checksum, flops
-    TYPE(dbcsr_array_type)                   :: ms_left, ms_right
-    TYPE(dbcsr_imagedistribution_type)       :: rdist_left, rdist_right
-    TYPE(dbcsr_type)                         :: matrix_d, matrix_e
+    TYPE(dbcsr_array_type)                   :: ms_left
+    TYPE(dbcsr_imagedistribution_type)       :: rdist_left
+    TYPE(dbcsr_type)                         :: matrix_d
 
 !TYPE(dbcsr_distribution_obj)             :: dist_left, dist_right
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODYY
+    DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     !> pre The matrices must be valid and they must have compatible shapes.
     ! Assign new dist2d
     ! Create & initialize the final & working matrix.
     IF (dbg) WRITE(*,*)routineP//'Creating 2-d distribution...'
-    CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
     CALL dbcsr_init (matrix_c, error)
     CALL dbcsr_create(matrix_c, "C", distribution, 'N',&
          matrix_a%row_blk_size, matrix_b%col_blk_size,&
          0, 0, error=error)
     IF (dbg) WRITE(*,*)routineP//'Updating new matrix...'
-    CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
     !IF (dbg) WRITE(*,*)routineP//' C initial index is', matrix_c%index
     IF (dbg) WRITE(*,*)routineP//'Creating work matrix...'
-    CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
     CALL dbcsr_work_create(matrix_c,&
          sizedata_guess=INT(1.5*SIZE(matrix_a%data)), error=error)
     IF (dbg) WRITE(*,*)routineP//'Multiplying...'
-    CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
     !
-    DBG 'Creating image distribution'
-    CALL dbcsr_create_image_dist (rdist_right, matrix_b%dist)
+    DBG 'Creating left image distribution'
     CALL dbcsr_create_image_dist_left(rdist_left, matrix_a%dist, matrix_b%dist)
     !
-    DBG 'Normalizing A'
-    CALL dbcsr_normalize(matrix_a, ms_left, rdist_left, error)
+    DBG 'Making A images'
+    CALL dbcsr_make_row_images(matrix_a, ms_left, rdist_left, error)
     !ms_left%image_dist = rdist_left
     matrix_d = ms_left%mats(1)
     DBG 'master name', ms_left%mats(1)%name
-    DBG "Verifying A->D"
-    CALL dbcsr_verify_matrix(matrix_d, error)
+    DBG "Verifying A images"
+    DO i = 1, SIZE (ms_left%mats)
+       CALL dbcsr_verify_matrix(ms_left%mats(i), error)
+    ENDDO
     flops = dbcsr_checksum(matrix_d, error)
     DBG "DBCSR norm. S checksum", flops
-    DBG 'Normalizing B'
-    CALL dbcsr_normalize(matrix_b, ms_right, rdist_right, error)
-    matrix_e = ms_right%mats(1)
-    DBG "Verifying B->E"
-    CALL dbcsr_verify_matrix(matrix_e, error)
     !CALL dbcsr_print(matrix_e, error)
-    flops = dbcsr_checksum(matrix_e, error)
-    DBG "DBCSR norm. x checksum", flops
-    DBG 'Multiplying normalized matrices'
+    DBG 'Multiplying matrices'
     !
-    IF (hint .EQ. 1) THEN
-       CALL dbcsr_multiply_sets_sqrt(ms_left, ms_right, matrix_c, error)
-    ELSE
-       CALL dbcsr_multiply_sets(ms_left, ms_right, matrix_c, error)
+    IF (hint .GE. 0) THEN
+       CALL dbcsr_multiply_from_left(ms_left, matrix_b, matrix_c, error)
     ENDIF
     !
-    IF (dbg) THEN
-       CALL dbcsr_verify_matrix(matrix_c, error)
-       checksum = dbcsr_checksum(matrix_c, error)
-       WRITE(*,*)routineP//' BCSR Sx Matrix checksum is', checksum
-    ENDIF
+    !IF (dbg) THEN
+    !   CALL dbcsr_verify_matrix(matrix_c, error)
+    !   checksum = dbcsr_checksum(matrix_c, error)
+    !   WRITE(*,*)routineP//' BCSR Sx Matrix checksum is', checksum
+    !ENDIF
     flop = 0
-    CALL mp_sum(flop, dbcsr_mp_group (dbcsr_distribution_mp (matrix_a%dist)))
-    WRITE(*,*)'FLOP=',flop
-    DBG "Result matrix"
+    !CALL mp_sum(flop, dbcsr_mp_group (dbcsr_distribution_mp (matrix_a%dist)))
+    !WRITE(*,*)'FLOP=',flop
     !
     !CALL dbcsr_distribution_release (dist_left)
     !CALL dbcsr_distribution_release (dist_right)
     CALL dbcsr_destroy_image_dist (rdist_left)
-    CALL dbcsr_destroy_image_dist (rdist_right)
     CALL dbcsr_destroy_array (ms_left, error)
-    CALL dbcsr_destroy_array (ms_right, error)
     ! Perform multiplication
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_sm_sm_multiply
@@ -188,13 +174,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, k
+    INTEGER                                  :: handle, k, output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, ionode, ldbg
     REAL(kind=dp)                            :: checksum, newtime, oldtime, &
                                                 walltime1, walltime2
     TYPE(cp_fm_type), POINTER                :: fmout
-    TYPE(dbcsr_distribution_obj)             :: dist_result
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_type)                         :: matrix_a, matrix_b, &
                                                 matrix_bt, matrix_c
     TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_left
@@ -202,24 +188,45 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-
+    ldbg = .TRUE.
+    logger => cp_error_get_logger (error)
+    ionode = logger%para_env%mepos == logger%para_env%source
+    output_unit = 0
+    IF (ionode) output_unit = cp_logger_get_default_unit_nr (logger)
     !Do the new multiplication
     dist2d_left => matrix_s%distribution_2d
     CALL dbcsr_init (matrix_a, error)
     CALL dbcsr_from_sm(matrix_a, matrix_s, error)
     CALL dbcsr_verify_matrix(matrix_a, error)
-    WRITE(*,*)'S checksum=',&
-         checksum_matrix(matrix_s, matrix_s%distribution_2d%blacs_env%para_env)
+    !WRITE(*,*)'S checksum=',&
+    !     checksum_matrix(matrix_s, matrix_s%distribution_2d%blacs_env%para_env)
+    IF (ldbg) THEN
+       checksum = checksum_matrix(&
+            matrix_s, matrix_s%distribution_2d%blacs_env%para_env)
+       IF (ldbg.AND.ionode) THEN
+          WRITE(output_unit, '(T2,A,F12.4)')"   SM S  checksum", checksum
+       ENDIF
+    ENDIF
     checksum = 0.0_dp
     checksum = dbcsr_checksum(matrix_a, error)
-    WRITE(*,*)'BCSR S checksum',checksum
+    !WRITE(*,*)'BCSR S checksum',checksum
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR S  checksum", checksum
+    ENDIF
     CALL cp_fm_frobenius_norm(matrix_x, checksum, error)
+    !WRITE(*,*)'x checksum',checksum*checksum
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"   FM x  checksum", checksum*checksum
+    ENDIF
     CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
     
-    CALL dbcsr_create_dist2d_r_unrot(dist2d, dist2d_left, k,&
-         col_blk_size, error=error)
-    !CALL dbcsr_create_dist2d_r(dist2d, dist2d_left, k,&
-    !     col_blk_size, error=error)
+    IF (MOD(hint,2) .EQ. 0) THEN
+       CALL dbcsr_create_dist2d_r_unrot(dist2d, dist2d_left, k,&
+            col_blk_size, error=error)
+    ELSE
+       CALL dbcsr_create_dist2d_r(dist2d, dist2d_left, k,&
+            col_blk_size, error=error)
+    ENDIF
 
     CALL dbcsr_init (matrix_b, error)
     CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist2d,&
@@ -228,13 +235,15 @@ CONTAINS
          error=error)
     CALL dbcsr_verify_matrix(matrix_b, error)
 
-    WRITE(*,*)'x checksum',checksum*checksum
     checksum = dbcsr_checksum(matrix_b, error)
-    WRITE(*,*)'DBCSR x checksum',checksum
+    !WRITE(*,*)'DBCSR x checksum',checksum
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x  checksum", checksum
+    ENDIF
     !
     ! Transpose of the row (transposed column) matrix
     !CALL dbcsr_create_dist2d_transposed (dist2d_result, dist2d, error)
-    CALL dbcsr_transpose_distribution (dist_result, matrix_b%dist)
+    !CALL dbcsr_transpose_distribution (dist_result, matrix_b%dist)
     !CALL dbcsr_create_dist_r_rot(dist_result, matrix_x%dist, k,&
     !     col_blk_size_array, error=error)
     !CALL array_release (col_blk_size_array)
@@ -251,7 +260,7 @@ CONTAINS
          matrix_b%dist, hint, error)
     !CALL dbcsr_sm_sm_multiply(matrix_bt, matrix_a, matrix_c,&
     !     dist_result, hint, error)
-    CALL dbcsr_distribution_release (dist_result)
+    !CALL dbcsr_distribution_release (dist_result)
     walltime2 = m_walltime()
     newtime = walltime2-walltime1
     CALL dbcsr_destroy (matrix_bt, error)
@@ -259,7 +268,11 @@ CONTAINS
     CALL dbcsr_verify_matrix(matrix_c, error)
     !
     checksum = dbcsr_checksum(matrix_c, error)
-    WRITE(*,*)'BCSR Sx checksum',checksum,'time=',newtime
+    !WRITE(*,*)'BCSR Sx checksum',checksum,'time=',newtime
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')"DBCSR Sx checksum", checksum,&
+            " time ", newtime
+    ENDIF
     CALL dbcsr_destroy (matrix_b, error)
     CALL dbcsr_init (matrix_b, error)
     CALL dbcsr_destroy (matrix_c, error)
@@ -275,7 +288,11 @@ CONTAINS
     walltime2 = m_walltime()
     oldtime = walltime2-walltime1
     CALL cp_fm_frobenius_norm(fmout, checksum, error)
-    WRITE(*,*)'Sx checksum',checksum*checksum,'time=',oldtime
+    !WRITE(*,*)'Sx checksum',checksum*checksum,'time=',oldtime
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')" SMFM Sx checksum",&
+            checksum*checksum, " time ", oldtime
+    ENDIF
     CALL dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist2d,&
          row_blk_size=array_data(matrix_a%row_blk_size),&
          col_blk_size=col_blk_size,&
