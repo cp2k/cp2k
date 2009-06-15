@@ -250,7 +250,7 @@ CONTAINS
     my_waits(:,:) = 0
     k_index: DO right_prow_i = 0, right_nprows
        ! Right matrix
-       right_prow = MOD (right_prow_i, right_nprows)
+       right_prow = MOD (right_prow_i + myprow, right_nprows)
        DBG 'RIGHT_PROW from/to', right_prow_i, right_prow, myprow, right_nprows
        my_waits(1, right_prow_i) = m_walltime()
        !CALL dbcsr_sleep (10.0_dp)
