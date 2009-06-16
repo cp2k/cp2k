@@ -15,7 +15,7 @@ MODULE hfx_load_balance_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE hfx_types,                       ONLY: &
-       hfx_basis_type, hfx_distribution, hfx_load_balance_type, &
+       hfx_basis_type, hfx_distribution, hfx_load_balance_type, hfx_p_kind, &
        hfx_potential_type, hfx_screen_coeff_type, hfx_set_distr_energy, &
        hfx_set_distr_forces, hfx_type, pair_list_type, pair_set_list_type
   USE kinds,                           ONLY: dp,&
@@ -176,7 +176,7 @@ MODULE hfx_load_balance_methods
                                  is_assoc_atomic_block_global, do_periodic,&
                                  load_balance_parameter, kind_of, basis_parameter, pmax_set, &
                                  i_thread, n_threads, cell, &
-                                 do_p_screening, error)
+                                 do_p_screening, map_atom_to_kind_atom, nkind, error)
     TYPE(hfx_type), POINTER                  :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz
     TYPE(particle_type), DIMENSION(:), &
@@ -194,10 +194,12 @@ MODULE hfx_load_balance_methods
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN)                      :: do_p_screening
+    INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
+    INTEGER, INTENT(IN)                      :: nkind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_energy', &
@@ -208,9 +210,9 @@ MODULE hfx_load_balance_methods
       i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, &
       i_set_list_ij_stop, i_set_list_kl, i_set_list_kl_start, &
       i_set_list_kl_stop, iatom, iatom_block, ibin, icpu, ikind, ipos, iset, &
-      j, jatom, jatom_block, jkind, jset, katom, katom_block, kkind, kset, &
-      latom, latom_block, lkind, lset, my_process_id, natom, nbins, req(2), &
-      source, stat
+      j, jatom, jatom_block, jkind, jset, katom, katom_block, kind_kind_idx, &
+      kkind, kset, latom, latom_block, lkind, lset, my_process_id, natom, &
+      nbins, req(2), source, stat, swap_id
     INTEGER(int_8) :: atom_block, current_counter, distribution_counter_end, &
       distribution_counter_start, global_quartet_counter, int_per_cpu, &
       local_quartet_counter, mepos, n_processes, nblocks, ncpu, &
@@ -229,6 +231,8 @@ MODULE hfx_load_balance_methods
                                                 last_bin_needs_to_be_filled
     REAL(dp) :: coeffs_kind_max0, log10_eps_schwarz, max_val1, max_val2, &
       omega2Inv, pmax_entry, ra(3), rab2, rb(3), rc(3), rcd2, rd(3)
+    REAL(dp), DIMENSION(:, :), POINTER       :: ptr_p_1, ptr_p_2, ptr_p_3, &
+                                                ptr_p_4
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist, &
                                                 tmp_dist
@@ -351,6 +355,54 @@ MODULE hfx_load_balance_methods
                       is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
                       is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE 
 
+            IF( do_p_screening ) THEN
+              swap_id = 0
+              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
+              IF( ikind >= kkind) THEN
+                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(katom), &
+                                    map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(iatom), &
+                                    map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 1
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=lkind ) THEN
+                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(latom), &
+                                    map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(jatom), &
+                                    map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 2
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
+              IF( ikind>=lkind ) THEN
+                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(latom), &
+                                    map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(iatom), &
+                                    map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 4
+              END IF
+              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=kkind) THEN
+                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(katom), &
+                                    map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(jatom), &
+                                    map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 8
+              END IF
+            END IF
+
             DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
               iset=set_list_ij(i_set_list_ij)%pair(1)
               jset=set_list_ij(i_set_list_ij)%pair(2)
@@ -369,10 +421,9 @@ MODULE hfx_load_balance_methods
 
                 IF(max_val2 <log10_eps_schwarz ) CYCLE
                 IF( do_p_screening ) THEN
-                  pmax_entry = MAX(pmax_set(kset,iset,katom,iatom), &
-                                   pmax_set(lset,jset,latom,jatom), &
-                                   pmax_set(lset,iset,latom,iatom), &
-                                   pmax_set(kset,jset,katom,jatom))
+                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
+                                    iset, jset, kset, lset, &
+                                    pmax_entry, swap_id)
                 ELSE
                   pmax_entry = 0.0_dp
                 END IF
@@ -496,6 +547,54 @@ MODULE hfx_load_balance_methods
                       is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
                       is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
 
+            IF( do_p_screening ) THEN
+              swap_id = 0
+              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
+              IF( ikind >= kkind) THEN
+                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(katom), &
+                                    map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(iatom), &
+                                    map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 1
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=lkind ) THEN
+                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(latom), &
+                                    map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(jatom), &
+                                    map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 2
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
+              IF( ikind>=lkind ) THEN
+                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(latom), &
+                                    map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(iatom), &
+                                    map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 4
+              END IF
+              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=kkind) THEN
+                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(katom), &
+                                    map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(jatom), &
+                                    map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 8
+              END IF
+            END IF
+
             DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
               iset=set_list_ij(i_set_list_ij)%pair(1)
               jset=set_list_ij(i_set_list_ij)%pair(2)
@@ -513,10 +612,9 @@ MODULE hfx_load_balance_methods
                                        coeffs_set(lset,kset,lkind,kkind)%x(2) )
                 IF(max_val2<log10_eps_schwarz) CYCLE
                 IF( do_p_screening) THEN
-                  pmax_entry = MAX(pmax_set(kset,iset,katom,iatom), &
-                                   pmax_set(lset,jset,latom,jatom), &
-                                   pmax_set(lset,iset,latom,iatom), &
-                                   pmax_set(kset,jset,katom,jatom))
+                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
+                                    iset, jset, kset, lset, &
+                                    pmax_entry, swap_id)
                 ELSE
                   pmax_entry = 0.0_dp
                 END IF
@@ -850,7 +948,8 @@ MODULE hfx_load_balance_methods
                                  potential_parameter, coeffs_set, coeffs_kind,&
                                  pmax_set, is_assoc_atomic_block_global, do_periodic, &
                                  load_balance_parameter, kind_of, basis_parameter,&
-                                 i_thread, n_threads, cell, screen_pmat_forces, error)
+                                 i_thread, n_threads, cell, screen_pmat_forces, &
+                                 map_atom_to_kind_atom, nkind, error)
     TYPE(hfx_type), POINTER                  :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz
     TYPE(particle_type), DIMENSION(:), &
@@ -862,7 +961,7 @@ MODULE hfx_load_balance_methods
       DIMENSION(:, :, :, :), POINTER         :: coeffs_set
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: coeffs_kind
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
     LOGICAL                                  :: do_periodic
     TYPE(hfx_load_balance_type)              :: load_balance_parameter
@@ -872,6 +971,8 @@ MODULE hfx_load_balance_methods
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN)                      :: screen_pmat_forces
+    INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
+    INTEGER, INTENT(IN)                      :: nkind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_forces', &
@@ -882,8 +983,8 @@ MODULE hfx_load_balance_methods
       i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl, &
       i_set_list_kl_start, i_set_list_kl_stop, iatom, iatom_block, ibin, &
       icpu, ikind, ipos, iset, j, jatom, jatom_block, jkind, jset, katom, &
-      katom_block, kkind, kset, latom, latom_block, lkind, lset, &
-      my_process_id, natom, nbins, req(2), source, stat
+      katom_block, kind_kind_idx, kkind, kset, latom, latom_block, lkind, &
+      lset, my_process_id, natom, nbins, req(2), source, stat, swap_id
     INTEGER(int_8) :: atom_block, current_counter, distribution_counter_end, &
       distribution_counter_start, global_quartet_counter, int_per_cpu, &
       local_quartet_counter, mepos, n_processes, nblocks, ncpu, &
@@ -901,7 +1002,10 @@ MODULE hfx_load_balance_methods
     LOGICAL                                  :: failure, &
                                                 last_bin_needs_to_be_filled
     REAL(dp) :: coeffs_kind_max0, log10_eps_schwarz, log10_pmax, log_2, &
-      max_val1, max_val2, omega2Inv, ra(3), rab2, rb(3), rc(3), rcd2, rd(3)
+      max_val1, max_val2, omega2Inv, pmax_tmp, ra(3), rab2, rb(3), rc(3), &
+      rcd2, rd(3)
+    REAL(dp), DIMENSION(:, :), POINTER       :: ptr_p_1, ptr_p_2, ptr_p_3, &
+                                                ptr_p_4
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist, &
                                                 tmp_dist
@@ -1012,6 +1116,53 @@ MODULE hfx_load_balance_methods
                       is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
                       is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
                       is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
+            IF( screen_pmat_forces) THEN
+              swap_id = 16
+              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
+              IF( ikind >= kkind) THEN
+                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(katom), &
+                                    map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(iatom), &
+                                    map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 1
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=lkind ) THEN
+                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(latom), &
+                                    map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(jatom), &
+                                    map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 2
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
+              IF( ikind>=lkind ) THEN
+                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(latom), &
+                                    map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(iatom), &
+                                    map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 4
+              END IF
+              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=kkind) THEN
+                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(katom), &
+                                    map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(jatom), &
+                                    map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 8
+              END IF
+            END IF
 
             DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
               iset=set_list_ij(i_set_list_ij)%pair(1)
@@ -1031,8 +1182,10 @@ MODULE hfx_load_balance_methods
 
                 IF(max_val2 <log10_eps_schwarz ) CYCLE
                 IF( screen_pmat_forces) THEN
-                  log10_pmax = log_2 + MAX(pmax_set(kset,iset,katom,iatom) + pmax_set(lset,jset,latom,jatom),&
-                                           pmax_set(lset,iset,latom,iatom) + pmax_set(kset,jset,katom,jatom))
+                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
+                                    iset, jset, kset, lset, &
+                                    pmax_tmp, swap_id)
+                  log10_pmax = log_2 + pmax_tmp
                 ELSE
                   log10_pmax = 0.0_dp
                 END IF
@@ -1142,6 +1295,54 @@ MODULE hfx_load_balance_methods
                       is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
                       is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
 
+            IF( screen_pmat_forces) THEN
+              swap_id = 16
+              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
+              IF( ikind >= kkind) THEN
+                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(katom), &
+                                    map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(iatom), &
+                                    map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 1
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=lkind ) THEN
+                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(latom), &
+                                    map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(jatom), &
+                                    map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 2
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
+              IF( ikind>=lkind ) THEN
+                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(latom), &
+                                    map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(iatom), &
+                                    map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 4
+              END IF
+              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=kkind) THEN
+                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(katom), &
+                                    map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                    map_atom_to_kind_atom(jatom), &
+                                    map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 8
+              END IF
+            END IF
+
             DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
               iset=set_list_ij(i_set_list_ij)%pair(1)
               jset=set_list_ij(i_set_list_ij)%pair(2)
@@ -1159,8 +1360,10 @@ MODULE hfx_load_balance_methods
                                        coeffs_set(lset,kset,lkind,kkind)%x(2) )
                 IF(max_val2<log10_eps_schwarz) CYCLE
                 IF( screen_pmat_forces) THEN
-                  log10_pmax = log_2 + MAX(pmax_set(kset,iset,katom,iatom) + pmax_set(lset,jset,latom,jatom),&
-                                          pmax_set(lset,iset,latom,iatom) + pmax_set(kset,jset,katom,jatom))
+                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
+                                    iset, jset, kset, lset, &
+                                    pmax_tmp, swap_id)
+                  log10_pmax = log_2 + pmax_tmp
                 ELSE
                   log10_pmax = 0.0_dp
                 END IF
@@ -2100,5 +2303,30 @@ MODULE hfx_load_balance_methods
     DEALLOCATE(tmp_cpu_index,my_cost_cpu,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE optimize_distribution
+
+! *****************************************************************************
+!> \brief Given a 2d index pair, this function returns a 1d index pair for
+!>        a symmetric upper triangle NxN matrix
+!>        The compiler should inline this function, therefore it appears in
+!>        several modules
+!> \param i,j 2d index
+!> \param N matrix size
+!> \par History
+!>      03.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  PURE FUNCTION get_1D_idx(i,j,N)
+    INTEGER, INTENT(IN)                      :: i, j
+    INTEGER(int_8), INTENT(IN)               :: N
+    INTEGER(int_8)                           :: get_1D_idx
+
+    INTEGER(int_8)                           :: min_ij
+
+    min_ij = MIN(i,j)
+    get_1D_idx = min_ij*N + MAX(i,j) - (min_ij-1)*min_ij/2 - N
+
+  END FUNCTION get_1D_idx
+
+#include "hfx_get_pmax_val.h"
 
 END MODULE hfx_load_balance_methods

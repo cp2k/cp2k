@@ -30,9 +30,9 @@ MODULE hfx_derivatives
   USE hfx_screening_methods,           ONLY: update_pmax_mat
   USE hfx_types,                       ONLY: &
        hfx_basis_info_type, hfx_basis_type, hfx_cell_type, hfx_general_type, &
-       hfx_load_balance_type, hfx_potential_type, hfx_screen_coeff_type, &
-       hfx_screening_type, hfx_type, log_zero, pair_list_type, &
-       pair_set_list_type
+       hfx_load_balance_type, hfx_p_kind, hfx_potential_type, &
+       hfx_screen_coeff_type, hfx_screening_type, hfx_type, log_zero, &
+       pair_list_type, pair_set_list_type
   USE input_constants,                 ONLY: do_hfx_potential_truncated
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
@@ -153,8 +153,6 @@ MODULE hfx_derivatives
       POINTER                                :: force
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
-    REAL(dp), DIMENSION(:, :, :, :), &
-              POINTER, SAVE                  :: shm_initial_p
     INTEGER, SAVE                            :: shm_number_of_p_entries
     INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
     INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
@@ -182,6 +180,11 @@ MODULE hfx_derivatives
     TYPE(pair_list_type)                     :: list_ij, list_kl
     REAL(KIND=dp)                            :: coeffs_kind_max0
     TYPE(pair_set_list_type), DIMENSION(:), ALLOCATABLE :: set_list_ij, set_list_kl
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
+    REAL(dp)                                 :: pmax_tmp
+    INTEGER                                  :: kind_kind_idx, swap_id
+    REAL(dp)                                 :: pmax_1, pmax_2, pmax_3, pmax_4
+    REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4
 
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
@@ -258,6 +261,7 @@ MODULE hfx_derivatives
 !$OMP                                  screen_coeffs_set,&
 !$OMP                                  screen_coeffs_kind,&
 !$OMP                                  screen_coeffs_pgf,&
+!$OMP                                  nkind,&
 !$OMP                                  radii_pgf)
 
     i_thread = 0
@@ -386,8 +390,11 @@ MODULE hfx_derivatives
     IF ( screen_pmat_forces ) THEN
       NULLIFY(shm_initial_p)
       shm_initial_p => actual_x_data%initial_p
-      CALL update_pmax_mat(shm_initial_p, full_density,full_density_beta,natom, &
-                           max_set,  kind_of, basis_parameter, last_sgf_global, N_pmat, error)
+      CALL update_pmax_mat(actual_x_data%initial_p, &
+                           actual_x_data%map_atom_to_kind_atom, &
+                           full_density,full_density_beta,&
+                           natom,max_set, kind_of, basis_parameter, &
+                           last_sgf_global, N_pmat, nkind, error)
     END IF 
 
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
@@ -410,7 +417,8 @@ MODULE hfx_derivatives
                                potential_parameter,screen_coeffs_set,screen_coeffs_kind,&
                                shm_initial_p,shm_is_assoc_atomic_block, do_periodic,&
                                load_balance_parameter, kind_of, basis_parameter,i_thread, n_threads,&
-                               cell, screen_pmat_forces,error)
+                               cell, screen_pmat_forces, actual_x_data%map_atom_to_kind_atom, &
+                               nkind, error)
       actual_x_data%b_first_load_balance_forces = .FALSE.
     ELSE
       CALL update_load_balance_forces(actual_x_data, para_env, &
@@ -673,6 +681,54 @@ MODULE hfx_derivatives
             nsgfd_total = basis_parameter(lkind)%nsgf_total
             pd1 = last_sgf_global(latom) - nsgfd_total
 
+            IF( screen_pmat_forces ) THEN
+              swap_id = 16
+              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
+              IF( ikind >= kkind) THEN
+                ptr_p_1 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(katom), &
+                                         actual_x_data%map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_1 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(iatom), &
+                                         actual_x_data%map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 1
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=lkind ) THEN
+                ptr_p_2 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(latom), &
+                                         actual_x_data%map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_2 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(jatom), &
+                                         actual_x_data%map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 2
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
+              IF( ikind>=lkind ) THEN
+                ptr_p_3 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(latom), &
+                                         actual_x_data%map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_3 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(iatom), &
+                                         actual_x_data%map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 4
+              END IF
+              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=kkind) THEN
+                ptr_p_4 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(katom), &
+                                         actual_x_data%map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_4 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(jatom), &
+                                         actual_x_data%map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 8
+              END IF
+            END IF
+
             DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
               iset=set_list_ij(i_set_list_ij)%pair(1)
               jset=set_list_ij(i_set_list_ij)%pair(2)
@@ -701,8 +757,11 @@ MODULE hfx_derivatives
                 !! Near field screening
                 IF(max_val2<log10_eps_schwarz) CYCLE
                 IF( screen_pmat_forces ) THEN 
-                  log10_pmax = log_2 + MAX(shm_initial_p(kset,iset,katom,iatom) + shm_initial_p(lset,jset,latom,jatom),&
-                                           shm_initial_p(lset,iset,latom,iatom) + shm_initial_p(kset,jset,katom,jatom))
+                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
+                                    iset, jset, kset, lset, &
+                                    pmax_tmp, swap_id)
+
+                  log10_pmax = log_2 + pmax_tmp
                 ELSE
                   log10_pmax = 0.0_dp
                 END IF
@@ -1312,5 +1371,7 @@ MODULE hfx_derivatives
       END DO !mc
     END DO !md
   END SUBROUTINE update_forces
+
+#include "hfx_get_pmax_val.h"
 
 END MODULE hfx_derivatives

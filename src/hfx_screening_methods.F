@@ -18,6 +18,7 @@ MODULE hfx_screening_methods
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen
   USE hfx_libint_wrapper,              ONLY: lib_int
   USE hfx_types,                       ONLY: hfx_basis_type,&
+                                             hfx_p_kind,&
                                              hfx_potential_type,&
                                              hfx_screen_coeff_type,&
                                              log_zero,&
@@ -42,6 +43,7 @@ MODULE hfx_screening_methods
   PUBLIC update_pmax_mat, &
          calc_screening_functions,&
          calc_pair_dist_radii
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_screening_methods'
 
 !***
@@ -118,11 +120,13 @@ MODULE hfx_screening_methods
 !>     09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE update_pmax_mat(pmax_set, full_density, full_density_beta, natom, &
+  SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, &
+                             full_density, full_density_beta, natom, &
                              max_set ,kind_of,basis_parameter, last_sgf_global,&
-                             N_pmat, error)
+                             N_pmat, nkind, error)
 
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
+    INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
     REAL(dp), DIMENSION(:), POINTER          :: full_density, &
                                                 full_density_beta
     INTEGER, INTENT(IN)                      :: natom, max_set
@@ -131,13 +135,15 @@ MODULE hfx_screening_methods
       POINTER                                :: basis_parameter
     INTEGER                                  :: last_sgf_global(0:natom)
     INTEGER(int_8), INTENT(IN)               :: N_pmat
+    INTEGER                                  :: nkind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, jatom, jkind, jset, katom, kkind, kset, mb, mc, nsetb, &
-      nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, sgfb, sgfc
+    INTEGER :: handle, i, jatom, jkind, jset, katom, kind_kind_idx, kkind, &
+      kset, mb, mc, nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, &
+      pc1, pc2, sgfb, sgfc
     INTEGER, DIMENSION(:), POINTER           :: nsgfb, nsgfc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
@@ -147,7 +153,9 @@ MODULE hfx_screening_methods
 
     failure = .FALSE.
 
-    pmax_set = 0.0_dp
+    DO i = 1,SIZE(pmax_set)
+      pmax_set(i)%p_kind = 0.0_dp
+    END DO
 
     DO jatom=1,natom
       jkind = kind_of(jatom)
@@ -157,8 +165,9 @@ MODULE hfx_screening_methods
       nsgfb => basis_parameter(jkind)%nsgf
       pb1 = last_sgf_global(jatom) - nsgfb_total
 
-      DO katom = jatom,natom
+      DO katom = 1,natom
         kkind = kind_of(katom)
+        IF( kkind < jkind ) CYCLE
         nsgfc_total = basis_parameter(kkind)%nsgf_total
         nsetc = basis_parameter(kkind)%nset
         first_sgfc => basis_parameter(kkind)%first_sgf
@@ -186,18 +195,12 @@ MODULE hfx_screening_methods
             ELSE
               pmax_tmp = LOG10(pmax_tmp)
             END IF
-            pmax_set(jset,kset,jatom,katom) = pmax_tmp
-          END DO
-        END DO
-      END DO
-    END DO
-
-    ! ** Symmetrize the array
-    DO jatom=1,natom
-      DO katom=jatom,natom
-        DO jset=1,max_set
-          DO kset=1,max_set
-            pmax_set(kset,jset,katom,jatom) = pmax_set(jset,kset,jatom,katom)
+            kind_kind_idx = INT(get_1D_idx(jkind,kkind,INT(nkind,int_8)))
+            pmax_set(kind_kind_idx)%p_kind(jset, &
+                     kset, &
+                     map_atom_to_kind_atom(jatom), &
+                     map_atom_to_kind_atom(katom)) = pmax_tmp
+                               
           END DO
         END DO
       END DO

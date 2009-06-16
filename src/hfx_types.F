@@ -66,7 +66,8 @@ MODULE hfx_types
           hfx_basis_type, parse_memory_section, &
           hfx_p_type, hfx_init_container,&
           hfx_basis_info_type, hfx_screen_coeff_type,&
-          hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, pair_set_list_type
+          hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
+          pair_set_list_type, hfx_p_kind
 
 #define CACHE_SIZE 1024
 
@@ -121,6 +122,7 @@ MODULE hfx_types
     LOGICAL                                  :: do_disk_storage
     CHARACTER(len=default_path_length)       :: storage_location
     INTEGER(int_8)                           :: ram_counter
+    INTEGER(int_8)                           :: size_p_screen
   END TYPE
 
 ! *****************************************************************************
@@ -236,6 +238,11 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
+  TYPE hfx_p_kind
+    REAL(dp), DIMENSION(:,:,:,:), POINTER    :: p_kind
+  END TYPE
+
+! *****************************************************************************
 !> \brief stores some data used in construction of Kohn-Sham matrix
 !> \param potential_parameter stores information on the potential (1/r, erfc(wr)/r
 !> \param screening_parameter stores screening infos such as epsilon
@@ -289,8 +296,6 @@ MODULE hfx_types
                               POINTER         :: distribution_energy
      TYPE(hfx_distribution), DIMENSION(:),&
                               POINTER         :: distribution_forces
-     REAL(dp), DIMENSION(:,:,:,:), POINTER &
-                                              :: initial_p
      INTEGER, DIMENSION(:,:), POINTER         :: is_assoc_atomic_block
      INTEGER                                  :: number_of_p_entries
      TYPE(hfx_basis_type), DIMENSION(:), &
@@ -310,6 +315,8 @@ MODULE hfx_types
      TYPE(hfx_screen_coeff_type), &
           DIMENSION(:,:), POINTER             :: screen_funct_coeffs_kind
      LOGICAL                                  :: screen_funct_is_initialized
+     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: initial_p
+     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
   END TYPE hfx_type
 
 ! *****************************************************************************
@@ -357,8 +364,10 @@ MODULE hfx_types
 
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=default_path_length)       :: char_val, filename
-    INTEGER :: handle, i, i_thread, ikind, int_val, irep, max_set, n_rep_hf, &
-      n_threads, nkind, pbc_shells, stat, storage_id
+    INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, &
+      max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
+      pbc_shells, stat, storage_id
+    INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
     LOGICAL                                  :: do_periodic, exist, failure, &
                                                 logic_val
     REAL(dp)                                 :: omega, real_val
@@ -526,15 +535,52 @@ MODULE hfx_types
         ALLOCATE(actual_x_data%distribution_energy(1),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
+        actual_x_data%memory_parameter%size_p_screen = 0_int_8 
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           !! ** This guy is allocated on the master thread only 
           IF (i_thread == 1 ) THEN
-            ALLOCATE(actual_x_data%initial_p(max_set,max_set,natom,natom),STAT=stat)
+            ALLOCATE(actual_x_data%initial_p(nkind*(nkind+1)/2),STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            i = 1
+            DO ikind=1,nkind
+              NULLIFY(atom_kind)
+              atom_kind => atomic_kind_set(ikind)
+              CALL get_atomic_kind(atomic_kind=atom_kind,&
+                                   natom=natom_a)
+              nseta=actual_x_data%basis_parameter(ikind)%nset
+              DO jkind=ikind,nkind
+                NULLIFY(atom_kind)
+                atom_kind => atomic_kind_set(jkind)
+                CALL get_atomic_kind(atomic_kind=atom_kind,&
+                                     natom=natom_b)
+                nsetb=actual_x_data%basis_parameter(jkind)%nset
+                ALLOCATE(actual_x_data%initial_p(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                actual_x_data%memory_parameter%size_p_screen = &
+                  actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b 
+                i = i + 1
+              END DO
+            END DO
           END IF
+          ALLOCATE(actual_x_data%map_atom_to_kind_atom(natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(kind_of(natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (atom2kind(nkind),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                   kind_of=kind_of)
+  
+          atom2kind = 0
+          DO iatom=1,natom
+            ikind = kind_of(iatom)
+            atom2kind(ikind) = atom2kind(ikind) + 1
+            actual_x_data%map_atom_to_kind_atom(iatom) = atom2kind(ikind)
+          END DO 
+          DEALLOCATE(kind_of, atom2kind, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
-    
         actual_x_data%maxval_cache%element_counter = 1
         ALLOCATE(actual_x_data%maxval_container,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -747,9 +793,15 @@ MODULE hfx_types
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           IF( i_thread == 1 ) THEN
+            DO i=1,SIZE(actual_x_data%initial_p)
+               DEALLOCATE(actual_x_data%initial_p(i)%p_kind,STAT=stat)
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            END DO
             DEALLOCATE(actual_x_data%initial_p,STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
+          DEALLOCATE(actual_x_data%map_atom_to_kind_atom,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF( i_thread == 1 ) THEN 
           DEALLOCATE(actual_x_data%is_assoc_atomic_block,STAT=stat)

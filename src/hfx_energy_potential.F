@@ -45,10 +45,10 @@ MODULE hfx_energy_potential
   USE hfx_types,                       ONLY: &
        hfx_basis_info_type, hfx_basis_type, hfx_cache_type, hfx_cell_type, &
        hfx_container_type, hfx_general_type, hfx_init_container, &
-       hfx_load_balance_type, hfx_memory_type, hfx_potential_type, &
-       hfx_reset_memory_usage_counter, hfx_screen_coeff_type, &
-       hfx_screening_type, hfx_type, log_zero, pair_list_type, &
-       pair_set_list_type
+       hfx_load_balance_type, hfx_memory_type, hfx_p_kind, &
+       hfx_potential_type, hfx_reset_memory_usage_counter, &
+       hfx_screen_coeff_type, hfx_screening_type, hfx_type, log_zero, &
+       pair_list_type, pair_set_list_type
   USE input_constants,                 ONLY: do_hfx_potential_truncated
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
@@ -184,10 +184,6 @@ MODULE hfx_energy_potential
       POINTER                                :: particle_set
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
-    REAL(dp), DIMENSION(:, :, :, :), &
-              POINTER, SAVE                  :: shm_initial_p
-    REAL(dp), DIMENSION(:, :, :, :), &
-              POINTER, SAVE                  :: shm_actual_pmax_set
     INTEGER, SAVE                            :: shm_number_of_p_entries
     INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
     INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
@@ -237,6 +233,10 @@ MODULE hfx_energy_potential
     TYPE(pair_list_type)                     :: list_ij, list_kl
     REAL(KIND=dp)                            :: coeffs_kind_max0
     TYPE(pair_set_list_type), DIMENSION(:), ALLOCATABLE :: set_list_ij, set_list_kl
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
+    INTEGER                                  :: kind_kind_idx, swap_id
+    REAL(dp)                                 :: pmax_1, pmax_2, pmax_3, pmax_4
+    REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4
 
 
     CALL timeset(routineN,handle)
@@ -318,7 +318,6 @@ MODULE hfx_energy_potential
 !$OMP                                  full_density,&
 !$OMP                                  full_density_beta,&
 !$OMP                                  shm_initial_p,&
-!$OMP                                  shm_actual_pmax_set,&
 !$OMP                                  shm_is_assoc_atomic_block,&
 !$OMP                                  shm_number_of_p_entries,&
 !$OMP                                  shm_neris_total,&
@@ -474,7 +473,7 @@ MODULE hfx_energy_potential
     END IF
     ! ** Initial P only MAX(alpha,beta) (shared)
     IF(do_p_screening) THEN 
-      subtr_size_mb = subtr_size_mb+max_set**2*natom**2
+      subtr_size_mb = subtr_size_mb + memory_parameter%size_p_screen
     END IF
     ! ** primitive buffers (not shared by the threads)
     subtr_size_mb = subtr_size_mb + 2_int_8*nco_max**4*n_threads
@@ -655,9 +654,10 @@ MODULE hfx_energy_potential
         shm_initial_p => actual_x_data%initial_p
         IF(geometry_did_change ) THEN
           CALL update_pmax_mat(actual_x_data%initial_p, &
+                               actual_x_data%map_atom_to_kind_atom, &
                                full_density,full_density_beta,&
                                natom,max_set, kind_of, basis_parameter, &
-                               last_sgf_global, N_pmat, error)
+                               last_sgf_global, N_pmat, nkind, error)
         END IF
       END IF
     ELSE
@@ -676,9 +676,10 @@ MODULE hfx_energy_potential
         shm_initial_p => actual_x_data%initial_p
         IF(geometry_did_change ) THEN
           CALL update_pmax_mat(actual_x_data%initial_p, &
+                               actual_x_data%map_atom_to_kind_atom, &
                                full_density,full_density_beta,&
                                natom,max_set, kind_of, basis_parameter, &
-                               last_sgf_global, N_pmat, error)
+                               last_sgf_global, N_pmat, nkind, error)
         END IF
       END IF
       ! ** Now get the density(ispin)
@@ -748,7 +749,8 @@ MODULE hfx_energy_potential
                                  potential_parameter,screen_coeffs_set,screen_coeffs_kind,&
                                  shm_is_assoc_atomic_block,do_periodic,load_balance_parameter, &
                                  kind_of, basis_parameter, shm_initial_p, i_thread, n_threads, &
-                                 cell, do_p_screening, error)
+                                 cell, do_p_screening, actual_x_data%map_atom_to_kind_atom, &
+                                 nkind, error)
         actual_x_data%b_first_load_balance_energy = .FALSE.
       ELSE
         CALL update_load_balance_energy(actual_x_data,para_env, &
@@ -949,6 +951,55 @@ MODULE hfx_energy_potential
             sphi_d => basis_parameter(lkind)%sphi
             nsgfd_total = basis_parameter(lkind)%nsgf_total
             pd1 = last_sgf_global(latom) - nsgfd_total
+
+            IF( do_p_screening) THEN
+              swap_id = 0
+              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
+              IF( ikind >= kkind) THEN
+                ptr_p_1 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(katom), &
+                                         actual_x_data%map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_1 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(iatom), &
+                                         actual_x_data%map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 1
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=lkind ) THEN
+                ptr_p_2 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(latom), &
+                                         actual_x_data%map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_2 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(jatom), &
+                                         actual_x_data%map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 2
+              END IF
+              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
+              IF( ikind>=lkind ) THEN
+                ptr_p_3 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(latom), &
+                                         actual_x_data%map_atom_to_kind_atom(iatom))
+              ELSE
+                ptr_p_3 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(iatom), &
+                                         actual_x_data%map_atom_to_kind_atom(latom))
+                swap_id = swap_id + 4
+              END IF
+              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
+              IF( jkind>=kkind) THEN
+                ptr_p_4 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(katom), &
+                                         actual_x_data%map_atom_to_kind_atom(jatom))
+              ELSE
+                ptr_p_4 => shm_initial_p(kind_kind_idx)%p_kind(:,:, &
+                                         actual_x_data%map_atom_to_kind_atom(jatom), &
+                                         actual_x_data%map_atom_to_kind_atom(katom))
+                swap_id = swap_id + 8
+              END IF
+            END IF
+
             
             !! At this stage, check for memory used in compression
 
@@ -1029,10 +1080,9 @@ MODULE hfx_energy_potential
               
                 !! get max_vals if we screen on initial density
                 IF( do_p_screening) THEN
-                  pmax_entry = MAX(shm_initial_p(kset,iset,katom,iatom), &
-                                   shm_initial_p(lset,jset,latom,jatom), &
-                                   shm_initial_p(lset,iset,latom,iatom), &
-                                   shm_initial_p(kset,jset,katom,jatom))
+                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
+                                    iset, jset, kset, lset, &
+                                    pmax_entry, swap_id)
                 ELSE
                   pmax_entry = 0.0_dp
                 END IF
@@ -2031,4 +2081,7 @@ MODULE hfx_energy_potential
       END DO
     END DO  
   END SUBROUTINE update_fock_matrix
+
+#include "hfx_get_pmax_val.h"
+
 END MODULE hfx_energy_potential
