@@ -1,0 +1,59 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROGRAM_NAME TEST
+  RUN_TYPE NONE
+  &TIMINGS
+     THRESHOLD 0.00000000001
+  &END
+&END GLOBAL
+&TEST
+  &CP_FM_GEMM
+     K 512
+     M 512
+     N 512
+     TRANSA FALSE
+     TRANSB FALSE
+     N_LOOP 2
+  &END
+  &CP_FM_GEMM
+     K 512
+     M 512
+     N 512
+     TRANSA FALSE
+     TRANSB FALSE
+     N_LOOP 2
+     NROW_BLOCK 31
+     NCOL_BLOCK 31
+  &END
+  &CP_FM_GEMM
+     K 512
+     M 512
+     N 512
+     TRANSA FALSE
+     TRANSB FALSE
+     N_LOOP 2
+     NROW_BLOCK 64
+     NCOL_BLOCK 64
+  &END
+  &CP_FM_GEMM
+     K 37
+     M 37
+     N 37
+     TRANSA FALSE
+     TRANSB FALSE
+     N_LOOP 200
+     NROW_BLOCK 64
+     NCOL_BLOCK 64
+  &END
+  &CP_FM_GEMM
+     K 37
+     M 37
+     N 37
+     TRANSA FALSE
+     TRANSB FALSE
+     N_LOOP 200
+     NROW_BLOCK 16
+     NCOL_BLOCK 16
+  &END
+
+&END

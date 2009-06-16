@@ -25,13 +25,16 @@ MODULE library_tests
                                              cp_blacs_env_write
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd,&
                                              cp_fm_syevx
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type,&
                                              cp_fm_struct_write
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_init_random,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
@@ -128,7 +131,8 @@ CONTAINS
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: pw_transfer_section, &
+    TYPE(section_vals_type), POINTER         :: cp_fm_gemm_test_section, &
+                                                pw_transfer_section, &
                                                 rs_pw_transfer_section
 
     CALL timeset(routineN,handle)
@@ -172,6 +176,12 @@ CONTAINS
     CALL section_vals_get(pw_transfer_section,explicit=explicit, error=error)
     IF (explicit) THEN
       CALL pw_fft_test ( para_env, iw, globenv, pw_transfer_section, error )
+    ENDIF
+
+    cp_fm_gemm_test_section => section_vals_get_subs_vals(root_section,"TEST%CP_FM_GEMM",error=error)
+    CALL section_vals_get(cp_fm_gemm_test_section,explicit=explicit, error=error)
+    IF (explicit) THEN
+      CALL cp_fm_gemm_test ( para_env, iw, globenv, cp_fm_gemm_test_section, error )
     ENDIF
 
     CALL cp_print_key_finished_output(iw,logger,root_section,"TEST%PROGRAM_RUN_INFO", error=error)
@@ -1747,5 +1757,149 @@ CONTAINS
     CALL cp_blacs_env_release(blacs_env=blacs_env,error=error)
 
   END SUBROUTINE eigensolver_test
+
+! *****************************************************************************
+!> \brief Tests the parallel matrix multiply
+! *****************************************************************************
+  SUBROUTINE cp_fm_gemm_test(para_env, iw, globenv, cp_fm_gemm_test_section, error )
+
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iw
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: cp_fm_gemm_test_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_gemm_test', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=1)                         :: transa, transb
+    INTEGER :: i_loop, i_rep, k, m, n, N_loop, n_rep, ncol_block, &
+      ncol_block_actual, ncol_global, nrow_block, nrow_block_actual, &
+      nrow_global
+    LOGICAL                                  :: transa_p, transb_p
+    REAL(KIND=dp)                            :: gflops, t1, t2
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct_a, fmstruct_b, &
+                                                fmstruct_c
+    TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b, matrix_c
+
+    CALL section_vals_get(cp_fm_gemm_test_section,n_repetition=n_rep,error=error)
+    DO i_rep=1,n_rep
+
+       ! how often should we do the multiply
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"N_loop",i_rep_section=i_rep,i_val=N_loop,error=error )
+
+       ! matrices def.
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"K",i_rep_section=i_rep,i_val=k,error=error )
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"N",i_rep_section=i_rep,i_val=n,error=error )
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"M",i_rep_section=i_rep,i_val=m,error=error )
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"transa",i_rep_section=i_rep,l_val=transa_p,error=error )
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"transb",i_rep_section=i_rep,l_val=transb_p,error=error )
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"nrow_block",i_rep_section=i_rep,i_val=nrow_block,error=error )
+       CALL section_vals_val_get(cp_fm_gemm_test_section,"ncol_block",i_rep_section=i_rep,i_val=ncol_block,error=error )
+       transa="N"  
+       transb="N"
+       IF (transa_p) transa="T"
+       IF (transb_p) transb="T"
+
+       IF (iw>0) THEN
+          WRITE(iw,'(T2,A)') "----------- TESTING PARALLEL MATRIX MULTIPLY -------------" 
+          WRITE(iw,'(T2,A)',ADVANCE="NO") "C = "
+          IF (transa_p) THEN
+            WRITE(iw,'(A)',ADVANCE="NO") "TRANSPOSE(A) x"
+          ELSE
+            WRITE(iw,'(A)',ADVANCE="NO") "A x "
+          ENDIF
+          IF (transb_p) THEN
+            WRITE(iw,'(A)') "TRANSPOSE(B) "
+          ELSE
+            WRITE(iw,'(A)') "B "
+          ENDIF
+          WRITE(iw,'(T2,A,I3,A,I3)') 'requested block size',nrow_block,' by ',ncol_block
+          WRITE(iw,'(T2,A,I5)') 'number of repetitions of cp_fm_gemm ',n_loop
+       ENDIF
+       
+       NULLIFY (blacs_env)
+       CALL cp_blacs_env_create(blacs_env=blacs_env,&
+                                para_env=para_env,&
+                                error=error)
+
+       NULLIFY (fmstruct_a)
+       IF (transa_p) THEN
+          nrow_global=m ; ncol_global=k
+       ELSE
+          nrow_global=k ; ncol_global=m
+       ENDIF
+       CALL cp_fm_struct_create(fmstruct=fmstruct_a, para_env=para_env, context=blacs_env,&
+                                nrow_global=nrow_global, ncol_global=ncol_global, &
+                                nrow_block=nrow_block, ncol_block=ncol_block, error=error)
+       CALL cp_fm_struct_get(fmstruct_a,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
+       IF (iw>0) WRITE(iw,'(T2,A,I5,A,I5,A,I5,A,I5)') 'matrix A ',nrow_global," by ",ncol_global, &
+                                  ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
+
+       IF (transb_p) THEN
+          nrow_global=n ; ncol_global=m
+       ELSE
+          nrow_global=m ; ncol_global=n
+       ENDIF
+       NULLIFY (fmstruct_b)
+       CALL cp_fm_struct_create(fmstruct=fmstruct_b, para_env=para_env, context=blacs_env,&
+                                nrow_global=nrow_global, ncol_global=ncol_global, &
+                                nrow_block=nrow_block, ncol_block=ncol_block, error=error)
+       CALL cp_fm_struct_get(fmstruct_b,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
+       IF (iw>0) WRITE(iw,'(T2,A,I5,A,I5,A,I5,A,I5)') 'matrix B ',nrow_global," by ",ncol_global, &
+                                  ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
+
+       NULLIFY (fmstruct_c)
+       nrow_global=k
+       ncol_global=n
+       CALL cp_fm_struct_create(fmstruct=fmstruct_c, para_env=para_env, context=blacs_env,&
+                                nrow_global=nrow_global, ncol_global=ncol_global, &
+                                nrow_block=nrow_block, ncol_block=ncol_block, error=error)
+       CALL cp_fm_struct_get(fmstruct_c,nrow_block=nrow_block_actual,ncol_block=ncol_block_actual, error=error)
+       IF (iw>0) WRITE(iw,'(T2,A,I5,A,I5,A,I5,A,I5)') 'matrix C ',nrow_global," by ",ncol_global, &
+                                  ' using blocks of ',nrow_block_actual, ' by ',ncol_block_actual
+
+       NULLIFY (matrix_a)
+       CALL cp_fm_create(matrix=matrix_a, matrix_struct=fmstruct_a, name="MATRIX A", error=error)
+       NULLIFY (matrix_b)
+       CALL cp_fm_create(matrix=matrix_b, matrix_struct=fmstruct_b, name="MATRIX B", error=error)
+       NULLIFY (matrix_c)
+       CALL cp_fm_create(matrix=matrix_c, matrix_struct=fmstruct_c, name="MATRIX C", error=error)
+
+       CALL cp_fm_init_random(matrix_a, error=error)
+       CALL cp_fm_init_random(matrix_b, error=error)
+       CALL cp_fm_init_random(matrix_c, error=error)
+
+       IF (iw>0) CALL m_flush(iw)
+
+       t1=m_walltime()
+       DO i_loop=1,N_loop
+
+          CALL cp_fm_gemm(transa,transb,k,n,m,1.0_dp,matrix_a,matrix_b,0.0_dp,matrix_c,error=error)
+
+       ENDDO
+       t2=m_walltime()
+
+       IF (iw>0) THEN
+          WRITE(iw,'(T2,A,F12.6)')     "cp_fm_gemm timing: ",t2-t1
+          IF (t2>t1) THEN
+             WRITE(iw,'(T2,A,F12.6)') "cp_fm_gemm Gflops per MPI task: ", &
+                2*REAL(m,kind=dp)*REAL(n,kind=dp)*REAL(k,kind=dp)*N_loop / (t2-t1) / 1.0E9_dp / para_env%num_pe
+          ENDIF
+       ENDIF
+
+       CALL cp_fm_release(matrix=matrix_a,error=error)
+       CALL cp_fm_release(matrix=matrix_b,error=error)
+       CALL cp_fm_release(matrix=matrix_c,error=error)
+       CALL cp_fm_struct_release(fmstruct=fmstruct_a,error=error)
+       CALL cp_fm_struct_release(fmstruct=fmstruct_b,error=error)
+       CALL cp_fm_struct_release(fmstruct=fmstruct_c,error=error)
+       CALL cp_blacs_env_release(blacs_env=blacs_env,error=error)
+
+    ENDDO
+
+
+  END SUBROUTINE cp_fm_gemm_test
 
 END MODULE library_tests

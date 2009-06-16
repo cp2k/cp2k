@@ -696,6 +696,10 @@ CONTAINS
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_cp_fm_gemm_section(subsection,error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
   END SUBROUTINE create_test_section
 
 ! *****************************************************************************
@@ -838,6 +842,78 @@ CONTAINS
 
 
   END SUBROUTINE create_pw_transfer_section
+
+! *****************************************************************************
+!> \brief   creates the cp_fm_gemm section for use in the test section
+!> \author  Joost VandeVondele
+!> \date    2009-06-15
+! *****************************************************************************
+  SUBROUTINE create_cp_fm_gemm_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_cp_fm_gemm_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="CP_FM_GEMM",&
+         description="Benchmark and test the cp_fm_gemm routines by multiplying C=A*B  ",&
+         n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+         error=error)
+
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="N_LOOP",&
+         description="Number of cp_fm_gemm operations being timed (useful for small matrices).",&
+         usage="N_LOOP 10",default_i_val=10,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="K",&
+         description="Dimension 1 of C",&
+         usage="A 1024",default_i_val=256,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="M",&
+         description="Inner dimension M   ",&
+         usage="A 1024",default_i_val=256,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="N",&
+         description="Dimension 2 of C",&
+         usage="A 1024",default_i_val=256,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="nrow_block",&
+         description="block_size for rows",&
+         usage="nrow_block 64",default_i_val=32,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="ncol_block",&
+         description="block_size for cols",&
+         usage="nrow_block 64",default_i_val=32,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="TRANSA",&
+         description="Transpose matrix A",&
+         usage="TRANSA",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="TRANSB",&
+         description="Transpose matrix B",&
+         usage="TRANSB",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+  END SUBROUTINE create_cp_fm_gemm_section
 
 ! *****************************************************************************
 !> \brief section to setup debugging parameter
