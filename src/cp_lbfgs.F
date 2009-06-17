@@ -16,7 +16,7 @@ MODULE cp_lbfgs
   USE bibliography,                    ONLY: Byrd1995,&
                                              cite_reference
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_cputime
+  USE machine,                         ONLY: m_walltime
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -3623,7 +3623,7 @@ CONTAINS
 !    temp = etime(tarray)
 !    ttime = dble(tarray(1))
 
-    ttime = m_cputime()
+    ttime = m_walltime()
 
     RETURN
 

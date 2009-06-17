@@ -17,7 +17,7 @@ MODULE cg_test
                                              get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
                                              lebedev_grid
-  USE machine,                         ONLY: m_cputime
+  USE machine,                         ONLY: m_walltime
   USE mathconstants,                   ONLY: pi
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                              clebsch_gordon_deallocate,&
@@ -71,9 +71,9 @@ SUBROUTINE clebsch_gordon_test (error)
 
      wa(1:na) = 4.0_dp*pi*lebedev_grid(ll)%w(1:na)
 
-     tstart = m_cputime ( )
+     tstart = m_walltime ( )
      CALL clebsch_gordon_init ( l )
-     tend = m_cputime ( )
+     tend = m_walltime ( )
      tend = tend - tstart
      WRITE(iw,'(T30,A,T71,F10.3)') " Time for Clebsch-Gordon Table [s] ",tend
      lp = (l**4 + 6*l**3 + 15*l**2 + 18*l + 8)/8

@@ -59,8 +59,7 @@ MODULE library_tests
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_cputime,&
-                                             m_flush,&
+  USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
@@ -282,12 +281,12 @@ CONTAINS
        ntim = MAX ( ntim, 1 )
        ntim = MIN ( ntim, siz * 10000 )
 
-       tstart = m_cputime ( )
+       tstart = m_walltime ( )
        DO j = 1, ntim
           cb ( : ) = ca ( : )
           ca ( 1 ) = REAL ( j,KIND=dp)
        END DO
-       tend = m_cputime ( )
+       tend = m_walltime ( )
        t = tend - tstart + threshold
        IF ( t > 0.0_dp ) THEN
           perf = REAL ( ntim,KIND=dp) * REAL ( len,KIND=dp) * 1.e-6_dp / t
@@ -349,24 +348,24 @@ CONTAINS
        ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
        ntim = MAX ( ntim, 1 )
        ntim = MIN ( ntim, siz * 200 )
-       tstart = m_cputime ( )
+       tstart = m_walltime ( )
        DO j = 1, ntim
           mc = MATMUL ( ma, mb )
           ma ( 1, 1 ) = REAL ( j,KIND=dp)
        END DO
-       tend = m_cputime ( )
+       tend = m_walltime ( )
        t = tend - tstart + threshold
        perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
        IF ( para_env%ionode ) THEN
           WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
                " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
        END IF
-       tstart = m_cputime ( )
+       tstart = m_walltime ( )
        DO j = 1, ntim
           mc = mc + MATMUL ( ma, mb )
           ma ( 1, 1 ) = REAL ( j,KIND=dp)
        END DO
-       tend = m_cputime ( )
+       tend = m_walltime ( )
        t = tend - tstart +threshold
        IF ( t > 0.0_dp ) THEN
           perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
@@ -379,12 +378,12 @@ CONTAINS
                " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
        END IF
 
-       tstart = m_cputime ( )
+       tstart = m_walltime ( )
        DO j = 1, ntim
           mc = mc + MATMUL ( ma, TRANSPOSE ( mb ) )
           ma ( 1, 1 ) = REAL ( j,KIND=dp)
        END DO
-       tend = m_cputime ( )
+       tend = m_walltime ( )
        t = tend - tstart + threshold
        IF ( t > 0.0_dp ) THEN
           perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
@@ -397,12 +396,12 @@ CONTAINS
                " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
        END IF
 
-       tstart = m_cputime ( )
+       tstart = m_walltime ( )
        DO j = 1, ntim
           mc = mc + MATMUL ( TRANSPOSE ( ma ), mb )
           ma ( 1, 1 ) = REAL ( j,KIND=dp)
        END DO
-       tend = m_cputime ( )
+       tend = m_walltime ( )
        t = tend - tstart +threshold
        IF ( t > 0.0_dp ) THEN
           perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
@@ -444,11 +443,11 @@ CONTAINS
        ntim = MAX ( ntim, 1 )
        ntim = MIN ( ntim, 1000 )
 
-       tstart = m_cputime ( )
+       tstart = m_walltime ( )
        DO j = 1, ntim
           CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
        END DO
-       tend = m_cputime ( )
+       tend = m_walltime ( )
        t = tend - tstart+threshold
        IF ( t > 0.0_dp ) THEN
           perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
@@ -461,11 +460,11 @@ CONTAINS
                " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
        END IF
 
-       tstart = m_cputime ( )
+       tstart = m_walltime ( )
        DO j = 1, ntim
           CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
        END DO
-       tend = m_cputime ( )
+       tend = m_walltime ( )
        t = tend - tstart+threshold
        IF ( t > 0.0_dp ) THEN
           perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
@@ -478,11 +477,11 @@ CONTAINS
                " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
        END IF
 
-       tstart = m_cputime ( )
+       tstart = m_walltime ( )
        DO j = 1, ntim
           CALL dgemm ( "N", "T", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
        END DO
-       tend = m_cputime ( )
+       tend = m_walltime ( )
        t = tend - tstart+threshold
        IF ( t > 0.0_dp ) THEN
           perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
@@ -495,11 +494,11 @@ CONTAINS
                " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
        END IF
 
-       tstart = m_cputime ( )
+       tstart = m_walltime ( )
        DO j = 1, ntim
           CALL dgemm ( "T", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
        END DO
-       tend = m_cputime ( )
+       tend = m_walltime ( )
        t = tend - tstart+threshold
        IF ( t > 0.0_dp ) THEN
           perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
@@ -624,12 +623,12 @@ CONTAINS
                 ntim = MAX ( ntim, 1 )
                 ntim = MIN ( ntim, 200 )
                 scale = 1.0_dp / REAL ( len**3,KIND=dp)
-                tstart = m_cputime ( )
+                tstart = m_walltime ( )
                 DO j = 1, ntim
                    CALL fft3d ( FWFFT, n, ca )
                    CALL fft3d ( BWFFT, n, ca, SCALE = scale )
                 END DO
-                tend = m_cputime ( )
+                tend = m_walltime ( )
                 t = tend - tstart+threshold
                 IF ( t > 0.0_dp ) THEN
                    perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
@@ -1482,7 +1481,7 @@ CONTAINS
     tsum = 0.0_dp
     tsum2 = 0.0_dp
 
-    tstart = m_cputime()
+    tstart = m_walltime()
     DO i=1,n
        t = next_random_number(rng_stream,error=error)
        tsum = tsum + t
@@ -1490,7 +1489,7 @@ CONTAINS
        IF (t > tmax) tmax = t
        IF (t < tmin) tmin = t
     END DO
-    tend = m_cputime()
+    tend = m_walltime()
 
     IF (ionode) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T4,A,F12.6))")&
@@ -1515,7 +1514,7 @@ CONTAINS
     tsum = 0.0_dp
     tsum2 = 0.0_dp
 
-    tstart = m_cputime()
+    tstart = m_walltime()
     DO i=1,n
        t = next_random_number(rng_stream,error=error)
        tsum = tsum + t
@@ -1523,7 +1522,7 @@ CONTAINS
        IF (t > tmax) tmax = t
        IF (t < tmin) tmin = t
     END DO
-    tend = m_cputime()
+    tend = m_walltime()
 
     IF (ionode) THEN
        CALL write_rng_stream(rng_stream,output_unit,error=error)
