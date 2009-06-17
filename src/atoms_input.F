@@ -110,7 +110,7 @@ CONTAINS
     ! 1. get cell and topolgoy%atom_info
     !-----------------------------------------------------------------------------
     atom_info => topology%atom_info
-    cell => topology%cell
+    cell => topology%cell_muc
     CALL section_vals_val_get(coord_section,"UNIT",c_val=unit_str,error=error)
     CALL section_vals_val_get(coord_section,"SCALED",l_val=scaled_coordinates,error=error)
     unit_conv = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)

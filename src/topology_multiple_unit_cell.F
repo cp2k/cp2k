@@ -8,13 +8,7 @@
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
 MODULE topology_multiple_unit_cell
-  USE cell_types,                      ONLY: cell_create,&
-                                             cell_release,&
-                                             cell_type,&
-                                             get_cell_param,&
-                                             set_cell_param,&
-                                             write_cell
-  USE cp_units,                        ONLY: cp_units_rad
+  USE cell_types,                      ONLY: cell_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -57,17 +51,16 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER                                  :: handle, i, ind, j, k, m, n, &
                                                 natoms, nrep, stat
-    INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
+    INTEGER, DIMENSION(:), POINTER           :: iwork, multiple_unit_cell
     LOGICAL                                  :: check, explicit, failure, &
                                                 scale
-    REAL(KIND=dp), DIMENSION(3)              :: abc, angles, trsl, trsl_i, &
-                                                trsl_j, trsl_k
+    REAL(KIND=dp), DIMENSION(3)              :: trsl, trsl_i, trsl_j, trsl_k
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(multiple_unit_cell,cell)
+    NULLIFY(multiple_unit_cell,iwork,cell)
     CALL section_vals_val_get(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
                               i_vals=multiple_unit_cell, error=error)
     ! Fail is one of the value is set to zero..
@@ -76,16 +69,14 @@ CONTAINS
          "A value of 0 or negative is meaningless!"//&
 CPSourceFileRef)
     IF (ANY(multiple_unit_cell/=1)) THEN
-       ! Allocate the original cell
-       CALL get_cell_param(topology%cell,abc,angles,cp_units_rad,error=error)
-       abc = abc / REAL(multiple_unit_cell,KIND=dp)
-
-       ! Create cell
-       NULLIFY(cell)
-       CALL cell_create(cell,periodic=topology%cell%perd,orthorhombic=topology%cell%orthorhombic,error=error)
-       CALL set_cell_param(cell,abc,angles,do_init_cell=.TRUE.,error=error)
-       CALL write_cell(cell,subsys_section,label="CELL_UC|",error=error)
-
+       ! Check that the setup between CELL and TOPOLOGY is the same..
+       CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&
+                                 i_vals=iwork, error=error)
+       CALL cp_assert(ALL(iwork==multiple_unit_cell),cp_fatal_level,cp_assertion_failed,routineP,&
+         "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and SUBSYS%CELL%MULTIPLE_UNIT_CELL have been "//&
+         "setup to two different values!! Correct this error!!"//&
+CPSourceFileRef)
+       cell => topology%cell_muc
        natoms = topology%natoms*REAL(PRODUCT(multiple_unit_cell),KIND=dp)
 
        ! Check, if velocities are provided, that they are consistent in number with the atoms...
@@ -138,7 +129,6 @@ CPSourceFileRef)
              END DO
           END DO
        END DO
-       CALL cell_release(cell, error)
        topology%natoms            = natoms
 
        ! Deallocate the coordinate section (will be rebuilt later with the whole atomic set)

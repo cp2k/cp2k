@@ -11,13 +11,19 @@
 MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
-  USE cell_types,                      ONLY: read_cell,&
+  USE cell_types,                      ONLY: cell_create,&
+                                             cell_retain,&
+                                             cell_type,&
+                                             get_cell_param,&
+                                             read_cell,&
+                                             set_cell_param,&
                                              write_cell
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              post_process_colvar
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_units_rad
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
@@ -29,7 +35,8 @@ MODULE topology
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length
+                                             default_string_length,&
+                                             dp
   USE mm_mapping_library,              ONLY: create_ff_map,&
                                              destroy_ff_map
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -158,6 +165,7 @@ CONTAINS
     CALL read_cell (topology%cell, topology%cell_ref, cell_section=cell_section,&
                     para_env=para_env, error=error)
     CALL write_cell(topology%cell, subsys_section, label="CELL_TOP|", error=error)
+    CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section, error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -574,6 +582,45 @@ CPSourceFileRef,&
        END DO
     END IF
   END SUBROUTINE topology_post_proc_colvar
+
+! *****************************************************************************
+!> \brief  Setup the cell used for handling properly the multiple_unit_cell option
+!> \author Teodoro Laino [tlaino] - 06.2009
+! *****************************************************************************
+  SUBROUTINE setup_cell_muc(cell_muc, cell, subsys_section, error)
+
+    TYPE(cell_type), POINTER                 :: cell_muc, cell
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_cell_muc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: abc, angles
+
+    failure = .FALSE.
+    CPPostcondition(.NOT.ASSOCIATED(cell_muc),cp_failure_level,routineP,error,failure)       
+    
+    CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&
+                              i_vals=multiple_unit_cell, error=error)
+    IF (ANY(multiple_unit_cell/=1)) THEN
+       ! Allocate the original cell
+       CALL get_cell_param(cell,abc,angles,cp_units_rad,error=error)
+       abc = abc / REAL(multiple_unit_cell,KIND=dp)
+       
+       ! Create cell
+       CALL cell_create(cell_muc,periodic=cell%perd,orthorhombic=cell%orthorhombic,error=error)
+       CALL set_cell_param(cell_muc,abc,angles,do_init_cell=.TRUE.,error=error)
+       CALL write_cell(cell_muc,subsys_section,label="CELL_UC|",error=error)
+    ELSE
+       ! If a multiple_unit_cell was not requested just point to the original cell
+       CALL cell_retain(cell, error)
+       cell_muc => cell
+    END IF
+
+  END SUBROUTINE setup_cell_muc
 
 END MODULE topology
 

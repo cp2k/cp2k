@@ -142,7 +142,7 @@ MODULE topology_types
      TYPE (atom_info_type),POINTER             :: atom_info
      TYPE (connectivity_info_type),POINTER     :: conn_info
      TYPE (constraint_info_type),POINTER       :: cons_info
-     TYPE (cell_type), POINTER                 :: cell, cell_ref
+     TYPE (cell_type), POINTER                 :: cell, cell_ref, cell_muc
      INTEGER                                   :: conn_type
      INTEGER                                   :: coord_type
      INTEGER                                   :: exclude_vdw
@@ -222,7 +222,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Initialize and Nullify things in topology
     !-----------------------------------------------------------------------------
-    NULLIFY(topology%cell, topology%cell_ref)
+    NULLIFY(topology%cell, topology%cell_ref, topology%cell_muc)
     topology%natoms=0
     topology%natom_type=0
     topology%nmol=0
@@ -588,6 +588,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL cell_release(topology%cell,error=error)
     CALL cell_release(topology%cell_ref,error=error)
+    CALL cell_release(topology%cell_muc,error=error)
     IF(ASSOCIATED(topology%atom_info)) THEN
        DEALLOCATE(topology%atom_info,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
