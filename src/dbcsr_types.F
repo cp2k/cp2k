@@ -10,7 +10,7 @@
 !> \version 0.95
 !>
 !> <b>Modification history:</b>
-!> - Created
+!> - Created 2009-05-12
 ! *****************************************************************************
 MODULE dbcsr_types
   USE array_types,                     ONLY: array_i1d_obj

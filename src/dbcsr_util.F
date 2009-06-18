@@ -10,7 +10,7 @@
 !> \version 0.9
 !>
 !> <b>Modification history:</b>
-!> - Created
+!> - Created 2009-05-12
 ! *****************************************************************************
 MODULE dbcsr_util
 
@@ -1380,7 +1380,8 @@ CONTAINS
 
     INTEGER                                  :: curcol, mincol, nblks, &
                                                 new_ncols, old_max_col, &
-                                                old_nrows, old_row, prev_col
+                                                old_nrows, old_row, prev_col, &
+                                                prev_nblks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_p
     LOGICAL                                  :: column_le
 
@@ -1399,7 +1400,6 @@ CONTAINS
        old_max_col = 0
     ENDIF
     mincol = old_max_col
-    !new_col_p(:) = 1
     IF (dbg) THEN
        WRITE(*,*)'old index'
        WRITE(*,1323)old_row_p
@@ -1414,8 +1414,8 @@ CONTAINS
     ! appropriate to the column being scanned.
     ! mincol is use to jump ahead for very sparse matrices
     nblks = 0
+    prev_nblks = 0
     new_col_p(1) = 0
-    new_col_p(:) = 0
     prev_col = 0
     curcol = 1
     DO WHILE (curcol .LE. new_ncols)
@@ -1463,8 +1463,10 @@ CONTAINS
        IF (prev_col+1 .LE. mincol) THEN
           DBG 'Skipped!'
        ENDIF
-       !new_col_p(prev_col+2:mincol+1) = nblks
-       new_col_p(prev_col+2:MIN(mincol+1,new_ncols+1)) = nblks
+       !new_col_p(prev_col+2:MIN(mincol+1,new_ncols+1)) = nblks
+       new_col_p(prev_col+1:MIN(mincol+1,new_ncols+1)-1) = prev_nblks
+       new_col_p(MIN(mincol+1,new_ncols+1)) = nblks
+       prev_nblks = nblks
        prev_col = curcol
        curcol = MAX (mincol, curcol+1)
        !curcol = mincol
@@ -3051,19 +3053,19 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Determines the sign for a block pointer.
-!> \param[in] n     block offset
-!> \param[in] old   sign for the new block offset
-!> \param[in] val   reverse the sign of the new block offset
+!> \param[in] n          block offset
+!> \param[in] oldsign    sign for the new block offset
+!> \param[in] x          reverse the sign of the new block offset
 ! *****************************************************************************
-  ELEMENTAL FUNCTION sgn (n, old, x) RESULT (val)
-    INTEGER, INTENT(IN)                      :: n, old
+  ELEMENTAL FUNCTION sgn (n, oldsign, x) RESULT (val)
+    INTEGER, INTENT(IN)                      :: n, oldsign
     LOGICAL, INTENT(IN)                      :: x
     INTEGER                                  :: val
 
     IF (.NOT.x) THEN
-       val = SIGN (n, old)
+       val = SIGN (n, oldsign)
     ELSE
-       val = -SIGN (n, old)
+       val = -SIGN (n, oldsign)
     ENDIF
   END FUNCTION sgn
 
@@ -4375,42 +4377,6 @@ CONTAINS
     ENDDO
   END SUBROUTINE evenly_bin
 
-  SUBROUTINE evenly_bin_images (array, images, nbins, nimages)
-    INTEGER, DIMENSION(:), INTENT(IN)        :: array
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: images
-    INTEGER, INTENT(IN)                      :: nbins, nimages
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'evenly_bin_images', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: debug_level = 2
-
-    INTEGER                                  :: bin, i, maxbinsize, maximgsize
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: img_count, put_in_img
-
-! nimages/bin
-!
-
-    CALL bcsr_assert (debug_level, SIZE(array).EQ.SIZE(images), routineN,&
-         "array sizes unequal")
-    maxbinsize = CEILING (REAL(SIZE (array)) / REAL(nbins))
-    maximgsize = CEILING (REAL(maxbinsize) / REAL(nimages))
-    ALLOCATE (img_count (0:nbins), put_in_img(0:nbins))
-    img_count(:) = 0
-    put_in_img(:) = 1
-    DO i = 1, SIZE (array)
-       bin = array(i)
-       img_count(bin) = img_count(bin) + 1
-       IF (debug_level .GE. 2) &
-            CALL bcsr_assert (debug_level, put_in_img(bin) .LE. nimages,&
-            routineN, "not enough images")
-       images (i) = put_in_img(bin)
-       IF (img_count(bin) .GT. maximgsize) THEN
-          img_count(bin) = 0
-          put_in_img(bin) = put_in_img(bin)+1
-       ENDIF
-    ENDDO
-  END SUBROUTINE evenly_bin_images
-
 ! *****************************************************************************
 !> \brief Makes new distribution and image distribution in one dimension
 !> \param[out] new_bins  new real distribution
@@ -4483,6 +4449,50 @@ CONTAINS
   END SUBROUTINE bin_multiplicity
 
 
+! *****************************************************************************
+!> \brief Makes new distribution with multiplicity
+!> \param[out] new_bins      new real distribution
+!> \param[out] images        new image distribution
+!> \param[in] source_bins    Basis for the new distribution and images
+!> \param[in] nbins          number of bins in the new real distribution
+!> \param[in] multiplicity   multiplicity
+!> \param[in] nimages        number of images in the new distribution
+! *****************************************************************************
+  SUBROUTINE rebin_distribution (new_bins, images, source_bins, nbins, multiplicity, nimages)
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: new_bins, images
+    INTEGER, DIMENSION(:), INTENT(IN)        :: source_bins
+    INTEGER, INTENT(IN)                      :: nbins, multiplicity, nimages
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rebin_distribution', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: debug_level = 2
+
+    INTEGER                                  :: bin, i, old_nbins
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
+
+!
+
+    CALL bcsr_assert (debug_level, SIZE(source_bins).EQ.SIZE(new_bins),&
+         routineN, "array sizes not equal")
+    CALL bcsr_assert (debug_level, SIZE(source_bins).EQ.SIZE(images),&
+         routineN, "array sizes not equal")
+    CALL bcsr_assert (debug_level, MOD (nbins, multiplicity) .EQ. 0,&
+         routineN, "mulitplicity is not divisor of new process grid coordinate")
+    old_nbins = nbins * nimages / multiplicity
+    ALLOCATE (bin_multiplier(0:old_nbins-1))
+    bin_multiplier(:) = 0
+    DO i = 1, SIZE (source_bins)
+       bin = source_bins (i)
+       bin_multiplier(bin) = bin_multiplier(bin)+1
+       IF (bin_multiplier(bin) .GE. multiplicity) THEN
+          bin_multiplier(bin) = 0
+       ENDIF
+       new_bins (i) = (bin + old_nbins*bin_multiplier(bin)) / nimages
+       images(i) = 1 + MOD (bin, nimages)
+    ENDDO
+  END SUBROUTINE rebin_distribution
+
+
 
 ! *****************************************************************************
 !> \brief Creates a left-matrix DBCSR image distribution for a matrix
@@ -4503,9 +4513,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_image_dist_left', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, image, nimages, &
-                                                nprows_left, nprows_right, &
-                                                nrows, row
+    INTEGER                                  :: image, nimages, nprows_left, &
+                                                nprows_right, nrows, row
     INTEGER, DIMENSION(:), POINTER           :: rd, row_dist_data, &
                                                 row_img_data
     INTEGER, DIMENSION(:, :), POINTER        :: right_pgrid
@@ -4550,18 +4559,8 @@ CONTAINS
     ALLOCATE (row_img_data (nrows))
     rd => array_data (dbcsr_distribution_row_dist (dist_right))
     nimages = imgdist_left%row_decimation
-    IF (imgdist_left%row_multiplicity .GT. 1) THEN
-       CALL bin_multiplicity (row_dist_data, rd, nprows_left, imgdist_left%row_multiplicity)
-       row_img_data(:) = (/ (1, i=1, nrows) /)
-    ELSE
-       CALL bin_images (row_dist_data, row_img_data, rd, nprows_left, nimages)
-       
-    ENDIF
-!4528 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
-!    IF (dbg) THEN
-!       WRITE(*,*)routineP//' row_dist_data'
-!       WRITE(*,4528)row_dist_data
-!    ENDIF
+    CALL rebin_distribution (row_dist_data, row_img_data, rd,&
+         nprows_left, imgdist_left%row_multiplicity, nimages)
     CALL array_new (row_dist, row_dist_data, gift=.TRUE.)
     CALL array_new (row_image, row_img_data, gift=.TRUE.)
     ! Now copy the column distribution from the right matrix's row dist.

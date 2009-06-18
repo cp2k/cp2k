@@ -4,13 +4,13 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief   [DESCRIPTION OF THE MODULE]
-!> \author  [AUTHOR]
-!> \date    [DATE]
-!> \version 1.0
+!> \brief   Higher-level operations on DBCSR matrices.
+!> \author  Urban Borstnik
+!> \date    2009-05-12
+!> \version 0.9
 !>
 !> <b>Modification history:</b>
-!> - [ADD MODIFICATION HISTORY or CREATION]
+!  - Created 2009-05-12
 ! *****************************************************************************
 MODULE dbcsr_operations
   USE array_types,                     ONLY: array_data
@@ -250,7 +250,7 @@ CONTAINS
     my_waits(:,:) = 0
     k_index: DO right_prow_i = 0, right_nprows
        ! Right matrix
-       right_prow = MOD (right_prow_i + myprow, right_nprows)
+       right_prow = MOD (right_prow_i+myprow+mypcol, right_nprows)
        DBG 'RIGHT_PROW from/to', right_prow_i, right_prow, myprow, right_nprows
        my_waits(1, right_prow_i) = m_walltime()
        !CALL dbcsr_sleep (10.0_dp)
@@ -517,7 +517,7 @@ CONTAINS
     DBG 'A rows:',left%nblkrows_total
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
     CALL ensure_array_size(wm%data,&
-         ub=wm%datasize+left%nfullrows_total*right%nfullcols_total, error=error)
+         ub=MAX(wm%datasize,left%nfullrows_total*right%nfullcols_total), error=error)
        !CALL ensure_array_size(wm%data,&
        !     ub=wm%datasize+a_row_size*right%nfullcols_total &
        !     * MAX(1, (left%nblkrows_total-a_row)/4), error=error)

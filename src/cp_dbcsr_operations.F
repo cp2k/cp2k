@@ -10,7 +10,7 @@
 !> \version 0.8
 !>
 !> <b>Modification history:</b>
-!> - Created
+!> - Created 2009-05-12
 ! *****************************************************************************
 MODULE cp_dbcsr_operations
   USE array_types,                     ONLY: array_data
@@ -115,7 +115,7 @@ CONTAINS
     IF (dbg) WRITE(*,*)routineP//'Creating work matrix...'
     IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
     CALL dbcsr_work_create(matrix_c,&
-         sizedata_guess=INT(1.5*SIZE(matrix_a%data)), error=error)
+         sizedata_guess=INT(3*SIZE(matrix_a%data)), error=error)
     IF (dbg) WRITE(*,*)routineP//'Multiplying...'
     IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
     !
