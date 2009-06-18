@@ -40,8 +40,11 @@ MODULE force_fields
                                              do_ff_charmm,&
                                              do_ff_g87,&
                                              do_ff_g96,&
-                                             do_ff_undef
-  USE input_section_types,             ONLY: section_vals_type
+                                             do_ff_undef,&
+                                             do_skip_14
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
@@ -95,10 +98,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw
+    INTEGER                                  :: exclude_ei, exclude_vdw, &
+                                                handle, iw
     LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_field_type)                   :: ff_type
+    TYPE(section_vals_type), POINTER         :: topology_section
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -116,6 +121,16 @@ CONTAINS
     ! 2. Read in the force field section in the input file if any
     !-----------------------------------------------------------------------------
     CALL read_force_field_section(ff_type,para_env,mm_section,error)
+    
+    !-----------------------------------------------------------------------------
+    ! 2.1 In case exclusion 1-4 was requested, we need to modify the values of
+    !     the scale factors setting them to zero..
+    !-----------------------------------------------------------------------------
+    topology_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY",error=error)
+    CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=exclude_vdw,error=error)
+    CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=exclude_ei,error=error)
+    IF (exclude_vdw==do_skip_14) ff_type%vdw_scale14 = 0.0_dp
+    IF (exclude_ei ==do_skip_14) ff_type%ei_scale14  = 0.0_dp
 
     !-----------------------------------------------------------------------------
     ! 3. If reading in from external file, make sure its there first

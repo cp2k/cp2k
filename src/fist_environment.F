@@ -85,21 +85,14 @@ MODULE fist_environment
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_environment'
   PUBLIC :: fist_init
 
-!-----------------------------------------------------------------------------!
-
 CONTAINS
-
-!-----------------------------------------------------------------------------!
-! FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST
-!-----------------------------------------------------------------------------!
-
 ! *****************************************************************************
 !> \brief reads the input and database file for fist
 !> \par Used By
 !>      fist_main
 ! *****************************************************************************
-SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
-     subsys_section, use_motion_section, error )
+  SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
+       subsys_section, use_motion_section, error )
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -114,8 +107,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
 
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure, qmmm, &
-                                                shell_adiabatic, &
-                                                shell_present, use_ref_cell
+                                                shell_adiabatic, shell_present
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -142,104 +134,100 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
                                                 ewald_section, mm_section, &
                                                 poisson_section
 
-  CALL timeset(routineN,handle)
-  failure = .FALSE.
-  logger => cp_error_get_logger(error)
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
 
-  NULLIFY ( subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
-            particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
-  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, &
-            poisson_section, shell_particle_set, shell_particles, &
-            core_particle_set, core_particles)
-  IF (.NOT.ASSOCIATED(subsys_section)) THEN
-     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-  END IF
-  mm_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
-  cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
-  poisson_section => section_vals_get_subs_vals(mm_section,"POISSON",error=error)
-  ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+    NULLIFY ( subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
+         particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
+    NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, &
+         poisson_section, shell_particle_set, shell_particles, &
+         core_particle_set, core_particles)
+    IF (.NOT.ASSOCIATED(subsys_section)) THEN
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+    END IF
+    mm_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
+    cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
+    poisson_section => section_vals_get_subs_vals(mm_section,"POISSON",error=error)
+    ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
 
-  CALL set_fist_env(fist_env,input=force_env_section,error=error)
+    CALL set_fist_env(fist_env,input=force_env_section,error=error)
 
-  iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
-       extension=".mmLog",error=error)
-  CALL fist_header(iw, iw>0)
-  CALL cp_print_key_finished_output(iw,logger,mm_section,&
-       "PRINT%PROGRAM_BANNER",error=error)
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
+         extension=".mmLog",error=error)
+    CALL fist_header(iw, iw>0)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%PROGRAM_BANNER",error=error)
 
-  CALL cp_subsys_create ( subsys, para_env = para_env, error = error )
+    CALL cp_subsys_create ( subsys, para_env = para_env, error = error )
 
-  ! read colvars and add to subsys
-  colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
-  CALL cp_subsys_read_colvar( subsys, colvar_section, error=error)
+    ! read colvars and add to subsys
+    colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
+    CALL cp_subsys_read_colvar( subsys, colvar_section, error=error)
 
-  CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, cell_section=cell_section,&
-                  para_env=para_env, error=error)
-  CALL get_cell (cell, abc=abc)
+    CALL read_cell( cell, cell_ref, cell_section=cell_section, para_env=para_env, error=error)
+    CALL get_cell (cell, abc=abc)
 
-  ! Print the cell parameters
-  CALL write_cell ( cell, subsys_section, cell_ref, error=error)
+    ! Print the cell parameters
+    CALL write_cell ( cell, subsys_section, cell_ref, error=error)
 
-  ! Create the ewald environment
-  CALL ewald_env_create ( ewald_env, para_env, error )
+    ! Create the ewald environment
+    CALL ewald_env_create ( ewald_env, para_env, error )
 
-  ! Read the input section and set the ewald_env
-  CALL read_ewald_section ( ewald_env, ewald_section,error )
-  CALL ewald_env_set(ewald_env, poisson_section=poisson_section, error=error)
+    ! Read the input section and set the ewald_env
+    CALL read_ewald_section ( ewald_env, ewald_section,error )
+    CALL ewald_env_set(ewald_env, poisson_section=poisson_section, error=error)
 
-  CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
-  ! Topology
-  CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
-       subsys%colvar_p, subsys%gci, root_section, para_env, qmmm=qmmm,&
-       qmmm_env=qmmm_env, force_env_section=force_env_section,subsys_section=subsys_section,&
-       use_motion_section=use_motion_section, error=error)
+    CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
+    ! Topology
+    CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
+                            subsys%colvar_p, subsys%gci, root_section, para_env, qmmm=qmmm,&
+                            qmmm_env=qmmm_env, force_env_section=force_env_section,&
+                            subsys_section=subsys_section,use_motion_section=use_motion_section,&
+                            error=error)
 
-  CALL force_field_control ( atomic_kind_set, particle_set,&
-                             molecule_kind_set, molecule_set,&
-                             ewald_env, fist_nonbond_env, root_section, para_env, qmmm=qmmm,&
-                             qmmm_env=qmmm_env, subsys_section=subsys_section,&
-                             mm_section=mm_section, shell_particle_set=shell_particle_set, &
-                             core_particle_set=core_particle_set, cell=cell, error=error )
+    CALL force_field_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
+                               ewald_env, fist_nonbond_env, root_section, para_env, qmmm=qmmm,&
+                               qmmm_env=qmmm_env, subsys_section=subsys_section,&
+                               mm_section=mm_section, shell_particle_set=shell_particle_set, &
+                               core_particle_set=core_particle_set, cell=cell, error=error )
 
-  CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
-  IF(ASSOCIATED(shell_particle_set)) THEN
-    CALL particle_list_create ( shell_particles, els_ptr = shell_particle_set, error = error )
-  ELSE
+    CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
     NULLIFY(shell_particles)
-  END IF
-  IF(ASSOCIATED(core_particle_set)) THEN
-    CALL particle_list_create ( core_particles, els_ptr = core_particle_set, error = error )
-  ELSE
     NULLIFY(core_particles)
-  END IF
-  CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-       shell_present=shell_present, shell_adiabatic=shell_adiabatic)
-  CALL set_fist_env(fist_env, shell_model=shell_present, &
-       shell_model_ad=shell_adiabatic, error=error)
-  CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
-  CALL mol_new_list_create ( mols, els_ptr = molecule_set, error = error )
-  CALL mol_kind_new_list_create ( mol_kinds, els_ptr = molecule_kind_set, error = error )
-  CALL cp_subsys_set ( subsys, particles = particles, atomic_kinds = atomic_kinds, &
-       molecules_new = mols, molecule_kinds_new = mol_kinds, &
-       shell_particles=shell_particles, core_particles=core_particles, error = error )
-  CALL particle_list_release ( particles, error = error )
-  CALL particle_list_release ( shell_particles, error = error )
-  CALL particle_list_release ( core_particles, error = error )
-  CALL atomic_kind_list_release ( atomic_kinds, error = error )
-  CALL mol_new_list_release ( mols, error = error )
-  CALL mol_kind_new_list_release ( mol_kinds, error = error )
+    IF(ASSOCIATED(shell_particle_set)) THEN
+       CALL particle_list_create ( shell_particles, els_ptr = shell_particle_set, error = error )
+    END IF
+    IF(ASSOCIATED(core_particle_set)) THEN
+       CALL particle_list_create ( core_particles, els_ptr = core_particle_set, error = error )
+    END IF
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             shell_present=shell_present, shell_adiabatic=shell_adiabatic)
+    CALL set_fist_env(fist_env, shell_model=shell_present, &
+                      shell_model_ad=shell_adiabatic, error=error)
+    CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
+    CALL mol_new_list_create ( mols, els_ptr = molecule_set, error = error )
+    CALL mol_kind_new_list_create ( mol_kinds, els_ptr = molecule_kind_set, error = error )
+    CALL cp_subsys_set ( subsys, particles = particles, atomic_kinds = atomic_kinds, &
+                         molecules_new = mols, molecule_kinds_new = mol_kinds, &
+                         shell_particles=shell_particles, core_particles=core_particles,&
+                         error = error )
+    CALL particle_list_release ( particles, error = error )
+    CALL particle_list_release ( shell_particles, error = error )
+    CALL particle_list_release ( core_particles, error = error )
+    CALL atomic_kind_list_release ( atomic_kinds, error = error )
+    CALL mol_new_list_release ( mols, error = error )
+    CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
-  CALL fist_init_subsys ( fist_env, subsys, cell, cell_ref, use_ref_cell, &
-                          fist_nonbond_env, ewald_env, force_env_section,&
-                          subsys_section,error )
+    CALL fist_init_subsys ( fist_env, subsys, cell, cell_ref, fist_nonbond_env, ewald_env,&
+                            force_env_section, subsys_section,error )
 
-  CALL cell_release(cell,error=error)
-  CALL cell_release(cell_ref,error=error)
-  CALL ewald_env_release ( ewald_env, error )
-  CALL fist_nonbond_env_release ( fist_nonbond_env, error )
-  CALL cp_subsys_release(subsys,error=error)
+    CALL cell_release(cell,error=error)
+    CALL cell_release(cell_ref,error=error)
+    CALL ewald_env_release ( ewald_env, error )
+    CALL fist_nonbond_env_release ( fist_nonbond_env, error )
+    CALL cp_subsys_release(subsys,error=error)
 
-  CALL timestop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE fist_init
 
@@ -250,14 +238,12 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
 !> \date    22.05.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE fist_init_subsys ( fist_env, subsys, cell, cell_ref, use_ref_cell, &
-                                fist_nonbond_env, ewald_env, force_env_section,&
-                                subsys_section, error )
+  SUBROUTINE fist_init_subsys ( fist_env, subsys, cell, cell_ref, fist_nonbond_env,&
+                                ewald_env, force_env_section, subsys_section, error )
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    LOGICAL, INTENT(IN)                      :: use_ref_cell
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &

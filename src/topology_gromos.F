@@ -16,7 +16,6 @@ MODULE topology_gromos
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants,                 ONLY: do_skip_14
   USE input_cp2k_restarts,             ONLY: section_velocity_val_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -121,7 +120,7 @@ CONTAINS
       isolvent, itemp, itype, iw, jatom, natom, natom_prev, nbond, &
       nbond_prev, ncon, nsolute, nsolvent, ntype, offset, offset2, stat
     INTEGER, POINTER                         :: ba(:), bb(:), na(:)
-    LOGICAL                                  :: do_onfo, failure, found
+    LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: ftemp
     REAL(KIND=dp), POINTER                   :: ac(:), am(:)
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -160,7 +159,6 @@ CONTAINS
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
-    do_onfo = (topology%exclude_vdw/=do_skip_14).OR.(topology%exclude_ei/=do_skip_14)
 
     natom_prev = 0
     IF(ASSOCIATED(atom_info%label_molname)) natom_prev = SIZE(atom_info%label_molname)

@@ -1,2 +1,4 @@
 # multiple_unit_cell with AMBER connectivity
 pc-222.inp                2
+check_ex_14.inp          11
+test_ex_14.inp           11
