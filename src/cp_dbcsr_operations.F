@@ -22,7 +22,9 @@ MODULE cp_dbcsr_operations
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_mp_group
-  USE dbcsr_operations,                ONLY: dbcsr_multiply_from_left
+  USE dbcsr_operations,                ONLY: dbcsr_multiply_from_left,&
+                                             dbcsr_scale,&
+                                             dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_imagedistribution_type,&
@@ -178,7 +180,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: failure, ionode, ldbg
     REAL(kind=dp)                            :: checksum, newtime, oldtime, &
-                                                walltime1, walltime2
+                                                trace, walltime1, walltime2
     TYPE(cp_fm_type), POINTER                :: fmout
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_type)                         :: matrix_a, matrix_b, &
@@ -213,6 +215,17 @@ CONTAINS
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR S  checksum", checksum
     ENDIF
+    !
+    ! test the scale and trace routines on a square matrix
+    CALL dbcsr_scale(matrix_a,alpha_scalar=2.0_dp,error=error)
+    checksum = 0.0_dp
+    checksum = dbcsr_checksum(matrix_a, error)
+    CALL dbcsr_trace(matrix_a,trace,error=error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,2(A,F12.4))')"DBCSR 2*S  checksum", checksum, " trace(2*S)",trace
+    ENDIF
+    CALL dbcsr_scale(matrix_a,alpha_scalar=0.5_dp,error=error)
+
     CALL cp_fm_frobenius_norm(matrix_x, checksum, error)
     !WRITE(*,*)'x checksum',checksum*checksum
     IF (ldbg.AND.ionode) THEN
@@ -240,6 +253,16 @@ CONTAINS
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x  checksum", checksum
     ENDIF
+    !
+    ! test the scale routine on a general matrix
+    CALL dbcsr_scale(matrix_b,alpha_scalar=3.0_dp,error=error)
+    checksum = 0.0_dp
+    checksum = dbcsr_checksum(matrix_b, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 3*x  checksum", checksum
+    ENDIF
+    CALL dbcsr_scale(matrix_b,alpha_scalar=1.0_dp/3.0_dp,error=error)
+
     !
     ! Transpose of the row (transposed column) matrix
     !CALL dbcsr_create_dist2d_transposed (dist2d_result, dist2d, error)

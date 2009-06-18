@@ -38,13 +38,14 @@ MODULE dbcsr_operations
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_rma_get,&
+                                             mp_sum,&
                                              mp_window_create,&
                                              mp_window_destroy,&
                                              mp_window_fence,&
                                              mp_window_type
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -53,7 +54,7 @@ MODULE dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
-  PUBLIC :: dbcsr_multiply_from_left, dbcsr_nn_mult
+  PUBLIC :: dbcsr_multiply_from_left, dbcsr_nn_mult, dbcsr_trace, dbcsr_scale
 
   PRIVATE
 
@@ -662,7 +663,7 @@ CONTAINS
                      c_data, a_row_size_logical)
                 !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
                 !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
-                lflop = lflop + a_row_size * b_col_size * a_row_size * 2.0_dp
+                lflop = lflop + a_row_size * b_col_size * a_col_size * 2.0_dp
              ENDDO ! b
           ENDDO ! symmetry
        ENDDO ! a_col
@@ -827,5 +828,147 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_wm_add
 
+
+! *****************************************************************************
+!> \brief Scales a DBCSR matrix by alpha
+!> \param[inout] matrix_a       DBCSR matrix
+!> \param[in] alpha_scalar      (optional) a scalar
+!> \param[in] alpha_vector      (optional) a vector
+!> \param[in] scale_column      (optional) do we scale the columns?
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_scale(matrix_a, alpha_scalar, alpha_vector, scale_column, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    REAL(dp), INTENT(IN), OPTIONAL           :: alpha_scalar
+    REAL(dp), DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: alpha_vector
+    LOGICAL, INTENT(IN), OPTIONAL            :: scale_column
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: a_blk, a_col, a_col_size, &
+                                                a_nze, a_row, a_row_size, &
+                                                timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: my_scale_column
+    REAL(dp), DIMENSION(:), POINTER          :: a_data
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    !
+    !
+    row_blk_size => array_data (matrix_a%row_blk_size)
+    col_blk_size => array_data (matrix_a%col_blk_size)
+
+    !
+    ! set vars
+    my_scale_column = .TRUE.
+    IF(PRESENT(scale_column)) my_scale_column = scale_column
+    !
+    ! check if we have enough infos
+    IF(.NOT.PRESENT(alpha_scalar).AND.&
+       .NOT.PRESENT(alpha_vector).AND.&
+       .NOT.PRESENT(scale_column)) THEN
+       CALL stop_program("dbcsr_scale","missing an argument...")
+    ENDIF
+    !
+    ! check if we have too many infos
+    IF(PRESENT(alpha_scalar).AND.PRESENT(alpha_vector)) THEN
+       CALL stop_program("dbcsr_scale","incompatible arguments...")
+    ENDIF
+    !
+    !
+    ! let's go
+    DO a_row = 1, matrix_a%nblkrows_total
+       a_row_size = row_blk_size(a_row)
+       DO a_blk = matrix_a%row_p(a_row)+1,matrix_a%row_p(a_row+1)
+          a_col = matrix_a%col_i(a_blk)
+          a_col_size = col_blk_size(a_col)
+          a_nze = a_row_size * a_col_size
+          a_data => matrix_a%data(ABS(matrix_a%blk_p(a_blk)):ABS(matrix_a%blk_p(a_blk))+a_nze-1)
+          !
+          ! let's scale
+          IF(PRESENT(alpha_scalar)) THEN
+             !a_data = a_data * alpha_scalar
+             CALL dscal(a_nze,alpha_scalar,a_data(1),1)
+          ELSEIF(PRESENT(alpha_vector)) THEN
+             CALL stop_program("dbcsr_scale","NYI")
+             IF(my_scale_column) THEN
+                !col_global = ...
+                !DO col = 1,a_col_size
+                !   !a_data(:,col) = a_data(:,col) * alpha_vector(col_global+col)
+                !   CALL dscal(a_row_size,alpha_vector(col_global+col),a_data((col-1)*a_row_size+1),1)
+                !ENDDO
+             ELSE
+                !row_global = ...
+                !DO row = 1,a_row_size
+                !   !a_data(row,:) = a_data(row,:) * alpha_vector(row_global+row)
+                !   CALL dscal(a_col_size,alpha_vector(row_global+row),a_data(row),a_col_size)
+                !ENDDO
+             ENDIF
+          ELSE
+             CALL stop_program("dbcsr_scale","wrong logic")
+          ENDIF
+       ENDDO ! a_col
+    ENDDO ! a_row
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_scale
+
+! *****************************************************************************
+!> \brief traces a DBCSR matrix
+!> \param[in] matrix_a       DBCSR matrix
+!> \param[out] trace         the trace of the matrix
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_trace(matrix_a, trace, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    REAL(dp), INTENT(INOUT)                  :: trace
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: a_blk, a_col, a_col_size, &
+                                                a_nze, a_row, a_row_size, &
+                                                row, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    REAL(dp), DIMENSION(:), POINTER          :: a_data
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    row_blk_size => array_data (matrix_a%row_blk_size)
+    col_blk_size => array_data (matrix_a%col_blk_size)
+    !
+    ! let's go
+    trace = 0.0_dp
+    DO a_row = 1, matrix_a%nblkrows_total
+       a_row_size = row_blk_size(a_row)
+       DO a_blk = matrix_a%row_p(a_row)+1,matrix_a%row_p(a_row+1)
+          a_col = matrix_a%col_i(a_blk)
+          IF(a_col.ne.a_row) CYCLE
+          a_col_size = col_blk_size(a_col)
+          IF(a_row_size.NE.a_col_size) CALL stop_program("dbcsr_trace","is that a square matrix?")
+          a_nze = a_row_size**2
+          a_data => matrix_a%data(ABS(matrix_a%blk_p(a_blk)):ABS(matrix_a%blk_p(a_blk))+a_nze-1)
+          !
+          ! let's trace the blockw
+          DO row = 1,a_row_size
+             trace = trace + a_data((row-1)*a_row_size+row)
+          ENDDO
+       ENDDO ! a_col
+    ENDDO ! a_row
+    !
+    ! summe
+    CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_trace
 
 END MODULE dbcsr_operations
