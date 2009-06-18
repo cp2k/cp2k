@@ -1866,9 +1866,9 @@ CONTAINS
        NULLIFY (matrix_c)
        CALL cp_fm_create(matrix=matrix_c, matrix_struct=fmstruct_c, name="MATRIX C", error=error)
 
-       CALL cp_fm_init_random(matrix_a, error=error)
-       CALL cp_fm_init_random(matrix_b, error=error)
-       CALL cp_fm_init_random(matrix_c, error=error)
+       CALL RANDOM_NUMBER(matrix_a%local_data)
+       CALL RANDOM_NUMBER(matrix_b%local_data)
+       CALL RANDOM_NUMBER(matrix_c%local_data)
 
        IF (iw>0) CALL m_flush(iw)
 
