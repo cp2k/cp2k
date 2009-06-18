@@ -14,12 +14,14 @@ MODULE rt_propagation_output
                                              get_atomic_kind_set
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_double,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_set_all,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -104,7 +106,7 @@ CONTAINS
        WRITE (output_unit,FMT="(/,(T3,A,T40,I5))")&
             "Information at iteration step:",rtp%iter
     ENDIF
-    CALL rt_calculate_orthonormality(output_unit,orthonormality,mos_new,matrix_s(1)%matrix,error)
+
     IF(output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="((T3,A,T41,2F20.10))")&
             "Total electronic density (r-space): ",&
@@ -126,7 +128,14 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(/,(T3,A,3X,F16.10))")&
             "CONVERGENCE REACHED",rtp%energy_new-rtp%energy_old
     END IF
-    
+    IF(rtp%converged)THEN   
+       CALL rt_calculate_orthonormality(output_unit,orthonormality,&
+        mos_new,matrix_s(1)%matrix,error)
+       IF(output_unit>0)&
+            WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+            "Max deviation from orthonormalization:",orthonormality  
+    END IF
+
     CALL cp_print_key_finished_output(output_unit,logger,rtp_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
     
@@ -141,8 +150,6 @@ CONTAINS
                                      qs_env%dft_control%scp,qs_env%scp_env,atomic_kind_set,error)
        
     END IF
-
-
 
   END SUBROUTINE rt_prop_output
 
@@ -224,7 +231,7 @@ CONTAINS
    CALL mp_max(max_beta,mos_new(1)%matrix%matrix_struct%para_env%group)
    orthonormality=max_alpha
    IF(unit_nr>0)THEN
-      WRITE(6,FMT="(/,(T3,A,T60,F20.10))") "Max deviation from orthonormalization:",orthonormality
+
    END IF
     
    
@@ -249,20 +256,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im_part, ispin, j, &
-                                                k, n, ncol_local, nrow_local, &
+    INTEGER                                  :: handle, i, icol, im_part, &
+                                                ispin, j, lcol, lrow, n, nao, &
+                                                ncol_local, newdim, nmo, &
                                                 nspin, re_part
-    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: double_col, double_row
     REAL(KIND=dp)                            :: alpha, max_alpha
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: overlap_im, overlap_re, &
-                                                svec_im, svec_re
+    TYPE(cp_fm_struct_type), POINTER         :: newstruct, newstruct1, &
+                                                tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: work, work1, work2
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrixv_s
     TYPE(real_matrix_type), POINTER          :: matrix_s
     TYPE(rt_prop_type), POINTER              :: rtp
 
-   NULLIFY(tmp_fm_struct, svec_im, svec_re, overlap_re)
+   NULLIFY(tmp_fm_struct)
 
    CALL timeset(routineN,handle)
 
@@ -278,49 +286,70 @@ CONTAINS
       re_part=(ispin-1)*2+1
       im_part=(ispin-1)*2+2
 
-      ! get S*C
-      CALL cp_fm_create(svec_re,delta_mos(2*ispin)%matrix%matrix_struct,error=error)
-      CALL cp_fm_create(svec_im,delta_mos(2*ispin)%matrix%matrix_struct,error=error)
-      CALL cp_fm_get_info(delta_mos(ispin*2)%matrix,&
-           nrow_global=n,ncol_global=k,error=error)
-      CALL cp_sm_fm_multiply(matrix_s,delta_mos(re_part)%matrix,&
-           svec_re,k,error=error)
-      CALL cp_sm_fm_multiply(matrix_s,delta_mos(im_part)%matrix,&
-           svec_im,k,error=error)
+      double_col=.TRUE.
+      double_row=.FALSE.
+      CALL cp_fm_struct_double(newstruct,&
+           delta_mos(re_part)%matrix%matrix_struct,&
+           delta_mos(re_part)%matrix%matrix_struct%context,&
+           double_col,&
+           double_row,&
+           error)
 
-      ! get C^T (S*C)
-      CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
+      CALL cp_fm_create(work,matrix_struct=newstruct,error=error)
+      CALL cp_fm_create(work1,matrix_struct=newstruct,error=error)
+
+      CALL cp_fm_get_info(delta_mos(re_part)%matrix,ncol_local=lcol,ncol_global=nmo,&
+           nrow_global=nao,error=error)
+      CALL cp_fm_get_info(work,ncol_global=newdim,error=error)
+
+      CALL cp_fm_set_all(work,0.0_dp,0.0_dp,error)
+
+      DO icol=1,lcol
+         work%local_data(:,icol)=delta_mos(re_part)%matrix%local_data(:,icol)
+         work%local_data(:,icol+lcol)=delta_mos(im_part)%matrix%local_data(:,icol)
+      END DO
+      
+
+      CALL cp_sm_fm_multiply(matrix_s, work, work1, ncol=newdim, error=error)
+
+      CALL cp_fm_release(work,error)
+
+      CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,ncol_global=nmo, &
            para_env=delta_mos(re_part)%matrix%matrix_struct%para_env, &
            context=delta_mos(re_part)%matrix%matrix_struct%context,error=error)
-      CALL cp_fm_create(overlap_re,tmp_fm_struct,error=error)
-      CALL cp_fm_create(overlap_im,tmp_fm_struct,error=error)
+      CALL cp_fm_struct_double(newstruct1,&
+           tmp_fm_struct,&
+           delta_mos(re_part)%matrix%matrix_struct%context,&
+           double_col,&
+           double_row,&
+           error)
+      
+      CALL cp_fm_create(work,matrix_struct=newstruct1,error=error)
+      CALL cp_fm_create(work2,matrix_struct=newstruct1,error=error)
+      
 
-      CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(re_part)%matrix,&
+           work1,0.0_dp,work,error=error)
+      
+      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(im_part)%matrix,&
+           work1,0.0_dp,work2,error=error)
 
-      CALL cp_fm_gemm('T','N',k,k,n,one,delta_mos(re_part)%matrix,&
-           svec_re,zero,overlap_re,error=error)
-      CALL cp_fm_gemm('T','N',k,k,n,one, delta_mos(im_part)%matrix,&
-           svec_im,one,overlap_re,error=error)
-
-      CALL cp_fm_gemm('T','N',k,k,n,one,delta_mos(re_part)%matrix,&
-           svec_im,zero,overlap_im,error=error)
-      CALL cp_fm_gemm('T','N',k,k,n,-one, delta_mos(im_part)%matrix,&
-           svec_re,one,overlap_im,error=error)
-
-      CALL cp_fm_release(svec_re,error=error)
-      CALL cp_fm_release(svec_im,error=error)
-
-      CALL cp_fm_get_info(overlap_re,nrow_local=nrow_local,ncol_local=ncol_local, &
-           row_indices=row_indices,col_indices=col_indices,error=error)
-
-      DO i=1,nrow_local
-         DO j=1,ncol_local
-            alpha=SQRT(overlap_re%local_data(i,j)**2+overlap_im%local_data(i,j)**2)
+      CALL cp_fm_get_info(work,nrow_local=lrow,error=error)
+      DO i=1,lrow
+         DO j=1,lcol
+            alpha=SQRT((work%local_data(i,j)+work2%local_data(i,j+lcol))**2+&
+                 (work%local_data(i,j+lcol)-work2%local_data(i,j))**2)
             max_alpha=MAX(max_alpha,ABS(alpha))
          ENDDO
       ENDDO
-      CALL cp_fm_release(overlap_re,error=error)
-      CALL cp_fm_release(overlap_im,error=error)
+      
+      CALL cp_fm_release(work,error)
+      CALL cp_fm_release(work1,error)
+      CALL cp_fm_release(work2,error)
+      CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+      CALL cp_fm_struct_release(newstruct,error=error)
+      CALL cp_fm_struct_release(newstruct1,error=error)
+
    ENDDO
    CALL mp_max(max_alpha,delta_mos(1)%matrix%matrix_struct%para_env%group)
    delta_eps=SQRT(max_alpha)

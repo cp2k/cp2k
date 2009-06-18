@@ -24,16 +24,20 @@ MODULE qs_moments
                                              pbc
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                             cp_cfm_release,&
-                                             cp_cfm_type
+                                             cp_cfm_get_info,&
+                                             cp_cfm_p_type,&
+                                             cp_cfm_release
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_double,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_set_all,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
@@ -591,9 +595,10 @@ CONTAINS
     COMPLEX(dp)                              :: xphase(3), zdet, zdeta, &
                                                 zi(3), zij(3,3), zijk(3,3,3), &
                                                 zijkl(3,3,3,3), zphase(3), zz
-    INTEGER                                  :: handle, i, ia, ispin, istat, &
-                                                ix, iy, iz, j, k, l, nao, nm, &
-                                                nmo, nmom, nmotot
+    INTEGER                                  :: handle, i, ia, idim, ispin, &
+                                                istat, ix, iy, iz, j, k, l, &
+                                                nao, nm, nmo, nmom, nmotot, &
+                                                tmp_dim
     LOGICAL                                  :: failure, uniform
     REAL(dp)                                 :: charge, ci(3), cij(3,3), dd, &
                                                 occ, trace
@@ -601,7 +606,8 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: kvec, rcc, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_cfm_type), POINTER               :: eigrmat
+    TYPE(cp_cfm_p_type), DIMENSION(:), &
+      POINTER                                :: eigrmat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: opvec
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -660,6 +666,8 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE ( opvec( dft_control%nspins ), STAT = istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        nmotot = 0
        DO ispin = 1, dft_control%nspins
          NULLIFY(tmp_fm_struct,mo_coeff)
@@ -673,9 +681,10 @@ CONTAINS
             NULLIFY(op_fm_set(i,ispin)%matrix)
             CALL cp_fm_create (op_fm_set(i,ispin)%matrix , tmp_fm_struct ,error=error)
          END DO
+         CALL cp_cfm_create ( eigrmat(ispin)%matrix, op_fm_set(1,ispin)%matrix%matrix_struct ,&
+         error=error)
          CALL cp_fm_struct_release(tmp_fm_struct,error=error)
        END DO
-       CALL cp_cfm_create ( eigrmat, op_fm_set(1,1)%matrix%matrix_struct ,error=error)
 
        ! occupation
        DO ispin = 1, dft_control%nspins
@@ -824,10 +833,13 @@ CONTAINS
                 END IF
                 zdet = CMPLX ( 1._dp, 0._dp, dp )
                 DO ispin = 1, dft_control%nspins
-                  eigrmat%local_data(:,:) = &
-                          CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,:), &
-                                 -op_fm_set(2,ispin)%matrix%local_data(:,:),dp)
-                  CALL cp_cfm_lu_decompose ( eigrmat, zdeta )
+                  CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
+                  DO idim=1,tmp_dim 
+                     eigrmat(ispin)%matrix%local_data(:,idim) = &
+                          CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
+                                 -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
+                  END DO
+                  CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta )
                   zdet = zdet * zdeta
                 END DO
                 zi(i) = zdet
@@ -849,10 +861,13 @@ CONTAINS
                   END IF
                   zdet = CMPLX ( 1._dp, 0._dp, dp )
                   DO ispin = 1, dft_control%nspins
-                    eigrmat%local_data(:,:) = &
-                          CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,:), &
-                                 -op_fm_set(2,ispin)%matrix%local_data(:,:),dp)
-                    CALL cp_cfm_lu_decompose ( eigrmat, zdeta )
+                    CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
+                    DO idim=1,tmp_dim
+                    eigrmat(ispin)%matrix%local_data(:,idim) = &
+                          CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
+                                 -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
+                    END DO
+                    CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta )
                     zdet = zdet * zdeta
                   END DO
                   zij(i,j) = zdet*xphase(i)*xphase(j)
@@ -940,14 +955,16 @@ CONTAINS
 
        DO ispin = 1, dft_control%nspins
          CALL cp_fm_release(opvec(ispin)%matrix,error=error)
+         CALL cp_cfm_release(eigrmat(ispin)%matrix,error=error)
          DO i = 1, SIZE ( op_fm_set, 1 )
            CALL cp_fm_release(op_fm_set(i,ispin)%matrix,error=error)
          END DO
        END DO
-       CALL cp_cfm_release(eigrmat,error=error)
        DEALLOCATE ( op_fm_set, STAT = istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE ( opvec, STAT = istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( eigrmat, STAT = istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
        CALL timestop(handle)
@@ -995,38 +1012,79 @@ CONTAINS
       POINTER                                :: opvec, mos_new
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: i, nao, nmo
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    INTEGER                                  :: i, icol, lcol, nao, newdim, &
+                                                nmo
+    LOGICAL                                  :: double_col, double_row
+    TYPE(cp_fm_struct_type), POINTER         :: newstruct, newstruct1
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, work, work1, work2
 
     DO i=1,SIZE ( op_fm_set, 2 )   ! spin
        CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
-       CALL cp_sm_fm_multiply(cosmat, mos_new(2*i-1)%matrix, opvec(i)%matrix, ncol=nmo, error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i-1)%matrix,opvec(i)%matrix,0.0_dp,&
-            op_fm_set(1,i)%matrix,error=error)
+       CALL cp_fm_get_info(mos_new(2*i)%matrix,ncol_local=lcol,ncol_global=nmo,error=error)
+       double_col=.TRUE.
+       double_row=.FALSE.
+       CALL cp_fm_struct_double(newstruct,&
+                                mos_new(2*i)%matrix%matrix_struct,&
+                                mos_new(2*i)%matrix%matrix_struct%context,&
+                                double_col,&
+                                double_row,&
+                                error)
 
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_new(2*i)%matrix,opvec(i)%matrix,0.0_dp,&
-            op_fm_set(2,i)%matrix,error=error)
+       CALL cp_fm_create(work,matrix_struct=newstruct,error=error)
+       CALL cp_fm_create(work1,matrix_struct=newstruct,error=error)
+       CALL cp_fm_create(work2,matrix_struct=newstruct,error=error)
+       CALL cp_fm_get_info(work,ncol_global=newdim,error=error)
+     
+       CALL cp_fm_set_all(work,0.0_dp,0.0_dp,error)
+       DO icol=1,lcol
+          work%local_data(:,icol)=mos_new(2*i-1)%matrix%local_data(:,icol)
+          work%local_data(:,icol+lcol)=mos_new(2*i)%matrix%local_data(:,icol)
+       END DO
 
-       CALL cp_sm_fm_multiply(cosmat, mos_new(2*i)%matrix, opvec(i)%matrix, ncol=nmo, error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i)%matrix,opvec(i)%matrix,1.0_dp,&
-            op_fm_set(1,i)%matrix,error=error)
+       CALL cp_sm_fm_multiply(cosmat, work, work1, ncol=newdim, error=error)
+       CALL cp_sm_fm_multiply(sinmat, work, work2, ncol=newdim, error=error)
 
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i-1)%matrix,opvec(i)%matrix,1.0_dp,&
-            op_fm_set(2,i)%matrix,error=error)
+       DO icol=1,lcol
+          work%local_data(:,icol)=work1%local_data(:,icol)-work2%local_data(:,icol+lcol)
+          work%local_data(:,icol+lcol)=work1%local_data(:,icol+lcol)+work2%local_data(:,icol)
+       END DO
 
-       CALL cp_sm_fm_multiply(sinmat, mos_new(2*i-1)%matrix, opvec(i)%matrix, ncol=nmo, error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i-1)%matrix,opvec(i)%matrix,1.0_dp,&
-            op_fm_set(2,i)%matrix,error=error)
+       CALL cp_fm_release(work1,error)
+       CALL cp_fm_release(work2,error)
 
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i)%matrix,opvec(i)%matrix,1.0_dp,&
-            op_fm_set(1,i)%matrix,error=error)
+       CALL cp_fm_struct_double(newstruct1,&
+                                op_fm_set(1,i)%matrix%matrix_struct,&
+                                op_fm_set(1,i)%matrix%matrix_struct%context,&
+                                double_col,&
+                                double_row,&
+                                error)
 
-       CALL cp_sm_fm_multiply(sinmat, mos_new(2*i)%matrix, opvec(i)%matrix, ncol=nmo, error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mos_new(2*i)%matrix,opvec(i)%matrix,1.0_dp,&
-            op_fm_set(2,i)%matrix,error=error)
+       CALL cp_fm_create(work1,matrix_struct=newstruct1,error=error)
+       
+       CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i-1)%matrix,&
+            work,0.0_dp,work1,error=error)
 
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,-1.0_dp,mos_new(2*i-1)%matrix,opvec(i)%matrix,1.0_dp,&
-            op_fm_set(1,i)%matrix,error=error)
+       DO icol=1,lcol
+          op_fm_set(1,i)%matrix%local_data(:,icol)=work1%local_data(:,icol)
+          op_fm_set(2,i)%matrix%local_data(:,icol)=work1%local_data(:,icol+lcol)
+       END DO
+       
+       
+       CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i)%matrix,&
+            work,0.0_dp,work1,error=error)
+
+       DO icol=1,lcol
+          op_fm_set(1,i)%matrix%local_data(:,icol)=&
+               op_fm_set(1,i)%matrix%local_data(:,icol)+work1%local_data(:,icol+lcol)
+          op_fm_set(2,i)%matrix%local_data(:,icol)=&
+               op_fm_set(2,i)%matrix%local_data(:,icol)-work1%local_data(:,icol)
+       END DO       
+
+       CALL cp_fm_release(work,error)
+       CALL cp_fm_release(work1,error)
+       CALL cp_fm_struct_release(newstruct,error=error)
+       CALL cp_fm_struct_release(newstruct1,error=error)
+      
     ENDDO
 
   END SUBROUTINE op_orbbas_rtp

@@ -224,7 +224,7 @@ CPSourceFileRef,&
 
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
-    ALLOCATE(ipivot(n))
+    ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
 
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -381,7 +381,7 @@ CPSourceFileRef,&
     a => matrix_a%local_data
     a_general => general_a%local_data
     n = matrix_a%matrix_struct%nrow_global
-    ALLOCATE(ipivot(n))
+    ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
 
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)

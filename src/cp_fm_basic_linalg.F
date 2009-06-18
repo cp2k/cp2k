@@ -173,7 +173,7 @@ CPSourceFileRef,&
 
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
-    ALLOCATE(ipivot(n))
+    ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
 
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -1031,7 +1031,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
          error=error)    
     a => matrix_lu%local_data
     n = matrix_lu%matrix_struct%nrow_global
-    ALLOCATE(ipivot(n))
+    ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
 #if defined(__SCALAPACK)
     ALLOCATE(ferr(n))
     ALLOCATE(berr(n))

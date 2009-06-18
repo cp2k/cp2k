@@ -42,7 +42,7 @@ MODULE cp_fm_struct
   PUBLIC :: optimal_blacs_row_block_size, optimal_blacs_col_block_size
   PUBLIC :: cp_fm_struct_create,cp_fm_struct_retain, cp_fm_struct_release,&
        cp_fm_struct_equivalent, cp_fm_struct_compatible, cp_fm_struct_write,&
-       cp_fm_struct_get
+       cp_fm_struct_get,cp_fm_struct_double
 !***
 
 ! *****************************************************************************
@@ -679,5 +679,65 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
     ENDIF
   END IF
 END SUBROUTINE cp_fm_struct_get
+
+! *****************************************************************************
+!> \brief creates a struct with twice the number of blocks on each core. 
+!>        If matrix A has to be multiplied with B anc C, a 
+!>        significant speedup of pdgemm can be acchieved by joining the matrices
+!>        in a new one with this structure (see arnoldi in rt_matrix_exp)
+!> \param fmstruct the struct to create
+!> \param struct struct of either A or B
+!> \param col, row  in which direction the matrix should be enlarged
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      06.2009 created [fschiff]
+!> \author Florian Schiffmann
+! *****************************************************************************
+SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct, struct
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    LOGICAL                                  :: col, row
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_double', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: nblocks, ncol_block, ncol_global, nempty, newdim_col, &
+      newdim_row, nfilled, nprocs_col, nprocs_row, nrow_block, nrow_global
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
+    CALL cp_fm_struct_get(struct, nrow_global=nrow_global,&
+          ncol_global=ncol_global, nrow_block=nrow_block, &
+          ncol_block=ncol_block, error=error)
+    newdim_row=nrow_global
+    newdim_col=ncol_global
+    nprocs_row=context%num_pe(1)
+    nprocs_col=context%num_pe(2)
+    para_env => struct%para_env
+
+    IF(col)THEN
+       nblocks=CEILING(ncol_global/REAL(ncol_block,dp))
+       nfilled=MOD(nblocks,nprocs_col)
+       nempty=MOD(nprocs_col-nfilled,nprocs_col)
+       newdim_col=2*ncol_global+nempty*ncol_block
+    END IF
+
+    IF(row)THEN
+       nblocks=CEILING(nrow_global/REAL(nrow_block,dp))
+       nfilled=MOD(nblocks,nprocs_row)
+       nempty=MOD(nprocs_row-nfilled,nprocs_row)
+       newdim_row=2*nrow_global+nempty*nrow_block
+    END IF
+
+
+    CALL cp_fm_struct_create(fmstruct=fmstruct,para_env=para_env,&
+         context=context,&
+         nrow_global=newdim_row,&
+         ncol_global=newdim_col,&
+         error=error)
+
+  END SUBROUTINE cp_fm_struct_double
+    
 
 END MODULE cp_fm_struct

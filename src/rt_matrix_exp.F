@@ -24,6 +24,9 @@ MODULE rt_matrix_exp
                                              cp_fm_scale,&
                                              cp_fm_scale_and_add
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_double,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -704,20 +707,23 @@ CONTAINS
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
-    INTEGER :: handle, i, icol_global, icol_local, info, j, l, ldim, nao, &
-      narnoldi, ncol_local, nmo, npade, pade_step, stat
+    INTEGER :: handle, i, icol_global, icol_local, idim, info, j, l, ldim, &
+      mydim, nao, narnoldi, ncol_local, newdim, nmo, npade, pade_step, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     INTEGER, DIMENSION(:), POINTER           :: col_indices
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: convergence, double_col, &
+                                                double_row, failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: norm1, results
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: D, mat1, mat2, mat3, N
     REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: H_approx
-    REAL(KIND=dp)                            :: scaleD, scaleN
+      DIMENSION(:, :, :)                     :: H_approx, H_approx_save
+    REAL(KIND=dp)                            :: conv_norm, scaleD, scaleN
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: V_mats
     TYPE(cp_cfm_type), POINTER               :: myH, mymos, tmp_mat
-    TYPE(cp_fm_type), POINTER                :: v1, v2, v3
+    TYPE(cp_fm_struct_type), POINTER         :: newstruct
+    TYPE(cp_fm_type), POINTER                :: iter_mos1, iter_mos2, work, &
+                                                work1
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure=.FALSE.
@@ -750,12 +756,35 @@ CONTAINS
        END DO
     ELSE
        CALL cp_fm_get_info(Him,ncol_local=ldim,nrow_global=nao,error=error)
-       CALL cp_fm_create(v1,matrix_struct=mos_old(1)%matrix%matrix_struct,error=error)
-       CALL cp_fm_create(v2,matrix_struct=mos_old(1)%matrix%matrix_struct,error=error)
-       CALL cp_fm_create(v3,matrix_struct=mos_old(1)%matrix%matrix_struct,error=error)
+
+       ! create a new matrix to combine real and imaginary part of the mo in a real matrix
+       ! crucial for parallel performance (pdgemm)
+       double_col=.TRUE.
+       double_row=.FALSE.
+       CALL cp_fm_struct_double(newstruct,&
+                                mos_old(1)%matrix%matrix_struct,&
+                                mos_old(1)%matrix%matrix_struct%context,&
+                                double_col,&
+                                double_row,&
+                                error)
+       CALL cp_fm_create(work,&
+            matrix_struct=newstruct,&
+            error=error)
+       CALL cp_fm_create(work1,&
+            matrix_struct=newstruct,&
+            error=error)
+       CALL cp_fm_get_info(work,ncol_global=newdim,error=error)       
+       CALL cp_fm_set_all(work,0.0_dp,0.0_dp,error)
     END IF
 
-    !!! number of arnoldi steps
+
+    !matrices for adaptive arnoldi (convergence check
+    CALL cp_fm_create(iter_mos1,matrix_struct=mos_old(1)%matrix%matrix_struct,error=error)
+    CALL cp_fm_create(iter_mos2,matrix_struct=mos_old(1)%matrix%matrix_struct,error=error)
+    iter_mos1%local_data=0.0_dp
+    iter_mos2%local_data=0.0_dp
+
+    !!! number of arnoldi steps, 
     narnoldi=MIN(10,nao)
 
     ALLOCATE(V_mats(narnoldi+1),stat=stat)
@@ -796,38 +825,30 @@ CONTAINS
     
     ALLOCATE(H_approx(narnoldi,narnoldi,ncol_local),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(mat1(narnoldi,narnoldi),stat=stat)
+    ALLOCATE(H_approx_save(narnoldi,narnoldi,ncol_local),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(mat2(narnoldi,narnoldi),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(mat3(narnoldi,narnoldi),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(N(narnoldi,narnoldi),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(D(narnoldi,narnoldi),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!!! arnoldi subspace procedure to get H_approx
+    ! arnoldi subspace procedure to get H_approx
 
-    H_approx=zero
-       
+    H_approx_save=zero
+    
+
+    
+
     DO i=2,narnoldi+1
        IF(PRESENT(Hre))THEN          
           CALL cp_cfm_gemm("N","N",nao,nmo,nao,one,myH,&
                V_mats(i-1)%matrix,zero,V_mats(i)%matrix,error)
        ELSE
           DO icol_local=1,ncol_local
-             v1%local_data(:,icol_local)=REAL( V_mats(i-1)%matrix%local_data(:,icol_local),dp)
+             work%local_data(:,icol_local)=REAL( V_mats(i-1)%matrix%local_data(:,icol_local),dp)
+             work%local_data(:,ncol_local+icol_local)=-AIMAG( V_mats(i-1)%matrix%local_data(:,icol_local))
           END DO
-          CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,Him,&
-               v1,0.0_dp,v3,error)
+
+          CALL cp_fm_gemm("N","N",nao,newdim,nao,1.0_dp,Him,&
+               work,0.0_dp,work1,error)
           DO icol_local=1,ncol_local
-             v1%local_data(:,icol_local)=AIMAG( V_mats(i-1)%matrix%local_data(:,icol_local))
-          END DO
-          CALL cp_fm_gemm("N","N",nao,nmo,nao,-1.0_dp,Him,&
-               v1,0.0_dp,v2,error)
-          DO icol_local=1,ncol_local
-             V_mats(i)%matrix%local_data(:,icol_local)=CMPLX( v2%local_data(:,icol_local),&
-                  v3%local_data(:,icol_local),dp)
+             V_mats(i)%matrix%local_data(:,icol_local)=CMPLX( work1%local_data(:,icol_local+ncol_local),&
+                  work1%local_data(:,icol_local),dp)
           END DO
        END IF
        DO l=1,i-1
@@ -842,9 +863,9 @@ CONTAINS
           CALL mp_sum(results,para_env%group)
           DO icol_local=1,ncol_local
              icol_global=col_indices(icol_local)
-             H_approx(l,i-1,icol_local)=results(icol_global)
+             H_approx_save(l,i-1,icol_local)=results(icol_global)
              V_mats(i)%matrix%local_data(:,icol_local)=V_mats(i)%matrix%local_data(:,icol_local)-&
-                  H_approx(l,i-1,icol_local)*V_mats(l)%matrix%local_data(:,icol_local)
+                  H_approx_save(l,i-1,icol_local)*V_mats(l)%matrix%local_data(:,icol_local)
           END DO
        END DO
        
@@ -859,84 +880,129 @@ CONTAINS
           CALL mp_sum(results,para_env%group)
           DO icol_local=1,ncol_local
              icol_global=col_indices(icol_local)
-             H_approx(i,i-1,icol_local)=SQRT(results(icol_global))
+             H_approx_save(i,i-1,icol_local)=SQRT(results(icol_global))
              V_mats(i)%matrix%local_data(:,icol_local)=V_mats(i)%matrix%local_data(:,icol_local)/SQRT(results(icol_global))
              
           END DO
        END IF
-    END DO
     
     
+       H_approx=H_approx_save
     
-    ! PADE approximation for exp(H_approx), everything is done locally)
+       ! PADE approximation for exp(H_approx), everything is done locally)
+       
+       npade=9
+       mydim=MIN(i,narnoldi)
+       ALLOCATE(ipivot(mydim),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(mat1(mydim,mydim),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(mat2(mydim,mydim),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(mat3(mydim,mydim),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(N(mydim,mydim),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(D(mydim,mydim),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    npade=9
 
-    ALLOCATE(ipivot(narnoldi),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-    DO icol_local=1,ncol_local
-       DO i=1,narnoldi
-          DO j=1,narnoldi
-             mat1(i,j)=H_approx(i,j,icol_local)/16.0_dp
-             mat3(i,j)=mat1(i,j)
+       DO icol_local=1,ncol_local
+          DO idim=1,mydim
+             DO j=1,mydim
+                mat1(idim,j)=H_approx(idim,j,icol_local)/16.0_dp
+                mat3(idim,j)=mat1(idim,j)
+             END DO
           END DO
-       END DO
-       N=0.0_dp
-       D=0.0_dp
-       DO i=1,narnoldi
-          N(i,i)=1.0_dp
-          D(i,i)=one
-       END DO
-       N=N+0.5_dp*mat1
-       D=D-0.5_dp*mat1
-       pade_step=1
-       DO i=1,4
-          pade_step=pade_step+1        
-          CALL dgemm("N",'N',narnoldi,narnoldi,narnoldi,one,mat1(1,1),&
-               narnoldi,mat3(1,1),narnoldi,zero,mat2(1,1),narnoldi)
-          scaleN=REAL(fac(2*npade -pade_step )*fac(npade )/&
-               (fac(2*npade )*fac(pade_step )*fac(npade -pade_step )),dp)
-          scaleD=REAL((-1.0_dp)**pade_step  * fac(2*npade -pade_step )*fac(npade)/&
-               (fac(2*npade )*fac(pade_step )*fac(npade -pade_step)),dp)
-          N=N+scaleN*mat2
-          D=D+scaleD*mat2
-          pade_step=pade_step+1        
-          CALL dgemm("N",'N',narnoldi,narnoldi,narnoldi,one,mat2(1,1),&
-               narnoldi,mat1(1,1),narnoldi,zero,mat3(1,1),narnoldi)
-          scaleN=REAL(fac(2*npade -pade_step )*fac(npade )/&
-               (fac(2*npade )*fac(pade_step )*fac(npade -pade_step )),dp)
-          scaleD=REAL((-1.0_dp)**pade_step  * fac(2*npade -pade_step )*fac(npade)/&
-               (fac(2*npade )*fac(pade_step )*fac(npade -pade_step)),dp)
-          N=N+scaleN*mat3
-          D=D+scaleD*mat3
+          N=0.0_dp
+          D=0.0_dp
+          DO idim=1,mydim
+             N(idim,idim)=1.0_dp
+             D(idim,idim)=one
+          END DO
+          N=N+0.5_dp*mat1
+          D=D-0.5_dp*mat1
+          pade_step=1
+          DO idim=1,4
+             pade_step=pade_step+1        
+             CALL dgemm("N",'N',mydim,mydim,mydim,one,mat1(1,1),&
+                  mydim,mat3(1,1),mydim,zero,mat2(1,1),mydim)
+             scaleN=REAL(fac(2*npade -pade_step )*fac(npade )/&
+                  (fac(2*npade )*fac(pade_step )*fac(npade -pade_step )),dp)
+             scaleD=REAL((-1.0_dp)**pade_step  * fac(2*npade -pade_step )*fac(npade)/&
+                  (fac(2*npade )*fac(pade_step )*fac(npade -pade_step)),dp)
+             N=N+scaleN*mat2
+             D=D+scaleD*mat2
+             pade_step=pade_step+1        
+             CALL dgemm("N",'N',mydim,mydim,mydim,one,mat2(1,1),&
+                  mydim,mat1(1,1),mydim,zero,mat3(1,1),mydim)
+             scaleN=REAL(fac(2*npade -pade_step )*fac(npade )/&
+                  (fac(2*npade )*fac(pade_step )*fac(npade -pade_step )),dp)
+             scaleD=REAL((-1.0_dp)**pade_step  * fac(2*npade -pade_step )*fac(npade)/&
+                  (fac(2*npade )*fac(pade_step )*fac(npade -pade_step)),dp)
+             N=N+scaleN*mat3
+             D=D+scaleD*mat3
+          END DO
+          
+          CALL dgetrf(mydim,mydim,D(1,1),mydim,ipivot,info)
+          CALL dgetrs("N",mydim,mydim,D(1,1),mydim,ipivot,N,mydim,info)
+          CALL dgemm("N",'N',mydim,mydim,mydim,one,N(1,1),mydim,N(1,1),mydim,zero,mat1(1,1),mydim)      
+          CALL dgemm("N",'N',mydim,mydim,mydim,one,mat1(1,1),mydim,mat1(1,1),mydim,zero,N(1,1),mydim)     
+          CALL dgemm("N",'N',mydim,mydim,mydim,one,N(1,1),mydim,N(1,1),mydim,zero,mat1(1,1),mydim)
+          CALL dgemm("N",'N',mydim,mydim,mydim,one,mat1(1,1),mydim,mat1(1,1),mydim,zero,N(1,1),mydim)
+          H_approx(:,:,icol_local)=N(:,:)
        END DO
 
-       CALL dgetrf(narnoldi,narnoldi,D(1,1),narnoldi,ipivot,info)
-       CALL dgetrs("N",narnoldi,narnoldi,D(1,1),narnoldi,ipivot,N,narnoldi,info)
-       CALL dgemm("N",'N',narnoldi,narnoldi,narnoldi,one,N(1,1),narnoldi,N(1,1),narnoldi,zero,mat1(1,1),narnoldi)      
-       CALL dgemm("N",'N',narnoldi,narnoldi,narnoldi,one,mat1(1,1),narnoldi,mat1(1,1),narnoldi,zero,N(1,1),narnoldi)     
-       CALL dgemm("N",'N',narnoldi,narnoldi,narnoldi,one,N(1,1),narnoldi,N(1,1),narnoldi,zero,mat1(1,1),narnoldi)
-       CALL dgemm("N",'N',narnoldi,narnoldi,narnoldi,one,mat1(1,1),narnoldi,mat1(1,1),narnoldi,zero,N(1,1),narnoldi)
-       H_approx(:,:,icol_local)=N(:,:)
+       ! H_approx is exp(H_approx) right now, calculate new MOs and check for convergence
+       mymos%local_data=zero
+       DO icol_local=1,ncol_local
+          DO idim=1,mydim
+             mymos%local_data(:,icol_local)=mymos%local_data(:,icol_local)+&
+                  V_mats(idim)%matrix%local_data(:,icol_local)*H_approx(idim,1,icol_local)
+          END DO
+          icol_global=col_indices(icol_local)
+          mymos%local_data(:,icol_local)= mymos%local_data(:,icol_local)*norm1(icol_global)
+       END DO
+
+       results=0.0_dp
+       DO icol_local=1,ncol_local
+          mos_new(1)%matrix%local_data(:,icol_local)=REAL(mymos%local_data(:,icol_local),KIND=dp)
+          mos_new(2)%matrix%local_data(:,icol_local)=AIMAG(mymos%local_data(:,icol_local))
+          conv_norm=DOT_PRODUCT(mos_new(1)%matrix%local_data(:,icol_local)-iter_mos1%local_data(:,icol_local),&
+               mos_new(1)%matrix%local_data(:,icol_local)-iter_mos1%local_data(:,icol_local))
+          conv_norm=conv_norm+DOT_PRODUCT(&
+               mos_new(2)%matrix%local_data(:,icol_local)-iter_mos2%local_data(:,icol_local),&
+               mos_new(2)%matrix%local_data(:,icol_local)-iter_mos2%local_data(:,icol_local))
+          icol_global=col_indices(icol_local)
+          results(icol_global)=conv_norm
+       END DO
+       CALL mp_sum(results,para_env%group)
+       results=SQRT(results/REAL(nmo,dp))
+       convergence=.TRUE.
+       DO idim=1,SIZE(results)
+          IF(results(idim).GE.1.0E-8_dp)convergence=.FALSE.
+       END DO
+       DEALLOCATE(ipivot,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(mat1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(mat2,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(mat3,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(N,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(D,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       IF(convergence)EXIT
+       DO icol_local=1,ncol_local
+          iter_mos1%local_data(:,icol_local)=mos_new(1)%matrix%local_data(:,icol_local)
+          iter_mos2%local_data(:,icol_local)=mos_new(2)%matrix%local_data(:,icol_local)
+       END DO
     END DO
 
-    ! H_approx is exp(H_approx right now
-    mymos%local_data=zero
-    DO icol_local=1,ncol_local
-       DO i=1,narnoldi
-          mymos%local_data(:,icol_local)=mymos%local_data(:,icol_local)+&
-               V_mats(i)%matrix%local_data(:,icol_local)*H_approx(i,1,icol_local)
-       END DO
-       icol_global=col_indices(icol_local)
-       mymos%local_data(:,icol_local)= mymos%local_data(:,icol_local)*norm1(icol_global)
-    END DO
-
-    DO icol_local=1,ncol_local
-       mos_new(1)%matrix%local_data(:,icol_local)=REAL(mymos%local_data(:,icol_local),KIND=dp)
-       mos_new(2)%matrix%local_data(:,icol_local)=AIMAG(mymos%local_data(:,icol_local))
-    END DO
-
+    !deallocate all work matrices
 
     DO i=1,SIZE(V_mats)
        CALL cp_cfm_release(V_mats(i)%matrix,error)
@@ -945,28 +1011,20 @@ CONTAINS
     IF(PRESENT(Hre))THEN
        CALL cp_cfm_release(myH,error)
     ELSE
-       CALL cp_fm_release(v1,error)
-       CALL cp_fm_release(v2,error)
-       CALL cp_fm_release(v3,error)
+       CALL cp_fm_struct_release(newstruct,error)
+       CALL cp_fm_release(work,error)
+       CALL cp_fm_release(work1,error)
     END IF
+
+    CALL cp_fm_release(iter_mos1,error)
+    CALL cp_fm_release(iter_mos2,error)
+
     CALL cp_cfm_release(tmp_mat,error)
     DEALLOCATE(V_mats,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-
-    DEALLOCATE(ipivot,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(H_approx,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(mat1,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(mat2,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(mat3,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(N,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(D,stat=stat)
+    DEALLOCATE(H_approx_save,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(results,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
