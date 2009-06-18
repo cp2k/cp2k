@@ -50,7 +50,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER                                  :: handle, i, ind, j, k, m, n, &
-                                                natoms, nrep, stat
+                                                natoms, nrep
     INTEGER, DIMENSION(:), POINTER           :: iwork, multiple_unit_cell
     LOGICAL                                  :: check, explicit, failure, &
                                                 scale
@@ -143,13 +143,6 @@ CPSourceFileRef)
           CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str,error=error)
           CALL section_vals_val_set(work_section,"SCALED",l_val=scale,error=error)
        END IF
-       ! Set the MULTIPLE_UNIT_CELL to default
-       ALLOCATE(multiple_unit_cell(3),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       multiple_unit_cell = 1
-       CALL section_vals_val_set(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
-                                 i_vals_ptr=multiple_unit_cell, error=error)
-
     END IF
     CALL timestop(handle)
   END SUBROUTINE topology_muc

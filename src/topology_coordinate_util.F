@@ -436,7 +436,7 @@ CPSourceFileRef,&
             topology%exclude_vdw==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
        dim2 = dim1 + dim2
        dim3 = SIZE(ex_onfo_list(iatom)%array1)    ! Always exclude 1-4 
-       dim3 = dim2 + dim3                        ! They're treated in a different way..
+       dim3 = dim2 + dim3                         ! They're treated in a different way..
        IF (dim3 /= 0) THEN
           NULLIFY(list, wlist)
           ALLOCATE(wlist(dim3),stat=stat)
@@ -480,7 +480,7 @@ CPSourceFileRef,&
                   topology%exclude_ei==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
              dim2 = dim1 + dim2
              dim3 = SIZE(ex_onfo_list(iatom)%array1)    ! Always exclude 1-4 
-             dim3 = dim2 + dim3                        ! They're treated in a different way..
+             dim3 = dim2 + dim3                         ! They're treated in a different way..
              IF (dim3 /= 0) THEN
                 ALLOCATE(wlist(dim3),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

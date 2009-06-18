@@ -52,7 +52,8 @@ MODULE topology
   USE topology_amber,                  ONLY: read_connectivity_amber,&
                                              read_coordinate_crd
   USE topology_cif,                    ONLY: read_coordinate_cif
-  USE topology_connectivity_util,      ONLY: topology_connectivity_pack
+  USE topology_connectivity_util,      ONLY: topology_conn_multiple,&
+                                             topology_connectivity_pack
   USE topology_constraint_util,        ONLY: topology_constraint_pack
   USE topology_coordinate_util,        ONLY: topology_coordinate_pack
   USE topology_generate_util,          ONLY: topology_generate_bend,&
@@ -371,11 +372,12 @@ CONTAINS
        CALL read_connectivity_amber(topology%conn_file_name,topology,para_env,subsys_section,&
             error)
     CASE (do_conn_generate, do_conn_off)
-       ! Do nothing for the time being.. after we check element we go on if that is
-       ! the case
+       ! Do nothing for the time being.. after we check element and proceed with the workflow..
     CASE DEFAULT
-       ! No default.. stop the execution
-       CALL stop_program ("connectivity_control","no default")
+       ! We should never reach this point.. There is no default associated
+       ! to the connectivity.. contant a developer in case of possible errors
+       ! on this line..
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
     ! Post process of PSF and AMBER information 
     SELECT CASE (topology%conn_type)
@@ -455,6 +457,10 @@ CONTAINS
        CALL topology_generate_dihe(topology,para_env,subsys_section,error)
        CALL topology_generate_impr(topology,para_env,subsys_section,error)
        CALL topology_generate_onfo(topology,para_env,subsys_section,error)
+    CASE DEFAULT
+       ! Post-process connectivity information (if read from an external file)
+       ! in case of multiple_unit_cell
+       CALL topology_conn_multiple(topology, subsys_section, error)
     END SELECT
 
     CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
@@ -546,7 +552,7 @@ CONTAINS
     CALL read_atoms_input ( topology, overwrite=(topology%coord_type/=do_coord_off),&
          subsys_section=subsys_section,save_mem=save_mem,error=error)
     ! Handle multiple unit_cell
-    CALL topology_muc( topology, subsys_section, error=error)
+    CALL topology_muc(topology, subsys_section, error=error)
     CALL timestop(handle2)
     ! Check on atom numbers
     CALL cp_assert(topology%natoms>0,cp_fatal_level,cp_assertion_failed,routineP,&

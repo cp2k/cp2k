@@ -896,7 +896,7 @@ CPSourceFileRef,&
        nsize = 0
        CALL post_process_LJ_info(amb_info%nonbond_a, amb_info%nonbond_eps,&
             amb_info%nonbond_rmin2, particle_set, ntypes, nsize, iac, ico,&
-            cn1, cn2, error)
+            cn1, cn2, natom, error)
 
        ! Shrink arrays size to the minimal request
        CALL reallocate(amb_info%nonbond_a,     1, nsize)
@@ -1666,7 +1666,7 @@ CPSourceFileRef,&
 !> \author Teodoro Laino [tlaino] - 11.2008
 ! *****************************************************************************
   SUBROUTINE post_process_LJ_info(atom_label, eps, sigma, particle_set,&
-       ntypes, nsize, iac, ico, cn1, cn2, error)
+       ntypes, nsize, iac, ico, cn1, cn2, natom, error)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_label
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eps, sigma
@@ -1676,6 +1676,7 @@ CPSourceFileRef,&
     INTEGER, INTENT(INOUT)                   :: nsize
     INTEGER, DIMENSION(:), INTENT(IN)        :: iac, ico
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cn1, cn2
+    INTEGER, INTENT(IN)                      :: natom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_LJ_info', &
@@ -1684,7 +1685,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: name_atm_a
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: work_label
-    INTEGER                                  :: handle, i, natom, stat
+    INTEGER                                  :: handle, i, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: check, failure, l_dum
     REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
@@ -1692,7 +1693,6 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     CALL timeset(routineN, handle)
-    natom   = SIZE(particle_set)
     ALLOCATE(work_label(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(natom),stat=stat)

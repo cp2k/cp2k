@@ -1615,7 +1615,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: unit_str
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, stat
+    INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
     LOGICAL                                  :: failure, scale, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -1636,6 +1637,14 @@ CONTAINS
     CALL cp_subsys_get(subsys, particles=particles, molecules_new=molecules,&
          shell_particles=shell_particles, core_particles=core_particles,&
          multipoles=multipoles, error=error)       
+
+    ! Remove the multiple_unit_cell from the input structure.. at this point we have
+    ! already all the information we need..
+    ALLOCATE(multiple_unit_cell(3),stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    multiple_unit_cell = 1
+    CALL section_vals_val_set(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
+         i_vals_ptr=multiple_unit_cell, error=error)
 
     ! Coordinates and Velocities
     work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)

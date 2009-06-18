@@ -16,7 +16,8 @@ MODULE topology_connectivity_util
   USE input_constants,                 ONLY: do_conn_g87,&
                                              do_conn_g96,&
                                              do_ff_charmm
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
@@ -43,7 +44,7 @@ MODULE topology_connectivity_util
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_connectivity_util'
 
   PRIVATE
-  PUBLIC :: topology_connectivity_pack
+  PUBLIC :: topology_connectivity_pack, topology_conn_multiple
 
 CONTAINS
 
@@ -1343,5 +1344,178 @@ CONTAINS
     bnd_type(2,i) = nvar1
 
   END SUBROUTINE find_bnd_typ
+
+! *****************************************************************************
+!> \brief   Handles the multiple unit cell option for the connectivity
+!> \author  Teodoro Laino [tlaino] - 06.2009
+! *****************************************************************************
+  SUBROUTINE topology_conn_multiple(topology, subsys_section, error)
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_conn_multiple', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: a, fac, i, ind, j, k, m, &
+                                                natoms_orig, nbond, nbond_c, &
+                                                nimpr, nonfo, nphi, nsize, &
+                                                ntheta, nub
+    INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
+    LOGICAL                                  :: check, failure
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
+
+    failure = .FALSE.
+    NULLIFY(multiple_unit_cell)
+    CALL section_vals_val_get(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
+                              i_vals=multiple_unit_cell, error=error)
+    IF (ANY(multiple_unit_cell/=1)) THEN
+       fac = PRODUCT(multiple_unit_cell)
+       conn_info => topology%conn_info
+       atom_info => topology%atom_info
+       nsize = SIZE(atom_info%label_molname)
+       check =(nsize== SIZE(atom_info%label_resid)).AND.&
+              (nsize== SIZE(atom_info%label_resname)).AND.&
+              (nsize== SIZE(atom_info%label_atmname)).AND.&
+              (nsize== SIZE(atom_info%atm_charge)).AND.&
+              (nsize== SIZE(atom_info%atm_mass))
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+
+       CALL reallocate(atom_info%label_molname,1,nsize*fac)
+       CALL reallocate(atom_info%label_resid,1,nsize*fac)
+       CALL reallocate(atom_info%label_resname,1,nsize*fac)
+       CALL reallocate(atom_info%label_atmname,1,nsize*fac)
+       CALL reallocate(atom_info%atm_charge,1,nsize*fac)
+       CALL reallocate(atom_info%atm_mass,1,nsize*fac)
+
+       nbond = 0
+       IF (ASSOCIATED(conn_info%bond_a)) THEN
+          nbond  = SIZE(conn_info%bond_a)
+          CALL reallocate(conn_info%bond_a,1,nbond*fac)
+          CALL reallocate(conn_info%bond_b,1,nbond*fac)
+       END IF
+
+       ntheta = 0
+       IF (ASSOCIATED(conn_info%theta_a)) THEN
+          ntheta = SIZE(conn_info%theta_a)
+          CALL reallocate(conn_info%theta_a,1,ntheta*fac)
+          CALL reallocate(conn_info%theta_b,1,ntheta*fac)
+          CALL reallocate(conn_info%theta_c,1,ntheta*fac)
+       END IF
+
+       nphi = 0
+       IF (ASSOCIATED(conn_info%phi_a)) THEN
+          nphi = SIZE(conn_info%phi_a)
+          CALL reallocate(conn_info%phi_a,1,nphi*fac)
+          CALL reallocate(conn_info%phi_b,1,nphi*fac)
+          CALL reallocate(conn_info%phi_c,1,nphi*fac)
+          CALL reallocate(conn_info%phi_d,1,nphi*fac)
+       END IF
+
+       nimpr = 0
+       IF (ASSOCIATED(conn_info%impr_a)) THEN
+          nimpr = SIZE(conn_info%impr_a)
+          CALL reallocate(conn_info%impr_a,1,nimpr)
+          CALL reallocate(conn_info%impr_b,1,nimpr)
+          CALL reallocate(conn_info%impr_c,1,nimpr)
+          CALL reallocate(conn_info%impr_d,1,nimpr)
+       END IF
+
+       nbond_c = 0
+       IF (ASSOCIATED(conn_info%c_bond_a)) THEN
+          nbond_c = SIZE(conn_info%c_bond_a)
+          CALL reallocate(conn_info%c_bond_a,1,nbond_c*fac)
+          CALL reallocate(conn_info%c_bond_b,1,nbond_c*fac)
+       END IF
+
+       nub = 0
+       IF (ASSOCIATED(conn_info%ub_a)) THEN
+          nub = SIZE(conn_info%ub_a)
+          CALL reallocate(conn_info%ub_a,1,nub*fac)
+          CALL reallocate(conn_info%ub_b,1,nub*fac)
+          CALL reallocate(conn_info%ub_c,1,nub*fac)
+       END IF
+
+       nonfo = 0
+       IF (ASSOCIATED(conn_info%onfo_a)) THEN
+          nonfo = SIZE(conn_info%onfo_a)
+          CALL reallocate(conn_info%onfo_a,1,nonfo*fac)
+          CALL reallocate(conn_info%onfo_b,1,nonfo*fac)
+       END IF
+
+       natoms_orig = topology%natoms/fac
+       CPPostcondition(natoms_orig==nsize,cp_failure_level,routineP,error,failure)
+
+       ind = 0
+       DO k = 1, multiple_unit_cell(3)
+          DO j = 1, multiple_unit_cell(2)
+             DO i = 1, multiple_unit_cell(1)
+                ind = ind + 1
+                IF (ind==1) CYCLE
+                a = (ind-1)*natoms_orig
+
+                atom_info%label_molname(a+1:a+natoms_orig) = atom_info%label_molname(1:natoms_orig)
+                atom_info%label_resid(a+1:a+natoms_orig) = atom_info%label_resid(1:natoms_orig)
+                atom_info%label_resname(a+1:a+natoms_orig) = atom_info%label_resname(1:natoms_orig)
+                atom_info%label_atmname(a+1:a+natoms_orig) = atom_info%label_atmname(1:natoms_orig)
+                atom_info%atm_charge(a+1:a+natoms_orig) = atom_info%atm_charge(1:natoms_orig)
+                atom_info%atm_mass(a+1:a+natoms_orig) = atom_info%atm_mass(1:natoms_orig)
+
+                ! Bonds
+                IF (nbond>0) THEN
+                   m = (ind-1)*nbond
+                   conn_info%bond_a(m+1:m+nbond)=conn_info%bond_a(1:nbond)+a
+                   conn_info%bond_b(m+1:m+nbond)=conn_info%bond_b(1:nbond)+a
+                END IF
+                ! Theta
+                IF (ntheta>0) THEN
+                   m = (ind-1)*ntheta
+                   conn_info%theta_a(m+1:m+ntheta)=conn_info%theta_a(1:ntheta)+a
+                   conn_info%theta_b(m+1:m+ntheta)=conn_info%theta_b(1:ntheta)+a
+                   conn_info%theta_c(m+1:m+ntheta)=conn_info%theta_c(1:ntheta)+a
+                END IF
+                ! Phi
+                IF (nphi>0) THEN
+                   m = (ind-1)*nphi
+                   conn_info%phi_a(m+1:m+nphi)=conn_info%phi_a(1:nphi)+a
+                   conn_info%phi_b(m+1:m+nphi)=conn_info%phi_b(1:nphi)+a
+                   conn_info%phi_c(m+1:m+nphi)=conn_info%phi_c(1:nphi)+a
+                   conn_info%phi_d(m+1:m+nphi)=conn_info%phi_d(1:nphi)+a
+                END IF
+                ! Impropers
+                IF (nimpr>0) THEN
+                   m = (ind-1)*nimpr
+                   conn_info%impr_a(m+1:m+nimpr)=conn_info%impr_a(1:nimpr)+a
+                   conn_info%impr_b(m+1:m+nimpr)=conn_info%impr_b(1:nimpr)+a
+                   conn_info%impr_c(m+1:m+nimpr)=conn_info%impr_c(1:nimpr)+a
+                   conn_info%impr_d(m+1:m+nimpr)=conn_info%impr_d(1:nimpr)+a
+                END IF
+                ! Para_res
+                IF (nbond_c>0) THEN
+                   m = (ind-1)*nbond_c
+                   conn_info%c_bond_a(m+1:m+nbond_c)=conn_info%c_bond_a(1:nbond_c)+a
+                   conn_info%c_bond_b(m+1:m+nbond_c)=conn_info%c_bond_b(1:nbond_c)+a
+                END IF
+                ! Urey-Bradley
+                IF (nub>0) THEN
+                   m = (ind-1)*nub
+                   conn_info%ub_a(m+1:m+nub)=conn_info%ub_a(1:nub)+a
+                   conn_info%ub_b(m+1:m+nub)=conn_info%ub_b(1:nub)+a
+                   conn_info%ub_c(m+1:m+nub)=conn_info%ub_c(1:nub)+a
+                END IF
+                ! ONFO
+                IF (nonfo>0) THEN
+                   m = (ind-1)*nonfo
+                   conn_info%onfo_a(m+1:m+nonfo)=conn_info%onfo_a(1:nonfo)+a
+                   conn_info%onfo_b(m+1:m+nonfo)=conn_info%onfo_b(1:nonfo)+a
+                END IF
+             END DO
+          END DO
+       END DO
+    END IF
+
+  END SUBROUTINE topology_conn_multiple
 
 END MODULE topology_connectivity_util

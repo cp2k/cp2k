@@ -550,6 +550,7 @@ CPSourceFileRef,&
     ! ONFO structure
     !
     nphi = 0
+    nonfo= 0
     IF (ASSOCIATED(conn_info%phi_a)) nphi = SIZE(conn_info%phi_a)
     CALL reallocate(conn_info%onfo_a,1,nphi)
     CALL reallocate(conn_info%onfo_b,1,nphi)
@@ -576,7 +577,6 @@ CPSourceFileRef,&
        N = 0
        IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
        CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
-       nonfo = 0
        DO ionfo=1, nphi
        ! Check if the torsion is not shared between angles or bonds
           IF ( ANY(ex_bond_list(conn_info%onfo_a(ionfo))%array1==conn_info%onfo_b(ionfo)).OR.&
@@ -622,8 +622,6 @@ CPSourceFileRef,&
              END IF
           END DO
        END DO
-       CALL reallocate(conn_info%onfo_a,1,nonfo)
-       CALL reallocate(conn_info%onfo_b,1,nonfo)
        DO I=1,natom
           DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -631,6 +629,8 @@ CPSourceFileRef,&
        DEALLOCATE(ex_bond_list,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    CALL reallocate(conn_info%onfo_a,1,nonfo)
+    CALL reallocate(conn_info%onfo_b,1,nonfo)
 
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
