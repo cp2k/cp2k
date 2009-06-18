@@ -34,7 +34,6 @@ MODULE library_tests
                                              cp_fm_struct_type,&
                                              cp_fm_struct_write
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_init_random,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
