@@ -116,13 +116,14 @@ CONTAINS
 !> \author MK
 ! *****************************************************************************
   SUBROUTINE open_file(file_name,file_status,file_form,file_action,&
-                       file_position,file_pad,unit_number)
+                       file_position,file_pad,unit_number,force_IN_unit)
 
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status, file_form, &
                                                 file_action, file_position, &
                                                 file_pad
     INTEGER, INTENT(OUT)                     :: unit_number
+    LOGICAL, INTENT(IN), OPTIONAL            :: force_IN_unit
 
     CHARACTER(len=*), PARAMETER :: routineN = 'open_file', &
       routineP = moduleN//':'//routineN
@@ -132,7 +133,7 @@ CONTAINS
                                                 status_string
     CHARACTER(LEN=max_message_length)        :: message
     INTEGER                                  :: istat
-    LOGICAL                                  :: exists, opened
+    LOGICAL                                  :: exists, get_a_new_unit, opened
 
     IF (PRESENT(file_status)) THEN
       status_string = file_status
@@ -201,7 +202,11 @@ CONTAINS
 
 !     *** Find an unused unit number ***
 
-      unit_number = get_unit_number()
+      get_a_new_unit = .TRUE.
+      IF (PRESENT(force_IN_unit)) THEN
+         IF (force_IN_unit) get_a_new_unit = .FALSE.
+      END IF
+      IF (get_a_new_unit) unit_number = get_unit_number()
 
       IF (unit_number < 0) THEN
          WRITE(default_output_unit,*) "CP2K: Problems opening file, there are no free units left"

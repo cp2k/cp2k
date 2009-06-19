@@ -17,11 +17,17 @@
 ! *****************************************************************************
 MODULE neb_io
   USE cell_types,                      ONLY: cell_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
+  USE f77_interface,                   ONLY: f_env_add_defaults,&
+                                             f_env_rm_defaults,&
+                                             f_env_type
   USE force_env_types,                 ONLY: force_env_get
+  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: band_md_opt,&
                                              do_sm,&
                                              dump_xmol,&
@@ -40,8 +46,10 @@ MODULE neb_io
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
   USE neb_md_utils,                    ONLY: get_temperatures
@@ -49,6 +57,7 @@ MODULE neb_io
                                              neb_var_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
+  USE replica_types,                   ONLY: replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -59,7 +68,8 @@ MODULE neb_io
 
   PUBLIC :: read_neb_section,&
             dump_neb_info,&
-            dump_replica_coordinates
+            dump_replica_coordinates,&
+            handle_band_file_names
 
 CONTAINS
 
@@ -371,5 +381,78 @@ CONTAINS
        WRITE(iw,'(T2,"NEB|",75("*"))')
     END IF
   END SUBROUTINE dump_replica_coordinates
+
+! *****************************************************************************
+!> \brief Handles the correct file names during a band calculation
+!> \author Teodoro Laino  06.2009
+! *****************************************************************************
+  SUBROUTINE handle_band_file_names(rep_env, irep, n_rep, error)
+    TYPE(replica_env_type), POINTER          :: rep_env
+    INTEGER, INTENT(IN)                      :: irep, n_rep
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'handle_band_file_names', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: output_file_path
+    CHARACTER(LEN=default_string_length)     :: padding, replica_proj_name
+    INTEGER                                  :: handle, handle2, i, ierr, j, &
+                                                lp, ndigits
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
+            new_error=new_error, failure=failure, handle=handle2)
+       logger => cp_error_get_logger(new_error)
+       CALL force_env_get(f_env%force_env,globenv=globenv,&
+            root_section=root_section,error=new_error)
+       j    = irep + (rep_env%local_rep_indices(1)-1)
+
+       ! Setup new replica project name and output file
+       replica_proj_name = rep_env%original_project_name
+       ! Find padding
+       ndigits = CEILING(LOG10(REAL(n_rep,KIND=dp)))-&
+                 CEILING(LOG10(REAL(j+1,KIND=dp)))
+       padding = ""
+       DO i = 1, ndigits
+          padding(i:i) = "0"
+       END DO
+       lp=LEN_TRIM(replica_proj_name)
+       replica_proj_name(lp+1:LEN(replica_proj_name))="-BAND"//&
+            TRIM(padding)//ADJUSTL(cp_to_string(j))
+       lp=LEN_TRIM(replica_proj_name)
+       CALL section_vals_val_set(root_section,"GLOBAL%PROJECT_NAME",&
+            c_val=TRIM(replica_proj_name),error=error)
+       logger%iter_info%project_name=replica_proj_name
+
+       ! We change the file on which is pointing the global logger and error
+       output_file_path=replica_proj_name(1:lp)//".out"
+       CALL section_vals_val_set(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
+            c_val=TRIM(output_file_path),error=error)
+       IF (logger%default_global_unit_nr>0) THEN
+          CALL close_file(logger%default_global_unit_nr)
+          CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
+               file_action="WRITE", file_position="APPEND",&
+               unit_number=logger%default_global_unit_nr,&
+               force_IN_unit=.TRUE.)
+          WRITE (UNIT=logger%default_global_unit_nr,FMT="(/,(T2,A79))")&
+            "*******************************************************************************",&
+            "**                 BAND EVALUATION OF ENERGIES AND FORCES                    **",&
+            "*******************************************************************************"
+       END IF
+
+       CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL timestop(handle)
+    
+  END SUBROUTINE handle_band_file_names
 
 END MODULE neb_io

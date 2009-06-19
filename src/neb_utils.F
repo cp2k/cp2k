@@ -59,7 +59,8 @@ MODULE neb_utils
                                              dp
   USE mathlib,                         ONLY: matvec_3x3
   USE md_run,                          ONLY: qs_mol_dyn
-  USE neb_IO,                          ONLY: dump_replica_coordinates
+  USE neb_IO,                          ONLY: dump_replica_coordinates,&
+                                             handle_band_file_names
   USE neb_md_utils,                    ONLY: neb_initialize_velocity
   USE neb_types,                       ONLY: neb_type,&
                                              neb_var_type
@@ -199,7 +200,8 @@ CONTAINS
              CALL section_vals_val_get(replica_section,"COORD_FILE_NAME",&
                   i_rep_section=i,c_val=filename,error=error)
              CPPostcondition(TRIM(filename)/="",cp_failure_level,routineP,error,failure)
-             CALL parser_create(parser,filename,para_env=para_env,error=error)
+             CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,&
+                                error=error)
              CALL parser_get_next_line(parser,1,error=error)
              ! Start parser             
              CALL parser_get_object(parser,natom,error=error)
@@ -383,6 +385,10 @@ CPSourceFileRef,&
                 rep_env%r(:,j+1)=coords%xyz(:,irep+j)
              END IF
           END DO
+          ! Fix file name for BAND replicas.. Each BAND replica has its own file
+          ! indipendently from the number of replicas in replica_env..
+          CALL handle_band_file_names(rep_env, irep, n_rep_neb, error)
+
           ! Let's select the potential we want to use for the band calculation
           SELECT CASE(neb_env%pot_type)
           CASE(pot_neb_full)
@@ -395,6 +401,7 @@ CPSourceFileRef,&
              ! Minimum Potential Energy Case
              CALL perform_replica_geo(rep_env, coords, irep, n_rep_neb, cvalues, Mmatrix_tmp, error)
           END SELECT
+
           DO j = 0, n_rep-1
              IF (irep+j <= n_rep_neb) THEN
                 ! Copy back Forces and Energies

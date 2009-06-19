@@ -33,6 +33,7 @@ MODULE neb_methods
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
   USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: band_header
   USE input_constants,                 ONLY: band_diis_opt,&
                                              band_md_opt,&
                                              do_band_cartesian,&
@@ -90,7 +91,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, iw, nrep, &
+    INTEGER                                  :: handle, ierr, iw, iw2, nrep, &
                                                 output_unit, prep, &
                                                 proc_dist_type, stat
     LOGICAL                                  :: check, failure, row_force
@@ -123,16 +124,15 @@ CONTAINS
        CALL section_vals_val_get(neb_section,"PROC_DIST_TYPE",i_val=proc_dist_type, error=error)
        row_force = (proc_dist_type==do_rep_blocked)
        nrep = MAX(1,para_env%num_pe/prep)
-       IF (output_unit>0) THEN
-          WRITE(output_unit,'(T2,"NEB|",3(A,I5))')" NUMBER OF REPLICAS:",nrep,&
-               " NUMBER OF PROCS:",para_env%num_pe," NUMBER OF PROCS PER REPLICA:",prep
-       END IF
-       IF (nrep*prep/=para_env%num_pe.AND.output_unit>0) THEN
-          WRITE(output_unit,'(T2,"NEB|",A,I5)')" NUMBER OF TOTALLY REQUESTED PROCESSORS:",&
-               para_env%num_pe," IS NOT COMPATIBLE WITH THE NUMBER OF PROCESSORS REQUESTED PER REPLICA:",&
-               prep," AND THE NUMBER OF REPLICAS:",nrep
-          WRITE(output_unit,'(T2,"NEB| ",I0,A)')para_env%num_pe-nrep*prep," PROCESSORS WILL BE WASTED!"
-       END IF
+       CALL cp_assert(.NOT.(nrep*prep/=para_env%num_pe.AND.output_unit>0),&
+            cp_warning_level,cp_assertion_failed,routineP,&
+            "Number of totally requested processors ("//TRIM(ADJUSTL(cp_to_string(para_env%num_pe)))//") "//&
+            "is not compatible with the number of processors requested per replica ("//&
+            TRIM(ADJUSTL(cp_to_string(prep)))//") and the number of replicas ("//&
+            TRIM(ADJUSTL(cp_to_string(nrep)))//") . ["//&
+            TRIM(ADJUSTL(cp_to_string(para_env%num_pe-nrep*prep)))//"] processors will be wasted! "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
        ! Create Replica Environments
        IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"
@@ -162,19 +162,23 @@ CONTAINS
                    number_of_colvar(f_env%force_env, unique=.TRUE., error=error))
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
           CALL read_neb_section(neb_env,neb_section,error=error)
+          ! Print BAND header
+          iw2=cp_print_key_unit_nr(logger,neb_section,"BANNER",extension=".nebLog",error=error)
+          CALL band_header(iw2, neb_env%number_of_replica, nrep, prep)
+          CALL cp_print_key_finished_output(iw2,logger,neb_section,"BANNER", error=error)
           ! Allocate the principal vectors used in the BAND calculation
           CALL neb_var_create(coords, neb_env, full_allocation=.TRUE., error=error)
           CALL neb_var_create(forces, neb_env, error=error)
           CALL neb_var_create(vels,   neb_env, error=error)
           ! Collecting the coordinates of the starting replicas of the BAND calculation
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. START"
-          iw = cp_print_key_unit_nr(logger,motion_section,"BAND%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO",&
+          iw = cp_print_key_unit_nr(logger,neb_section,"PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO",&
             extension=".nebLog",error=error)
           CALL build_replica_coords(neb_section, particle_set,&
                coords, vels, neb_env, rep_env%ndim, iw, globenv, &
                rep_env%para_env, error)
-          CALL cp_print_key_finished_output(iw,logger,motion_section,&
-               "BAND%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
+          CALL cp_print_key_finished_output(iw,logger,neb_section,&
+               "PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. END"
           ! Perform NEB optimization
           SELECT CASE(neb_env%opt_type)

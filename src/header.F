@@ -15,7 +15,7 @@ MODULE header
 
   PRIVATE
   PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
-  PUBLIC :: kg_header, qmmm_header, atom_header, atom_footer
+  PUBLIC :: kg_header, qmmm_header, atom_header, atom_footer, band_header
 
 CONTAINS
 
@@ -139,8 +139,8 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE qs_header(output_unit, ionode)
-    INTEGER                                  :: output_unit
-    LOGICAL                                  :: ionode
+    INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, INTENT(IN)                      :: ionode
 
     IF (.NOT.ionode) RETURN
     WRITE (UNIT=output_unit,FMT="(/,(T2,A79))")&
@@ -166,7 +166,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE kg_header ( iw, ionode )
-    INTEGER                                  :: iw
+    INTEGER, INTENT(IN)                      :: iw
     LOGICAL, INTENT(in)                      :: ionode
 
     IF (.NOT.ionode) RETURN
@@ -188,7 +188,7 @@ CONTAINS
   END SUBROUTINE kg_header
 
   SUBROUTINE atom_header ( iw )
-    INTEGER                                  :: iw
+    INTEGER, INTENT(IN)                      :: iw
 
     WRITE ( iw, '( / )' )
     WRITE ( iw, '( 14(25x,a,/) )' ) &
@@ -205,7 +205,7 @@ CONTAINS
   END SUBROUTINE atom_header
   
   SUBROUTINE atom_footer ( iw )
-    INTEGER                                  :: iw
+    INTEGER, INTENT(IN)                      :: iw
 
     WRITE ( iw, '( / )' )
     WRITE ( iw, '( 14(25x,a,/) )' ) &
@@ -217,6 +217,30 @@ CONTAINS
          ' **  **   **    ****  **  **  '
 
   END SUBROUTINE atom_footer
+
+  SUBROUTINE band_header ( iw, ni, nr, np )
+    INTEGER, INTENT(IN)                      :: iw, ni, nr, np
+
+    IF (iw>0) THEN
+       WRITE (UNIT=iw,FMT="(/,(T2,A79))")&
+            "*******************************************************************************",&
+            "*******************************************************************************",&
+            "**                                                                           **",&
+            "**  ########     ###    ##    ## ########    Nudged Elastic Band Method      **",&
+            "**  ##     ##   ## ##   ###   ## ##     ##   String Method                   **",&
+            "**  ##     ##  ##   ##  ####  ## ##     ##                                   **"
+       WRITE (UNIT=iw,FMT="(T2,A,T73,I5,1X,A)")&
+            "**  ########  ##     ## ## ## ## ##     ##   Number of Images :",        ni,"**",&
+            "**  ##     ## ######### ##  #### ##     ##   Number of Replicas:",       nr,"**",&
+            "**  ##     ## ##     ## ##   ### ##     ##   Number of Procs/Rep:",      np,"**"
+       WRITE (UNIT=iw,FMT="(T2,A79)")&
+            "**  ########  ##     ## ##    ## ########                                    **",&
+            "**                                           T. Laino  2009                  **",&
+            "*******************************************************************************"
+       WRITE (UNIT=iw,FMT="(T2,A79,/)")&
+            "*******************************************************************************"
+    END IF
+  END SUBROUTINE band_header
 
 END MODULE header
 

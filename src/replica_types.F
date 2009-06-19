@@ -107,6 +107,7 @@ MODULE replica_types
                                                           my_rep_group, force_dim
      REAL(kind=dp), DIMENSION(:,:), POINTER            :: r,v,f
      LOGICAL                                           :: sync_v, keep_wf_history
+     CHARACTER(LEN=default_path_length)                :: original_project_name
      TYPE(qs_wf_history_p_type), DIMENSION(:), POINTER :: wf_history
      TYPE(cp_result_p_type),DIMENSION(:),POINTER       :: results
      INTEGER, DIMENSION(:), POINTER                    :: local_rep_indices
@@ -261,16 +262,25 @@ CONTAINS
 
        CALL section_vals_val_get(input,"GLOBAL%PROJECT_NAME",&
             c_val=input_file_path,error=error)
+       rep_env%original_project_name = input_file_path
+       ! By default replica_env handles files for each replica
+       ! with the structure PROJECT_NAME-r-N where N is the
+       ! number of the local replica..
        lp=LEN_TRIM(input_file_path)
        input_file_path(lp+1:LEN(input_file_path))="-r-"//&
             ADJUSTL(cp_to_string(rep_env%my_rep_group))
        lp=LEN_TRIM(input_file_path)
-            CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
-                 c_val=input_file_path,error=error) !needed, or using a differen iteration is enough?
+       ! Setup new project name
+       CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
+            c_val=input_file_path,error=error)
+       ! Redirect the output of each replica on a same local file
        output_file_path=input_file_path(1:lp)//".out"
-       input_file_path(lp+1:LEN(input_file_path))=".inp"
        CALL section_vals_val_set(input,"GLOBAL%OUTPUT_FILE_NAME",&
             c_val=TRIM(output_file_path),error=error)
+       
+       ! Dump an input file to warm-up new force_eval structures and
+       ! delete them immediately afterwards..
+       input_file_path(lp+1:LEN(input_file_path))=".inp"
        IF (para_env_f%source==para_env_f%mepos) THEN
           CALL open_file(file_name=TRIM(input_file_path),file_status="UNKNOWN",&
                file_form="FORMATTED",file_action="WRITE",&
@@ -281,6 +291,13 @@ CONTAINS
        CALL cp_create_fenv_comm(new_env_id,input_file_path,output_file_path,&
             para_env_f%group,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+
+       ! Delete input files.. 
+       IF (para_env_f%source==para_env_f%mepos) THEN
+          CALL open_file(file_name=TRIM(input_file_path),file_status="OLD",&
+               file_form="FORMATTED",file_action="READ",unit_number=unit_nr)
+          CALL close_file(unit_number=unit_nr,file_status="DELETE")
+       END IF
 
        IF (.NOT.failure) THEN
           rep_env%f_env_id=new_env_id
