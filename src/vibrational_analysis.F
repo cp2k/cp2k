@@ -87,11 +87,11 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
       iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &
-      nRotTrM, nvib, output_molden, output_unit, prep, stat
+      nRotTrM, nvib, output_molden, output_unit, prep, proc_dist_type, stat
     INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
     LOGICAL                                  :: calc_intens, &
                                                 do_mode_tracking, failure, &
-                                                keep_rotations, &
+                                                keep_rotations, row_force, &
                                                 something_frozen
     REAL(KIND=dp)                            :: dx, norm, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: H_eigval1, H_eigval2, konst, &
@@ -112,21 +112,25 @@ CONTAINS
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 mode_tracking_section, &
-                                                print_section
+                                                print_section, vib_section
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities, print_section)
+       NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities,&
+               vib_section, print_section)
        logger => cp_error_get_logger(error)
-       print_section => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%PRINT",error=error)
+       vib_section   => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS",error=error)
+       print_section => section_vals_get_subs_vals(vib_section,"PRINT",error=error)
        output_unit=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".vibLog",error=error)
 
-       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%DX",r_val=dx, error=error)
-       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%NPROC_REP",i_val=prep, error=error)
-       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%FULLY_PERIODIC",l_val=keep_rotations, error=error)
-       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%INTENSITIES",l_val=calc_intens, error=error)
-       mode_tracking_section=>section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE",&
+       CALL section_vals_val_get(vib_section,"DX",r_val=dx, error=error)
+       CALL section_vals_val_get(vib_section,"NPROC_REP",i_val=prep, error=error)
+       CALL section_vals_val_get(vib_section,"PROC_DIST_TYPE",i_val=proc_dist_type, error=error)
+       row_force = (proc_dist_type==do_rep_blocked)
+       CALL section_vals_val_get(vib_section,"FULLY_PERIODIC",l_val=keep_rotations, error=error)
+       CALL section_vals_val_get(vib_section,"INTENSITIES",l_val=calc_intens, error=error)
+       mode_tracking_section=>section_vals_get_subs_vals(vib_section,"MODE_SELECTIVE",&
             error=error)
        CALL section_vals_get(mode_tracking_section,explicit=do_mode_tracking, error=error)
        nrep = MAX(1,para_env%num_pe/prep)
@@ -140,7 +144,7 @@ CONTAINS
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
        ! Create Replica Environments
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            nrep=nrep,prep=prep,error=error)
+            nrep=nrep,prep=prep,row_force=row_force,error=error)
        IF (ASSOCIATED(rep_env)) THEN
           CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
                new_error=new_error, failure=failure)

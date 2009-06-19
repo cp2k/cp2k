@@ -2710,6 +2710,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PROC_DIST_TYPE",&
+            description="Specify the topology of the mapping of processors into replicas.",&
+            usage="PROC_DIST_TYPE (INTERLEAVED|BLOCKED)",&
+            enum_c_vals=s2a("INTERLEAVED",&
+                            "BLOCKED"),&
+            enum_desc=s2a( "Interleaved distribution",&
+                           "Blocked distribution"),&
+            enum_i_vals=(/do_rep_interleaved,do_rep_blocked/),&
+            default_i_val=do_rep_blocked, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="BAND_TYPE",&
             description="Specifies the type of BAND calculation",&
             usage="BAND_TYPE (B-NEB|IT-NEB|CI-NEB|D-NEB|SM|EB)",&

@@ -79,6 +79,9 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: plane_def_atoms=0,&
                                               plane_def_vec=1                                           
 
+  INTEGER, PARAMETER, PUBLIC               :: do_rep_interleaved=0,&
+                                              do_rep_blocked=1                                           
+
   ! MD Ensemble                            
   INTEGER, PARAMETER, PUBLIC               :: nve_ensemble=1,&
                                               nvt_ensemble=2,&

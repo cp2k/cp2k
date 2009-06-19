@@ -81,6 +81,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PROC_DIST_TYPE",&
+            description="Specify the topology of the mapping of processors into replicas.",&
+            usage="PROC_DIST_TYPE (INTERLEAVED|BLOCKED)",&
+            enum_c_vals=s2a("INTERLEAVED",&
+                            "BLOCKED"),&
+            enum_desc=s2a( "Interleaved distribution",&
+                           "Blocked distribution"),&
+            enum_i_vals=(/do_rep_interleaved,do_rep_blocked/),&
+            default_i_val=do_rep_blocked, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="FULLY_PERIODIC",&
             description="Avoids to clean rotations from the Hessian matrix.",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE.,error=error)

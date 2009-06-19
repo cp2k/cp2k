@@ -36,6 +36,7 @@ MODULE neb_methods
   USE input_constants,                 ONLY: band_diis_opt,&
                                              band_md_opt,&
                                              do_band_cartesian,&
+                                             do_rep_blocked,&
                                              do_sm
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -90,8 +91,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, iw, nrep, &
-                                                output_unit, prep, stat
-    LOGICAL                                  :: check, failure
+                                                output_unit, prep, &
+                                                proc_dist_type, stat
+    LOGICAL                                  :: check, failure, row_force
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -118,6 +120,8 @@ CONTAINS
             extension=".nebLog",error=error)
 
        CALL section_vals_val_get(neb_section,"NPROC_REP",i_val=prep, error=error)
+       CALL section_vals_val_get(neb_section,"PROC_DIST_TYPE",i_val=proc_dist_type, error=error)
+       row_force = (proc_dist_type==do_rep_blocked)
        nrep = MAX(1,para_env%num_pe/prep)
        IF (output_unit>0) THEN
           WRITE(output_unit,'(T2,"NEB|",3(A,I5))')" NUMBER OF REPLICAS:",nrep,&
@@ -133,7 +137,7 @@ CONTAINS
        ! Create Replica Environments
        IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            nrep=nrep,prep=prep,error=error)
+            nrep=nrep,prep=prep,row_force=row_force,error=error)
        CPPostcondition(SIZE(rep_env%local_rep_indices)==1,cp_failure_level,routineP,error,failure)
        IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. END"
        IF (ASSOCIATED(rep_env)) THEN
