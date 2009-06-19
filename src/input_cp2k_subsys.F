@@ -1355,18 +1355,18 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EXCLUDE_VDW",&
             description="Specifies which kind of Van der Waals interaction to skip.",&
-            usage="EXCLUDE_VDW (1-2||1-3||1-4)", &
-            enum_c_vals=s2a( "1-2", "1-3", "1-4"),&
-            enum_i_vals=(/do_skip_12, do_skip_13, do_skip_14/),&
+            usage="EXCLUDE_VDW (1-3||1-4)", &
+            enum_c_vals=s2a( "1-3", "1-4"),&
+            enum_i_vals=(/do_skip_13, do_skip_14/),&
             default_i_val=do_skip_13,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EXCLUDE_EI",&
             description="Specifies which kind of Electrostatic interaction to skip.",&
-            usage="EXCLUDE_EI (1-2||1-3||1-4)", &
-            enum_c_vals=s2a( "1-2", "1-3", "1-4"),&
-            enum_i_vals=(/do_skip_12, do_skip_13, do_skip_14/),&
+            usage="EXCLUDE_EI (1-3||1-4)", &
+            enum_c_vals=s2a( "1-3", "1-4"),&
+            enum_i_vals=(/do_skip_13, do_skip_14/),&
             default_i_val=do_skip_13,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
