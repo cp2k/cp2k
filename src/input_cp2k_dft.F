@@ -283,7 +283,9 @@ CONTAINS
 
     CALL keyword_create(keyword=keyword,&
          name="UKS",&
-         variants=s2a("UNRESTRICTED_KOHN_SHAM","LSD","SPIN_POLARIZED"),&
+         variants=s2a("UNRESTRICTED_KOHN_SHAM",&
+         "LSD",&
+         "SPIN_POLARIZED"),&
          description="Requests a spin-polarized calculation using alpha "//&
          "and beta orbitals, i.e. no spin restriction is applied",&
          usage="LSD",&
@@ -4385,6 +4387,13 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"Lanczos",&
+            description="Controls the printing of information on Lanczos refinement iterations.", &
+            print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -5691,10 +5700,11 @@ CONTAINS
             description="Algorithm to be used for diagonalization",&
             usage="ALGORITHM STANDARD",&
             default_i_val=diag_standard,&
-            enum_c_vals=s2a( "STANDARD","OT" ),&
+            enum_c_vals=s2a( "STANDARD","OT", "LANCZOS" ),&
             enum_desc=s2a("Standard diagonalization: LAPACK methods or Jacobi.",&
-                          "Iterative diagonalization using OT method"),&
-            enum_i_vals=(/diag_standard, diag_ot/),& 
+                          "Iterative diagonalization using OT method",&
+                          "Block Krylov-space approach to self-consistent diagonalisation"),&
+            enum_i_vals=(/diag_standard, diag_ot, diag_block_krylov/),& 
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5743,6 +5753,50 @@ CONTAINS
             description="Required accuracy in iterative diagonalization",&
             usage="EPS_ITER 1.e-8",&
             default_r_val=1.e-8_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NKRYLOV",&
+            description="Dimension of the Krylov space used for the Lanczos refinement",&
+            usage="NKRYLOV 20",&
+            default_i_val=20,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NBLOCK_KRYLOV",&
+            description="Size of the block of vectors refined simultaneously by the Lanczos procedure",&
+            usage="NBLOCK_KRYLOV 1",&
+            default_i_val=8,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_KRYLOV",&
+            description="Convergence criterion for the MOs",&
+            usage="EPS_KRYLOV 0.00001",&
+            default_r_val=0.0000001_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_STD_DIAG",&
+            description="Level of convergence to be reached before starting the Lanczos procedure."//&
+            " Above this threshold a standard diagonalization method is used. "//&
+            " If negative Lanczos is started at the first iteration",&
+            usage="EPS_KRYLOV 0.001",&
+            default_r_val=-1.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHECK_MOS_CONV",&
+            description="This requires to check the convergence of MOS also when standard "//&
+            "diagonalization steps are performed, if the block krylov approach is active.",&
+            usage="CHECK_MOS_CONV T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -7185,7 +7239,7 @@ CONTAINS
 
       CALL section_create(section,&
                           name="MIXING",&
-                          description="Define type and the parameters for mixing"//&
+                          description="Define type and parameters for mixing"//&
                           "procedures to be applied to the density matrix. Normally, "//&
                           "only one type of mixing method should be accepted. The mixing "//&
                           "procedures activated by this section are only active for diagonalization "//&
@@ -7200,7 +7254,7 @@ CONTAINS
 
       CALL keyword_create(keyword,&
                           name="_SECTION_PARAMETERS_",&
-                          description="Controls the activation of the mixing procedures",&
+                          description="Controls the activation of the mixing procedure",&
                           usage="&MIXING ON",&
                           default_l_val=.TRUE.,&
                           lone_keyword_l_val=.TRUE.,&
@@ -7277,20 +7331,16 @@ CONTAINS
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="NMIXING",&
-                          description="Minimal number of density mixing (should be greater than 0),"//&
-                                      "before starting DIIS",&
-                          usage="NMIXING 1",&
-                          default_i_val=2,&
-                          error=error)
+            description="Minimal number of density mixing (should be greater than 0),"//&
+            "before starting DIIS",&
+            usage="NMIXING 1", default_i_val=2,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="NBUFFER",&
                           variants=s2a("NPULAY","NBROYDEN","NMULTISECANT"),&
                           description="Number of previous steps stored for the actual mixing scheme",&
-                          usage="NBUFFER 2",&
-                          default_i_val=4,&
-                          error=error)
+                          usage="NBUFFER 2", default_i_val=4,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
@@ -7380,19 +7430,15 @@ CONTAINS
 
       CALL keyword_create(keyword, name="NSKIP",&
                           variants=(/"NSKIP_MIXING"/),&
-                          description="Number of initial iteration for which the mixing is skipped",&
-                          usage="NSKIP 10",&
-                          default_i_val=0,&
-                          error=error)
+            description="Number of initial iteration for which the mixing is skipped",&
+            usage="NSKIP 10", default_i_val=0,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="N_SIMPLE_MIX",&
                           variants=(/"NSIMPLEMIX"/),&
-                          description="Number of Kerker damping iteration before starting other mixing procedures",&
-                          usage="N_SIMPLE_MIX 4",&
-                          default_i_val=0,&
-                          error=error)
+            description="Number of kerker damping iterations before starting other mixing procedures",&
+            usage="NSIMPLEMIX", default_i_val=0,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 

@@ -11,13 +11,10 @@
 ! *****************************************************************************
 MODULE cp_fm_basic_linalg
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_element,&
-                                             cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
+       cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
+       cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
@@ -48,7 +45,8 @@ MODULE cp_fm_basic_linalg
             cp_fm_invert,&                 ! computes the inverse and determinant 
             cp_fm_frobenius_norm,&         ! frobenius norm
             cp_fm_ger, &                   ! rank 1 operation
-            cp_fm_triangular_invert        ! compute the reciprocal of a tirangular matrix
+            cp_fm_triangular_invert,&        ! compute the reciprocal of a tirangular matrix
+            cp_fm_qr_factorization         ! compute the QR factorization of a rectangular matrix
 
 CONTAINS
 
@@ -1086,10 +1084,12 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CALL cp_fm_release(matrix_lu,error=error)
     CALL cp_fm_release(matrix_B,error=error)
     DEALLOCATE(ipivot)
-    det_a=determinant
+    IF(PRESENT(det_a)) det_a = determinant
   END SUBROUTINE cp_fm_invert
    
 ! *****************************************************************************
+!> \brief inverts a triangular matrix
+!> \author MI
 ! *****************************************************************************
   SUBROUTINE cp_fm_triangular_invert(matrix_a,error)
 
@@ -1129,5 +1129,96 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CALL timestop(handle)
   END SUBROUTINE cp_fm_triangular_invert
+
+
+! *****************************************************************************
+! *****************************************************************************
+!> \brief  perfoms a QR factorization of the input rectangular matrix A or of a submatrix of A
+!>         the computed upper triangular matrix R is in output in the submatrix sub(A) of size NxN 
+!>         M and M give the dimention of the submatrix that has to be factorized (MxN) with M>N
+!> \author MI
+! *****************************************************************************
+  SUBROUTINE cp_fm_qr_factorization(matrix_a, matrix_r, nrow_fact, ncol_fact, first_row, first_col, error)
+    TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_r
+    INTEGER, INTENT(IN), OPTIONAL            :: nrow_fact, ncol_fact, &
+                                                first_row, first_col
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_qr_factorization', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, i, icol, info, irow, &
+                                                istat, j, lda, lwork, ncol, &
+                                                ndim, nrow
+    INTEGER, DIMENSION(9)                    :: desca
+    LOGICAL                                  :: failure
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: tau, work
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: r_mat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+
+    failure=.FALSE.
+
+    CALL timeset(routineN,handle)
+
+    ncol =matrix_a%matrix_struct%ncol_global
+    nrow =matrix_a%matrix_struct%nrow_global
+    lda = nrow
+
+    a => matrix_a%local_data
+
+    IF(PRESENT(nrow_fact)) nrow = nrow_fact
+    IF(PRESENT(ncol_fact)) ncol = ncol_fact
+    irow = 1
+    IF(PRESENT(first_row)) irow = first_row
+    icol = 1
+    IF(PRESENT(first_col)) icol = first_col
+
+    
+    CPPrecondition(nrow>=ncol,cp_failure_level,routineP,error,failure)
+    ndim = SIZE(a,2)
+!    ALLOCATE(ipiv(ndim),istat=STAT)
+    ALLOCATE(tau(ndim),STAT=istat)
+
+#if defined(__SCALAPACK)
+
+    desca(:) = matrix_a%matrix_struct%descriptor(:)
+
+    lwork = -1
+    ALLOCATE(work(2*ndim),STAT=istat)
+    CALL pdgeqrf( nrow, ncol, a, irow, icol, desca,  tau, work, lwork, info )
+    lwork = work(1)
+    DEALLOCATE(work,STAT=istat)
+    ALLOCATE(work(lwork),STAT=istat)
+    CALL pdgeqrf( nrow, ncol, a, irow, icol, desca, tau, work, lwork, info )
+
+#else
+    lwork = -1
+    ALLOCATE(work(2*ndim),STAT=istat)
+    CALL dgeqrf( nrow, ncol, a, lda,  tau, work, lwork, info )
+    lwork = work(1)
+    DEALLOCATE(work,STAT=istat)
+    ALLOCATE(work(lwork),STAT=istat)
+    CALL dgeqrf( nrow, ncol, a, lda,  tau, work, lwork, info )
+
+#endif
+
+    ALLOCATE(r_mat(ncol,ncol),STAT=istat)
+    CALL cp_fm_get_submatrix(matrix_a,r_mat,1,1,ncol,ncol,error=error)
+    DO i = 1,ncol
+      DO j = i+1,ncol
+          r_mat(j,i) = 0.0_dp
+      END DO
+    END DO
+    CALL cp_fm_set_submatrix(matrix_r,r_mat,1,1,ncol,ncol,error=error)
+
+
+    DEALLOCATE(tau, work, r_mat, STAT=istat)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_fm_qr_factorization
+
+
 
 END MODULE cp_fm_basic_linalg

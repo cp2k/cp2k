@@ -13,6 +13,7 @@
 MODULE stm_images
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -96,14 +97,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, irep, ispin, istat, &
-                                                n_rep, nspin, output_unit
-    INTEGER, DIMENSION(:), POINTER           :: stm_th_torb
+                                                n_rep, ndim, nmo, nspin, &
+                                                output_unit
+    INTEGER, DIMENSION(:), POINTER           :: nadd_unocc, stm_th_torb
     LOGICAL                                  :: append_cube, failure, ionode
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
+    REAL(KIND=dp)                            :: efermi
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occ, &
+                                                stm_biases
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: evals
+      DIMENSION(:)                           :: evals, occupation
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: mo_arrays
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -123,8 +128,8 @@ CONTAINS
     output_unit = -1
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
-     NULLIFY (mos, rho, pw_env, stm_th_torb)
-     NULLIFY (auxbas_pw_pool, pw_pools, stm_density_ao)
+     NULLIFY (mos, rho, pw_env, stm_th_torb, fm_struct_tmp)
+     NULLIFY (auxbas_pw_pool, pw_pools, stm_density_ao, mo_coeff)
 
      CALL get_qs_env(qs_env, mos=mos,rho=rho, pw_env=pw_env,&
             error=error)
@@ -161,39 +166,73 @@ CONTAINS
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
 
-     IF(ANY(stm_biases<0.0_dp)) THEN
-       nspin = SIZE(mos,1)
-       ALLOCATE(mo_arrays(nspin), STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(evals(nspin),STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO ispin=1,nspin
-          CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-               eigenvalues=mo_eigenvalues)
-          mo_arrays(ispin)%matrix=>mo_coeff
-          evals(ispin)%array=>mo_eigenvalues
-       ENDDO
-       CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
-                    stm_biases, .TRUE. ,stm_th_torb,  particles, ionode,&
-                    output_unit, append_cube,  error=error)
-       DEALLOCATE(mo_arrays,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(evals,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     nspin = SIZE(mos,1)
+     ALLOCATE(nadd_unocc(nspin),STAT=istat)
+     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     nadd_unocc=0
+     IF(ASSOCIATED(unoccupied_orbs)) THEN
+       DO ispin =1,nspin
+         nadd_unocc(ispin)=SIZE(unoccupied_evals(ispin)%array)
+       END DO
      END IF
-     IF(ANY(stm_biases>0.0_dp)) THEN
 
-       CPPrecondition(ASSOCIATED(unoccupied_orbs),cp_failure_level,routineP,error,failure)
-       CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g,&
-                     unoccupied_orbs, unoccupied_evals, stm_biases, .FALSE. ,&
-                     stm_th_torb,  particles, ionode, output_unit, append_cube,  error)
-     END IF
+     ALLOCATE(mo_arrays(nspin), STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(evals(nspin),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(occupation(nspin),STAT=istat)
+     DO ispin=1,nspin
+          IF(nadd_unocc(ispin)==0) THEN
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+                 eigenvalues=mo_eigenvalues, nmo=nmo, mu=efermi, occupation_numbers=mo_occ)
+            mo_arrays(ispin)%matrix=>mo_coeff
+            evals(ispin)%array=>mo_eigenvalues
+            occupation(ispin)%array => mo_occ
+          ELSE
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+                 eigenvalues=mo_eigenvalues, nmo=nmo, mu=efermi, occupation_numbers=mo_occ)
+             ndim = nmo+nadd_unocc(ispin)
+             ALLOCATE(evals(ispin)%array(ndim),STAT=istat)
+             evals(ispin)%array(1:nmo)=mo_eigenvalues(1:nmo)
+             evals(ispin)%array(1+nmo:ndim)=unoccupied_evals(ispin)%array(1:nadd_unocc(ispin))
+             ALLOCATE(occupation(ispin)%array(ndim),STAT=istat)
+             occupation(ispin)%array(1:nmo)=mo_occ(1:nmo)
+             occupation(ispin)%array(1+nmo:ndim)=0.0_dp
+             CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=ndim, &
+                          template_fmstruct=mo_coeff%matrix_struct, error=error)
+             CALL cp_fm_create(mo_arrays(ispin)%matrix,fm_struct_tmp, name="mo_arrays",error=error)
+             CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+             CALL cp_fm_to_fm(mo_coeff, mo_arrays(ispin)%matrix, nmo, 1, 1)
+             CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix, mo_arrays(ispin)%matrix, &
+                    nadd_unocc(ispin), 1, nmo+1)
+          END IF
+     ENDDO
+     CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
+                    occupation, efermi, stm_biases, stm_th_torb,  particles, ionode,&
+                    output_unit, append_cube,  error=error)
+     DO ispin = 1,nspin
+       IF(nadd_unocc(ispin)>0) THEN
+            DEALLOCATE(evals(ispin)%array,STAT=istat) 
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(occupation(ispin)%array,STAT=istat) 
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+            CALL cp_fm_release( mo_arrays(ispin)%matrix, error=error)
+       END IF
+     END DO
+     DEALLOCATE(mo_arrays,STAT=istat)
+        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(evals,STAT=istat)
+        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(occupation,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
      CALL deallocate_matrix(stm_density_ao,error=error)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
 
      DEALLOCATE (stm_th_torb, STAT=istat)
+     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE (nadd_unocc, STAT=istat)
      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
@@ -207,10 +246,11 @@ CONTAINS
 !>      requires the MOs that are passed to be eigenstates, and energy ordered
 !> \par History
 !>      7.2008 Created [Joost VandeVondele]
+!>       07.2009 modified MI
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
-                       stm_biases, do_negative, stm_th_torb, particles, ionode,&
+                       occupation, efermi, stm_biases,  stm_th_torb, particles, ionode,&
                        output_unit, append_cube,  error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -220,9 +260,9 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(IN)                             :: mo_arrays
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
-      INTENT(IN)                             :: evals
+      INTENT(IN)                             :: evals, occupation
+    REAL(KIND=dp)                            :: efermi
     REAL(KIND=dp), DIMENSION(:), POINTER     :: stm_biases
-    LOGICAL, INTENT(IN)                      :: do_negative
     INTEGER, DIMENSION(:), POINTER           :: stm_th_torb
     TYPE(particle_list_type), POINTER        :: particles
     LOGICAL, INTENT(IN)                      :: ionode
@@ -237,14 +277,15 @@ CONTAINS
 
     CHARACTER(LEN=80)                        :: filename, oname, title
     CHARACTER(LEN=default_string_length)     :: my_pos
-    INTEGER                                  :: handle, i, ibias, iorb, &
-                                                ispin, istates, nstates, &
-                                                state_start, unit_nr
+    INTEGER                                  :: handle, i, ibias, imo, iorb, &
+                                                ispin, istat, istates, nmo, &
+                                                nspin, nstates(2), &
+                                                state_start(2), unit_nr
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, e_end, e_start, &
-                                                total_rho
+    REAL(KIND=dp)                            :: alpha, total_rho
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: occ_tot
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: matrix_v
+    TYPE(cp_fm_type), POINTER                :: matrix_v, matrix_vf
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -253,76 +294,79 @@ CONTAINS
     logger => cp_error_get_logger(error)
     NULLIFY(fm_struct_tmp)
 
+    nspin = SIZE(mo_arrays)
+
+    IF (ionode) WRITE(output_unit,'(T2,A)')       ""
+    IF (ionode) WRITE(output_unit,'(T2,A,F12.6, A)') "STM : Fermi energy ", efermi , " a.u. "
     DO ibias=1,SIZE(stm_biases)
-       IF (do_negative) THEN
-          IF (stm_biases(ibias)>0.0_dp) CYCLE
-       ELSE
-          IF (stm_biases(ibias)<0.0_dp) CYCLE
-       ENDIF
 
        IF (ionode) WRITE(output_unit,'(T2,A)')       ""
        IF (ionode) WRITE(output_unit,'(T2,A,F16.6)') "Preparing for STM image at bias [a.u.] ",stm_biases(ibias)
 
-       ! a shared starting energy for alpha and beta
-       IF (do_negative) THEN
-          e_start=-HUGE(0.0_dp)
-       ELSE
-          e_start=+HUGE(0.0_dp)
-       ENDIF
-!FIX IT:  this should be  the Fermi energy
-       DO ispin=1,SIZE(mo_arrays)
-          IF (do_negative) THEN
-             e_start=MAX(e_start,MAXVAL(evals(ispin)%array)) ! HOMO
-          ELSE
-             e_start=MIN(e_start,MINVAL(evals(ispin)%array)) ! LUMO
-          ENDIF
-       ENDDO
-
        istates=0
-       DO ispin=1,SIZE(mo_arrays)
-          IF (do_negative) THEN
-             e_end =MINVAL(evals(ispin)%array)
-             nstates=COUNT(evals(ispin)%array>e_start+stm_biases(ibias))
-             IF (ionode .AND. e_start+stm_biases(ibias) < e_end) &
-                 WRITE(output_unit,'(T4,A)') "Warning: HOMO+bias below lowest computed occupied MO"
+       nstates = 0
+       state_start=0
+       DO ispin=1,nspin
+          IF (stm_biases(ibias)<0.0_dp) THEN
+             nmo = SIZE(evals(ispin)%array)
+             DO imo =  1,nmo
+               IF(evals(ispin)%array(imo) >(efermi+stm_biases(ibias)) .AND. &
+                  evals(ispin)%array(imo)<= efermi) THEN
+                  IF(nstates(ispin)==0) state_start(ispin) = imo
+                  nstates(ispin) = nstates(ispin)+1
+               END IF
+             END DO 
+             IF (ionode .AND. evals(ispin)%array(1)> efermi+stm_biases(ibias)) &
+                 WRITE(output_unit,'(T4,A)') "Warning: EFermi+bias below lowest computed occupied MO"
           ELSE
-             e_end =MAXVAL(evals(ispin)%array)
-             nstates=COUNT(evals(ispin)%array<e_start+stm_biases(ibias))
-             IF (ionode .AND. e_start+stm_biases(ibias) > e_end) &
-                 WRITE(output_unit,'(T4,A)') "Warning: LUMO+bias above highest computed unoccupied MO"
+             nmo = SIZE(evals(ispin)%array)
+             DO imo =  1,nmo
+               IF(evals(ispin)%array(imo) <=(efermi+stm_biases(ibias)) .AND. &
+                  evals(ispin)%array(imo)> efermi) THEN
+                  IF(nstates(ispin)==0) state_start(ispin) = imo
+                  nstates(ispin) = nstates(ispin)+1
+               END IF
+             END DO 
+             IF (ionode .AND.  evals(ispin)%array(nmo) < efermi+stm_biases(ibias)) &
+                 WRITE(output_unit,'(T4,A)') "Warning: E-Fermi+bias above highest computed unoccupied MO"
           ENDIF
-          istates=istates+nstates
+          istates=istates+nstates(ispin)
        ENDDO
        IF (ionode) WRITE(output_unit,'(T4,A,I0,A)') "Using a total of ",istates," states"
+       IF(istates==0) CYCLE
 
        CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=istates, &
                        template_fmstruct=mo_arrays(1)%matrix%matrix_struct, error=error)
        CALL cp_fm_create(matrix_v,fm_struct_tmp, name="matrix_v",error=error)
+       CALL cp_fm_create(matrix_vf,fm_struct_tmp, name="matrix_vf",error=error)
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+       ALLOCATE(occ_tot(istates),STAT=istat)
 
        ! we sum both alpha and beta electrons together for this density of states
        istates=0
-       DO ispin=1,SIZE(mo_arrays)
-          IF (do_negative) THEN
-             nstates=COUNT(evals(ispin)%array>e_start+stm_biases(ibias))
-             state_start=SIZE(evals(ispin)%array)-nstates+1
+       alpha=1.0_dp
+       IF(nspin==1) alpha=2.0_dp
+       DO ispin=1,nspin
+          CALL cp_fm_to_fm(mo_arrays(ispin)%matrix,matrix_v,nstates(ispin),state_start(ispin),istates+1)
+          CALL cp_fm_to_fm(mo_arrays(ispin)%matrix,matrix_vf,nstates(ispin),state_start(ispin),istates+1)
+          IF (stm_biases(ibias)<0.0_dp) THEN
+            occ_tot(istates+1:istates+nstates(ispin)) = &
+                 occupation(ispin)%array(state_start(ispin):state_start(ispin)-1+nstates(ispin))
           ELSE
-             nstates=COUNT(evals(ispin)%array<e_start+stm_biases(ibias))
-             state_start=1
-          ENDIF
-          CALL cp_fm_to_fm(mo_arrays(ispin)%matrix,matrix_v,nstates,state_start,istates+1)
-          istates=istates+nstates
+            occ_tot(istates+1:istates+nstates(ispin)) = alpha - &
+                 occupation(ispin)%array(state_start(ispin):state_start(ispin)-1+nstates(ispin))
+          END IF
+          istates=istates+nstates(ispin)
        ENDDO
 
-       ! assume integer occupation, and construct the density matrix
-       !FIX IT: the correct occupation numbers should be used
+       CALL cp_fm_column_scale(matrix_vf,occ_tot(1:istates))
        alpha=1.0_dp
-       IF (SIZE(mo_arrays)==1) alpha=2.0_dp
+
        CALL set_matrix(stm_density_ao,0.0_dp)
-       CALL cp_sm_plus_fm_fm_t(stm_density_ao,matrix_v=matrix_v,ncol=istates,&
+       CALL cp_sm_plus_fm_fm_t(stm_density_ao,matrix_v=matrix_v, matrix_g=matrix_vf,ncol=istates,&
                                alpha=alpha,error=error)
 
-!       DO iorb = 0,9
        DO i = 1,SIZE(stm_th_torb)
          iorb=stm_th_torb(i)
          CALL calculate_rho_elec(matrix_p=stm_density_ao,&
@@ -349,6 +393,8 @@ CONTAINS
        END DO
 
        CALL cp_fm_release(matrix_v, error=error)
+       CALL cp_fm_release(matrix_vf, error=error)
+       DEALLOCATE(occ_tot,STAT=istat)
 
     ENDDO
 

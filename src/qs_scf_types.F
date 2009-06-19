@@ -15,6 +15,13 @@ MODULE qs_scf_types
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE f77_blas
+  USE input_constants,                 ONLY: broy_mix,&
+                                             broy_mix_new,&
+                                             kerker_mix,&
+                                             multisec_mix,&
+                                             pulay_mix
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              preconditioner_p_type
@@ -39,14 +46,20 @@ MODULE qs_scf_types
                                 general_diag_method_nr=1,&
                                 special_diag_method_nr=2,&
                                 ot_diag_method_nr=3,&
+                                block_krylov_diag_method_nr=4,&
                                 ot_method_nr=10
+  INTEGER, PARAMETER, PUBLIC :: no_mixing_nr=0, direct_mixing_nr=1,&
+                                 gspace_mixing_nr=2, pulay_mixing_nr=3,&
+                                 broyden_mixing_nr=4, &
+                                 broyden_mixing_new_nr=5,&
+                                 multisecant_mixing_nr=6
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
   PUBLIC :: mixing_storage_create, mixing_storage_type
   PUBLIC :: qs_scf_env_type,qs_outer_scf_type
   PUBLIC :: scf_env_retain, scf_env_release, scf_env_create, scf_env_did_change
-  PUBLIC :: cp_1d_z_p_type
+  PUBLIC :: cp_1d_z_p_type, krylov_space_type, krylov_space_create
 
 ! *****************************************************************************
 !> \brief wrapper for temporary and cached objects used in the scf iteration
@@ -54,27 +67,31 @@ MODULE qs_scf_types
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  TYPE qs_outer_scf_type
-     INTEGER :: iter_count
-     ! these are the variable of outer loop.
-     ! right now, we assume that they can be easily written as
-     ! small arrays, but we might want to go the cp_fm_types
-     ! at a later stage
-     ! also, we just store the full iteration history
-     REAL(KIND=dp), DIMENSION(:), POINTER :: energy
-     REAL(KIND=dp), DIMENSION(:,:), POINTER :: variables
-     REAL(KIND=dp), DIMENSION(:,:), POINTER :: gradient
-     INTEGER, DIMENSION(:), POINTER :: count
-  END TYPE qs_outer_scf_type
+TYPE qs_outer_scf_type
+   INTEGER :: iter_count
+
+   ! these are the variable of outer loop.
+   ! right now, we assume that they can be easily written as
+   ! small arrays, but we might want to go the cp_fm_types
+   ! at a later stage
+   ! also, we just store the full iteration history
+   REAL(KIND=dp), DIMENSION(:), POINTER :: energy
+   REAL(KIND=dp), DIMENSION(:,:), POINTER :: variables
+   REAL(KIND=dp), DIMENSION(:,:), POINTER :: gradient
+   INTEGER, DIMENSION(:), POINTER :: count
+
+END TYPE qs_outer_scf_type
 
   TYPE cp_1d_z_p_type
      COMPLEX(dp), DIMENSION(:), POINTER :: cc
   END TYPE cp_1d_z_p_type
 
   TYPE mixing_storage_type
-     CHARACTER (LEN=15) :: iter_method
-     INTEGER :: ref_count, ncall
+     INTEGER :: ref_count, ncall, nbuffer, n_simple_mix, p_metric_method
      INTEGER, POINTER, DIMENSION(:) :: ig_global_index
+     CHARACTER (len=15) :: iter_method
+     REAL(dp) :: alpha, bconst, beta, broy_w0, pulay_alpha, r_step,&
+                 reg_par, sigma_max, wc, wmax
      REAL(dp), DIMENSION(:), POINTER :: p_metric
      REAL(KIND=dp), DIMENSION(:), POINTER :: kerker_factor
      REAL(dp), DIMENSION(:,:), POINTER :: weight
@@ -82,26 +99,40 @@ MODULE qs_scf_types
      REAL(dp), DIMENSION(:,:,:), POINTER :: fmat, gmat, smat
      TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: last_res
      TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: delta_res, u_vec, z_vec
-     TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: drho_buffer, rhoin_buffer, &
+     TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER ::drho_buffer, rhoin_buffer, &
       res_buffer
   END TYPE mixing_storage_type
 
-  TYPE qs_scf_env_type
-     TYPE(qs_outer_scf_type) :: outer_scf
-     INTEGER :: ref_count, id_nr, print_count, iter_count
-     INTEGER :: cholesky_method, nelectron, method
-     REAL(KIND = dp) :: iter_param, iter_delta
-     CHARACTER (LEN=15) :: iter_method
-     COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
-     LOGICAL :: print_iter_line, skip_mixing, skip_diis
-     TYPE(mixing_storage_type), POINTER :: mixing_store
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
-     TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, s_half, s_minus_one
-     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
-     TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
-     TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
-     TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
-  END TYPE qs_scf_env_type
+  TYPE krylov_space_type
+   INTEGER :: nkrylov, nblock, nmo_conv, nmo_nc, max_iter
+   LOGICAL :: always_check_conv
+   REAL(dp) :: eps_std_diag, eps_conv, eps_adapt, max_res_norm, min_res_norm
+   REAL(dp), DIMENSION(:), POINTER :: c_eval, t_eval
+   TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: v_mat, mo_conv, mo_refine
+   TYPE(cp_fm_type),  POINTER ::  tmp_mat
+!NOTE: the following matrices are small and could be used as standard array rather than istributed fm
+   TYPE(cp_fm_type),  POINTER :: block1_mat, block2_mat, block3_mat, block4_mat, block5_mat
+   TYPE(cp_fm_type),  POINTER ::  c_vec, chc_mat
+  END TYPE
+
+! *****************************************************************************
+TYPE qs_scf_env_type
+   TYPE(qs_outer_scf_type) :: outer_scf
+   INTEGER :: ref_count, id_nr, print_count, iter_count
+   INTEGER :: cholesky_method, nelectron, method, mixing_method, nskip_mixing
+   REAL(KIND = dp) :: iter_param, iter_delta, p_mix_alpha
+   CHARACTER (len=15) :: iter_method
+   COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
+   LOGICAL :: print_iter_line, skip_mixing, skip_diis
+   TYPE(mixing_storage_type), POINTER :: mixing_store
+   TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
+   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, s_half, s_minus_one
+   TYPE(krylov_space_type), POINTER :: krylov_space
+   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
+   TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
+   TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
+   TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
+END TYPE qs_scf_env_type
 
 CONTAINS
 
@@ -147,19 +178,22 @@ CONTAINS
        scf_env%skip_diis=.FALSE.
 
        scf_env%method= -1
+       scf_env%mixing_method = -1
+       scf_env%p_mix_alpha=1.0_dp
+       scf_env%nskip_mixing = 0
        scf_env%cholesky_method = -1
 
        scf_env%outer_scf%iter_count=0
-       NULLIFY (scf_env%outer_scf%variables, &
-                scf_env%outer_scf%gradient,scf_env%outer_scf%energy,&
-                scf_env%outer_scf%count)
+       NULLIFY(scf_env%outer_scf%variables, &
+            scf_env%outer_scf%gradient,scf_env%outer_scf%energy,scf_env%outer_scf%count)
 
-       NULLIFY (scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
-                scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
-                scf_env%scf_diis_buffer)
+       NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
+            scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
+            scf_env%scf_diis_buffer)
        NULLIFY (scf_env%s_half, scf_env%p_delta,  scf_env%s_minus_one)
-       NULLIFY (scf_env%cc_buffer)
-       NULLIFY (scf_env%mixing_store)
+       NULLIFY(scf_env%cc_buffer)
+       NULLIFY(scf_env%mixing_store)
+       NULLIFY(scf_env%krylov_space)
 
     END IF
 
@@ -313,6 +347,9 @@ CONTAINS
            CALL mixing_storage_release(scf_env%mixing_store,error=error)
         END IF
 
+        IF (ASSOCIATED(scf_env%krylov_space)) THEN
+           CALL krylov_space_release(scf_env%krylov_space,error=error)
+        END IF
 
         DEALLOCATE(scf_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -329,8 +366,11 @@ CONTAINS
 !>      05.2009 created [MI]
 !> \author [MI] 
 ! *****************************************************************************
-  SUBROUTINE mixing_storage_create(mixing_store,  error)
+  SUBROUTINE mixing_storage_create(mixing_store,  scf_env, scf_section, mixing_method, error)
     TYPE(mixing_storage_type), POINTER       :: mixing_store
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(section_vals_type), POINTER         :: scf_section
+    INTEGER, INTENT(IN)                      :: mixing_method
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixing_storage_create', &
@@ -347,27 +387,58 @@ CONTAINS
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       IF (.NOT.failure) THEN
 
-        mixing_store%ref_count = 1
-        mixing_store%ncall = 0
+        mixing_store%ref_count=1
+        mixing_store%nbuffer=0
+        mixing_store%n_simple_mix=0
+        mixing_store%ncall=0
+        mixing_store%alpha=1.0_dp
+        mixing_store%beta=1.0_dp
         mixing_store%iter_method = "NoMix"
+     
+        NULLIFY(mixing_store%p_metric)
+        NULLIFY(mixing_store%kerker_factor)
+        NULLIFY(mixing_store%pulay_matrix)
+        NULLIFY(mixing_store%weight)
+        NULLIFY(mixing_store%fmat)
+        NULLIFY(mixing_store%gmat)
+        NULLIFY(mixing_store%smat)
+        NULLIFY(mixing_store%last_res)
+        NULLIFY(mixing_store%delta_res)
+        NULLIFY(mixing_store%u_vec)
+        NULLIFY(mixing_store%z_vec)
+        NULLIFY(mixing_store%drho_buffer)
+        NULLIFY(mixing_store%rhoin_buffer)
+        NULLIFY(mixing_store%res_buffer)
+        NULLIFY(mixing_store%norm_res_buffer)
+        NULLIFY(mixing_store%ig_global_index)
 
-        NULLIFY (mixing_store%p_metric)
-        NULLIFY (mixing_store%kerker_factor)
-        NULLIFY (mixing_store%pulay_matrix)
-        NULLIFY (mixing_store%weight)
-        NULLIFY (mixing_store%fmat)
-        NULLIFY (mixing_store%gmat)
-        NULLIFY (mixing_store%smat)
-        NULLIFY (mixing_store%last_res)
-        NULLIFY (mixing_store%delta_res)
-        NULLIFY (mixing_store%u_vec)
-        NULLIFY (mixing_store%z_vec)
-        NULLIFY (mixing_store%drho_buffer)
-        NULLIFY (mixing_store%rhoin_buffer)
-        NULLIFY (mixing_store%res_buffer)
-        NULLIFY (mixing_store%norm_res_buffer)
-        NULLIFY (mixing_store%ig_global_index)
+        CALL section_vals_val_get(scf_section,"MIXING%ALPHA",r_val=mixing_store%alpha,error=error)
+        CALL section_vals_val_get(scf_section,"MIXING%BETA",r_val=mixing_store%beta,error=error)
+        CALL section_vals_val_get(scf_section,"MIXING%N_SIMPLE_MIX",i_val=mixing_store%n_simple_mix,error=error)
+        CALL section_vals_val_get(scf_section,"MIXING%NBUFFER",i_val=mixing_store%nbuffer,error=error)
 
+        SELECT CASE(mixing_method)
+        CASE(kerker_mix)
+           scf_env%mixing_method=gspace_mixing_nr
+           mixing_store%nbuffer = 1
+        CASE(pulay_mix)
+           scf_env%mixing_method=pulay_mixing_nr
+           CALL section_vals_val_get(scf_section,"MIXING%PULAY_ALPHA",r_val=mixing_store%pulay_alpha,error=error)
+        CASE(broy_mix)
+           scf_env%mixing_method=broyden_mixing_nr
+           CALL section_vals_val_get(scf_section,"MIXING%BROY_W0",r_val=mixing_store%broy_w0,error=error)
+        CASE(broy_mix_new)
+           scf_env%mixing_method=broyden_mixing_new_nr
+           CALL section_vals_val_get(scf_section,"MIXING%BROY_WREF",r_val=mixing_store%wc,error=error)
+           CALL section_vals_val_get(scf_section,"MIXING%BROY_WMAX",r_val=mixing_store%wmax,error=error)
+           scf_env%mixing_store%bconst = 20.0_dp
+           scf_env%mixing_store%p_metric_method=1
+        CASE(multisec_mix)
+           scf_env%mixing_method=multisecant_mixing_nr
+           CALL section_vals_val_get(scf_section,"MIXING%REGOLARIZATION",r_val=mixing_store%reg_par,error=error)
+           CALL section_vals_val_get(scf_section,"MIXING%MAX_STEP",r_val=mixing_store%sigma_max,error=error)
+           CALL section_vals_val_get(scf_section,"MIXING%R_FACTOR",r_val=mixing_store%r_step,error=error)
+        END SELECT
       END IF
     END IF
 
@@ -512,10 +583,120 @@ CONTAINS
         DEALLOCATE(mixing_store, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
+     NULLIFY(mixing_store)
   END IF
 
-  NULLIFY (mixing_store)
+ END SUBROUTINE mixing_storage_release
 
-END SUBROUTINE mixing_storage_release
+! *****************************************************************************
+!> \brief  creates krylov space
+!> \par History
+!>      05.2009 created [MI]
+!> \author [MI] 
+! *****************************************************************************
+ SUBROUTINE krylov_space_create(krylov_space,scf_section, error)
+
+    TYPE(krylov_space_type), POINTER         :: krylov_space
+    TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'krylov_space_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(krylov_space),cp_failure_level,routineP,error,failure)
+    IF(.NOT. failure) THEN
+      ALLOCATE(krylov_space, stat=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      IF (.NOT.failure) THEN
+
+
+        NULLIFY(krylov_space%c_eval,krylov_space%t_eval)
+        NULLIFY(krylov_space%v_mat)
+        NULLIFY(krylov_space%mo_conv, krylov_space%mo_refine)
+        NULLIFY(krylov_space%tmp_mat)
+        NULLIFY(krylov_space%block1_mat, krylov_space%block2_mat) 
+        NULLIFY(krylov_space%block3_mat, krylov_space%block4_mat, krylov_space%block5_mat)
+
+        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%MAX_ITER",&
+             i_val=krylov_space%max_iter,error=error)
+        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%NKRYLOV",&
+             i_val=krylov_space%nkrylov,error=error)
+        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%NBLOCK_KRYLOV",&
+             i_val=krylov_space%nblock,error=error)
+        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_KRYLOV",&
+             r_val=krylov_space%eps_conv,error=error)
+        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_STD_DIAG",&
+             r_val=krylov_space%eps_std_diag,error=error)
+        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ADAPT",&
+             r_val=krylov_space%eps_adapt,error=error)
+        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%CHECK_MOS_CONV",&
+             l_val=krylov_space%always_check_conv,error=error)
+      END IF
+    END IF
+
+ END SUBROUTINE krylov_space_create
+
+! *****************************************************************************
+!> \brief releases krylov space
+!> \par History
+!>      05.2009 created [MI]
+!> \author [MI] 
+! *****************************************************************************
+ SUBROUTINE krylov_space_release(krylov_space,error)
+    TYPE(krylov_space_type), POINTER         :: krylov_space
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'krylov_space_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    IF(ASSOCIATED(krylov_space)) THEN
+
+        DEALLOCATE(krylov_space%c_eval,STAT=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(krylov_space%t_eval,STAT=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+        DO i = 1,SIZE(krylov_space%v_mat)
+          CALL cp_fm_release(krylov_space%v_mat(i)%matrix,error=error)
+        END DO
+        DEALLOCATE(krylov_space%v_mat,STAT=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+        DO i = 1,SIZE(krylov_space%mo_conv)
+          CALL cp_fm_release(krylov_space%mo_conv(i)%matrix,error=error)
+        END DO
+        DEALLOCATE(krylov_space%mo_conv,STAT=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+        DO i = 1,SIZE(krylov_space%mo_refine)
+          CALL cp_fm_release(krylov_space%mo_refine(i)%matrix,error=error)
+        END DO
+        DEALLOCATE(krylov_space%mo_refine,STAT=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+        CALL cp_fm_release(krylov_space%chc_mat,error=error)
+        CALL cp_fm_release(krylov_space%c_vec,error=error)
+        CALL cp_fm_release(krylov_space%tmp_mat,error=error)
+        CALL cp_fm_release(krylov_space%block1_mat,error=error)
+        CALL cp_fm_release(krylov_space%block2_mat,error=error)
+        CALL cp_fm_release(krylov_space%block3_mat,error=error)
+        CALL cp_fm_release(krylov_space%block4_mat,error=error)
+        CALL cp_fm_release(krylov_space%block5_mat,error=error)
+      DEALLOCATE(krylov_space,STAT=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      NULLIFY(krylov_space)
+    END IF
+
+ END SUBROUTINE krylov_space_release
 
 END MODULE qs_scf_types

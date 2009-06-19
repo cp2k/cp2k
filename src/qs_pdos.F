@@ -327,7 +327,7 @@ CONTAINS
                    pdos_array(lshell,kind_number,imo) = &
                         pdos_array(lshell,kind_number,imo) +&
                         vecbuffer(1,irow) * vecbuffer(1,irow) 
-                   IF(add_to_list) pdos_array_list(lcomponent,imo) = &
+                   IF(add_to_list) pdos_array_list(lshell,imo) = &
                              pdos_array_list(lshell,imo) +&
                              vecbuffer(1,irow) * vecbuffer(1,irow) 
                    irow = irow + 1
@@ -478,7 +478,7 @@ CONTAINS
         ELSE
           WRITE (UNIT=iw,FMT=fmtstr2)&
             "#     MO Eigenvalue [a.u.]      Occupation",&
-            (TRIM(l_sym(il)),il=0,maxl)
+            (TRIM(l_sym(il)),il=0,maxl_list)
           DO imo = 1,nmo+nvirt
             WRITE (UNIT=iw,FMT=fmtstr1) imo,eigenvalues(imo),occupation_numbers(imo),&
               (pdos_array_list(lshell,imo),lshell=0,maxl_list)

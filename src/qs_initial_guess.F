@@ -61,7 +61,8 @@ MODULE qs_initial_guess
                                              wfn_restart_file_name
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              simple_eigensolver
-  USE qs_scf_types,                    ONLY: ot_diag_method_nr,&
+  USE qs_scf_types,                    ONLY: block_krylov_diag_method_nr,&
+                                             ot_diag_method_nr,&
                                              qs_scf_env_type
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
@@ -463,13 +464,15 @@ CPSourceFileRef,&
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
-          IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN
+          IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
+               scf_env%method==block_krylov_diag_method_nr ) THEN
              IF (dft_control%restricted.AND.(ispin == 2)) THEN
                 CALL mo_set_restrict(mo_array,error=error)
              ELSE
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                 mo_coeff=mo_coeff,&
-                                nmo=nmo, nelectron=nelectron, maxocc=maxocc)
+                                nmo=nmo, nao=nao, homo=homo)
+                mo_coeff%local_data = 0.0_dp
                 CALL cp_fm_init_random(mo_coeff,nmo,error=error)
                 CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
                 ! multiply times PS
@@ -477,9 +480,9 @@ CPSourceFileRef,&
                    CALL cp_fm_to_fm(mo_coeff,sv,error=error)
                 ELSE
                    ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
-                   CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,NINT(nelectron/maxocc),error=error)
+                   CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
                 END IF
-                CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,NINT(nelectron/maxocc),error=error)
+                CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
                 CALL cp_fm_release(sv,error=error)
                 ! and ortho the result
                 IF (ortho_basis) THEN
@@ -730,13 +733,14 @@ CPSourceFileRef,&
           
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
-          IF (scf_control%use_ot) THEN
+          IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
+               scf_env%method==block_krylov_diag_method_nr ) THEN
              IF (dft_control%restricted.AND.(ispin == 2)) THEN
                 CALL mo_set_restrict(mo_array,error=error)
              ELSE
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                 mo_coeff=mo_coeff,&
-                                nmo=nmo)
+                                nmo=nmo, homo=homo)
                 CALL cp_fm_init_random(mo_coeff,nmo,error=error)
                 CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
                 ! multiply times PS
@@ -746,7 +750,7 @@ CPSourceFileRef,&
                    CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
                 END IF
                 ! here we could easily multiply with the diag that we actually have replicated already
-                CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo,error=error)
+                CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
                 CALL cp_fm_release(sv,error=error)
                 ! and ortho the result
                 IF (ortho_basis) THEN

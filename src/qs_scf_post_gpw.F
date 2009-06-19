@@ -350,6 +350,9 @@ CONTAINS
                   para_env=qs_env%para_env,scr=output_unit, ionode=ionode, do_rotation=.TRUE.,&
                   co_rotate=mo_coeff_deriv,error=error)
 
+                CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
+                IF (ionode) WRITE(output_unit,'(T2,A,F12.6)') "Fermi Energy [eV] :",mos(ispin)%mo_set%mu*evolt
+
                 has_homo=.TRUE.
                 homo_lumo(ispin,1)=mo_eigenvalues(homo)
 
@@ -536,7 +539,7 @@ CPSourceFileRef,&
        IF (has_homo .AND. has_lumo) THEN
          IF (ionode) WRITE(output_unit,*) " "
          DO ispin=1,dft_control%nspins
-             gap = homo_lumo(ispin,2)-homo_lumo(ispin,1)
+             IF(.NOT. scf_control%smear%do_smear) gap = homo_lumo(ispin,2)-homo_lumo(ispin,1)
              IF (ionode) WRITE(output_unit,'(T2,A,F12.6)') "HOMO - LUMO gap [eV] :",gap*evolt
          ENDDO
        ENDIF

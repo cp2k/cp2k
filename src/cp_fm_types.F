@@ -65,7 +65,8 @@ MODULE cp_fm_types
             cp_fm_maxabsrownorm, &     ! find the maximum of the sum of the abs of the elements of a row
             cp_fm_write, &             ! writes lots of information and data (might need further development)
             cp_fm_to_fm,&              ! copy (parts of) a fm to a fm
-            cp_fm_vectorsnorm          ! compute the norm of the column-vectors
+            cp_fm_vectorsnorm,&          ! compute the norm of the column-vectors
+            cp_fm_to_fm_submat          ! copy (parts of) a fm to a fm
 
   INTERFACE cp_fm_to_fm
     MODULE PROCEDURE cp_fm_to_fm_matrix, &  ! a full matrix
@@ -1284,6 +1285,82 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE cp_fm_to_fm_columns
+
+  SUBROUTINE cp_fm_to_fm_submat(msource, mtarget, nrow, ncol, s_firstrow, s_firstcol, t_firstrow, t_firstcol, error)
+
+    TYPE(cp_fm_type), POINTER                :: msource, mtarget
+    INTEGER, INTENT(IN)                      :: nrow, ncol, s_firstrow, &
+                                                s_firstcol, t_firstrow, &
+                                                t_firstcol
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_submat', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, na, nb, ss, ts
+    INTEGER, DIMENSION(9)                    :: desca, descb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
+    TYPE(cp_blacs_env_type), POINTER         :: context
+
+! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    context => msource%matrix_struct%context
+
+    a => msource%local_data
+    b => mtarget%local_data
+
+
+    na = msource%matrix_struct%nrow_global
+    nb = mtarget%matrix_struct%nrow_global
+!    nrow must be <= na and nb
+    CALL cp_assert(nrow<=na, cp_failure_level,&
+           cp_assertion_failed, routineP, &
+           "cannot copy because nrow > number of rows of source matrix"//&
+CPSourceFileRef,&
+           error=error)
+    CALL cp_assert(nrow<=nb, cp_failure_level,&
+           cp_assertion_failed, routineP, &
+           "cannot copy because nrow > number of rows of target matrix"//&
+CPSourceFileRef,&
+           error=error)
+    na = msource%matrix_struct%ncol_global
+    nb = mtarget%matrix_struct%ncol_global
+!    ncol must be <= na_col and nb_col
+    CALL cp_assert(ncol<=na, cp_failure_level,&
+           cp_assertion_failed, routineP, &
+           "cannot copy because nrow > number of rows of source matrix"//&
+CPSourceFileRef,&
+           error=error)
+    CALL cp_assert(ncol<=nb, cp_failure_level,&
+           cp_assertion_failed, routineP, &
+           "cannot copy because nrow > number of rows of target matrix"//&
+CPSourceFileRef,&
+           error=error)
+
+#if defined(__SCALAPACK)
+    desca(:) = msource%matrix_struct%descriptor(:)
+    descb(:) = mtarget%matrix_struct%descriptor(:)
+    DO i=0,ncol-1
+      ss = s_firstcol+i
+      ts = t_firstcol+i
+      CALL pdcopy(nrow,a(1,1),s_firstrow,ss,desca,1,b(1,1),t_firstrow,ts,descb,1)
+    END DO
+#else
+    DO i = 0,ncol-1
+      ss = s_firstcol+i
+      ts = t_firstcol+i
+      CALL dcopy(nrow,a(s_firstrow,ss),1,b(t_firstrow,ts),1)
+    END DO
+#endif
+
+
+    CALL timestop(handle)
+  END SUBROUTINE cp_fm_to_fm_submat
 
 ! *****************************************************************************
   SUBROUTINE cp_fm_add_to_element(matrix,irow_global,icol_global,alpha,error)

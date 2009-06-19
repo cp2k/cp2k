@@ -37,6 +37,7 @@ MODULE qs_scf_post_se
   USE input_constants,                 ONLY: ot_precond_full_all,&
                                              state_loc_all
   USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_lval,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -49,6 +50,7 @@ MODULE qs_scf_post_se
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: evolt
   USE preconditioner_types,            ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -78,6 +80,7 @@ MODULE qs_scf_post_se
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
+                                             set_mo_occupation,&
                                              write_mo_set
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_resp,                         ONLY: resp_fit
@@ -88,7 +91,7 @@ MODULE qs_scf_post_se
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE stm_images,                      ONLY: th_stm_image
+!  USE stm_images,                      ONLY: th_stm_image
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -134,7 +137,7 @@ CONTAINS
     LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, explicit, failure, &
       ionode, my_localized_wfn, p_loc, p_molstates, uniform_occ
     REAL(KIND=dp)                            :: maxocc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
@@ -220,8 +223,8 @@ CONTAINS
        p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        p_loc=p_loc.OR.p_molstates
 
-       CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%STM_BIAS",r_vals=stm_biases,error=error)
-       do_stm=ASSOCIATED(stm_biases)
+       ! Control for STM_BIAS
+       do_stm = section_get_lval(dft_section,"PRINT%MO_CUBES%STM",error=error)
 
        ! Check for cubes MOs and WANNIERS
        do_mo_cubes=BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
@@ -274,6 +277,8 @@ CONTAINS
                   para_env=qs_env%para_env,scr=output_unit, ionode=ionode, do_rotation=.TRUE.,&
                   co_rotate=mo_coeff_deriv,error=error)
 
+                CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
+                IF (ionode) WRITE(output_unit,'(T2,A,F12.6)') "Fermi Energy [eV] :",mos(ispin)%mo_set%mu*evolt
                 ! Prints the cube files of OCCUPIED ORBITALS
                 CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
                      mo_coeff, wf_g, wf_r, particles, homo, ispin, ionode, error=error)
@@ -449,8 +454,11 @@ CPSourceFileRef,&
 
        !stm images
        IF(do_stm)THEN
-         CALL th_stm_image(qs_env, dft_section, particles, unoccupied_orbs, &
-                         unoccupied_evals, error)
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="STM images not implemented for Semi-Empirical calculations!!", &
+            error=error, error_level=cp_warning_level)
+!         CALL th_stm_image(qs_env, dft_section, particles, unoccupied_orbs, &
+!                         unoccupied_evals, error)
        END IF
 
        ! Compute the optical conductivity (needs homos and lumos)

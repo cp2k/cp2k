@@ -106,9 +106,9 @@ CONTAINS
     failure=.FALSE.
     my_invert=.FALSE.
     IF (PRESENT(invert)) my_invert=invert
-    my_p_mix = qs_env%scf_control%mixing%alpha
-    IF (diis.OR.(scf_env%iter_count < qs_env%scf_control%mixing%nskip_mixing)) THEN
-       my_p_mix = 1.0_dp
+    my_p_mix = scf_env%p_mix_alpha
+    IF (diis .OR. scf_env%iter_count<scf_env%nskip_mixing) THEN
+        my_p_mix = 1.0_dp
     END IF
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -166,9 +166,6 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, nao, &
                                                 nelectron, nmo
-    LOGICAL                                  :: use_cho_inverse, &
-                                                use_cho_reduce, &
-                                                use_cho_restore
     REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -194,10 +191,6 @@ CONTAINS
        ENDIF
     ENDIF
 
-    use_cho_reduce = .FALSE.
-    use_cho_restore = .TRUE.
-    use_cho_inverse = .FALSE.
-    
     IF (cholesky_method>cholesky_off) THEN
        SELECT CASE(cholesky_method)
        CASE(cholesky_reduce)

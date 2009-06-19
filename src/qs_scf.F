@@ -42,26 +42,18 @@ MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_symm,&
-                                             cp_fm_triangular_invert,&
-                                             cp_fm_upper_to_full
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_reduce,&
-                                             cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_power,&
-                                             cp_fm_syevd
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+  USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_get_el_struct
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
-                                             cp_fm_create,&
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -71,8 +63,7 @@ MODULE qs_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
-                                             copy_sm_to_fm,&
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_create_matrix_vect,&
@@ -86,16 +77,14 @@ MODULE qs_scf
                                              harris_energy_correction,&
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
-       broy_mix, broy_mix_new, cholesky_inverse, cholesky_off, &
-       cholesky_reduce, cholesky_restore, core_guess, debug_run, &
-       densities_guess, diag_ot, diag_standard, direct_p_mix, general_roks, &
-       high_spin_roks, history_guess, kerker_mix, multisec_mix, &
+       broy_mix, broy_mix_new, cholesky_inverse, cholesky_off, debug_run, &
+       densities_guess, diag_block_krylov, diag_ot, diag_standard, &
+       direct_p_mix, history_guess, kerker_mix, multisec_mix, no_mix, &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_sparse_diag, ot_precond_sparse_firstorder, &
        ot_precond_sparse_kinetic, outer_scf_none, outer_scf_scp, &
-       plus_u_lowdin, pulay_mix, restart_guess, wfi_frozen_method_nr, &
-       wfi_use_guess_method_nr
+       plus_u_lowdin, pulay_mix, wfi_frozen_method_nr, wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -103,8 +92,6 @@ MODULE qs_scf
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_min
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
                                              kcalmol
@@ -116,14 +103,15 @@ MODULE qs_scf
                                              pw_pool_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_diis,                         ONLY: qs_diis_b_clear,&
-                                             qs_diis_b_create,&
-                                             qs_diis_b_step
+                                             qs_diis_b_create
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_reorthogonalize_vectors,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
+                                             mixing_allocate,&
+                                             mixing_init,&
                                              self_consistency_check
   USE qs_initial_guess,                ONLY: calculate_first_density_matrix
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
@@ -147,7 +135,6 @@ MODULE qs_scf
                                              set_mo_set,&
                                              write_mo_set
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner
-  USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                              ot_scf_init,&
                                              ot_scf_mini,&
@@ -160,20 +147,22 @@ MODULE qs_scf
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
-                                             eigensolver,&
-                                             scf_env_density_mixing,&
-                                             simple_eigensolver
+  USE qs_scf_diagonalization,          ONLY: do_block_krylov_diag,&
+                                             do_general_diag,&
+                                             do_ot_diag,&
+                                             do_roks_diag,&
+                                             do_special_diag
+  USE qs_scf_lanczos,                  ONLY: krylov_space_allocate
+  USE qs_scf_methods,                  ONLY: scf_env_density_mixing
   USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
   USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
-  USE qs_scf_types,                    ONLY: general_diag_method_nr,&
-                                             mixing_storage_create,&
-                                             ot_diag_method_nr,&
-                                             ot_method_nr,&
-                                             qs_scf_env_type,&
-                                             scf_env_create,&
-                                             scf_env_release,&
-                                             special_diag_method_nr
+  USE qs_scf_types,                    ONLY: &
+       block_krylov_diag_method_nr, broyden_mixing_new_nr, broyden_mixing_nr, &
+       direct_mixing_nr, general_diag_method_nr, gspace_mixing_nr, &
+       krylov_space_create, mixing_storage_create, multisecant_mixing_nr, &
+       no_mixing_nr, ot_diag_method_nr, ot_method_nr, pulay_mixing_nr, &
+       qs_scf_env_type, scf_env_create, scf_env_release, &
+       special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
                                              wfi_update
@@ -190,8 +179,7 @@ MODULE qs_scf
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type,&
                                              transfer_matrix
-  USE termination,                     ONLY: external_control,&
-                                             stop_program
+  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_restart,                     ONLY: xas_initialize_rho
@@ -280,6 +268,13 @@ CONTAINS
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"DFTB and SE not possible with OT diagonalization",error,failure)
               END IF
+            ELSEIF ( scf_control%diagonalization%method == diag_block_krylov ) THEN
+              scf_env%method=block_krylov_diag_method_nr
+              IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"DFTB and SE not possible with block PF diagonalization",error,failure)
+              END IF
+              CALL krylov_space_create(scf_env%krylov_space, scf_section,error=error)
             ELSE
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"Unknown diagonalization method",error,failure)
@@ -291,17 +286,40 @@ CONTAINS
                   routineP,"OT or DIAGONALIZATION have to be set",error,failure)
           END IF
 
-          IF (scf_control%mixing%do_mixing) CALL mixing_storage_create(scf_env%mixing_store,error=error)
+          SELECT CASE(scf_control%mixing_method)
+          CASE(no_mix)
+             scf_env%mixing_method=no_mixing_nr
+             scf_env%p_mix_alpha = 1.0_dp
+          CASE(direct_p_mix) 
+             scf_env%mixing_method=direct_mixing_nr
+             CALL section_vals_val_get(scf_section,"MIXING%ALPHA",r_val=scf_env%p_mix_alpha,error=error)
+          CASE(kerker_mix,pulay_mix,broy_mix,broy_mix_new,multisec_mix)
+            CALL mixing_storage_create(scf_env%mixing_store, scf_env, scf_section, scf_control%mixing_method, error=error)
+          CASE DEFAULT        
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"Unknown mixing method",error,failure)
+          END SELECT
+          CALL section_vals_val_get(scf_section,"MIXING%NSKIP",i_val=scf_env%nskip_mixing,error=error)
 
           ! Disable DIIS for OT and g-space density mixing methods
-
-          IF ((scf_env%method == ot_method_nr).OR.&
-              (qs_env%scf_control%mixing%method > direct_p_mix)) THEN
-            scf_env%skip_diis = .TRUE.
+          IF( scf_env%method==ot_method_nr ) THEN
+            ! No mixing is used with OT
+             scf_env%mixing_method=no_mixing_nr
+             scf_env%p_mix_alpha = 1.0_dp
+             scf_env%skip_diis = .TRUE.
           END IF
 
-          IF (qs_env%scf_control%mixing%method == direct_p_mix) THEN
-            IF (qs_env%scf_control%eps_diis < qs_env%scf_control%eps_scf) THEN
+          IF(scf_env%mixing_method>direct_mixing_nr) THEN
+            scf_env%skip_diis = .TRUE.
+            scf_env%p_mix_alpha = scf_env%mixing_store%alpha
+            IF(scf_env%mixing_store%beta==0.0_dp) THEN
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                     routineP,"Mixing employing the Kerker damping factor: choose BETA /= 0.0",error,failure)
+            END IF
+          END IF
+
+          IF (scf_env%mixing_method==direct_mixing_nr) THEN
+            IF(qs_env%scf_control%eps_diis<qs_env%scf_control%eps_scf) THEN
               scf_env%skip_diis = .TRUE.
               CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                              "the DIIS scheme is disabled, since EPS_DIIS < EPS_SCF",&
@@ -310,7 +328,6 @@ CONTAINS
           END IF
 
           CALL section_vals_val_get(scf_section,"CHOLESKY",i_val=scf_env%cholesky_method,error=error)
-
        END IF
 
        IF (qs_env%scf_control%max_scf > 0) THEN
@@ -388,8 +405,8 @@ CONTAINS
     INTEGER                                  :: handle, handle2, ispin, &
                                                 iter_count, output_unit, &
                                                 total_steps
-    LOGICAL :: diis_step, energy_only, exit_inner_loop, failure, gapw, &
-      gapw_xc, harris_energy, harris_flag, has_unit_metric, &
+    LOGICAL :: diis_step, do_std_diag, energy_only, exit_inner_loop, failure, &
+      gapw, gapw_xc, harris_energy, harris_flag, has_unit_metric, &
       outer_loop_converged, scp_dft, scp_nddo, use_jacobi
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -589,29 +606,46 @@ CONTAINS
                   cp_to_string(scf_env%method),error,failure)
           CASE(general_diag_method_nr)
              IF (dft_control%roks) THEN
-                CALL qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
+                CALL do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
                                               scf_control,scf_section,diis_step,&
                                               has_unit_metric,error)
              ELSE
-                CALL qs_scf_loop_do_general_diag(scf_env,mos,matrix_ks,&
+                CALL do_general_diag(scf_env,mos,matrix_ks,&
                                                  matrix_s,scf_control,scf_section, &
                                                  diis_step,use_jacobi,error)
              END IF
           CASE(special_diag_method_nr)
              IF (dft_control%roks) THEN
-                CALL qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
+                CALL do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
                                               scf_control,scf_section,diis_step,&
                                               has_unit_metric,error)
              ELSE
-                CALL qs_scf_loop_do_special_diag(scf_env,mos,matrix_ks,&
+                CALL do_special_diag(scf_env,mos,matrix_ks,&
                                                  scf_control,scf_section, &
                                                  diis_step,error)
              END IF
           CASE(ot_diag_method_nr)
              CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
                   routineP,"ROKS with OT diagonalization not possible",error,failure)
-             CALL qs_scf_loop_do_ot_diag(scf_env,mos,matrix_ks,matrix_s,&
-                                         scf_control,scf_section,diis_step,error)
+             CALL do_ot_diag(scf_env,mos,matrix_ks,matrix_s,&
+                                  scf_control,scf_section,diis_step,error)
+          CASE(block_krylov_diag_method_nr)
+             CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
+                  routineP,"ROKS with block PF diagonalization not possible",error,failure)
+             do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
+             IF(do_std_diag .AND.&
+                (scf_env%iter_count==1 .OR. scf_env%iter_delta>scf_env%krylov_space%eps_std_diag)) THEN
+                IF(scf_env%krylov_space%always_check_conv) THEN
+                   CALL do_block_krylov_diag(scf_env,mos,matrix_ks,matrix_s,&
+                                     scf_control, scf_section, check_moconv_only=.TRUE., error=error)
+                END IF
+                CALL do_general_diag(scf_env,mos,matrix_ks,&
+                                                 matrix_s,scf_control,scf_section, &
+                                                 diis_step,use_jacobi,error)
+             ELSE
+               CALL do_block_krylov_diag(scf_env,mos,matrix_ks,matrix_s, &
+                                         scf_control, scf_section, error=error)
+             END IF
           CASE(ot_method_nr)
              ! ***SCP
              IF ( scp_dft ) THEN
@@ -656,18 +690,22 @@ CONTAINS
              END IF
           END IF
 
-          SELECT CASE (scf_control%mixing%method)
-          CASE (direct_p_mix)
-             CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env,&
-                                         scf_env%iter_delta,&
-                                         qs_env=qs_env,&
-                                         diis=diis_step,&
-                                         error=error)
-          CASE (kerker_mix,pulay_mix,broy_mix,broy_mix_new,multisec_mix)
-             !matrix formulation of gspace mixing using the Kerker damping
+          SELECT CASE(scf_env%mixing_method)
+          CASE(direct_mixing_nr)
+             CALL scf_env_density_mixing(scf_env%p_mix_new,&
+                  scf_env, scf_env%iter_delta, qs_env=qs_env, &
+                  diis=diis_step, error=error)
+          CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
+                    broyden_mixing_new_nr,multisecant_mixing_nr)
+!             !matrix formulation of gspace mixing using the Kerker damping
              ! Compute the difference p_out-p_in
              CALL self_consistency_check(qs_env,scf_env,scf_env%p_mix_new,&
-                                         delta=scf_env%iter_delta,error=error)
+                  delta= scf_env%iter_delta, error=error)
+          CASE(no_mixing_nr)
+          CASE DEFAULT
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"unknown scf mixing method: "//&
+                  cp_to_string(scf_env%mixing_method),error,failure)
           END SELECT
 
           t2 = m_walltime()
@@ -675,9 +713,11 @@ CONTAINS
             IF ((ABS(scf_env%iter_delta) < 1.0E-8_dp).OR.&
                 (ABS(scf_env%iter_delta) >= 1.0E5_dp)) THEN
               WRITE (UNIT=output_unit,&
-                     FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,ES14.4,1X,F20.10,1X,ES9.2)")&
-                scf_env%iter_count,TRIM(scf_env%iter_method),scf_env%iter_param,&
-                t2 - t1,scf_env%iter_delta,energy%total,energy%total-energy%tot_old
+                    FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)")&
+                scf_env%iter_count,TRIM(scf_env%iter_method),&
+                scf_env%iter_param,&
+                t2 - t1,scf_env%iter_delta,&
+                energy%total,energy%total-energy%tot_old
             ELSE
               WRITE (UNIT=output_unit,&
                      FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)")&
@@ -686,6 +726,7 @@ CONTAINS
             END IF
           END IF
           energy%tot_old = energy%total
+
 
           IF (harris_flag) THEN
              CALL harris_postprocessing(harris_env, error=error)
@@ -733,21 +774,22 @@ CONTAINS
 
              ! *** mixing methods need to undo mixing of the density matrix 
              !     (restore original density) ***
-             IF (scf_control%mixing%do_mixing) THEN
-                SELECT CASE(scf_control%mixing%method)
-                CASE (direct_p_mix)
-                   CALL scf_env_density_mixing(scf_env%p_mix_new,&
-                                               scf_env,scf_env%iter_delta,&
-                                               qs_env=qs_env,diis=diis_step,&
-                                               invert=.TRUE.,error=error)
+             IF (scf_env%mixing_method>0) THEN
+                SELECT CASE(scf_env%mixing_method)
+                CASE(direct_mixing_nr)
+                  CALL scf_env_density_mixing(scf_env%p_mix_new,&
+                                            scf_env,scf_env%iter_delta,&
+                                            qs_env=qs_env,diis=diis_step,&
+                                            invert=.TRUE.,error=error)
                   DO ispin=1,dft_control%nspins
                      CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
                                           rho%rho_ao(ispin)%matrix,error=error)
                   END DO
-                CASE (kerker_mix,pulay_mix,broy_mix,broy_mix_new,multisec_mix)
-                   DO ispin=1,dft_control%nspins
-                      CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                           rho%rho_ao(ispin)%matrix,error=error)
+                CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
+                      broyden_mixing_new_nr,multisecant_mixing_nr)
+                  DO ispin=1,dft_control%nspins
+                     CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                                        rho%rho_ao(ispin)%matrix,error=error)
                   END DO
                 END SELECT
              ENDIF
@@ -799,7 +841,7 @@ CONTAINS
                t1 = m_walltime()
 
           ! ** mixing methods have the new density matrix in p_mix_new **
-          IF (scf_control%mixing%do_mixing) THEN
+          IF (scf_env%mixing_method>0) THEN
              DO ispin=1,dft_control%nspins
                 CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
                                      rho%rho_ao(ispin)%matrix,error=error)
@@ -809,8 +851,8 @@ CONTAINS
           ! ** update qs_env%rho
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           ! ** Density mixing through density matrix or on the reciprocal space grid (exclusive)
-          IF (scf_control%mixing%method > direct_p_mix) THEN
-             CALL gspace_mixing(scf_env,scf_control,rho,qs_env%para_env,error=error)
+          IF(scf_env%mixing_method>=gspace_mixing_nr) THEN
+             CALL gspace_mixing(scf_env, rho, qs_env%para_env, error=error)
           END IF
           CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
@@ -865,278 +907,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE scf_env_do_scf
-
-! *****************************************************************************
-!> \brief the inner loop of scf, specific to diagonalization with S matrix
-!>       basically, in goes the ks matrix out goes a new p matrix
-!> \par History
-!>      03.2006 created [Joost VandeVondele]
-! *****************************************************************************
-  SUBROUTINE qs_scf_loop_do_general_diag(scf_env,mos,matrix_ks,&
-                                         matrix_s,scf_control,scf_section,&
-                                         diis_step,use_jacobi,error)
-
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
-    TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: scf_section
-    LOGICAL, INTENT(INOUT)                   :: diis_step, use_jacobi
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: ispin
-    LOGICAL                                  :: do_level_shift
-    REAL(kind=dp)                            :: diis_error
-
-    DO ispin=1,SIZE(matrix_ks)
-      CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,&
-                         scf_env%scf_work1(ispin)%matrix,&
-                         error=error)
-    END DO
-
-    IF ((scf_env%iter_count > 1).AND.(.NOT.scf_env%skip_diis)) THEN
-      CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
-                          scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                          scf_control%eps_diis,scf_control%nmixing,&
-                          s_matrix=matrix_s,&
-                          scf_section=scf_section,error=error)
-    ELSE
-      diis_step = .FALSE.
-    END IF
-
-    do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-                      ((scf_control%density_guess == core_guess).OR.&
-                       (scf_env%iter_count > 1)))
-
-    IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
-      use_jacobi = .TRUE.
-    ELSE
-      use_jacobi = .FALSE.
-    END IF
-
-    IF (diis_step) THEN
-      scf_env%iter_param = diis_error
-      IF (use_jacobi) THEN
-        scf_env%iter_method = "DIIS/Jacobi"
-      ELSE
-        scf_env%iter_method = "DIIS/Diag."
-      END IF
-    ELSE
-      IF (scf_control%mixing%method == direct_p_mix) THEN
-        scf_env%iter_param = scf_control%mixing%alpha
-        IF (use_jacobi) THEN
-          scf_env%iter_method = "P_Mix/Jacobi"
-        ELSE
-          scf_env%iter_method = "P_Mix/Diag."
-        END IF
-      ELSE IF (scf_control%mixing%method > direct_p_mix) THEN
-        scf_env%iter_param = scf_control%mixing%alpha
-        IF (use_jacobi) THEN
-          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Jacobi"
-        ELSE
-          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
-        END IF
-      END IF
-    END IF
-
-    scf_env%iter_delta = 0.0_dp
-
-    DO ispin=1,SIZE(matrix_ks)
-      CALL eigensolver(matrix_ks=scf_env%scf_work1(ispin)%matrix,&
-                       mo_set=mos(ispin)%mo_set,&
-                       ortho=scf_env%ortho,&
-                       work=scf_env%scf_work2,&
-                       do_level_shift=do_level_shift,&
-                       level_shift=scf_control%level_shift,&
-                       cholesky_method=scf_env%cholesky_method,&
-                       use_jacobi=use_jacobi,&
-                       jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
-                       error=error)
-      CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                             smear=scf_control%smear,&
-                             error=error)
-      CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin)%matrix,&
-                                    error=error)
-    END DO ! ispin
-
-  END SUBROUTINE qs_scf_loop_do_general_diag
-
-! *****************************************************************************
-!> \brief the inner loop of scf, specific to diagonalization without S matrix
-!>       basically, in goes the ks matrix out goes a new p matrix
-!> \par History
-!>      03.2006 created [Joost VandeVondele]
-! *****************************************************************************
-  SUBROUTINE qs_scf_loop_do_special_diag(scf_env,mos,matrix_ks,scf_control,&
-                                         scf_section,diis_step,error)
-
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
-    TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: scf_section
-    LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: ispin
-    LOGICAL                                  :: do_level_shift, use_jacobi
-    REAL(kind=dp)                            :: diis_error
-
-    DO ispin=1,SIZE(matrix_ks)
-      CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
-    END DO
-    IF ((scf_env%iter_count > 1).AND.(.NOT.scf_env%skip_diis)) THEN
-      CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
-                          scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                          scf_control%eps_diis,scf_control%nmixing,&
-                          scf_section=scf_section,&
-                          error=error)
-    ELSE
-      diis_step = .FALSE.
-    END IF
-
-    IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
-      use_jacobi = .TRUE.
-    ELSE
-      use_jacobi = .FALSE.
-    END IF
-
-    do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-                      ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
-    IF (diis_step) THEN
-      scf_env%iter_param = diis_error
-      IF (use_jacobi) THEN
-        scf_env%iter_method = "DIIS/Jacobi"
-      ELSE
-        scf_env%iter_method = "DIIS/Diag."
-      END IF
-    ELSE
-      IF (scf_control%mixing%method == direct_p_mix) THEN
-        scf_env%iter_param = scf_control%mixing%alpha
-        IF (use_jacobi) THEN
-          scf_env%iter_method = "P_Mix/Jacobi"
-        ELSE
-          scf_env%iter_method = "P_Mix/Diag."
-        END IF
-      ELSE IF (scf_control%mixing%method > direct_p_mix) THEN
-        scf_env%iter_param = scf_control%mixing%alpha
-        IF (use_jacobi) THEN
-          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Jacobi"
-        ELSE
-          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
-        END IF
-      END IF
-    END IF
-    scf_env%iter_delta = 0.0_dp
-
-    DO ispin=1,SIZE(matrix_ks)
-      CALL simple_eigensolver(matrix_ks=scf_env%scf_work1(ispin)%matrix,&
-                              mo_set=mos(ispin)%mo_set,&
-                              work=scf_env%scf_work2,&
-                              do_level_shift=do_level_shift,&
-                              level_shift=scf_control%level_shift,&
-                              use_jacobi=use_jacobi,&
-                              jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
-                              error=error)
-      CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                             smear=scf_control%smear,&
-                             error=error)
-      CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin)%matrix,&
-                                    error=error)
-
-    END DO ! ispin
-
-  END SUBROUTINE qs_scf_loop_do_special_diag
-
-! *****************************************************************************
-!> \brief the inner loop of scf, specific to iterative diagonalization using OT
-!>        with S matrix; basically, in goes the ks matrix out goes a new p matrix
-!> \par History
-!>      10.2008 created [JGH]
-! *****************************************************************************
-  SUBROUTINE qs_scf_loop_do_ot_diag(scf_env,mos,matrix_ks,matrix_s,&
-               scf_control,scf_section,diis_step,error)
-
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
-    TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: scf_section
-    LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: homo, ispin, nmo
-    LOGICAL                                  :: do_level_shift
-    REAL(kind=dp)                            :: diis_error, eps_iter
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-
-    DO ispin=1,SIZE(matrix_ks)
-      CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
-    END DO
-
-    IF ((scf_env%iter_count > 1).AND.(.NOT.scf_env%skip_diis)) THEN
-      CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
-                          scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                          scf_control%eps_diis,scf_control%nmixing,&
-                          s_matrix=matrix_s,&
-                          scf_section=scf_section,error=error)
-    ELSE
-      diis_step = .FALSE.
-    END IF
-
-    do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-                      ((scf_control%density_guess == core_guess).OR.&
-                       (scf_env%iter_count > 1)))
-
-    eps_iter = scf_control%diagonalization%eps_iter
-    IF (diis_step) THEN
-      scf_env%iter_param = diis_error
-      scf_env%iter_method = "DIIS/OTdiag"
-      DO ispin=1,SIZE(matrix_ks)
-        CALL copy_fm_to_sm(scf_env%scf_work1(ispin)%matrix,matrix_ks(ispin)%matrix)
-      END DO
-      eps_iter = MAX(eps_iter,scf_control%diagonalization%eps_adapt*diis_error)
-    ELSE
-      IF (scf_control%mixing%method == direct_p_mix) THEN
-        scf_env%iter_param = scf_control%mixing%alpha
-        scf_env%iter_method = "P_Mix/OTdiag."
-      ELSE IF (scf_control%mixing%method > direct_p_mix) THEN
-        scf_env%iter_param = scf_control%mixing%alpha
-        scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/OTdiag."
-      END IF
-
-    END IF
-
-    scf_env%iter_delta = 0.0_dp
-
-    DO ispin=1,SIZE(matrix_ks)
-       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo,homo=homo)
-       CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix,&
-                           matrix_s=matrix_s(1)%matrix,&
-                           matrix_c=mo_coeff,&
-                           preconditioner=scf_env%ot_preconditioner(1)%preconditioner,&
-                           eps_gradient=eps_iter,&
-                           iter_max=scf_control%diagonalization%max_iter,&
-                           silent=.TRUE.,&
-                           ot_settings=scf_control%diagonalization%ot_settings,&
-                           error=error)
-
-       CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-              para_env=mo_coeff%matrix_struct%para_env, do_rotation = .TRUE., error=error)
-
-       CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
-       CALL calculate_density_matrix(mos(ispin)%mo_set,scf_env%p_mix_new(ispin)%matrix,error=error)
-    END DO
-
-  END SUBROUTINE qs_scf_loop_do_ot_diag
 
 ! *****************************************************************************
 !> \brief the inner loop of scf, specific to using to the orbital transformation method
@@ -1557,7 +1327,7 @@ END SUBROUTINE qs_scf_print_summary
                routineP,"unknown scf method method:"//&
                cp_to_string(scf_env%method),error,failure)
 
-    CASE (general_diag_method_nr,special_diag_method_nr)
+    CASE (general_diag_method_nr,special_diag_method_nr,block_krylov_diag_method_nr)
        IF(.NOT.scf_env%skip_diis) THEN
          IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
             CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
@@ -2119,20 +1889,6 @@ CPSourceFileRef)
       END IF
     END IF
 
-    ! The P_mixing in gspace does not work "yet"
-    ! The matrix formulation of G-space mixing needs S^(-1)
-!    IF (scf_env%mixing_method==gspace_mixing_nr .AND. .FALSE.) THEN
-!      IF (s_minus_half_available) THEN
-!          CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp, &
-!               scf_env%ortho,scf_env%ortho,0.0_dp,scf_env%s_minus_one,&
-!               error=error)
-!      ELSE
-!        CALL copy_sm_to_fm(matrix_s(1)%matrix,scf_env%s_minus_one,error=error)
-!        CALL cp_fm_power(scf_env%s_minus_one,scf_env%scf_work2,-1.0_dp,&
-!                         scf_control%eps_eigval,ndep,error=error)
-!      END IF
-!    END IF
-
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
                extension=".scfLog",error=error)
     IF (output_unit > 0) THEN
@@ -2193,9 +1949,9 @@ CPSourceFileRef)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_check_i_alloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, i, ispin, nao, &
-                                                nbuffer, nhistory, &
-                                                nrow_block, nvariables, stat
+    INTEGER                                  :: handle, homo, ispin, nao, &
+                                                nhistory, nrow_block, &
+                                                nvariables, stat
     LOGICAL                                  :: failure, &
                                                 gth_potential_present, &
                                                 my_transition_potential, &
@@ -2239,7 +1995,6 @@ CPSourceFileRef)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
-         scf_control=scf_control,&
          mos=mos,&
          mos_aux_fit=mos_aux_fit,&
          matrix_ks=matrix_ks,&
@@ -2357,8 +2112,8 @@ CPSourceFileRef)
          ! nothing should be done
       ENDIF
     END IF
-!   *** Allocate the distributed SCF matrices ***
 
+!   *** Allocate the distributed SCF matrices ***
     IF ((.NOT.ASSOCIATED(scf_env%scf_work1)).OR.&
         (.NOT.ASSOCIATED(scf_env%scf_work2)).OR.&
         (.NOT.ASSOCIATED(scf_env%ortho)).OR.&
@@ -2407,6 +2162,7 @@ CPSourceFileRef)
                "WORK_MATRIX-2",&
                error=error)
        END IF
+
        IF (dft_control%dft_plus_u) THEN
          IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
            IF (.NOT.ASSOCIATED(scf_env%scf_work2)) THEN
@@ -2424,16 +2180,6 @@ CPSourceFileRef)
            END IF
          END IF
        END IF
-
-      ! The P_mixing in gspace does not work "yet"
-!.       IF (scf_env%mixing_method==gspace_mixing_nr .AND. .FALSE.) THEN
-! .        IF (.NOT.ASSOCIATED(scf_env%s_minus_one)) THEN
-!  .          CALL cp_fm_create(scf_env%s_minus_one,&
-!                           matrix_struct=ao_ao_fmstruct,&
-!                              name="S**(-1) MATRIX",&
-!                              error=error)
-!         END IF
-!       END IF
 
        CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
 
@@ -2463,102 +2209,13 @@ CPSourceFileRef)
       END IF
     END IF
 
-    IF (scf_control%mixing%do_mixing) THEN
-       ! Allocate p_mix_new
-       IF (.NOT.ASSOCIATED(scf_env%p_mix_new)) THEN
-          CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
-               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY",&
-               error=error)
-       END IF
-       ! Allocate p_delta
-       IF (scf_control%mixing%method > direct_p_mix) THEN
-          IF (.NOT.ASSOCIATED(scf_env%p_delta)) THEN
-             CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_delta,&
-                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                  "DENSITY DIFFERENCE",error=error)
-          END IF
-          CPPrecondition(ASSOCIATED(scf_env%mixing_store),cp_failure_level,routineP,error,failure)
-       END IF
-       ! Allocate buffer for gspace mixing
-       IF (scf_control%mixing%method > direct_p_mix) THEN
-          nbuffer = scf_control%mixing%nbuffer
-          scf_env%mixing_store%ncall = 0
-          IF (.NOT.ASSOCIATED(scf_env%mixing_store%rhoin_buffer)) THEN
-             ALLOCATE (scf_env%mixing_store%rhoin_buffer(nbuffer,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (scf_env%mixing_store%res_buffer(nbuffer,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO ispin=1,dft_control%nspins
-                DO i=1,nbuffer
-                   NULLIFY (scf_env%mixing_store%rhoin_buffer(i,ispin)%cc)
-                   NULLIFY (scf_env%mixing_store%res_buffer(i,ispin)%cc)
-                END DO
-             END DO
-          END IF
-       END IF
-
-       ! Allocate pulay buffer
-       IF (scf_control%mixing%method == pulay_mix) THEN
-          IF (.NOT.ASSOCIATED(scf_env%mixing_store%pulay_matrix)) THEN
-             ALLOCATE (scf_env%mixing_store%pulay_matrix(nbuffer,nbuffer),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-       END IF
-
-       ! Allocate broyden buffer
-       IF (scf_control%mixing%method == broy_mix) THEN
-          IF (.NOT.ASSOCIATED(scf_env%mixing_store%drho_buffer)) THEN
-             ALLOCATE (scf_env%mixing_store%drho_buffer(nbuffer,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (scf_env%mixing_store%last_res(dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO ispin=1,dft_control%nspins
-                DO i=1,nbuffer
-                   NULLIFY (scf_env%mixing_store%drho_buffer(i,ispin)%cc)
-                END DO
-                NULLIFY (scf_env%mixing_store%last_res(ispin)%cc)
-             END DO
-          END IF
-       END IF
-
-       ! Allocate broyden buffer
-       IF (scf_control%mixing%method == broy_mix_new) THEN
-          IF (.NOT.ASSOCIATED(scf_env%mixing_store%u_vec)) THEN
-             ALLOCATE (scf_env%mixing_store%last_res(dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (scf_env%mixing_store%delta_res(nbuffer-1,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (scf_env%mixing_store%u_vec(nbuffer-1,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (scf_env%mixing_store%z_vec(nbuffer-1,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (scf_env%mixing_store%weight(nbuffer,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (scf_env%mixing_store%fmat(nbuffer-1,nbuffer-1,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (scf_env%mixing_store%smat(nbuffer-1,nbuffer-1,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (scf_env%mixing_store%gmat(nbuffer-1,nbuffer-1,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO ispin=1,dft_control%nspins
-                DO i=1,nbuffer-1
-                   NULLIFY (scf_env%mixing_store%delta_res(i,ispin)%cc)
-                   NULLIFY (scf_env%mixing_store%u_vec(i,ispin)%cc)
-                   NULLIFY (scf_env%mixing_store%z_vec(i,ispin)%cc)
-                END DO
-                NULLIFY (scf_env%mixing_store%last_res(ispin)%cc)
-             END DO
-          END IF
-       END IF
-       IF (scf_control%mixing%method == multisec_mix) THEN
-          IF (.NOT.ASSOCIATED(scf_env%mixing_store%norm_res_buffer)) THEN
-             ALLOCATE (scf_env%mixing_store%norm_res_buffer(nbuffer,dft_control%nspins), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-       END IF
+!   *** allocate the mixing storage
+    IF (scf_env%mixing_method>0) THEN
+      CALL mixing_allocate(scf_env,scf_env%mixing_method,scf_env%mixing_store,&
+          S_sm_pools,dft_control%nspins,error)
     END IF
 
-    ! Allocate the ks_env
+!   *** allocate the ks env **
     IF (.NOT.ASSOCIATED(ks_env)) THEN
        CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
        CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
@@ -2570,15 +2227,19 @@ CPSourceFileRef)
     IF (scf_control%outer_scf%have_scf) THEN
        nhistory = scf_control%outer_scf%max_scf + 1
        nvariables = outer_loop_variables_count(scf_control,error)
-       ALLOCATE (scf_env%outer_scf%variables(nvariables,nhistory),STAT=stat)
+       ALLOCATE(scf_env%outer_scf%variables(nvariables,nhistory),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (scf_env%outer_scf%count(nhistory),STAT=stat)
+       ALLOCATE(scf_env%outer_scf%count(nhistory),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       scf_env%outer_scf%count = 0
-       ALLOCATE (scf_env%outer_scf%gradient(nvariables,nhistory),STAT=stat)
+       scf_env%outer_scf%count=0
+       ALLOCATE(scf_env%outer_scf%gradient(nvariables,nhistory),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (scf_env%outer_scf%energy(nhistory),STAT=stat)
+       ALLOCATE(scf_env%outer_scf%energy(nhistory),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    IF(scf_env%method==block_krylov_diag_method_nr ) THEN
+      CALL krylov_space_allocate(scf_env%krylov_space, scf_control, mos, error=error)
     END IF
 
     CALL timestop(handle)
@@ -2604,13 +2265,11 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_initial_rho_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: extrapolation_method_nr, handle, ib, ig, ig_count, iproc, &
-      ispin, istat, nbuffer, ng, nmo, nspin, output_unit
+    INTEGER                                  :: extrapolation_method_nr, &
+                                                handle, ispin, nmo, &
+                                                output_unit
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 orthogonal_wf
-    REAL(dp)                                 :: bconst, beta, fdamp, g2min, &
-                                                kmin
-    REAL(dp), DIMENSION(:), POINTER          :: g2
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -2655,7 +2314,7 @@ CPSourceFileRef)
 
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
-       IF (extrapolation_method_nr == wfi_use_guess_method_nr) THEN
+       IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,error=error)
           IF (.NOT.(qs_env%scf_control%density_guess==densities_guess)) THEN
             CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
@@ -2665,104 +2324,8 @@ CPSourceFileRef)
        END IF
 
        ! Some preparation for the mixing
-       IF (qs_env%scf_control%mixing%method > direct_p_mix) THEN
-          nspin = SIZE(qs_env%rho%rho_g) 
-          ng = SIZE(qs_env%rho%rho_g(1)%pw%pw_grid%gsq,1)
-          IF(.NOT. ASSOCIATED(qs_env%scf_env%mixing_store%kerker_factor)) THEN
-            ALLOCATE(qs_env%scf_env%mixing_store%kerker_factor(ng),STAT=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          g2 => qs_env%rho%rho_g(1)%pw%pw_grid%gsq
-          beta = qs_env%scf_control%mixing%beta
-          kmin = qs_env%scf_control%mixing%kerker_min
-          DO ig=1,ng
-             qs_env%scf_env%mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig) + beta*beta),kmin)
-          END DO
-
-          nbuffer = qs_env%scf_control%mixing%nbuffer
-          DO ispin = 1,nspin
-            IF (.NOT.ASSOCIATED(qs_env%scf_env%mixing_store%rhoin_buffer(1,ispin)%cc)) THEN
-               DO ib = 1,nbuffer
-                  ALLOCATE(qs_env%scf_env%mixing_store%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)  
-                  CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                  ALLOCATE(qs_env%scf_env%mixing_store%res_buffer(ib,ispin)%cc(ng),STAT=istat)  
-                  CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                END DO
-             END IF
-             qs_env%scf_env%mixing_store%rhoin_buffer(1,ispin)%cc(1:ng) = &
-                           qs_env%rho%rho_g(ispin)%pw%cc(1:ng)
-          END DO
-          IF (qs_env%scf_control%mixing%method == kerker_mix) THEN
-          ELSE IF (qs_env%scf_control%mixing%method == pulay_mix) THEN
-          ELSE IF (qs_env%scf_control%mixing%method == broy_mix) THEN
-             DO ispin = 1,nspin
-               IF(.NOT. ASSOCIATED(qs_env%scf_env%mixing_store%drho_buffer(1,ispin)%cc)) THEN
-                 DO ib = 1,nbuffer
-                   ALLOCATE(qs_env%scf_env%mixing_store%drho_buffer(ib,ispin)%cc(ng),STAT=istat)  
-                   CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                 END DO
-                 ALLOCATE(qs_env%scf_env%mixing_store%last_res(ispin)%cc(ng),STAT=istat)  
-                 CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-               END IF
-             END DO
-          ELSE IF (qs_env%scf_control%mixing%method == broy_mix_new) THEN
-             DO ispin = 1,nspin
-               IF (.NOT.ASSOCIATED(qs_env%scf_env%mixing_store%u_vec(1,ispin)%cc)) THEN
-                  DO ib = 1,nbuffer-1
-                    ALLOCATE(qs_env%scf_env%mixing_store%delta_res(ib,ispin)%cc(ng),STAT=istat)  
-                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                    ALLOCATE(qs_env%scf_env%mixing_store%u_vec(ib,ispin)%cc(ng),STAT=istat)  
-                     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                    ALLOCATE(qs_env%scf_env%mixing_store%z_vec(ib,ispin)%cc(ng),STAT=istat)  
-                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                  END DO
-                  ALLOCATE(qs_env%scf_env%mixing_store%last_res(ispin)%cc(ng),STAT=istat)  
-                  CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                  ALLOCATE(qs_env%scf_env%mixing_store%p_metric(ng),STAT=istat)
-                  CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                  IF (qs_env%scf_control%mixing%p_metric_method == 1) THEN
-                    bconst = qs_env%scf_control%mixing%bconst
-                    g2min = 1.0E30_dp
-                    DO ig = 1,ng
-                      IF(g2(ig) > 1.0E-10_dp) g2min = MIN(g2min,g2(ig))
-                    END DO
-                    CALL mp_min(g2min,qs_env%para_env%group)
-                    fdamp = (bconst-1.0_dp)*g2min
-                  ELSE IF (qs_env%scf_control%mixing%p_metric_method == 2) THEN
-                    fdamp = beta*beta
-                  END IF
-                  DO ig = 1,ng
-                      qs_env%scf_env%mixing_store%p_metric(ig) = (g2(ig)+fdamp)/MAX(g2(ig),1.E-10_dp)
-                  END DO
-                  IF(qs_env%rho%rho_g(1)%pw%pw_grid%have_g0) qs_env%scf_env%mixing_store%p_metric(1) = 0.0_dp
-               END IF
-             END DO
-          ELSE IF (qs_env%scf_control%mixing%method == multisec_mix) THEN
-            IF (.NOT.ASSOCIATED(qs_env%scf_env%mixing_store%ig_global_index)) THEN
-               ALLOCATE(qs_env%scf_env%mixing_store%ig_global_index(ng),STAT=istat)
-               CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-            END IF
-            qs_env%scf_env%mixing_store%ig_global_index = 0
-            ig_count = 0
-            DO iproc = 0,qs_env%para_env%num_pe-1
-              IF(qs_env%para_env%mepos == iproc) THEN
-                DO ig = 1,ng
-                   ig_count = ig_count+1
-                   qs_env%scf_env%mixing_store%ig_global_index(ig) = ig_count
-                END DO
-      !dbg
-!        write(*,'(5I8)') iproc, ng, qs_env%scf_env%mixing_store%ig_global_index(1), &
-!                        qs_env%scf_env%mixing_store%ig_global_index(ng), &
-!                         qs_env%rho%rho_g(1)%pw%pw_grid%ngpts
-      !dbg
-              END IF
-              CALL mp_bcast(ig_count,iproc,qs_env%para_env%group)
-            END DO
-      !dbg
-!            write(*,*) qs_env%para_env%mepos, ig_count 
-!            stop 'count'
-      !dbg
-          END IF
+       IF(qs_env%scf_env%mixing_method>1) THEN
+          CALL mixing_init(qs_env%scf_env%mixing_method,qs_env%rho,qs_env%scf_env%mixing_store,qs_env%para_env,error=error)
        END IF
 
 ! *** SCP
@@ -2848,6 +2411,8 @@ CPSourceFileRef)
           !
        CASE(special_diag_method_nr)
           !
+       CASE(block_krylov_diag_method_nr)
+          !
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
@@ -2912,6 +2477,7 @@ CPSourceFileRef)
           !
        CASE(special_diag_method_nr)
           !
+       CASE(block_krylov_diag_method_nr)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
@@ -2923,278 +2489,5 @@ CPSourceFileRef)
     CALL timestop(handle)
 
   END SUBROUTINE cleanup_scf_loop
-
-! *****************************************************************************
-  SUBROUTINE qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
-                                      scf_control,scf_section,diis_step,&
-                                      orthogonal_basis,error)
-
-    ! Solve a set restricted open Kohn-Sham (ROKS) equations based on the
-    ! alpha and beta Kohn-Sham matrices from unrestricted Kohn-Sham.
-    ! Note, this is only a high-spin ROKS.
-
-    ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
-    !             - M. F. Guest and V. R. Saunders, Mol. Phys. 28(3), 819 (1974)
-    !             - M. Filatov and S. Shaik, Chem. Phys. Lett. 288, 689 (1998)
-
-    ! - Creation (05.04.06,MK)
-    ! - Revised (01.05.06,MK)
-
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
-    TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: scf_section
-    LOGICAL, INTENT(INOUT)                   :: diis_step
-    LOGICAL, INTENT(IN)                      :: orthogonal_basis
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_roks_diag', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, homoa, homob, imo, &
-                                                nalpha, nao, nbeta, nmo
-    REAL(KIND=dp)                            :: diis_error, level_shift_loc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eiga, eigb, occa, occb
-    TYPE(cp_fm_type), POINTER                :: ksa, ksb, mo2ao, moa, mob, &
-                                                ortho, work
-
-    CALL timeset(routineN,handle)
-
-    ortho => scf_env%ortho
-    work  => scf_env%scf_work2
-
-    ksa => scf_env%scf_work1(1)%matrix
-    ksb => scf_env%scf_work1(2)%matrix
-
-    CALL copy_sm_to_fm(matrix_ks(1)%matrix,ksa,error=error)
-    CALL copy_sm_to_fm(matrix_ks(2)%matrix,ksb,error=error)
-
-    ! Get MO information
-
-    CALL get_mo_set(mo_set=mos(1)%mo_set,&
-                    nao=nao,&
-                    nmo=nmo,&
-                    nelectron=nalpha,&
-                    homo=homoa,&
-                    eigenvalues=eiga,&
-                    occupation_numbers=occa,&
-                    mo_coeff=moa)
-
-    CALL get_mo_set(mo_set=mos(2)%mo_set,&
-                    nelectron=nbeta,&
-                    homo=homob,&
-                    eigenvalues=eigb,&
-                    occupation_numbers=occb,&
-                    mo_coeff=mob)
-
-    ! Define the amount of level-shifting
-
-    IF ((scf_control%level_shift /= 0.0_dp).AND.&
-        ((scf_control%density_guess == core_guess).OR.&
-         (scf_control%density_guess == restart_guess).OR.&
-         (scf_env%iter_count > 1))) THEN
-      level_shift_loc = scf_control%level_shift
-    ELSE
-      level_shift_loc = 0.0_dp
-    END IF
-
-    IF ((scf_env%iter_count > 1).OR.&
-        (scf_control%density_guess == core_guess).OR.&
-        (scf_control%density_guess == restart_guess)) THEN
-
-      ! Transform the spin unrestricted alpha and beta Kohn-Sham matrices
-      ! from AO basis to MO basis: K(MO) = C(T)*K(AO)*C
-
-      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work,error=error)
-      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa,error=error)
-
-      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksb,moa,0.0_dp,work,error=error)
-      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksb,error=error)
-
-      ! Combine the spin unrestricted alpha and beta Kohn-Sham matrices
-      ! in the MO basis
-
-      IF (scf_control%roks_scheme == general_roks) THEN
-        CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_f,&
-                                 nalpha,nbeta,error=error)
-      ELSE IF (scf_control%roks_scheme == high_spin_roks) THEN
-        CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_parameter,&
-                                 error=error)
-      ELSE
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Unknown ROKS scheme requested")
-      END IF
-
-      ! Back-transform the restricted open Kohn-Sham matrix from MO basis
-      ! to AO basis
-
-      IF (orthogonal_basis) THEN
-        ! Q = C
-        mo2ao => moa
-      ELSE
-        ! Q = S*C
-        mo2ao => mob
-!MK     CALL copy_sm_to_fm(matrix_s(1)%matrix,work)
-!MK     CALL cp_fm_symm("L","U",nao,nao,1.0_dp,work,moa,0.0_dp,mo2ao)
-        CALL cp_sm_fm_multiply(matrix_s(1)%matrix,moa,mo2ao,nao,error=error)
-      END IF
-
-      ! K(AO) = Q*K(MO)*Q(T)
-
-      CALL cp_fm_gemm("N","T",nao,nao,nao,1.0_dp,ksa,mo2ao,0.0_dp,work,error=error)
-      CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,mo2ao,work,0.0_dp,ksa,error=error)
-
-    ELSE
-
-      ! No transformation matrix available, yet. The closed shell part,
-      ! i.e. the beta Kohn-Sham matrix in AO basis, is taken.
-      ! There might be better choices, anyhow.
-
-      CALL cp_fm_to_fm(ksb,ksa,error=error)
-
-    END IF
-
-    ! Update DIIS buffer and possibly perform DIIS extrapolation step
-
-    IF (scf_env%iter_count > 1) THEN
-      IF (orthogonal_basis) THEN
-        CALL qs_diis_b_step(diis_buffer=scf_env%scf_diis_buffer,&
-                            mo_array=mos,&
-                            kc=scf_env%scf_work1,&
-                            sc=work,&
-                            delta=scf_env%iter_delta,&
-                            error_max=diis_error,&
-                            diis_step=diis_step,&
-                            eps_diis=scf_control%eps_diis,&
-                            scf_section=scf_section,&
-                            roks=.TRUE.,&
-                            error=error)
-      ELSE
-        CALL qs_diis_b_step(diis_buffer=scf_env%scf_diis_buffer,&
-                            mo_array=mos,&
-                            kc=scf_env%scf_work1,&
-                            sc=work,&
-                            delta=scf_env%iter_delta,&
-                            error_max=diis_error,&
-                            diis_step=diis_step,&
-                            eps_diis=scf_control%eps_diis,&
-                            scf_section=scf_section,&
-                            s_matrix=matrix_s,&
-                            roks=.TRUE.,&
-                            error=error)
-      END IF
-    END IF
-
-    IF (diis_step) THEN
-      scf_env%iter_param = diis_error
-      scf_env%iter_method = "DIIS/Diag."
-    ELSE
-      IF (scf_control%mixing%method == direct_p_mix) THEN
-        scf_env%iter_param = scf_control%mixing%alpha
-        scf_env%iter_method = "P_Mix/Diag."
-      ELSE IF (scf_control%mixing%method > direct_p_mix) THEN
-        scf_env%iter_param = scf_control%mixing%alpha
-        scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
-      END IF
-    END IF
-
-    scf_env%iter_delta = 0.0_dp
-
-    IF (level_shift_loc /= 0.0_dp) THEN
-
-      ! Transform the current Kohn-Sham matrix from AO to MO basis
-      ! for level-shifting using the current MO set
-
-      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work,error=error)
-      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa,error=error)
-
-      ! Apply level-shifting using 50:50 split of the shift (could be relaxed)
-
-      DO imo=homob+1,homoa
-        CALL cp_fm_add_to_element(ksa,imo,imo,0.5_dp*level_shift_loc,error)
-      END DO
-      DO imo=homoa+1,nmo
-        CALL cp_fm_add_to_element(ksa,imo,imo,level_shift_loc,error)
-      END DO
-
-    ELSE IF (.NOT.orthogonal_basis) THEN
-
-      ! Transform the current Kohn-Sham matrix to an orthogonal basis
-      SELECT CASE(scf_env%cholesky_method)
-      CASE(cholesky_reduce)
-        CALL cp_fm_cholesky_reduce(ksa,ortho,error=error)
-      CASE(cholesky_restore)
-         CALL cp_fm_upper_to_full(ksa,work,error=error)
-         CALL cp_fm_cholesky_restore(ksa,nao,ortho,work,&
-                "SOLVE",pos="RIGHT",error=error)
-         CALL cp_fm_cholesky_restore(work,nao,ortho,ksa,&
-               "SOLVE",pos="LEFT",transa="T",error=error)
-      CASE(cholesky_inverse)
-         CALL cp_fm_upper_to_full(ksa,work,error=error)
-         CALL cp_fm_cholesky_restore(ksa,nao,ortho,work,&
-                "MULTIPLY",pos="RIGHT",error=error)
-         CALL cp_fm_cholesky_restore(work,nao,ortho,ksa,&
-               "MULTIPLY",pos="LEFT",transa="T",error=error)
-      CASE(cholesky_off)
-        CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work,error=error)
-        CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa,error=error)
-      END SELECT
-
-    END IF
-
-    ! Diagonalization of the ROKS operator matrix
-
-    CALL cp_fm_syevd(ksa,work,eiga,error=error)
-
-    ! Back-transformation of the orthonormal eigenvectors if needed
-
-    IF (level_shift_loc /= 0.0_dp) THEN
-      ! Use old MO set for back-transformation if level-shifting was applied
-      CALL cp_fm_to_fm(moa,ortho,error=error)
-      CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
-    ELSE
-      IF (orthogonal_basis) THEN
-        CALL cp_fm_to_fm(work,moa,error=error)
-      ELSE
-        SELECT CASE(scf_env%cholesky_method)
-        CASE(cholesky_reduce,cholesky_restore)
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"SOLVE",error=error)
-        CASE(cholesky_inverse)
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"MULTIPLY",error=error)
-        CASE(cholesky_off) 
-          CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa,error=error)
-        END SELECT
-      END IF
-    END IF
-
-    ! Correct MO eigenvalues, if level-shifting was applied
-
-    IF (level_shift_loc /= 0.0_dp) THEN
-      DO imo=homob+1,homoa
-        eiga(imo) = eiga(imo) - 0.5_dp*level_shift_loc
-      END DO
-      DO imo=homoa+1,nmo
-        eiga(imo) = eiga(imo) - level_shift_loc
-      END DO
-    END IF
-
-    ! Update also the beta MO set
-
-    eigb(:) = eiga(:)
-    CALL cp_fm_to_fm(moa,mob,error=error)
-
-    ! Calculate the new alpha and beta density matrix
-
-    CALL calculate_density_matrix(mos(1)%mo_set,scf_env%p_mix_new(1)%matrix,&
-                                  error=error)
-    CALL calculate_density_matrix(mos(2)%mo_set,scf_env%p_mix_new(2)%matrix,&
-                                  error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE qs_scf_loop_do_roks_diag
 
 END MODULE qs_scf

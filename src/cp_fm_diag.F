@@ -623,7 +623,7 @@ CONTAINS
   END SUBROUTINE cp_fm_syevr
 
 ! *****************************************************************************
-  SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,error)
+  SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,verbose,error)
 
    ! Raise the real symmetric n by n matrix to the power given by
    ! exponent. All eigenvectors with a corresponding eigenvalue lower
@@ -635,16 +635,17 @@ CONTAINS
    TYPE(cp_fm_type), POINTER                 :: matrix,work
    REAL(KIND = dp), INTENT(IN)               :: exponent,threshold
    INTEGER, INTENT(OUT)                      :: n_dependent
+   LOGICAL, INTENT(IN), OPTIONAL             :: verbose
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_power', &
       routineP = moduleN//':'//routineN
 
-   REAL(KIND = dp) :: condition_number,f,p
    INTEGER         :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
                       irow_local,istat,mypcol,myprow,ncol_block,ncol_global,npcol,&
                       nprow,nrow_block,nrow_global
-
+   LOGICAL :: my_verbose
+   REAL(KIND = dp) :: condition_number,f,p
    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: eigenvalues
    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: eigenvectors
    TYPE(cp_blacs_env_type), POINTER           :: context
@@ -655,6 +656,9 @@ CONTAINS
     ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
+
+    my_verbose = .FALSE.
+    IF(PRESENT(verbose)) my_verbose = verbose
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -764,7 +768,7 @@ CONTAINS
 
     ! Print some warnings/notes
 
-    IF (matrix%matrix_struct%para_env%mepos == 0) THEN
+    IF (matrix%matrix_struct%para_env%mepos == 0 .AND. my_verbose) THEN
       condition_number = ABS(eigenvalues(ncol_global)/eigenvalues(1))
       WRITE (UNIT=cp_logger_get_default_unit_nr(),FMT="(/,(T2,A,ES15.6))")&
         "CP_FM_POWER: smallest eigenvalue:",eigenvalues(1),&

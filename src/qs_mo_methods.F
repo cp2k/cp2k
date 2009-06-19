@@ -12,7 +12,6 @@
 MODULE qs_mo_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
                                              cp_fm_syrk,&
                                              cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -242,7 +241,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(fm_struct_tmp)
-    threshold = 1.0E-5_dp
+    threshold = 1.0E-7_dp
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
 
@@ -260,7 +259,7 @@ CONTAINS
     CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,sc,rzero, csc,error=error)
     CALL cp_fm_power(csc,work,-0.5_dp, threshold,ndep,error=error)
     CALL cp_fm_gemm('N','N',n,ncol,ncol,rone,vmatrix,csc,rzero,sc,error=error)
-    CALL cp_fm_scale_and_add(rzero, vmatrix, rone, sc, error=error)
+    CALL cp_fm_to_fm(sc, vmatrix, ncol, 1,1)
 
     CALL cp_fm_release(csc,error=error)
     CALL cp_fm_release(sc,error=error)

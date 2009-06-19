@@ -388,7 +388,7 @@ MODULE input_constants
                                               ot_precond_solver_sainv=4
                                            
   INTEGER, PARAMETER, PUBLIC               :: diag_standard=1,&
-                                              diag_ot=2
+                                              diag_ot=2, diag_block_krylov=3
 
   INTEGER, PARAMETER,PUBLIC                :: dyn_coeff_mass_global=1,&
                                               dyn_coeff_mass_kind=2,&
