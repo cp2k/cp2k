@@ -58,6 +58,10 @@ MODULE dbcsr_operations
 
   PRIVATE
 
+  INTERFACE dbcsr_trace
+     MODULE PROCEDURE dbcsr_trace_a, dbcsr_trace_ab
+  END INTERFACE
+
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
 #define DBGI IF (info) WRITE(*,*)routineN//" ",
@@ -872,12 +876,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     IF(.NOT.PRESENT(alpha_scalar).AND.&
        .NOT.PRESENT(alpha_vector).AND.&
        .NOT.PRESENT(scale_column)) THEN
-       CALL stop_program("dbcsr_scale","missing an argument...")
+       CALL stop_program(routineN,"missing an argument...")
     ENDIF
     !
     ! check if we have too many infos
     IF(PRESENT(alpha_scalar).AND.PRESENT(alpha_vector)) THEN
-       CALL stop_program("dbcsr_scale","incompatible arguments...")
+       CALL stop_program(routineN,"incompatible arguments...")
     ENDIF
     !
     !
@@ -895,7 +899,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              !a_data = a_data * alpha_scalar
              CALL dscal(a_nze,alpha_scalar,a_data(1),1)
           ELSEIF(PRESENT(alpha_vector)) THEN
-             CALL stop_program("dbcsr_scale","NYI")
+             CALL stop_program(routineN,"NYI")
              IF(my_scale_column) THEN
                 !col_global = ...
                 !DO col = 1,a_col_size
@@ -910,7 +914,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 !ENDDO
              ENDIF
           ELSE
-             CALL stop_program("dbcsr_scale","wrong logic")
+             CALL stop_program(routineN,"wrong logic")
           ENDIF
        ENDDO ! a_col
     ENDDO ! a_row
@@ -924,12 +928,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[out] trace         the trace of the matrix
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_trace(matrix_a, trace, error)
+  SUBROUTINE dbcsr_trace_a(matrix_a, trace, error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
     REAL(dp), INTENT(INOUT)                  :: trace
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a_blk, a_col, a_col_size, &
@@ -953,11 +957,11 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           a_col = matrix_a%col_i(a_blk)
           IF(a_col.ne.a_row) CYCLE
           a_col_size = col_blk_size(a_col)
-          IF(a_row_size.NE.a_col_size) CALL stop_program("dbcsr_trace","is that a square matrix?")
+          IF(a_row_size.NE.a_col_size) CALL stop_program(routineN,"is that a square matrix?")
           a_nze = a_row_size**2
           a_data => matrix_a%data(ABS(matrix_a%blk_p(a_blk)):ABS(matrix_a%blk_p(a_blk))+a_nze-1)
           !
-          ! let's trace the blockw
+          ! let's trace the block
           DO row = 1,a_row_size
              trace = trace + a_data((row-1)*a_row_size+row)
           ENDDO
@@ -969,6 +973,96 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_trace
+  END SUBROUTINE dbcsr_trace_a
+
+! *****************************************************************************
+!> \brief traces a product of DBCSR matrices
+!> \param[in] matrix_a,matrix_b  DBCSR matrices
+!> \param[out] trace             the trace of the product of the matrices
+!> \param[in] trans_a            (optional) is matrix_a transposed or not?
+!> \param[in] trans_b            (optional) is matrix_b transposed or not?
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_trace_ab(matrix_a, matrix_b, trace, trans_a, trans_b, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a, matrix_b
+    REAL(dp), INTENT(INOUT)                  :: trace
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_ab', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=1)                         :: my_trans_a, my_trans_b
+    INTEGER :: a_blk, a_col, a_col_size, a_row_size, b_blk, b_col, &
+      b_col_size, b_last_blk, b_row_size, nze, row, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
+                                                a_row_blk_size, &
+                                                b_col_blk_size, b_row_blk_size
+    LOGICAL                                  :: found
+    REAL(dp), DIMENSION(:), POINTER          :: a_data, b_data
+    REAL(dp), EXTERNAL                       :: DDOT
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    a_row_blk_size => array_data (matrix_a%row_blk_size)
+    a_col_blk_size => array_data (matrix_a%col_blk_size)
+    b_row_blk_size => array_data (matrix_b%row_blk_size)
+    b_col_blk_size => array_data (matrix_b%col_blk_size)
+    
+    my_trans_a = 'T'
+    IF(PRESENT(trans_a)) my_trans_a = trans_a
+    my_trans_b = 'N'
+    IF(PRESENT(trans_b)) my_trans_b = trans_b
+    IF(my_trans_a.NE.'T'.OR.my_trans_b.NE.'N') CALL stop_program(routineN,"NYI")
+    !
+    ! let's go
+    trace = 0.0_dp
+    IF(matrix_a%nblkrows_total.NE.matrix_b%nblkrows_total) THEN
+       CALL stop_program(routineN,"matrices not consistent")
+    ENDIF
+    DO row = 1, matrix_a%nblkrows_total
+       a_row_size = a_row_blk_size(row)
+       b_row_size = b_row_blk_size(row)
+       IF(a_row_size.NE.b_row_size) CALL stop_program(routineN,"matrices not consistent")
+       b_blk = matrix_b%row_p(row)+1
+       b_last_blk = matrix_b%row_p(row+1)
+       DO a_blk = matrix_a%row_p(row)+1,matrix_a%row_p(row+1)
+          a_col = matrix_a%col_i(a_blk)
+          a_col_size = a_col_blk_size(a_col)
+          !
+          ! find the b_blk we assume here that the colums are ordered !
+          found = .FALSE.
+          DO
+             IF(b_blk.GT.b_last_blk) EXIT
+             b_col = matrix_b%col_i(b_blk)
+             IF(b_col.EQ.a_col) THEN
+                found = .TRUE.
+                EXIT
+             ENDIF
+             b_blk = b_blk+1
+          ENDDO
+          IF(.NOT.found) CYCLE
+          !
+          b_col_size = b_col_blk_size(b_col)
+          IF(a_col_size.NE.b_col_size) CALL stop_program(routineN,"matrices not consistent")
+          !
+          nze = a_row_size*a_col_size
+          a_data => matrix_a%data(ABS(matrix_a%blk_p(a_blk)):ABS(matrix_a%blk_p(a_blk))+nze-1)
+          b_data => matrix_b%data(ABS(matrix_b%blk_p(b_blk)):ABS(matrix_b%blk_p(b_blk))+nze-1)
+          !
+          ! let's trace the blocks
+          !trace = trace + DOT_PRODUCT(a_data,b_data)
+          trace = trace + ddot(nze,a_data(1),1,b_data(1),1)
+       ENDDO ! a_col
+    ENDDO ! a_row
+    !
+    ! summe
+    CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_trace_ab
 
 END MODULE dbcsr_operations

@@ -296,6 +296,13 @@ CONTAINS
        WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')"DBCSR Sx checksum", checksum,&
             " time ", newtime
     ENDIF
+    !
+    ! check trace(c'*s*c)
+    CALL dbcsr_trace(matrix_b, matrix_c, trace, error=error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR trace(C'*S*C)", trace
+    ENDIF
+
     CALL dbcsr_destroy (matrix_b, error)
     CALL dbcsr_init (matrix_b, error)
     CALL dbcsr_destroy (matrix_c, error)
