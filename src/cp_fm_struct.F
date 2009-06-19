@@ -717,17 +717,25 @@ SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
     para_env => struct%para_env
 
     IF(col)THEN
-       nblocks=CEILING(ncol_global/REAL(ncol_block,dp))
-       nfilled=MOD(nblocks,nprocs_col)
-       nempty=MOD(nprocs_col-nfilled,nprocs_col)
-       newdim_col=2*ncol_global+nempty*ncol_block
+       IF(ncol_global==0)THEN
+          newdim_col=0 
+       ELSE
+          nblocks=CEILING(ncol_global/REAL(ncol_block,dp))
+          nfilled=MOD(nblocks,nprocs_col)
+          nempty=MOD(nprocs_col-nfilled,nprocs_col)
+          newdim_col=2*ncol_global+nempty*ncol_block
+       END IF
     END IF
 
     IF(row)THEN
-       nblocks=CEILING(nrow_global/REAL(nrow_block,dp))
-       nfilled=MOD(nblocks,nprocs_row)
-       nempty=MOD(nprocs_row-nfilled,nprocs_row)
-       newdim_row=2*nrow_global+nempty*nrow_block
+       IF(ncol_global==0)THEN
+          newdim_row=0
+       ELSE
+          nblocks=CEILING(nrow_global/REAL(nrow_block,dp))
+          nfilled=MOD(nblocks,nprocs_row)
+          nempty=MOD(nprocs_row-nfilled,nprocs_row)
+          newdim_row=2*nrow_global+nempty*nrow_block
+       END IF
     END IF
 
 
@@ -735,6 +743,8 @@ SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
          context=context,&
          nrow_global=newdim_row,&
          ncol_global=newdim_col,&
+         ncol_block=ncol_block,&
+         nrow_block=nrow_block,&
          error=error)
 
   END SUBROUTINE cp_fm_struct_double
