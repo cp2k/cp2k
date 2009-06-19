@@ -1,0 +1,97 @@
+&GLOBAL
+  PROJECT  si8_broy_kry
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE GEO_OPT
+  FLUSH_SHOULD_FLUSH
+&END GLOBAL
+
+&MOTION
+   &GEO_OPT
+      MAX_ITER 2
+      OPTIMIZER BFGS
+   &END
+&END
+
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    RESTART_FILE_NAME  si8_broy_kry-RESTART.wfn
+    &MGRID
+      NGRIDS 4
+      CUTOFF 40
+    &END MGRID
+    &QS
+      METHOD GPW
+      MAP_CONSISTENT
+      EXTRAPOLATION PS
+      EXTRAPOLATION_ORDER 2
+    &END QS
+    &SCF
+      SCF_GUESS RESTART
+      MAX_SCF   5
+      EPS_SCF 1.0e-7
+      EPS_DIIS 1.0e-7
+      CHOLESKY INVERSE
+      &DIAGONALIZATION
+        ALGORITHM LANCZOS
+        NKRYLOV 8
+        NBLOCK_KRYLOV 1
+        MAX_ITER 20
+        EPS_KRYLOV 1.E-9
+        EPS_ADAPT  0.0001
+      &END DIAGONALIZATION
+
+      &SMEAR
+        METHOD FERMI_DIRAC 
+        ELECTRONIC_TEMPERATURE   300.
+      &END
+      &MIXING
+          METHOD BROYDEN_MIXING
+          ALPHA   0.6
+          BETA   1.0
+          NBROYDEN 15
+      &END
+      ADDED_MOS   20 20
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+      &MO
+        &EACH
+          QS_SCF 100
+        &END
+        EIGENVALUES
+        OCCUPATION_NUMBERS
+      &END
+##      &MO_CUBES
+##        NHOMO  64
+##        NLUMO 20
+##        WRITE_CUBE F
+##      &END
+    &END
+  &END DFT
+
+  &SUBSYS
+    &CELL
+       ABC   5.42858871335 5.42858871335 5.42858871335
+    &END CELL
+
+    &KIND  Si
+      BASIS_SET  DZVP-GTH
+      POTENTIAL  GTH-PBE-q4
+    &END
+
+    &TOPOLOGY
+      COORD_FILE_NAME ./SI_8.xyz 
+      COORDINATE XYZ
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+
+  &END SUBSYS
+&END FORCE_EVAL
+
