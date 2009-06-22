@@ -38,7 +38,7 @@
 PROGRAM cp2k
   USE cp2k_info,         ONLY : print_cp2k_license,&
                                 cp2k_version,&
-                                id_cp2k_version
+                                id_cp2k_version, get_runtime_info
   USE cp2k_runs,         ONLY : write_cp2k_html_manual, &
                                 write_xml_file, run_input
   USE input_constants,   ONLY : id_development_version
@@ -63,6 +63,9 @@ PROGRAM cp2k
 
   ! output goes to the screen by default
   output_unit=default_output_unit
+
+  ! get runtime information
+  CALL get_runtime_info
 
   ! do the initial setup of cp2k, provides a default_para_env
   CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)

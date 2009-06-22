@@ -14,14 +14,10 @@
 MODULE environment
   USE bibliography,                    ONLY: Frigo2005,&
                                              cite_reference
-  USE cp2k_info,                       ONLY: compile_arch,&
-                                             compile_date,&
-                                             compile_host,&
-                                             compile_lastcvs,&
-                                             cp2k_home,&
-                                             cp2k_version,&
-                                             cp2k_year,&
-                                             id_cp2k_version
+  USE cp2k_info,                       ONLY: &
+       compile_arch, compile_date, compile_host, compile_lastcvs, cp2k_home, &
+       cp2k_version, cp2k_year, id_cp2k_version, r_host_name, r_pid, &
+       r_user_name
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -34,6 +30,8 @@ MODULE environment
   USE force_env_types,                 ONLY: multiple_fe_list
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: cp2k_footer,&
+                                             cp2k_header
   USE input_constants,                 ONLY: &
        do_cp2k, do_eip, do_farming, do_fft_acml, do_fft_cu, do_fft_essl, &
        do_fft_fftw, do_fft_fftw2, do_fft_fftw3, do_fft_mkl, do_fft_sci, &
@@ -56,12 +54,7 @@ MODULE environment
                                              int_size,&
                                              print_kind_info
   USE machine,                         ONLY: flush_should_flush,&
-                                             m_datum,&
                                              m_flush_internal,&
-                                             m_getcwd,&
-                                             m_getlog,&
-                                             m_getpid,&
-                                             m_hostnm,&
                                              m_memory_details
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
@@ -124,28 +117,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_init', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=26)                        :: datx
-    CHARACTER(LEN=default_path_length)       :: cwd
-    CHARACTER(LEN=default_string_length)     :: dev_flag, host_name, string, &
-                                                user_name
-    INTEGER                                  :: ipe, istat, l, &
-                                                my_output_unit, pid, strend, &
-                                                strstart
+    CHARACTER(LEN=default_string_length)     :: dev_flag, string
+    INTEGER                                  :: ipe, istat, my_output_unit, &
+                                                strend, strstart
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_pid
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_host
-    LOGICAL                                  :: ionode
     TYPE(cp_logger_type), POINTER            :: logger
-
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
-
-    pid = 0
-    CALL m_getpid(pid)
-    user_name = ""
-    CALL m_getlog(user_name)
-    host_name = ""
-    CALL m_hostnm(host_name)
 
     ! create a timer_env
     CALL add_timer_env()
@@ -178,24 +158,14 @@ CONTAINS
     CALL cp_add_default_logger(logger)
     CALL cp_logger_release(logger)
 
-    ionode = para_env%ionode
-
-    IF (ionode) THEN
-
-       CALL m_datum(datx)
-       CALL m_getcwd(cwd)
-
-    END IF
-
     !   *** Print a list of all started processes ***
-
     ALLOCATE (all_pid(para_env%num_pe),STAT=istat)
     IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,"all_pid",&
             para_env%num_pe*int_size)
     END IF
     all_pid(:) = 0
-    all_pid(para_env%mepos+1) = pid
+    all_pid(para_env%mepos+1) = r_pid
     CALL mp_sum(all_pid,para_env%group)
     ALLOCATE (all_host(30,para_env%num_pe),STAT=istat)
     IF (istat /= 0) THEN
@@ -203,13 +173,13 @@ CONTAINS
             30*para_env%num_pe*int_size)
     END IF
     all_host(:,:) = 0
-    CALL string_to_ascii(host_name,all_host(:,para_env%mepos+1))
+    CALL string_to_ascii(r_host_name,all_host(:,para_env%mepos+1))
     CALL mp_sum(all_host,para_env%group)
-    IF (para_env%ionode) THEN
+    IF (my_output_unit>0) THEN
        DO ipe=1,para_env%num_pe
           CALL ascii_to_string(all_host(:,ipe),string)
           WRITE (UNIT=my_output_unit,FMT="(T2,A,T63,I8,T71,I10)")&
-               TRIM(user_name)//"@"//TRIM(string)//&
+               TRIM(r_user_name)//"@"//TRIM(string)//&
                " has created process number",ipe-1,all_pid(ipe)
        END DO
     END IF
@@ -223,23 +193,12 @@ CONTAINS
     END IF
 
     !   *** Initialize timing ***
-
     CALL timeset ("CP2K",globenv%handle)
 
-    IF (ionode) THEN
-       WRITE (UNIT=my_output_unit,&
-            FMT="(/,A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
-            "  **** **** ******  **  PROGRAM STARTED AT ",ADJUSTR(datx),&
-            " ***** ** ***  *** **   PROGRAM STARTED ON ",ADJUSTR(host_name(1:30)),&
-            " **    ****   ******    PROGRAM STARTED BY ",ADJUSTR(user_name(1:30)),&
-            " ***** **    ** ** **   PROGRAM PROCESS ID ",pid
-       WRITE (UNIT=my_output_unit,FMT="(A,T44,A37)")&
-            "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:37))
-       DO l=38,LEN_TRIM(cwd),37
-          WRITE (UNIT=my_output_unit,FMT="(T44,A)")&
-               cwd(l:MIN(LEN_TRIM(cwd),l+36))
-       END DO
+    !   *** Print header ***
+    CALL cp2k_header(my_output_unit)
 
+    IF (my_output_unit>0) THEN
        WRITE (UNIT=my_output_unit,FMT="(/,T2,A,T31,A50)")&
             "CP2K| version string: ",&
             ADJUSTR(TRIM(cp2k_version)//TRIM(dev_flag))
@@ -930,17 +889,6 @@ CONTAINS
        iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
             extension=".log",error=error)
 
-       datx = ""
-       CALL m_datum(datx)
-       cwd = ""
-       CALL m_getcwd(cwd)
-       user_name = ""
-       CALL m_getlog(user_name)
-       pid = 0
-       CALL m_getpid(pid)
-       host_name = ""
-       CALL m_hostnm(host_name)
-
        ! Deleting (if existing) the external EXIT files
        delete_it = .FALSE.
        INQUIRE (FILE="EXIT",EXIST=delete_it)
@@ -956,21 +904,10 @@ CONTAINS
           CALL close_file(unit_number=unit_exit,file_status="DELETE")
        END IF
 
-       ! Just a choice, do not print the final banner if there is a failure
-
-       IF (iw>0 .AND. .NOT. failure) THEN
-          WRITE (UNIT=iw,&
-               FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
-               "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(datx),&
-               " ***** ** ***  *** **   PROGRAM RAN ON     ",ADJUSTR(host_name(1:30)),&
-               " **    ****   ******    PROGRAM RAN BY     ",ADJUSTR(user_name(1:30)),&
-               " ***** **    ** ** **   PROGRAM PROCESS ID ",pid
-          WRITE (UNIT=iw,FMT="(A,T44,A37)")&
-               "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:37))
-          DO l=38,LEN_TRIM(cwd),37
-             WRITE (UNIT=iw,FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd),l+36))
-          END DO
-          CALL m_flush_internal(iw)
+       ! Just a choice, do not print the CP2K footer if there is a failure
+       IF (.NOT.failure) THEN
+          CALL cp2k_footer(iw)
+          IF (iw>0) CALL m_flush_internal(iw)
        END IF
 
        CALL cp_print_key_finished_output(iw,logger,root_section,&

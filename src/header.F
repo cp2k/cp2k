@@ -9,15 +9,62 @@
 !> \author APSI & CJM & JGH
 ! *****************************************************************************
 MODULE header
+  USE cp2k_info,                       ONLY: r_cwd,&
+                                             r_datx,&
+                                             r_host_name,&
+                                             r_pid,&
+                                             r_user_name
   USE f77_blas
 
   IMPLICIT NONE
 
   PRIVATE
+  PUBLIC :: cp2k_header, cp2k_footer
   PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
   PUBLIC :: kg_header, qmmm_header, atom_header, atom_footer, band_header
 
 CONTAINS
+
+! *****************************************************************************
+  SUBROUTINE cp2k_header(iw)
+    INTEGER, INTENT(IN)                      :: iw
+
+    INTEGER                                  :: l
+
+    IF (iw<0) RETURN
+    WRITE (UNIT=iw,&
+         FMT="(/,A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
+         "  **** **** ******  **  PROGRAM STARTED AT ",ADJUSTR(r_datx),&
+         " ***** ** ***  *** **   PROGRAM STARTED ON ",ADJUSTR(r_host_name(1:30)),&
+         " **    ****   ******    PROGRAM STARTED BY ",ADJUSTR(r_user_name(1:30)),&
+         " ***** **    ** ** **   PROGRAM PROCESS ID ",r_pid
+    WRITE (UNIT=iw,FMT="(A,T44,A37)")&
+         "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(r_cwd(1:37))
+    DO l=38,LEN_TRIM(r_cwd),37
+       WRITE (UNIT=iw,FMT="(T44,A)")r_cwd(l:MIN(LEN_TRIM(r_cwd),l+36))
+    END DO
+
+  END SUBROUTINE cp2k_header
+
+! *****************************************************************************
+  SUBROUTINE cp2k_footer(iw)
+    INTEGER, INTENT(IN)                      :: iw
+
+    INTEGER                                  :: l
+
+    IF (iw<0) RETURN
+    WRITE (UNIT=iw,&
+         FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
+         "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(r_datx),&
+         " ***** ** ***  *** **   PROGRAM RAN ON     ",ADJUSTR(r_host_name(1:30)),&
+         " **    ****   ******    PROGRAM RAN BY     ",ADJUSTR(r_user_name(1:30)),&
+         " ***** **    ** ** **   PROGRAM PROCESS ID ",r_pid
+    WRITE (UNIT=iw,FMT="(A,T44,A37)")&
+         "  **** **  *******  **  PROGRAM STOPPED IN ",ADJUSTR(r_cwd(1:37))
+    DO l=38,LEN_TRIM(r_cwd),37
+       WRITE (UNIT=iw,FMT="(T44,A)") r_cwd(l:MIN(LEN_TRIM(r_cwd),l+36))
+    END DO
+  END SUBROUTINE cp2k_footer
 
 ! *****************************************************************************
   SUBROUTINE qmmm_header(iw)
