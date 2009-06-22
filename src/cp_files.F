@@ -21,12 +21,13 @@ MODULE cp_files
             get_unit_number,&
             get_eof_stat
 
-  LOGICAL, SAVE, PRIVATE :: did_init=.FALSE.
-  INTEGER, SAVE, PRIVATE :: eof_stat
-  INTEGER, PARAMETER, PRIVATE :: max_message_length=400
-  INTEGER, PARAMETER, PRIVATE :: max_unit_number=999
+  LOGICAL, SAVE, PRIVATE               :: did_init=.FALSE.
+  INTEGER, SAVE, PRIVATE               :: eof_stat
+  INTEGER, PARAMETER, PRIVATE          :: max_message_length=400
+  INTEGER, PARAMETER, PRIVATE          :: max_unit_number=999
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
-  INTEGER, DIMENSION(2), PARAMETER :: reserved_unit_numbers = (/default_input_unit,default_output_unit/)
+  INTEGER, DIMENSION(2), PARAMETER     :: reserved_unit_numbers = (/default_input_unit,default_output_unit/)
+
 CONTAINS
 
 ! *****************************************************************************
@@ -44,48 +45,46 @@ CONTAINS
     CHARACTER(LEN=6)                         :: status_string
     CHARACTER(LEN=max_message_length)        :: message
     INTEGER                                  :: istat
-    LOGICAL                                  :: exists, opened
+    LOGICAL                                  :: exists, failure, opened
 
-!   *** Check the specified input file name ***
-
+    failure = .FALSE.
+    !   *** Check the specified input file name ***
     INQUIRE (UNIT=unit_number,EXIST=exists,OPENED=opened,IOSTAT=istat)
 
     IF (istat /= 0) THEN
-      WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-        "CP2K: An error occurred inquiring the unit with the number ",unit_number,&
-        " (IOSTAT = ",istat,")"
-      WRITE(default_output_unit,*) TRIM(message)
-      CALL m_flush(default_output_unit)
-      STOP 1  ! should actually do error recovery....
+       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
+            "CP2K: An error occurred inquiring the unit with the number ",unit_number,&
+            " (IOSTAT = ",istat,")"
+       WRITE(default_output_unit,*) TRIM(message)
+       CALL m_flush(default_output_unit)
+       STOP 1  ! should actually do error recovery....
     ELSE IF (.NOT.exists) THEN
-      WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-        "CP2K: The specified unit number ",unit_number," can not be closed, it does not exist."
-      WRITE(default_output_unit,*) TRIM(message)
-      CALL m_flush(default_output_unit)
-      STOP 1  ! should actually do error recovery....
+       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
+            "CP2K: The specified unit number ",unit_number," can not be closed, it does not exist."
+       WRITE(default_output_unit,*) TRIM(message)
+       CALL m_flush(default_output_unit)
+       STOP 1  ! should actually do error recovery....
     END IF
 
-!   *** Close the specified file ***
-
+    !   *** Close the specified file ***
     IF (opened) THEN
        IF (unit_number==6) STOP "tryed to close unit 6"
 
-      IF (PRESENT(file_status)) THEN
-        status_string = file_status
-      ELSE
-        status_string = "KEEP"
-      END IF
+       IF (PRESENT(file_status)) THEN
+          status_string = file_status
+       ELSE
+          status_string = "KEEP"
+       END IF
 
-      CLOSE (UNIT=unit_number,IOSTAT=istat,STATUS=TRIM(status_string))
+       CLOSE (UNIT=unit_number,IOSTAT=istat,STATUS=TRIM(status_string))
 
-      IF (istat /= 0) THEN
-        WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-          "CP2K: An error occurred closing the file with the unit number ",unit_number," (IOSTAT = ",istat,")"
-        WRITE(default_output_unit,*) TRIM(message)
-      CALL m_flush(default_output_unit)
-        STOP 1 ! should actually do error recovery....
-      END IF
-
+       IF (istat /= 0) THEN
+          WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
+               "CP2K: An error occurred closing the file with the unit number ",unit_number," (IOSTAT = ",istat,")"
+          WRITE(default_output_unit,*) TRIM(message)
+          CALL m_flush(default_output_unit)
+          STOP 1 ! should actually do error recovery....
+       END IF
     END IF
 
   END SUBROUTINE close_file
@@ -102,28 +101,28 @@ CONTAINS
     LOGICAL                                  :: exists, opened
 
     DO unit_number=1,max_unit_number
-      IF (ANY(unit_number == reserved_unit_numbers)) CYCLE
-      INQUIRE (UNIT=unit_number,EXIST=exists,OPENED=opened,IOSTAT=istat)
-      IF (exists.AND.(.NOT.opened).AND.(istat == 0)) RETURN
+       IF (ANY(unit_number == reserved_unit_numbers)) CYCLE
+       INQUIRE (UNIT=unit_number,EXIST=exists,OPENED=opened,IOSTAT=istat)
+       IF (exists.AND.(.NOT.opened).AND.(istat == 0)) RETURN
     END DO
 
     unit_number = -1
 
-   END FUNCTION get_unit_number
+  END FUNCTION get_unit_number
 
 ! *****************************************************************************
 !> \brief opens the requested file using a free unit number
 !> \author MK
 ! *****************************************************************************
   SUBROUTINE open_file(file_name,file_status,file_form,file_action,&
-                       file_position,file_pad,unit_number,force_IN_unit)
+       file_position,file_pad,unit_number,skip_get_unit_number)
 
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status, file_form, &
                                                 file_action, file_position, &
                                                 file_pad
-    INTEGER, INTENT(OUT)                     :: unit_number
-    LOGICAL, INTENT(IN), OPTIONAL            :: force_IN_unit
+    INTEGER, INTENT(INOUT)                   :: unit_number
+    LOGICAL, INTENT(IN), OPTIONAL            :: skip_get_unit_number
 
     CHARACTER(len=*), PARAMETER :: routineN = 'open_file', &
       routineP = moduleN//':'//routineN
@@ -136,15 +135,15 @@ CONTAINS
     LOGICAL                                  :: exists, get_a_new_unit, opened
 
     IF (PRESENT(file_status)) THEN
-      status_string = file_status
+       status_string = file_status
     ELSE
-      status_string = "OLD"
+       status_string = "OLD"
     END IF
 
     IF (PRESENT(file_form)) THEN
-      form_string = file_form
+       form_string = file_form
     ELSE
-      form_string = "FORMATTED"
+       form_string = "FORMATTED"
     END IF
 
     IF (PRESENT(file_pad)) THEN
@@ -153,97 +152,93 @@ CONTAINS
           WRITE (UNIT=message,FMT="(A)")&
                "CP2K: The PAD= specifier is not allowed for an UNFORMATTED file!"
           WRITE(default_output_unit,*) TRIM(message)
-      CALL m_flush(default_output_unit)
+          CALL m_flush(default_output_unit)
           STOP 1  ! should actually do error recovery....          
        END IF
     ELSE
        pad_string = "YES"
-    END IF    
+    END IF
 
     IF (PRESENT(file_action)) THEN
-      action_string = file_action
+       action_string = file_action
     ELSE
-      action_string = "READ"
+       action_string = "READ"
     END IF
 
     IF (PRESENT(file_position)) THEN
-      position_string = file_position
+       position_string = file_position
     ELSE
-      position_string = "REWIND"
+       position_string = "REWIND"
     END IF
 
-!   *** Check the specified input file name ***
-
+    !   *** Check the specified input file name ***
     INQUIRE (FILE=TRIM(file_name),EXIST=exists,OPENED=opened,IOSTAT=istat)
 
     IF (istat /= 0) THEN
-      WRITE (UNIT=message,FMT="(A,I6,A)")&
-        "CP2K: An error occurred inquiring the file <"//TRIM(file_name)//&
-        "> (IOSTAT = ",istat,")"
-      WRITE(default_output_unit,*) TRIM(message)
-      CALL m_flush(default_output_unit)
-      STOP 1  ! should actually do error recovery....
+       WRITE (UNIT=message,FMT="(A,I6,A)")&
+            "CP2K: An error occurred inquiring the file <"//TRIM(file_name)//&
+            "> (IOSTAT = ",istat,")"
+       WRITE(default_output_unit,*) TRIM(message)
+       CALL m_flush(default_output_unit)
+       STOP 1  ! should actually do error recovery....
     ELSE IF (status_string == "OLD") THEN
-      IF (.NOT.exists) THEN
-         WRITE(default_output_unit,*) "CP2K: The specified file "//TRIM(file_name)//" can not be opened, it does not exist."
-      CALL m_flush(default_output_unit)
-         STOP 1  ! should actually do error recovery....
-      END IF
+       IF (.NOT.exists) THEN
+          WRITE(default_output_unit,*) "CP2K: The specified file "//TRIM(file_name)//&
+               " can not be opened, it does not exist."
+          CALL m_flush(default_output_unit)
+          STOP 1  ! should actually do error recovery....
+       END IF
     END IF
 
-!   *** Open the specified input file ***
-
+    !   *** Open the specified input file ***
     IF (opened) THEN
 
        INQUIRE (FILE=TRIM(file_name),NUMBER=unit_number)
        REWIND (UNIT=unit_number)
-             
+
     ELSE
+       !     *** Find an unused unit number ***
+       get_a_new_unit = .TRUE.
+       IF (PRESENT(skip_get_unit_number)) THEN
+          IF (skip_get_unit_number) get_a_new_unit = .FALSE.
+       END IF
+       IF (get_a_new_unit) unit_number = get_unit_number()
 
-!     *** Find an unused unit number ***
+       IF (unit_number < 0) THEN
+          WRITE(default_output_unit,*) "CP2K: Problems opening file, there are no free units left"
+          CALL m_flush(default_output_unit)
+          STOP 1  ! should actually do error recovery....
+       END IF
 
-      get_a_new_unit = .TRUE.
-      IF (PRESENT(force_IN_unit)) THEN
-         IF (force_IN_unit) get_a_new_unit = .FALSE.
-      END IF
-      IF (get_a_new_unit) unit_number = get_unit_number()
+       IF (TRIM(form_string)== "FORMATTED") THEN
+          OPEN(UNIT=unit_number,&
+               FILE=TRIM(file_name),&
+               STATUS=TRIM(status_string),&
+               ACCESS="SEQUENTIAL",&
+               FORM=TRIM(form_string),&
+               POSITION=TRIM(position_string),&
+               ACTION=TRIM(action_string),&
+               PAD=TRIM(pad_string),&
+               IOSTAT=istat)
+       ELSE
+          OPEN(UNIT=unit_number,&
+               FILE=TRIM(file_name),&
+               STATUS=TRIM(status_string),&
+               ACCESS="SEQUENTIAL",&
+               FORM=TRIM(form_string),&
+               POSITION=TRIM(position_string),&
+               ACTION=TRIM(action_string),&
+               IOSTAT=istat)
+       END IF
 
-      IF (unit_number < 0) THEN
-         WRITE(default_output_unit,*) "CP2K: Problems opening file, there are no free units left"
-      CALL m_flush(default_output_unit)
-         STOP 1  ! should actually do error recovery....
-      END IF
-
-      IF (TRIM(form_string)== "FORMATTED") THEN
-         OPEN (UNIT=unit_number,&
-              FILE=TRIM(file_name),&
-              STATUS=TRIM(status_string),&
-              ACCESS="SEQUENTIAL",&
-              FORM=TRIM(form_string),&
-              POSITION=TRIM(position_string),&
-              ACTION=TRIM(action_string),&
-              PAD=TRIM(pad_string),&
-              IOSTAT=istat)
-      ELSE
-         OPEN (UNIT=unit_number,&
-              FILE=TRIM(file_name),&
-              STATUS=TRIM(status_string),&
-              ACCESS="SEQUENTIAL",&
-              FORM=TRIM(form_string),&
-              POSITION=TRIM(position_string),&
-              ACTION=TRIM(action_string),&
-              IOSTAT=istat)
-      END IF
-
-      IF (istat /= 0) THEN
-        WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-          "CP2K: An error occurred opening the file <"//TRIM(file_name)//&
-          "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
-        WRITE(default_output_unit,*) TRIM(message)
-      CALL m_flush(default_output_unit)
-        STOP 1  ! should actually do error recovery....
-      END IF
-
+       IF (istat /= 0) THEN
+          WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
+               "CP2K: An error occurred opening the file <"//TRIM(file_name)//&
+               "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
+          WRITE(default_output_unit,*) TRIM(message)
+          CALL m_flush(default_output_unit)
+          STOP 1  ! should actually do error recovery....
+       END IF
     END IF
 
   END SUBROUTINE open_file

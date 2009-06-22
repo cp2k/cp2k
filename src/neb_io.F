@@ -441,7 +441,7 @@ CONTAINS
           CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&
                unit_number=logger%default_global_unit_nr,&
-               force_IN_unit=.TRUE.)
+               skip_get_unit_number=.TRUE.)
           WRITE (UNIT=logger%default_global_unit_nr,FMT="(/,(T2,A79))")&
             "*******************************************************************************",&
             "**                 BAND EVALUATION OF ENERGIES AND FORCES                    **",&
