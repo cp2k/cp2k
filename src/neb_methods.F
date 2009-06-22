@@ -459,6 +459,8 @@ CPSourceFileRef,&
        DO istep = 1, max_steps
           CALL cp_iterate(logger%iter_info,iter_nr=istep,error=error)
           neb_env%opt_type_label="SD"
+          ! Save the optimization step counter
+          neb_env%istep = istep
           ! Perform one step of SD with line search
           norm = SQRT(SUM(forces%wrk*forces%wrk))
           IF (norm<EPSILON(0.0_dp)) THEN

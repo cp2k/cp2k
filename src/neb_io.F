@@ -386,9 +386,9 @@ CONTAINS
 !> \brief Handles the correct file names during a band calculation
 !> \author Teodoro Laino  06.2009
 ! *****************************************************************************
-  SUBROUTINE handle_band_file_names(rep_env, irep, n_rep, error)
+  SUBROUTINE handle_band_file_names(rep_env, irep, n_rep, istep, error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    INTEGER, INTENT(IN)                      :: irep, n_rep
+    INTEGER, INTENT(IN)                      :: irep, n_rep, istep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'handle_band_file_names', &
@@ -443,9 +443,17 @@ CONTAINS
                unit_number=logger%default_global_unit_nr,&
                skip_get_unit_number=.TRUE.)
           WRITE (UNIT=logger%default_global_unit_nr,FMT="(/,(T2,A79))")&
-            "*******************************************************************************",&
-            "**                 BAND EVALUATION OF ENERGIES AND FORCES                    **",&
-            "*******************************************************************************"
+               "*******************************************************************************",&
+               "**                 BAND EVALUATION OF ENERGIES AND FORCES                    **",&
+               "*******************************************************************************"
+          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,T79,A)")"**","**"
+          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,T79,A)")"**","**"
+          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,I5,T41,A,I5,T79,A)")&
+               "** Replica Env Nr. :",rep_env%local_rep_indices(1)-1,"Replica Band Nr. :",j,"**"
+          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,I5,T79,A)")&
+               "** Band  Step  Nr. :",istep,"**"
+          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A79)")&
+               "*******************************************************************************"
        END IF
 
        CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)

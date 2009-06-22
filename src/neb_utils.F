@@ -387,7 +387,7 @@ CPSourceFileRef,&
           END DO
           ! Fix file name for BAND replicas.. Each BAND replica has its own file
           ! indipendently from the number of replicas in replica_env..
-          CALL handle_band_file_names(rep_env, irep, n_rep_neb, error)
+          CALL handle_band_file_names(rep_env, irep, n_rep_neb, neb_env%istep, error)
 
           ! Let's select the potential we want to use for the band calculation
           SELECT CASE(neb_env%pot_type)
