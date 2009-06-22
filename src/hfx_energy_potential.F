@@ -127,13 +127,13 @@ MODULE hfx_energy_potential
       routineP = moduleN//':'//routineN
 
     INTEGER :: bin, buffer_left, buffer_size, buffer_start, cache_size, &
-      current_counter, handle, handle_dist_ks, handle_getP, handle_load, &
-      handle_main, i, i_thread, iatom, ikind, iset, iw, jatom, jkind, jset, &
-      katom, kkind, kset, latom, lkind, lset, max_am, max_set, maxsgf, mb, &
-      my_bin_size, n_threads, natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, &
-      nints, nseta, nsetb, nsetc, nsetd, nsgf_max, nsgfa_total, nsgfb_total, &
-      nsgfc_total, nsgfd_total, nspins, pa1, pb1, pc1, pd1, sgfa, sgfb, sgfc, &
-      sgfd, stat
+      current_counter, handle, handle_bin, handle_dist_ks, handle_getP, &
+      handle_load, handle_main, i, i_thread, iatom, ikind, iset, iw, jatom, &
+      jkind, jset, katom, kkind, kset, latom, lkind, lset, max_am, max_set, &
+      maxsgf, mb, my_bin_size, n_threads, natom, nbits, nco_max, ncoa, ncob, &
+      ncoc, ncod, nints, nseta, nsetb, nsetc, nsetd, nsgf_max, nsgfa_total, &
+      nsgfb_total, nsgfc_total, nsgfd_total, nspins, pa1, pb1, pc1, pd1, &
+      sgfa, sgfb, sgfc, sgfd, stat
     INTEGER(int_8) :: estimate_to_store_int, mem_compression_counter, &
       mem_compression_counter_disk, mem_eris, mem_eris_disk, mem_max_val, &
       mem_maxvals, my_current_counter, my_istart, my_original_cpu_id, &
@@ -830,6 +830,9 @@ MODULE hfx_energy_potential
     nblocks = MAX((natom+block_size-1)/block_size,1)
 
     DO bin=1,my_bin_size
+!$OMP MASTER
+      CALL timeset(routineN//"_bin",handle_bin)
+!$OMP END MASTER
       bintime_start=m_walltime()
       my_istart = actual_x_data%distribution_energy(bin)%istart
       my_original_cpu_id = actual_x_data%distribution_energy(bin)%original_cpu_id 
@@ -1314,6 +1317,9 @@ MODULE hfx_energy_potential
         actual_x_data%distribution_energy(bin)%time_other_scf= &
             actual_x_data%distribution_energy(bin)%time_other_scf+bintime_stop-bintime_start 
       ENDIF
+!$OMP MASTER
+      CALL timestop(handle_bin)
+!$OMP END MASTER
     END DO !bin
 
 !$OMP BARRIER
