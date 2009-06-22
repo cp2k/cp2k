@@ -77,7 +77,7 @@ CONTAINS
     TYPE(replica_env_type), POINTER          :: rep_env
 
     failure=.FALSE.
-    rep_env => rep_envs_get_rep_env(rep_env_id,error=error)
+    rep_env => rep_envs_get_rep_env(rep_env_id,ierr=stat)
     CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
          routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
          failure=failure)
@@ -165,6 +165,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_destroy_low', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
@@ -172,7 +173,7 @@ CONTAINS
     TYPE(replica_env_type), POINTER          :: rep_env
 
     failure=.FALSE.
-    rep_env => rep_envs_get_rep_env(rep_env_id,error=error)
+    rep_env => rep_envs_get_rep_env(rep_env_id,ierr=stat)
     CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
          routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
          failure=failure)
@@ -447,12 +448,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: error, new_error
+    TYPE(cp_error_type)                      :: new_error
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(replica_env_type), POINTER          :: rep_env
 
     failure=.FALSE.
-    rep_env => rep_envs_get_rep_env(rep_env_id,error=error) ! XXXXXXXXXXXXX uninitialized error
+    rep_env => rep_envs_get_rep_env(rep_env_id, ierr)
     IF (ASSOCIATED(rep_env)) THEN
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
             new_error=new_error, failure=failure)

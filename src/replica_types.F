@@ -658,9 +658,9 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION rep_envs_get_rep_env(id_nr,error) RESULT(res)
+  FUNCTION rep_envs_get_rep_env(id_nr,ierr) RESULT(res)
     INTEGER, INTENT(in)                      :: id_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER, INTENT(OUT)                     :: ierr
     TYPE(replica_env_type), POINTER          :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_get_rep_env', &
@@ -669,11 +669,13 @@ CONTAINS
     INTEGER                                  :: i
 
     NULLIFY(res)
+    ierr = -1
     IF (module_initialized) THEN
        IF (ASSOCIATED(rep_envs)) THEN
           DO i=1,SIZE(rep_envs)
              IF (rep_envs(i)%rep_env%id_nr==id_nr) THEN
                 res => rep_envs(i)%rep_env
+                ierr = 0
                 EXIT
              END IF
           END DO
@@ -704,7 +706,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(rep_env)) THEN
-       rep_env2 => rep_envs_get_rep_env(rep_env%id_nr,error=error)
+       rep_env2 => rep_envs_get_rep_env(rep_env%id_nr,ierr=stat)
        IF (.NOT.ASSOCIATED(rep_env2)) THEN
           IF (module_initialized) THEN
              IF (.NOT.ASSOCIATED(rep_envs)) THEN

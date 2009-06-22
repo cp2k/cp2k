@@ -59,13 +59,16 @@ PROGRAM cp2k
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive
   LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license
-  TYPE(cp_error_type)                  :: error ! XXXXXXXXXXXXXX uninitialised error
+  TYPE(cp_error_type)                  :: error 
 
   ! output goes to the screen by default
   output_unit=default_output_unit
 
   ! get runtime information
   CALL get_runtime_info
+
+  ! initialize with a default error (a proper error will be initialized later)
+  CALL cp_error_init(error)
 
   ! do the initial setup of cp2k, provides a default_para_env
   CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
@@ -244,13 +247,13 @@ arg_loop: DO WHILE (i_arg<n_arg)
         ! if a manual is needed
         IF (manual) THEN
            IF (default_para_env%mepos==default_para_env%source) THEN
-              CALL write_cp2k_html_manual(error=error) ! XXXXXXXXXXXXXX uninitialised error
+              CALL write_cp2k_html_manual(error=error)
            END IF
         ENDIF
 
         IF (xml) THEN
           IF (default_para_env%mepos == default_para_env%source) THEN
-            CALL write_xml_file(error=error) ! XXXXXXXXXXXXXX uninitialised error
+            CALL write_xml_file(error=error)
           END IF
         END IF
 

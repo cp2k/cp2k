@@ -178,6 +178,9 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF (.NOT. module_initialized) THEN
+       ! initialize with a default error (a proper error will be initialized later)
+       CALL cp_error_init(error)
+
        IF (init_mpi) THEN
           ! get the default system wide communicator
           CALL mp_world_init(mpi_comm_default)
@@ -191,7 +194,7 @@ CONTAINS
        CALL add_timer_env()
        NULLIFY(default_para_env)
        CALL cp_para_env_create(default_para_env, group=mpi_comm_default, &
-            owns_group=.FALSE.,error=error) ! XXXXXXXXXXXXXXXX error here not initialised !?
+            owns_group=.FALSE.,error=error)
        IF (default_para_env%source==default_para_env%mepos) THEN
           unit_nr=6
        ELSE
