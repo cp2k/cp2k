@@ -39,7 +39,9 @@ CONTAINS
 ! *** zero means not available
   SUBROUTINE m_memory_details(MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree)
 
-     INTEGER(kind=int_8), OPTIONAL :: MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree
+    INTEGER(kind=int_8), OPTIONAL            :: MemTotal, MemFree, Buffers, &
+                                                Cached, Slab, SReclaimable, &
+                                                MemLikelyFree
 
      MemTotal=0
      MemFree=0
@@ -171,7 +173,6 @@ END SUBROUTINE m_datum
 
     INTEGER, INTENT(IN)                      :: lunit
 
-
     CALL flush_(lunit)
 
   END SUBROUTINE m_flush
@@ -189,26 +190,28 @@ END SUBROUTINE m_datum
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-    ! **** system call caused problems on infiniband / Linux setup on blanc.cscs.ch
-    ! **** due to the fork.
-    ! **** rename is a better solution
-    ! CHARACTER(LEN=2*default_string_length+4) :: cmd
-    ! cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    ! CALL system(cmd)
-    INTEGER, EXTERNAL :: rename
-    CHARACTER(LEN=LEN(source)+1) :: ls1
-    CHARACTER(LEN=LEN(target)+1) :: ls2
-    INTEGER  :: stat,pos
+    CHARACTER(LEN=LEN(source)+1)             :: ls1
+    CHARACTER(LEN=LEN(TARGET)+1)             :: ls2
+    INTEGER                                  :: pos, stat
+    INTEGER, EXTERNAL                        :: rename
+
+! **** system call caused problems on infiniband / Linux setup on blanc.cscs.ch
+! **** due to the fork.
+! **** rename is a better solution
+! CHARACTER(LEN=2*default_string_length+4) :: cmd
+! cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
+! CALL system(cmd)
+
     ls1=source
-    ls2=target
+    ls2=TARGET
     pos=LEN_TRIM(source)+1
     ls1(pos:)=CHAR(0)
-    pos=LEN_TRIM(target)+1
+    pos=LEN_TRIM(TARGET)+1
     ls2(pos:)=CHAR(0)
     stat=rename(ls1,ls2)
     IF (stat .NE. 0) THEN
-      write(6,*) "Trying to move "//TRIM(source)//" to "//TRIM(target)//"."
-      write(6,*) "rename returned status: ",stat
+      WRITE(6,*) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."
+      WRITE(6,*) "rename returned status: ",stat
       STOP "Problem moving file"
     ENDIF
 

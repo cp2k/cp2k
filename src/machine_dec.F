@@ -31,7 +31,9 @@ CONTAINS
 ! *** zero means not available
   SUBROUTINE m_memory_details(MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree)
 
-     INTEGER(kind=int_8), OPTIONAL :: MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree
+    INTEGER(kind=int_8), OPTIONAL            :: MemTotal, MemFree, Buffers, &
+                                                Cached, Slab, SReclaimable, &
+                                                MemLikelyFree
 
      MemTotal=0
      MemFree=0
@@ -106,7 +108,6 @@ END SUBROUTINE m_datum
 SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-
     CALL flush(lunit)
 
   END SUBROUTINE m_flush
@@ -125,7 +126,6 @@ SUBROUTINE m_flush(lunit)
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
     CHARACTER(LEN=2*default_string_length+4) :: cmd
-
 
     cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
     CALL system(cmd)
