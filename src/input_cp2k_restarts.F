@@ -17,6 +17,10 @@ MODULE input_cp2k_restarts
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
+  USE cp2k_info,                       ONLY: compile_arch,&
+                                             compile_date,&
+                                             compile_host,&
+                                             compile_lastcvs
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_get_length,&
                                              cp_sll_val_type
@@ -32,10 +36,6 @@ MODULE input_cp2k_restarts
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
-  USE environment,                     ONLY: compile_arch,&
-                                             compile_date,&
-                                             compile_host,&
-                                             compile_lastcvs
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type

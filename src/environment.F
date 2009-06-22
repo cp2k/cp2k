@@ -101,11 +101,8 @@ MODULE environment
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'environment'
 
-! *** Public subroutines ***
-
+  ! *** Public subroutines ***
   PUBLIC :: cp2k_finalize, cp2k_init, cp2k_read, cp2k_setup
-
-  PUBLIC :: compile_arch,compile_date,compile_host,compile_lastcvs
 
 CONTAINS
 

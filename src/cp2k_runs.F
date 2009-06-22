@@ -10,7 +10,9 @@ MODULE cp2k_runs
   USE bsse,                            ONLY: do_bsse_calculation
   USE cell_opt,                        ONLY: cp_cell_opt
   USE cp2k_debug,                      ONLY: cp2k_debug_energy_and_forces
-  USE cp2k_info,                       ONLY: enable_color_tags
+  USE cp2k_info,                       ONLY: compile_date,&
+                                             compile_lastcvs,&
+                                             enable_color_tags
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
                                              open_file
@@ -32,9 +34,7 @@ MODULE cp2k_runs
                                              print_all_units
   USE cuda_memory,                     ONLY: cuda_device_mem_init,&
                                              cuda_device_mem_release
-  USE environment,                     ONLY: compile_date,&
-                                             compile_lastcvs,&
-                                             cp2k_finalize,&
+  USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
