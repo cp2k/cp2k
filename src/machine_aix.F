@@ -21,7 +21,7 @@ MODULE machine_aix
 
   PUBLIC :: m_cputime, m_datum, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details
 
   INTERFACE m_loc_r
      MODULE PROCEDURE m_loc_r1,m_loc_r2,m_loc_r3,m_loc_r4
@@ -32,6 +32,25 @@ MODULE machine_aix
   END INTERFACE
 
 CONTAINS
+! *** get more detailed memory info, all units are bytes.
+! *** the only 'useful' option is MemLikelyFree which is an estimate of remaining memory
+! *** assumed to give info like /proc/meminfo while MeMLikelyFree is the amount of
+! *** memory we're likely to be able to allocate, but not necessarily in one chunk
+! *** zero means not available
+  SUBROUTINE m_memory_details(MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree)
+
+     INTEGER(kind=int_8), OPTIONAL :: MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree
+
+     MemTotal=0
+     MemFree=0
+     Buffers=0
+     Cached=0
+     Slab=0
+     SReclaimable=0
+     MemLikelyFree=0
+
+  END SUBROUTINE m_memory_details
+
 
 ! *****************************************************************************
 FUNCTION m_loc_r1(a) RESULT(res)

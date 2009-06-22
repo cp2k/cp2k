@@ -52,6 +52,7 @@ MODULE environment
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&
+                                             int_8,&
                                              int_size,&
                                              print_kind_info
   USE machine,                         ONLY: flush_should_flush,&
@@ -60,10 +61,13 @@ MODULE environment
                                              m_getcwd,&
                                              m_getlog,&
                                              m_getpid,&
-                                             m_hostnm
+                                             m_hostnm,&
+                                             m_memory_details
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
+                                             mp_max_i8,&
                                              mp_sum,&
+                                             mp_sum_i8,&
                                              rm_mp_perf_env
   USE orbital_pointers,                ONLY: deallocate_orbital_pointers
   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
@@ -436,6 +440,12 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: env_num, project_name
     INTEGER :: i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
       num_threads, output_unit, print_level
+    INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
+      Cached, Cached_avr, Cached_max, Cached_min, MemFree, MemFree_avr, &
+      MemFree_max, MemFree_min, MemLikelyFree, MemLikelyFree_avr, &
+      MemLikelyFree_max, MemLikelyFree_min, MemTotal, MemTotal_avr, &
+      MemTotal_max, MemTotal_min, Slab, Slab_avr, Slab_max, Slab_min, &
+      SReclaimable, SReclaimable_avr, SReclaimable_max, SReclaimable_min
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, efl, explicit, failure, &
                                                 trace, trace_master, &
@@ -536,6 +546,61 @@ CONTAINS
          CALL stop_program(routineN,moduleN,__LINE__,&
          "TEST program supports only NONE as run type",para_env)
 
+    CALL m_memory_details(MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree)
+    MemTotal_avr=MemTotal
+    MemFree_avr=MemFree
+    Buffers_avr=Buffers
+    Cached_avr=Cached
+    Slab_avr=Slab
+    SReclaimable_avr=SReclaimable
+    MemLikelyFree_avr=MemLikelyFree
+    CALL mp_sum_i8(MemTotal_avr,para_env%group) ; MemTotal_avr=MemTotal_avr/para_env%num_pe/1024
+    CALL mp_sum_i8(MemFree_avr,para_env%group) ; MemFree_avr=MemFree_avr/para_env%num_pe/1024
+    CALL mp_sum_i8(Buffers_avr,para_env%group) ; Buffers_avr=Buffers_avr/para_env%num_pe/1024
+    CALL mp_sum_i8(Cached_avr,para_env%group) ; Cached_avr=Cached_avr/para_env%num_pe/1024
+    CALL mp_sum_i8(Slab_avr,para_env%group) ; Slab_avr=Slab_avr/para_env%num_pe/1024
+    CALL mp_sum_i8(SReclaimable_avr,para_env%group) ; SReclaimable_avr=SReclaimable_avr/para_env%num_pe/1024
+    CALL mp_sum_i8(MemLikelyFree_avr,para_env%group) ; MemLikelyFree_avr=MemLikelyFree_avr/para_env%num_pe/1024
+
+    MemTotal_min=-MemTotal
+    MemFree_min=-MemFree
+    Buffers_min=-Buffers
+    Cached_min=-Cached
+    Slab_min=-Slab
+    SReclaimable_min=-SReclaimable
+    MemLikelyFree_min=-MemLikelyFree
+    CALL mp_max_i8(MemTotal_min,para_env%group) ; MemTotal_min=-MemTotal_min/1024
+    CALL mp_max_i8(MemFree_min,para_env%group) ; MemFree_min=-MemFree_min/1024
+    CALL mp_max_i8(Buffers_min,para_env%group) ; Buffers_min=-Buffers_min/1024
+    CALL mp_max_i8(Cached_min,para_env%group) ; Cached_min=-Cached_min/1024
+    CALL mp_max_i8(Slab_min,para_env%group) ; Slab_min=-Slab_min/1024
+    CALL mp_max_i8(SReclaimable_min,para_env%group) ; SReclaimable_min=-SReclaimable_min/1024
+    CALL mp_max_i8(MemLikelyFree_min,para_env%group) ; MemLikelyFree_min=-MemLikelyFree_min/1024
+
+    MemTotal_max=MemTotal
+    MemFree_max=MemFree
+    Buffers_max=Buffers
+    Cached_max=Cached
+    Slab_max=Slab
+    SReclaimable_max=SReclaimable
+    MemLikelyFree_max=MemLikelyFree
+    CALL mp_max_i8(MemTotal_max,para_env%group) ; MemTotal_max=MemTotal_max/1024
+    CALL mp_max_i8(MemFree_max,para_env%group) ; MemFree_max=MemFree_max/1024
+    CALL mp_max_i8(Buffers_max,para_env%group) ; Buffers_max=Buffers_max/1024
+    CALL mp_max_i8(Cached_max,para_env%group) ; Cached_max=Cached_max/1024
+    CALL mp_max_i8(Slab_max,para_env%group) ; Slab_max=Slab_max/1024
+    CALL mp_max_i8(SReclaimable_max,para_env%group) ; SReclaimable_max=SReclaimable_max/1024
+    CALL mp_max_i8(MemLikelyFree_max,para_env%group) ; MemLikelyFree_max=MemLikelyFree_max/1024
+
+    MemTotal=MemTotal/1024
+    MemFree=MemFree/1024
+    Buffers=Buffers/1024
+    Cached=Cached/1024
+    Slab=Slab/1024
+    SReclaimable=SReclaimable/1024
+    MemLikelyFree=MemLikelyFree/1024
+
+
     num_threads=1
 !$omp parallel
 !$ num_threads = omp_get_num_threads()
@@ -617,6 +682,19 @@ CONTAINS
             start_section_label//"| Number of threads for this process",&
             num_threads,&
             start_section_label//"| This output is from process",para_env%mepos
+       WRITE (UNIT=output_unit,FMT='()')
+
+       WRITE (UNIT=output_unit,FMT="(T2,A)") "MEMORY| system memory details [Kb]" 
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4A14)") "MEMORY|                ","rank 0", "min", "max", "average"
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| MemTotal       ",memtotal,memtotal_min,memtotal_max,memtotal_avr 
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| MemFree        ",memFree,memfree_min,memfree_max,memfree_avr 
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| Buffers        ",Buffers,Buffers_min,Buffers_max,Buffers_avr 
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| Cached         ",Cached,Cached_min,Cached_max,Cached_avr 
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| Slab           ",Slab,Slab_min,Slab_max,Slab_avr 
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| SReclaimable   ",SReclaimable,SReclaimable_min,SReclaimable_max,&
+                                                             SReclaimable_avr 
+       WRITE (UNIT=output_unit,FMT="(T2,A23,4I14)") "MEMORY| MemLikelyFree  ",MemLikelyFree,MemLikelyFree_min,MemLikelyFree_max,&
+                                                             MemLikelyFree_avr 
        WRITE (UNIT=output_unit,FMT='()')
 
     END IF

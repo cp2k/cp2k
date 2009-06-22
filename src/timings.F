@@ -14,7 +14,8 @@
 MODULE timings
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
@@ -234,6 +235,7 @@ CONTAINS
     CHARACTER(LEN=40)                        :: sformat
     CHARACTER(LEN=400)                       :: line, line2, mystring
     INTEGER                                  :: i, stack_size
+    INTEGER(KIND=int_8)                      :: mem
     TYPE(timer_env_type), POINTER            :: timer_env
     REAL(KIND=dp)                            :: wt_now
 #if defined(__HPM)
@@ -317,7 +319,8 @@ CONTAINS
             timer_env%astring,stack_size, &
             timer_env%routine_calls ( handle ), &
             TRIM( timer_env%routine_stack ( stack_size )),"       start"
-       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(m_memory()+1023)/1024,"Kb"
+       mem=m_memory()
+       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(mem+1023)/1024,"Kb"
        IF (timer_env%trace_sync) THEN
           DO i=0,timer_env%num_pe-1
              line2=line
@@ -349,6 +352,7 @@ CONTAINS
     CHARACTER(LEN=40)                        :: sformat
     CHARACTER(LEN=400)                       :: line, line2, mystring
     INTEGER                                  :: handle_up,i
+    INTEGER(KIND=int_8)                      :: mem
     REAL(KIND=dp)                            :: elapsed_wt, wt_now
     TYPE(timer_env_type), POINTER            :: timer_env
 
@@ -410,7 +414,8 @@ CONTAINS
             timer_env%stack_size, &
             timer_env%routine_calls ( handle ), &
             TRIM(timer_env%routine_stack(timer_env%stack_size)),elapsed_wt
-       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(m_memory()+1023)/1024,"Kb"
+       mem=m_memory()
+       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(mem+1023)/1024,"Kb"
        IF (timer_env%trace_sync) THEN
           DO i=0,timer_env%num_pe-1
              line2=line
