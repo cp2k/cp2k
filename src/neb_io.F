@@ -69,7 +69,8 @@ MODULE neb_io
   PUBLIC :: read_neb_section,&
             dump_neb_info,&
             dump_replica_coordinates,&
-            handle_band_file_names
+            handle_band_file_names,&
+            neb_rep_env_map_info
 
 CONTAINS
 
@@ -395,9 +396,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: output_file_path
-    CHARACTER(LEN=default_string_length)     :: padding, replica_proj_name
-    INTEGER                                  :: handle, handle2, i, ierr, j, &
-                                                lp, ndigits
+    CHARACTER(LEN=default_string_length)     :: replica_proj_name
+    INTEGER                                  :: handle, handle2, ierr, j, lp
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
@@ -415,18 +415,8 @@ CONTAINS
             root_section=root_section,error=new_error)
        j    = irep + (rep_env%local_rep_indices(1)-1)
 
-       ! Setup new replica project name and output file
-       replica_proj_name = rep_env%original_project_name
-       ! Find padding
-       ndigits = CEILING(LOG10(REAL(n_rep,KIND=dp)))-&
-                 CEILING(LOG10(REAL(j+1,KIND=dp)))
-       padding = ""
-       DO i = 1, ndigits
-          padding(i:i) = "0"
-       END DO
-       lp=LEN_TRIM(replica_proj_name)
-       replica_proj_name(lp+1:LEN(replica_proj_name))="-BAND"//&
-            TRIM(padding)//ADJUSTL(cp_to_string(j))
+       ! Get replica_project_name
+       replica_proj_name = get_replica_project_name(rep_env, n_rep, j)
        lp=LEN_TRIM(replica_proj_name)
        CALL section_vals_val_set(root_section,"GLOBAL%PROJECT_NAME",&
             c_val=TRIM(replica_proj_name),error=error)
@@ -462,5 +452,95 @@ CONTAINS
     CALL timestop(handle)
     
   END SUBROUTINE handle_band_file_names
+
+! *****************************************************************************
+!> \brief  Constructs project names for BAND replicas
+!> \author Teodoro Laino  06.2009
+! *****************************************************************************
+  FUNCTION get_replica_project_name(rep_env, n_rep, j) RESULT(replica_proj_name)
+    TYPE(replica_env_type), POINTER          :: rep_env
+    INTEGER, INTENT(IN)                      :: n_rep, j
+    CHARACTER(LEN=default_string_length)     :: replica_proj_name
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_replica_project_name', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: padding
+    INTEGER                                  :: i, lp, ndigits
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    ! Setup new replica project name and output file
+    replica_proj_name = rep_env%original_project_name
+    ! Find padding
+    ndigits = CEILING(LOG10(REAL(n_rep,KIND=dp)))-&
+         CEILING(LOG10(REAL(j+1,KIND=dp)))
+    padding = ""
+    DO i = 1, ndigits
+       padding(i:i) = "0"
+    END DO
+    lp=LEN_TRIM(replica_proj_name)
+    replica_proj_name(lp+1:LEN(replica_proj_name))="-BAND"//&
+         TRIM(padding)//ADJUSTL(cp_to_string(j))
+  END FUNCTION get_replica_project_name
+
+! *****************************************************************************
+!> \brief  Print some mapping infos in the replica_env setup output files
+!>         i.e. prints in which files one can find information for each band
+!>         replica
+!> \author Teodoro Laino  06.2009
+! *****************************************************************************
+  SUBROUTINE neb_rep_env_map_info(rep_env, neb_env, error)
+    TYPE(replica_env_type), POINTER          :: rep_env
+    TYPE(neb_type), POINTER                  :: neb_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'neb_rep_env_map_info', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: replica_proj_name
+    INTEGER                                  :: handle2, ierr, irep, n_rep, &
+                                                n_rep_neb, output_unit
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       n_rep_neb = neb_env%number_of_replica
+       n_rep     = rep_env%nrep
+       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
+            new_error=new_error, failure=failure, handle=handle2)
+       logger => cp_error_get_logger(new_error)
+       output_unit = logger%default_global_unit_nr
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT='(/,(T2,A79))')&
+               "*******************************************************************************",&
+               "**                  MAPPING OF BAND REPLICA TO REPLICA ENV                   **",&
+               "*******************************************************************************"
+          WRITE (UNIT=output_unit,FMT='(T2,A,I6,T32,A,T79,A)')&
+               "** Replica Env Nr.: ",rep_env%local_rep_indices(1)-1,&
+               "working on the following BAND replicas","**"
+          WRITE (UNIT=output_unit,FMT='(T2,A79)')&
+               "**                                                                           **"
+       END IF
+       DO irep = 1, n_rep_neb, n_rep
+          replica_proj_name = get_replica_project_name(rep_env, n_rep_neb, irep+rep_env%local_rep_indices(1)-1)
+          IF (output_unit>0) THEN
+             WRITE (UNIT=output_unit,FMT='(T2,A,I6,T32,A,T79,A)')&
+                  "** Band Replica   Nr.: ",irep+rep_env%local_rep_indices(1)-1,&
+                  "Output available on file: "//TRIM(replica_proj_name)//".out","**"
+          END IF
+       END DO
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT='(T2,A79)')&
+               "**                                                                           **",&
+               "*******************************************************************************"
+       END IF
+       CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE neb_rep_env_map_info
 
 END MODULE neb_io

@@ -44,6 +44,7 @@ MODULE neb_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE neb_io,                          ONLY: dump_neb_info,&
+                                             neb_rep_env_map_info,&
                                              read_neb_section
   USE neb_md_utils,                    ONLY: control_vels_a,&
                                              control_vels_b
@@ -180,6 +181,9 @@ CPSourceFileRef,&
           CALL cp_print_key_finished_output(iw,logger,neb_section,&
                "PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. END"
+          ! Print some additional info in the replica_env initialization file
+          CALL neb_rep_env_map_info(rep_env, neb_env, error)
+
           ! Perform NEB optimization
           SELECT CASE(neb_env%opt_type)
           CASE(band_md_opt)

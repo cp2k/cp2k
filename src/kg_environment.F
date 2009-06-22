@@ -219,7 +219,7 @@ CONTAINS
 
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
          extension=".Log",error=error)
-    CALL kg_header(iw, iw>0)
+    CALL kg_header(iw)
     CALL cp_print_key_finished_output(iw,logger,dft_section,&
          "PRINT%PROGRAM_BANNER",error=error)
 

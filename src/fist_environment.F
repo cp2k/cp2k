@@ -155,7 +155,7 @@ CONTAINS
 
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
          extension=".mmLog",error=error)
-    CALL fist_header(iw, iw>0)
+    CALL fist_header(iw)
     CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%PROGRAM_BANNER",error=error)
 
     CALL cp_subsys_create ( subsys, para_env = para_env, error = error )

@@ -60,7 +60,7 @@ CONTAINS
     atom_section => section_vals_get_subs_vals(root_section,"ATOM",error=error)
 
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%PROGRAM_BANNER",extension=".log",error=error)
-    IF (iw>0) CALL atom_header(iw)
+    CALL atom_header(iw)
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
 
     CALL atom_test(atom_section,iw,error)
@@ -80,7 +80,7 @@ CONTAINS
     END SELECT
 
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%PROGRAM_BANNER",extension=".log",error=error)
-    IF (iw>0) CALL atom_footer(iw)
+    CALL atom_footer(iw)
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
 
     CALL timestop(handle)

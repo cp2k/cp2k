@@ -462,12 +462,12 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"METHOD",i_val=method_id,error=error)
     SELECT CASE (method_id)
     CASE DEFAULT
-       CALL qs_header(iw, iw>0)
+       CALL qs_header(iw)
     CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg,&
            do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl )
-       CALL se_header(iw, iw>0)
+       CALL se_header(iw)
     CASE ( do_method_dftb )
-       CALL dftb_header(iw, iw>0)
+       CALL dftb_header(iw)
     END SELECT
 
     CALL cp_print_key_finished_output(iw,logger,dft_section,&

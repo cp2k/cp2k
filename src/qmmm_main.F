@@ -322,7 +322,7 @@ CPSourceFileRef,&
        CALL cp_print_key_finished_output(iw,logger,print_gen,"", error=error)
        iw2 = cp_print_key_unit_nr(logger,qmmm_section,"PRINT%PROGRAM_BANNER",&
             extension=".qmmmLog",error=error)
-       CALL qmmm_header(iw2, iw2>0)
+       CALL qmmm_header(iw2)
        CALL cp_print_key_finished_output(iw2,logger,qmmm_section,&
          "PRINT%PROGRAM_BANNER",error=error)
        !

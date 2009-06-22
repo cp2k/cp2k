@@ -92,7 +92,7 @@ CONTAINS
 
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
          extension=".Log",error=error)
-    CALL tddfpt_header(iw, iw>0)
+    CALL tddfpt_header(iw)
     CALL cp_print_key_finished_output(iw,logger,dft_section,&
          "PRINT%PROGRAM_BANNER",error=error)
 
