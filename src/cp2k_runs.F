@@ -257,7 +257,7 @@ CONTAINS
              ! root_section => input_file
              ! XXXXXXXXX
              CALL section_vals_retain(input_file,error=error)
-             CALL cp2k_init ( para_env, output_unit, globenv, input_file_name=input_file_name )
+             CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
              CALL cp_error_init(suberror)
              CALL cp2k_read(root_section,para_env,globenv,error=error)
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
@@ -405,7 +405,7 @@ CONTAINS
           ELSE
              CALL cp_error_dealloc_ref(suberror)
              I_was_ionode=para_env%ionode
-             CALL cp2k_finalize(root_section,para_env,globenv,error)
+             CALL cp2k_finalize(root_section,para_env,globenv,error=error)
              CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
              CALL section_vals_release(root_section,error=error)
              CALL globenv_release(globenv,para_env,error=error)

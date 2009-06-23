@@ -105,7 +105,6 @@ MODULE f77_interface
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'f77_interface'
-  INTEGER, PARAMETER :: PATH_LENGTH=default_path_length
 
 ! *****************************************************************************
   TYPE f_env_p_type
@@ -115,11 +114,11 @@ MODULE f77_interface
 ! *****************************************************************************
   TYPE f_env_type
      INTEGER :: id_nr
-     TYPE(force_env_type), POINTER :: force_env
-     TYPE(cp_error_type) :: error
-     TYPE(timer_env_type), POINTER :: timer_env
-     TYPE(mp_perf_env_type), POINTER :: mp_perf_env
-     CHARACTER(len=PATH_LENGTH) :: my_path,old_path
+     TYPE(force_env_type), POINTER      :: force_env
+     TYPE(cp_error_type)                :: error
+     TYPE(timer_env_type), POINTER      :: timer_env
+     TYPE(mp_perf_env_type), POINTER    :: mp_perf_env
+     CHARACTER(len=default_path_length) :: my_path,old_path
   END TYPE f_env_type
 
   TYPE(f_env_p_type), DIMENSION(:), POINTER, SAVE :: f_envs
@@ -525,7 +524,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=PATH_LENGTH)               :: old_dir
+    CHARACTER(len=default_path_length)       :: old_dir, wdir
     INTEGER :: handle, i, ierr2, iforce_eval, isubforce_eval, k, &
       method_name_id, my_group, nforce_eval, ngroups, nsubforce_size, stat, &
       unit_nr
@@ -567,6 +566,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     
     CALL m_getcwd(old_dir)
+    wdir = old_dir
     IF (PRESENT(work_dir)) THEN
         IF (work_dir/=" ") THEN
             CALL m_chdir(work_dir,ierr2)
@@ -574,6 +574,7 @@ CONTAINS
                 IF (PRESENT(ierr)) ierr=ierr2
                 RETURN
             END IF
+            wdir = work_dir
         END IF
     END IF
     
@@ -595,7 +596,8 @@ CONTAINS
     my_owns_out_unit=unit_nr/=6
     IF (PRESENT(owns_out_unit)) my_owns_out_unit=owns_out_unit
     CALL globenv_create(globenv,error=error)
-    CALL cp2k_init(para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path)
+    CALL cp2k_init(para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path,&
+                   wdir=wdir)
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error
@@ -869,7 +871,7 @@ CPSourceFileRef,&
        IF (.NOT.failure) THEN
           CALL globenv_retain(globenv,error=error)
           CALL f_env_dealloc(f_env,error=error)
-          CALL cp2k_finalize(root_section,para_env,globenv,error)
+          CALL cp2k_finalize(root_section,para_env,globenv,f_env%old_path,error)
           CALL section_vals_release(root_section,error=error)
           CALL globenv_release(globenv,para_env,error=error)
           CALL cp_error_check(error,failure)

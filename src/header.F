@@ -15,6 +15,7 @@ MODULE header
                                              r_pid,&
                                              r_user_name
   USE f77_blas
+  USE kinds,                           ONLY: default_path_length
 
   IMPLICIT NONE
 
@@ -26,12 +27,17 @@ MODULE header
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE cp2k_header(iw)
+  SUBROUTINE cp2k_header(iw,wdir)
     INTEGER, INTENT(IN)                      :: iw
+    CHARACTER(LEN=default_path_length), &
+      OPTIONAL                               :: wdir
 
+    CHARACTER(LEN=default_path_length)       :: cwd
     INTEGER                                  :: l
 
     IF (iw<0) RETURN
+    cwd = r_cwd
+    IF (PRESENT(wdir)) cwd = wdir
     WRITE (UNIT=iw,&
          FMT="(/,A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
          "  **** **** ******  **  PROGRAM STARTED AT ",ADJUSTR(r_datx),&
@@ -39,20 +45,25 @@ CONTAINS
          " **    ****   ******    PROGRAM STARTED BY ",ADJUSTR(r_user_name(1:30)),&
          " ***** **    ** ** **   PROGRAM PROCESS ID ",r_pid
     WRITE (UNIT=iw,FMT="(A,T44,A37)")&
-         "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(r_cwd(1:37))
-    DO l=38,LEN_TRIM(r_cwd),37
-       WRITE (UNIT=iw,FMT="(T44,A)")r_cwd(l:MIN(LEN_TRIM(r_cwd),l+36))
+         "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:37))
+    DO l=38,LEN_TRIM(cwd),37
+       WRITE (UNIT=iw,FMT="(T44,A)")cwd(l:MIN(LEN_TRIM(cwd),l+36))
     END DO
 
   END SUBROUTINE cp2k_header
 
 ! *****************************************************************************
-  SUBROUTINE cp2k_footer(iw)
+  SUBROUTINE cp2k_footer(iw,wdir)
     INTEGER, INTENT(IN)                      :: iw
+    CHARACTER(LEN=default_path_length), &
+      OPTIONAL                               :: wdir
 
+    CHARACTER(LEN=default_path_length)       :: cwd
     INTEGER                                  :: l
 
     IF (iw<0) RETURN
+    cwd = r_cwd
+    IF (PRESENT(wdir)) cwd = wdir
     WRITE (UNIT=iw,&
          FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
          "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(r_datx),&
@@ -60,9 +71,9 @@ CONTAINS
          " **    ****   ******    PROGRAM RAN BY     ",ADJUSTR(r_user_name(1:30)),&
          " ***** **    ** ** **   PROGRAM PROCESS ID ",r_pid
     WRITE (UNIT=iw,FMT="(A,T44,A37)")&
-         "  **** **  *******  **  PROGRAM STOPPED IN ",ADJUSTR(r_cwd(1:37))
-    DO l=38,LEN_TRIM(r_cwd),37
-       WRITE (UNIT=iw,FMT="(T44,A)") r_cwd(l:MIN(LEN_TRIM(r_cwd),l+36))
+         "  **** **  *******  **  PROGRAM STOPPED IN ",ADJUSTR(cwd(1:37))
+    DO l=38,LEN_TRIM(cwd),37
+       WRITE (UNIT=iw,FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd),l+36))
     END DO
   END SUBROUTINE cp2k_footer
 

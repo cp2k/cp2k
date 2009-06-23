@@ -37,6 +37,8 @@
 !>      @version 12.2001
 ! *****************************************************************************
 MODULE cp_log_handling
+  USE cp2k_info,                       ONLY: r_host_name,&
+                                             r_pid
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_iter_types,                   ONLY: cp_iteration_info_create,&
@@ -49,9 +51,7 @@ MODULE cp_log_handling
                                              default_string_length,&
                                              dp
   USE machine,                         ONLY: m_datum,&
-                                             m_flush,&
-                                             m_getpid,&
-                                             m_hostnm
+                                             m_flush
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_comm_free
   USE string_utilities,                ONLY: compress
@@ -662,8 +662,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: filename
-    CHARACTER(len=default_string_length)     :: host_name
-    INTEGER                                  :: iostat, pid
+    INTEGER                                  :: iostat
     LOGICAL                                  :: loc
     TYPE(cp_logger_type), POINTER            :: lggr
 
@@ -695,12 +694,10 @@ CONTAINS
           WRITE (unit=lggr%default_global_unit_nr,fmt='(a)',iostat=iostat)&
                ' WARNING non ionode asked for global logger'
           IF (iostat /= 0) THEN
-             CALL m_getpid(pid)
-             CALL m_hostnm(host_name)
              PRINT *," Error trying to WRITE to the local logger."
              PRINT *," mpi_id=",lggr%para_env%mepos,&
                   " mpi_communicator=",lggr%para_env%group,&
-                  " pid=",pid,'host=',host_name
+                  " pid=",r_pid,'host=',r_host_name
              CALL print_stack(6)
           ELSE
              CALL print_stack(lggr%default_global_unit_nr)
@@ -715,14 +712,12 @@ CONTAINS
                file_action="WRITE",&
                file_position="APPEND",& 
                unit_number=lggr%default_local_unit_nr)
-          CALL m_getpid(pid)
-          CALL m_hostnm(host_name)
           WRITE (unit=lggr%default_local_unit_nr,fmt='(a,i8,a,i8)',iostat=iostat)&
                ' **** Local logger file of mpi task',lggr%para_env%mepos,&
                ' in communicator',lggr%para_env%group
           IF (iostat==0) THEN
              WRITE (unit=lggr%default_local_unit_nr,fmt='(a,i8,a,a)',iostat=iostat)&
-                  ' **** pid=',pid,' host=',host_name
+                  ' **** pid=',r_pid,' host=',r_host_name
              WRITE (unit=lggr%default_local_unit_nr,fmt='(a)',iostat=iostat)&
                   ' **** file created by ****'
              CALL print_stack(lggr%default_local_unit_nr)
@@ -733,7 +728,7 @@ CONTAINS
              PRINT *," Error trying to WRITE to the local logger."
              PRINT *," mpi_id=",lggr%para_env%mepos,&
                   " mpi_communicator=",lggr%para_env%group,&
-                  " pid=",pid,'host=',host_name
+                  " pid=",r_pid,'host=',r_host_name
              CALL print_stack(6)
           END IF
 

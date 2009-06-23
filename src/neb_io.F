@@ -28,6 +28,7 @@ MODULE neb_io
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
   USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: cp2k_footer
   USE input_constants,                 ONLY: band_md_opt,&
                                              do_sm,&
                                              dump_xmol,&
@@ -537,7 +538,9 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT='(T2,A79)')&
                "**                                                                           **",&
                "*******************************************************************************"
+          WRITE (UNIT=output_unit,FMT='(/)')
        END IF
+       CALL cp2k_footer(output_unit)        
        CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF

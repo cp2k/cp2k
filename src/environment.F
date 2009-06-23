@@ -107,12 +107,13 @@ CONTAINS
 !>      - merged with cp2k_input (30.10.2002,MK)
 !> \author JGH,MK
 ! *****************************************************************************
-  SUBROUTINE cp2k_init(para_env,output_unit,globenv,input_file_name)
+  SUBROUTINE cp2k_init(para_env,output_unit,globenv,input_file_name,wdir)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*)                         :: input_file_name
+    CHARACTER(LEN=*), OPTIONAL :: wdir
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_init', &
       routineP = moduleN//':'//routineN
@@ -196,7 +197,7 @@ CONTAINS
     CALL timeset ("CP2K",globenv%handle)
 
     !   *** Print header ***
-    CALL cp2k_header(my_output_unit)
+    CALL cp2k_header(my_output_unit,wdir)
 
     IF (my_output_unit>0) THEN
        WRITE (UNIT=my_output_unit,FMT="(/,T2,A,T31,A50)")&
@@ -789,11 +790,12 @@ CONTAINS
 !>      none
 !> \author JGH,MK
 ! *****************************************************************************
-  SUBROUTINE cp2k_finalize(root_section,para_env,globenv,error)
+  SUBROUTINE cp2k_finalize(root_section,para_env,globenv,wdir,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
+    CHARACTER(LEN=*), OPTIONAL :: wdir
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_finalize', &
@@ -906,7 +908,7 @@ CONTAINS
 
        ! Just a choice, do not print the CP2K footer if there is a failure
        IF (.NOT.failure) THEN
-          CALL cp2k_footer(iw)
+          CALL cp2k_footer(iw,wdir)
           IF (iw>0) CALL m_flush_internal(iw)
        END IF
 
