@@ -1,32 +1,20 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002,2003,2004,2005,2006,2007  CP2K developers group        !
+!   FES: a fast and general program to map metadynamics on grids              !
+!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009 Teodoro Laino       !
 !-----------------------------------------------------------------------------!
 
 
-!!****h* cp2k/fes [1.0] *
-!!
-!!   NAME
-!!     fes
-!!
-!!   FUNCTION
-!!     Program to Map on grid the hills spawned during a metadynamics run
-!!
-!!   NOTES
-!!     Fast and improved version.
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [tlaino]
-!!     teodoro.laino .at. gmail.com 
-!!     11.2007 - tlaino (University of Zurich): Periodic COLVAR - cleaning.
-!!
-!!   SOURCE
-!!     Please report any bug to the author
-!!
-!****************************************************************************
+! *****************************************************************************
+!> \brief   Program to Map on grid the hills spawned during a metadynamics run
+!> \author Teodoro Laino [tlaino] - 06.2009
+!> \par History
+!>     03.2006 created [tlaino]
+!>     teodoro.laino .at. gmail.com 
+!>     11.2007 - tlaino (University of Zurich): Periodic COLVAR - cleaning.
+!>
+!> \par Note
+!>     Please report any bug to the author
+! *****************************************************************************
 PROGRAM fes_compute
 
   USE kinds,                           ONLY: dp,&
@@ -201,6 +189,8 @@ PROGRAM fes_compute
   IF (stat/=0) STOP "Allocation Error"
   ALLOCATE(iperd(ndim),stat=stat)
   IF (stat/=0) STOP "Allocation Error"
+  ALLOCATE(iprd(nprd),stat=stat)
+  IF (stat/=0) STOP "Allocation Error"
   DO i = 1, ndim
      idw(i)   = i
      iperd(i) = 0
@@ -243,6 +233,8 @@ PROGRAM fes_compute
            ENDIF
         ENDDO nprd_loop
 
+        DEALLOCATE(iprd,stat=stat)
+        IF (stat/=0) STOP "Allocation Error"
         ALLOCATE(iprd(nprd),stat=stat)
         IF (stat/=0) STOP "Allocation Error"
 
@@ -553,11 +545,11 @@ PROGRAM fes_compute
   IF (stat/=0) STOP "Deallocation Error"
   DEALLOCATE(dp_cut,stat=stat )
   IF (stat/=0) STOP "Deallocation Error"
-  DEALLOCATE(iprd,stat=stat )
-  IF (stat/=0) STOP "Deallocation Error"
   DEALLOCATE(i_map,stat=stat )
   IF (stat/=0) STOP "Deallocation Error"
   DEALLOCATE(fes,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(iprd,stat=stat )
   IF (stat/=0) STOP "Deallocation Error"
 
   ! Terminate FES
