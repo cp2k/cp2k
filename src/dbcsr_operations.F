@@ -78,23 +78,26 @@ CONTAINS
 !> \param[in] right_matrix         right matrix
 !> \param[out] product             DBCSR product workmatrix
 !> \param[in,out] error            cp2k error
+!> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_from_left (left_set, right_matrix, product_matrix,&
-       error)
+       error, flop)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
     TYPE(dbcsr_type), INTENT(IN)             :: right_matrix
     TYPE(dbcsr_type), INTENT(INOUT)          :: product_matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: flop
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_from_left', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: debug_level, entries, flop, flop_total, i, img, left_image, &
-      left_images, left_multiplicity, left_nprows, left_prow, &
-      left_src_p_calc, left_src_p_comm, mp_group, mult, mynode, mypcol, &
-      myprow, nblks, npcols, nprows, numnodes, nze, output_unit, &
-      right_nprows, right_prow, right_prow_i, right_src_p_calc, &
-      right_src_p_comm, timing_handle
+    INTEGER :: debug_level, entries, i, img, left_image, left_images, &
+      left_multiplicity, left_nprows, left_prow, left_src_p_calc, &
+      left_src_p_comm, mp_group, mult, mynode, mypcol, myprow, nblks, npcols, &
+      nprows, numnodes, nze, output_unit, right_nprows, right_prow, &
+      right_prow_i, right_src_p_calc, right_src_p_comm, timing_handle
+    INTEGER(KIND=int_8)                      :: flop_single, flop_total
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: keys
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
@@ -123,7 +126,8 @@ CONTAINS
     IF (dbcsr_mp_pgrid_equal (dbcsr_distribution_mp (left_set%image_dist%main),&
          dbcsr_distribution_mp (right_matrix%dist))) THEN
        CALL dbcsr_multiply_from_left_sqpg (left_set, right_matrix,&
-            product_matrix, error)
+            product_matrix, error, flop=flop_total)
+       IF (PRESENT (flop)) flop = flop_total
        RETURN
     ENDIF
     CALL timeset (routineN, timing_handle)
@@ -345,12 +349,12 @@ CONTAINS
              CALL dbcsr_repoint_index (lbuffer_calc%mats(mult), error=error)
              tstart = m_walltime ()
              CALL dbcsr_nn_mult(lbuffer_calc%mats(mult), rbuffer_calc,&
-                  product_matrix, error, flop=flop)
-             flop_total = flop_total + flop
+                  product_matrix, error, flop=flop_single)
+             flop_total = flop_total + flop_single
              tstop = m_walltime ()
-             IF (tstop-tstart .NE. 0) THEN
+             IF (dbg .AND. tstop-tstart .NE. 0) THEN
                 DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-                     (REAL(flop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
+                     (REAL(flop_total, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
              ENDIF
              trun = trun + (tstop - tstart)
           ENDDO
@@ -412,6 +416,7 @@ CONTAINS
     DEALLOCATE (keys)
     CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error)
     !
+    IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
   END SUBROUTINE dbcsr_multiply_from_left
 
@@ -479,7 +484,8 @@ CONTAINS
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER, INTENT(OUT), OPTIONAL           :: flop
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: flop
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult', &
       routineP = moduleN//':'//routineN
@@ -491,10 +497,9 @@ CONTAINS
     INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
       a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
       b_col_size, b_nze, b_row, b_row_size, c_blk, c_blk_p, c_col, c_nze, &
-      c_row, lda, ldb, ldc, lflop, num_symmetries, stat, symmetry, &
-      timing_handle
+      c_row, lda, ldb, ldc, num_symmetries, stat, symmetry, timing_handle
     INTEGER(KIND=int_4)                      :: offset
-    INTEGER(KIND=int_8)                      :: coordinate
+    INTEGER(KIND=int_8)                      :: coordinate, lflop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps
     INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
                                                 left_row_blk_size, &
@@ -673,7 +678,7 @@ CONTAINS
                      c_data, a_row_size_logical)
                 !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
                 !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
-                lflop = lflop + a_row_size * b_col_size * a_col_size * 2.0_dp
+                lflop = lflop + a_row_size * b_col_size * a_col_size * 2
              ENDDO ! b
           ENDDO ! symmetry
        ENDDO ! a_col
@@ -722,27 +727,31 @@ CONTAINS
 !> \param[in] right_matrix         right matrix
 !> \param[out] product             DBCSR product workmatrix
 !> \param[in,out] error            cp2k error
+!> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_from_left_sqpg (left_set, right_matrix,&
-       product_matrix, error)
+       product_matrix, error, flop)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
     TYPE(dbcsr_type), INTENT(IN)             :: right_matrix
     TYPE(dbcsr_type), INTENT(INOUT)          :: product_matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: flop
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'dbcsr_multiply_from_left_sqpg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: debug_level, flop, flop_total, i, img, left_dst_p, &
-      left_dst_pcol, left_dst_prow, left_image, left_images, &
-      left_multiplicity, left_mypcol, left_myprow, left_npcols, left_nprows, &
-      left_p_recv, left_p_send, left_src_p, left_src_pcol, left_src_prow, &
-      mp_group, mult, mynode, mypcol, myprow, nblks, npcols, nprows, &
-      numnodes, nze, right_data_rr, right_data_sr, right_dst_p, &
-      right_dst_prow, right_index_rr, right_index_sr, right_mypcol, &
-      right_myprow, right_npcols, right_nprows, right_p_recv, right_p_send, &
-      right_prow_i, right_src_p, right_src_prow, tag, timing_handle
+    INTEGER :: debug_level, i, img, left_dst_p, left_dst_pcol, left_dst_prow, &
+      left_image, left_images, left_multiplicity, left_mypcol, left_myprow, &
+      left_npcols, left_nprows, left_p_recv, left_p_send, left_src_p, &
+      left_src_pcol, left_src_prow, mp_group, mult, mynode, mypcol, myprow, &
+      nblks, npcols, nprows, numnodes, nze, right_data_rr, right_data_sr, &
+      right_dst_p, right_dst_prow, right_index_rr, right_index_sr, &
+      right_mypcol, right_myprow, right_npcols, right_nprows, right_p_recv, &
+      right_p_send, right_prow_i, right_src_p, right_src_prow, tag, &
+      timing_handle
+    INTEGER(KIND=int_8)                      :: flop_single, flop_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: left_data_rr, left_data_sr, &
                                                 left_index_rr, left_index_sr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes, tmp_index
@@ -1090,13 +1099,13 @@ CONTAINS
              CALL dbcsr_repoint_index (lbuffer_calc%mats(mult), error=error)
              tstart = m_walltime ()
              CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult), rbuffer_calc,&
-                  product_matrix, error, flop=flop, new_index=tmp_index,&
+                  product_matrix, error, flop=flop_single, new_index=tmp_index,&
                   t_all=t_all, t_dgemm=t_dgemm)
-             flop_total = flop_total + flop
+             flop_total = flop_total + flop_single
              tstop = m_walltime ()
              IF (tstop-tstart .NE. 0) THEN
                 DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-                     (REAL(flop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
+                     (REAL(flop_total, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
              ENDIF
              trun = trun + (tstop - tstart)
           ENDDO
@@ -1156,6 +1165,7 @@ CONTAINS
     !CALL mp_sync (mp_group)
     CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error)
     !
+    IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
   END SUBROUTINE dbcsr_multiply_from_left_sqpg
 
@@ -1178,7 +1188,8 @@ CONTAINS
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER, INTENT(OUT), OPTIONAL           :: flop
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: flop
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: new_index
     REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_dgemm
 
@@ -1192,10 +1203,10 @@ CONTAINS
     INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
       a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
       b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_col, c_nze, c_row, i, &
-      lda, ldb, lflop, new_blk, num_symmetries, old_blk, old_row_begin_blk, &
+      lda, ldb, new_blk, num_symmetries, old_blk, old_row_begin_blk, &
       old_size, row_begin_blk, row_blk, size_c_blk_ps, stat, timing_handle
     INTEGER(KIND=int_4)                      :: offset
-    INTEGER(KIND=int_8)                      :: coordinate, epoch
+    INTEGER(KIND=int_8)                      :: coordinate, epoch, lflop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
     INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
                                                 left_row_blk_size, &
@@ -1379,7 +1390,7 @@ CONTAINS
              t_dgemm = t_dgemm + (m_walltime() - epoch)
              !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
              !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
-             !lflop = lflop + a_row_size * b_col_size * a_col_size * 2.0_dp
+             lflop = lflop + a_row_size * b_col_size * a_col_size * 2
           ENDDO ! b
        ENDDO ! a_col
     ENDDO ! a_row

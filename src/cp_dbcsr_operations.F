@@ -39,9 +39,11 @@ MODULE cp_dbcsr_operations
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: mp_sync
+  USE message_passing,                 ONLY: mp_sum_i8,&
+                                             mp_sync
   USE sparse_matrix_types,             ONLY: checksum_matrix,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
@@ -75,22 +77,26 @@ CONTAINS
 !> \param[in] matrix_a        left BCSR matrix
 !> \param[in] matrix_b        right BCSR matrix
 !> \param[out] matrix_c       resulting BCSR product matrix.
-!> \param[in] dist          distribution for the product matrix.
+!> \param[in] dist            distribution for the product matrix.
 !> \param[in] hint            code path selection
-!> \param error     cp2k error
+!> \param error               cp2k error
+!> \param[out] flop           (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c, distribution, &
-       hint, error)
+       hint, error, flop)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix_a, matrix_b
     TYPE(dbcsr_type), INTENT(OUT)            :: matrix_c
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: distribution
     INTEGER, INTENT(IN)                      :: hint
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: flop
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sm_sm_multiply', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: flop, i, timing_handle
+    INTEGER                                  :: i, timing_handle
+    INTEGER(KIND=int_8)                      :: my_flop
     REAL(KIND=dp)                            :: checksum, flops
     TYPE(dbcsr_array_type)                   :: ms_left
     TYPE(dbcsr_imagedistribution_type)       :: rdist_left
@@ -138,8 +144,13 @@ CONTAINS
     !CALL dbcsr_print(matrix_e, error)
     DBG 'Multiplying matrices'
     !
+    my_flop = 0
     IF (hint .GE. 0) THEN
-       CALL dbcsr_multiply_from_left(ms_left, matrix_b, matrix_c, error)
+       CALL dbcsr_multiply_from_left(ms_left, matrix_b, matrix_c, error,&
+            flop=my_flop)
+       IF (PRESENT (flop)) flop = my_flop
+    ELSE
+       IF (PRESENT (flop)) flop = 0
     ENDIF
     !
     !IF (dbg) THEN
@@ -147,7 +158,6 @@ CONTAINS
     !   checksum = dbcsr_checksum(matrix_c, error)
     !   WRITE(*,*)routineP//' BCSR Sx Matrix checksum is', checksum
     !ENDIF
-    flop = 0
     !CALL mp_sum(flop, dbcsr_mp_group (dbcsr_distribution_mp (matrix_a%dist)))
     !WRITE(*,*)'FLOP=',flop
     !
@@ -177,6 +187,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, k, output_unit
+    INTEGER(KIND=int_8)                      :: flop
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: failure, ionode, ldbg
     REAL(kind=dp)                            :: checksum, newtime, oldtime, &
@@ -280,7 +291,7 @@ CONTAINS
     !
     walltime1 = m_walltime()
     CALL dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c,&
-         matrix_b%dist, hint, error)
+         matrix_b%dist, hint, error, flop=flop)
     !CALL dbcsr_sm_sm_multiply(matrix_bt, matrix_a, matrix_c,&
     !     dist_result, hint, error)
     !CALL dbcsr_distribution_release (dist_result)
@@ -292,9 +303,13 @@ CONTAINS
     !
     checksum = dbcsr_checksum(matrix_c, error)
     !WRITE(*,*)'BCSR Sx checksum',checksum,'time=',newtime
+    CALL mp_sum_i8 (flop, dbcsr_mp_group(dbcsr_distribution_mp(matrix_c%dist)))
     IF (ldbg.AND.ionode) THEN
-       WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')"DBCSR Sx checksum", checksum,&
-            " time ", newtime
+       WRITE(output_unit, '(T2,A,F12.4,A,F12.4,";",F12.4,A)')&
+            "DBCSR Sx checksum", checksum,&
+            " time ", newtime,&
+            REAL(flop, dp)/1000000000.0_dp/newtime, " GFLOP/s"
+       !WRITE(output_unit,'(A,I30,5X,EN12.4)')'FLOP=',flop, REAL (flop, dp)
     ENDIF
     !
     ! check trace(c'*s*c)
