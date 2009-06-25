@@ -321,16 +321,19 @@ CONTAINS
     CALL qs_init_subsys(qs_env,my_subsys,my_cell,my_cell_ref,use_ref_cell,&
          root_section,subsys_section,my_qmmm,harris=harris_flag,error=error)
 
-    IF (.NOT.PRESENT(cell))      CALL cell_release(my_cell,error=error)
-    IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
+    IF (.NOT.PRESENT(cell))        CALL cell_release(my_cell,error=error)
+    IF (.NOT.PRESENT(cell_ref))    CALL cell_release(my_cell_ref,error=error)
     IF (.NOT.PRESENT(subsys)) CALL cp_subsys_release(my_subsys,error=error)
 
     do_hfx =.FALSE.
     hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_section,explicit=do_hfx,error=error)
     IF (do_hfx) THEN
+      ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
+      particle_set    => my_subsys%particles%els
+      atomic_kind_set => my_subsys%atomic_kinds%els
       natom=SIZE(particle_set)
-      CALL hfx_create(qs_env%x_data, para_env, hfx_section,natom,atomic_kind_set, &
+      CALL hfx_create(qs_env%x_data, para_env, hfx_section, natom, atomic_kind_set,&
                       qs_env%dft_control, qs_env%cell, error=error)
     END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
