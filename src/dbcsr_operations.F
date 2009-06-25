@@ -23,7 +23,7 @@ MODULE dbcsr_operations
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution_mp, dbcsr_mp_group, dbcsr_mp_mynode, &
        dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes, dbcsr_mp_pgrid
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_pgrid_equal
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
                                              dbcsr_mp_obj,&
                                              dbcsr_type,&
@@ -36,16 +36,13 @@ MODULE dbcsr_operations
                                              int_4,&
                                              int_8
   USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_rma_get,&
-                                             mp_sum,&
-                                             mp_window_create,&
-                                             mp_window_destroy,&
-                                             mp_window_fence,&
-                                             mp_window_type
+  USE message_passing,                 ONLY: &
+       mp_allgather, mp_isendrecv, mp_rma_get, mp_sum, mp_wait, &
+       mp_window_create, mp_window_destroy, mp_window_fence, mp_window_type
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory,stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -54,7 +51,7 @@ MODULE dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
-  PUBLIC :: dbcsr_multiply_from_left, dbcsr_nn_mult, dbcsr_trace, dbcsr_scale
+  PUBLIC :: dbcsr_multiply_from_left, dbcsr_trace, dbcsr_scale
 
   PRIVATE
 
@@ -73,6 +70,7 @@ MODULE dbcsr_operations
 
 
 CONTAINS
+
 
 ! *****************************************************************************
 !> \brief Multiplies two DBCSR matrices.
@@ -122,6 +120,12 @@ CONTAINS
     DEBUG_BODY
     debug_level=0
     IF (dbg) debug_level = 2
+    IF (dbcsr_mp_pgrid_equal (dbcsr_distribution_mp (left_set%image_dist%main),&
+         dbcsr_distribution_mp (right_matrix%dist))) THEN
+       CALL dbcsr_multiply_from_left_sqpg (left_set, right_matrix,&
+            product_matrix, error)
+       RETURN
+    ENDIF
     CALL timeset (routineN, timing_handle)
     CALL btree_new (product_matrix%w%tree)
     tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
@@ -378,21 +382,23 @@ CONTAINS
     CALL dbcsr_destroy_array (lbuffer_2, error)
     DEALLOCATE (my_sizes)
     !
-    ALLOCATE (all_waits(4, 0:right_nprows, 0:numnodes-1))
-    CALL mp_allgather (my_waits, all_waits, mp_group)
-    logger => cp_error_get_logger (error)
-    IF (logger%para_env%mepos == logger%para_env%source) THEN
-       output_unit = cp_logger_get_default_unit_nr (logger)
-       WRITE(output_unit,'(A)')"Waiting times per place per step"
-       DO right_prow_i = 0, right_nprows
-          WRITE(output_unit,'(4(F9.4),5X,4(F9.4))')&
-               (MAXVAL(all_waits(i,right_prow_i,:)), i=1, 4),&
-               (SUM(all_waits(i,right_prow_i,:))/numnodes, i=1, 4)
-          WRITE(*,'(A,I4)')"Step ", right_prow_i
-          DO i = 0, numnodes-1
-             WRITE(*,'(I4,1X,4(F9.4))')i, all_waits(:, right_prow_i, i)
+    IF (dbg) THEN
+       ALLOCATE (all_waits(4, 0:right_nprows, 0:numnodes-1))
+       CALL mp_allgather (my_waits, all_waits, mp_group)
+       logger => cp_error_get_logger (error)
+       IF (logger%para_env%mepos == logger%para_env%source) THEN
+          output_unit = cp_logger_get_default_unit_nr (logger)
+          WRITE(output_unit,'(A)')"Waiting times per place per step"
+          DO right_prow_i = 0, right_nprows
+             WRITE(output_unit,'(4(F9.4),5X,4(F9.4))')&
+                  (MAXVAL(all_waits(i,right_prow_i,:)), i=1, 4),&
+                  (SUM(all_waits(i,right_prow_i,:))/numnodes, i=1, 4)
+             WRITE(*,'(A,I4)')"Step ", right_prow_i
+             DO i = 0, numnodes-1
+                WRITE(*,'(I4,1X,4(F9.4))')i, all_waits(:, right_prow_i, i)
+             ENDDO
           ENDDO
-       ENDDO
+       ENDIF
     ENDIF
     !
     entries = btree_get_entries (product_matrix%w%tree)
@@ -708,6 +714,814 @@ CONTAINS
     tuple = most
     tuple = IOR (ISHFT(tuple, 32), INT(least, int_8))
   END FUNCTION make_coordinate_tuple
+
+
+! *****************************************************************************
+!> \brief Multiplies two DBCSR matrices with square processor grids.
+!> \param[in] left_set             set of left images
+!> \param[in] right_matrix         right matrix
+!> \param[out] product             DBCSR product workmatrix
+!> \param[in,out] error            cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_multiply_from_left_sqpg (left_set, right_matrix,&
+       product_matrix, error)
+    TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
+    TYPE(dbcsr_type), INTENT(IN)             :: right_matrix
+    TYPE(dbcsr_type), INTENT(INOUT)          :: product_matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_multiply_from_left_sqpg', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: debug_level, flop, flop_total, i, img, left_dst_p, &
+      left_dst_pcol, left_dst_prow, left_image, left_images, &
+      left_multiplicity, left_mypcol, left_myprow, left_npcols, left_nprows, &
+      left_p_recv, left_p_send, left_src_p, left_src_pcol, left_src_prow, &
+      mp_group, mult, mynode, mypcol, myprow, nblks, npcols, nprows, &
+      numnodes, nze, right_data_rr, right_data_sr, right_dst_p, &
+      right_dst_prow, right_index_rr, right_index_sr, right_mypcol, &
+      right_myprow, right_npcols, right_nprows, right_p_recv, right_p_send, &
+      right_prow_i, right_src_p, right_src_prow, tag, timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: left_data_rr, left_data_sr, &
+                                                left_index_rr, left_index_sr
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes, tmp_index
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
+    INTEGER, DIMENSION(:), POINTER           :: left_index_rp, left_index_sp, &
+                                                right_index_rp, right_index_sp
+    INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
+                                                right_pgrid
+    REAL(KIND=dp)                            :: t_all, t_dgemm, trun, trun_t, &
+                                                tstart, tstop
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: my_waits
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_rp, left_data_sp, &
+                                                right_data_rp, right_data_sp
+    TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
+    TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
+    TYPE(dbcsr_mp_obj)                       :: left_mp, mp_obj, right_mp
+    TYPE(dbcsr_type), POINTER                :: rbuffer_calc, rbuffer_comm
+    TYPE(dbcsr_type), TARGET                 :: rbuffer_1, rbuffer_2
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    debug_level=0
+    IF (dbg) debug_level = 2
+    CALL timeset (routineN, timing_handle)
+    t_all = 0.0_dp
+    t_dgemm = 0.0_dp
+    CALL btree_new (product_matrix%w%tree)
+    tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
+    flop_total = 0
+    trun_t = m_walltime ()
+    left_images = SIZE (left_set%mats)
+    CALL bcsr_assert (debug_level,&
+         left_images .EQ. left_set%image_dist%row_decimation, routineP,&
+         "Non-compatible images")
+    left_multiplicity = left_set%image_dist%row_multiplicity
+    mp_obj = dbcsr_distribution_mp (product_matrix%dist)
+    mp_group = dbcsr_mp_group (mp_obj)
+    left_mp = dbcsr_distribution_mp (left_set%image_dist%main)
+    right_mp = dbcsr_distribution_mp (right_matrix%dist)
+    numnodes = dbcsr_mp_numnodes (mp_obj)
+    mynode = dbcsr_mp_mynode (mp_obj)
+    myprow = dbcsr_mp_myprow (mp_obj)
+    mypcol = dbcsr_mp_mypcol (mp_obj)
+    npcols = dbcsr_mp_npcols (mp_obj)
+    nprows = dbcsr_mp_nprows (mp_obj)
+    product_pgrid => dbcsr_mp_pgrid (mp_obj)
+    right_myprow = dbcsr_mp_myprow (right_mp)
+    right_mypcol = dbcsr_mp_mypcol (right_mp)
+    right_nprows = dbcsr_mp_nprows (right_mp)
+    right_npcols = dbcsr_mp_npcols (right_mp)
+    right_pgrid => dbcsr_mp_pgrid (right_mp)
+    left_pgrid => dbcsr_mp_pgrid (left_mp)
+    left_myprow = dbcsr_mp_myprow (left_mp)
+    left_mypcol = dbcsr_mp_mypcol (left_mp)
+    left_nprows = dbcsr_mp_nprows (left_mp)
+    left_npcols = dbcsr_mp_npcols (left_mp)
+    ALLOCATE (tmp_index (3, product_matrix%nblkcols_total*product_matrix%nblkrows_total))
+    CALL ensure_array_size(product_matrix%w%row_i,&
+         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
+    CALL ensure_array_size(product_matrix%w%col_i,&
+         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
+    CALL ensure_array_size(product_matrix%w%blk_p,&
+         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
+    DBG 'product pgrid shape', SHAPE (dbcsr_mp_pgrid (mp_obj))
+    DBG 'left pgrid shape', SHAPE (left_pgrid),';',left_nprows,left_images
+    DBG 'right pgrid shape', SHAPE (right_pgrid)
+    DBG 'left images, multiplicity', left_images, left_multiplicity
+    CALL bcsr_assert (debug_level, left_npcols .EQ. right_nprows, routineP,&
+         "Left and right matrix processor grid dimension mismatch")
+    CALL bcsr_assert (debug_level,&
+         left_multiplicity * npcols .EQ. left_nprows, routineP,&
+         "Mulitplicity mismatch and processer grid.")
+    DBG 'left pgrid =', left_pgrid
+    DBG 'right pgrid =', right_pgrid
+    ALLOCATE (left_set%data_windows(left_images))
+    ALLOCATE (left_set%index_windows(left_images))
+    ALLOCATE (my_sizes(4, left_images))
+    my_sizes(:,:) = 0
+    DO img = 1, left_images
+       my_sizes(1, img) = SIZE (left_set%mats(img)%data)
+       my_sizes(2, img) = SIZE (left_set%mats(img)%index)
+    ENDDO
+    my_sizes(3, 1) = SIZE (right_matrix%data)
+    my_sizes(4, 1) = SIZE (right_matrix%index)
+    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numnodes-1))
+    DO i = 1, 4
+       DBG 'my sizes', my_sizes(i,:)
+    ENDDO
+    CALL mp_allgather(my_sizes, all_sizes, mp_group)
+    nblks = MAXVAL (all_sizes (2, :, :))
+    nze = MAXVAL (all_sizes(1, :, :))
+    DBG 'data sizes', all_sizes
+    !! Setup the buffer matrices
+    !DO img = 1, left_images
+    !   CALL mp_window_create (left_set%data_windows(img),&
+    !        left_set%mats(img)%data, gid=mp_group)
+    !   CALL mp_window_create (left_set%index_windows(img),&
+    !        left_set%mats(img)%index, gid=mp_group)
+    !ENDDO
+    ALLOCATE (lbuffer_1%mats(left_multiplicity))
+    ALLOCATE (lbuffer_2%mats(left_multiplicity))
+    ALLOCATE (left_data_sr(left_multiplicity), left_data_rr(left_multiplicity))
+    ALLOCATE (left_index_sr(left_multiplicity), left_index_rr(left_multiplicity))
+    DO mult = 1, left_multiplicity
+       CALL dbcsr_init (lbuffer_1%mats(mult), error)
+       CALL dbcsr_create (lbuffer_1%mats(mult),&
+            'lbufferl1'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
+            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+            nblks, nze, special=.FALSE., error=error)
+       CALL ensure_array_size (lbuffer_1%mats(mult)%data,&
+            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
+            special=.FALSE., error=error)
+       CALL ensure_array_size (lbuffer_1%mats(mult)%index,&
+            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
+            special=.FALSE., error=error)
+       !
+       CALL dbcsr_init (lbuffer_2%mats(mult), error)
+       CALL dbcsr_create (lbuffer_2%mats(mult),&
+            'lbuffer2'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
+            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+            nblks, nze, special=.FALSE., error=error)
+       CALL ensure_array_size (lbuffer_2%mats(mult)%data,&
+            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
+            special=.FALSE., error=error)
+       CALL ensure_array_size (lbuffer_2%mats(mult)%index,&
+            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
+            special=.FALSE., error=error)
+    ENDDO
+    lbuffer_calc => lbuffer_1
+    lbuffer_comm => lbuffer_2
+    ! Setup buffers for right matrix
+    nblks = MAXVAL (all_sizes (4, 1, :))
+    nze = MAXVAL (all_sizes(3, 1, :))
+    CALL dbcsr_init (rbuffer_1, error)
+    CALL dbcsr_create (rbuffer_1,&
+         'rbuffer1'//right_matrix%name, right_matrix%dist,&
+         'N',&
+         right_matrix%row_blk_size,&
+         right_matrix%col_blk_size,&
+         0, 0, special=.FALSE., error=error)
+    CALL ensure_array_size (rbuffer_1%data,&
+         ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
+         error=error)
+    CALL ensure_array_size (rbuffer_1%index,&
+         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
+         error=error)
+    !
+    CALL dbcsr_init (rbuffer_2, error)
+    CALL dbcsr_create (rbuffer_2,&
+         'rbuffer2'//right_matrix%name, right_matrix%dist,&
+         'N',&
+         right_matrix%row_blk_size,&
+         right_matrix%col_blk_size,&
+         0, 0, special=.FALSE., error=error)
+    CALL ensure_array_size (rbuffer_2%data,&
+         ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
+         error=error)
+    CALL ensure_array_size (rbuffer_2%index,&
+         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
+         error=error)
+    ! Create windows for the right matrices
+    DBG 'RIGHT data win size', SIZE (right_matrix%data)
+    DBG 'RIGHT indx win size', SIZE (right_matrix%index)
+    !CALL mp_window_create (right_data_window, right_matrix%data, gid=mp_group)
+    !CALL mp_window_create (right_index_window, right_matrix%index, gid=mp_group)
+    rbuffer_calc => rbuffer_1
+    rbuffer_comm => rbuffer_2
+    ! To which processor we normally send
+    right_p_send = right_pgrid (MOD (right_nprows&
+         + right_myprow - 1, right_nprows),&
+         right_mypcol)
+    ! From which processor we normally receive.
+    right_p_recv = right_pgrid (MOD (&
+         right_myprow + 1, right_nprows),&
+         right_mypcol)
+    !
+    ! Do the actual transfers and call local multiplication
+    ALLOCATE (my_waits(4, 0:right_nprows))
+    my_waits(:,:) = 0    
+    k_index: DO right_prow_i = 0, right_nprows
+       ! Right matrix
+       !
+       ! right_src_prow is the matrix "source" processor (as if a
+       ! direct mpi_get) would be called.
+       right_src_prow = MOD ( right_prow_i &
+            + right_myprow + right_mypcol/left_multiplicity, right_nprows)
+       ! right_dst_prow is the matrix "destination" processor (i.e.,
+       ! the matrix data that we currently have)
+       right_dst_prow = MOD ( right_prow_i - 1 + 4*right_nprows&
+            + right_myprow + right_mypcol/left_multiplicity, right_nprows)
+
+       DBG 'RIGHT_PROW from/to', right_prow_i, right_src_prow, right_dst_prow,&
+            myprow, right_nprows
+       ! No wait in first loop iteration.
+       IF (right_prow_i .GT. 0) THEN
+          DBG 'It', right_prow_i,'waiting for right'
+          my_waits(1, right_prow_i) = m_walltime()
+          CALL mp_wait (right_data_sr)
+          CALL mp_wait (right_index_sr)
+          my_waits(1, right_prow_i) = m_walltime() - my_waits(1, right_prow_i)
+          my_waits(2, right_prow_i) = m_walltime()
+          CALL mp_wait (right_data_rr)
+          CALL mp_wait (right_index_rr)
+          my_waits(2, right_prow_i) = m_walltime() - my_waits(2, right_prow_i)
+       ENDIF
+       ! No fetches in the last loop
+       xfer_case_right: IF (right_prow_i .LT. right_nprows) THEN
+          ! First time the meaning of "send" is different
+          IF (right_prow_i .EQ. 0) THEN
+             right_dst_prow = MOD (4*right_nprows&
+                  + right_myprow - right_mypcol/left_multiplicity, right_nprows)
+          ENDIF
+          right_src_p = right_pgrid (right_src_prow, right_mypcol)
+          right_dst_p = right_pgrid (right_dst_prow, right_mypcol)
+          IF (dbg) WRITE(*,'(1X,A,"(",I3,",",I3,")")')&
+               routineN//' Getting RIGHT matrix pgrid coor ',&
+               right_src_prow, mypcol
+          IF (dbg) WRITE(*,'(1X,A,"(",I3,",",I3,")")')&
+               routineN//' Sending RIGHT matrix pgrid coor ',&
+               right_dst_prow, mypcol
+          IF (dbg) WRITE(*,'(1X,A,I4,A,"(",I3,",",I3,") sizes",I7,I7)')&
+               routineN//' Getting RIGHT matrix from',right_src_p,&
+               ' pgrid coor ',right_src_prow, mypcol
+          IF (dbg) WRITE(*,'(1X,A,I4,A,"(",I3,",",I3,") sizes",I7,I7)')&
+               routineN//' Sending RIGHT matrix to  ',right_dst_p,&
+               ' pgrid coor ',right_dst_prow, mypcol
+          IF (dbg) WRITE(*,'(1X,A,2(I4,1X),A,2(I4,1X))')routineN//" Right src ",&
+               right_src_p, all_sizes(3, 1, right_src_p),&
+               " dst", right_dst_p,SIZE(right_matrix%data)
+          right_data_rp => rbuffer_comm%data(1:all_sizes(3,1,right_src_p))
+          right_index_rp => rbuffer_comm%index(1:all_sizes(4,1,right_src_p))
+          right_data_sp => rbuffer_calc%data(1:all_sizes(3,1,right_dst_p))
+          right_index_sp => rbuffer_calc%index(1:all_sizes(4,1,right_dst_p))
+          IF (right_prow_i .EQ. 0) THEN
+             CALL mp_isendrecv (right_matrix%data, right_dst_p,&
+                  right_data_rp, right_src_p, &
+                  mp_group, right_data_sr, right_data_rr, tag=3)
+             CALL mp_isendrecv (right_matrix%index, right_dst_p, &
+                  right_index_rp,  right_src_p,&
+                  mp_group, right_index_sr, right_index_rr, tag=4)
+          ELSE
+             CALL mp_isendrecv (right_data_sp, right_p_send,&
+                  right_data_rp, right_p_recv, &
+                  mp_group, right_data_sr, right_data_rr, tag=3)
+             CALL mp_isendrecv (right_index_sp, right_p_send, &
+                  right_index_rp,  right_p_recv,&
+                  mp_group, right_index_sr, right_index_rr, tag=4)
+          ENDIF
+       ENDIF xfer_case_right
+       ! No calculations in the first loop
+       calc_case_right: IF (right_prow_i .GT. 0) THEN
+          CALL dbcsr_repoint_index (rbuffer_calc, error=error)
+       ENDIF calc_case_right
+       ! No waits in first loop iteration.
+       IF (right_prow_i .GT. 0) THEN
+          ! Now we transfer/multiply with the left matrix
+          DO mult = 1, left_multiplicity
+             DBG 'It', right_prow_i,'waiting for left, multiplicity', mult
+             my_waits(3, right_prow_i) = m_walltime()
+             CALL mp_wait (left_data_sr(mult))
+             CALL mp_wait (left_index_sr(mult))
+             my_waits(3, right_prow_i) = m_walltime() - my_waits(3, right_prow_i)
+             my_waits(4, right_prow_i) = m_walltime()
+             CALL mp_wait (left_data_rr(mult))
+             CALL mp_wait (left_index_rr(mult))
+             my_waits(4, right_prow_i) = m_walltime() - my_waits(4, right_prow_i)
+          ENDDO
+       ENDIF
+       left_image = 1 + MOD (right_myprow, left_images)
+       xfer_case_left: IF (right_prow_i .LT. right_nprows) THEN
+          DO mult = 1, left_multiplicity
+             left_src_prow = (myprow / left_images)
+             left_src_prow = left_src_prow&
+                  + (mult-1)*(left_nprows/left_multiplicity)
+             left_dst_prow = (myprow / left_images)
+             left_dst_prow = left_dst_prow&
+                  + (mult-1)*(left_nprows/left_multiplicity)
+             !left_dst_prow = left_src_prow
+             !!+...left_myprow/left_multiplicity
+             left_src_pcol = MOD ( right_prow_i&
+                  + left_mypcol + (myprow/left_images), left_npcols)
+             left_dst_pcol = MOD ( right_prow_i-1&
+                  + left_mypcol + (myprow/left_images), left_npcols)
+             !left_dst_pcol = MOD (-right_prow_i + 4*left_npcols&
+             !     + left_mypcol - (myprow/left_images), left_npcols)
+             IF (right_prow_i .EQ. 0) THEN
+                left_dst_pcol = MOD (4*left_npcols&
+                     + left_mypcol - (myprow/left_images), left_npcols)
+             ENDIF
+             !
+             IF (dbg) WRITE(*,'(1X,A,I3,A,"(",I3,",",I3,")")')&
+                  routineN//' Getting LEFT matrix image',left_image,&
+                  ' pgrid coor ',left_src_prow, left_src_pcol
+             IF (dbg) WRITE(*,'(1X,A,I3,A,"(",I3,",",I3,")")')&
+                  routineN//' Sending LEFT matrix image',left_image,&
+                  ' pgrid coor ',left_dst_prow, left_dst_pcol
+             left_src_p = left_pgrid (left_src_prow, left_src_pcol)
+             left_dst_p = left_pgrid (left_dst_prow, left_dst_pcol)
+             !
+             left_p_send = left_pgrid (left_src_prow,&
+                  MOD (left_mypcol - 1+left_npcols, left_npcols))
+             left_p_recv = left_pgrid (left_src_prow,&
+                  MOD (left_mypcol + 1, left_npcols))
+             !
+             !
+             IF (dbg) WRITE(*,'(1X,A,I4,A,I3,A,"(",I3,",",I3,")")')&
+                  routineN//' Getting LEFT matrix from',left_src_p,&
+                  ' image',left_image,&
+                  ' pgrid coor ',left_src_prow, left_src_pcol
+             IF (dbg) WRITE(*,'(1X,A,I4,A,I3,A,"(",I3,",",I3,")")')&
+                  routineN//' Sending LEFT matrix to  ',left_dst_p,&
+                  ' image',left_image,&
+                  ' pgrid coor ',left_dst_prow, left_dst_pcol
+             IF (dbg) WRITE(*,'(1X,A,I4,A,I4,A,I4)')routineN//"  Left mult. ",&
+                  mult," src ", left_src_p, " dst ",right_dst_p
+             left_data_rp => lbuffer_comm%mats(mult)%data(&
+                  1:all_sizes(1, left_image, left_src_p))
+             left_index_rp => lbuffer_comm%mats(mult)%index(&
+                  1:all_sizes(2, left_image, left_src_p))
+             left_data_sp => lbuffer_calc%mats(mult)%data(&
+                  1:all_sizes(1, left_image, left_dst_p))
+             left_index_sp => lbuffer_calc%mats(mult)%index(&
+                  1:all_sizes(2, left_image, left_dst_p))
+             IF (right_prow_i .EQ. 0) THEN
+                CALL mp_isendrecv (left_set%mats(mult)%data, left_dst_p,&
+                     left_data_rp, left_src_p, mp_group,&
+                     left_data_sr(mult), left_data_rr (mult), tag=1)
+                CALL mp_isendrecv (left_set%mats(mult)%index, left_dst_p,&
+                     left_index_rp, left_src_p, mp_group,&
+                     left_index_sr(mult), left_index_rr (mult), tag=2)
+             ELSE
+                CALL mp_isendrecv (left_data_sp, left_p_send,&
+                     left_data_rp, left_p_recv, mp_group,&
+                     left_data_sr(mult), left_data_rr (mult), tag=1)
+                CALL mp_isendrecv (left_index_sp, left_p_send,&
+                     left_index_rp, left_p_recv, mp_group,&
+                     left_index_sr(mult), left_index_rr (mult), tag=2)
+             ENDIF
+          ENDDO
+       ENDIF xfer_case_left
+       calc_case_left: IF (right_prow_i .GT. 0) THEN
+          DO mult = 1, left_multiplicity
+             CALL dbcsr_repoint_index (lbuffer_calc%mats(mult), error=error)
+             tstart = m_walltime ()
+             CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult), rbuffer_calc,&
+                  product_matrix, error, flop=flop, new_index=tmp_index,&
+                  t_all=t_all, t_dgemm=t_dgemm)
+             flop_total = flop_total + flop
+             tstop = m_walltime ()
+             IF (tstop-tstart .NE. 0) THEN
+                DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
+                     (REAL(flop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
+             ENDIF
+             trun = trun + (tstop - tstart)
+          ENDDO
+       ENDIF calc_case_left
+       CALL dbcsr_switch_sets (lbuffer_calc, lbuffer_comm)
+       CALL dbcsr_switch_m_ptrs (rbuffer_calc, rbuffer_comm)
+    ENDDO k_index
+    trun_t = m_walltime () - trun_t
+    IF (trun_t .EQ. 0) trun_t = 0.001_dp
+    IF (dbg) THEN
+       WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
+            routineN//' Total Local Multiplication time',&
+            trun_t,' and',&
+            (REAL(flop_total, dp)/1000000.0_dp)/trun_t,' MFLOPS',flop_total
+    ENDIF
+    !DO img = 1, left_images
+    !   CALL mp_window_destroy (left_set%data_windows(img))
+    !   CALL mp_window_destroy (left_set%index_windows(img))
+    !ENDDO
+    DEALLOCATE (left_set%data_windows)
+    DEALLOCATE (left_set%index_windows)
+    !CALL mp_window_destroy (right_data_window)
+    !CALL mp_window_destroy (right_index_window)
+    !
+    CALL dbcsr_destroy (rbuffer_1, error)
+    CALL dbcsr_destroy (rbuffer_2, error)
+    CALL dbcsr_destroy_array (lbuffer_1, error)
+    CALL dbcsr_destroy_array (lbuffer_2, error)
+    DEALLOCATE (my_sizes)
+    !
+    !ALLOCATE (all_waits(4, 0:right_nprows, 0:numnodes-1))
+    !CALL mp_allgather (my_waits, all_waits, mp_group)
+    !logger => cp_error_get_logger (error)
+    !IF (logger%para_env%mepos == logger%para_env%source) THEN
+    !   output_unit = cp_logger_get_default_unit_nr (logger)
+    !   WRITE(output_unit,'(A)')"Waiting times per place per step"
+    !   DO right_prow_i = 0, right_nprows
+    !      WRITE(output_unit,'(4(F9.4),5X,4(F9.4))')&
+    !           (MAXVAL(all_waits(i,right_prow_i,:)), i=1, 4),&
+    !           (SUM(all_waits(i,right_prow_i,:))/numnodes, i=1, 4)
+    !      WRITE(*,'(A,I4)')"Step ", right_prow_i
+    !      DO i = 0, numnodes-1
+    !         WRITE(*,'(I4,1X,4(F9.4))')i, all_waits(:, right_prow_i, i)
+    !      ENDDO
+    !   ENDDO
+    !ENDIF
+    !
+    !entries = btree_get_entries (product_matrix%w%tree)
+    !CALL ensure_array_size (product_matrix%w%blk_p, ub=entries, error=error)
+    !ALLOCATE (keys (entries))
+    !CALL btree_delete (product_matrix%w%tree, keys, product_matrix%w%blk_p)
+    !CALL ensure_array_size(product_matrix%w%row_i, ub=entries, error=error)
+    !CALL ensure_array_size(product_matrix%w%col_i, ub=entries, error=error)
+    !CALL dbcsr_unpack_i8_2i4 (keys, product_matrix%w%row_i,&
+    !     product_matrix%w%col_i)
+    !DEALLOCATE (keys)
+    !CALL mp_sync (mp_group)
+    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error)
+    !
+    CALL timestop (timing_handle)
+  END SUBROUTINE dbcsr_multiply_from_left_sqpg
+
+
+
+
+! *****************************************************************************
+!> \brief Multiplies two DBCSR matrices, using the current local data.
+!>
+!>        Uses non-blocking sends and receives instead of RMA.
+!> \param[in] left, right     left and right DBCSR matrices
+!> \param[in,out] product     resulting DBCSR product matrix
+!> \param[in,out] wm          DBCSR product working matrix
+!> \param[in,out] error       cp2k error
+!> \param[out] flop           (optional) number of effective double-precision
+!>                            floating point operations performed
+! *****************************************************************************
+  SUBROUTINE dbcsr_nn_mult_lin(left, right, product, error, flop, new_index,&
+       t_all, t_dgemm)
+    TYPE(dbcsr_type), INTENT(IN)             :: left, right
+    TYPE(dbcsr_type), INTENT(INOUT)          :: product
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER, INTENT(OUT), OPTIONAL           :: flop
+    INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: new_index
+    REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_dgemm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult_lin', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0_dp, &
+                                                beta_add = 1.0_dp, &
+                                                beta_new = 0.0_dp
+
+    CHARACTER                                :: a_type, b_type
+    INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
+      a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
+      b_col_size, b_nze, b_row, b_row_size, c_blk, c_blk_p, c_col, c_nze, &
+      c_row, i, lda, ldb, ldc, lflop, new_blk, num_symmetries, old_blk, &
+      old_row_begin_blk, old_size, row_begin_blk, row_blk, size_c_blk_ps, &
+      stat, symmetry, timing_handle
+    INTEGER(KIND=int_4)                      :: offset
+    INTEGER(KIND=int_8)                      :: coordinate, epoch
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
+    INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
+                                                left_row_blk_size, &
+                                                right_col_blk_size, &
+                                                right_row_blk_size
+    LOGICAL                                  :: block_exists, tr_a, tr_b
+    REAL(KIND=dp)                            :: beta, tstart, tstop
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data, b_data, c_data
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
+    epoch = m_walltime()
+    !t_all = t_all
+    DBG "Doing NN matrix multiplication",left%name,' x ',right%name
+    DBG "Pre-mult blk sizes, data", product%w%lastblk, product%w%datasize
+    ! c_blk_ps contains the block pointers in the product's current row
+    !.!ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
+    !IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
+    !     product%nblkcols_total)
+    lflop = 0
+    num_symmetries = 1
+    left_row_blk_size => array_data (left%row_blk_size)
+    left_col_blk_size => array_data (left%col_blk_size)
+    right_row_blk_size => array_data (right%row_blk_size)
+    right_col_blk_size => array_data (right%col_blk_size)
+    c_blk_p = product%w%datasize + 1
+    DBG 'A rows:',left%nblkrows_total
+    old_blk = 1
+    old_size = product%w%lastblk
+    new_blk = 0
+    IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
+    CALL ensure_array_size(product%w%data,&
+         ub=MAX(product%w%datasize,left%nfullrows_total*right%nfullcols_total), error=error)
+       !CALL ensure_array_size(product%w%data,&
+       !     ub=product%w%datasize+a_row_size*right%nfullcols_total &
+       !     * MAX(1, (left%nblkrows_total-a_row)/4), error=error)
+    ! c_blk_ps contains the block pointers in the product's current row
+    ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
+    IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
+         product%nblkcols_total)
+    c_blk_ps(:) = 0
+    ALLOCATE (c_blk_ps_p(product%nblkcols_total), stat=stat)
+    IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps_p",&
+         product%nblkcols_total)
+    size_c_blk_ps = 0
+    !
+    DO a_row = 1, left%nblkrows_total
+       a_row_log = a_row
+       DBG '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
+       DBG 'A row', a_row,' with #cols=',left%row_p(a_row+1)-left%row_p(a_row)
+       a_row_size = left_row_blk_size(a_row) ! stored
+       !c_blk_ps(:) = 0
+       row_begin_blk = new_blk+1
+       IF (old_blk .LE. old_size) THEN
+          DO WHILE (product%w%row_i(old_blk) .LT. a_row)
+             old_blk = old_blk+1
+             IF (old_blk .GT. old_size) THEN
+                old_blk = old_blk-1
+                EXIT
+             ENDIF
+          ENDDO
+       ENDIF
+       old_row_begin_blk = old_blk
+       ! Clear the c_blk_ps array
+       FORALL (i = 1 : size_c_blk_ps)
+          c_blk_ps(c_blk_ps_p(i)) = 0
+       END FORALL
+       size_c_blk_ps = 0
+       ! Fill in the c_blk_ps array
+       IF (old_blk .LE. old_size) THEN
+          ! Old index
+          DO WHILE (product%w%row_i(old_blk) .LE. a_row) ! EQ
+             DBG "Adding c_blk_ps column", product%w%col_i(old_blk)
+             c_blk_ps(product%w%col_i(old_blk)) = product%w%blk_p(old_blk)
+             size_c_blk_ps = size_c_blk_ps + 1
+             c_blk_ps_p(size_c_blk_ps) = product%w%col_i(old_blk)
+             old_blk = old_blk+1
+             IF (old_blk .GT. old_size) THEN
+                old_blk = old_blk-1
+                EXIT
+             ENDIF
+          ENDDO
+       ENDIF
+       DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
+          row_blk = row_begin_blk
+          old_blk = old_row_begin_blk
+          a_col = left%col_i(a_blk)
+          a_col_size = left_col_blk_size(a_col) !stored
+          a_row_log = a_row
+          a_col_log = a_col
+          a_row_size_logical = a_row_size
+          a_col_size_logical = a_col_size
+          lda = a_row_size
+          tr_a = .FALSE.
+          a_type = 'N'
+          DBG '---------------'
+          DBG 'A col', a_col, '=>',a_col_log
+          b_row = a_col_log
+          c_row = a_row_log
+          a_nze = a_row_size * a_col_size
+          !a_data => left%data(ABS(left%blk_p(a_blk))&
+          !     :ABS(left%blk_p(a_blk))+a_nze-1)
+          b_row_size = a_col_size_logical
+          ! For index-augmented matrices.
+          IF (left%blk_p(a_blk) .LT. 0) THEN
+             lda = a_col_size
+             a_type = 'T'
+          ENDIF
+          b_type = 'N'
+          ldb = b_row_size
+          DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
+             b_col = right%col_i(b_blk)
+             c_col = b_col
+             DBG 'B col', b_col
+             b_col_size = right_col_blk_size(b_col)
+             b_nze = b_row_size * b_col_size
+             !b_data => right%data(&
+             !     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
+             !!IF (right%blk_p(b_blk) .LT. 0) THEN
+             !!   b_type = 'T'
+             !!   ldb = b_col_size
+             !!ELSE
+             !!   b_type = 'N'
+             !!   ldb = b_row_size
+             !!ENDIF
+             c_nze = a_row_size * b_col_size
+             offset = c_blk_ps(c_col)
+             block_exists = c_blk_ps(c_col) .GT. 0
+             DBG "Found old?", block_exists!, product%w%col_i(old_blk), c_col, old_blk
+             ! Try to find the current coordinate in the current row index
+             IF (.NOT. block_exists) THEN
+                !.!CALL add_work_coordinate(wm, c_row, c_col, c_blk_p, error=error)
+                !product%w%row_i(product%w%lastblk+1) = c_row
+                !product%w%col_i(product%w%lastblk+1) = c_col
+                !product%w%blk_p(product%w%lastblk+1) = c_blk_p
+                new_blk = new_blk+1
+                new_index(1, new_blk) = c_row
+                new_index(2, new_blk) = c_col
+                new_index(3, new_blk) = c_blk_p
+                DBG 'Adding coordinate', c_row, c_col, c_blk_p
+                offset = c_blk_p
+                c_blk_ps (c_col) = offset
+                size_c_blk_ps = size_c_blk_ps + 1
+                c_blk_ps_p(size_c_blk_ps) = c_col
+                c_blk_p = c_blk_p + c_nze
+                product%w%datasize = product%w%datasize + c_nze
+                product%w%lastblk = product%w%lastblk + 1
+                !CALL btree_add (product%w%tree, coordinate, offset, block_exists,&
+                !     existing_value = offset)
+                !CALL btree_verify (index)
+                !IF (block_exists) THEN
+                !   IF (dbg) WRITE(*,*)routineP//' EXISTS'
+                !   ! We can not rewind c_blk_p!
+                !   product%w%datasize = product%w%datasize - c_nze
+                !   product%w%lastblk = product%w%lastblk - 1
+                !ENDIF
+                !c_blk_ps(c_col) = offset
+                beta = beta_new
+             ELSE
+                beta = beta_add
+             ENDIF
+             !offset = 1 + ithread * 4096
+             !.!c_data => product%w%data(c_blk_ps(c_col):c_blk_ps(c_col)+c_nze-1)
+             !DBG 'offset:',offset,offset+c_nze-1,'of',product%w%datasize,UBOUND(product%w%data),'ex',block_exists
+             !% CALL OMP_SET_LOCK (data_lock)
+             !c_data => product%w%data(offset:offset+c_nze-1)
+             !% CALL OMP_UNSET_LOCK (data_lock)
+             !IF (dbg) WRITE(*,&
+             !     "(1X,A,A1,1X,A1,A,I6,A,F4.1,' (',I3,',',I3,')=(',I3,',',I3,')x(',I3,',',I3,')')")&
+             !                   !routineN//' DGEMM ',a_type,b_type,' at',c_blk_ps(c_col),' beta=', beta,&
+             !     routineN//' DGEMM ',a_type,b_type,' at',offset,' beta=', beta,&
+             !     c_row,c_col,a_row,a_col,b_row,b_col
+             t_dgemm = t_dgemm - (m_walltime() - epoch)
+             CALL DGEMM(a_type, b_type,&
+                  a_row_size_logical, b_col_size, a_col_size_logical,&
+                  alpha,&
+                  left%data(ABS(left%blk_p(a_blk))), lda,&
+                  right%data(ABS(right%blk_p(b_blk))), ldb, beta,&
+                  product%w%data(offset), a_row_size_logical)
+             t_dgemm = t_dgemm + (m_walltime() - epoch)
+             !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
+             !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
+             !lflop = lflop + a_row_size * b_col_size * a_col_size * 2.0_dp
+          ENDDO ! b
+       ENDDO ! a_col
+    ENDDO ! a_row
+
+    !DEALLOCATE (c_blk_ps)
+    ELSE
+       DBG 'One of the matrices is empty!'
+    ENDIF
+    !IF (dbg) CALL btree_verify (product%w%tree)
+    ! Now merge the two indices
+    CALL merge_arrays (product%w%row_i, product%w%col_i, product%w%blk_p, old_size, new_index, new_blk)
+    !WRITE(*,*)'NEW TOTAL TIME', nanotot, REAL(nanotot)/(2.3*REAL(10**6)),'ms'
+    DBG "Post-mult blk sizes, data", product%w%lastblk, product%w%datasize
+    !dbg = .TRUE.
+    IF (dbg) THEN
+       tstop = m_walltime ()
+       IF (tstop-tstart .NE. 0) THEN
+          DBG tstop-tstart,'s',&
+               (REAL(lflop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
+       ENDIF
+    ENDIF
+    IF (PRESENT (flop)) flop = lflop
+    t_all = t_all + (m_walltime() - epoch)
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_nn_mult_lin
+
+
+! *****************************************************************************
+!> \brief Merges two sorted indices
+!> \param[in,out] old_row_i, old_col_i, old_blk_p      current index and
+!>                                                     merged result
+!> \param[in] add_ip                    index to add into the current index
+!> \param[in] old_size                  size of current index
+!> \param[in] add_size                  size of index to add into the current
+!>                                      index
+! *****************************************************************************
+  SUBROUTINE merge_arrays (old_row_i, old_col_i, old_blk_p, old_size,&
+       add_ip, add_size)
+    INTEGER, DIMENSION(:), POINTER           :: old_row_i, old_col_i, &
+                                                old_blk_p
+    INTEGER, INTENT(IN)                      :: old_size
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: add_ip
+    INTEGER, INTENT(IN)                      :: add_size
+
+    INTEGER                                  :: add_blk, merge_from_whom, &
+                                                new_blk, new_size, old_blk
+    INTEGER, DIMENSION(:), POINTER           :: new_blk_p, new_col_i, &
+                                                new_row_i, tmp_p
+
+!
+
+    new_size = old_size+add_size
+    !WRITE (*,*) " Old array", old_size
+    !DO i = 1, old_size
+    !   WRITE(*,'(I7,2X,I7,2X,I7)')old_row_i(i),old_col_i(i),old_blk_p(i)
+    !ENDDO
+    !WRITE (*,*) " Add array", add_size
+    !DO i = 1, add_size
+    !   WRITE(*,'(I7,2X,I7,2X,I7)')add_ip (1:3, i)
+    !ENDDO
+    IF (add_size .GT. 0) THEN
+       ALLOCATE (new_row_i (new_size))
+       ALLOCATE (new_col_i (new_size))
+       ALLOCATE (new_blk_p (new_size))
+       old_blk = 1
+       add_blk = 1
+       new_blk = 1
+       IF (old_size .EQ. 0) THEN
+          new_row_i(1:add_size) = add_ip(1, 1:add_size)
+          new_col_i(1:add_size) = add_ip(2, 1:add_size)
+          new_blk_p(1:add_size) = add_ip(3, 1:add_size)
+       ELSE
+          DO WHILE (new_blk .LE. new_size)
+             merge_from_whom = 0
+             IF (old_blk .LE. old_size .AND. add_blk .LE. add_size) THEN
+                IF (add_ip(1, add_blk) .EQ. old_row_i(old_blk)&
+                     .AND.add_ip(2, add_blk) .EQ. old_col_i(old_blk)) THEN
+                   !WRITE(*,*)"Duplicate block! addblk", add_blk, "oldblk", old_blk
+                ENDIF
+                ! Rows come first
+                IF (add_ip(1, add_blk) .LT. old_row_i(old_blk)) THEN
+                   merge_from_whom = 2
+                ELSEIF (add_ip(1, add_blk) .GT. old_row_i(old_blk)) THEN
+                   merge_from_whom = 1
+                ELSE ! Same rows, so now come the columns
+                   IF (add_ip(2, add_blk) .LE. old_col_i(old_blk)) THEN
+                      ! Merges from the add array
+                      merge_from_whom = 2
+                   ELSE
+                      ! Merges from the old array
+                      merge_from_whom = 1
+                   ENDIF
+                ENDIF
+             ELSE
+                IF (add_blk .LE. add_size) THEN
+                   ! Merges from the add array
+                   merge_from_whom = 2
+                ELSEIF (old_blk .LE. old_size) THEN
+                   ! Merges from the old array
+                   merge_from_whom = 1
+                ELSE
+                   ! Hmmm, nothing to merge...
+                   !WRITE(*,*)"Error: Ran out of data to merge"
+                ENDIF
+             ENDIF
+             SELECT CASE (merge_from_whom)
+             CASE (2)
+                ! Merges from the add array
+                new_row_i(new_blk) = add_ip(1, add_blk)
+                new_col_i(new_blk) = add_ip(2, add_blk)
+                new_blk_p(new_blk) = add_ip(3, add_blk)
+                add_blk = add_blk + 1
+             CASE (1)
+                ! Merges from the old array
+                new_row_i(new_blk) = old_row_i(old_blk)
+                new_col_i(new_blk) = old_col_i(old_blk)
+                new_blk_p(new_blk) = old_blk_p(old_blk)
+                old_blk = old_blk + 1
+             CASE DEFAULT
+                !WRITE(*,*)"Error: Nothing to merge"
+             END SELECT
+             new_blk = new_blk + 1
+          ENDDO
+       ENDIF
+       tmp_p => old_row_i
+       old_row_i => new_row_i
+       DEALLOCATE (tmp_p)
+       tmp_p => old_col_i
+       old_col_i => new_col_i
+       DEALLOCATE (tmp_p)
+       tmp_p => old_blk_p
+       old_blk_p => new_blk_p
+       DEALLOCATE (tmp_p)
+    ENDIF
+    !WRITE (*,*) " New array"
+    !DO i = 1, new_size
+    !   WRITE(*,'(I7,2X,I7,2X,I7)')old_row_i(i),old_col_i(i),old_blk_p(i)
+    !ENDDO
+  END SUBROUTINE merge_arrays
+
 
 ! *****************************************************************************
 !> \brief Adds two DBCSR work matrices

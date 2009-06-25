@@ -30,7 +30,7 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release
   PUBLIC :: dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&
             dbcsr_mp_new_transposed, dbcsr_mp_nprows, dbcsr_mp_npcols,&
-            dbcsr_mp_myprow, dbcsr_mp_mypcol
+            dbcsr_mp_myprow, dbcsr_mp_mypcol, dbcsr_mp_pgrid_equal
   PUBLIC :: dbcsr_distribution_new, dbcsr_distribution_hold,&
             dbcsr_distribution_release, dbcsr_distribution_init
   PUBLIC :: dbcsr_distribution_mp, dbcsr_distribution_processor,&
@@ -179,7 +179,25 @@ CONTAINS
 
     mypcol = mp_env%mp%mypcol
   END FUNCTION dbcsr_mp_mypcol
+  FUNCTION dbcsr_mp_pgrid_equal(mp_env1, mp_env2) RESULT (equal_pgrid)
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env1, mp_env2
+    LOGICAL                                  :: equal_pgrid
 
+    INTEGER, DIMENSION(:, :), POINTER        :: pgrid1, pgrid2
+
+    IF (dbcsr_mp_nprows (mp_env1) .EQ. dbcsr_mp_nprows (mp_env2)&
+         .AND. dbcsr_mp_nprows (mp_env1) .EQ. dbcsr_mp_nprows (mp_env2)) THEN
+       pgrid1 => dbcsr_mp_pgrid (mp_env1)
+       pgrid2 => dbcsr_mp_pgrid (mp_env2)
+       IF (ALL (pgrid1 .EQ. pgrid2)) THEN
+          equal_pgrid = .TRUE.
+       ELSE
+          equal_pgrid = .FALSE.
+       ENDIF
+    ELSE
+       equal_pgrid = .FALSE.
+    ENDIF
+  END FUNCTION dbcsr_mp_pgrid_equal
 
 ! *****************************************************************************
 !> \brief Transposes a multiprocessor environment

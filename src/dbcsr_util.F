@@ -1482,6 +1482,7 @@ CONTAINS
        !curcol = MAX(mincol,curcol+1)
        !mincol = old_max_col
     ENDDO
+    new_col_p(new_ncols+1) = nblks
     IF (dbg) THEN
        WRITE(*,*)'new index'
        WRITE(*,1323)new_col_p
