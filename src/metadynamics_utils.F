@@ -183,7 +183,7 @@ CPSourceFileRef,&
           check = (n_rep==meta_env%multiple_walkers%walkers_tot_nr)
           CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
                "Number of Walkers specified in the input does not match with the "//&
-               "number of Walkes File names provided. Please check your input and in case "//&
+               "number of Walkers File names provided. Please check your input and in case "//&
                "this is a restart run consider the possibility to switch off the "//&
                "RESTART_WALKERS in the EXT_RESTART section! "//&
 CPSourceFileRef,&
