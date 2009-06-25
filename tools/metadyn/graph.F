@@ -3,7 +3,6 @@
 !   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009 Teodoro Laino       !
 !-----------------------------------------------------------------------------!
 
-
 ! *****************************************************************************
 !> \brief   Program to Map on grid the hills spawned during a metadynamics run
 !> \author Teodoro Laino [tlaino] - 06.2009
@@ -29,6 +28,7 @@ PROGRAM fes_compute
   IMPLICIT NONE
   
   INTERFACE
+! *****************************************************************************
      SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val)
        IMPLICIT NONE
        INTEGER, INTENT(IN)            :: unit
@@ -38,6 +38,7 @@ PROGRAM fes_compute
        INTEGER, OPTIONAL, INTENT(OUT) :: i_val
      END SUBROUTINE get_val_res
 
+! *****************************************************************************
      RECURSIVE SUBROUTINE fes_compute_low(idim, nn, fes, gauss, ind, ind0, nfes, ndim, ngauss, ngrid, iperd)
        USE kinds,                           ONLY: dp,&
                                                   sp       
@@ -49,6 +50,7 @@ PROGRAM fes_compute
        REAL(KIND=dp), DIMENSION(:,:), POINTER :: gauss
      END SUBROUTINE fes_compute_low
 
+! *****************************************************************************
      RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw)
        USE kinds,                           ONLY: dp,&
                                                   sp
@@ -59,6 +61,7 @@ PROGRAM fes_compute
        REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
      END SUBROUTINE fes_write
 
+! *****************************************************************************
      RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, ndw)
        USE kinds,                           ONLY: dp,&
                                                   sp       
@@ -556,28 +559,13 @@ PROGRAM fes_compute
   WRITE(iw,'(/,A,/)') "FES| NORMAL FES TERMINATION."
 END PROGRAM fes_compute
 
-!!****h* fes/fes_compute_low [1.0] *
-!!
-!!   NAME
-!!     fes_compute_low
-!!
-!!   FUNCTION
-!!     Efficiently map the gaussians on the grid
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [tlaino]
-!!     teodoro.laino .at. gmail.com 
-!!
-!!
-!!   SOURCE
-!!     Please report any bug to the author
-!!
-!****************************************************************************
+! *****************************************************************************
+!> \brief Efficiently map the gaussians on the grid
+!> \par History
+!>      03.2006 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
 RECURSIVE SUBROUTINE fes_compute_low(idim, nn, fes, gauss, ind, ind0, nfes, ndim, ngauss, ngrid, iperd)
   USE kinds,                           ONLY: dp,&
                                              sp       
@@ -643,28 +631,13 @@ CONTAINS
   
 END SUBROUTINE fes_compute_low
 
-!!****h* fes/get_val_res [1.0] *
-!!
-!!   NAME
-!!     get_val_res
-!!
-!!   FUNCTION
-!!     Parser informations from the cp2k input/restart
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [tlaino]
-!!     teodoro.laino .at. gmail.com 
-!!
-!!
-!!   SOURCE
-!!     Please report any bug to the author
-!!
-!****************************************************************************
+! *****************************************************************************
+!> \brief Parser informations from the cp2k input/restart
+!> \par History
+!>      03.2006 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
 SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val)
   IMPLICIT NONE
   INTEGER, INTENT(IN)            :: unit
@@ -696,6 +669,7 @@ SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val)
 
 CONTAINS
   
+! *****************************************************************************
   SUBROUTINE search(unit, key, line, stat)
     IMPLICIT NONE
     INTEGER, INTENT(in)            :: unit
@@ -716,28 +690,13 @@ CONTAINS
 
 END SUBROUTINE get_val_res
 
-!!****h* fes/fes_write [1.0] *
-!!
-!!   NAME
-!!     fes_write
-!!
-!!   FUNCTION
-!!     Writes the FES on the file
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [tlaino]
-!!     teodoro.laino .at. gmail.com 
-!!
-!!
-!!   SOURCE
-!!     Please report any bug to the author
-!!
-!****************************************************************************
+! *****************************************************************************
+!> \brief Writes the FES on the file
+!> \par History
+!>      03.2006 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
 RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw)
   USE kinds,                           ONLY: dp,&
                                              sp
@@ -780,28 +739,13 @@ CONTAINS
   
 END SUBROUTINE FES_WRITE
 
-!!****h* fes/fes_only_write [1.0] *
-!!
-!!   NAME
-!!     fes_only_write
-!!
-!!   FUNCTION
-!!     Writes the FES on the file when stride is requested
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [tlaino]
-!!     teodoro.laino .at. gmail.com 
-!!
-!!
-!!   SOURCE
-!!     Please report any bug to the author
-!!
-!****************************************************************************
+! *****************************************************************************
+!> \brief Writes the FES on the file when stride is requested
+!> \par History
+!>      03.2006 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
 RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, ndw)
   USE kinds,                           ONLY: dp,&
                                              sp
