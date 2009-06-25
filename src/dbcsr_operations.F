@@ -1191,10 +1191,9 @@ CONTAINS
     CHARACTER                                :: a_type, b_type
     INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
       a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
-      b_col_size, b_nze, b_row, b_row_size, c_blk, c_blk_p, c_col, c_nze, &
-      c_row, i, lda, ldb, ldc, lflop, new_blk, num_symmetries, old_blk, &
-      old_row_begin_blk, old_size, row_begin_blk, row_blk, size_c_blk_ps, &
-      stat, symmetry, timing_handle
+      b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_col, c_nze, c_row, i, &
+      lda, ldb, lflop, new_blk, num_symmetries, old_blk, old_row_begin_blk, &
+      old_size, row_begin_blk, row_blk, size_c_blk_ps, stat, timing_handle
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate, epoch
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
@@ -1202,9 +1201,8 @@ CONTAINS
                                                 left_row_blk_size, &
                                                 right_col_blk_size, &
                                                 right_row_blk_size
-    LOGICAL                                  :: block_exists, tr_a, tr_b
+    LOGICAL                                  :: block_exists, tr_a
     REAL(KIND=dp)                            :: beta, tstart, tstop
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data, b_data, c_data
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
