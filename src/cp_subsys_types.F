@@ -262,7 +262,6 @@ CONTAINS
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
-    NULLIFY(subsys)
   END SUBROUTINE cp_subsys_release
 
 ! *****************************************************************************
