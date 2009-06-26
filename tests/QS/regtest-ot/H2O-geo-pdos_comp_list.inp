@@ -6,7 +6,7 @@
          COMPONENTS
          APPEND
          NLUMO 5
-         ATOM_LIST 1
+         LIST 1..3
          &EACH
             GEO_OPT 0
          &END

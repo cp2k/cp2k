@@ -215,13 +215,13 @@ CONTAINS
     CALL cp_fm_release(matrix_shalf,error=error)
     ! Array to store the PDOS per kind and angular momentum
     do_list = .FALSE.
-    CALL section_vals_val_get(dft_section,"PRINT%PDOS%ATOM_LIST", n_rep_val=n_rep, error=error)  
+    CALL section_vals_val_get(dft_section,"PRINT%PDOS%LIST", n_rep_val=n_rep, error=error)  
     IF(n_rep>0) THEN
        do_list = .TRUE.
        nlist = 0
        DO ir = 1,n_rep
           NULLIFY (list)
-          CALL section_vals_val_get(dft_section,"PRINT%PDOS%ATOM_LIST",i_rep_val=ir,i_vals=list, error=error)
+          CALL section_vals_val_get(dft_section,"PRINT%PDOS%LIST",i_rep_val=ir,i_vals=list, error=error)
           IF(ASSOCIATED(list)) THEN
              CALL reallocate(index_list,1,nlist+SIZE(list))
              DO i = 1,SIZE(list)

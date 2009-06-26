@@ -1358,9 +1358,9 @@ CONTAINS
             usage="NLUMO integer",default_i_val=0, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="ATOM_LIST",&
+       CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of indexes of atoms where to project the DOS  ",&
-            usage="ATOM_LIST {integer}  {integer} ..  {integer} ",type_of_var=integer_t,&
+            usage="LIST {integer}  {integer} ..  {integer} ",type_of_var=integer_t,&
             n_var=-1, required=.FALSE., repeats=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
