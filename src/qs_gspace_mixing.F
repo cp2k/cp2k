@@ -650,12 +650,12 @@ CONTAINS
     w0 = mixing_store%broy_w0
     nbuffer = mixing_store%nbuffer
 
-!    ib = MODULO(mixing_store%ncall,nbuffer) + 1
+    ib = MODULO(mixing_store%ncall,nbuffer) + 1
     mixing_store%ncall = mixing_store%ncall + 1
-    ib = MIN(mixing_store%ncall,nbuffer)
+!    ib = MIN(mixing_store%ncall,nbuffer)
     nb = MIN(mixing_store%ncall,nbuffer)
-!    ibb = MODULO(mixing_store%ncall,nbuffer) + 1
-    ibb = MIN(mixing_store%ncall+1,nbuffer)
+    ibb = MODULO(mixing_store%ncall,nbuffer) + 1
+!    ibb = MIN(mixing_store%ncall+1,nbuffer)
 
     ALLOCATE(a(ib-1,ib-1), STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -756,13 +756,13 @@ CONTAINS
           mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
         END DO
 
-        IF(mixing_store%ncall>=nbuffer) THEN
-          DO jb = 1,nbuffer - 1
-             mixing_store%rhoin_buffer(jb,ispin)%cc(:) = mixing_store%rhoin_buffer(jb+1,ispin)%cc(:)
-             mixing_store%drho_buffer(jb,ispin)%cc(:) = mixing_store%drho_buffer(jb+1,ispin)%cc(:)
-             mixing_store%res_buffer(jb,ispin)%cc(:) = mixing_store%res_buffer(jb+1,ispin)%cc(:)
-          END DO 
-        END IF
+!        IF(mixing_store%ncall>=nbuffer) THEN
+!          DO jb = 1,nbuffer - 1
+!             mixing_store%rhoin_buffer(jb,ispin)%cc(:) = mixing_store%rhoin_buffer(jb+1,ispin)%cc(:)
+!             mixing_store%drho_buffer(jb,ispin)%cc(:) = mixing_store%drho_buffer(jb+1,ispin)%cc(:)
+!             mixing_store%res_buffer(jb,ispin)%cc(:) = mixing_store%res_buffer(jb+1,ispin)%cc(:)
+!          END DO 
+!        END IF
 
       END IF
 
@@ -1015,12 +1015,6 @@ CONTAINS
 !          b(1:ib-1,1:ib-1) = MATMUL(avec(1:ib-1,1:ib-1),work(1:ib-1,1:ib-1))
 
 !          DEALLOCATE(work,avec,aval)
-!dbg
-!      write(*,*) 'invert version 2'
-!      DO kb = 1,ib-1
-!         write(*,*)  'b ', kb, (b(kb,jb),jb=1,ib-1)
-!      END DO
-!dbg
         END IF
 
 
@@ -1047,9 +1041,6 @@ CONTAINS
            END DO 
         END IF
         DO jb = 1,ib-1
-!dbg
-!  write(*,*) ' jb ', skip_bq
-!dbg
           tmp(:) = CMPLX(0.0_dp,0.0_dp)
           IF(.NOT. skip_bq) THEN
             ! sum_{kb} bq(jb,kb) * z_vec_{kb,iter-2}
@@ -1064,15 +1055,9 @@ CONTAINS
 
            ! sum_{kb} w(jb)*w(kb)*b(jb,kb) * u_vec_{kb}
           DO kb = 1,ib-1
-!dbg
-!  write(*,*) ' kb ',  weight(kb,ispin), weight(jb,ispin), b(jb,kb)
-!dbg
              DO ig = 1,ng
                 tmp(ig) = tmp(ig) + weight(kb,ispin)*weight(jb,ispin)*b(jb,kb)*u_vec(kb,ispin)%cc(ig) 
              END DO
-!dbg
-! write(*,*) ' z ', kb, weight(kb,ispin)*weight(jb,ispin)*b(jb,kb),  tmp(1),tmp(2)
-!dbg
           END DO
 
           ! store the new z_vec(jb)
@@ -1104,9 +1089,6 @@ CONTAINS
             norm = norm + rep_j*rep + imp_j*imp
           END DO
           CALL mp_sum(norm,para_env%group)
-!dbg
-!   write(*,*) 'jb norm ', jb, norm
-!dbg
           ! Subtract |Z_jb)><DR_jb|P|R_{iter}> 
           DO ig = 1,ng
             rho%rho_g(ispin)%pw%cc(ig) = rho%rho_g(ispin)%pw%cc(ig) - norm * z_vec(jb,ispin)%cc(ig) 
@@ -1229,9 +1211,6 @@ CONTAINS
     mixing_store%ncall = mixing_store%ncall + 1
     ib_next = MODULO(mixing_store%ncall,nbuffer) +1
    
-!dbg
-!    IF(para_env%ionode) WRITE(*,*) mixing_store%ncall, ib, nb, ib_prev, ib_next
-!dbg
 
     ! compute the residual gn and its norm gn_norm
     DO ispin = 1,nspin
@@ -1461,13 +1440,6 @@ CONTAINS
 
       gn_norm =  mixing_store%norm_res_buffer(ib,ispin)
       gn_norm_old =  mixing_store%norm_res_buffer(ib_prev,ispin)
-!dbg
-!  IF(para_env%ionode) THEN
-!    WRITE(*,*) 'norm ',  gn_norm, ' norm old ', gn_norm_old, ' pgn_norm ', pgn_norm
-!       WRITE(*,*) 'pgn/norm ', pgn_norm/gn_norm, ' old/norm ', gn_norm_old/gn_norm
-!  END IF
-!  stop 'pgn'
-!dbg
       IF(ib_prev/=0) THEN
         sigma_tilde = sigma_old * MAX(0.5_dp,MIN(2.0_dp,gn_norm_old/gn_norm))
       ELSE
@@ -1475,10 +1447,6 @@ CONTAINS
       END IF
       ! Step size for the unpredicted component
       step_size = 0.000_dp !MIN(sigma_tilde,r_step*pgn_norm/gn_norm,sigma_max)
-!dbg
-!  IF(para_env%ionode) WRITE(*,*) 'step_size ', &
-!       step_size, sigma_tilde, r_step*pgn_norm/gn_norm, sigma_max
-!dbg
       sigma_old = 0.1_dp! step_size
 
     ! update the density
