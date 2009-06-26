@@ -92,7 +92,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
     IF ( pw%in_use == REALDATA1D ) THEN
        ns = SIZE(pw%cr)
        pw%cr(:) = 0._dp
@@ -139,8 +139,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
-    CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
     
        IF ( pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical ) THEN
@@ -305,7 +305,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     SELECT CASE ( pw%in_use )
     CASE ( REALDATA1D )
@@ -354,7 +354,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ALL(n>=0),cp_failure_level,routineP,error,failure)
 
     m = SUM ( n )
@@ -452,7 +452,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     flop = 0.0_dp
     o3 = 1._dp/3._dp
@@ -513,7 +513,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     flop = 0.0_dp
     o3 = 1._dp/3._dp
@@ -576,7 +576,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     flop = 0.0_dp
 
@@ -625,8 +625,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
-    CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( pw1%in_space == REALSPACE .AND. pw2%in_space == REALSPACE ) THEN
 
@@ -690,8 +690,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
-    CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
 
     my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
@@ -898,7 +898,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
@@ -967,7 +967,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
@@ -1047,7 +1047,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
@@ -1154,7 +1154,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
@@ -1274,7 +1274,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( PRESENT ( debug ) ) THEN
        test = debug
@@ -1327,10 +1327,9 @@ CONTAINS
       DIMENSION(:, :)                        :: grays
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
-    INTEGER                                  :: dir, handle, handle2, ierr, &
-                                                l1, l2, l3, my_pos, &
-                                                nloc( 3 ), nrays, nsize, &
-                                                out_space
+    INTEGER                                  :: dir, handle, handle2, l1, l2, &
+                                                l3, my_pos, nloc( 3 ), nrays, &
+                                                nsize, out_space, stat
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: failure, test
     REAL(KIND=dp)                            :: norm
@@ -1340,8 +1339,8 @@ CONTAINS
     CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
          CEILING (pw1%pw_grid%cutoff/10)*10))),handle)
 
-    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
-    CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
     NULLIFY ( c_in )
     NULLIFY ( c_out )
 
@@ -1412,23 +1411,21 @@ CONTAINS
           CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
        CASE ( "FW_C3DC1D" )
           c_in => pw1%cc3d
-          IF (.NOT. ASSOCIATED (c_out)) &
-               ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ! transform
           CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
           ! gather results
           IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
           CALL pw_gather ( pw2, c_out, error=error)
-          DEALLOCATE ( c_out, STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          DEALLOCATE ( c_out, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CASE ( "FW_R3DC1D" )
 #if defined ( __CUDA )
           CALL cuda_pw_fft_wrap_r3dc1d(pw1, pw2, dir, n, norm)
 #else
-          IF (.NOT. ASSOCIATED (c_out)) &
-               ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           nsize=SIZE(pw1%cr3d,1)*SIZE(pw1%cr3d,2)*SIZE(pw1%cr3d,3)
           l1 = LBOUND(pw1%cr3d,1)
           l2 = LBOUND(pw1%cr3d,2)
@@ -1436,8 +1433,8 @@ CONTAINS
           CALL copy_rc(nsize,pw1%cr3d(l1,l2,l3),c_out(1,1,1))
           CALL fft3d ( dir, n, c_out, scale = 1._dp, debug=test )
           CALL pw_gather ( pw2, c_out, scale = norm, error=error)
-          DEALLOCATE ( c_out, STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          DEALLOCATE ( c_out, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
        CASE ( "BW_C3DC3D" )
           c_in => pw1%cc3d
@@ -1445,15 +1442,14 @@ CONTAINS
           CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
        CASE ( "BW_C3DR3D" )
           c_in => pw1%cc3d
-          IF (.NOT. ASSOCIATED (c_out)) &
-               ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
           ! use real part only
           IF ( test ) WRITE ( *,'(A)') "  REAL part "
           pw2%cr3d = REAL ( c_out,KIND=dp)
-          DEALLOCATE ( c_out, STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          DEALLOCATE ( c_out, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CASE ( "BW_C1DC3D" )
           c_out => pw2%cc3d
           IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
@@ -1463,9 +1459,8 @@ CONTAINS
 #if defined ( __CUDA )
           CALL cuda_pw_fft_wrap_c1dr3d(pw1, pw2, dir, n, norm)
 #else
-          IF (.NOT. ASSOCIATED (c_out)) &
-               ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
           CALL pw_scatter ( pw1, c_out, error=error)
           ! transform
@@ -1478,8 +1473,8 @@ CONTAINS
           l2 = LBOUND(pw2%cr3d,2)
           l3 = LBOUND(pw2%cr3d,3)
           CALL copy_cr(nsize,c_out(1,1,1),pw2%cr3d(l1,l2,l3))
-          DEALLOCATE ( c_out, STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          DEALLOCATE ( c_out, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
        END SELECT
 
@@ -1507,8 +1502,8 @@ CONTAINS
 
        my_pos = pw1%pw_grid%para%my_pos
        nrays = pw1%pw_grid%para%nyzray ( my_pos )
-       ALLOCATE ( grays ( n(1), nrays ), STAT = ierr )
-       CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+       ALLOCATE ( grays ( n(1), nrays ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        grays = 0.0_dp
 
        SELECT CASE ( mode )
@@ -1520,8 +1515,8 @@ CONTAINS
           c_in => pw1%cc3d
        CASE ( "FW_R3DC1D" )
           nloc = pw1%pw_grid%npts_local
-          ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           c_in = CMPLX ( pw1%cr3d, 0.0_dp,KIND=dp)
        CASE ( "BW_C1DC3D" )
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
@@ -1533,8 +1528,8 @@ CONTAINS
                WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
           CALL pw_scatter ( pw1, grays, error=error)
           nloc = pw2%pw_grid%npts_local
-          ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END SELECT
 
        !..transform
@@ -1562,20 +1557,20 @@ CONTAINS
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
                WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
           CALL pw_gather ( pw2, grays, error=error)
-          DEALLOCATE ( c_in, STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          DEALLOCATE ( c_in, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CASE ( "BW_C1DC3D" )
           ! nothing to do
        CASE ( "BW_C1DR3D" )
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
                WRITE ( *,'(A)') "  Real part "
           pw2%cr3d = REAL ( c_in,KIND=dp)
-          DEALLOCATE ( c_in, STAT = ierr )
-          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          DEALLOCATE ( c_in, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END SELECT
 
-       DEALLOCATE ( grays, STAT = ierr )
-       CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+       DEALLOCATE ( grays, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     END IF
 
@@ -2027,9 +2022,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-
-    CPPreconditionNoErr(sf%ref_count>0,cp_failure_level,"sf")
-
+    CPPrecondition(sf%ref_count>0,cp_failure_level,routineP,error,failure)
     flop = 0.0_dp
 
     IF ( sf%in_space == RECIPROCALSPACE .AND. &
