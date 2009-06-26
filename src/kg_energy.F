@@ -201,7 +201,7 @@ CONTAINS
     ! calculate the frozen electronic pseudo density
 
     CALL calculate_density (rho_r, rho_g, total_rho0_rspace, kg_env,error=error)
-    rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
+    rho%total_rho_gspace = pw_integrate_function(rho_g%pw,error=error)
 
     ! calculate the total density
     rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
@@ -221,7 +221,7 @@ CONTAINS
     NULLIFY(my_rho_r)
 
     ! add the frozen electronic density to the core density
-    CALL pw_axpy(rho_core%pw,rho_g%pw)
+    CALL pw_axpy(rho_core%pw,rho_g%pw,error=error)
 
     ALLOCATE(v_gspace,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -230,7 +230,7 @@ CONTAINS
        CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
-       CALL pw_zero(v_gspace%pw)
+       CALL pw_zero(v_gspace%pw,error=error)
     END IF
 
     ! calculate electrostatic potential
@@ -550,7 +550,7 @@ CONTAINS
 
     vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
     ! add the frozen electronic density to the core density
-    CALL pw_axpy(rho_g%pw,rho_core%pw)
+    CALL pw_axpy(rho_g%pw,rho_core%pw,error=error)
 
     CALL timestop(handle)
 
@@ -632,19 +632,19 @@ CONTAINS
        CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
-       CALL pw_zero(v_gspace%pw)
+       CALL pw_zero(v_gspace%pw,error=error)
        CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace%pw,&
             use_data = REALDATA3D,&
             in_space = REALSPACE, error=error)
-       CALL pw_zero(v_rspace%pw)
+       CALL pw_zero(v_rspace%pw,error=error)
        CALL pw_pool_create_pw(auxbas_pw_pool, v1xc_r%pw,&
             use_data = REALDATA3D,&
             in_space = REALSPACE, error=error)
-       CALL pw_zero(v1xc_r%pw)
+       CALL pw_zero(v1xc_r%pw,error=error)
        CALL pw_pool_create_pw(auxbas_pw_pool, v2xc_r%pw,&
             use_data = REALDATA3D,&
             in_space = REALSPACE, error=error)
-       CALL pw_zero(v2xc_r%pw)
+       CALL pw_zero(v2xc_r%pw,error=error)
     END IF
 
     dvol=v_rspace%pw%pw_grid%dvol
@@ -657,9 +657,9 @@ CONTAINS
           forces(:,:)=0.0_dp
        END IF
     END DO
-    CALL pw_zero(rho_g%pw)
-    CALL pw_copy(rho_core%pw,rho_g%pw)
-    rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
+    CALL pw_zero(rho_g%pw,error=error)
+    CALL pw_copy(rho_core%pw,rho_g%pw,error=error)
+    rho%total_rho_gspace = pw_integrate_function(rho_g%pw,error=error)
 
     CALL calculate_drho_ppl(kg_env,calculate_forces,error)
 
@@ -669,13 +669,13 @@ CONTAINS
          v2xc_r, e1_xc, e2_xc, xc_section, calculate_forces, error)
 
     ! add the polarization density to get the total density
-    CALL pw_axpy(rhop_g%pw,rho_g%pw)
+    CALL pw_axpy(rhop_g%pw,rho_g%pw,error=error)
 
     ! calculate electrostatic potential
 
     CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw,error=error)
 
-    CALL pw_transfer(v_gspace%pw,v_rspace%pw)
+    CALL pw_transfer(v_gspace%pw,v_rspace%pw,error=error)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
     DEALLOCATE(v_gspace,stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

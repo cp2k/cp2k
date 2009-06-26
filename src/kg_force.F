@@ -228,19 +228,19 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
     CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
-    CALL pw_zero(v_gspace%pw)
+    CALL pw_zero(v_gspace%pw,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL pw_zero(v_rspace%pw)
+    CALL pw_zero(v_rspace%pw,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool, v1xc_r%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL pw_zero(v1xc_r%pw)
+    CALL pw_zero(v1xc_r%pw,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool, v2xc_r%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL pw_zero(v2xc_r%pw)
+    CALL pw_zero(v2xc_r%pw,error=error)
   END IF
 
   calculate_forces=.TRUE.
@@ -326,19 +326,19 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
   rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
 
 ! add the core density to the frozen electronic density
-  CALL pw_axpy(rho_core%pw,rho_g%pw)
+  CALL pw_axpy(rho_core%pw,rho_g%pw,error=error)
 
-  rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
+  rho%total_rho_gspace = pw_integrate_function(rho_g%pw,error=error)
 
 ! add the polarization density to get the total density
-  CALL pw_axpy(rhop_g%pw,rho_g%pw)
+  CALL pw_axpy(rhop_g%pw,rho_g%pw,error=error)
 
 ! calculate electrostatic potential
   CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw,error=error)
 
 !  calclation of the forces on the ions
 
-  CALL pw_transfer(v_gspace%pw,v_rspace%pw)
+  CALL pw_transfer(v_gspace%pw,v_rspace%pw,error=error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -517,11 +517,11 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
     CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
-    CALL pw_zero(v_gspace%pw)
+    CALL pw_zero(v_gspace%pw,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace%pw,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
-    CALL pw_zero(v_rspace%pw)
+    CALL pw_zero(v_rspace%pw,error=error)
   END IF
 
   calculate_forces=.TRUE.
@@ -594,14 +594,14 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
 
 ! add the core density to the frozen electronic density
 
-  CALL pw_axpy(rho_core%pw,rho_g%pw)
-  rho%total_rho_gspace = pw_integrate_function(rho_g%pw)
+  CALL pw_axpy(rho_core%pw,rho_g%pw,error=error)
+  rho%total_rho_gspace = pw_integrate_function(rho_g%pw,error=error)
 
 ! calculate electrostatic potential
   CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw,error=error)
 
 !  calclation of the forces on the ions
-  CALL pw_transfer(v_gspace%pw,v_rspace%pw)
+  CALL pw_transfer(v_gspace%pw,v_rspace%pw,error=error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

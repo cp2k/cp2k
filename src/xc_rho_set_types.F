@@ -713,7 +713,7 @@ CONTAINS
           CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
                use_data=REALDATA3D, in_space=REALSPACE, &
                error=error)
-          CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw)
+          CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw,error=error)
        ELSE
           my_rho_r_local=.TRUE.
           CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
@@ -722,24 +722,24 @@ CONTAINS
 
           SELECT CASE(xc_rho_smooth_id)
           CASE (xc_rho_no_smooth)
-             CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw)
+             CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw,error=error)
           CASE (xc_rho_spline2_smooth)
-             CALL pw_zero(my_rho_r(ispin)%pw)
+             CALL pw_zero(my_rho_r(ispin)%pw,error=error)
              CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
                   pw_out=my_rho_r(ispin)%pw,&
                   coeffs=spline2_coeffs, error=error)
           CASE (xc_rho_spline3_smooth)
-             CALL pw_zero(my_rho_r(ispin)%pw)
+             CALL pw_zero(my_rho_r(ispin)%pw,error=error)
              CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
                   pw_out=my_rho_r(ispin)%pw,&
                   coeffs=spline3_coeffs, error=error)
           CASE (xc_rho_nn10)
-             CALL pw_zero(my_rho_r(ispin)%pw)
+             CALL pw_zero(my_rho_r(ispin)%pw,error=error)
              CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
                   pw_out=my_rho_r(ispin)%pw,&
                   coeffs=nn10_coeffs, error=error)
           CASE (xc_rho_nn50)
-             CALL pw_zero(my_rho_r(ispin)%pw)
+             CALL pw_zero(my_rho_r(ispin)%pw,error=error)
              CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
                   pw_out=my_rho_r(ispin)%pw,&
                   coeffs=nn50_coeffs, error=error)
@@ -764,7 +764,7 @@ CONTAINS
                 CALL pw_pool_create_pw(pw_pool, my_rho_g,&
                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                      error=error)
-                CALL pw_transfer(my_rho_r(ispin)%pw,my_rho_g)
+                CALL pw_transfer(my_rho_r(ispin)%pw,my_rho_g,error=error)
              END IF
              CALL pw_pool_create_pw(pw_pool, tmp_g,&
                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
@@ -772,9 +772,9 @@ CONTAINS
              SELECT CASE(xc_deriv_method_id)
              CASE (xc_deriv_pw)
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g )
-                   CALL pw_derive ( tmp_g, nd(:,idir) )
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
+                   CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
                 END DO
                 IF(needs%laplace_rho.OR.needs%laplace_rho_spin) THEN
                   DO idir=1,3
@@ -782,9 +782,9 @@ CONTAINS
                     CALL pw_pool_create_pw(pw_pool,laplace_rho_r(idir,ispin)%pw, &
                                            use_data=REALDATA3D, in_space=REALSPACE, &
                                            error=error)
-                    CALL pw_copy ( my_rho_g, tmp_g )
-                    CALL pw_derive ( tmp_g, nd_laplace(:,idir) )
-                    CALL pw_transfer ( tmp_g, laplace_rho_r(idir,ispin)%pw )
+                    CALL pw_copy ( my_rho_g, tmp_g ,error=error)
+                    CALL pw_derive ( tmp_g, nd_laplace(:,idir) ,error=error)
+                    CALL pw_transfer ( tmp_g, laplace_rho_r(idir,ispin)%pw ,error=error)
                   END DO
                 END IF
              CASE (xc_deriv_spline2)
@@ -793,35 +793,35 @@ CONTAINS
                         use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                         error=error)
                    my_rho_g_local=.TRUE.
-                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
+                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g,error=error)
                 END IF
                 CALL pw_spline2_interpolate_values_g(my_rho_g,error=error)
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
                    CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
                 END DO
              CASE (xc_deriv_spline3)
                 IF (.NOT.my_rho_g_local) THEN
                    CALL pw_pool_create_pw(pw_pool, my_rho_g,&
                         use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                         error=error)
-                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
+                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g,error=error)
                    my_rho_g_local=.TRUE.
                 END IF
                 CALL pw_spline3_interpolate_values_g(my_rho_g,error=error)
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
                    CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
                 END DO
              CASE (xc_deriv_collocate)
 !deb
 WRITE(6,*) "PW"
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g )
-                   CALL pw_derive ( tmp_g, nd(:,idir) )
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
+                   CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
 WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
                 END DO
 !deb
@@ -840,28 +840,28 @@ WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
              SELECT CASE(xc_deriv_method_id)
              CASE (xc_deriv_spline2_smooth)
                 DO idir=1,3
-                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                   CALL pw_zero(drho_r(idir,ispin)%pw,error=error)
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
                         pw_out=drho_r(idir,ispin)%pw,&
                         coeffs=spline2_deriv_coeffs, idir=idir, error=error)
                 END DO
              CASE (xc_deriv_spline3_smooth)
                 DO idir=1,3
-                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                   CALL pw_zero(drho_r(idir,ispin)%pw,error=error)
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
                         pw_out=drho_r(idir,ispin)%pw,&
                         coeffs=spline3_deriv_coeffs, idir=idir, error=error)
                 END DO
              CASE (xc_deriv_nn10_smooth)
                 DO idir=1,3
-                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                   CALL pw_zero(drho_r(idir,ispin)%pw,error=error)
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
                         pw_out=drho_r(idir,ispin)%pw,&
                         coeffs=nn10_deriv_coeffs, idir=idir, error=error)
                 END DO
              CASE (xc_deriv_nn50_smooth)
                 DO idir=1,3
-                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                   CALL pw_zero(drho_r(idir,ispin)%pw,error=error)
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
                         pw_out=drho_r(idir,ispin)%pw,&
                         coeffs=nn50_deriv_coeffs, idir=idir, error=error)
@@ -870,9 +870,9 @@ WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
 !deb
 WRITE(6,*) "PW"
                 DO idir=1,3
-                   CALL pw_copy ( my_rho_g, tmp_g )
-                   CALL pw_derive ( tmp_g, nd(:,idir) )
-                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                   CALL pw_copy ( my_rho_g, tmp_g ,error=error)
+                   CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
 WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
                 END DO
 !deb

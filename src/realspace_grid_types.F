@@ -1361,7 +1361,7 @@ CONTAINS
 
        IF (debug_this_module) THEN
           ! safety check, to be removed once we're absolute sure the routine is correct
-          pw_sum=pw_integrate_function(pw)
+          pw_sum=pw_integrate_function(pw,error=error)
           IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*1000) THEN
              WRITE(error_string,'(A,6(1X,I4.4),3F25.16)') "rs_pw_transfer_distributed", &
                   rs % desc %  npts, rs % desc % group_dim, pw_sum,rs_sum,ABS(pw_sum-rs_sum)

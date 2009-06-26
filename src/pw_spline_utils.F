@@ -3254,9 +3254,9 @@ CPSourceFileRef,&
     IF (.NOT. failure) THEN
        SELECT CASE(preconditioner%kind)
        CASE(no_precond)
-          CALL pw_copy(in_v,out_v)
+          CALL pw_copy(in_v,out_v,error=error)
        CASE (precond_spl3_aint,precond_spl3_1)
-          CALL pw_zero(out_v)
+          CALL pw_zero(out_v,error=error)
           IF (preconditioner%pbc) THEN
              CALL pw_nn_smear_r(pw_in=in_v,pw_out=out_v,&
                   coeffs=preconditioner%coeffs,error=error)
@@ -3267,7 +3267,7 @@ CPSourceFileRef,&
                   transpose=preconditioner%transpose,error=error)
           END IF
        CASE(precond_spl3_3,precond_spl3_2,precond_spl3_aint2)
-          CALL pw_zero(out_v)
+          CALL pw_zero(out_v,error=error)
           IF (preconditioner%pbc) THEN
              CALL pw_nn_smear_r(pw_in=in_v,pw_out=out_v,&
                   coeffs=preconditioner%coeffs,error=error)
@@ -3349,27 +3349,27 @@ CPSourceFileRef,&
 
        CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
        ext_do:DO iiter=1,max_iter,10
-          CALL pw_zero(r)
+          CALL pw_zero(r,error=error)
           CALL linOp(pw_in=coeffs,pw_out=r,error=error)
           r%cr3d=-r%cr3d
-          CALL pw_axpy(values,r)
+          CALL pw_axpy(values,r,error=error)
           CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z,error=error)
-          CALL pw_copy(z,p)
-          r_z=pw_integral_ab(r,z)
+          CALL pw_copy(z,p,error=error)
+          r_z=pw_integral_ab(r,z,error=error)
 
           DO iter=iiter,MIN(iiter+9,max_iter)
-             eps_r_att=SQRT(pw_integral_aa(r,SQUARE))
+             eps_r_att=SQRT(pw_integral_aa(r,SQUARE,error=error))
              IF (eps_r_att==0._dp) THEN
                 eps_x_att=0._dp
                 last=.TRUE.
              ELSE
-                CALL pw_zero(Ap)
+                CALL pw_zero(Ap,error=error)
                 CALL linOp(pw_in=p,pw_out=Ap,error=error)
-                alpha=r_z/pw_integral_ab(Ap,p)
+                alpha=r_z/pw_integral_ab(Ap,p,error=error)
 
-                CALL pw_axpy(p,coeffs,alpha=alpha)
+                CALL pw_axpy(p,coeffs,alpha=alpha,error=error)
 
-                eps_x_att=alpha*SQRT(pw_integral_aa(p,SQUARE)) ! try to spare if unneded?
+                eps_x_att=alpha*SQRT(pw_integral_aa(p,SQUARE,error=error)) ! try to spare if unneded?
                 IF (eps_r_att<eps_r .AND. eps_x_att<eps_x) last=.TRUE.
              END IF
              CALL cp_iterate(logger%iter_info,last=last,error=error)
@@ -3378,11 +3378,11 @@ CPSourceFileRef,&
                 EXIT ext_do
              END IF
 
-             CALL pw_axpy(Ap,r,alpha=-alpha)
+             CALL pw_axpy(Ap,r,alpha=-alpha,error=error)
 
              CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z,error=error)
 
-             r_z_new=pw_integral_ab(r,z)
+             r_z_new=pw_integral_ab(r,z,error=error)
              beta=r_z_new/r_z
              r_z=r_z_new
 
@@ -3462,12 +3462,12 @@ CPSourceFileRef,&
        NULLIFY(values,coeffs)
        CALL pw_pool_create_pw(coarse_pool,values, use_data=REALDATA3D,&
             in_space=REALSPACE,error=error)
-       CALL pw_zero(values)
+       CALL pw_zero(values,error=error)
 
 !FM       nullify(tst_pw)
 !FM       CALL pw_pool_create_pw(coarse_pool,tst_pw, use_data=REALDATA3D,&
 !FM            in_space=REALSPACE,error=error)
-!FM       call pw_copy(values,tst_pw)
+!FM       call pw_copy(values,tst_pw,error=error)
 !FM       call add_fine2coarse(fine_values_pw=pw_fine_in,&
 !FM            coarse_coeffs_pw=tst_pw,&
 !FM            weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
@@ -3502,8 +3502,8 @@ CPSourceFileRef,&
        END IF
        CALL pw_spline_precond_release(precond,error=error)
 
-       CALL pw_zero(pw_coarse_out)
-       CALL pw_axpy(coeffs,pw_coarse_out)
+       CALL pw_zero(pw_coarse_out,error=error)
+       CALL pw_axpy(coeffs,pw_coarse_out,error=error)
 
        CALL pw_pool_give_back_pw(coarse_pool,values,error=error)
        CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)
@@ -3590,7 +3590,7 @@ CPSourceFileRef,&
 !FM       nullify(tst_pw)
 !FM       call pw_create(tst_pw, pw_fine_out%pw_grid, use_data=REALDATA3D,&
 !FM            in_space=REALSPACE, error=error)
-!FM       call pw_copy(pw_fine_out,tst_pw)
+!FM       call pw_copy(pw_fine_out,tst_pw,error=error)
 !FM       CALL add_coarse2fine(coarse_coeffs_pw=coeffs,&
 !FM            fine_values_pw=tst_pw,&
 !FM            weights_1d=spl3_1d_transf_coeffs,&
@@ -3977,7 +3977,7 @@ CPSourceFileRef,&
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL pw_zero(pw_out)
+    CALL pw_zero(pw_out,error=error)
     CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0,pw_in=pw_in,&
          pw_out=pw_out,sharpen=.FALSE.,normalize=.FALSE.,error=error)
   END SUBROUTINE spl3_nopbc
@@ -3987,7 +3987,7 @@ CPSourceFileRef,&
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL pw_zero(pw_out)
+    CALL pw_zero(pw_out,error=error)
     CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0,pw_in=pw_in,&
          pw_out=pw_out,sharpen=.FALSE.,normalize=.FALSE.,transpose=.TRUE.,&
          error=error)
@@ -3998,7 +3998,7 @@ CPSourceFileRef,&
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL pw_zero(pw_out)
+    CALL pw_zero(pw_out,error=error)
     CALL pw_nn_smear_r(pw_in,pw_out,coeffs=spline3_coeffs,&
          error=error)
   END SUBROUTINE spl3_pbc

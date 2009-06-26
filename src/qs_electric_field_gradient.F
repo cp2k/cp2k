@@ -245,7 +245,7 @@ CONTAINS
                           v_hartree_gspace%pw,error=error)
 
     ! smoothing of potential
-    IF ( smoothing ) CALL pw_smoothing(v_hartree_gspace%pw,ecut,sigma)
+    IF ( smoothing ) CALL pw_smoothing(v_hartree_gspace%pw,ecut,sigma,error=error)
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
 
@@ -255,7 +255,7 @@ CONTAINS
         CALL pw_pool_create_pw(auxbas_pw_pool,dvr2(ij)%pw, &
                                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                                 error=error)
-        CALL pw_dr2 ( v_hartree_gspace%pw, dvr2(ij)%pw, i, j )
+        CALL pw_dr2 ( v_hartree_gspace%pw, dvr2(ij)%pw, i, j, error=error)
       END DO
     END DO
 
@@ -281,7 +281,7 @@ CONTAINS
         CALL pw_pool_create_pw(auxbas_pw_pool,dvspl(i)%pw, &
                             use_data=REALDATA3D,in_space=REALSPACE,&
                             error=error)
-        CALL pw_transfer ( dvr2(i)%pw, dvr2rs%pw )
+        CALL pw_transfer ( dvr2(i)%pw, dvr2rs%pw , error=error)
         ! calculate spline coefficients
         CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
           pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
@@ -322,11 +322,11 @@ CONTAINS
             END DO
           END DO
         ELSE
-          CALL pw_structure_factor(structure_factor%pw,ra)
+          CALL pw_structure_factor(structure_factor%pw,ra,error=error)
           DO i=1,3
             DO j=1,i
               ij=(i*(i-1))/2+j
-              efg_tensor(i,j,iatom)=-pw_integral_ab(dvr2(ij)%pw,structure_factor%pw)
+              efg_tensor(i,j,iatom)=-pw_integral_ab(dvr2(ij)%pw,structure_factor%pw,error=error)
               efg_tensor(j,i,iatom)=efg_tensor(i,j,iatom)
             END DO
           END DO

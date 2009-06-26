@@ -301,23 +301,23 @@ CONTAINS
        CASE(use_gs_grid)
           SELECT CASE ( poisson_env%green_fft%method )
           CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
-             CALL pw_transfer ( density, rhog )
+             CALL pw_transfer ( density, rhog , error=error)
              IF (PRESENT(ehartree).AND..NOT.PRESENT(vhartree)) THEN
                 CALL pw_pool_create_pw ( pw_pool,tmpg, use_data=COMPLEXDATA1D,&
                      in_space = RECIPROCALSPACE, error=error)
-                CALL pw_copy(rhog,tmpg)
+                CALL pw_copy(rhog,tmpg, error=error)
              END IF
              
              DO ig=1,ng
                 rhog%cc(ig) = rhog%cc(ig) *  poisson_env%green_fft%influence_fn%cc(ig)
              ENDDO             
              IF ( PRESENT ( vhartree ) ) THEN
-                CALL pw_transfer ( rhog, vhartree )
+                CALL pw_transfer ( rhog, vhartree , error=error)
                 IF ( PRESENT ( ehartree ) ) THEN
-                   ehartree = 0.5_dp * pw_integral_ab ( density , vhartree )
+                   ehartree = 0.5_dp * pw_integral_ab ( density , vhartree , error=error)
                 END IF
              ELSE IF (PRESENT(ehartree)) THEN
-                ehartree=0.5_dp*pw_integral_ab(rhog,tmpg)
+                ehartree=0.5_dp*pw_integral_ab(rhog,tmpg, error=error)
                 CALL pw_pool_give_back_pw(pw_pool,tmpg,error=error)
              END IF
           CASE DEFAULT
@@ -325,7 +325,7 @@ CONTAINS
                   cp_to_string(poisson_env%green_fft%method),error)
           END SELECT
        CASE(use_rs_grid)
-          CALL pw_transfer ( density, rhog )
+          CALL pw_transfer ( density, rhog , error=error)
           ! point pw
           pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
           pw_grid => pw_pool % pw_grid
@@ -339,24 +339,24 @@ CONTAINS
           IF (PRESENT(ehartree).AND..NOT.PRESENT(vhartree)) THEN
              CALL pw_pool_create_pw ( pw_pool,tmpg, use_data=COMPLEXDATA1D,&
                   in_space = RECIPROCALSPACE, error=error)
-             CALL pw_transfer(density,tmpg)
+             CALL pw_transfer(density,tmpg, error=error)
           END IF
 
           ! density in R space
           CALL pw_pool_create_pw ( pw_pool,rhor, use_data=REALDATA3D,in_space = REALSPACE,&
                error=error)
-          CALL pw_transfer(density,rhor)
+          CALL pw_transfer(density,rhor, error=error)
           CALL cp2k_distribution_to_z_slices(rhor ,poisson_env%wavelet, rhor%pw_grid, error)
           CALL ps_wavelet_solve(poisson_env%wavelet,rhor%pw_grid,ehartree,error)
 
           CALL z_slices_to_cp2k_distribution(rhor ,poisson_env% wavelet,rhor% pw_grid, error)
           IF ( PRESENT ( vhartree ) ) THEN
-             CALL pw_transfer(rhor,vhartree)  
+             CALL pw_transfer(rhor,vhartree, error=error)  
              IF ( PRESENT ( ehartree ) ) THEN
-                ehartree = 0.5_dp * pw_integral_ab ( density , vhartree )
+                ehartree = 0.5_dp * pw_integral_ab ( density , vhartree , error=error)
              END IF
           ELSE IF (PRESENT(ehartree)) THEN
-             ehartree=0.5_dp*pw_integral_ab(rhog,tmpg)
+             ehartree=0.5_dp*pw_integral_ab(rhog,tmpg, error=error)
              CALL pw_pool_give_back_pw(pw_pool, tmpg, error=error)
           END IF
           CALL pw_pool_give_back_pw (pw_pool, rhor, error=error )
@@ -370,13 +370,13 @@ CONTAINS
                   in_space= RECIPROCALSPACE,error=error)
              n = 0
              n ( i ) = 1
-             CALL pw_copy ( rhog, dvg ( i )%pw )
-             CALL pw_derive ( dvg ( i )%pw, n )
+             CALL pw_copy ( rhog, dvg ( i )%pw , error=error)
+             CALL pw_derive ( dvg ( i )%pw, n , error=error)
           END DO
           ! save the derivatives
           IF ( PRESENT ( dvhartree ) ) THEN
              DO i = 1, 3
-                CALL pw_transfer ( dvg ( i )%pw, dvhartree ( i ) % pw )
+                CALL pw_transfer ( dvg ( i )%pw, dvhartree ( i ) % pw , error=error)
              END DO
           END IF
           ! Calculate the contribution to the stress tensor this is only the contribution from 
@@ -388,7 +388,7 @@ CONTAINS
                 h_stress ( alpha, alpha ) = ehartree
                 DO beta = alpha, 3
                    h_stress ( alpha, beta ) = h_stress ( alpha, beta ) &
-                        + ffa * pw_integral_ab ( dvg ( alpha )%pw, dvg ( beta )%pw )
+                        + ffa * pw_integral_ab ( dvg ( alpha )%pw, dvg ( beta )%pw , error=error)
                    h_stress ( beta, alpha ) = h_stress ( alpha, beta )
                 END DO
              END DO

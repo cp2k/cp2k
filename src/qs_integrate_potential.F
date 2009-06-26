@@ -1276,18 +1276,19 @@ CONTAINS
        CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                                  use_data = COMPLEXDATA1D,&
                                  in_space = RECIPROCALSPACE, error=error)
-       CALL pw_transfer(v_rspace%pw,mgrid_gspace(auxbas_grid)%pw)
+       CALL pw_transfer(v_rspace%pw,mgrid_gspace(auxbas_grid)%pw,error=error)
        DO igrid_level=1,gridlevel_info%ngrid_levels
          IF ( igrid_level /= auxbas_grid ) THEN
-              CALL pw_copy(mgrid_gspace(auxbas_grid)%pw,mgrid_gspace(igrid_level)%pw)
-              CALL pw_transfer(mgrid_gspace(igrid_level)%pw,&
-                                             mgrid_rspace(igrid_level)%pw)
+              CALL pw_copy(mgrid_gspace(auxbas_grid)%pw,mgrid_gspace(igrid_level)%pw,&
+                   error=error)
+              CALL pw_transfer(mgrid_gspace(igrid_level)%pw,mgrid_rspace(igrid_level)%pw,&
+                   error=error)
          ELSE
               IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
-                  CALL pw_transfer(mgrid_gspace(auxbas_grid)%pw,&
-                                             mgrid_rspace(auxbas_grid)%pw)
+                  CALL pw_transfer(mgrid_gspace(auxbas_grid)%pw,mgrid_rspace(auxbas_grid)%pw,&
+                       error=error)
               ELSE ! fft forward + backward should be identical
-                  CALL pw_copy(v_rspace%pw,mgrid_rspace(auxbas_grid)%pw)
+                  CALL pw_copy(v_rspace%pw,mgrid_rspace(auxbas_grid)%pw,error=error)
               ENDIF
          ENDIF
          ! *** Multiply by the grid volume element ratio ***
@@ -1300,9 +1301,9 @@ CONTAINS
        END DO
        CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
     CASE(spline3_pbc_interp)
-       CALL pw_copy(v_rspace%pw,mgrid_rspace(1)%pw)
+       CALL pw_copy(v_rspace%pw,mgrid_rspace(1)%pw,error=error)
        DO igrid_level=1,gridlevel_info%ngrid_levels-1
-          CALL pw_zero(mgrid_rspace(igrid_level+1)%pw)
+          CALL pw_zero(mgrid_rspace(igrid_level+1)%pw,error=error)
           CALL pw_restrict_s3(mgrid_rspace(igrid_level)%pw,&
                mgrid_rspace(igrid_level+1)%pw,pw_pools(igrid_level+1)%pool,&
                interp_section,error=error)

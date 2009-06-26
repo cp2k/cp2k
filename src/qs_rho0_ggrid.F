@@ -246,11 +246,11 @@ MODULE qs_rho0_ggrid
     IF(igrid /= auxbas_grid) THEN
       CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw,error=error)
       CALL rs_grid_release(rs_grid, error=error)
-      CALL pw_zero(rho0_s_gs%pw)
-      CALL pw_transfer(coeff_rspace%pw,coeff_gspace%pw)
-      CALL pw_axpy(coeff_gspace%pw,rho0_s_gs%pw)
+      CALL pw_zero(rho0_s_gs%pw,error=error)
+      CALL pw_transfer(coeff_rspace%pw,coeff_gspace%pw,error=error)
+      CALL pw_axpy(coeff_gspace%pw,rho0_s_gs%pw,error=error)
 
-      tot_rs_int = pw_integrate_function(coeff_rspace%pw,isign=-1)
+      tot_rs_int = pw_integrate_function(coeff_rspace%pw,isign=-1,error=error)
 
       CALL pw_pool_give_back_pw(pw_pool,coeff_rspace%pw,error=error)
       CALL pw_pool_give_back_pw(pw_pool,coeff_gspace%pw,error=error)
@@ -262,10 +262,10 @@ MODULE qs_rho0_ggrid
       CALL rs_pw_transfer(rs_grid,rho0_s_rs%pw,rs2pw,error=error)
       CALL rs_grid_release(rs_grid, error=error)
 
-      tot_rs_int = pw_integrate_function(rho0_s_rs%pw,isign=-1)
+      tot_rs_int = pw_integrate_function(rho0_s_rs%pw,isign=-1,error=error)
 
-      CALL pw_zero(rho0_s_gs%pw)
-      CALL pw_transfer(rho0_s_rs%pw,rho0_s_gs%pw)
+      CALL pw_zero(rho0_s_gs%pw,error=error)
+      CALL pw_transfer(rho0_s_rs%pw,rho0_s_gs%pw,error=error)
     END IF
     CALL timestop(handle)
 
@@ -476,9 +476,9 @@ MODULE qs_rho0_ggrid
        CALL pw_pool_create_pw(pw_aux, coeff_gaux%pw,&
                                use_data = COMPLEXDATA1D,&
                                in_space = RECIPROCALSPACE, error=error)
-       CALL pw_transfer(v_rspace%pw,coeff_gaux%pw)
-       CALL pw_copy(coeff_gaux%pw,coeff_gspace%pw)
-       CALL pw_transfer(coeff_gspace%pw,coeff_rspace%pw)
+       CALL pw_transfer(v_rspace%pw,coeff_gaux%pw,error=error)
+       CALL pw_copy(coeff_gaux%pw,coeff_gspace%pw,error=error)
+       CALL pw_transfer(coeff_gspace%pw,coeff_rspace%pw,error=error)
        CALL pw_pool_give_back_pw(pw_aux,coeff_gaux%pw,error=error)
        DEALLOCATE(coeff_gaux, STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -494,10 +494,10 @@ MODULE qs_rho0_ggrid
     ELSE
 
        IF(coeff_gspace%pw%pw_grid%spherical) THEN
-         CALL pw_transfer(v_rspace%pw,coeff_gspace%pw)
-         CALL pw_transfer(coeff_gspace%pw,coeff_rspace%pw)
+         CALL pw_transfer(v_rspace%pw,coeff_gspace%pw,error=error)
+         CALL pw_transfer(coeff_gspace%pw,coeff_rspace%pw,error=error)
        ELSE
-         CALL pw_copy(v_rspace%pw,coeff_rspace%pw)
+         CALL pw_copy(v_rspace%pw,coeff_rspace%pw,error=error)
        END IF
     END IF
     CALL pw_pool_give_back_pw(pw_pool,coeff_gspace%pw,error=error)

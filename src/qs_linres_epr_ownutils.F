@@ -367,9 +367,9 @@ CONTAINS
        DO ispin=1,nspins
           temp_so_soft = temp_so_soft + (-1.0_dp)**(1 + ispin) * ( &
                          pw_integral_ab ( jrho1_set(idir2)%rho%rho_r(ispin)%pw, &
-                         nablavks_set(idir3,ispin)%rho%rho_r(1)%pw ) - &
+                         nablavks_set(idir3,ispin)%rho%rho_r(1)%pw ,error=error) - &
                          pw_integral_ab ( jrho1_set(idir3)%rho%rho_r(ispin)%pw, &
-                         nablavks_set(idir2,ispin)%rho%rho_r(1)%pw ) &
+                         nablavks_set(idir2,ispin)%rho%rho_r(1)%pw ,error=error) &
                          )
        END DO
        temp_so_soft = -1.0_dp * epr_env%g_so_factor * temp_so_soft
@@ -643,7 +643,7 @@ CONTAINS
        DO ispin=1,nspins
           temp_soo_soft = temp_soo_soft + (-1.0_dp)**(1 +ispin) * ( &
                           pw_integral_ab ( bind_set(idir1,iB)%rho%rho_r(1)%pw, &
-                          rho%rho_r(ispin)%pw ) &
+                          rho%rho_r(ispin)%pw ,error=error) &
                           )
        END DO
        temp_soo_soft = 1.0_dp * epr_env%g_soo_factor * temp_soo_soft
@@ -852,17 +852,17 @@ CONTAINS
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
                &                  use_data=COMPLEXDATA1D,&
                &                  in_space=RECIPROCALSPACE,error=error)
-          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw)
+          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw,error=error)
        ENDDO
     ENDDO
     CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
          &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
-    CALL pw_zero(shift_pw_rspace%pw)
+    CALL pw_zero(shift_pw_rspace%pw,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
             &              use_data=COMPLEXDATA1D,&
             &              in_space=RECIPROCALSPACE,error=error)
 
-    CALL pw_zero(pw_gspace_work%pw)
+    CALL pw_zero(pw_gspace_work%pw,error=error)
     !
     CALL set_vecp(iB,iiB,iiiB)
     !
@@ -870,7 +870,7 @@ CONTAINS
        !
        DO idir3=1,3
           ! set to zero for the calculation of the shift
-          CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
+          CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw,error=error)
        ENDDO
        !
        DO idir = 1,3
@@ -887,8 +887,8 @@ CONTAINS
                 ! scale and add to the correct component of the shift column
                 CALL set_vecp_rev(idir,idir2,idir3)
                 scale_fac=fac_vecp(idir3,idir2,idir)
-                CALL pw_scale(pw_gspace_work%pw,scale_fac)
-                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
+                CALL pw_scale(pw_gspace_work%pw,scale_fac,error=error)
+                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw,error=error)
              ENDIF
           ENDDO
           !
@@ -898,7 +898,8 @@ CONTAINS
     ! Store the total soft induced magnetic field (corrected for sic)
     IF (dft_control%nspins == 2) THEN
        DO idir = 1,3
-          CALL pw_transfer(shift_pw_gspace(idir,2)%pw,epr_env%bind_set(idir,iB)%rho%rho_r(1)%pw)
+          CALL pw_transfer(shift_pw_gspace(idir,2)%pw,epr_env%bind_set(idir,iB)%rho%rho_r(1)%pw,&
+               error=error)
        ENDDO
     END IF
     !

@@ -212,7 +212,7 @@ CONTAINS
     CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
                              use_data = COMPLEXDATA1D, &
                              in_space = RECIPROCALSPACE ,error=error)
-    CALL pw_transfer ( rhob_r, rhob_g )
+    CALL pw_transfer ( rhob_r, rhob_g, error=error)
     ! update charge function
     rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
 
@@ -241,7 +241,7 @@ CONTAINS
        DO i = 1, 3
           DO j = i, 3
              f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, &
-                  dphi_g ( j ) % pw )
+                  dphi_g ( j ) % pw, error=error)
              f_stress ( j, i ) = f_stress ( i, j )
           END DO
        END DO
@@ -258,7 +258,7 @@ CONTAINS
        CALL rs_grid_create( drpot(i)%rs_grid, rs_desc, error=error )
        CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
        dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * green % p3m_charge % cr
-       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
+       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r, error=error)
        CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
        CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs,error=error)
     END DO

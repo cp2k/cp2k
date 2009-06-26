@@ -90,7 +90,7 @@ CONTAINS
     IF ( grid % have_g0 )  influence_fn%cc ( 1 ) = 0.0_dp
 
     frho => funcG_times_rho%pw
-    CALL pw_transfer (rho_gspace%pw,frho)
+    CALL pw_transfer (rho_gspace%pw,frho,error=error)
 
     ng = SIZE(grid % gsq)
     frho%cc(1:ng) = frho%cc(1:ng)*influence_fn % cc  ( 1 : ng )

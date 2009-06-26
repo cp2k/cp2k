@@ -330,9 +330,9 @@ CONTAINS
        CALL rs_grid_release(rs_rho(1)%rs_grid,error=error)
        DEALLOCATE (rs_rho,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
-       CALL pw_fft_wrap(rhop_r%pw,rhop_g%pw)
+       CALL pw_fft_wrap(rhop_r%pw,rhop_g%pw,error=error)
        IF (rhop_r%pw%pw_grid%spherical) THEN ! rhop_g = rhop_r
-          CALL pw_fft_wrap(rhop_g%pw,rhop_r%pw)
+          CALL pw_fft_wrap(rhop_g%pw,rhop_r%pw,error=error)
        ENDIF
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -344,16 +344,16 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
-       CALL pw_zero(rhop_g%pw)
+       CALL pw_zero(rhop_g%pw,error=error)
        DO igrid_level=1,gridlevel_info%ngrid_levels
          CALL pw_fft_wrap(mgrid_rspace(igrid_level)%pw,&
-              mgrid_gspace(igrid_level)%pw)
-         CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rhop_g%pw)
+              mgrid_gspace(igrid_level)%pw,error=error)
+         CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rhop_g%pw,error=error)
        END DO
-       CALL pw_fft_wrap(rhop_g%pw,rhop_r%pw)
+       CALL pw_fft_wrap(rhop_g%pw,rhop_r%pw,error=error)
     END IF
 
-    total_rho = pw_integrate_function(rhop_r%pw)
+    total_rho = pw_integrate_function(rhop_r%pw,error=error)
 
     ! *** give back the pw multi-grids
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,&

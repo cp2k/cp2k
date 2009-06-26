@@ -191,22 +191,22 @@ CONTAINS
                               error=error)
        ! IF GAPW the core charge is replaced by the compensation charge
        IF(gapw) THEN
-          CALL pw_transfer(rho0_s_gs%pw,rho_tot_r)
+          CALL pw_transfer(rho0_s_gs%pw,rho_tot_r,error=error)
           !
           ! QM/MM Nuclear Electrostatic Potential already included through rho0
           !
           energy%qmmm_nu = 0.0_dp
        ELSE
-          CALL pw_transfer(rho_core%pw,rho_tot_r)
+          CALL pw_transfer(rho_core%pw,rho_tot_r,error=error)
           !
           ! Computes the QM/MM Nuclear Electrostatic Potential
           !
-          energy%qmmm_nu = pw_integral_ab ( rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw )
+          energy%qmmm_nu = pw_integral_ab ( rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw,error=error)
        END IF
        IF (need_f) THEN
           !
           DO ispin=1,SIZE(rho%rho_r)
-             CALL pw_axpy(rho%rho_r(ispin)%pw,rho_tot_r)
+             CALL pw_axpy(rho%rho_r(ispin)%pw,rho_tot_r,error=error)
           END DO
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Evaluating forces on MM atoms due to the:"
           ! Electrostatic Interaction type...
@@ -377,7 +377,7 @@ CONTAINS
     ngrids=SIZE(pw_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids
-       CALL pw_zero(grids(igrid)%pw)
+       CALL pw_zero(grids(igrid)%pw,error=error)
     END DO
     ! Collocate Density on multigrids
     lb = rho%pw_grid%bounds_local(1,:)
@@ -1320,7 +1320,7 @@ CONTAINS
           energy = 0.0_dp
           Diff: DO K = 1, 2
              mm_particles(IndMM)%r(J) = Coord_save + (-1)**K * Dx
-             CALL pw_zero(v_qmmm_rspace%pw)
+             CALL pw_zero(v_qmmm_rspace%pw,error=error)
              SELECT CASE(qmmm_env%qmmm_coupl_type)
              CASE(do_qmmm_coulomb)
                 CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -1346,7 +1346,7 @@ CONTAINS
                 IF (iw>0) WRITE(iw,'(T3,A)')"Unknown Coupling..."
                 CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
-             energy(K) =  pw_integral_ab ( rho, v_qmmm_rspace%pw )
+             energy(K) =  pw_integral_ab ( rho, v_qmmm_rspace%pw ,error=error)
           END DO Diff
           IF (iw>0) THEN
              WRITE(iw,'(A,I6,A,I3,A,2F15.9)')&
@@ -1443,7 +1443,7 @@ CONTAINS
     ngrids = SIZE(aug_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids
-       CALL pw_zero(grids(igrid)%pw)
+       CALL pw_zero(grids(igrid)%pw,error=error)
     END DO
     bo2 = grids(auxbas_grid)%pw%pw_grid%bounds
     ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
@@ -1458,7 +1458,7 @@ CONTAINS
        DO k = 1, 2
           myrp = rp
           myrp(i) = myrp(i) + (-1.0_dp)**k * Dx
-          CALL pw_zero(grids(ilevel)%pw)
+          CALL pw_zero(grids(ilevel)%pw,error=error)
           CALL collocate_gf_rspace_NoPBC(zetp=zetp,&
                                          rp=myrp,&
                                          scale=-1.0_dp,&
@@ -1473,7 +1473,7 @@ CONTAINS
                                          n_rep_real=n_rep_real,&
                                          mm_cell=mm_cell)
 
-          energy(k) = pw_integral_ab(pwgrid, grids(ilevel)%pw)
+          energy(k) = pw_integral_ab(pwgrid, grids(ilevel)%pw,error=error)
        END DO
        force(i) = ( energy(2) - energy(1) ) / (2.0_dp * Dx)
     END DO
@@ -1561,7 +1561,7 @@ CONTAINS
     ngrids = SIZE(aug_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids
-       CALL pw_zero(grids(igrid)%pw)
+       CALL pw_zero(grids(igrid)%pw,error=error)
     END DO
     Atoms: DO I = 1, num_mm_atoms
        IndMM = mm_atom_index(I)
@@ -1570,7 +1570,7 @@ CONTAINS
           energy = 0.0_dp
           Diff: DO K = 1, 2
              mm_particles(IndMM)%r(J) = Coord_save + (-1)**K * Dx
-             CALL pw_zero(grids(coarser_grid_level)%pw)
+             CALL pw_zero(grids(coarser_grid_level)%pw,error=error)
 
              CALL qmmm_elec_with_gaussian_LG    (pgfs=pgfs,&
                                                  cgrid=grids(coarser_grid_level)%pw,&
@@ -1587,7 +1587,7 @@ CONTAINS
                                                  qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                                  error=error)
 
-             energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw )
+             energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw ,error=error)
           END DO Diff
           IF (iw>0)&
                WRITE(iw,'(A,I6,A,I3,A,2F15.9)')&
@@ -1673,7 +1673,7 @@ CONTAINS
     ngrids = SIZE(aug_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids
-       CALL pw_zero(grids(igrid)%pw)
+       CALL pw_zero(grids(igrid)%pw,error=error)
     END DO
     Atoms: DO I = 1, num_mm_atoms
        IndMM = mm_atom_index(I)
@@ -1682,7 +1682,7 @@ CONTAINS
           energy = 0.0_dp
           Diff: DO K = 1, 2
              mm_particles(IndMM)%r(J) = Coord_save + (-1)**K * Dx
-             CALL pw_zero(grids(coarser_grid_level)%pw)
+             CALL pw_zero(grids(coarser_grid_level)%pw,error=error)
 
              CALL qmmm_elec_with_gaussian_LR    (pgfs=pgfs,&
                                                  grid=grids(coarser_grid_level)%pw,&
@@ -1699,7 +1699,7 @@ CONTAINS
                                                  qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                                  error=error)
 
-             energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw )
+             energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw ,error=error)
           END DO Diff
           IF (iw>0)&
                WRITE(iw,'(A,I6,A,I3,A,2F15.9)')&

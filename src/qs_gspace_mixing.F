@@ -226,20 +226,20 @@ CONTAINS
             total_rho=rho%tot_rho_r(ispin),&
             qs_env=qs_env,soft_valid=gapw,error=error)
 
-       CALL pw_zero(rhog%pw)
+       CALL pw_zero(rhog%pw, error=error)
        ! point pw
        pw_grid => auxbas_pw_pool % pw_grid
        ng = SIZE ( pw_grid % gsq )
        g2 => pw_grid %gsq
-       CALL pw_transfer ( rho%rho_g(ispin)%pw, rhog%pw )
+       CALL pw_transfer ( rho%rho_g(ispin)%pw, rhog%pw, error=error)
 !       rhog%pw =>  rho%rho_g(ispin)%pw
        DO ig=1,ng
 !          rhog%pw%cc(ig) = rhog%pw%cc(ig) *  (1.0_dp-a_mix)*g2(ig)/(g2(ig)+b_mix*b_mix)
           rhog%pw%cc(ig) = rhog%pw%cc(ig) *  g2(ig)/(g2(ig)+b_mix*b_mix)
        ENDDO  
-       CALL pw_transfer ( rhog%pw, kerker_pot_rspace%pw)
+       CALL pw_transfer ( rhog%pw, kerker_pot_rspace%pw, error=error)
        
-       CALL pw_scale ( kerker_pot_rspace%pw, pw_grid%dvol)
+       CALL pw_scale ( kerker_pot_rspace%pw, pw_grid%dvol, error=error)
 
        CALL set_matrix(matrix_q(ispin)%matrix, 0.0_dp)
        CALL integrate_v_rspace(v_rspace=kerker_pot_rspace, &
@@ -358,8 +358,8 @@ CONTAINS
       END IF
 
     DO ispin=1,nspin
-      CALL pw_transfer(rho%rho_g(ispin)%pw,rho%rho_r(ispin)%pw)
-      rho%tot_rho_r(ispin) = pw_integrate_function(rho%rho_r(ispin)%pw,isign=-1)
+      CALL pw_transfer(rho%rho_g(ispin)%pw,rho%rho_r(ispin)%pw, error=error)
+      rho%tot_rho_r(ispin) = pw_integrate_function(rho%rho_r(ispin)%pw,isign=-1,error=error)
     END DO
 
     CALL timestop(handle)

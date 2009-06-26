@@ -144,7 +144,7 @@ CONTAINS
                      error=error)
     CALL scp_rho_get ( rho_scp, rhop_r = rhop_r, error = error )
 
-    energy % e_scp_qmmm = pw_integral_ab ( rhop_r%pw, v_qmmm%pw )
+    energy % e_scp_qmmm = pw_integral_ab ( rhop_r%pw, v_qmmm%pw ,error=error)
     CALL timestop(handle)
   END SUBROUTINE scp_calculate_qmmm_energy
 
@@ -171,7 +171,7 @@ CONTAINS
                      error=error)
     CALL scp_rho_get ( rho_scp, rhop_g = rhop_g, error = error )
      
-    energy % e_scp_ks = pw_integral_ab ( rhop_g % pw, v%pw )
+    energy % e_scp_ks = pw_integral_ab ( rhop_g % pw, v%pw ,error=error)
 
     CALL timestop(handle)
   END SUBROUTINE scp_calculate_gpw_energy
@@ -312,7 +312,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
        CALL pw_pool_create_pw(auxbas_pw_pool, vhscp_gspace%pw, &
                                use_data = COMPLEXDATA1D,&
                                in_space = RECIPROCALSPACE, error=error)
-       CALL pw_zero(vhscp_gspace%pw) 
+       CALL pw_zero(vhscp_gspace%pw,error=error) 
 
 ! Getting the energy and density structures
        CALL get_scp_env ( scp_env=scp_env,&
@@ -326,7 +326,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
 
 ! We know and updated KS_SCP_ENV and have V_HSCP in real-space
 ! Volume factors will get added in SCP_MODIFY_HARTEE_POTENTIAL
-       CALL pw_fft_wrap(vhscp_gspace%pw,ks_scp_env%v_scp_rspace%pw)
+       CALL pw_fft_wrap(vhscp_gspace%pw,ks_scp_env%v_scp_rspace%pw,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,vhscp_gspace%pw,error=error)
        DEALLOCATE(vhscp_gspace,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

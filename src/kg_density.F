@@ -246,9 +246,9 @@ CONTAINS
        CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
        DEALLOCATE (rs_rho,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
-       CALL pw_transfer(rho%pw,rho_gspace%pw)
+       CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
-          CALL pw_transfer(rho_gspace%pw,rho%pw)
+          CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
        ENDIF
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -260,16 +260,16 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
-       CALL pw_zero(rho_gspace%pw)
+       CALL pw_zero(rho_gspace%pw,error=error)
        DO igrid_level=1,gridlevel_info%ngrid_levels
          CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
-              mgrid_gspace(igrid_level)%pw)
-         CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
+              mgrid_gspace(igrid_level)%pw, error=error)
+         CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw,error=error)
        END DO
-       CALL pw_transfer(rho_gspace%pw,rho%pw)
+       CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
     END IF
 
-    total_rho = pw_integrate_function(rho%pw)
+    total_rho = pw_integrate_function(rho%pw,error=error)
 
     ! *** give back the pw multi-grids
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
@@ -374,9 +374,9 @@ CONTAINS
     CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
     CALL rs_grid_release(rs_rho, error=error)
 
-    total_rho = pw_integrate_function(rhoc_r%pw)
+    total_rho = pw_integrate_function(rhoc_r%pw,error=error)
 
-    CALL pw_transfer(rhoc_r%pw,rho_core%pw)
+    CALL pw_transfer(rhoc_r%pw,rho_core%pw,error=error)
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhoc_r%pw,error=error)
 
@@ -570,9 +570,9 @@ CONTAINS
        CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
        DEALLOCATE (rs_rho,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
-       CALL pw_transfer(rho%pw,rho_gspace%pw)
+       CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
-          CALL pw_transfer(rho_gspace%pw,rho%pw)
+          CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
        ENDIF
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -584,16 +584,16 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
-       CALL pw_zero(rho_gspace%pw)
+       CALL pw_zero(rho_gspace%pw,error=error)
        DO igrid_level=1,gridlevel_info%ngrid_levels
          CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
-              mgrid_gspace(igrid_level)%pw)
-         CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
+              mgrid_gspace(igrid_level)%pw,error=error)
+         CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw,error=error)
        END DO
-       CALL pw_transfer(rho_gspace%pw,rho%pw)
+       CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
     END IF
 
-    total_rho = pw_integrate_function(rho%pw)
+    total_rho = pw_integrate_function(rho%pw,error=error)
 
     ! *** give back the pw multi-grids
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
@@ -800,19 +800,20 @@ CONTAINS
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
 
-    CALL pw_transfer(v_rspace%pw,mgrid_gspace(auxbas_grid)%pw)
+    CALL pw_transfer(v_rspace%pw,mgrid_gspace(auxbas_grid)%pw,error=error)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
       IF ( igrid_level /= auxbas_grid ) THEN
-           CALL pw_copy(mgrid_gspace(auxbas_grid)%pw,mgrid_gspace(igrid_level)%pw)
+           CALL pw_copy(mgrid_gspace(auxbas_grid)%pw,mgrid_gspace(igrid_level)%pw,&
+                        error=error)
            CALL pw_transfer(mgrid_gspace(igrid_level)%pw,&
-                                          mgrid_rspace(igrid_level)%pw)
+                mgrid_rspace(igrid_level)%pw,error=error)
       ELSE
            IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
                CALL pw_transfer(mgrid_gspace(auxbas_grid)%pw,&
-                                          mgrid_rspace(auxbas_grid)%pw)
+                    mgrid_rspace(auxbas_grid)%pw,error=error)
            ELSE ! fft forward + backward should be identical
-               CALL pw_copy(v_rspace%pw,mgrid_rspace(auxbas_grid)%pw)
+               CALL pw_copy(v_rspace%pw,mgrid_rspace(auxbas_grid)%pw,error=error)
            ENDIF
       ENDIF
       ! *** Multiply by the grid volume element ratio ***
@@ -1072,19 +1073,21 @@ CONTAINS
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
 
-    CALL pw_transfer(v_rspace%pw,mgrid_gspace(auxbas_grid)%pw)
+    CALL pw_transfer(v_rspace%pw,mgrid_gspace(auxbas_grid)%pw,error=error)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
       IF ( igrid_level /= auxbas_grid ) THEN
-           CALL pw_copy(mgrid_gspace(auxbas_grid)%pw,mgrid_gspace(igrid_level)%pw)
+           CALL pw_copy(mgrid_gspace(auxbas_grid)%pw,mgrid_gspace(igrid_level)%pw,&
+                error=error)
            CALL pw_transfer(mgrid_gspace(igrid_level)%pw,&
-                                          mgrid_rspace(igrid_level)%pw)
+                mgrid_rspace(igrid_level)%pw,error=error)
       ELSE
            IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
                CALL pw_transfer(mgrid_gspace(auxbas_grid)%pw,&
-                                          mgrid_rspace(auxbas_grid)%pw)
+                    mgrid_rspace(auxbas_grid)%pw,error=error)
            ELSE ! fft forward + backward should be identical
-               CALL pw_copy(v_rspace%pw,mgrid_rspace(auxbas_grid)%pw)
+               CALL pw_copy(v_rspace%pw,mgrid_rspace(auxbas_grid)%pw,&
+                    error=error)
            ENDIF
       ENDIF
       ! *** Multiply by the grid volume element ratio ***

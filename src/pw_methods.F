@@ -1,3 +1,4 @@
+
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2009  CP2K developers group                          !
@@ -77,38 +78,41 @@ CONTAINS
 !>      none
 !> \author apsi
 ! *****************************************************************************
-SUBROUTINE pw_zero ( pw )
+  SUBROUTINE pw_zero ( pw, error )
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_zero', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ns
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zr
 
-  CALL timeset(routineN,handle)
-  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_zero")
-  IF ( pw % in_use == REALDATA1D ) THEN
-     ns = SIZE(pw%cr)
-     pw%cr(:) = 0._dp
-  ELSE IF ( pw % in_use == COMPLEXDATA1D ) THEN
-     ns = SIZE(pw%cc)
-     pw%cc(:) = CMPLX(0._dp,0._dp,KIND=dp)
-  ELSE IF ( pw % in_use == REALDATA3D ) THEN
-     ns = SIZE(pw%cr3d)
-     pw%cr3d(:,:,:) = 0._dp
-  ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
-     ns = SIZE(pw%cc3d)
-     pw%cc3d(:,:,:) = CMPLX(0._dp,0._dp,KIND=dp)
-  ELSE
-     CALL stop_program ( "pw_zero", "no possible data field" )
-  END IF
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    IF ( pw%in_use == REALDATA1D ) THEN
+       ns = SIZE(pw%cr)
+       pw%cr(:) = 0._dp
+    ELSE IF ( pw%in_use == COMPLEXDATA1D ) THEN
+       ns = SIZE(pw%cc)
+       pw%cc(:) = CMPLX(0._dp,0._dp,KIND=dp)
+    ELSE IF ( pw%in_use == REALDATA3D ) THEN
+       ns = SIZE(pw%cr3d)
+       pw%cr3d(:,:,:) = 0._dp
+    ELSE IF ( pw%in_use == COMPLEXDATA3D ) THEN
+       ns = SIZE(pw%cc3d)
+       pw%cc3d(:,:,:) = CMPLX(0._dp,0._dp,KIND=dp)
+    ELSE
+       CALL stop_program (routineP, "No possible data field!" )
+    END IF
 
-  zr = REAL ( ns,KIND=dp) * 1.e-6_dp
-  CALL timestop(handle)
+    zr = REAL ( ns,KIND=dp) * 1.e-6_dp
+    CALL timestop(handle)
 
-END SUBROUTINE pw_zero
+  END SUBROUTINE pw_zero
 
 ! *****************************************************************************
 !> \brief copy a pw type variable
@@ -121,185 +125,189 @@ END SUBROUTINE pw_zero
 !>      JGH (21-Feb-2003) : Code for generalized reference grids
 !> \author apsi
 ! *****************************************************************************
-SUBROUTINE pw_copy ( pw1, pw2 )
-  
+  SUBROUTINE pw_copy ( pw1, pw2, error)
     TYPE(pw_type), INTENT(IN)                :: pw1
     TYPE(pw_type), INTENT(INOUT)             :: pw2
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, ns
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zc
 
-  CALL timeset(routineN,handle)
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_copy")
-  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_copy")
-  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
-
-    IF ( pw1 % pw_grid % spherical .AND. pw2 % pw_grid % spherical ) THEN
-
-      IF ( pw_compatible ( pw1 % pw_grid, pw2 % pw_grid ) ) THEN
-
-        IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-             pw2 % in_use == COMPLEXDATA1D .AND. &
-             pw1 % in_space == RECIPROCALSPACE ) THEN
-           ng1 = SIZE ( pw1 % cc )
-           ng2 = SIZE ( pw2 % cc )
-           ng = MIN ( ng1, ng2 )
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
+    CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,routineP)
+    IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
+    
+       IF ( pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical ) THEN
+    
+          IF ( pw_compatible (pw1%pw_grid, pw2%pw_grid, error=error) ) THEN
+             
+             IF ( pw1%in_use == COMPLEXDATA1D .AND. &
+                  pw2%in_use == COMPLEXDATA1D .AND. &
+                  pw1%in_space == RECIPROCALSPACE ) THEN
+                ng1 = SIZE ( pw1%cc )
+                ng2 = SIZE ( pw2%cc )
+                ng = MIN ( ng1, ng2 )
 !$omp parallel do private(i)
-           DO i = 1, ng
-              pw2%cc(i) = pw1%cc(i)
-           END DO
-           IF ( ng2 > ng ) THEN
+                DO i = 1, ng
+                   pw2%cc(i) = pw1%cc(i)
+                END DO
+                IF ( ng2 > ng ) THEN
 !$omp parallel do private(i)
-              DO i = ng+1, ng2
-                 pw2%cc(i) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
-              END DO
-           END IF
-           ns = 2 * MAX ( ng1, ng2 )
-        ELSE
-           CALL stop_program ( "pw_copy", "no suitable data field" )
-        END IF
-
-      ELSE
-        WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                 " grid 1 :",pw1 % pw_grid %id_nr, &
-                 " sperical :",pw1 % pw_grid % spherical, &
-                 " reference :",pw1 % pw_grid % reference 
-        WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                 " grid 2 :",pw2 % pw_grid %id_nr, &
-                 " sperical :",pw2 % pw_grid % spherical, &
-                 " reference :",pw2 % pw_grid % reference 
-        CALL stop_program ( "pw_copy", "Incompatible grids" )
-      END IF
-
-    ELSE IF ( .NOT. ( pw1 % pw_grid % spherical .OR. &
-                      pw2 % pw_grid % spherical ) ) THEN
-
-      ng1 = SIZE ( pw1 % cc )
-      ng2 = SIZE ( pw2 % cc )
-      ns = 2 * MAX ( ng1, ng2 )
-
-      IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-           pw2 % in_use == COMPLEXDATA1D .AND. &
-           pw1 % in_space == RECIPROCALSPACE ) THEN
-
-        IF ( ( pw1 % pw_grid %id_nr == pw2 % pw_grid % reference ) ) THEN
-          IF( ng1 >= ng2 ) THEN
-!$omp parallel do private(i,j)
-            DO i = 1, ng2
-              j = pw2 % pw_grid % gidx ( i )
-              pw2 % cc ( i ) = pw1 % cc ( j )
-            END DO
+                   DO i = ng+1, ng2
+                      pw2%cc(i) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
+                   END DO
+                END IF
+                ns = 2 * MAX ( ng1, ng2 )
+             ELSE
+                CALL stop_program (routineP, "No suitable data field" )
+             END IF
+             
           ELSE
-            CALL pw_zero ( pw2 )
-!$omp parallel do private(i,j)
-            DO i = 1, ng1
-              j = pw2 % pw_grid % gidx ( i )
-              pw2 % cc ( j ) = pw1 % cc ( i )
-            END DO
+             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                        " grid 1 :",pw1%pw_grid %id_nr, &
+                        " sperical :",pw1%pw_grid%spherical, &
+                        " reference :",pw1%pw_grid%reference 
+             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                        " grid 2 :",pw2%pw_grid %id_nr, &
+                        " sperical :",pw2%pw_grid%spherical, &
+                        " reference :",pw2%pw_grid%reference 
+             CALL stop_program (routineP, "Incompatible grids" )
           END IF
-        ELSE IF ( ( pw2 % pw_grid %id_nr == pw1 % pw_grid % reference ) ) THEN
-          IF( ng1 >= ng2 ) THEN
+          
+       ELSE IF ( .NOT. ( pw1%pw_grid%spherical .OR. &
+                         pw2%pw_grid%spherical ) ) THEN
+
+          ng1 = SIZE ( pw1%cc )
+          ng2 = SIZE ( pw2%cc )
+          ns = 2 * MAX ( ng1, ng2 )
+          
+          IF ( pw1%in_use == COMPLEXDATA1D .AND. &
+               pw2%in_use == COMPLEXDATA1D .AND. &
+               pw1%in_space == RECIPROCALSPACE ) THEN
+             
+             IF ( ( pw1%pw_grid %id_nr == pw2%pw_grid%reference ) ) THEN
+                IF( ng1 >= ng2 ) THEN
 !$omp parallel do private(i,j)
-            DO i = 1, ng2
-              j = pw1 % pw_grid % gidx ( i )
-              pw2 % cc ( i ) = pw1 % cc ( j )
-            END DO
+                   DO i = 1, ng2
+                      j = pw2%pw_grid%gidx ( i )
+                      pw2%cc ( i ) = pw1%cc ( j )
+                   END DO
+                ELSE
+                   CALL pw_zero ( pw2, error=error)
+!$omp parallel do private(i,j)
+                   DO i = 1, ng1
+                      j = pw2%pw_grid%gidx ( i )
+                      pw2%cc ( j ) = pw1%cc ( i )
+                   END DO
+                END IF
+             ELSE IF ( ( pw2%pw_grid %id_nr == pw1%pw_grid%reference ) ) THEN
+                IF( ng1 >= ng2 ) THEN
+!$omp parallel do private(i,j)
+                   DO i = 1, ng2
+                      j = pw1%pw_grid%gidx ( i )
+                      pw2%cc ( i ) = pw1%cc ( j )
+                   END DO
+                ELSE
+                   CALL pw_zero ( pw2, error=error)
+!$omp parallel do private(i,j)
+                   DO i = 1, ng1
+                      j = pw1%pw_grid%gidx ( i )
+                      pw2%cc ( j ) = pw1%cc ( i )
+                   END DO
+                END IF
+             ELSE
+                WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                           " grid 1 :",pw1%pw_grid %id_nr, &
+                           " sperical :",pw1%pw_grid%spherical, &
+                           " reference :",pw1%pw_grid%reference 
+                WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                           " grid 2 :",pw2%pw_grid %id_nr, &
+                           " sperical :",pw2%pw_grid%spherical, &
+                           " reference :",pw2%pw_grid%reference 
+                CALL stop_program (routineP, "Incompatible grids" )
+             END IF
+             
           ELSE
-            CALL pw_zero ( pw2 )
-!$omp parallel do private(i,j)
-            DO i = 1, ng1
-              j = pw1 % pw_grid % gidx ( i )
-              pw2 % cc ( j ) = pw1 % cc ( i )
-            END DO
+             CALL stop_program (routineP, "no suitable data field" )
           END IF
-        ELSE
+          
+          pw2%in_space = RECIPROCALSPACE
+          
+       ELSE
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                 " grid 1 :",pw1 % pw_grid %id_nr, &
-                 " sperical :",pw1 % pw_grid % spherical, &
-                 " reference :",pw1 % pw_grid % reference 
+                     " grid 1 :",pw1%pw_grid %id_nr, &
+                     " sperical :",pw1%pw_grid%spherical, &
+                     " reference :",pw1%pw_grid%reference 
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                 " grid 2 :",pw2 % pw_grid %id_nr, &
-                 " sperical :",pw2 % pw_grid % spherical, &
-                 " reference :",pw2 % pw_grid % reference 
-          CALL stop_program ( "pw_copy", "Incompatible grids" )
-        END IF
-
-      ELSE
-         CALL stop_program ( "pw_copy", "no suitable data field" )
-      END IF
-
-      pw2 % in_space = RECIPROCALSPACE
+                     " grid 2 :",pw2%pw_grid %id_nr, &
+                     " sperical :",pw2%pw_grid%spherical, &
+                     " reference :",pw2%pw_grid%reference 
+          CALL stop_program (routineP, "Incompatible grids" )
+       END IF
 
     ELSE
-      WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 1 :",pw1 % pw_grid %id_nr, &
-               " sperical :",pw1 % pw_grid % spherical, &
-               " reference :",pw1 % pw_grid % reference 
-      WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 2 :",pw2 % pw_grid %id_nr, &
-               " sperical :",pw2 % pw_grid % spherical, &
-               " reference :",pw2 % pw_grid % reference 
-      CALL stop_program ( "pw_copy", "Incompatible grids" )
-    END IF
 
-  ELSE
-
-    IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
-       ns = SIZE ( pw1 % cr )
+       IF ( pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D ) THEN
+          ns = SIZE ( pw1%cr )
 !$omp parallel do private(i)
-       DO i = 1, ns
-          pw2 % cr(i) = pw1 % cr(i)
-       END DO
-    ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-         pw2 % in_use == COMPLEXDATA1D ) THEN
-       ns = SIZE ( pw1 % cc )
+          DO i = 1, ns
+             pw2%cr(i) = pw1%cr(i)
+          END DO
+       ELSE IF ( pw1%in_use == COMPLEXDATA1D .AND. &
+            pw2%in_use == COMPLEXDATA1D ) THEN
+          ns = SIZE ( pw1%cc )
 !$omp parallel do private(i)
-       DO i = 1, ns
-          pw2 % cc(i) = pw1 % cc(i)
-       END DO
-    ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-       ns = SIZE ( pw1 % cr3d )
-       pw2 % cr3d(:,:,:) = pw1 % cr3d(:,:,:)
-    ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
-         pw2 % in_use == COMPLEXDATA3D ) THEN
-       ns = SIZE ( pw1 % cc3d )
-       pw2 % cc3d(:,:,:) = pw1 % cc3d(:,:,:)
-    ELSE
-       CALL stop_program ( "pw_copy", "no suitable data field" )
+          DO i = 1, ns
+             pw2%cc(i) = pw1%cc(i)
+          END DO
+       ELSE IF ( pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D ) THEN
+          ns = SIZE ( pw1%cr3d )
+          pw2%cr3d(:,:,:) = pw1%cr3d(:,:,:)
+       ELSE IF ( pw1%in_use == COMPLEXDATA3D .AND. &
+            pw2%in_use == COMPLEXDATA3D ) THEN
+          ns = SIZE ( pw1%cc3d )
+          pw2%cc3d(:,:,:) = pw1%cc3d(:,:,:)
+       ELSE
+          CALL stop_program (routineP, "no suitable data field" )
+       END IF
+       
     END IF
-
-  END IF
-
-  pw2 % in_space = pw1 % in_space
-
-  zc = REAL ( ns,KIND=dp) * 1.e-6_dp
-  CALL timestop(handle)
+    
+    pw2%in_space = pw1%in_space
+    zc = REAL ( ns,KIND=dp) * 1.e-6_dp
+    CALL timestop(handle)
   
-END SUBROUTINE pw_copy
+  END SUBROUTINE pw_copy
 
 ! *****************************************************************************
 !> \brief multiplies pw coeffs with a number
 !> \par History
 !>      11.2004 created [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE pw_scale( pw, a )
+  SUBROUTINE pw_scale( pw, a , error)
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
     REAL(KIND=dp), INTENT(IN)                :: a
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_scale', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ns
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scale")
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
 
-    SELECT CASE ( pw % in_use )
+    SELECT CASE ( pw%in_use )
     CASE ( REALDATA1D )
        ns = SIZE(pw%cr)
        pw%cr(:) = a*pw%cr(:)
@@ -313,13 +321,13 @@ SUBROUTINE pw_scale( pw, a )
        ns = 2*SIZE(pw%cc3d)
        pw%cc3d(:,:,:) = a*pw%cc3d(:,:,:)
     CASE DEFAULT  
-       CALL stop_program ( "pw_scale", "no suitable data field" )
+       CALL stop_program (routineP, "No suitable data field" )
     END SELECT
 
     flop = REAL ( ns, KIND=dp) * 1.e-6_dp
     CALL timestop(handle)
 
-END SUBROUTINE pw_scale
+  END SUBROUTINE pw_scale
 
 ! *****************************************************************************
 !> \brief Calculate the derivative of a plane wave vector
@@ -330,95 +338,95 @@ END SUBROUTINE pw_scale
 !>      JGH (06-10-2002) allow only for inplace derivatives
 !> \author JGH (25-Feb-2001)
 ! *****************************************************************************
-SUBROUTINE pw_derive ( pw, n )
+  SUBROUTINE pw_derive ( pw, n, error )
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_derive', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: im
     INTEGER                                  :: cnt, handle, i, m
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
+    CPPrecondition(ALL(n>=0),cp_failure_level,routineP,error,failure)
 
-  CALL timeset(routineN,handle)
+    m = SUM ( n )
+    im = CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) ** m
 
-  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_derive")
-  IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
+    flop = 0.0_dp
 
-  m = SUM ( n )
-  im = CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) ** m
+    IF ( pw%in_space == RECIPROCALSPACE .AND. &
+         pw%in_use == COMPLEXDATA1D ) THEN
 
-  flop = 0.0_dp
+       cnt = SIZE ( pw%cc )
 
-  IF ( pw % in_space == RECIPROCALSPACE .AND. &
-       pw % in_use == COMPLEXDATA1D ) THEN
-
-    cnt = SIZE ( pw % cc )
-
-    IF ( n ( 1 ) == 1 ) THEN
+       IF ( n ( 1 ) == 1 ) THEN
 !$omp parallel do private (i)
-      DO i = 1, cnt
-         pw % cc ( i ) = pw % cc ( i ) * pw % pw_grid % g ( 1, i )
-      END DO
-      flop = flop + 6 * cnt
-    ELSE IF ( n ( 1 ) > 1 ) THEN
+          DO i = 1, cnt
+             pw%cc ( i ) = pw%cc ( i ) * pw%pw_grid%g ( 1, i )
+          END DO
+          flop = flop + 6 * cnt
+       ELSE IF ( n ( 1 ) > 1 ) THEN
 !$omp parallel do private (i)
-      DO i = 1, cnt
-         pw % cc ( i ) = pw % cc ( i ) * ( pw % pw_grid % g ( 1, i ) ** n ( 1 ) )
-      END DO
-      flop = flop + 7 * cnt
+          DO i = 1, cnt
+             pw%cc ( i ) = pw%cc ( i ) * ( pw%pw_grid%g ( 1, i ) ** n ( 1 ) )
+          END DO
+          flop = flop + 7 * cnt
+       END IF
+       IF ( n ( 2 ) == 1 ) THEN
+!$omp parallel do private (i)
+          DO i = 1, cnt
+             pw%cc ( i ) = pw%cc ( i ) * pw%pw_grid%g ( 2, i )
+          END DO
+          flop = flop + 6 * cnt
+       ELSE IF ( n ( 2 ) > 1 ) THEN
+!$omp parallel do private (i)
+          DO i = 1, cnt
+             pw%cc ( i ) = pw%cc ( i ) * ( pw%pw_grid%g ( 2, i ) ** n ( 2 ) )
+          END DO
+          flop = flop + 7 * cnt
+       END IF
+       IF ( n ( 3 ) == 1 ) THEN
+!$omp parallel do private (i)
+          DO i = 1, cnt
+             pw%cc ( i ) = pw%cc ( i ) * pw%pw_grid%g ( 3, i )
+          END DO
+          flop = flop + 6 * cnt
+       ELSE IF ( n ( 3 ) > 1 ) THEN
+!$omp parallel do private (i)
+          DO i = 1, cnt
+             pw%cc ( i ) = pw%cc ( i ) * ( pw%pw_grid%g ( 3, i ) ** n ( 3 ) )
+          END DO
+          flop = flop + 7 * cnt
+       END IF
+
+       ! im can take the values 1, -1, i, -i
+       ! skip this if im == 1
+       IF ( ABS ( REAL ( im,KIND=dp) - 1.0_dp ) > 1.e-10 ) THEN
+!$omp parallel do private (i)
+          DO i = 1, cnt
+             pw%cc ( i ) = im * pw%cc ( i )
+          END DO
+          flop = flop + 6 * cnt
+       END IF
+
+    ELSE
+
+       CALL stop_program (routineP, "no suitable data field" )
+
     END IF
-    IF ( n ( 2 ) == 1 ) THEN
-!$omp parallel do private (i)
-      DO i = 1, cnt
-         pw % cc ( i ) = pw % cc ( i ) * pw % pw_grid % g ( 2, i )
-      END DO
-      flop = flop + 6 * cnt
-    ELSE IF ( n ( 2 ) > 1 ) THEN
-!$omp parallel do private (i)
-      DO i = 1, cnt
-         pw % cc ( i ) = pw % cc ( i ) * ( pw % pw_grid % g ( 2, i ) ** n ( 2 ) )
-      END DO
-      flop = flop + 7 * cnt
-    END IF
-    IF ( n ( 3 ) == 1 ) THEN
-!$omp parallel do private (i)
-      DO i = 1, cnt
-         pw % cc ( i ) = pw % cc ( i ) * pw % pw_grid % g ( 3, i )
-      END DO
-      flop = flop + 6 * cnt
-    ELSE IF ( n ( 3 ) > 1 ) THEN
-!$omp parallel do private (i)
-      DO i = 1, cnt
-         pw % cc ( i ) = pw % cc ( i ) * ( pw % pw_grid % g ( 3, i ) ** n ( 3 ) )
-      END DO
-      flop = flop + 7 * cnt
-    END IF
 
-    ! im can take the values 1, -1, i, -i
-    ! skip this if im == 1
-    IF ( ABS ( REAL ( im,KIND=dp) - 1.0_dp ) > 1.e-10 ) THEN
-!$omp parallel do private (i)
-      DO i = 1, cnt
-         pw % cc ( i ) = im * pw % cc ( i )
-      END DO
-      flop = flop + 6 * cnt
-    END IF
+    flop = flop * 1.e-6_dp
+    CALL timestop(handle)
 
-  ELSE
-
-    CALL stop_program ( "pw_derive", "no suitable data field" )
-
-  END IF
-
-  flop = flop * 1.e-6_dp
-  CALL timestop(handle)
-
-END SUBROUTINE pw_derive
+  END SUBROUTINE pw_derive
 
 ! *****************************************************************************
 !> \brief Calculate the tensorial 2nd derivative of a plane wave vector
@@ -428,57 +436,57 @@ END SUBROUTINE pw_derive
 !>      none
 !> \author JGH (05-May-2006)
 ! *****************************************************************************
-SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
+  SUBROUTINE pw_dr2 ( pw, pwdr2, i, j, error)
 
     TYPE(pw_type), INTENT(IN)                :: pw
     TYPE(pw_type), INTENT(INOUT)             :: pwdr2
     INTEGER, INTENT(IN)                      :: i, j
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: cnt, handle, ig
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop, gg, o3
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
 
-  CALL timeset(routineN,handle)
+    flop = 0.0_dp
+    o3 = 1._dp/3._dp
 
-  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2")
+    IF ( pw%in_space == RECIPROCALSPACE .AND. &
+         pw%in_use == COMPLEXDATA1D ) THEN
 
-  flop = 0.0_dp
-  o3 = 1._dp/3._dp
+       cnt = SIZE ( pw%cc )
 
-  IF ( pw % in_space == RECIPROCALSPACE .AND. &
-       pw % in_use == COMPLEXDATA1D ) THEN
-
-    cnt = SIZE ( pw % cc )
-
-    IF ( i == j ) THEN
+       IF ( i == j ) THEN
 !$omp parallel do private (ig)
-      DO ig = 1, cnt
-        gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
-        pwdr2%cc(ig) = gg * pw%cc(ig)
-      END DO
-      flop = flop + 5 * cnt
+          DO ig = 1, cnt
+             gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
+             pwdr2%cc(ig) = gg * pw%cc(ig)
+          END DO
+          flop = flop + 5 * cnt
+       ELSE
+!$omp parallel do private (ig)
+          DO ig = 1, cnt
+             pwdr2%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig))
+          END DO
+          flop = flop + 4 * cnt
+       END IF
+
     ELSE
-!$omp parallel do private (ig)
-      DO ig = 1, cnt
-        pwdr2%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig))
-      END DO
-      flop = flop + 4 * cnt
+
+       CALL stop_program (routineP, "no suitable data field" )
+
     END IF
 
-  ELSE
+    flop = flop * 1.e-6_dp
+    CALL timestop(handle)
 
-    CALL stop_program ( "pw_dr2", "no suitable data field" )
-
-  END IF
-
-  flop = flop * 1.e-6_dp
-  CALL timestop(handle)
-
-END SUBROUTINE pw_dr2
+  END SUBROUTINE pw_dr2
 
 ! *****************************************************************************
 !> \brief Calculate the tensorial 2nd derivative of a plane wave vector
@@ -490,59 +498,59 @@ END SUBROUTINE pw_dr2
 !>      none
 !> \author RD (20-Nov-2006)
 ! *****************************************************************************
-SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j )
+  SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j, error)
 
     TYPE(pw_type), INTENT(IN)                :: pw
     TYPE(pw_type), INTENT(INOUT)             :: pwdr2_gg
     INTEGER, INTENT(IN)                      :: i, j
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: cnt, handle, ig
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop, gg, o3
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2_gg', &
       routineP = moduleN//':'//routineN
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
 
-  CALL timeset(routineN,handle)
+    flop = 0.0_dp
+    o3 = 1._dp/3._dp
 
-  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2_gg")
+    IF ( pw%in_space == RECIPROCALSPACE .AND. &
+         pw%in_use == COMPLEXDATA1D ) THEN
 
-  flop = 0.0_dp
-  o3 = 1._dp/3._dp
+       cnt = SIZE ( pw%cc )
 
-  IF ( pw % in_space == RECIPROCALSPACE .AND. &
-       pw % in_use == COMPLEXDATA1D ) THEN
-
-    cnt = SIZE ( pw % cc )
-
-    IF ( i == j ) THEN
+       IF ( i == j ) THEN
 !$omp parallel do private (ig)
-      DO ig = pw%pw_grid % first_gne0, cnt
-        gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
-        pwdr2_gg%cc(ig) = gg * pw%cc(ig) / pw%pw_grid%gsq(ig)
-      END DO
-      flop = flop + 6 * cnt
+          DO ig = pw%pw_grid%first_gne0, cnt
+             gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
+             pwdr2_gg%cc(ig) = gg * pw%cc(ig) / pw%pw_grid%gsq(ig)
+          END DO
+          flop = flop + 6 * cnt
+       ELSE
+!$omp parallel do private (ig)
+          DO ig = pw%pw_grid%first_gne0, cnt
+             pwdr2_gg%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig)) &
+                  / pw%pw_grid%gsq(ig) 
+          END DO
+          flop = flop + 5 * cnt
+       END IF
+
+       IF ( pw%pw_grid%have_g0 ) pwdr2_gg%cc ( 1 ) = 0.0_dp
+
     ELSE
-!$omp parallel do private (ig)
-      DO ig = pw%pw_grid % first_gne0, cnt
-        pwdr2_gg%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig)) &
-                          / pw%pw_grid%gsq(ig) 
-      END DO
-      flop = flop + 5 * cnt
+
+       CALL stop_program (routineP, "no suitable data field" )
+
     END IF
 
-    IF ( pw%pw_grid % have_g0 ) pwdr2_gg%cc ( 1 ) = 0.0_dp
+    flop = flop * 1.e-6_dp
+    CALL timestop(handle)
 
-  ELSE
-
-    CALL stop_program ( "pw_dr2_gg", "no suitable data field" )
-
-  END IF
-
-  flop = flop * 1.e-6_dp
-  CALL timestop(handle)
-
-END SUBROUTINE pw_dr2_gg
+  END SUBROUTINE pw_dr2_gg
 
 ! *****************************************************************************
 !> \brief Multiplies a G-space function with a smoothing factor of the form
@@ -553,48 +561,48 @@ END SUBROUTINE pw_dr2_gg
 !>      none
 !> \author JGH (09-June-2006)
 ! *****************************************************************************
-SUBROUTINE pw_smoothing ( pw, ecut, sigma )
+  SUBROUTINE pw_smoothing ( pw, ecut, sigma, error)
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
     REAL(KIND=dp), INTENT(IN)                :: ecut, sigma
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_smoothing', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: cnt, handle, ig
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, f, flop
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
 
-  CALL timeset(routineN,handle)
+    flop = 0.0_dp
 
-  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2")
+    IF ( pw%in_space == RECIPROCALSPACE .AND. &
+         pw%in_use == COMPLEXDATA1D ) THEN
 
-  flop = 0.0_dp
-
-  IF ( pw % in_space == RECIPROCALSPACE .AND. &
-       pw % in_use == COMPLEXDATA1D ) THEN
-
-    cnt = SIZE ( pw % cc )
+       cnt = SIZE ( pw%cc )
 
 !$omp parallel do private (ig)
-    DO ig = 1, cnt
-      arg = (ecut - pw%pw_grid%gsq(ig))/sigma
-      f = EXP(arg)/(1+EXP(arg))
-      pw%cc(ig) = f * pw%cc(ig)
-    END DO
-    flop = flop + 6 * cnt
+       DO ig = 1, cnt
+          arg = (ecut - pw%pw_grid%gsq(ig))/sigma
+          f = EXP(arg)/(1+EXP(arg))
+          pw%cc(ig) = f * pw%cc(ig)
+       END DO
+       flop = flop + 6 * cnt
 
-  ELSE
+    ELSE
 
-    CALL stop_program ( "pw_smoothing", "no suitable data field" )
+       CALL stop_program (routineP, "no suitable data field" )
 
-  END IF
+    END IF
 
-  flop = flop * 1.e-6_dp
-  CALL timestop(handle)
+    flop = flop * 1.e-6_dp
+    CALL timestop(handle)
 
-END SUBROUTINE pw_smoothing
+  END SUBROUTINE pw_smoothing
 
 ! *****************************************************************************
 !> \brief Generalize copy of pw types
@@ -604,51 +612,56 @@ END SUBROUTINE pw_smoothing
 !>      JGH (13-Mar-2001) : added gather/scatter cases
 !> \author JGH (25-Feb-2001)
 ! *****************************************************************************
-SUBROUTINE pw_transfer ( pw1, pw2, debug )
+  SUBROUTINE pw_transfer ( pw1, pw2, debug, error)
 
     TYPE(pw_type), INTENT(IN), TARGET        :: pw1
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw2
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-!------------------------------------------------------------------------------
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_transfer', &
+      routineP = moduleN//':'//routineN
 
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_transfer")
-  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_transfer")
+    LOGICAL                                  :: failure
 
-  IF ( pw1 % in_space == REALSPACE .AND. pw2 % in_space == REALSPACE ) THEN
+    failure = .FALSE.
+    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
+    CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,routineP)
 
-     ! simple copy should do
-     CALL pw_copy ( pw1, pw2 )
+    IF ( pw1%in_space == REALSPACE .AND. pw2%in_space == REALSPACE ) THEN
 
-  ELSEIF ( pw1 % in_space == RECIPROCALSPACE .AND. &
-         pw2 % in_space == RECIPROCALSPACE ) THEN
+       ! simple copy should do
+       CALL pw_copy ( pw1, pw2, error=error)
 
-     IF ( pw1 % in_use == pw2 % in_use ) THEN
+    ELSEIF ( pw1%in_space == RECIPROCALSPACE .AND. &
+         pw2%in_space == RECIPROCALSPACE ) THEN
 
-        ! simple copy should do
-        CALL pw_copy ( pw1, pw2 )
-     
-     ELSE
+       IF ( pw1%in_use == pw2%in_use ) THEN
 
-       ! we have to gather/scatter the data
-       IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
-         CALL pw_scatter ( pw1, pw2 % cc3d )
-       ELSEIF ( pw2 % in_use == COMPLEXDATA1D ) THEN
-         CALL pw_gather ( pw2, pw1 % cc3d )
+          ! simple copy should do
+          CALL pw_copy ( pw1, pw2, error=error)
+
        ELSE
-         CALL stop_program ( "pw_transfer", "Do not know what to do" )
+
+          ! we have to gather/scatter the data
+          IF ( pw1%in_use == COMPLEXDATA1D ) THEN
+             CALL pw_scatter ( pw1, pw2%cc3d, error=error)
+          ELSEIF ( pw2%in_use == COMPLEXDATA1D ) THEN
+             CALL pw_gather ( pw2, pw1%cc3d, error=error)
+          ELSE
+             CALL stop_program (routineP, "Do not know what to do" )
+          END IF
+
        END IF
 
-     END IF
+    ELSE
 
-  ELSE
+       ! FFT needed, all further tests done in pw_fft_wrap
+       CALL pw_fft_wrap ( pw1, pw2, debug, error=error)
 
-     ! FFT needed, all further tests done in pw_fft_wrap
-     CALL pw_fft_wrap ( pw1, pw2, debug )
+    END IF
 
-  END IF
-
-END SUBROUTINE pw_transfer
+  END SUBROUTINE pw_transfer
 
 ! *****************************************************************************
 !> \brief pw2 = alpha*pw1 + pw2
@@ -661,203 +674,204 @@ END SUBROUTINE pw_transfer
 !>      JGH (01-Dec-2007) : rename and remove complex alpha
 !> \author apsi
 ! *****************************************************************************
-SUBROUTINE pw_axpy ( pw1, pw2, alpha )
+  SUBROUTINE pw_axpy ( pw1, pw2, alpha, error)
 
     TYPE(pw_type), INTENT(IN)                :: pw1
     TYPE(pw_type), INTENT(INOUT)             :: pw2
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_axpy', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, ng, ng1, ng2
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop, my_alpha
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
+    CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,routineP)
 
-  CALL timeset(routineN,handle)
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_axpy")
-  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_axpy")
+    my_alpha=1.0_dp
+    IF (PRESENT(alpha)) my_alpha=alpha
 
-  my_alpha=1.0_dp
-  IF (PRESENT(alpha)) my_alpha=alpha
+    IF ( pw1%pw_grid %id_nr == pw2%pw_grid %id_nr ) THEN
 
-  IF ( pw1 % pw_grid %id_nr == pw2 % pw_grid %id_nr ) THEN
+       IF ( pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D ) THEN
+          IF (my_alpha==1.0_dp) THEN
+!$omp parallel do private(i)
+             DO i = 1, SIZE ( pw2%cr )
+                pw2%cr(i) = pw2%cr(i) + pw1%cr(i)
+             END DO
+             flop = REAL ( SIZE ( pw2%cr ),KIND=dp)
+          ELSE
+!$omp parallel do private(i)
+             DO i = 1, SIZE ( pw2%cr )
+                pw2%cr(i) = pw2%cr(i) + my_alpha*pw1%cr(i)
+             END DO
+             flop = REAL ( 2*SIZE ( pw2%cr ),KIND=dp)
+          END IF
+       ELSE IF ( pw1%in_use == COMPLEXDATA1D .AND. &
+            pw2%in_use == COMPLEXDATA1D ) THEN
+          IF (my_alpha==1.0_dp) THEN
+!$omp parallel do private(i)
+             DO i = 1, SIZE ( pw2%cc )
+                pw2%cc(i) = pw2%cc(i) + pw1%cc(i)
+             END DO
+             flop = REAL ( 2 * SIZE ( pw2%cc ),KIND=dp)
+          ELSE
+!$omp parallel do private(i)
+             DO i = 1, SIZE ( pw2%cc )
+                pw2%cc(i) = pw2%cc(i) + my_alpha*pw1%cc(i)
+             END DO
+             flop = REAL ( 4 * SIZE ( pw2%cc ),KIND=dp)
+          END IF
+       ELSE IF ( pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D ) THEN
+          IF (my_alpha==1.0_dp) THEN
+             pw2%cr3d = pw2%cr3d + pw1%cr3d
+             flop = REAL ( SIZE ( pw2%cr3d ),KIND=dp)
+          ELSE
+             pw2%cr3d = pw2%cr3d + my_alpha * pw1%cr3d
+             flop = REAL ( 2*SIZE ( pw2%cr3d ),KIND=dp)
+          END IF
+       ELSE IF ( pw1%in_use == COMPLEXDATA3D .AND. &
+            pw2%in_use == COMPLEXDATA3D ) THEN
+          IF (my_alpha==1.0_dp) THEN
+             pw2%cc3d = pw2%cc3d + pw1%cc3d
+             flop = REAL ( 2 * SIZE ( pw2%cc3d ),KIND=dp)
+          ELSE
+             pw2%cc3d = pw2%cc3d + my_alpha*pw1%cc3d
+             flop = REAL ( 4 * SIZE ( pw2%cc3d ),KIND=dp)
+          END IF
+       ELSE
+          CALL stop_program (routineP, "no suitable data field" )
+       END IF
 
-     IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
-        IF (my_alpha==1.0_dp) THEN
-           !$omp parallel do private(i)
-           DO i = 1, SIZE ( pw2 % cr )
-              pw2 % cr(i) = pw2 % cr(i) + pw1 % cr(i)
-           END DO
-           flop = REAL ( SIZE ( pw2 % cr ),KIND=dp)
-        ELSE
-           !$omp parallel do private(i)
-           DO i = 1, SIZE ( pw2 % cr )
-              pw2 % cr(i) = pw2 % cr(i) + my_alpha*pw1 % cr(i)
-           END DO
-           flop = REAL ( 2*SIZE ( pw2 % cr ),KIND=dp)
-        END IF
-     ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-          pw2 % in_use == COMPLEXDATA1D ) THEN
-        IF (my_alpha==1.0_dp) THEN
-           !$omp parallel do private(i)
-           DO i = 1, SIZE ( pw2 % cc )
-              pw2 % cc(i) = pw2 % cc(i) + pw1 % cc(i)
-           END DO
-           flop = REAL ( 2 * SIZE ( pw2 % cc ),KIND=dp)
-        ELSE
-           !$omp parallel do private(i)
-           DO i = 1, SIZE ( pw2 % cc )
-              pw2 % cc(i) = pw2 % cc(i) + my_alpha*pw1 % cc(i)
-           END DO
-           flop = REAL ( 4 * SIZE ( pw2 % cc ),KIND=dp)
-        END IF
-     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-        IF (my_alpha==1.0_dp) THEN
-           pw2 % cr3d = pw2 % cr3d + pw1 % cr3d
-           flop = REAL ( SIZE ( pw2 % cr3d ),KIND=dp)
-        ELSE
-           pw2 % cr3d = pw2 % cr3d + my_alpha * pw1 % cr3d
-           flop = REAL ( 2*SIZE ( pw2 % cr3d ),KIND=dp)
-        END IF
-     ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
-          pw2 % in_use == COMPLEXDATA3D ) THEN
-        IF (my_alpha==1.0_dp) THEN
-           pw2 % cc3d = pw2 % cc3d + pw1 % cc3d
-           flop = REAL ( 2 * SIZE ( pw2 % cc3d ),KIND=dp)
-        ELSE
-           pw2 % cc3d = pw2 % cc3d + my_alpha*pw1 % cc3d
-           flop = REAL ( 4 * SIZE ( pw2 % cc3d ),KIND=dp)
-        END IF
-     ELSE
-        CALL stop_program ( "pw_axpy", "no suitable data field" )
-     END IF
+    ELSE IF ( pw_compatible ( pw1%pw_grid, pw2%pw_grid, error=error) ) THEN
 
-  ELSE IF ( pw_compatible ( pw1 % pw_grid, pw2 % pw_grid ) ) THEN
+       IF ( pw1%in_use == COMPLEXDATA1D .AND. &
+            pw2%in_use == COMPLEXDATA1D .AND. &
+            pw1%in_space == RECIPROCALSPACE .AND. &
+            pw1%in_space == RECIPROCALSPACE ) THEN
 
-     IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-          pw2 % in_use == COMPLEXDATA1D .AND. &
-          pw1 % in_space == RECIPROCALSPACE .AND. &
-          pw1 % in_space == RECIPROCALSPACE ) THEN
+          ng1 = SIZE ( pw1%cc )
+          ng2 = SIZE ( pw2%cc )
+          ng  = MIN ( ng1, ng2 )
+          flop = REAL ( 2 * ng,KIND=dp)
 
-        ng1 = SIZE ( pw1 % cc )
-        ng2 = SIZE ( pw2 % cc )
-        ng  = MIN ( ng1, ng2 )
-        flop = REAL ( 2 * ng,KIND=dp)
+          IF ( pw1%pw_grid%spherical ) THEN
 
-        IF ( pw1 % pw_grid % spherical ) THEN
+             IF (my_alpha==1.0_dp) THEN           
+!$omp parallel do private(i)
+                DO i = 1, ng
+                   pw2%cc (i) = pw2%cc (i) + pw1%cc (i)
+                END DO
+             ELSE
+!$omp parallel do private(i)
+                DO i = 1, ng
+                   pw2%cc (i) = pw2%cc (i) + my_alpha*pw1%cc (i)
+                END DO
+             END IF
 
-           IF (my_alpha==1.0_dp) THEN           
-              !$omp parallel do private(i)
-              DO i = 1, ng
-                 pw2 % cc (i) = pw2 % cc (i) + pw1 % cc (i)
-              END DO
-           ELSE
-              !$omp parallel do private(i)
-              DO i = 1, ng
-                 pw2 % cc (i) = pw2 % cc (i) + my_alpha*pw1 % cc (i)
-              END DO
-           END IF
+          ELSEIF ( ( pw1%pw_grid %id_nr == pw2%pw_grid%reference ) ) THEN
 
-        ELSEIF ( ( pw1 % pw_grid %id_nr == pw2 % pw_grid % reference ) ) THEN
-  
-           IF (my_alpha==1.0_dp) THEN
-              IF( ng1 >= ng2 ) THEN
-                 !$omp parallel do private(i,j)
-                 DO i = 1, ng2
-                    j = pw2 % pw_grid % gidx ( i )
-                    pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
-                 END DO
-              ELSE
-                 !$omp parallel do private(i,j)
-                 DO i = 1, ng1
-                    j = pw2 % pw_grid % gidx ( i )
-                    pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
-                 END DO
-              END IF
-           ELSE
-              IF( ng1 >= ng2 ) THEN
-                 !$omp parallel do private(i,j)
-                 DO i = 1, ng2
-                    j = pw2 % pw_grid % gidx ( i )
-                    pw2 % cc ( i ) = pw2 % cc ( i ) + my_alpha*pw1 % cc ( j )
-                 END DO
-              ELSE
-                 !$omp parallel do private(i,j)
-                 DO i = 1, ng1
-                    j = pw2 % pw_grid % gidx ( i )
-                    pw2 % cc ( j ) = pw2 % cc ( j ) + my_alpha*pw1 % cc ( i )
-                 END DO
-              END IF
-           END IF
-        ELSEIF ( ( pw2 % pw_grid %id_nr == pw1 % pw_grid % reference ) ) THEN
+             IF (my_alpha==1.0_dp) THEN
+                IF( ng1 >= ng2 ) THEN
+!$omp parallel do private(i,j)
+                   DO i = 1, ng2
+                      j = pw2%pw_grid%gidx ( i )
+                      pw2%cc ( i ) = pw2%cc ( i ) + pw1%cc ( j )
+                   END DO
+                ELSE
+!$omp parallel do private(i,j)
+                   DO i = 1, ng1
+                      j = pw2%pw_grid%gidx ( i )
+                      pw2%cc ( j ) = pw2%cc ( j ) + pw1%cc ( i )
+                   END DO
+                END IF
+             ELSE
+                IF( ng1 >= ng2 ) THEN
+!$omp parallel do private(i,j)
+                   DO i = 1, ng2
+                      j = pw2%pw_grid%gidx ( i )
+                      pw2%cc ( i ) = pw2%cc ( i ) + my_alpha*pw1%cc ( j )
+                   END DO
+                ELSE
+!omp parallel do private(i,j)
+                   DO i = 1, ng1
+                      j = pw2%pw_grid%gidx ( i )
+                      pw2%cc ( j ) = pw2%cc ( j ) + my_alpha*pw1%cc ( i )
+                   END DO
+                END IF
+             END IF
+          ELSEIF ( ( pw2%pw_grid %id_nr == pw1%pw_grid%reference ) ) THEN
 
-           IF (my_alpha==1.0_dp) THEN
-              IF( ng1 >= ng2 ) THEN
-                 !$omp parallel do private(i,j)
-                 DO i = 1, ng2
-                    j = pw1 % pw_grid % gidx ( i )
-                    pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
-                 END DO
-              ELSE
-                 !$omp parallel do private(i,j)
-                 DO i = 1, ng1
-                    j = pw1 % pw_grid % gidx ( i )
-                    pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
-                 END DO
-              END IF
-           ELSE
-              IF( ng1 >= ng2 ) THEN
-                 !$omp parallel do private(i,j)
-                 DO i = 1, ng2
-                    j = pw1 % pw_grid % gidx ( i )
-                    pw2 % cc ( i ) = pw2 % cc ( i ) + my_alpha* pw1 % cc ( j )
-                 END DO
-              ELSE
-                 !$omp parallel do private(i,j)
-                 DO i = 1, ng1
-                    j = pw1 % pw_grid % gidx ( i )
-                    pw2 % cc ( j ) = pw2 % cc ( j ) + my_alpha*pw1 % cc ( i )
-                 END DO
-              END IF
-           END IF
-        ELSE
+             IF (my_alpha==1.0_dp) THEN
+                IF( ng1 >= ng2 ) THEN
+!omp parallel do private(i,j)
+                   DO i = 1, ng2
+                      j = pw1%pw_grid%gidx ( i )
+                      pw2%cc ( i ) = pw2%cc ( i ) + pw1%cc ( j )
+                   END DO
+                ELSE
+!omp parallel do private(i,j)
+                   DO i = 1, ng1
+                      j = pw1%pw_grid%gidx ( i )
+                      pw2%cc ( j ) = pw2%cc ( j ) + pw1%cc ( i )
+                   END DO
+                END IF
+             ELSE
+                IF( ng1 >= ng2 ) THEN
+!omp parallel do private(i,j)
+                   DO i = 1, ng2
+                      j = pw1%pw_grid%gidx ( i )
+                      pw2%cc ( i ) = pw2%cc ( i ) + my_alpha* pw1%cc ( j )
+                   END DO
+                ELSE
+!omp parallel do private(i,j)
+                   DO i = 1, ng1
+                      j = pw1%pw_grid%gidx ( i )
+                      pw2%cc ( j ) = pw2%cc ( j ) + my_alpha*pw1%cc ( i )
+                   END DO
+                END IF
+             END IF
+          ELSE
 
-           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                " grid 1 :",pw1 % pw_grid %id_nr, &
-                " sperical :",pw1 % pw_grid % spherical, &
-                " reference :",pw1 % pw_grid % reference
-           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                " grid 2 :",pw2 % pw_grid %id_nr, &
-                " sperical :",pw2 % pw_grid % spherical, &
-                " reference :",pw2 % pw_grid % reference
-           CALL stop_program ( "pw_axpy", "grids not compatible" )
+             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                        " grid 1 :",pw1%pw_grid %id_nr, &
+                        " sperical :",pw1%pw_grid%spherical, &
+                        " reference :",pw1%pw_grid%reference
+             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                        " grid 2 :",pw2%pw_grid %id_nr, &
+                        " sperical :",pw2%pw_grid%spherical, &
+                        " reference :",pw2%pw_grid%reference
+             CALL stop_program (routineP, "grids not compatible" )
 
-        END IF
+          END IF
 
-     ELSE
-        CALL stop_program ( "pw_axpy", "no suitable data field" )
-     END IF
+       ELSE
+          CALL stop_program (routineP, "no suitable data field" )
+       END IF
 
-  ELSE
+    ELSE
 
-     WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-          " grid 1 :",pw1 % pw_grid %id_nr, &
-          " sperical :",pw1 % pw_grid % spherical, &
-          " reference :",pw1 % pw_grid % reference
-     WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-          " grid 2 :",pw2 % pw_grid %id_nr, &
-          " sperical :",pw2 % pw_grid % spherical, &
-          " reference :",pw2 % pw_grid % reference
-     CALL stop_program ( "pw_axpy", "grids not compatible" )
+       WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                  " grid 1 :",pw1%pw_grid %id_nr, &
+                  " sperical :",pw1%pw_grid%spherical, &
+                  " reference :",pw1%pw_grid%reference
+       WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                  " grid 2 :",pw2%pw_grid %id_nr, &
+                  " sperical :",pw2%pw_grid%spherical, &
+                  " reference :",pw2%pw_grid%reference
+       CALL stop_program (routineP, "grids not compatible" )
 
-  END IF
+    END IF
 
-  flop = flop * 1.e-6_dp
-  CALL timestop(handle)
+    flop = flop * 1.e-6_dp
+    CALL timestop(handle)
 
-END SUBROUTINE pw_axpy
+  END SUBROUTINE pw_axpy
 
 ! *****************************************************************************
 !> \brief Gathers the pw vector from a 3d data field
@@ -865,12 +879,13 @@ END SUBROUTINE pw_axpy
 !>      none
 !> \author JGH
 ! *****************************************************************************
-SUBROUTINE pw_gather_s ( pw, c, scale )
- 
+  SUBROUTINE pw_gather_s ( pw, c, scale, error)
+
     TYPE(pw_type), INTENT(INOUT)             :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_s', &
       routineP = moduleN//':'//routineN
@@ -878,66 +893,67 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
 
-  CALL timeset(routineN,handle)
-  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_s")
+    IF ( pw%in_use /= COMPLEXDATA1D ) THEN
+       CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
+    ENDIF
 
-  IF ( pw % in_use /= COMPLEXDATA1D ) THEN
-     CALL stop_program ( "pw_gather_s", "Data field has to be COMPLEXDATA1D" )
-  ENDIF
+    ! after the gather we are in g-space
+    pw%in_space = RECIPROCALSPACE
 
-! after the gather we are in g-space
-  pw % in_space = RECIPROCALSPACE
+    mapl => pw%pw_grid%mapl%pos
+    mapm => pw%pw_grid%mapm%pos
+    mapn => pw%pw_grid%mapn%pos
 
-  mapl => pw % pw_grid % mapl % pos
-  mapm => pw % pw_grid % mapm % pos
-  mapn => pw % pw_grid % mapn % pos
+    ngpts = SIZE ( pw%pw_grid%gsq  )
 
-  ngpts = SIZE ( pw % pw_grid % gsq  )
+    ghat => pw%pw_grid%g_hat
 
-  ghat => pw % pw_grid % g_hat
+    IF ( PRESENT ( scale ) ) THEN
 
-  IF ( PRESENT ( scale ) ) THEN
+!omp parallel do private(gpt,l,m,n)
+       DO gpt = 1, ngpts
 
-!$omp parallel do private(gpt,l,m,n)
-    DO gpt = 1, ngpts
+          l = mapl ( ghat ( 1, gpt ) ) + 1
+          m = mapm ( ghat ( 2, gpt ) ) + 1
+          n = mapn ( ghat ( 3, gpt ) ) + 1
+          pw%cc ( gpt ) = scale * c ( l, m, n )
 
-      l = mapl ( ghat ( 1, gpt ) ) + 1
-      m = mapm ( ghat ( 2, gpt ) ) + 1
-      n = mapn ( ghat ( 3, gpt ) ) + 1
-      pw % cc ( gpt ) = scale * c ( l, m, n )
+       END DO
 
-    END DO
+    ELSE
 
-  ELSE
+!omp parallel do private(gpt,l,m,n)
+       DO gpt = 1, ngpts
 
-!$omp parallel do private(gpt,l,m,n)
-    DO gpt = 1, ngpts
+          l = mapl ( ghat ( 1, gpt ) ) + 1
+          m = mapm ( ghat ( 2, gpt ) ) + 1
+          n = mapn ( ghat ( 3, gpt ) ) + 1
+          pw%cc ( gpt ) = c ( l, m, n )
 
-      l = mapl ( ghat ( 1, gpt ) ) + 1
-      m = mapm ( ghat ( 2, gpt ) ) + 1
-      n = mapn ( ghat ( 3, gpt ) ) + 1
-      pw % cc ( gpt ) = c ( l, m, n )
+       END DO
 
-    END DO
+    END IF
 
-  END IF
+    cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
+    CALL timestop(handle)
 
-  cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
-  CALL timestop(handle)
-
-END SUBROUTINE pw_gather_s
+  END SUBROUTINE pw_gather_s
 
 ! *****************************************************************************
-SUBROUTINE pw_gather_p ( pw, c, scale )
+  SUBROUTINE pw_gather_p ( pw, c, scale, error)
 
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_p', &
       routineP = moduleN//':'//routineN
@@ -946,65 +962,65 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
 
-  CALL timeset(routineN,handle)
-  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_p")
+    IF ( pw%in_use /= COMPLEXDATA1D ) THEN
+       CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
+    ENDIF
 
-  IF ( pw % in_use /= COMPLEXDATA1D ) THEN
-     CALL stop_program ( "pw_gather_p", "Data field has to be COMPLEXDATA1D" )
-  ENDIF
+    IF ( pw%pw_grid%para%mode /= PW_MODE_DISTRIBUTED ) THEN
+       CALL stop_program (routineP, "This grid type is not distributed")
+    ENDIF
 
-  IF ( pw % pw_grid % para % mode /= PW_MODE_DISTRIBUTED ) THEN
-     CALL stop_program ( "pw_gather_p", "This grid type is not distributed")
-  ENDIF
+    ! after the gather we are in g-space
+    pw%in_space = RECIPROCALSPACE
 
-! after the gather we are in g-space
-  pw % in_space = RECIPROCALSPACE
+    mapl => pw%pw_grid%mapl%pos
+    mapm => pw%pw_grid%mapm%pos
+    mapn => pw%pw_grid%mapn%pos
 
-  mapl => pw % pw_grid % mapl % pos
-  mapm => pw % pw_grid % mapm % pos
-  mapn => pw % pw_grid % mapn % pos
+    ngpts = SIZE ( pw%pw_grid%gsq  )
 
-  ngpts = SIZE ( pw % pw_grid % gsq  )
+    ghat => pw%pw_grid%g_hat
+    yzq => pw%pw_grid%para%yzq
 
-  ghat => pw % pw_grid % g_hat
-  yzq => pw % pw_grid % para % yzq
+    IF ( PRESENT ( scale ) ) THEN
 
-  IF ( PRESENT ( scale ) ) THEN
+!omp parallel do private(gpt,l,m,n,mn)
+       DO gpt = 1, ngpts
 
-!$omp parallel do private(gpt,l,m,n,mn)
-    DO gpt = 1, ngpts
+          l = mapl ( ghat ( 1, gpt ) ) + 1
+          m = mapm ( ghat ( 2, gpt ) ) + 1
+          n = mapn ( ghat ( 3, gpt ) ) + 1
+          mn = yzq ( m, n )
+          pw%cc ( gpt ) = scale * c ( l, mn )
 
-      l = mapl ( ghat ( 1, gpt ) ) + 1
-      m = mapm ( ghat ( 2, gpt ) ) + 1
-      n = mapn ( ghat ( 3, gpt ) ) + 1
-      mn = yzq ( m, n )
-      pw % cc ( gpt ) = scale * c ( l, mn )
+       END DO
 
-    END DO
+    ELSE
 
-  ELSE
+!omp parallel do private(gpt,l,m,n,mn)
+       DO gpt = 1, ngpts
 
-!$omp parallel do private(gpt,l,m,n,mn)
-    DO gpt = 1, ngpts
+          l = mapl ( ghat ( 1, gpt ) ) + 1
+          m = mapm ( ghat ( 2, gpt ) ) + 1
+          n = mapn ( ghat ( 3, gpt ) ) + 1
+          mn = yzq ( m, n )
+          pw%cc ( gpt ) = c ( l, mn )
 
-      l = mapl ( ghat ( 1, gpt ) ) + 1
-      m = mapm ( ghat ( 2, gpt ) ) + 1
-      n = mapn ( ghat ( 3, gpt ) ) + 1
-      mn = yzq ( m, n )
-      pw % cc ( gpt ) = c ( l, mn )
+       END DO
 
-    END DO
+    END IF
 
-  END IF
+    cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
+    CALL timestop(handle)
 
-  cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
-  CALL timestop(handle)
-
-END SUBROUTINE pw_gather_p
+  END SUBROUTINE pw_gather_p
 
 ! *****************************************************************************
 !> \brief Scatters a pw vector to a 3d data field
@@ -1012,12 +1028,13 @@ END SUBROUTINE pw_gather_p
 !>      none
 !> \author JGH
 ! *****************************************************************************
-SUBROUTINE pw_scatter_s ( pw, c, scale )
+  SUBROUTINE pw_scatter_s ( pw, c, scale, error)
 
     TYPE(pw_type), INTENT(IN)                :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_s', &
       routineP = moduleN//':'//routineN
@@ -1025,104 +1042,105 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
 
-  CALL timeset(routineN,handle)
-  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scatter_s")
+    IF ( pw%in_use /= COMPLEXDATA1D ) THEN
+       CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
+    ENDIF
 
-  IF ( pw % in_use /= COMPLEXDATA1D ) THEN
-     CALL stop_program ( "pw_scatter_s", "Data field has to be COMPLEXDATA1D" )
-  ENDIF
+    IF ( pw%in_space /= RECIPROCALSPACE ) THEN
+       CALL stop_program (routineP, "Data has to be in RECIPROCALSPACE" )
+    ENDIF
 
-  IF ( pw % in_space /= RECIPROCALSPACE ) THEN
-     CALL stop_program ( "pw_scatter_s", "Data has to be in RECIPROCALSPACE" )
-  ENDIF
+    mapl => pw%pw_grid%mapl%pos
+    mapm => pw%pw_grid%mapm%pos
+    mapn => pw%pw_grid%mapn%pos
 
-  mapl => pw % pw_grid % mapl % pos
-  mapm => pw % pw_grid % mapm % pos
-  mapn => pw % pw_grid % mapn % pos
+    ghat => pw%pw_grid%g_hat
 
-  ghat => pw % pw_grid % g_hat
+    ngpts = SIZE ( pw%pw_grid%gsq  )
 
-  ngpts = SIZE ( pw % pw_grid % gsq  )
-
-  ! should only zero the unused bits (but the zero is needed)
-  IF ( .NOT. PRESENT ( scale ) ) c = 0.0_dp
-
-  IF ( PRESENT ( scale ) ) THEN
-
-!$omp parallel do private(gpt,l,m,n)
-    DO gpt = 1, ngpts
-
-      l = mapl ( ghat ( 1, gpt ) ) + 1
-      m = mapm ( ghat ( 2, gpt ) ) + 1
-      n = mapn ( ghat ( 3, gpt ) ) + 1
-      c ( l, m, n ) = scale * pw % cc ( gpt )
-
-    END DO
-
-  ELSE
-
-!$omp parallel do private(gpt,l,m,n)
-    DO gpt = 1, ngpts
-
-      l = mapl ( ghat ( 1, gpt ) ) + 1
-      m = mapm ( ghat ( 2, gpt ) ) + 1
-      n = mapn ( ghat ( 3, gpt ) ) + 1
-      c ( l, m, n ) = pw % cc ( gpt )
-
-    END DO
-
-  END IF
-
-  IF ( pw % pw_grid % grid_span == HALFSPACE ) THEN
-
-    mapl => pw % pw_grid % mapl % neg
-    mapm => pw % pw_grid % mapm % neg
-    mapn => pw % pw_grid % mapn % neg
+    ! should only zero the unused bits (but the zero is needed)
+    IF ( .NOT. PRESENT ( scale ) ) c = 0.0_dp
 
     IF ( PRESENT ( scale ) ) THEN
 
-!$omp parallel do private(gpt,l,m,n)
-      DO gpt = 1, ngpts
+!omp parallel do private(gpt,l,m,n)
+       DO gpt = 1, ngpts
 
-        l = mapl ( ghat ( 1, gpt ) ) + 1
-        m = mapm ( ghat ( 2, gpt ) ) + 1
-        n = mapn ( ghat ( 3, gpt ) ) + 1
-        c ( l, m, n ) = scale * CONJG ( pw % cc ( gpt ) )
+          l = mapl ( ghat ( 1, gpt ) ) + 1
+          m = mapm ( ghat ( 2, gpt ) ) + 1
+          n = mapn ( ghat ( 3, gpt ) ) + 1
+          c ( l, m, n ) = scale * pw%cc ( gpt )
 
-      END DO
+       END DO
 
     ELSE
 
-!$omp parallel do private(gpt,l,m,n)
-      DO gpt = 1, ngpts
+!omp parallel do private(gpt,l,m,n)
+       DO gpt = 1, ngpts
 
-        l = mapl ( ghat ( 1, gpt ) ) + 1
-        m = mapm ( ghat ( 2, gpt ) ) + 1
-        n = mapn ( ghat ( 3, gpt ) ) + 1
-        c ( l, m, n ) = CONJG ( pw % cc ( gpt ) )
+          l = mapl ( ghat ( 1, gpt ) ) + 1
+          m = mapm ( ghat ( 2, gpt ) ) + 1
+          n = mapn ( ghat ( 3, gpt ) ) + 1
+          c ( l, m, n ) = pw%cc ( gpt )
 
-      END DO
+       END DO
 
     END IF
 
-  END IF
+    IF ( pw%pw_grid%grid_span == HALFSPACE ) THEN
 
-  cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
-  CALL timestop(handle)
+       mapl => pw%pw_grid%mapl%neg
+       mapm => pw%pw_grid%mapm%neg
+       mapn => pw%pw_grid%mapn%neg
 
-END SUBROUTINE pw_scatter_s
+       IF ( PRESENT ( scale ) ) THEN
+
+!omp parallel do private(gpt,l,m,n)
+          DO gpt = 1, ngpts
+
+             l = mapl ( ghat ( 1, gpt ) ) + 1
+             m = mapm ( ghat ( 2, gpt ) ) + 1
+             n = mapn ( ghat ( 3, gpt ) ) + 1
+             c ( l, m, n ) = scale * CONJG ( pw%cc ( gpt ) )
+
+          END DO
+
+       ELSE
+
+!omp parallel do private(gpt,l,m,n)
+          DO gpt = 1, ngpts
+
+             l = mapl ( ghat ( 1, gpt ) ) + 1
+             m = mapm ( ghat ( 2, gpt ) ) + 1
+             n = mapn ( ghat ( 3, gpt ) ) + 1
+             c ( l, m, n ) = CONJG ( pw%cc ( gpt ) )
+
+          END DO
+
+       END IF
+
+    END IF
+
+    cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
+    CALL timestop(handle)
+
+  END SUBROUTINE pw_scatter_s
 
 ! *****************************************************************************
-SUBROUTINE pw_scatter_p ( pw, c, scale )
+  SUBROUTINE pw_scatter_p ( pw, c, scale, error)
 
     TYPE(pw_type), INTENT(IN), TARGET        :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_p', &
       routineP = moduleN//':'//routineN
@@ -1131,104 +1149,104 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,routineP)
 
-  CALL timeset(routineN,handle)
-  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_p")
+    IF ( pw%in_use /= COMPLEXDATA1D ) THEN
+       CALL stop_program (routineP, "Data field has to be COMPLEXDATA1D" )
+    ENDIF
 
-  IF ( pw % in_use /= COMPLEXDATA1D ) THEN
-     CALL stop_program ( "pw_scatter_p", "Data field has to be COMPLEXDATA1D" )
-  ENDIF
+    IF ( pw%in_space /= RECIPROCALSPACE ) THEN
+       CALL stop_program (routineP, "Data has to be in RECIPROCALSPACE" )
+    ENDIF
 
-  IF ( pw % in_space /= RECIPROCALSPACE ) THEN
-     CALL stop_program ( "pw_scatter_p", "Data has to be in RECIPROCALSPACE" )
-  ENDIF
+    IF ( pw%pw_grid%para%mode /= PW_MODE_DISTRIBUTED ) THEN
+       CALL stop_program (routineP, "This grid type is not distributed")
+    ENDIF
 
-  IF ( pw % pw_grid % para % mode /= PW_MODE_DISTRIBUTED ) THEN
-     CALL stop_program ( "pw_scatter_p", "This grid type is not distributed")
-  ENDIF
+    mapl => pw%pw_grid%mapl%pos
+    mapm => pw%pw_grid%mapm%pos
+    mapn => pw%pw_grid%mapn%pos
 
-  mapl => pw % pw_grid % mapl % pos
-  mapm => pw % pw_grid % mapm % pos
-  mapn => pw % pw_grid % mapn % pos
+    ghat => pw%pw_grid%g_hat
+    yzq => pw%pw_grid%para%yzq
 
-  ghat => pw % pw_grid % g_hat
-  yzq => pw % pw_grid % para % yzq
+    ngpts = SIZE ( pw%pw_grid%gsq  )
 
-  ngpts = SIZE ( pw % pw_grid % gsq  )
-
-  IF ( .NOT. PRESENT ( scale ) ) c = 0.0_dp
-
-  IF ( PRESENT ( scale ) ) THEN
-
-!$omp parallel do private(gpt,l,m,n,mn)
-    DO gpt = 1, ngpts
-
-      l = mapl ( ghat ( 1, gpt ) ) + 1
-      m = mapm ( ghat ( 2, gpt ) ) + 1
-      n = mapn ( ghat ( 3, gpt ) ) + 1
-      mn = yzq ( m, n )
-      c ( l, mn ) = scale * pw % cc ( gpt )
-
-    END DO
-
-  ELSE
-
-!$omp parallel do private(gpt,l,m,n,mn)
-    DO gpt = 1, ngpts
-
-      l = mapl ( ghat ( 1, gpt ) ) + 1
-      m = mapm ( ghat ( 2, gpt ) ) + 1
-      n = mapn ( ghat ( 3, gpt ) ) + 1
-      mn = yzq ( m, n )
-      c ( l, mn ) = pw % cc ( gpt )
-
-    END DO
-
-  END IF
-
-  IF ( pw % pw_grid % grid_span == HALFSPACE ) THEN
-
-    mapm => pw % pw_grid % mapm % neg
-    mapn => pw % pw_grid % mapn % neg
-    mapl => pw % pw_grid % mapl % neg
+    IF ( .NOT. PRESENT ( scale ) ) c = 0.0_dp
 
     IF ( PRESENT ( scale ) ) THEN
 
-!$omp parallel do private(gpt,l,m,n,mn)
-      DO gpt = 1, ngpts
+!omp parallel do private(gpt,l,m,n,mn)
+       DO gpt = 1, ngpts
 
-        l = mapl ( ghat ( 1, gpt ) ) + 1
-        m = mapm ( ghat ( 2, gpt ) ) + 1
-        n = mapn ( ghat ( 3, gpt ) ) + 1
-        mn = yzq ( m, n )
-        c ( l, mn ) = scale * CONJG ( pw % cc ( gpt ) )
+          l = mapl ( ghat ( 1, gpt ) ) + 1
+          m = mapm ( ghat ( 2, gpt ) ) + 1
+          n = mapn ( ghat ( 3, gpt ) ) + 1
+          mn = yzq ( m, n )
+          c ( l, mn ) = scale * pw%cc ( gpt )
 
-      END DO
+       END DO
 
     ELSE
 
-!$omp parallel do private(gpt,l,m,n,mn)
-      DO gpt = 1, ngpts
+!omp parallel do private(gpt,l,m,n,mn)
+       DO gpt = 1, ngpts
 
-        l = mapl ( ghat ( 1, gpt ) ) + 1
-        m = mapm ( ghat ( 2, gpt ) ) + 1
-        n = mapn ( ghat ( 3, gpt ) ) + 1
-        mn = yzq ( m, n )
-        c ( l, mn ) = CONJG ( pw % cc ( gpt ) )
+          l = mapl ( ghat ( 1, gpt ) ) + 1
+          m = mapm ( ghat ( 2, gpt ) ) + 1
+          n = mapn ( ghat ( 3, gpt ) ) + 1
+          mn = yzq ( m, n )
+          c ( l, mn ) = pw%cc ( gpt )
 
-      END DO
+       END DO
 
     END IF
 
-  END IF
+    IF ( pw%pw_grid%grid_span == HALFSPACE ) THEN
 
-  cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
-  CALL timestop(handle)
+       mapm => pw%pw_grid%mapm%neg
+       mapn => pw%pw_grid%mapn%neg
+       mapl => pw%pw_grid%mapl%neg
 
-END SUBROUTINE pw_scatter_p
+       IF ( PRESENT ( scale ) ) THEN
+
+!omp parallel do private(gpt,l,m,n,mn)
+          DO gpt = 1, ngpts
+
+             l = mapl ( ghat ( 1, gpt ) ) + 1
+             m = mapm ( ghat ( 2, gpt ) ) + 1
+             n = mapn ( ghat ( 3, gpt ) ) + 1
+             mn = yzq ( m, n )
+             c ( l, mn ) = scale * CONJG ( pw%cc ( gpt ) )
+
+          END DO
+
+       ELSE
+
+!omp parallel do private(gpt,l,m,n,mn)
+          DO gpt = 1, ngpts
+
+             l = mapl ( ghat ( 1, gpt ) ) + 1
+             m = mapm ( ghat ( 2, gpt ) ) + 1
+             n = mapn ( ghat ( 3, gpt ) ) + 1
+             mn = yzq ( m, n )
+             c ( l, mn ) = CONJG ( pw%cc ( gpt ) )
+
+          END DO
+
+       END IF
+
+    END IF
+
+    cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
+    CALL timestop(handle)
+
+  END SUBROUTINE pw_scatter_p
 
 ! *****************************************************************************
 !> \brief Generic function for 3d FFT of a coefficient_type or pw_type
@@ -1241,64 +1259,65 @@ END SUBROUTINE pw_scatter_p
 !>                        pw_types, no more coefficient types
 !> \author apsi
 ! *****************************************************************************
-SUBROUTINE fft_wrap_pw1 ( pw1, debug )
+  SUBROUTINE fft_wrap_pw1 ( pw1, debug, error)
 
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw1
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fft_wrap_pw1', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, handle, out_space
-    LOGICAL                                  :: test
+    LOGICAL                                  :: failure, test
     REAL(KIND=dp)                            :: norm
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
 
-  CALL timeset(routineN,handle)
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1")
-
-  IF ( PRESENT ( debug ) ) THEN
-    test = debug
-  ELSE
-    test = .FALSE.
-  END IF
-
-  IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
-       pw1 % pw_grid % para % mode == PW_MODE_LOCAL ) THEN
-!..what dirction will the transform be?
-    IF ( pw1 % in_space == REALSPACE ) THEN
-       dir = FWFFT
-       norm = pw1 % pw_grid % dvol
-       out_space = RECIPROCALSPACE
-    ELSEIF ( pw1 % in_space == RECIPROCALSPACE ) THEN
-       dir = BWFFT
-       norm = 1.0_dp
-       out_space = REALSPACE
+    IF ( PRESENT ( debug ) ) THEN
+       test = debug
     ELSE
-       CALL stop_program ( "fft_wrap_pw1", "PW structure is missing a "//&
-                       "proper tag to identidy its space" )
+       test = .FALSE.
     END IF
 
-    CALL fft3d ( dir, pw1 % pw_grid % npts, pw1 % cc3d, &
-                 scale = norm, debug=test )
+    IF ( pw1%in_use == COMPLEXDATA3D .AND. &
+         pw1%pw_grid%para%mode == PW_MODE_LOCAL ) THEN
+       !..what dirction will the transform be?
+       IF ( pw1%in_space == REALSPACE ) THEN
+          dir = FWFFT
+          norm = pw1%pw_grid%dvol
+          out_space = RECIPROCALSPACE
+       ELSEIF ( pw1%in_space == RECIPROCALSPACE ) THEN
+          dir = BWFFT
+          norm = 1.0_dp
+          out_space = REALSPACE
+       ELSE
+          CALL stop_program (routineP, "PW structure is missing a "//&
+               "proper tag to identidy its space" )
+       END IF
 
-!..tag new data with correct space
-    pw1 % in_space = out_space
-  ELSE
-    CALL stop_program ( "fft_wrap_pw1", "In place FFT only possible for "//&
-                    "replicated data with COMPLEXDATA3D structure" )
-  END IF
-  CALL timestop(handle) 
+       CALL fft3d ( dir, pw1%pw_grid%npts, pw1%cc3d, &
+            scale = norm, debug=test )
 
-END SUBROUTINE fft_wrap_pw1
+       !..tag new data with correct space
+       pw1%in_space = out_space
+    ELSE
+       CALL stop_program (routineP, "In place FFT only possible for "//&
+            "replicated data with COMPLEXDATA3D structure" )
+    END IF
+    CALL timestop(handle) 
+
+  END SUBROUTINE fft_wrap_pw1
 
 ! *****************************************************************************
-SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
-  
+  SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug, error)
+
     TYPE(pw_type), INTENT(IN), TARGET        :: pw1
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw2
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fft_wrap_pw1pw2', &
       routineP = moduleN//':'//routineN
@@ -1313,310 +1332,311 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
                                                 nloc( 3 ), nrays, nsize, &
                                                 out_space
     INTEGER, DIMENSION(:), POINTER           :: n
-    LOGICAL                                  :: test
+    LOGICAL                                  :: failure, test
     REAL(KIND=dp)                            :: norm
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle2)
+    CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
+         CEILING (pw1%pw_grid%cutoff/10)*10))),handle)
 
-  CALL timeset(routineN,handle2)
-  CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
-               CEILING (pw1%pw_grid%cutoff/10)*10))),handle)
+    CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,routineP)
+    CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,routineP)
+    NULLIFY ( c_in )
+    NULLIFY ( c_out )
 
-  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
-  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
-  NULLIFY ( c_in )
-  NULLIFY ( c_out )
-
-  IF ( PRESENT ( debug ) ) THEN
-    test = debug
-  ELSE
-    test = .FALSE.
-  END IF
-
-!..check if grids are compatible
-  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
-    IF ( pw1 % pw_grid % dvol /= pw2 % pw_grid % dvol ) THEN
-      CALL stop_program ( "fft_wrap_pw1pw2", "PW grids not compatible" )
-    END IF
-    IF ( pw1 % pw_grid % para %group /= pw2 % pw_grid % para % group) THEN
-      CALL stop_program ( "fft_wrap_pw1pw2", &
-                      "PW grids have not compatible MPI groups" )
-    END IF
-  END IF
-
-!..prepare input
-  IF ( pw1 % in_space == REALSPACE ) THEN
-    dir = FWFFT
-    norm = 1.0_dp / pw1 % pw_grid % ngpts
-    out_space = RECIPROCALSPACE
-  ELSE IF ( pw1 % in_space == RECIPROCALSPACE ) THEN
-    dir = BWFFT
-    norm = 1.0_dp
-    out_space = REALSPACE
-  ELSE
-    CALL stop_program ( "fft_wrap_pw1pw2", "Error in space tag" )
-  END IF
-
-  n => pw1 % pw_grid % npts
-
-  mode = fftselect ( pw1 % in_use, pw2 % in_use, pw1 % in_space )
-
-  IF ( pw1 % pw_grid % para % mode == PW_MODE_LOCAL ) THEN
-
-!
-!..replicated data, use local FFT
-!
-
-    IF ( test ) THEN
-      WRITE ( *,'(A)') " FFT Protocol "
-      IF ( dir == FWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","FWFFT"
-      IF ( dir == BWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","BWFFT"
-      IF ( pw1 % in_space == REALSPACE ) &
-         WRITE ( *,'(A,T72,A)') "  in space ","REALSPACE"
-      IF ( pw1 % in_space == RECIPROCALSPACE ) &
-         WRITE ( *,'(A,T66,A)') "  in space ","RECIPROCALSPACE"
-      IF ( out_space == REALSPACE ) &
-         WRITE ( *,'(A,T72,A)') "  out space ","REALSPACE"
-      IF ( out_space == RECIPROCALSPACE ) &
-         WRITE ( *,'(A,T66,A)') "  out space ","RECIPROCALSPACE"
-      WRITE ( *,'(A,T66,E15.6)') "  scale factor",norm
-    END IF
-
-    SELECT CASE ( mode )
-      CASE DEFAULT
-        CALL stop_program ( "fft_wrap_pw1pw2", &
-                        "Illegal combination of in_use and in_space" )
-      CASE ( "FW_C3DC3D" )
-        c_in => pw1 % cc3d
-        c_out => pw2 % cc3d
-        CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
-      CASE ( "FW_R3DC3D" )
-        pw2 % cc3d = CMPLX ( pw1 % cr3d, 0.0_dp, KIND=dp)
-        c_out => pw2 % cc3d
-        CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
-      CASE ( "FW_C3DC1D" )
-        c_in => pw1 % cc3d
-        IF (.NOT. ASSOCIATED (c_out)) &
-            ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-        ! transform
-        CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
-        ! gather results
-        IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
-        CALL pw_gather ( pw2, c_out )
-        DEALLOCATE ( c_out, STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-      CASE ( "FW_R3DC1D" )
-#if defined ( __CUDA )
-        CALL cuda_pw_fft_wrap_r3dc1d(pw1, pw2, dir, n, norm)
-#else
-        IF (.NOT. ASSOCIATED (c_out)) &
-            ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-        nsize=SIZE(pw1 % cr3d,1)*SIZE(pw1 % cr3d,2)*SIZE(pw1 % cr3d,3)
-        l1 = LBOUND(pw1%cr3d,1)
-        l2 = LBOUND(pw1%cr3d,2)
-        l3 = LBOUND(pw1%cr3d,3)
-        CALL copy_rc(nsize,pw1%cr3d(l1,l2,l3),c_out(1,1,1))
-        CALL fft3d ( dir, n, c_out, scale = 1._dp, debug=test )
-        CALL pw_gather ( pw2, c_out, scale = norm )
-        DEALLOCATE ( c_out, STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-#endif
-      CASE ( "BW_C3DC3D" )
-        c_in => pw1 % cc3d
-        c_out => pw2 % cc3d
-        CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
-      CASE ( "BW_C3DR3D" )
-        c_in => pw1 % cc3d
-        IF (.NOT. ASSOCIATED (c_out)) &
-            ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-        CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
-        ! use real part only
-        IF ( test ) WRITE ( *,'(A)') "  REAL part "
-        pw2 % cr3d = REAL ( c_out,KIND=dp)
-        DEALLOCATE ( c_out, STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-      CASE ( "BW_C1DC3D" )
-        c_out => pw2 % cc3d
-        IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
-        CALL pw_scatter ( pw1, c_out )
-        CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
-      CASE ( "BW_C1DR3D" )
-#if defined ( __CUDA )
-        CALL cuda_pw_fft_wrap_c1dr3d(pw1, pw2, dir, n, norm)
-#else
-        IF (.NOT. ASSOCIATED (c_out)) &
-            ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-        IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
-        CALL pw_scatter ( pw1, c_out )
-        ! transform
-        CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
-        ! use real part only
-        IF ( test ) WRITE ( *,'(A)') "  REAL part "
-        ! pw2 % cr3d = REAL ( c_out,KIND=dp)
-        nsize=SIZE(pw2 % cr3d,1)*SIZE(pw2 % cr3d,2)*SIZE(pw2 % cr3d,3)
-        l1 = LBOUND(pw2%cr3d,1)
-        l2 = LBOUND(pw2%cr3d,2)
-        l3 = LBOUND(pw2%cr3d,3)
-        CALL copy_cr(nsize,c_out(1,1,1),pw2%cr3d(l1,l2,l3))
-        DEALLOCATE ( c_out, STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-#endif
-    END SELECT
-
-    IF ( test ) WRITE ( *,'(A)') " End of FFT Protocol "
-
-  ELSE
-
-!
-!..parallel FFT
-!
-
-    IF ( test .AND. pw1 % pw_grid % para % group_head ) THEN
-      WRITE ( *,'(A)') " FFT Protocol "
-      IF ( dir == FWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","FWFFT"
-      IF ( pw1 % in_space == REALSPACE ) &
-         WRITE ( *,'(A,T72,A)') "  in space ","REALSPACE"
-      IF ( pw1 % in_space == RECIPROCALSPACE ) &
-         WRITE ( *,'(A,T66,A)') "  in space ","RECIPROCALSPACE"
-      IF ( out_space == REALSPACE ) &
-         WRITE ( *,'(A,T72,A)') "  out space ","REALSPACE"
-      IF ( out_space == RECIPROCALSPACE ) &
-         WRITE ( *,'(A,T66,A)') "  out space ","RECIPROCALSPACE"
-      WRITE ( *,'(A,T66,E15.6)') "  scale factor",norm
-    END IF
-
-    my_pos = pw1 % pw_grid % para % my_pos
-    nrays = pw1 % pw_grid % para % nyzray ( my_pos )
-    ALLOCATE ( grays ( n(1), nrays ), STAT = ierr )
-    CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-    grays = 0.0_dp
-
-    SELECT CASE ( mode )
-      CASE DEFAULT
-        CALL stop_program ( "fft_wrap_pw1pw2", &
-                        "Illegal combination of in_use and in_space "//&
-                        "in parallel 3d FFT" )
-      CASE ( "FW_C3DC1D" )
-        c_in => pw1 % cc3d
-      CASE ( "FW_R3DC1D" )
-        nloc = pw1 % pw_grid % npts_local
-        ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-        c_in = CMPLX ( pw1 % cr3d, 0.0_dp,KIND=dp)
-      CASE ( "BW_C1DC3D" )
-        IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
-        CALL pw_scatter ( pw1, grays )
-        c_in => pw2 % cc3d
-      CASE ( "BW_C1DR3D" )
-        IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
-        CALL pw_scatter ( pw1, grays )
-        nloc = pw2 % pw_grid % npts_local
-        ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-    END SELECT
-
-!..transform
-    IF ( pw1 % pw_grid % para % ray_distribution ) THEN
-      CALL fft3d ( dir, n, c_in, grays, pw1 % pw_grid % para % group, &
-                   pw1 % pw_grid % para % rs_group, &
-                   pw1 % pw_grid % para % yzp, pw1 % pw_grid % para % nyzray, &
-                   pw1 % pw_grid % para % bo, scale = norm, debug=test )
+    IF ( PRESENT ( debug ) ) THEN
+       test = debug
     ELSE
-      CALL fft3d ( dir, n, c_in, grays, pw1 % pw_grid % para % rs_group, &
-                   pw1 % pw_grid % para % bo, scale = norm, debug=test )
+       test = .FALSE.
     END IF
 
-!..prepare output
-    SELECT CASE ( mode )
-      CASE DEFAULT
-        CALL stop_program ( "fft_wrap_pw1pw2", &
-                        "Illegal combination of in_use and in_space "//&
-                        "in parallel 3d FFT" )
-      CASE ( "FW_C3DC1D" )
-        IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
-        CALL pw_gather ( pw2, grays )
-      CASE ( "FW_R3DC1D" )
-        IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
-        CALL pw_gather ( pw2, grays )
-        DEALLOCATE ( c_in, STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-      CASE ( "BW_C1DC3D" )
-        ! nothing to do
-      CASE ( "BW_C1DR3D" )
-        IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            WRITE ( *,'(A)') "  Real part "
-        pw2 % cr3d = REAL ( c_in,KIND=dp)
-        DEALLOCATE ( c_in, STAT = ierr )
-        CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
-    END SELECT
+    !..check if grids are compatible
+    IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
+       IF ( pw1%pw_grid%dvol /= pw2%pw_grid%dvol ) THEN
+          CALL stop_program (routineP, "PW grids not compatible" )
+       END IF
+       IF ( pw1%pw_grid%para %group /= pw2%pw_grid%para%group) THEN
+          CALL stop_program (routineP,"PW grids have not compatible MPI groups" )
+       END IF
+    END IF
 
-    DEALLOCATE ( grays, STAT = ierr )
-    CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
+    !..prepare input
+    IF ( pw1%in_space == REALSPACE ) THEN
+       dir = FWFFT
+       norm = 1.0_dp / pw1%pw_grid%ngpts
+       out_space = RECIPROCALSPACE
+    ELSE IF ( pw1%in_space == RECIPROCALSPACE ) THEN
+       dir = BWFFT
+       norm = 1.0_dp
+       out_space = REALSPACE
+    ELSE
+       CALL stop_program (routineP, "Error in space tag" )
+    END IF
 
-  END IF
+    n => pw1%pw_grid%npts
 
-!..update the space tag for pw2
-  pw2 % in_space = out_space
+    mode = fftselect ( pw1%in_use, pw2%in_use, pw1%in_space, error=error)
 
-  IF ( test .AND. pw1 % pw_grid % para % group_head ) THEN
-      WRITE ( *,'(A)') " End of FFT Protocol "
-  END IF
-  CALL timestop(handle) 
-  CALL timestop(handle2) 
+    IF ( pw1%pw_grid%para%mode == PW_MODE_LOCAL ) THEN
 
-END SUBROUTINE fft_wrap_pw1pw2
+       !
+       !..replicated data, use local FFT
+       !
+
+       IF ( test ) THEN
+          WRITE ( *,'(A)') " FFT Protocol "
+          IF ( dir == FWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","FWFFT"
+          IF ( dir == BWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","BWFFT"
+          IF ( pw1%in_space == REALSPACE ) &
+               WRITE ( *,'(A,T72,A)') "  in space ","REALSPACE"
+          IF ( pw1%in_space == RECIPROCALSPACE ) &
+               WRITE ( *,'(A,T66,A)') "  in space ","RECIPROCALSPACE"
+          IF ( out_space == REALSPACE ) &
+               WRITE ( *,'(A,T72,A)') "  out space ","REALSPACE"
+          IF ( out_space == RECIPROCALSPACE ) &
+               WRITE ( *,'(A,T66,A)') "  out space ","RECIPROCALSPACE"
+          WRITE ( *,'(A,T66,E15.6)') "  scale factor",norm
+       END IF
+
+       SELECT CASE ( mode )
+       CASE DEFAULT
+          CALL stop_program (routineP,"Illegal combination of in_use and in_space" )
+       CASE ( "FW_C3DC3D" )
+          c_in => pw1%cc3d
+          c_out => pw2%cc3d
+          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
+       CASE ( "FW_R3DC3D" )
+          pw2%cc3d = CMPLX ( pw1%cr3d, 0.0_dp, KIND=dp)
+          c_out => pw2%cc3d
+          CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
+       CASE ( "FW_C3DC1D" )
+          c_in => pw1%cc3d
+          IF (.NOT. ASSOCIATED (c_out)) &
+               ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          ! transform
+          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
+          ! gather results
+          IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
+          CALL pw_gather ( pw2, c_out, error=error)
+          DEALLOCATE ( c_out, STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+       CASE ( "FW_R3DC1D" )
+#if defined ( __CUDA )
+          CALL cuda_pw_fft_wrap_r3dc1d(pw1, pw2, dir, n, norm)
+#else
+          IF (.NOT. ASSOCIATED (c_out)) &
+               ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          nsize=SIZE(pw1%cr3d,1)*SIZE(pw1%cr3d,2)*SIZE(pw1%cr3d,3)
+          l1 = LBOUND(pw1%cr3d,1)
+          l2 = LBOUND(pw1%cr3d,2)
+          l3 = LBOUND(pw1%cr3d,3)
+          CALL copy_rc(nsize,pw1%cr3d(l1,l2,l3),c_out(1,1,1))
+          CALL fft3d ( dir, n, c_out, scale = 1._dp, debug=test )
+          CALL pw_gather ( pw2, c_out, scale = norm, error=error)
+          DEALLOCATE ( c_out, STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+#endif
+       CASE ( "BW_C3DC3D" )
+          c_in => pw1%cc3d
+          c_out => pw2%cc3d
+          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
+       CASE ( "BW_C3DR3D" )
+          c_in => pw1%cc3d
+          IF (.NOT. ASSOCIATED (c_out)) &
+               ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
+          ! use real part only
+          IF ( test ) WRITE ( *,'(A)') "  REAL part "
+          pw2%cr3d = REAL ( c_out,KIND=dp)
+          DEALLOCATE ( c_out, STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+       CASE ( "BW_C1DC3D" )
+          c_out => pw2%cc3d
+          IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
+          CALL pw_scatter ( pw1, c_out, error=error)
+          CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
+       CASE ( "BW_C1DR3D" )
+#if defined ( __CUDA )
+          CALL cuda_pw_fft_wrap_c1dr3d(pw1, pw2, dir, n, norm)
+#else
+          IF (.NOT. ASSOCIATED (c_out)) &
+               ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
+          CALL pw_scatter ( pw1, c_out, error=error)
+          ! transform
+          CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
+          ! use real part only
+          IF ( test ) WRITE ( *,'(A)') "  REAL part "
+          ! pw2%cr3d = REAL ( c_out,KIND=dp)
+          nsize=SIZE(pw2%cr3d,1)*SIZE(pw2%cr3d,2)*SIZE(pw2%cr3d,3)
+          l1 = LBOUND(pw2%cr3d,1)
+          l2 = LBOUND(pw2%cr3d,2)
+          l3 = LBOUND(pw2%cr3d,3)
+          CALL copy_cr(nsize,c_out(1,1,1),pw2%cr3d(l1,l2,l3))
+          DEALLOCATE ( c_out, STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+#endif
+       END SELECT
+
+       IF ( test ) WRITE ( *,'(A)') " End of FFT Protocol "
+
+    ELSE
+
+       !
+       !..parallel FFT
+       !
+
+       IF ( test .AND. pw1%pw_grid%para%group_head ) THEN
+          WRITE ( *,'(A)') " FFT Protocol "
+          IF ( dir == FWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","FWFFT"
+          IF ( pw1%in_space == REALSPACE ) &
+               WRITE ( *,'(A,T72,A)') "  in space ","REALSPACE"
+          IF ( pw1%in_space == RECIPROCALSPACE ) &
+               WRITE ( *,'(A,T66,A)') "  in space ","RECIPROCALSPACE"
+          IF ( out_space == REALSPACE ) &
+               WRITE ( *,'(A,T72,A)') "  out space ","REALSPACE"
+          IF ( out_space == RECIPROCALSPACE ) &
+               WRITE ( *,'(A,T66,A)') "  out space ","RECIPROCALSPACE"
+          WRITE ( *,'(A,T66,E15.6)') "  scale factor",norm
+       END IF
+
+       my_pos = pw1%pw_grid%para%my_pos
+       nrays = pw1%pw_grid%para%nyzray ( my_pos )
+       ALLOCATE ( grays ( n(1), nrays ), STAT = ierr )
+       CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+       grays = 0.0_dp
+
+       SELECT CASE ( mode )
+       CASE DEFAULT
+          CALL stop_program ( "fft_wrap_pw1pw2", &
+               "Illegal combination of in_use and in_space "//&
+               "in parallel 3d FFT" )
+       CASE ( "FW_C3DC1D" )
+          c_in => pw1%cc3d
+       CASE ( "FW_R3DC1D" )
+          nloc = pw1%pw_grid%npts_local
+          ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+          c_in = CMPLX ( pw1%cr3d, 0.0_dp,KIND=dp)
+       CASE ( "BW_C1DC3D" )
+          IF ( test .AND. pw1%pw_grid%para%group_head ) &
+               WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
+          CALL pw_scatter ( pw1, grays, error=error)
+          c_in => pw2%cc3d
+       CASE ( "BW_C1DR3D" )
+          IF ( test .AND. pw1%pw_grid%para%group_head ) &
+               WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
+          CALL pw_scatter ( pw1, grays, error=error)
+          nloc = pw2%pw_grid%npts_local
+          ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+       END SELECT
+
+       !..transform
+       IF ( pw1%pw_grid%para%ray_distribution ) THEN
+          CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
+               pw1%pw_grid%para%rs_group, &
+               pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+               pw1%pw_grid%para%bo, scale = norm, debug=test )
+       ELSE
+          CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%rs_group, &
+               pw1%pw_grid%para%bo, scale = norm, debug=test )
+       END IF
+
+       !..prepare output
+       SELECT CASE ( mode )
+       CASE DEFAULT
+          CALL stop_program (routineP, &
+               "Illegal combination of in_use and in_space "//&
+               "in parallel 3d FFT" )
+       CASE ( "FW_C3DC1D" )
+          IF ( test .AND. pw1%pw_grid%para%group_head ) &
+               WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
+          CALL pw_gather ( pw2, grays, error=error)
+       CASE ( "FW_R3DC1D" )
+          IF ( test .AND. pw1%pw_grid%para%group_head ) &
+               WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
+          CALL pw_gather ( pw2, grays, error=error)
+          DEALLOCATE ( c_in, STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+       CASE ( "BW_C1DC3D" )
+          ! nothing to do
+       CASE ( "BW_C1DR3D" )
+          IF ( test .AND. pw1%pw_grid%para%group_head ) &
+               WRITE ( *,'(A)') "  Real part "
+          pw2%cr3d = REAL ( c_in,KIND=dp)
+          DEALLOCATE ( c_in, STAT = ierr )
+          CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+       END SELECT
+
+       DEALLOCATE ( grays, STAT = ierr )
+       CPPreconditionNoErr(ierr == 0,cp_failure_level,routineP)
+
+    END IF
+
+    !..update the space tag for pw2
+    pw2%in_space = out_space
+
+    IF ( test .AND. pw1%pw_grid%para%group_head ) THEN
+       WRITE ( *,'(A)') " End of FFT Protocol "
+    END IF
+    CALL timestop(handle) 
+    CALL timestop(handle2) 
+
+  END SUBROUTINE fft_wrap_pw1pw2
 
 ! *****************************************************************************
-FUNCTION fftselect ( use1, use2, space1 ) RESULT ( mode )
-
+  FUNCTION fftselect ( use1, use2, space1, error) RESULT ( mode )
     INTEGER, INTENT(IN)                      :: use1, use2, space1
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=9)                         :: mode
 
-!------------------------------------------------------------------------------
+    CHARACTER(len=*), PARAMETER :: routineN = 'fftselect', &
+      routineP = moduleN//':'//routineN
 
-  IF ( space1 == REALSPACE ) THEN
-    mode ( 1 : 3 ) = "FW_"
-  ELSE IF ( space1 == RECIPROCALSPACE ) THEN
-    mode ( 1 : 3 ) = "BW_"
-  ELSE
-    CALL stop_program ( "fftselect", "Error in space tag" )
-  END IF
+    LOGICAL                                  :: failure
 
-  SELECT CASE ( use1 )
+    failure = .FALSE.
+    IF ( space1 == REALSPACE ) THEN
+       mode ( 1 : 3 ) = "FW_"
+    ELSE IF ( space1 == RECIPROCALSPACE ) THEN
+       mode ( 1 : 3 ) = "BW_"
+    ELSE
+       CALL stop_program (routineP, "Error in space tag" )
+    END IF
+
+    SELECT CASE ( use1 )
     CASE ( COMPLEXDATA3D )
-      mode ( 4 : 6 ) = "C3D"
+       mode ( 4 : 6 ) = "C3D"
     CASE ( REALDATA3D )
-      mode ( 4 : 6 ) = "R3D"
+       mode ( 4 : 6 ) = "R3D"
     CASE ( COMPLEXDATA1D )
-      mode ( 4 : 6 ) = "C1D"
+       mode ( 4 : 6 ) = "C1D"
     CASE ( REALDATA1D )
-      mode ( 4 : 6 ) = "R1D"
+       mode ( 4 : 6 ) = "R1D"
     CASE DEFAULT
-      CALL stop_program ( "fftselect", "Error in use1 tag" )
-  END SELECT
+       CALL stop_program (routineP, "Error in use1 tag" )
+    END SELECT
 
-  SELECT CASE ( use2 )
+    SELECT CASE ( use2 )
     CASE ( COMPLEXDATA3D )
-      mode ( 7 : 9 ) = "C3D"
+       mode ( 7 : 9 ) = "C3D"
     CASE ( REALDATA3D )
-      mode ( 7 : 9 ) = "R3D"
+       mode ( 7 : 9 ) = "R3D"
     CASE ( COMPLEXDATA1D )
-      mode ( 7 : 9 ) = "C1D"
+       mode ( 7 : 9 ) = "C1D"
     CASE ( REALDATA1D )
-      mode ( 7 : 9 ) = "R1D"
+       mode ( 7 : 9 ) = "R1D"
     CASE DEFAULT
-      CALL stop_program ( "fftselect", "Error in use1 tag" )
-  END SELECT
+       CALL stop_program (routineP, "Error in use1 tag" )
+    END SELECT
 
-END FUNCTION fftselect
+  END FUNCTION fftselect
 
 ! *****************************************************************************
 !> \brief writes a small description of the actual grid
@@ -1630,7 +1650,7 @@ END FUNCTION fftselect
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE pw_write(pw, unit_nr, error)
+  SUBROUTINE pw_write(pw, unit_nr, error)
     TYPE(pw_type), INTENT(in)                :: pw
     INTEGER, INTENT(in)                      :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1641,85 +1661,92 @@ SUBROUTINE pw_write(pw, unit_nr, error)
     INTEGER                                  :: iostat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  WRITE (unit=unit_nr, fmt="('<pw>:{ id_nr=',i8,',')",iostat=iostat)&
-       pw%id_nr
+    failure=.FALSE.
 
-  SELECT CASE(pw%in_use)
-  CASE (REALDATA1D)
-     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA1D"
-     IF (ASSOCIATED(pw%cr)) THEN
-        WRITE (unit=unit_nr, fmt="(' cr=<real(',i8,':',i8,')at 0x',z16.16,'>')")&
-             LBOUND(pw%cr,1),UBOUND(pw%cr,1),m_loc_r(pw%cr(LBOUND(pw%cr)))
-     ELSE
-        WRITE (unit=unit_nr, fmt="(' cr=*null*')")
-     END IF
-  CASE (REALDATA3D)
-     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA3D"
-     IF (ASSOCIATED(pw%cr3d)) THEN
-        WRITE (unit=unit_nr, fmt="(' cr3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')at 0x',z16.16,'>')")&
-             LBOUND(pw%cr3d,1),UBOUND(pw%cr3d,1),LBOUND(pw%cr3d,2),UBOUND(pw%cr3d,2),&
-             LBOUND(pw%cr3d,3),UBOUND(pw%cr3d,3),&
-             m_loc_r(pw%cr3d)
-     ELSE
-        WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
-     END IF
-  CASE (COMPLEXDATA1D)
-     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA1D"
-     IF (ASSOCIATED(pw%cc)) THEN
-        WRITE (unit=unit_nr, fmt="(' cc=<real(',i8,':',i8,') at 0x',z16.16,'>')")&
-             LBOUND(pw%cc,1),UBOUND(pw%cc,1),m_loc_c(pw%cc)
-     ELSE
-       WRITE (unit=unit_nr, fmt="(' cc=*null*')")
-    END IF
-  CASE (COMPLEXDATA3D)
-     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA3D"
-     IF (ASSOCIATED(pw%cc3d)) THEN
-        WRITE (unit=unit_nr, fmt="(' cc3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,') at 0x',z16.16,'>')")&
-             LBOUND(pw%cc3d,1),UBOUND(pw%cc3d,1),LBOUND(pw%cc3d,2),UBOUND(pw%cc3d,2),&
-             LBOUND(pw%cc3d,3),UBOUND(pw%cc3d,3),&
-             m_loc_c(pw%cc3d)
-     ELSE
-        WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
-     END IF
-  CASE default
-     WRITE (unit=unit_nr, fmt="(' in_use=',i8,',')",iostat=iostat)&
-          pw%in_use
-  END SELECT
+    WRITE (unit=unit_nr, fmt="('<pw>:{ id_nr=',i8,',')",iostat=iostat)&
+         pw%id_nr
 
-  SELECT CASE(pw%in_space)
-  CASE (NOSPACE)
-     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_space=NOSPACE"
-  CASE (REALSPACE)
-     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_space=REALSPACE"
-  CASE (RECIPROCALSPACE)
-     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_space=RECIPROCALSPACE"
-  CASE default
-     WRITE (unit=unit_nr, fmt="(' in_space=',i8,',')",iostat=iostat)&
-          pw%in_space
-  END SELECT
+    SELECT CASE(pw%in_use)
+    CASE (REALDATA1D)
+       WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA1D"
+       IF (ASSOCIATED(pw%cr)) THEN
+          WRITE (unit=unit_nr, fmt="(' cr=<real(',i8,':',i8,')at 0x',z16.16,'>')")&
+               LBOUND(pw%cr,1),UBOUND(pw%cr,1),m_loc_r(pw%cr(LBOUND(pw%cr)))
+       ELSE
+          WRITE (unit=unit_nr, fmt="(' cr=*null*')")
+       END IF
+    CASE (REALDATA3D)
+       WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA3D"
+       IF (ASSOCIATED(pw%cr3d)) THEN
+          WRITE (unit=unit_nr, fmt="(' cr3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')at 0x',z16.16,'>')")&
+               LBOUND(pw%cr3d,1),UBOUND(pw%cr3d,1),LBOUND(pw%cr3d,2),UBOUND(pw%cr3d,2),&
+               LBOUND(pw%cr3d,3),UBOUND(pw%cr3d,3),&
+               m_loc_r(pw%cr3d)
+       ELSE
+          WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
+       END IF
+    CASE (COMPLEXDATA1D)
+       WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA1D"
+       IF (ASSOCIATED(pw%cc)) THEN
+          WRITE (unit=unit_nr, fmt="(' cc=<real(',i8,':',i8,') at 0x',z16.16,'>')")&
+               LBOUND(pw%cc,1),UBOUND(pw%cc,1),m_loc_c(pw%cc)
+       ELSE
+          WRITE (unit=unit_nr, fmt="(' cc=*null*')")
+       END IF
+    CASE (COMPLEXDATA3D)
+       WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA3D"
+       IF (ASSOCIATED(pw%cc3d)) THEN
+          WRITE (unit=unit_nr, fmt="(' cc3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,') at 0x',z16.16,'>')")&
+               LBOUND(pw%cc3d,1),UBOUND(pw%cc3d,1),LBOUND(pw%cc3d,2),UBOUND(pw%cc3d,2),&
+               LBOUND(pw%cc3d,3),UBOUND(pw%cc3d,3),&
+               m_loc_c(pw%cc3d)
+       ELSE
+          WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
+       END IF
+    CASE default
+       WRITE (unit=unit_nr, fmt="(' in_use=',i8,',')",iostat=iostat)&
+            pw%in_use
+    END SELECT
 
-  WRITE (unit=unit_nr, fmt="(' pw_grid%id_nr=',i8,/,' }')",iostat=iostat)&
-       pw%pw_grid%id_nr
+    SELECT CASE(pw%in_space)
+    CASE (NOSPACE)
+       WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_space=NOSPACE"
+    CASE (REALSPACE)
+       WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_space=REALSPACE"
+    CASE (RECIPROCALSPACE)
+       WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_space=RECIPROCALSPACE"
+    CASE default
+       WRITE (unit=unit_nr, fmt="(' in_space=',i8,',')",iostat=iostat)&
+            pw%in_space
+    END SELECT
 
-END SUBROUTINE pw_write
+    WRITE (unit=unit_nr, fmt="(' pw_grid%id_nr=',i8,/,' }')",iostat=iostat)&
+         pw%pw_grid%id_nr
+
+  END SUBROUTINE pw_write
 
 ! *****************************************************************************
-FUNCTION pw_compatible ( grida, gridb ) RESULT ( compat )
+  FUNCTION pw_compatible ( grida, gridb, error) RESULT ( compat )
     TYPE(pw_grid_type), INTENT(IN)           :: grida, gridb
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: compat
 
-   compat = .FALSE.
-   IF ( grida%id_nr == gridb%id_nr ) THEN
-      compat = .TRUE.
-   ELSE IF ( grida%reference == gridb%id_nr ) THEN
-      compat = .TRUE.
-   ELSE IF ( gridb%reference == grida%id_nr ) THEN
-      compat = .TRUE.
-   END IF
-   
-END FUNCTION pw_compatible
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_compatible', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    compat = .FALSE.
+    IF ( grida%id_nr == gridb%id_nr ) THEN
+       compat = .TRUE.
+    ELSE IF ( grida%reference == gridb%id_nr ) THEN
+       compat = .TRUE.
+    ELSE IF ( gridb%reference == grida%id_nr ) THEN
+       compat = .TRUE.
+    END IF
+
+  END FUNCTION pw_compatible
 
 ! *****************************************************************************
 !> \brief compares two pw, only for debugging purposes
@@ -1730,7 +1757,7 @@ END FUNCTION pw_compatible
 !>      11.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
+  SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
     TYPE(pw_type), POINTER                   :: pw1, pw2
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: maxdiff
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1743,58 +1770,58 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
     REAL(KIND=dp)                            :: diff, mdiff
     TYPE(cp_logger_type), POINTER            :: logger
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(pw1),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(pw2),cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(pw1%in_space==pw2%in_space,cp_warning_level,routineP,error,failure)
-  CPPrecondition(pw1%in_use==pw2%in_use,cp_warning_level,routineP,error,failure)
-  CALL cp_assert(ALL(pw1%pw_grid%bounds_local==pw2%pw_grid%bounds_local),&
-       cp_failure_level,cp_assertion_failed,routineP,&
-       "wrong pw distribution",error,failure)
-  IF (.NOT. failure) THEN
-     logger => cp_error_get_logger(error)
-     unit_nr=-1
-     mdiff=0.0_dp
-     SELECT CASE(pw1%in_use)
-     CASE(REALDATA3D)
-        DO k=pw1%pw_grid%bounds_local(1,3),pw1%pw_grid%bounds_local(2,3)
-           DO j=pw1%pw_grid%bounds_local(1,2),pw1%pw_grid%bounds_local(2,2)
-              DO i=pw1%pw_grid%bounds_local(1,1),pw1%pw_grid%bounds_local(2,1)
-                 diff=ABS(pw1%cr3d(i,j,k)-pw2%cr3d(i,j,k))
-                 IF (mdiff<diff) THEN
-                    WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                         fmt="(' diff=',e10.4,'at(',i4,i4,i4,'),',e10.4,'vs',e10.4)")&
-                         diff,i,j,k,pw1%cr3d(i,j,k),pw2%cr3d(i,j,k)
-                    mdiff=diff
-                 END IF
-              END DO
-           END DO
-        END DO
-     CASE(COMPLEXDATA1D)
-        DO i=1,pw1%pw_grid%ngpts_local
-           diff=ABS(pw1%cc(i)-pw2%cc(i))
-           IF (mdiff<diff) THEN
-              WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                   fmt="(' diff=',e10.4,'at(',i4,i4,i4,'),',e9.3,e9.3,'vs',e9.3,e9.3)")&
-                   diff,i,pw1%cc(i),pw2%cc(i)
-              mdiff=diff
-           END IF
-        END DO
-     CASE default
-        CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
-     END SELECT
-     WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-          fmt="(' maxdiff=',e10.4)") mdiff
-     IF (PRESENT(maxdiff)) maxdiff=mdiff
-  ELSE
-     WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-          fmt="(' incompatible pws')")
-     IF (PRESENT(maxdiff)) maxdiff=HUGE(0.0_dp)
-  END IF
-END SUBROUTINE pw_compare_debug
+    CPPrecondition(ASSOCIATED(pw1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw2),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pw1%in_space==pw2%in_space,cp_warning_level,routineP,error,failure)
+    CPPrecondition(pw1%in_use==pw2%in_use,cp_warning_level,routineP,error,failure)
+    CALL cp_assert(ALL(pw1%pw_grid%bounds_local==pw2%pw_grid%bounds_local),&
+         cp_failure_level,cp_assertion_failed,routineP,&
+         "wrong pw distribution",error,failure)
+    IF (.NOT. failure) THEN
+       logger => cp_error_get_logger(error)
+       unit_nr=-1
+       mdiff=0.0_dp
+       SELECT CASE(pw1%in_use)
+       CASE(REALDATA3D)
+          DO k=pw1%pw_grid%bounds_local(1,3),pw1%pw_grid%bounds_local(2,3)
+             DO j=pw1%pw_grid%bounds_local(1,2),pw1%pw_grid%bounds_local(2,2)
+                DO i=pw1%pw_grid%bounds_local(1,1),pw1%pw_grid%bounds_local(2,1)
+                   diff=ABS(pw1%cr3d(i,j,k)-pw2%cr3d(i,j,k))
+                   IF (mdiff<diff) THEN
+                      WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+                           fmt="(' diff=',e10.4,'at(',i4,i4,i4,'),',e10.4,'vs',e10.4)")&
+                           diff,i,j,k,pw1%cr3d(i,j,k),pw2%cr3d(i,j,k)
+                      mdiff=diff
+                   END IF
+                END DO
+             END DO
+          END DO
+       CASE(COMPLEXDATA1D)
+          DO i=1,pw1%pw_grid%ngpts_local
+             diff=ABS(pw1%cc(i)-pw2%cc(i))
+             IF (mdiff<diff) THEN
+                WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+                     fmt="(' diff=',e10.4,'at(',i4,i4,i4,'),',e9.3,e9.3,'vs',e9.3,e9.3)")&
+                     diff,i,pw1%cc(i),pw2%cc(i)
+                mdiff=diff
+             END IF
+          END DO
+       CASE default
+          CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
+       END SELECT
+       WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+            fmt="(' maxdiff=',e10.4)") mdiff
+       IF (PRESENT(maxdiff)) maxdiff=mdiff
+    ELSE
+       WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+            fmt="(' incompatible pws')")
+       IF (PRESENT(maxdiff)) maxdiff=HUGE(0.0_dp)
+    END IF
+  END SUBROUTINE pw_compare_debug
 
 ! *****************************************************************************
 !> \brief Calculate integral over unit cell for functions in plane wave basis
@@ -1803,164 +1830,179 @@ END SUBROUTINE pw_compare_debug
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
 ! *****************************************************************************
-FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
+  FUNCTION pw_integral_ab ( pw1, pw2, flag, error) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
     INTEGER, INTENT(IN), OPTIONAL            :: flag
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: integral_value
 
-!------------------------------------------------------------------------------
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_ab', &
+      routineP = moduleN//':'//routineN
 
-  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
-     CALL stop_program ( "integral_ab", "grids incompatible" )
-  END IF
+    LOGICAL                                  :: failure
 
-  ! since the return value is real, only do accurate sum on the real bit ?
-  IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-     integral_value = accurate_sum ( pw1 % cr3d ( :, :, : )  &
-          * pw2 % cr3d ( :, :, : ) )
-  ELSE IF ( pw1 % in_use == REALDATA3D &
-       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     integral_value = accurate_sum (  pw1 % cr3d ( :, :, : )  &
-          * pw2 % cc3d ( :, :, : ) )
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-       .AND. pw2 % in_use == REALDATA3D ) THEN
-     integral_value = accurate_sum ( pw1 % cc3d ( :, :, : ) &
-          *  pw2 % cr3d ( :, :, : ) )
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
-       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     integral_value = accurate_sum ( CONJG ( pw1 % cc3d ( :, :, : ) ) &
-          * pw2 % cc3d ( :, :, : ) )
+    failure = .FALSE.
+    IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
+       CALL stop_program (routineP, "grids incompatible" )
+    END IF
 
-  ELSE IF ( pw1 % in_use == REALDATA1D &
-       .AND. pw2 % in_use == REALDATA1D ) THEN
-     integral_value = accurate_sum ( pw1 % cr ( : ) *  pw2 % cr ( : ) )
-  ELSE IF ( pw1 % in_use == REALDATA1D &
-       .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
-     integral_value = accurate_sum ( pw1 % cr ( : ) * pw2 % cc ( : ) )
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
-       .AND. pw2 % in_use == REALDATA1D ) THEN
-     integral_value = accurate_sum ( pw1 % cc ( : ) * pw2 % cr ( : ) )
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
-       .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
-     integral_value = accurate_sum ( CONJG ( pw1 % cc ( : ) ) * pw2 % cc ( : ) )
-  ELSE
-     CALL stop_program ( "integral_ab", "no possible DATA" )
-  END IF
+    ! since the return value is real, only do accurate sum on the real bit ?
+    IF ( pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D ) THEN
+       integral_value = accurate_sum ( pw1%cr3d ( :, :, : )  &
+            * pw2%cr3d ( :, :, : ) )
+    ELSE IF ( pw1%in_use == REALDATA3D &
+         .AND. pw2%in_use == COMPLEXDATA3D ) THEN
+       integral_value = accurate_sum (  pw1%cr3d ( :, :, : )  &
+            * pw2%cc3d ( :, :, : ) )
+    ELSE IF ( pw1%in_use == COMPLEXDATA3D &
+         .AND. pw2%in_use == REALDATA3D ) THEN
+       integral_value = accurate_sum ( pw1%cc3d ( :, :, : ) &
+            *  pw2%cr3d ( :, :, : ) )
+    ELSE IF ( pw1%in_use == COMPLEXDATA3D &
+         .AND. pw2%in_use == COMPLEXDATA3D ) THEN
+       integral_value = accurate_sum ( CONJG ( pw1%cc3d ( :, :, : ) ) &
+            * pw2%cc3d ( :, :, : ) )
 
-  IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
-     integral_value = integral_value * pw1 % pw_grid % dvol
-  ELSE
-     integral_value = integral_value * pw1 % pw_grid % vol
-  ENDIF
-  IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
-     IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-        integral_value = 2.0_dp * integral_value
-        IF ( pw1 % pw_grid % have_g0 ) integral_value = integral_value - &
-             CONJG ( pw1 % cc ( 1 ) ) * pw2 % cc ( 1 )
-     END IF
-  END IF
+    ELSE IF ( pw1%in_use == REALDATA1D &
+         .AND. pw2%in_use == REALDATA1D ) THEN
+       integral_value = accurate_sum ( pw1%cr (:) *  pw2%cr (:) )
+    ELSE IF ( pw1%in_use == REALDATA1D &
+         .AND. pw2%in_use == COMPLEXDATA1D ) THEN
+       integral_value = accurate_sum ( pw1%cr (:) * pw2%cc (:) )
+    ELSE IF ( pw1%in_use == COMPLEXDATA1D &
+         .AND. pw2%in_use == REALDATA1D ) THEN
+       integral_value = accurate_sum ( pw1%cc (:) * pw2%cr (:) )
+    ELSE IF ( pw1%in_use == COMPLEXDATA1D &
+         .AND. pw2%in_use == COMPLEXDATA1D ) THEN
+       integral_value = accurate_sum ( CONJG ( pw1%cc (:) ) * pw2%cc (:) )
+    ELSE
+       CALL stop_program (routineP, "no possible DATA" )
+    END IF
 
-  IF ( pw1 % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) &
-       CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
+    IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
+       integral_value = integral_value * pw1%pw_grid%dvol
+    ELSE
+       integral_value = integral_value * pw1%pw_grid%vol
+    ENDIF
+    IF ( pw1%in_use == COMPLEXDATA1D ) THEN
+       IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
+          integral_value = 2.0_dp * integral_value
+          IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
+               CONJG ( pw1%cc ( 1 ) ) * pw2%cc ( 1 )
+       END IF
+    END IF
 
-END FUNCTION pw_integral_ab
+    IF ( pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) &
+         CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
+
+  END FUNCTION pw_integral_ab
 
 ! *****************************************************************************
-FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
+  FUNCTION pw_integral_aa ( pw1, flag, error) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1
     INTEGER, INTENT(IN), OPTIONAL            :: flag
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: integral_value
 
-!------------------------------------------------------------------------------
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_aa', &
+      routineP = moduleN//':'//routineN
 
-  IF ( PRESENT ( flag ) ) THEN
-     IF ( flag == SQUARE ) THEN
-        IF ( pw1 % in_use == REALDATA3D ) THEN
-           integral_value = accurate_sum ( pw1 % cr3d ( :, :, : )** 2 )
-        ELSE IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
-           integral_value = accurate_sum ( CONJG ( pw1 % cc3d ( :, :, : ) ) &
-                * pw1 % cc3d ( :, :, : )  )
-        ELSE IF ( pw1 % in_use == REALDATA1D ) THEN
-           integral_value = accurate_sum ( pw1 % cr ( : ) ** 2 )
-        ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
-           integral_value = accurate_sum ( CONJG ( pw1 % cc ( : ) ) &
-                * pw1 % cc ( : ) )
-           IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-              integral_value = 2.0_dp * integral_value
-              IF ( pw1 % pw_grid % have_g0 ) integral_value = integral_value - &
-                   CONJG ( pw1 % cc ( 1 ) ) * pw1 % cc ( 1 )
-           END IF
-        ELSE
-           CALL stop_program ( "integral_aa", "no possible SQUARE DATA" )
-        END IF
+    LOGICAL                                  :: failure
 
-     ELSE IF ( flag == SQUAREROOT ) THEN
-        CALL stop_program ( "integral_aa", "no SQUAREROOT defined" )
-     END IF
+    failure = .FALSE.
+    IF ( PRESENT ( flag ) ) THEN
+       IF ( flag == SQUARE ) THEN
+          IF ( pw1%in_use == REALDATA3D ) THEN
+             integral_value = accurate_sum ( pw1%cr3d ( :, :, : )** 2 )
+          ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
+             integral_value = accurate_sum ( CONJG ( pw1%cc3d ( :, :, : ) ) &
+                  * pw1%cc3d ( :, :, : )  )
+          ELSE IF ( pw1%in_use == REALDATA1D ) THEN
+             integral_value = accurate_sum ( pw1%cr (:) ** 2 )
+          ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
+             integral_value = accurate_sum ( CONJG ( pw1%cc (:) ) &
+                  * pw1%cc (:) )
+             IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
+                integral_value = 2.0_dp * integral_value
+                IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
+                     CONJG ( pw1%cc ( 1 ) ) * pw1%cc ( 1 )
+             END IF
+          ELSE
+             CALL stop_program (routineP, "no possible SQUARE DATA" )
+          END IF
 
-  ELSE
-     IF ( pw1 % in_use == REALDATA3D ) THEN
-        integral_value = accurate_sum ( pw1 % cr3d ( :, :, : ) )
-     ELSE IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
-        integral_value = accurate_sum ( pw1 % cc3d ( :, :, : ) )
-     ELSE IF ( pw1 % in_use == REALDATA1D ) THEN
-        integral_value = accurate_sum ( pw1 % cr ( : ) )
-     ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
-        integral_value = accurate_sum ( pw1 % cc ( : ) )
-     ELSE
-        CALL stop_program ( "integral_aa", "no possible DATA" )
-     END IF
-  END IF
+       ELSE IF ( flag == SQUAREROOT ) THEN
+          CALL stop_program (routineP, "no SQUAREROOT defined" )
+       END IF
 
-  IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
-     integral_value = integral_value * pw1 % pw_grid % dvol
-  ELSE
-     integral_value = integral_value * pw1 % pw_grid % vol
-  END IF
+    ELSE
+       IF ( pw1%in_use == REALDATA3D ) THEN
+          integral_value = accurate_sum ( pw1%cr3d ( :, :, : ) )
+       ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
+          integral_value = accurate_sum ( pw1%cc3d ( :, :, : ) )
+       ELSE IF ( pw1%in_use == REALDATA1D ) THEN
+          integral_value = accurate_sum ( pw1%cr (:) )
+       ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
+          integral_value = accurate_sum ( pw1%cc (:) )
+       ELSE
+          CALL stop_program (routineP, "no possible DATA" )
+       END IF
+    END IF
 
-  IF ( pw1 % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) &
-       CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
+    IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
+       integral_value = integral_value * pw1%pw_grid%dvol
+    ELSE
+       integral_value = integral_value * pw1%pw_grid%vol
+    END IF
 
-END FUNCTION pw_integral_aa
+    IF ( pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) &
+         CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
+
+  END FUNCTION pw_integral_aa
 
 ! *****************************************************************************
-FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
+  FUNCTION pw_integral_a2b ( pw1, pw2, error) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: integral_value
 
-!------------------------------------------------------------------------------
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_a2b', &
+      routineP = moduleN//':'//routineN
 
-  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
-     CALL stop_program ( "integral_a2b", "grids incompatible" )
-  END IF
-  IF ( pw1 % in_use == REALDATA1D .AND. &
-       pw2 % in_use == REALDATA1D ) THEN
-     integral_value = accurate_sum ( pw1 % cr ( : ) * pw2 % cr ( : ) &
-          * pw1 % pw_grid % gsq ( : ) )
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-       pw2 % in_use == COMPLEXDATA1D ) THEN
-     integral_value = accurate_sum ( REAL ( CONJG ( pw1 % cc ( : ) ) &
-          *  pw2 % cc ( : ) ,KIND=dp) * pw1 % pw_grid % gsq ( : ) )
-     IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-        integral_value = 2.0_dp * integral_value
-     END IF
-  ELSE
-     CALL stop_program ( "integral_a2b", "no possible DATA" )
-  END IF
+    LOGICAL                                  :: failure
 
-  IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
-     integral_value = integral_value * pw1 % pw_grid % dvol
-  ELSE
-     integral_value = integral_value * pw1 % pw_grid % vol
-  END IF
+    failure = .FALSE.
+    IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
+       CALL stop_program (routineP, "grids incompatible" )
+    END IF
+    IF ( pw1%in_use == REALDATA1D .AND. &
+         pw2%in_use == REALDATA1D ) THEN
+       integral_value = accurate_sum ( pw1%cr (:) * pw2%cr (:) &
+            * pw1%pw_grid%gsq (:) )
+    ELSE IF ( pw1%in_use == COMPLEXDATA1D .AND. &
+         pw2%in_use == COMPLEXDATA1D ) THEN
+       integral_value = accurate_sum ( REAL ( CONJG ( pw1%cc (:) ) &
+            *  pw2%cc (:) ,KIND=dp) * pw1%pw_grid%gsq (:))
+       IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
+          integral_value = 2.0_dp * integral_value
+       END IF
+    ELSE
+       CALL stop_program (routineP, "no possible DATA" )
+    END IF
 
-  IF ( pw1 % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) &
-       CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
+    IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
+       integral_value = integral_value * pw1%pw_grid%dvol
+    ELSE
+       integral_value = integral_value * pw1%pw_grid%vol
+    END IF
 
-END FUNCTION pw_integral_a2b
+    IF ( pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) &
+         CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
+
+  END FUNCTION pw_integral_a2b
 
 ! *****************************************************************************
 !> \brief Calculate the structure factor for point r
@@ -1970,98 +2012,102 @@ END FUNCTION pw_integral_a2b
 !>      none
 !> \author JGH (05-May-2006)
 ! *****************************************************************************
-SUBROUTINE pw_structure_factor ( sf, r )
+  SUBROUTINE pw_structure_factor ( sf, r, error)
 
     TYPE(pw_type), INTENT(INOUT)             :: sf
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: r
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: cnt, handle, ig
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, flop
 
-!------------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
 
-  CALL timeset(routineN,handle)
+    CPPreconditionNoErr(sf%ref_count>0,cp_failure_level,"sf")
 
-  CPPreconditionNoErr(sf%ref_count>0,cp_failure_level,"sf")
+    flop = 0.0_dp
 
-  flop = 0.0_dp
+    IF ( sf%in_space == RECIPROCALSPACE .AND. &
+         sf%in_use == COMPLEXDATA1D ) THEN
 
-  IF ( sf % in_space == RECIPROCALSPACE .AND. &
-       sf % in_use == COMPLEXDATA1D ) THEN
+       cnt = SIZE ( sf%cc )
 
-    cnt = SIZE ( sf % cc )
+!omp parallel do private (ig)
+       DO ig = 1, cnt
+          arg = DOT_PRODUCT(sf%pw_grid%g(:,ig),r)
+          sf%cc(ig)=CMPLX(COS(arg),-SIN(arg),KIND=dp)
+       END DO
+       flop = flop + 7 * cnt
+    ELSE
 
-!$omp parallel do private (ig)
-    DO ig = 1, cnt
-      arg = DOT_PRODUCT(sf%pw_grid%g(:,ig),r)
-      sf%cc(ig)=CMPLX(COS(arg),-SIN(arg),KIND=dp)
-    END DO
-    flop = flop + 7 * cnt
-  ELSE
+       CALL stop_program (routineP, "no suitable data field" )
 
-    CALL stop_program ( "pw_structure_factor", "no suitable data field" )
+    END IF
 
-  END IF
+    flop = flop * 1.e-6_dp
+    CALL timestop(handle)
 
-  flop = flop * 1.e-6_dp
-  CALL timestop(handle)
-
-END SUBROUTINE pw_structure_factor
+  END SUBROUTINE pw_structure_factor
 
 ! *****************************************************************************
-FUNCTION pw_integrate_function(fun,isign,OPERATOR) RESULT(total_fun)
+  FUNCTION pw_integrate_function(fun,isign,oprt,error) RESULT(total_fun)
 
     TYPE(pw_type), INTENT(IN)                :: fun
     INTEGER, INTENT(IN), OPTIONAL            :: isign
-    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: OPERATOR
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: oprt
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: total_fun
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_integrate_function', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iop
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     iop = 0
-    IF ( PRESENT(OPERATOR) ) THEN
-      SELECT CASE (OPERATOR)
-        CASE ("ABS","abs")
+    IF ( PRESENT(oprt) ) THEN
+       SELECT CASE (oprt)
+       CASE ("ABS","abs")
           iop = 1
-        CASE DEFAULT
-          CALL stop_program(routineN,"Unknown operator")
-      END SELECT
+       CASE DEFAULT
+          CALL stop_program(routineP,"Unknown operator")
+       END SELECT
     END IF
 
     total_fun = 0._dp
 
     IF (fun%in_space == REALSPACE) THEN
-      IF (fun%in_use == REALDATA3D) THEN
-        ! do reduction using maximum accuracy
-        IF (iop==1) THEN
-          total_fun = fun%pw_grid%dvol*accurate_sum(ABS(fun%cr3d))
-        ELSE
-          total_fun = fun%pw_grid%dvol*accurate_sum(fun%cr3d)
-        END IF
-      ELSE
-        CALL stop_program(routineN,"in_space/in_use combination not implemented")
-      END IF
+       IF (fun%in_use == REALDATA3D) THEN
+          ! do reduction using maximum accuracy
+          IF (iop==1) THEN
+             total_fun = fun%pw_grid%dvol*accurate_sum(ABS(fun%cr3d))
+          ELSE
+             total_fun = fun%pw_grid%dvol*accurate_sum(fun%cr3d)
+          END IF
+       ELSE
+          CALL stop_program(routineP,"in_space/in_use combination not implemented")
+       END IF
     ELSEIF (fun%in_space == RECIPROCALSPACE) THEN
-      IF (iop==1) &
-        CALL stop_program(routineN,"Operator ABS not implemented")
-      IF (fun%in_use == COMPLEXDATA3D) THEN
-        total_fun = fun%pw_grid%vol*fun%cc3d(      &
-                            fun%pw_grid%bounds(1,1), &
-                            fun%pw_grid%bounds(1,2), &
-                            fun%pw_grid%bounds(1,3))
-      ELSEIF (fun%in_use == COMPLEXDATA1D) THEN
-        IF ( fun%pw_grid%have_g0 ) total_fun = fun%pw_grid%vol*fun%cc(1)
-      ELSE
-        CALL stop_program(routineN,"in_space/in_use combination not implemented")
-      END IF
+       IF (iop==1) &
+            CALL stop_program(routineN,"Operator ABS not implemented")
+       IF (fun%in_use == COMPLEXDATA3D) THEN
+          total_fun = fun%pw_grid%vol*fun%cc3d(      &
+               fun%pw_grid%bounds(1,1), &
+               fun%pw_grid%bounds(1,2), &
+               fun%pw_grid%bounds(1,3))
+       ELSEIF (fun%in_use == COMPLEXDATA1D) THEN
+          IF ( fun%pw_grid%have_g0 ) total_fun = fun%pw_grid%vol*fun%cc(1)
+       ELSE
+          CALL stop_program(routineP,"in_space/in_use combination not implemented")
+       END IF
     ELSE
-      CALL stop_program(routineN,"No space defined")
+       CALL stop_program(routineP,"No space defined")
     END IF
     IF (fun%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
        CALL mp_sum(total_fun,fun%pw_grid%para%group)
@@ -2070,7 +2116,7 @@ FUNCTION pw_integrate_function(fun,isign,OPERATOR) RESULT(total_fun)
        total_fun = total_fun * SIGN(1._dp,REAL(isign,dp))
     END IF
 
-END FUNCTION pw_integrate_function
+  END FUNCTION pw_integrate_function
 
 END MODULE pw_methods
 

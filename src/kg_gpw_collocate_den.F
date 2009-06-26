@@ -573,7 +573,7 @@ CONTAINS
 
     CALL density_rs2pw(pw_env,rs_rho,rho_r,rho_g,interp_section=interp_section,error=error)
 
-    total_rho = pw_integrate_function(rho_r%pw,isign=-1)
+    total_rho = pw_integrate_function(rho_r%pw,isign=-1,error=error)
 
     CALL timestop(handle)
 

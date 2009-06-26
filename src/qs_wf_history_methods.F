@@ -513,7 +513,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
            END DO
         END IF
         DO ispin=1,nspins
-           CALL pw_copy(rho_r(ispin)%pw,snapshot%rho_r(ispin)%pw)
+           CALL pw_copy(rho_r(ispin)%pw,snapshot%rho_r(ispin)%pw,error=error)
         END DO
      ELSE IF (ASSOCIATED(snapshot%rho_r)) THEN
         DO ispin=1,SIZE(snapshot%rho_r)
@@ -538,7 +538,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
            END DO
         END IF
         DO ispin=1,nspins
-           CALL pw_copy(rho_g(ispin)%pw,snapshot%rho_g(ispin)%pw)
+           CALL pw_copy(rho_g(ispin)%pw,snapshot%rho_g(ispin)%pw,error=error)
         END DO
      ELSE IF (ASSOCIATED(snapshot%rho_g)) THEN
         DO ispin=1,SIZE(snapshot%rho_g)

@@ -1307,7 +1307,7 @@ CPSourceFileRef,&
         ELSE
            CALL pw_pool_create_pw(pw_pool,vxc_rho(1)%pw,&
                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
-           CALL pw_zero(vxc_rho(1)%pw)
+           CALL pw_zero(vxc_rho(1)%pw, error=error)
         END IF
 
         deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)",error=error)
@@ -1320,7 +1320,7 @@ CPSourceFileRef,&
         ELSE
            CALL pw_pool_create_pw(pw_pool,vxc_rho(2)%pw,&
                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
-           CALL pw_zero(vxc_rho(2)%pw)
+           CALL pw_zero(vxc_rho(2)%pw, error=error)
         END IF
 
      ELSE
@@ -1334,7 +1334,7 @@ CPSourceFileRef,&
         ELSE
            CALL pw_pool_create_pw(pw_pool,vxc_rho(1)%pw,&
                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
-           CALL pw_zero(vxc_rho(1)%pw)
+           CALL pw_zero(vxc_rho(1)%pw, error=error)
         END IF
      END IF
 
@@ -1418,7 +1418,7 @@ CPSourceFileRef,&
                                     use_data=REALDATA3D,&
                                     in_space=REALSPACE,&
                                     error=error)
-             CALL pw_zero(virial_pw)
+             CALL pw_zero(virial_pw, error=error)
              DO idir=1,3
                DO k=bo(1,3),bo(2,3)
                  DO j=bo(1,2),bo(2,2)
@@ -1459,7 +1459,7 @@ CPSourceFileRef,&
                                     use_data=REALDATA3D,&
                                     in_space=REALSPACE,&
                                     error=error)
-             CALL pw_zero(virial_pw)
+             CALL pw_zero(virial_pw, error=error)
              DO idir=1,3
                DO k=bo(1,3),bo(2,3)
                  DO j=bo(1,2),bo(2,2)
@@ -1554,7 +1554,7 @@ CPSourceFileRef,&
                                        use_data=REALDATA3D,&
                                        in_space=REALSPACE,&
                                        error=error)
-                CALL pw_zero(virial_pw)
+                CALL pw_zero(virial_pw, error=error)
                 DO idir=1,3
                   DO k=bo(1,3),bo(2,3)
                     DO j=bo(1,2),bo(2,2)
@@ -1617,7 +1617,7 @@ CPSourceFileRef,&
               END IF
            ELSE
               DO idir=1,3
-                 CALL pw_axpy(pw_to_deriv_rho(idir)%pw,pw_to_deriv(idir)%pw)
+                 CALL pw_axpy(pw_to_deriv_rho(idir)%pw,pw_to_deriv(idir)%pw, error=error)
                  IF (ispin==2) THEN
                     CALL pw_pool_give_back_pw(pw_pool,pw_to_deriv_rho(idir)%pw,&
                          error=error)
@@ -1656,11 +1656,11 @@ CPSourceFileRef,&
                          error=error)
                  END IF
 
-                 CALL pw_transfer ( pw_to_deriv(idir)%pw, tmp_g )
+                 CALL pw_transfer ( pw_to_deriv(idir)%pw, tmp_g , error=error)
 
                  SELECT CASE(xc_deriv_method_id)
                  CASE (xc_deriv_pw)
-                    CALL pw_derive ( tmp_g, nd(:,idir) )
+                    CALL pw_derive ( tmp_g, nd(:,idir) , error=error)
                  CASE (xc_deriv_spline2)
                     CALL pw_spline2_interpolate_values_g(tmp_g,error=error)
                     CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
@@ -1674,7 +1674,7 @@ CPSourceFileRef,&
                  IF (zero_result .AND. idir==1) THEN
                     NULLIFY(tmp_g)
                  ELSE
-                    CALL pw_axpy ( tmp_g, vxc_g )
+                    CALL pw_axpy ( tmp_g, vxc_g , error=error)
                     CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
                  END IF
                  IF(dealloc_pw_to_deriv) THEN
@@ -1685,8 +1685,8 @@ CPSourceFileRef,&
               CALL pw_pool_create_pw(pw_pool, tmp_r,&
                    use_data=REALDATA3D, in_space=REALSPACE,&
                    error=error)
-              CALL pw_transfer ( vxc_g, tmp_r )
-              CALL pw_axpy ( tmp_r, vxc_rho(ispin)%pw )
+              CALL pw_transfer ( vxc_g, tmp_r , error=error)
+              CALL pw_axpy ( tmp_r, vxc_rho(ispin)%pw , error=error)
               CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
               CALL pw_pool_give_back_pw(pw_pool,vxc_g,error=error)
            ELSE
@@ -1746,7 +1746,7 @@ CPSourceFileRef,&
             CALL pw_pool_create_pw(pw_pool,pw_to_deriv(idir)%pw,&
                                    use_data=REALDATA3D,in_space=REALSPACE,&
                                    error=error)
-            CALL pw_zero(pw_to_deriv(idir)%pw)
+            CALL pw_zero(pw_to_deriv(idir)%pw, error=error)
             !$omp parallel do default(none) shared(bo,deriv_data,&
             !$omp                pw_to_deriv,idir)&
             !$omp             private(k,j,i)
@@ -1760,12 +1760,12 @@ CPSourceFileRef,&
             CALL pw_pool_create_pw(pw_pool,tmp_g,&
                                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                                    error=error)
-            CALL pw_zero(tmp_g)
-            CALL pw_transfer ( pw_to_deriv(idir)%pw, tmp_g )
+            CALL pw_zero(tmp_g, error=error)
+            CALL pw_transfer ( pw_to_deriv(idir)%pw, tmp_g , error=error)
 
             SELECT CASE(xc_deriv_method_id)
               CASE (xc_deriv_pw)
-                CALL pw_derive ( tmp_g, nd_laplace(:,idir) )
+                CALL pw_derive ( tmp_g, nd_laplace(:,idir) , error=error)
               CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
             END SELECT
@@ -1773,10 +1773,10 @@ CPSourceFileRef,&
             CALL pw_pool_create_pw(pw_pool, tmp_r,&
                                    use_data=REALDATA3D, in_space=REALSPACE,&
                                    error=error)
-            CALL pw_zero(tmp_r)
-            CALL pw_transfer ( tmp_g, tmp_r )
+            CALL pw_zero(tmp_r, error=error)
+            CALL pw_transfer ( tmp_g, tmp_r , error=error)
 
-            CALL pw_axpy ( tmp_r, vxc_rho(ispin)%pw )
+            CALL pw_axpy ( tmp_r, vxc_rho(ispin)%pw , error=error)
             CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
             CALL pw_pool_give_back_pw(pw_pool,pw_to_deriv(idir)%pw,error=error)
             CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
@@ -1789,8 +1789,8 @@ CPSourceFileRef,&
            CALL pw_pool_create_pw(pw_pool,vxc_g,&
                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                 error=error)
-           CALL pw_transfer ( vxc_rho(ispin)%pw, vxc_g )
-           CALL pw_transfer ( vxc_g,vxc_rho(ispin)%pw )
+           CALL pw_transfer ( vxc_rho(ispin)%pw, vxc_g , error=error)
+           CALL pw_transfer ( vxc_g,vxc_rho(ispin)%pw , error=error)
            CALL pw_pool_give_back_pw(pw_pool,vxc_g,error=error)
         END IF
         CALL smooth_cutoff(pot=vxc_rho(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
@@ -1803,7 +1803,7 @@ CPSourceFileRef,&
            CALL pw_pool_create_pw(pw_pool, tmp_r,&
                 use_data=REALDATA3D, in_space=REALSPACE,&
                 error=error)
-           CALL pw_zero(tmp_r)
+           CALL pw_zero(tmp_r, error=error)
            SELECT CASE(xc_rho_smooth_id)
            CASE (xc_rho_spline2_smooth)
               CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw,pw_out=tmp_r,&
@@ -1907,7 +1907,7 @@ CPSourceFileRef,&
                  CALL pw_pool_create_pw(pw_pool, vxc_tau(2)%pw,&
                       use_data=REALDATA3D, in_space=REALSPACE,&
                       error=error)
-                 CALL pw_copy(vxc_tau(1)%pw,vxc_tau(2)%pw)
+                 CALL pw_copy(vxc_tau(1)%pw,vxc_tau(2)%pw, error=error)
               END IF
            END IF
         ELSE
@@ -2204,15 +2204,15 @@ CPSourceFileRef,&
               CALL pw_pool_create_pw(pw_pool,tmp_a(ispin)%pw,&
                    use_data = REALDATA3D,&
                    in_space = REALSPACE, error=error)
-              CALL pw_zero(tmp_a(ispin)%pw)
+              CALL pw_zero(tmp_a(ispin)%pw, error=error)
               CALL pw_pool_create_pw(pw_pool,tmp_b(ispin)%pw,&
                    use_data = REALDATA3D,&
                    in_space = REALSPACE, error=error)
-              CALL pw_zero(tmp_b(ispin)%pw)
+              CALL pw_zero(tmp_b(ispin)%pw, error=error)
               CALL pw_pool_create_pw(pw_pool,tmp_r(ispin)%pw,&
                    use_data = REALDATA3D,&
                    in_space = REALSPACE, error=error)
-              CALL pw_zero(tmp_r(ispin)%pw)
+              CALL pw_zero(tmp_r(ispin)%pw, error=error)
            ELSE
               ALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2875,7 +2875,7 @@ CPSourceFileRef,&
            CALL pw_pool_create_pw(pw_pool,v_drho%pw,&
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
-           CALL pw_zero(v_drho%pw)
+           CALL pw_zero(v_drho%pw, error=error)
         ELSE
            ALLOCATE(v_drho%pw, stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

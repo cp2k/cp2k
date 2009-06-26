@@ -296,14 +296,14 @@ CONTAINS
                             use_data=COMPLEXDATA1D,&
                             in_space=RECIPROCALSPACE,&
                             error=error)
-    CALL pw_zero(rhototspin_elec_gspace%pw)
+    CALL pw_zero(rhototspin_elec_gspace%pw,error=error)
 
     pw_grid => rhototspin_elec_gspace%pw%pw_grid
 
     ! Load the contribution of the soft electronic density
     CPPrecondition(SIZE(rho%rho_g)>1,cp_failure_level,routineP,error,failure)
-    CALL pw_axpy(rho%rho_g(1)%pw,rhototspin_elec_gspace%pw)
-    CALL pw_axpy(rho%rho_g(2)%pw,rhototspin_elec_gspace%pw,alpha=-1._dp)
+    CALL pw_axpy(rho%rho_g(1)%pw,rhototspin_elec_gspace%pw,error=error)
+    CALL pw_axpy(rho%rho_g(2)%pw,rhototspin_elec_gspace%pw,alpha=-1._dp,error=error)
     ! grid to assemble anisotropic hyperfine terms
     ALLOCATE (hypaniso_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -315,9 +315,9 @@ CONTAINS
 
     DO idir1=1,3
       DO idir2=idir1,3 ! tensor symmetry
-        CALL pw_zero(hypaniso_gspace%pw)
+        CALL pw_zero(hypaniso_gspace%pw,error=error)
         CALL pw_dr2_gg ( rhototspin_elec_gspace%pw, hypaniso_gspace%pw, &
-                         idir1, idir2 )
+                         idir1, idir2,error=error)
         DO iatom=1,natom
           sum = 0.0_dp
           ra(:) = pbc(particle_set(iatom)%r,cell)

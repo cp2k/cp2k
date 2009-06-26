@@ -481,12 +481,12 @@ CONTAINS
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,scf_section,&
             "PRINT%DETAILED_ENERGY",error=error),cp_p_file).AND.(.NOT.gapw).AND.(.NOT.gapw_xc)) THEN
-          CALL pw_zero(rho_tot_gspace%pw)
+          CALL pw_zero(rho_tot_gspace%pw, error=error)
           CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density=.TRUE.,error=error)
           CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%e_hartree,&
                v_hartree_gspace%pw,error=error)
-          CALL pw_zero(rho_tot_gspace%pw)
-          CALL pw_zero(v_hartree_gspace%pw)
+          CALL pw_zero(rho_tot_gspace%pw, error=error)
+          CALL pw_zero(v_hartree_gspace%pw, error=error)
        END IF
 
        !CJM get the total density in g-space [ions + electrons]
@@ -526,8 +526,9 @@ CONTAINS
           explicit_potential      = .FALSE.
           ddapc_restraint_is_spin = .FALSE.
           IF (.NOT. just_energy) THEN
-             CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw)
-             CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
+             CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw, error=error)
+             CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol,&
+                  error=error)
           END IF
        END IF
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
@@ -537,7 +538,7 @@ CONTAINS
           CALL pw_pool_create_pw(auxbas_pw_pool,v_efield_rspace%pw,&
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
           CALL efield_potential(qs_env,v_efield_rspace,calculate_forces,error)
-          CALL pw_scale(v_efield_rspace%pw, v_efield_rspace%pw%pw_grid%dvol)
+          CALL pw_scale(v_efield_rspace%pw, v_efield_rspace%pw%pw_grid%dvol, error=error)
        END IF
 
 
@@ -817,7 +818,7 @@ CONTAINS
                 CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_r,&
                      use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
-                CALL pw_transfer(ep_pot_g,ep_pot_r)
+                CALL pw_transfer(ep_pot_g,ep_pot_r, error=error)
 
                 CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_g,error=error)
 
@@ -1427,7 +1428,7 @@ CONTAINS
                       rho_r%pw%cr3d = rho_i(iloc)%pw%cr3d * rho_j(jloc)%pw%cr3d
          
                       ! go the g-space and compute hartree energy
-                      CALL pw_transfer(rho_r%pw, rho_g%pw)
+                      CALL pw_transfer(rho_r%pw, rho_g%pw, error=error)
                       CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
          
                       ! sum up to the full energy
@@ -1871,13 +1872,13 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rho_r(1)%pw=>orb_rho_r%pw
     rho_r(2)%pw=>tmp_r%pw
-    CALL pw_zero(tmp_r%pw)
+    CALL pw_zero(tmp_r%pw, error=error)
     
     ALLOCATE(rho_g(2),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rho_g(1)%pw=>orb_rho_g%pw
     rho_g(2)%pw=>tmp_g%pw
-    CALL pw_zero(tmp_g%pw)
+    CALL pw_zero(tmp_g%pw, error=error)
 
     NULLIFY(vxc)
     ! ALLOCATE(vxc(2),stat=stat)
@@ -1910,8 +1911,9 @@ CONTAINS
        CALL pw_poisson_solve(poisson_env,orb_rho_g%pw, ener, work_v_gspace%pw,error=error)
        energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
        IF (.NOT. just_energy) THEN
-            CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
-            CALL pw_scale(work_v_rspace%pw, - dft_control % sic_scaling_a * work_v_rspace%pw%pw_grid%dvol)
+            CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw, error=error)
+            CALL pw_scale(work_v_rspace%pw, - dft_control % sic_scaling_a * work_v_rspace%pw%pw_grid%dvol,&
+                 error=error)
             CALL set_matrix(orb_h,0.0_dp)
        ENDIF
 
@@ -2026,8 +2028,8 @@ CONTAINS
     ! Hartree sic corrections
     SELECT CASE ( dft_control%sic_method_id )
     CASE ( sic_mauri_us, sic_mauri_spz )
-       CALL pw_copy(rho%rho_g(1)%pw,work_rho%pw)
-       CALL pw_axpy(rho%rho_g(2)%pw,work_rho%pw,alpha=-1._dp)
+       CALL pw_copy(rho%rho_g(1)%pw,work_rho%pw, error=error)
+       CALL pw_axpy(rho%rho_g(2)%pw,work_rho%pw,alpha=-1._dp, error=error)
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
     CASE ( sic_ad )
        ! find out how many elecs we have
@@ -2035,10 +2037,10 @@ CONTAINS
        CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_a)
        CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_b)
        nelec = nelec_a + nelec_b
-       CALL pw_copy(rho%rho_g(1)%pw,work_rho%pw)
-       CALL pw_axpy(rho%rho_g(2)%pw,work_rho%pw)
+       CALL pw_copy(rho%rho_g(1)%pw,work_rho%pw, error=error)
+       CALL pw_axpy(rho%rho_g(2)%pw,work_rho%pw, error=error)
        scaling = 1.0_dp / REAL(nelec,KIND=dp)
-       CALL pw_scale(work_rho%pw,scaling)
+       CALL pw_scale(work_rho%pw,scaling, error=error)
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
     CASE DEFAULT
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
@@ -2093,10 +2095,10 @@ CONTAINS
     IF (.NOT. just_energy) THEN
        CALL pw_pool_create_pw(auxbas_pw_pool,v_sic_rspace%pw,&
                                use_data=REALDATA3D, in_space=REALSPACE,error=error)
-       CALL pw_transfer(work_v%pw, v_sic_rspace%pw)
+       CALL pw_transfer(work_v%pw, v_sic_rspace%pw, error=error)
        ! also take into account the scaling (in addition to the volume element)
        CALL pw_scale(v_sic_rspace%pw, &
-            dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol )
+            dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol, error=error )
     ENDIF
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,work_rho%pw,error=error)
@@ -2132,26 +2134,26 @@ CONTAINS
        IF(qs_env%dft_control%qs_control%gapw ) THEN
            IF( qs_env%dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
               CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
-              CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw)
-              CALL pw_axpy(rho_core%pw,rho_tot_gspace%pw)
-              CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw)
+              CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw, error=error)
+              CALL pw_axpy(rho_core%pw,rho_tot_gspace%pw, error=error)
+              CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw, error=error)
            ELSE
               CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
-              CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw)
-              CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw)
+              CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw, error=error)
+              CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw, error=error)
            END IF
        ELSE
-          CALL pw_copy(rho_core%pw,rho_tot_gspace%pw)
-          CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw)
+          CALL pw_copy(rho_core%pw,rho_tot_gspace%pw, error=error)
+          CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw, error=error)
        END IF
     ELSE
-       CALL pw_axpy(rho%rho_g(1)%pw, rho_tot_gspace%pw)
+       CALL pw_axpy(rho%rho_g(1)%pw, rho_tot_gspace%pw, error=error)
     END IF
     DO ispin=2, qs_env%dft_control%nspins
-       CALL pw_axpy(rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
+       CALL pw_axpy(rho%rho_g(ispin)%pw, rho_tot_gspace%pw, error=error)
     END DO
     IF (.NOT.my_skip) &
-         qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw,isign=-1)
+         qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw,isign=-1, error=error)
 
   END SUBROUTINE calc_rho_tot_gspace
 
@@ -2651,12 +2653,12 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            DO ispin=1,dft_control%nspins
               CALL pw_pool_create_pw(xc_pw_pool,rho_g(ispin)%pw,&
                    in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D,error=error)
-              CALL pw_transfer(rho_struct%rho_g(ispin)%pw,rho_g(ispin)%pw)
+              CALL pw_transfer(rho_struct%rho_g(ispin)%pw,rho_g(ispin)%pw, error=error)
            END DO
            DO ispin=1,dft_control%nspins
               CALL pw_pool_create_pw(xc_pw_pool,rho_r(ispin)%pw,&
                    in_space=REALSPACE, use_data=REALDATA3D,error=error)
-              CALL pw_transfer(rho_g(ispin)%pw,rho_r(ispin)%pw)
+              CALL pw_transfer(rho_g(ispin)%pw,rho_r(ispin)%pw, error=error)
            END DO
            CPPrecondition(.NOT.rho_struct%tau_r_valid,cp_failure_level,routineP,error,failure)
            IF (rho_struct%tau_r_valid) THEN
@@ -2670,9 +2672,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
                       in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
                  CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
                       in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                 CALL pw_transfer(tau(ispin)%pw,tmp_g)
-                 CALL pw_transfer(tmp_g,tmp_g2)
-                 CALL pw_transfer(tmp_g2,tmp_pw)
+                 CALL pw_transfer(tau(ispin)%pw,tmp_g, error=error)
+                 CALL pw_transfer(tmp_g,tmp_g2, error=error)
+                 CALL pw_transfer(tmp_g2,tmp_pw, error=error)
                  CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
                  CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
               END DO
@@ -2752,10 +2754,10 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1)%pw,&
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
-           CALL pw_copy(rho_struct%rho_r(1)%pw,rho_m_rspace(1)%pw)
-           CALL pw_axpy(rho_struct%rho_r(2)%pw,rho_m_rspace(1)%pw,alpha=-1._dp)
-           CALL pw_copy(rho_struct%rho_g(1)%pw,rho_m_gspace(1)%pw)
-           CALL pw_axpy(rho_struct%rho_g(2)%pw,rho_m_gspace(1)%pw,alpha=-1._dp)
+           CALL pw_copy(rho_struct%rho_r(1)%pw,rho_m_rspace(1)%pw, error=error)
+           CALL pw_axpy(rho_struct%rho_r(2)%pw,rho_m_rspace(1)%pw,alpha=-1._dp, error=error)
+           CALL pw_copy(rho_struct%rho_g(1)%pw,rho_m_gspace(1)%pw, error=error)
+           CALL pw_axpy(rho_struct%rho_g(2)%pw,rho_m_gspace(1)%pw,alpha=-1._dp, error=error)
            ! bit sad, these will be just zero...
            CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2)%pw,&
                 use_data = COMPLEXDATA1D,&
@@ -2763,8 +2765,8 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2)%pw,&
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
-           CALL pw_zero(rho_m_rspace(2)%pw)
-           CALL pw_zero(rho_m_gspace(2)%pw)
+           CALL pw_zero(rho_m_rspace(2)%pw, error=error)
+           CALL pw_zero(rho_m_gspace(2)%pw, error=error)
 
            rho_g(1)%pw => rho_m_gspace(1)%pw
            rho_g(2)%pw => rho_m_gspace(2)%pw
@@ -2839,12 +2841,12 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
                  ! does it matter if there are no electrons with this spin (H) ?
                  nelec_s_inv=0.0_dp
               ENDIF
-              CALL pw_copy(rho_struct%rho_r(ispin)%pw,rho_m_rspace(1)%pw)
-              CALL pw_copy(rho_struct%rho_g(ispin)%pw,rho_m_gspace(1)%pw)
-              CALL pw_scale(rho_m_rspace(1)%pw,nelec_s_inv)
-              CALL pw_scale(rho_m_gspace(1)%pw,nelec_s_inv)
-              CALL pw_zero(rho_m_rspace(2)%pw)
-              CALL pw_zero(rho_m_gspace(2)%pw)
+              CALL pw_copy(rho_struct%rho_r(ispin)%pw,rho_m_rspace(1)%pw, error=error)
+              CALL pw_copy(rho_struct%rho_g(ispin)%pw,rho_m_gspace(1)%pw, error=error)
+              CALL pw_scale(rho_m_rspace(1)%pw,nelec_s_inv, error=error)
+              CALL pw_scale(rho_m_gspace(1)%pw,nelec_s_inv, error=error)
+              CALL pw_zero(rho_m_rspace(2)%pw, error=error)
+              CALL pw_zero(rho_m_gspace(2)%pw, error=error)
 
               IF (my_just_energy) THEN
                  exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
@@ -2936,9 +2938,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
                       in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
                  CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
                       in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                 CALL pw_transfer(vxc_rho(ispin)%pw,tmp_g)
-                 CALL pw_transfer(tmp_g,tmp_g2)
-                 CALL pw_transfer(tmp_g2,tmp_pw)
+                 CALL pw_transfer(vxc_rho(ispin)%pw,tmp_g, error=error)
+                 CALL pw_transfer(tmp_g,tmp_g2, error=error)
+                 CALL pw_transfer(tmp_g2,tmp_pw, error=error)
                  CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
                  CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
                  !FM              CALL pw_zero(tmp_pw,error=error)
@@ -2958,9 +2960,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
                       in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
                  CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
                       in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                 CALL pw_transfer(vxc_tau(ispin)%pw,tmp_g)
-                 CALL pw_transfer(tmp_g,tmp_g2)
-                 CALL pw_transfer(tmp_g2,tmp_pw)
+                 CALL pw_transfer(vxc_tau(ispin)%pw,tmp_g, error=error)
+                 CALL pw_transfer(tmp_g,tmp_g2, error=error)
+                 CALL pw_transfer(tmp_g2,tmp_pw, error=error)
                  CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
                  CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
                  !FM              CALL pw_zero(tmp_pw,error=error)

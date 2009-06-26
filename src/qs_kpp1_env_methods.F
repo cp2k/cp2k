@@ -276,12 +276,13 @@ CONTAINS
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
 
-       CALL pw_copy(rho1%rho_g(1)%pw,rho1_tot_gspace%pw)
+       CALL pw_copy(rho1%rho_g(1)%pw,rho1_tot_gspace%pw,error=error)
        DO ispin=2,nspins
-          CALL pw_axpy(rho1%rho_g(ispin)%pw, rho1_tot_gspace%pw)
+          CALL pw_axpy(rho1%rho_g(ispin)%pw, rho1_tot_gspace%pw, error=error)
        END DO
        IF (gapw) &
-            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
+            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw,&
+            error=error)
 
        IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
             error=error)/=0) THEN
@@ -297,7 +298,7 @@ CONTAINS
           CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
                                  energy_hartree, &
                                  v_hartree_gspace%pw,error=error)
-          CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw)
+          CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw,error=error)
        END IF
 
        CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
@@ -319,7 +320,7 @@ CONTAINS
              NULLIFY(rho1_r_pw(ispin)%pw)
              CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
                   rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space,error=error)
-             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
+             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw,error=error)
           END DO
 
        ELSE
@@ -362,7 +363,7 @@ CONTAINS
           CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
                                  use_data = REALDATA3D,&
                                  in_space = REALSPACE, error=error)
-          CALL pw_zero(v_xc(ispin)%pw)
+          CALL pw_zero(v_xc(ispin)%pw,error=error)
        END DO
 
        fac=0._dp
@@ -864,7 +865,7 @@ CONTAINS
 
     REAL(KIND=dp)                            :: total_rho_gspace
 
-    total_rho_gspace = pw_integrate_function(rho1_tot_gspace%pw,isign=-1)
+    total_rho_gspace = pw_integrate_function(rho1_tot_gspace%pw,isign=-1,error=error)
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "KPP1 total charge density (r-space):",&

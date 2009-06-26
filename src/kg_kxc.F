@@ -180,7 +180,7 @@ CONTAINS
          END DO
       END DO
    ELSE
-      CALL pw_zero(v1)
+      CALL pw_zero(v1,error=error)
    END IF
    IF(order==3)THEN
       deriv => xc_dset_get_derivative(derivative_set,"(rho)(rho)(rho)",error=error)
@@ -194,7 +194,7 @@ CONTAINS
             END DO
          END DO
       ELSE
-         CALL pw_zero(v2)
+         CALL pw_zero(v2,error=error)
       END IF
    END IF
    DO k = bo(1,3), bo(2,3)

@@ -387,8 +387,8 @@ CONTAINS
              ! Use the qs_rho_type already  used for rho during the scf
              jrho_rspace => current_env%jrho1_set(idir)%rho%rho_r(ispin)
              jrho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
-             CALL pw_zero(jrho_rspace%pw)
-             CALL pw_zero(jrho_gspace%pw)
+             CALL pw_zero(jrho_rspace%pw,error=error)
+             CALL pw_zero(jrho_gspace%pw,error=error)
              CALL calculate_jrho_resp(density_matrix0(ispin)%matrix, &
                   &                   density_matrix_a(ispin)%matrix, &
                   &                   density_matrix_ii(ispin)%matrix, &
@@ -397,11 +397,11 @@ CONTAINS
                   &                   current_env,gapw,error=error)
 
              scale_fac = cell%deth / twopi
-             CALL pw_scale(jrho_rspace%pw,scale_fac)
-             CALL pw_scale(jrho_gspace%pw,scale_fac)
+             CALL pw_scale(jrho_rspace%pw,scale_fac,error=error)
+             CALL pw_scale(jrho_gspace%pw,scale_fac,error=error)
              
-             jrho_tot_G(idir,iB) = pw_integrate_function(jrho_gspace%pw,isign=-1)
-             jrho_tot_R(idir,iB) = pw_integrate_function(jrho_rspace%pw,isign=-1)
+             jrho_tot_G(idir,iB) = pw_integrate_function(jrho_gspace%pw,isign=-1,error=error)
+             jrho_tot_R(idir,iB) = pw_integrate_function(jrho_rspace%pw,isign=-1,error=error)
 
              IF(output_unit>0) THEN
                 WRITE(output_unit,'(T2,2(A,E24.16))') 'Integrated j_'&
@@ -459,10 +459,11 @@ CONTAINS
                &                  in_space=REALSPACE,error=error)
           !
           DO idir = 1,3
-             CALL pw_zero(wf_r%pw)
+             CALL pw_zero(wf_r%pw,error=error)
              !
              DO ispin =1 ,nspins
-                CALL pw_axpy(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,wf_r%pw,1.0_dp)
+                CALL pw_axpy(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,wf_r%pw,1.0_dp,&
+                     error=error)
              ENDDO
              !
              IF(gapw) THEN

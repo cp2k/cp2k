@@ -168,7 +168,7 @@ CONTAINS
     IF (2*nxlim /= n1) is = 1
     IF (2*nylim /= n2) js = 1
     IF (2*nzlim /= n3) ks = 1
-    CALL pw_zero(grid)
+    CALL pw_zero(grid, error=error)
 
     ! Used the full symmetry to reduce the evaluation to 1/64th
     LoopOnGrid: DO k = gbo(1,3), gbo(2,3)

@@ -80,7 +80,7 @@ CONTAINS
     END IF
     CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D,&
          in_space=RECIPROCALSPACE,error=error)
-    CALL pw_zero( screen_function )
+    CALL pw_zero( screen_function, error=error)
     SELECT CASE( method )
     CASE(MT0D)
        IF (ASSOCIATED(pw_pool_aux)) THEN
@@ -95,8 +95,8 @@ CONTAINS
                error=error)
        END IF
        CALL mt0din( Vloc, alpha)
-       CALL pw_transfer ( Vloc,  Vlocg )
-       CALL pw_axpy(Vlocg, screen_function )
+       CALL pw_transfer ( Vloc,  Vlocg, error=error)
+       CALL pw_axpy(Vlocg, screen_function, error=error)
        IF (ASSOCIATED(pw_pool_aux)) THEN
           CALL pw_pool_give_back_pw(pw_pool_aux, Vloc,  error=error)
           CALL pw_pool_give_back_pw(pw_pool_aux, Vlocg, error=error)

@@ -489,9 +489,9 @@ CONTAINS
       CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
       DEALLOCATE(rs_rho, stat=ierr)
       IF (ierr /= 0) CALL stop_memory(routineN, "rs_rho")
-      CALL pw_transfer(qs_env%rho%rho_r(1)%pw, qs_env%rho%rho_g(1)%pw)
+      CALL pw_transfer(qs_env%rho%rho_r(1)%pw, qs_env%rho%rho_g(1)%pw,error=error)
       IF (qs_env%rho%rho_r(1)%pw%pw_grid%spherical) THEN
-        CALL pw_transfer(qs_env%rho%rho_g(1)%pw, qs_env%rho%rho_r(1)%pw)
+        CALL pw_transfer(qs_env%rho%rho_g(1)%pw, qs_env%rho%rho_r(1)%pw,error=error)
       END IF
     ELSE
       DO igrid_level = 1,gridlevel_info%ngrid_levels
@@ -502,16 +502,18 @@ CONTAINS
       DEALLOCATE(rs_rho, stat=ierr)
       IF (ierr /= 0) CALL stop_memory(routineN, "rs_rho")
 
-      CALL pw_zero(qs_env%rho%rho_g(1)%pw)
+      CALL pw_zero(qs_env%rho%rho_g(1)%pw,error=error)
       DO igrid_level=1, gridlevel_info%ngrid_levels
         CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
-                                   mgrid_gspace(igrid_level)%pw)
-        CALL pw_axpy(mgrid_gspace(igrid_level)%pw, qs_env%rho%rho_g(1)%pw)
+                                   mgrid_gspace(igrid_level)%pw,error=error)
+        CALL pw_axpy(mgrid_gspace(igrid_level)%pw, qs_env%rho%rho_g(1)%pw,&
+             error=error)
       END DO
-      CALL pw_transfer(qs_env%rho%rho_g(1)%pw, qs_env%rho%rho_r(1)%pw)
+      CALL pw_transfer(qs_env%rho%rho_g(1)%pw, qs_env%rho%rho_r(1)%pw,error=error)
     END IF
 
-    total_rho = pw_integrate_function(qs_env%rho%rho_r(1)%pw,isign=-1)
+    total_rho = pw_integrate_function(qs_env%rho%rho_r(1)%pw,isign=-1,&
+                                      error=error)
     qs_env%rho%tot_rho_r = total_rho
     IF (logger%para_env%source==logger%para_env%mepos) THEN
       unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
@@ -658,9 +660,9 @@ CONTAINS
     CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
     CALL rs_grid_release(rs_rho, error=error)
 
-    total_rho = pw_integrate_function(rhoc_r%pw,isign=-1)
+    total_rho = pw_integrate_function(rhoc_r%pw,isign=-1,error=error)
 
-    CALL pw_transfer(rhoc_r%pw,rho_core%pw)
+    CALL pw_transfer(rhoc_r%pw,rho_core%pw,error=error)
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
 
@@ -1088,7 +1090,7 @@ CONTAINS
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
 
-    total_rho = pw_integrate_function(rho%pw,isign=-1)
+    total_rho = pw_integrate_function(rho%pw,isign=-1,error=error)
     CALL timestop(handle)
   END SUBROUTINE calculate_rho_elec
 
@@ -1725,14 +1727,15 @@ CONTAINS
     DEALLOCATE (rs_rho,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
 
-    CALL pw_zero(rho_gspace%pw)
+    CALL pw_zero(rho_gspace%pw,error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
-           mgrid_gspace(igrid_level)%pw)
-      CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
+           mgrid_gspace(igrid_level)%pw,error=error)
+      CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw,&
+           error=error)
     END DO
 
-    CALL pw_transfer(rho_gspace%pw,rho%pw)
+    CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
 
 !   *** Release work storage ***
     DEALLOCATE(eigenvector)
@@ -3075,9 +3078,9 @@ CONTAINS
        CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
        DEALLOCATE(rs_rho,STAT=ierr)
        IF (ierr /= 0) CALL stop_memory(routineN, "rs_rho")
-       CALL pw_transfer(rho%pw,rho_gspace%pw)
+       CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
-          CALL pw_transfer(rho_gspace%pw,rho%pw)
+          CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
        ENDIF
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -3091,21 +3094,22 @@ CONTAINS
        ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
        SELECT CASE(interp_kind)
        CASE(pw_interp)
-          CALL pw_zero(rho_gspace%pw)
+          CALL pw_zero(rho_gspace%pw,error=error)
           DO igrid_level=1,gridlevel_info%ngrid_levels
              CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
-                  mgrid_gspace(igrid_level)%pw)
-             CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw)
+                  mgrid_gspace(igrid_level)%pw,error=error)
+             CALL pw_axpy(mgrid_gspace(igrid_level)%pw,rho_gspace%pw,&
+                  error=error)
           END DO
-          CALL pw_transfer(rho_gspace%pw,rho%pw)
+          CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
        CASE(spline3_pbc_interp)
           DO igrid_level=gridlevel_info%ngrid_levels,2,-1
              CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw,&
                   mgrid_rspace(igrid_level-1)%pw,pw_pools(igrid_level)%pool,&
                   interp_section,error=error)
           END DO
-          CALL pw_copy(mgrid_rspace(1)%pw,rho%pw)
-          CALL pw_transfer(rho%pw,rho_gspace%pw)
+          CALL pw_copy(mgrid_rspace(1)%pw,rho%pw,error=error)
+          CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
        CASE default
           CALL cp_unimplemented_error(routineN,"interpolator "//&
                cp_to_string(interp_kind),error=error)
@@ -3173,7 +3177,7 @@ CONTAINS
 
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
-       CALL pw_transfer(rho%pw,rho_gspace%pw)
+       CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
          CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
@@ -3185,21 +3189,22 @@ CONTAINS
        CASE(pw_interp)
           DO igrid_level=1,gridlevel_info%ngrid_levels
              CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
-                  mgrid_gspace(igrid_level)%pw)
+                  mgrid_gspace(igrid_level)%pw,error=error)
              IF (igrid_level/=1) THEN
-               CALL pw_axpy(mgrid_gspace(igrid_level)%pw,mgrid_gspace(1)%pw)
+               CALL pw_axpy(mgrid_gspace(igrid_level)%pw,mgrid_gspace(1)%pw,&
+                    error=error)
              END IF
           END DO
-          CALL pw_transfer(mgrid_gspace(1)%pw,rho%pw)
-          CALL pw_transfer(mgrid_rspace(1)%pw,rho_gspace%pw)
+          CALL pw_transfer(mgrid_gspace(1)%pw,rho%pw,error=error)
+          CALL pw_transfer(mgrid_rspace(1)%pw,rho_gspace%pw,error=error)
        CASE(spline3_pbc_interp)
           DO igrid_level=gridlevel_info%ngrid_levels,2,-1
              CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw,&
                   mgrid_rspace(igrid_level-1)%pw,pw_pools(igrid_level)%pool,&
                   interp_section,error=error)
           END DO
-          CALL pw_copy(mgrid_rspace(1)%pw,rho%pw)
-          CALL pw_transfer(rho%pw,rho_gspace%pw)
+          CALL pw_copy(mgrid_rspace(1)%pw,rho%pw,error=error)
+          CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
        CASE default
           CALL cp_unimplemented_error(routineN,"interpolator "//&
                cp_to_string(interp_kind),error=error)

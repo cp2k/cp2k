@@ -165,7 +165,7 @@ CONTAINS
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
                &                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                &                 error=error)
-          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw)
+          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw,error=error)
        ENDDO
     ENDDO
     !
@@ -175,7 +175,7 @@ CONTAINS
     CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
             &              use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
             &              error=error)
-    CALL pw_zero(pw_gspace_work%pw)
+    CALL pw_zero(pw_gspace_work%pw,error=error)
     DO ispin = 1,nspins
        !
        DO idir = 1,3
@@ -191,7 +191,7 @@ CONTAINS
                 ! scale and add to the correct component of the shift column
                 CALL set_vecp_rev(idir,idir2,idir3)
                 scale_fac=fac_vecp(idir3,idir2,idir)
-                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw,scale_fac)
+                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw,scale_fac,error=error)
              ENDIF
           ENDDO
           !
@@ -209,7 +209,7 @@ CONTAINS
              ! Here first G->R and then interpolation to get the shifts.
              ! The interpolation doesnt work in parallel yet.
              ! The choice between both methods should be left to the user.
-             CALL pw_transfer(shift_pw_gspace(idir,ispin)%pw,shift_pw_rspace%pw)
+             CALL pw_transfer(shift_pw_gspace(idir,ispin)%pw,shift_pw_rspace%pw,error=error)
              CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
                   &                        iB,idir,nmr_section,error=error)
           ENDDO

@@ -211,14 +211,17 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_init', &
+      routineP = moduleN//':'//routineN
+
     CALL pw_release ( dg_rho0 % density % pw ,error=error)
     SELECT CASE ( dg_rho0 % type )
     CASE ( do_ewald_ewald )
        CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D ,error=error)
-       CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
+       CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ),error=error)
     CASE ( do_ewald_pme )
        CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D ,error=error)
-       CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
+       CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ),error=error)
     CASE ( do_ewald_spme )
        CALL stop_program ( 'dg_rho0_init', 'SPME type not implemented' )
     END SELECT
@@ -226,11 +229,14 @@ CONTAINS
   END SUBROUTINE dg_rho0_init
 
 ! *****************************************************************************
-  SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
+  SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha, error)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: dg_rho0
     REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_pme_gauss', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: IMPOSSIBLE = 10000
 
     INTEGER                                  :: gpt, l0, ln, lp, m0, mn, mp, &
@@ -265,7 +271,7 @@ CONTAINS
        n0 = bds ( 1, 3 )
     END IF
 
-    CALL pw_zero ( dg_rho0%pw )
+    CALL pw_zero ( dg_rho0%pw,error=error)
 
     rho0 => dg_rho0 % pw % cr3d
 

@@ -1507,9 +1507,9 @@ CPSourceFileRef,&
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
-          CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
-          CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw,alpha=-1._dp)
-          total_abs_spin_dens=pw_integrate_function(wf_r%pw,OPERATOR="ABS")
+          CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw, error=error)
+          CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw,alpha=-1._dp, error=error)
+          total_abs_spin_dens=pw_integrate_function(wf_r%pw,oprt="ABS", error=error)
           IF (ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
                "Integrated absolute spin density  : ",total_abs_spin_dens
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
@@ -1561,12 +1561,12 @@ CPSourceFileRef,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
           IF (dft_control%qs_control%gapw) THEN
-             CALL pw_transfer(rho0_s_gs%pw,wf_r%pw)
+             CALL pw_transfer(rho0_s_gs%pw,wf_r%pw,error=error)
           ELSE
-             CALL pw_transfer(rho_core%pw,wf_r%pw)
+             CALL pw_transfer(rho_core%pw,wf_r%pw,error=error)
           END IF
           DO ispin=1,dft_control%nspins
-             CALL pw_axpy(rho%rho_r(ispin)%pw,wf_r%pw)
+             CALL pw_axpy(rho%rho_r(ispin)%pw,wf_r%pw, error=error)
           END DO
           filename = "TOTAL_DENSITY"
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%TOT_DENSITY_CUBE",&
@@ -1607,13 +1607,13 @@ CPSourceFileRef,&
                                     use_data=REALDATA3D,&
                                     in_space=REALSPACE,&
                                     error=error)
-             CALL pw_zero(rho_elec_rspace%pw)
+             CALL pw_zero(rho_elec_rspace%pw,error=error)
              CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
                                     pw=rho_elec_gspace%pw,&
                                     use_data=COMPLEXDATA1D,&
                                     in_space=RECIPROCALSPACE,&
                                     error=error)
-             CALL pw_zero(rho_elec_gspace%pw)
+             CALL pw_zero(rho_elec_gspace%pw,error=error)
              CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw%pw_grid,&
                                    dr=dr,&
                                    vol=volume,&
@@ -1630,8 +1630,8 @@ CPSourceFileRef,&
              CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw%pw_grid,&
                                    vol=volume,&
                                    error=error)
-             CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.)
-             rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1)/volume
+             CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.,error=error)
+             rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1,error=error)/volume
              filename = "TOTAL_ELECTRON_DENSITY"
              unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                             extension=".cube",middle_name=TRIM(filename),&
@@ -1657,8 +1657,8 @@ CPSourceFileRef,&
                                                error=error)
              ! Print total spin density for spin-polarized systems
              IF (dft_control%nspins > 1) THEN
-                CALL pw_zero(rho_elec_gspace%pw)
-                CALL pw_zero(rho_elec_rspace%pw)
+                CALL pw_zero(rho_elec_gspace%pw,error=error)
+                CALL pw_zero(rho_elec_rspace%pw,error=error)
                 CALL calculate_rhotot_elec_gspace(qs_env=qs_env,&
                                                   auxbas_pw_pool=auxbas_pw_pool,&
                                                   rhotot_elec_gspace=rho_elec_gspace,&
@@ -1668,8 +1668,8 @@ CPSourceFileRef,&
                                                   fsign=-1.0_dp,&
                                                   error=error)
                 rho_total = rho_hard + rho_soft
-                CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.)
-                rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1)/volume
+                CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.,error=error)
+                rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1,error=error)/volume
                 filename = "TOTAL_SPIN_DENSITY"
                 unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                                extension=".cube",middle_name=TRIM(filename),&
@@ -1707,8 +1707,8 @@ CPSourceFileRef,&
                                        use_data=REALDATA3D,&
                                        in_space=REALSPACE,&
                                        error=error)
-                CALL pw_copy(rho%rho_r(1)%pw,rho_elec_rspace%pw)
-                CALL pw_axpy(rho%rho_r(2)%pw,rho_elec_rspace%pw)
+                CALL pw_copy(rho%rho_r(1)%pw,rho_elec_rspace%pw, error=error)
+                CALL pw_axpy(rho%rho_r(2)%pw,rho_elec_rspace%pw, error=error)
                 filename = "ELECTRON_DENSITY"
                 unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                                extension=".cube",middle_name=TRIM(filename),&
@@ -1724,8 +1724,8 @@ CPSourceFileRef,&
                      error=error)
                 CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                          "DFT%PRINT%E_DENSITY_CUBE",error=error)
-                CALL pw_copy(rho%rho_r(1)%pw,rho_elec_rspace%pw)
-                CALL pw_axpy(rho%rho_r(2)%pw,rho_elec_rspace%pw,alpha=-1.0_dp)
+                CALL pw_copy(rho%rho_r(1)%pw,rho_elec_rspace%pw, error=error)
+                CALL pw_axpy(rho%rho_r(2)%pw,rho_elec_rspace%pw,alpha=-1.0_dp, error=error)
                 filename = "SPIN_DENSITY"
                 unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                                extension=".cube",middle_name=TRIM(filename),&
@@ -1780,7 +1780,7 @@ CPSourceFileRef,&
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
                extension=".cube",middle_name="v_hartree",file_position=my_pos_cube,error=error)
           udvol = 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol
-          CALL pw_scale(qs_env%ks_env%v_hartree_rspace%pw,udvol)
+          CALL pw_scale(qs_env%ks_env%v_hartree_rspace%pw,udvol,error=error)
 
           CALL pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
                unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&

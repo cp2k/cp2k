@@ -160,7 +160,7 @@ CONTAINS
 
       DO ispin = 1,nspins
         harris_energy%integral_vxc = pw_integral_ab(v_rspace_new(ispin)%pw, &
-                                                    rho%rho_r(ispin)%pw)
+                                                    rho%rho_r(ispin)%pw,error=error)
       END DO
 
       IF (ASSOCIATED(v_rspace_new)) THEN

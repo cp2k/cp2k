@@ -324,7 +324,7 @@ CONTAINS
             nrow_global=nrow(ispin), ncol_global=ncol(ispin),error=error)
        ALLOCATE(coeff_col(nrow(ispin),1))
 
-       CALL pw_zero(vxc_tmp(ispin)%pw)
+       CALL pw_zero(vxc_tmp(ispin)%pw,error=error)
 
        DO orb=1, homo-1
 
@@ -342,8 +342,8 @@ CONTAINS
                                   matrix_g=single_mo_coeff(ispin)%matrix,&
                                   ncol=ncol(ispin), &
                                   alpha=1.0_dp,error=error)
-          CALL pw_zero(orbital%pw)
-          CALL pw_zero(orbital_g%pw)
+          CALL pw_zero(orbital%pw,error=error)
+          CALL pw_zero(orbital_g%pw,error=error)
           CALL calculate_rho_elec(orbital_density_matrix(ispin)%matrix, &
                                   orbital, orbital_g, &
                                   tot_rho_psi, qs_env, error=error)
@@ -386,7 +386,7 @@ CONTAINS
        CALL pw_pool_create_pw(auxbas_pw_pool, vxc_SAOP(ispin)%pw, &
                                use_data=REALDATA3D, in_space=REALSPACE, &
                                error=error)
-       CALL pw_zero(vxc_SAOP(ispin)%pw)
+       CALL pw_zero(vxc_SAOP(ispin)%pw,error=error)
 
        ALLOCATE(coeff_col(nrow(ispin),1))
 
@@ -413,8 +413,8 @@ CONTAINS
                                   matrix_g=single_mo_coeff(ispin)%matrix,&
                                   ncol=ncol(ispin), &
                                   alpha=1.0_dp,error=error)
-          CALL pw_zero(orbital%pw)
-          CALL pw_zero(orbital_g%pw)
+          CALL pw_zero(orbital%pw,error=error)
+          CALL pw_zero(orbital_g%pw,error=error)
           CALL calculate_rho_elec(orbital_density_matrix(ispin)%matrix, &
                                   orbital, orbital_g, &
                                   tot_rho_psi, qs_env, error=error)

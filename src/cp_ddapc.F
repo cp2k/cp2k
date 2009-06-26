@@ -134,7 +134,7 @@ CONTAINS
     IF (explicit_potential) THEN
        CALL pw_pool_create_pw(auxbas_pw_pool,v_spin_ddapc_rest_g%pw,&
             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,error=error)
-       CALL pw_zero(v_spin_ddapc_rest_g%pw)
+       CALL pw_zero(v_spin_ddapc_rest_g%pw, error=error)
        CALL pw_pool_create_pw(auxbas_pw_pool,v_spin_ddapc_rest_r%pw,&
             use_data=REALDATA3D,in_space=REALSPACE,error=error)
     ENDIF
@@ -159,11 +159,11 @@ CONTAINS
 
     ! CJM Copying the real-space Hartree potential to KS_ENV
     IF ((.NOT. just_energy).OR.et_coupling_calc) THEN
-       CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw)
-       CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
+       CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw, error=error)
+       CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol, error=error)
        IF (explicit_potential) THEN
-          CALL pw_transfer(v_spin_ddapc_rest_g%pw,v_spin_ddapc_rest_r%pw)
-          CALL pw_scale(v_spin_ddapc_rest_r%pw,v_spin_ddapc_rest_r%pw%pw_grid%dvol)
+          CALL pw_transfer(v_spin_ddapc_rest_g%pw,v_spin_ddapc_rest_r%pw, error=error)
+          CALL pw_scale(v_spin_ddapc_rest_r%pw,v_spin_ddapc_rest_r%pw%pw_grid%dvol, error=error)
           IF(et_coupling_calc)THEN
              IF(qs_env%et_coupling%keep_matrix)THEN
                 IF(qs_env%et_coupling%first_run)THEN
@@ -318,7 +318,7 @@ CONTAINS
                                charges,&
                                error)
        ! Modify the Hartree potential due to the decoupling/recoupling
-       energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
+       energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace%pw, v_hartree_gspace%pw,error=error)
        IF (need_f) THEN
           CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_qm,&
                .FALSE., 1.0_dp, multipole_section, cell, particle_set,&
@@ -552,7 +552,7 @@ CONTAINS
                                charges,&
                                error)
        ! Modify the Hartree potential due to the reaction field
-       energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
+       energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace%pw, v_hartree_gspace%pw, error=error)
        IF (need_f) THEN
           CALL solvation_ddapc_force(qs_env, cell, solvation_section, particle_set,&
                radii, dq, charges, error)

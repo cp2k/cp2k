@@ -125,7 +125,7 @@ CONTAINS
        !
        ! Initializing vectors:
        !        Zeroing v_qmmm_rspace 
-       CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace%pw)
+       CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace%pw,error=error)
        IF (qs_env%dft_control%qs_control%semi_empirical) THEN
           ! SEMIEMPIRICAL
           SELECT CASE(qmmm_env%qmmm_coupl_type)
@@ -247,7 +247,7 @@ CONTAINS
     ngrids=SIZE(pw_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids
-       CALL pw_zero(grids(igrid)%pw)
+       CALL pw_zero(grids(igrid)%pw,error=error)
     END DO
     
     CALL qmmm_elec_with_gaussian_low( grids, mm_particles,&

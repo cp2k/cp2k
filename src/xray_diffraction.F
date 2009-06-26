@@ -181,7 +181,7 @@ CONTAINS
                              use_data=COMPLEXDATA1D,&
                              in_space=RECIPROCALSPACE,&
                              error=error)
-      CALL pw_zero(rhotot_elec_gspace%pw)
+      CALL pw_zero(rhotot_elec_gspace%pw,error=error)
 
       CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid,&
                             dr=dr,&
@@ -612,17 +612,17 @@ CONTAINS
                              in_space=RECIPROCALSPACE,&
                              error=error)
 
-      CALL pw_zero(rhotot_elec_gspace%pw)
+      CALL pw_zero(rhotot_elec_gspace%pw,error=error)
 
       DO ispin=1,nspin
-        CALL pw_zero(rho_elec_gspace%pw)
-        CALL pw_transfer(rho%rho_r(ispin)%pw,rho_elec_gspace%pw,debug=.FALSE.)
+        CALL pw_zero(rho_elec_gspace%pw,error=error)
+        CALL pw_transfer(rho%rho_r(ispin)%pw,rho_elec_gspace%pw,debug=.FALSE.,error=error)
         IF (PRESENT(fsign).AND.(ispin == 2)) THEN
           alpha = fsign
         ELSE
           alpha = 1.0_dp
         END IF
-        CALL pw_axpy(rho_elec_gspace%pw,rhotot_elec_gspace%pw,alpha=alpha)
+        CALL pw_axpy(rho_elec_gspace%pw,rhotot_elec_gspace%pw,alpha=alpha,error=error)
       END DO
 
       ! Release the auxiliary PW grid for the calculation of the soft
@@ -632,7 +632,7 @@ CONTAINS
                                 pw=rho_elec_gspace%pw,&
                                 error=error)
 
-      rho_soft = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1)
+      rho_soft = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1,error=error)
 
       CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid,&
                             vol=volume,&
@@ -640,7 +640,7 @@ CONTAINS
                             error=error)
       CPPostcondition(orthorhombic,cp_failure_level,routineP,error,failure)
 
-      CALL pw_scale(rhotot_elec_gspace%pw,volume)
+      CALL pw_scale(rhotot_elec_gspace%pw,volume,error=error)
 
       ! Add the hard contribution of the electronic density
 
@@ -772,7 +772,7 @@ CONTAINS
         END DO ! next atom "iatom" of atomic kind "ikind"
       END DO ! next atomic kind "ikind"
 
-      rho_total = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1)/volume
+      rho_total = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1,error=error)/volume
 
       rho_hard = rho_total - rho_soft
 

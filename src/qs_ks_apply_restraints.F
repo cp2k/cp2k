@@ -69,14 +69,14 @@ CONTAINS
                in_space=REALSPACE,error=error) 
           CALL becke_restraint(qs_env,becke_const=becke%becke_pot,calc_pot=.TRUE.,&
                calculate_forces=calculate_forces,error=error)
-          CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
+          CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol,error=error)
           becke%need_pot=.FALSE.
        ELSE
           inv_vol=1.0_dp/becke%becke_pot%pw%pw_grid%dvol
-          CALL pw_scale(becke%becke_pot%pw,inv_vol)
+          CALL pw_scale(becke%becke_pot%pw,inv_vol,error=error)
           CALL becke_restraint(qs_env,becke%becke_pot,calc_pot=.FALSE.,&
                calculate_forces=calculate_forces,error=error)
-          CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
+          CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol,error=error)
        ENDIF
 
        IF(qs_env%dft_control%qs_control%et_coupling_calc)THEN

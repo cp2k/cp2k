@@ -757,7 +757,7 @@ CONTAINS
     NULLIFY(ca%pw)
     CALL pw_create ( ca%pw, grid, REALDATA3D ,error=error)
     ca % pw % in_space = REALSPACE
-    CALL pw_zero(ca%pw)
+    CALL pw_zero(ca%pw,error=error)
 
     ! .. rs input setting type
     CALL section_vals_val_get(rs_pw_transfer_section,"HALO_SIZE",i_val=halo_size,error=error )
@@ -962,9 +962,9 @@ CONTAINS
           CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
 
           ! initialize data
-          CALL pw_zero ( ca%pw )
-          CALL pw_zero ( cb%pw )
-          CALL pw_zero ( cc%pw )
+          CALL pw_zero ( ca%pw , error=error)
+          CALL pw_zero ( cb%pw , error=error)
+          CALL pw_zero ( cc%pw , error=error)
           ca % pw % in_space = RECIPROCALSPACE
           nn = SIZE ( ca % pw % cc )
           DO ig = 1, nn
@@ -977,8 +977,8 @@ CONTAINS
           DO ip = 1, n_loop
              CALL mp_sync(para_env%group)
              t_start(ip) = m_walltime()
-             CALL pw_transfer ( ca%pw, cb%pw, debug  )
-             CALL pw_transfer ( cb%pw, cc%pw, debug )
+             CALL pw_transfer ( ca%pw, cb%pw, debug, error=error)
+             CALL pw_transfer ( cb%pw, cc%pw, debug, error=error)
              CALL mp_sync(para_env%group)
              t_end(ip) = m_walltime()
           END DO
@@ -1012,8 +1012,8 @@ CONTAINS
           IF ( em > toler .OR. et > toler ) THEN
              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "The FFT results are not accurate ... starting debug pw_transfer")
-             CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-             CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
+             CALL pw_transfer ( ca%pw, cb%pw, .TRUE., error=error)
+             CALL pw_transfer ( cb%pw, cc%pw, .TRUE., error=error)
           ENDIF
 
           ! done with these grids

@@ -271,7 +271,7 @@ CONTAINS
             use_data=COMPLEXDATA1D, error=error)
        IF (PRESENT(ext_rho_tot_g)) THEN
           ! If provided use the input density in g-space
-          CALL pw_transfer(ext_rho_tot_g,rho_tot_g)
+          CALL pw_transfer(ext_rho_tot_g,rho_tot_g, error=error)
           type_of_density=Itype_of_density
        ELSE
           IF(PRESENT(density_type))THEN
@@ -284,17 +284,17 @@ CONTAINS
           CASE(do_full_density)
              ! Otherwise build the total QS density (electron+nuclei) in G-space
              IF(dft_control%qs_control%gapw) THEN
-                CALL pw_transfer(rho0_s_gs%pw,rho_tot_g)       
+                CALL pw_transfer(rho0_s_gs%pw,rho_tot_g, error=error)       
              ELSE
-                CALL pw_transfer(rho_core%pw,rho_tot_g)       
+                CALL pw_transfer(rho_core%pw,rho_tot_g, error=error)       
              END IF
              DO ispin=1,SIZE(rho%rho_g)
-                CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_g)
+                CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_g, error=error)
              END DO
              type_of_density = "FULL DENSITY"
           CASE(do_spin_density)
-             CALL pw_copy (rho%rho_g(1)%pw,rho_tot_g)
-             CALL pw_axpy (rho%rho_g(2)%pw,rho_tot_g,alpha=-1._dp)
+             CALL pw_copy (rho%rho_g(1)%pw,rho_tot_g, error=error)
+             CALL pw_axpy (rho%rho_g(2)%pw,rho_tot_g,alpha=-1._dp, error=error)
              type_of_density = "SPIN DENSITY"
           END SELECT
        END IF

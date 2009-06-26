@@ -1260,12 +1260,12 @@ CONTAINS
           CALL pw_pool_create_pw(auxbas_pw_pool,&
                &                 current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,&
                &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
-          CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw)
+          CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,&
                &                 current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw,&
                &                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                &                 error=error)
-          CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw)
+          CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw,error=error)
        ENDDO
        CALL qs_rho_retain(current_env%jrho1_set(idir)%rho,error=error)
     ENDDO

@@ -255,7 +255,7 @@ CONTAINS
     IF ((use_virial).AND.(PRESENT(pv_g))) THEN
        DO i = 1, 3
           DO j = i, 3
-             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, dphi_g ( j ) % pw )
+             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, dphi_g ( j ) % pw, error=error)
              f_stress ( j, i ) = f_stress ( i, j )
           END DO
        END DO
@@ -271,7 +271,7 @@ CONTAINS
     DO i = 1, 3
        CALL rs_grid_create(drpot(i)%rs_grid, rs_desc, error=error )
        CALL rs_grid_set_box ( grid_b, rs=drpot(i)%rs_grid, error=error )
-       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
+       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r, error=error)
        CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw ,error=error)
        CALL rs_pw_transfer ( drpot ( i )%rs_grid, rhob_r, pw2rs,error=error)
     END DO
