@@ -116,18 +116,18 @@ CONTAINS
        IF (iw>0) THEN
           WRITE(iw,'(T2,A,3F12.6)')"ROT| Rotational Analysis Info "
           WRITE(iw,'(T2,A)')"ROT| Principal axes and moments of inertia in atomic units:"
-          WRITE(iw,'(T2,A,T32,3(3X,I6,6X))')"ROT|",1,2,3
-          WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT| EIGENVALUES",Ip_eigval
-          WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      X",Ip(1,1),Ip(1,2),Ip(1,3)
-          WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      Y",Ip(2,1),Ip(2,2),Ip(2,3)
-          WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      Z",Ip(3,1),Ip(3,2),Ip(3,3)
+          WRITE(iw,'(T2,A,T27,3(3X,I9,6X))')"ROT|",1,2,3
+          WRITE(iw,'(T2,A,T27,3(3X,E15.9))')"ROT| EIGENVALUES",Ip_eigval
+          WRITE(iw,'(T2,A,T27,3(3X,F15.9))')"ROT|      X",Ip(1,1),Ip(1,2),Ip(1,3)
+          WRITE(iw,'(T2,A,T27,3(3X,F15.9))')"ROT|      Y",Ip(2,1),Ip(2,2),Ip(2,3)
+          WRITE(iw,'(T2,A,T27,3(3X,F15.9))')"ROT|      Z",Ip(3,1),Ip(3,2),Ip(3,3)
        END IF
        CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO",error=error)
        iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO/COORDINATES",extension=".vibLog",error=error)
        IF (iw>0) THEN
           WRITE(iw,'(/,T2,A)')"ROT| Standard Molecule Orientation - ANGSTROM "
           DO iparticle = 1, natoms
-             WRITE(iw,'(T2,"ROT|",T20,A,T30,3(3X,F12.6))')&
+             WRITE(iw,'(T2,"ROT|",T20,A,T27,3(3X,F15.9))')&
                   TRIM(particles(iparticle)%atomic_kind%name),&
                   MATMUL(particles(iparticle)%r,Ip)*angstrom
           END DO

@@ -20,7 +20,7 @@ MODULE header
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: cp2k_header, cp2k_footer
+  PUBLIC :: cp2k_header, cp2k_footer, vib_header
   PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
   PUBLIC :: kg_header, qmmm_header, atom_header, atom_footer, band_header
 
@@ -287,7 +287,7 @@ CONTAINS
     WRITE (UNIT=iw,FMT="(T2,A,T73,I5,1X,A)")&
          "**  ########  ##     ## ## ## ## ##     ##   Number of Images :",        ni,"**",&
          "**  ##     ## ######### ##  #### ##     ##   Number of Replicas:",       nr,"**",&
-         "**  ##     ## ##     ## ##   ### ##     ##   Number of Procs/Rep:",      np,"**"
+         "**  ##     ## ##     ## ##   ### ##     ##   Number of Procs/Rep:",      np,"**"  
     WRITE (UNIT=iw,FMT="(T2,A79)")&
          "**  ########  ##     ## ##    ## ########                                    **",&
          "**                                           T. Laino  2009                  **",&
@@ -296,6 +296,36 @@ CONTAINS
          "*******************************************************************************"
 
   END SUBROUTINE band_header
+
+! *****************************************************************************
+  SUBROUTINE vib_header(iw, nr, np)
+    INTEGER, INTENT(IN)                      :: iw, nr, np
+
+    IF (iw<0) RETURN
+    WRITE (UNIT=iw,FMT="(/,(T2,A79))")&
+         "*******************************************************************************",&
+         "*******************************************************************************",&
+         "**                                                                           **",&
+         "**  #  #   #    #                  #     #                      ##           **",&
+         "**  #  #        ###   # ##   ###  ####         ##   # #    ###   #           **",&
+         "**  #  #   #    #  #  ##    #  #   #     #    #  #  ## #  #  #   #           **",&
+         "**   ##    #    #  #  #     # ##   #     #    #  #  #  #  # ##   #           **",&
+         "**   ##    #    ###   #      # #    ##   #     ##   #  #   # #  ###          **",&
+         "**                                                                           **",&
+         "**   ##               ##                 #                                   **",&
+         "**  #  #  # #    ###   #    #  #   ###         ###                           **",&
+         "**  #  #  ## #  #  #   #    #  #  ##     #    ##                             **"
+    WRITE (UNIT=iw,FMT="(T2,A,T73,I5,1X,A)")&
+         "**  ####  #  #  # ##   #     ###    ##   #      ##  N. Replicas:",       nr,"**",&
+         "**  #  #  #  #   # #  ###      #  ###    #    ###   N. Procs/Rep:",      np,"**"
+    WRITE (UNIT=iw,FMT="(T2,A79)")&
+         "**                           ##                                              **",&
+         "**                                       T. Laino  and F. Schiffmann   2008  **",&
+         "*******************************************************************************"
+    WRITE (UNIT=iw,FMT="(T2,A79,/)")&
+         "*******************************************************************************"
+
+  END SUBROUTINE vib_header
 
 END MODULE header
 

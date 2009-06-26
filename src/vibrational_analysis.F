@@ -30,6 +30,7 @@ MODULE vibrational_analysis
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: vib_header
   USE input_constants
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -135,11 +136,9 @@ CONTAINS
        CALL section_vals_get(mode_tracking_section,explicit=do_mode_tracking, error=error)
        nrep = MAX(1,para_env%num_pe/prep)
        prep = para_env%num_pe/nrep
-       IF (output_unit>0) THEN
-          WRITE(output_unit,'(T2,"VIB|",(1X,A,I5))')"NUMBER OF REPLICAS:",nrep
-          WRITE(output_unit,'(T2,"VIB|",(1X,A,I5))')"NUMBER OF PROCS:",para_env%num_pe
-          WRITE(output_unit,'(T2,"VIB|",(1X,A,I5))')"NUMBER OF PROCS PER REPLICA:",prep
-       END IF
+       iw=cp_print_key_unit_nr(logger,print_section,"BANNER",extension=".vibLog",error=error)
+       CALL vib_header(iw, nrep, prep)
+       CALL cp_print_key_finished_output(iw,logger,print_section,"BANNER",error=error)
        ! Just one force_env allowed
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
        ! Create Replica Environments

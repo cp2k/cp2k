@@ -143,6 +143,13 @@ CONTAINS
             supported_feature=.TRUE.,error=error)
        NULLIFY(keyword, print_key)
 
+       CALL cp_print_key_section_create(print_key,"BANNER",&
+            description="Controls the printing of the vibrational analysis banner", &
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing basic info about the vibrational method", &
             print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
