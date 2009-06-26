@@ -798,7 +798,7 @@ CONTAINS
                       pw2%cc ( i ) = pw2%cc ( i ) + my_alpha*pw1%cc ( j )
                    END DO
                 ELSE
-!omp parallel do private(i,j)
+!$omp parallel do private(i,j)
                    DO i = 1, ng1
                       j = pw2%pw_grid%gidx ( i )
                       pw2%cc ( j ) = pw2%cc ( j ) + my_alpha*pw1%cc ( i )
@@ -809,13 +809,13 @@ CONTAINS
 
              IF (my_alpha==1.0_dp) THEN
                 IF( ng1 >= ng2 ) THEN
-!omp parallel do private(i,j)
+!$omp parallel do private(i,j)
                    DO i = 1, ng2
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( i ) = pw2%cc ( i ) + pw1%cc ( j )
                    END DO
                 ELSE
-!omp parallel do private(i,j)
+!$omp parallel do private(i,j)
                    DO i = 1, ng1
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( j ) = pw2%cc ( j ) + pw1%cc ( i )
@@ -823,13 +823,13 @@ CONTAINS
                 END IF
              ELSE
                 IF( ng1 >= ng2 ) THEN
-!omp parallel do private(i,j)
+!$omp parallel do private(i,j)
                    DO i = 1, ng2
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( i ) = pw2%cc ( i ) + my_alpha* pw1%cc ( j )
                    END DO
                 ELSE
-!omp parallel do private(i,j)
+!$omp parallel do private(i,j)
                    DO i = 1, ng1
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( j ) = pw2%cc ( j ) + my_alpha*pw1%cc ( i )
@@ -917,7 +917,7 @@ CONTAINS
 
     IF ( PRESENT ( scale ) ) THEN
 
-!omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -929,7 +929,7 @@ CONTAINS
 
     ELSE
 
-!omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -991,7 +991,7 @@ CONTAINS
 
     IF ( PRESENT ( scale ) ) THEN
 
-!omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do private(gpt,l,m,n,mn)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1004,7 +1004,7 @@ CONTAINS
 
     ELSE
 
-!omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do private(gpt,l,m,n,mn)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1070,7 +1070,7 @@ CONTAINS
 
     IF ( PRESENT ( scale ) ) THEN
 
-!omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1082,7 +1082,7 @@ CONTAINS
 
     ELSE
 
-!omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1102,7 +1102,7 @@ CONTAINS
 
        IF ( PRESENT ( scale ) ) THEN
 
-!omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1114,7 +1114,7 @@ CONTAINS
 
        ELSE
 
-!omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1181,7 +1181,7 @@ CONTAINS
 
     IF ( PRESENT ( scale ) ) THEN
 
-!omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do private(gpt,l,m,n,mn)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1194,7 +1194,7 @@ CONTAINS
 
     ELSE
 
-!omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do private(gpt,l,m,n,mn)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1215,7 +1215,7 @@ CONTAINS
 
        IF ( PRESENT ( scale ) ) THEN
 
-!omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do private(gpt,l,m,n,mn)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1228,7 +1228,7 @@ CONTAINS
 
        ELSE
 
-!omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do private(gpt,l,m,n,mn)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -2030,7 +2030,7 @@ CONTAINS
 
        cnt = SIZE ( sf%cc )
 
-!omp parallel do private (ig)
+!$omp parallel do private (ig)
        DO ig = 1, cnt
           arg = DOT_PRODUCT(sf%pw_grid%g(:,ig),r)
           sf%cc(ig)=CMPLX(COS(arg),-SIN(arg),KIND=dp)
