@@ -17,6 +17,7 @@
 MODULE graph_methods
 
   USE graph_utils,                     ONLY: derivative,&
+                                             pbc,&
                                              point_no_pbc,&
                                              point_pbc
   USE kinds,                           ONLY: dp
@@ -150,10 +151,10 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE fes_min(fes, ndim, ngrid, dp_grid, x0, ndw)
+  SUBROUTINE fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, INTENT(IN)                      :: ndim
-    INTEGER, DIMENSION(:), POINTER           :: ngrid
+    INTEGER, DIMENSION(:), POINTER           :: iperd, ngrid
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid, x0
     INTEGER, INTENT(IN)                      :: ndw
 
@@ -175,7 +176,7 @@ CONTAINS
     ALLOCATE(history(ndim,ntrials))
     history = 0
     nacc    = 0
-    DO j = 1, ntrials
+    Trials: DO j = 1, ntrials
        ! Loop over all points
        pnt = j
        DO k = ndim, 2, -1
@@ -190,13 +191,16 @@ CONTAINS
        END DO
        pos0(1) = pnt
 
-       IF (ANY(pos0<ntrust))       CYCLE
-       IF (ANY(pos0>ngrid-ntrust)) CYCLE
+       ! Loop over the frame points unless it is periodic
+       DO k = 1, ndim
+          IF ((iperd(k)==0).AND.(pos0(k)<ntrust(k)))          CYCLE Trials
+          IF ((iperd(k)==0).AND.(pos0(k)>ngrid(k)-ntrust(k))) CYCLE Trials
+       END DO
 
        ! Evaluate position and derivative
        pos = pos0
        xx  = x0 + dp_grid * ( pos - 1 )
-       dx = derivative (fes, pos, ndim, ngrid, dp_grid)
+       dx = derivative (fes, pos, iperd, ndim, ngrid, dp_grid)
 
        ! Integrate till derivative is small enough..
        DO i = 1, 100
@@ -208,22 +212,25 @@ CONTAINS
           xx  = xx - MIN(0.1_dp,norm_dx)*dx/norm_dx
           ! Re-evaluating pos
           pos = CEILING((xx-x0)/dp_grid)+1
+          CALL pbc(pos, iperd, ngrid, ndim)
 
           ! Incremental pos
-          dx  = derivative (fes, pos, ndim, ngrid, dp_grid)
+          dx  = derivative (fes, pos, iperd, ndim, ngrid, dp_grid)
        END DO
 
        ! Compare with the available minima and if they are the same skip
        ! saving this position..
-       do_save = .TRUE.
-       DO i = 1, nacc
-          Dpos = pos - history(:,i)
-          norm_dx  = DOT_PRODUCT(Dpos,Dpos)
-          IF ((SQRT(REAL(norm_dx,KIND=dp))<=MAXVAL(ntrust)).OR.(fes(pnt)<1.0E-3_dp)) THEN 
-             do_save = .FALSE.
-             EXIT
-          END IF
-       END DO
+       do_save = fes(pnt)>=1.0E-3_dp
+       IF (do_save) THEN        
+          DO i = 1, nacc
+             Dpos = pos - history(:,i)
+             norm_dx  = DOT_PRODUCT(Dpos,Dpos)
+             IF ((SQRT(REAL(norm_dx,KIND=dp))<=MAXVAL(ntrust)).OR.(fes(pnt)<1.0E-3_dp)) THEN 
+                do_save = .FALSE.
+                EXIT
+             END IF
+          END DO
+       END IF
        IF (do_save) THEN
           pnt = point_no_pbc(pos,ngrid,ndim)
           xx  = x0+dp_grid*(pos-1)
@@ -232,7 +239,7 @@ CONTAINS
           nacc = nacc + 1
           history (:,nacc) = pos
        END IF
-    END DO
+    END DO Trials
     WRITE(6,'(A,I6,A)') "FES| Number of Minimum found: ",nacc,"."
 
     DEALLOCATE(xx,dx,pos0,rnd,pos)
@@ -254,6 +261,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid, x0
     INTEGER, INTENT(IN)                      :: ndw
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: minima
+
+    STOP "Not implemented yet!"
 
   END SUBROUTINE fes_path
 

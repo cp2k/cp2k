@@ -30,31 +30,26 @@ PROGRAM graph
 
   IMPLICIT NONE
 
-  INTEGER :: i, ix ,id, it, ip, stat, itmp, iw
-  INTEGER :: ndim, ndw, nt_p, nt, nh, nf, nwr, ncount, nprd
-  INTEGER :: argcount, ngauss, nfes, coor
-  INTEGER, POINTER :: idw(:), iperd(:), iprd(:)
-  INTEGER, POINTER :: i_map(:)
-  INTEGER, POINTER :: ngrid(:), tmp(:)
-  INTEGER, POINTER :: ind(:), inds(:), nn(:,:), nn_max(:)
+  CHARACTER(LEN=80)                        :: file, out, wq_char
+  CHARACTER(LEN=default_string_length)     :: per_label
+  INTEGER                                  :: argcount, coor, i, id, ip, &
+                                              it, iw, ix, ncount, ndim, &
+                                              ndw, nf, nfes, ngauss, nh, &
+                                              nprd, nt, nt_p, nwr, stat
+  INTEGER, POINTER                         :: i_map(:), idw(:), ind(:), &
+                                              inds(:), iperd(:), iprd(:), &
+                                              ngrid(:), nn(:,:), nn_max(:), &
+                                              tmp(:)
+  LOGICAL                                  :: fix, l_cp2k, l_dp, l_fmin, &
+                                              l_grid, l_math, l_orac, &
+                                              l_pmin, lstride
+  REAL(KIND=dp)                            :: diff, dp2, dum, eps_cut, ss, &
+                                              x0w(3), xfw(3)
+  REAL(KIND=dp), POINTER :: delta_s(:,:), dp_cut(:), dp_grid(:), fes(:), &
+    gauss(:,:), minima(:,:), ss0(:,:), tmpr(:), ww(:), x0(:), xf(:)
 
-  REAL(KIND=dp) :: dum, ss, diff
-  REAL(KIND=dp) :: x0w(3),xfw(3)
-  REAL(KIND=dp), POINTER ::dp_cut(:)
-  REAL(KIND=dp), POINTER :: ss0(:,:)
-  REAL(KIND=dp), POINTER :: delta_s(:,:)
-  REAL(KIND=dp), POINTER :: gauss(:,:),fes(:)
-  REAL(KIND=dp), POINTER :: ww(:), minima(:,:)
-  REAL(KIND=dp), POINTER :: dp_grid(:),x0(:),xf(:), tmpr(:)
-  REAL(KIND=dp) :: dp2,  eps_cut
+! Initialize variables
 
-  CHARACTER(LEN=80) :: wq_char, file, out
-
-  LOGICAL :: fix, lstride
-  LOGICAL :: l_grid, l_dp, l_orac, l_cp2k, l_math, l_fmin, l_pmin
-  CHARACTER(LEN=default_string_length) :: per_label
-
-  ! Initialize variables
   nprd    = 0
   ndim    = 1
   ndw     = 1
@@ -524,7 +519,7 @@ PROGRAM graph
   CLOSE(123)
  
   ! If requested find minima
-  IF (l_fmin) CALL fes_min(fes, ndim, ngrid, dp_grid, x0, ndw)
+  IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)
 
   ! If requested find path
   IF (l_pmin) CALL fes_path(fes, ndim, ngrid, dp_grid, x0, ndw, minima)

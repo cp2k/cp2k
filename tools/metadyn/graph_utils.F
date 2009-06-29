@@ -20,7 +20,8 @@ MODULE graph_utils
   PUBLIC :: get_val_res,&
             point_pbc,&
             point_no_pbc,&
-            derivative
+            derivative,&
+            pbc
 
 CONTAINS
 
@@ -31,9 +32,9 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  FUNCTION derivative(fes,pos0, ndim, ngrid, dp_grid) RESULT(der)
+  FUNCTION derivative(fes, pos0, iperd, ndim, ngrid, dp_grid) RESULT(der)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fes
-    INTEGER, DIMENSION(:), INTENT(IN)        :: pos0
+    INTEGER, DIMENSION(:), INTENT(IN)        :: pos0, iperd
     INTEGER, INTENT(IN)                      :: ndim
     INTEGER, DIMENSION(:), INTENT(IN)        :: ngrid
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: dp_grid
@@ -48,7 +49,7 @@ CONTAINS
        der(i) = 0.0_dp
        DO j = 1,-1,-2
           pos(i) = pos0(i) + j
-          pnt    = point_no_pbc(pos,ngrid,ndim)
+          pnt    = point_pbc(pos,iperd,ngrid,ndim)
           der(i) = der(i) + REAL(j,KIND=dp)*(-fes(pnt))
        END DO
        pos(i) = pos0(i)
@@ -91,7 +92,34 @@ CONTAINS
        END IF
        pnt=pnt+(lpnt-1) * PRODUCT(ngrid(1:idim-1))
     END DO
+
   END FUNCTION point_pbc
+
+! *****************************************************************************
+!> \brief Computes the pointer to the 1D array given the n-dimensional position
+!>        PBC version
+!> \par History
+!>      03.2006 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
+  SUBROUTINE pbc (pos,iperd,ngrid,ndim)
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: pos
+    INTEGER, DIMENSION(:), INTENT(IN)        :: iperd, ngrid
+    INTEGER, INTENT(IN)                      :: ndim
+
+    INTEGER                                  :: idim, lpnt
+
+    DO idim=1,ndim
+       IF (iperd(idim) == 1) THEN
+          lpnt = pos(idim)
+          lpnt = 1000*ngrid(idim)+lpnt
+          lpnt = MOD(lpnt,ngrid(idim))
+          IF (lpnt==0) lpnt=ngrid(idim)
+          pos(idim) = lpnt
+       END IF
+    END DO
+  END SUBROUTINE pbc
 
 ! *****************************************************************************
 !> \brief Computes the pointer to the 1D array given the n-dimensional position
