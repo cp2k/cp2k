@@ -13,16 +13,21 @@
 !> - Created 2009-05-12
 ! *****************************************************************************
 MODULE cp_dbcsr_operations
-  USE array_types,                     ONLY: array_data
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_release
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release,&
+                                             dbcsr_distribution_row_dist,&
                                              dbcsr_mp_group
-  USE dbcsr_operations,                ONLY: dbcsr_multiply_from_left,&
+  USE dbcsr_operations,                ONLY: dbcsr_mult_e_ec_m,&
                                              dbcsr_scale,&
                                              dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
@@ -30,10 +35,10 @@ MODULE cp_dbcsr_operations
                                              dbcsr_imagedistribution_type,&
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: &
-       dbcsr_checksum, dbcsr_create, dbcsr_create_dist2d_r, &
-       dbcsr_create_dist2d_r_unrot, dbcsr_create_image_dist_left, &
-       dbcsr_destroy, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
-       dbcsr_from_fm, dbcsr_from_sm, dbcsr_init, dbcsr_make_row_images, &
+       dbcsr_checksum, dbcsr_create, dbcsr_create_col_image_dist, &
+       dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, dbcsr_destroy, &
+       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_from_fm, &
+       dbcsr_from_sm, dbcsr_init, dbcsr_make_col_images, &
        dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix, &
        dbcsr_work_create
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
@@ -128,10 +133,12 @@ CONTAINS
     IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
     !
     DBG 'Creating left image distribution'
-    CALL dbcsr_create_image_dist_left(rdist_left, matrix_a%dist, matrix_b%dist)
+    !CALL dbcsr_create_image_dist_left(rdist_left, matrix_a%dist, matrix_b%dist)
+    CALL dbcsr_create_col_image_dist (rdist_left,&
+         dbcsr_distribution_row_dist (matrix_a%dist), matrix_b%dist)
     !
     DBG 'Making A images'
-    CALL dbcsr_make_row_images(matrix_a, ms_left, rdist_left, error)
+    CALL dbcsr_make_col_images(matrix_a, ms_left, rdist_left, error)
     !ms_left%image_dist = rdist_left
     matrix_d = ms_left%mats(1)
     DBG 'master name', ms_left%mats(1)%name
@@ -146,7 +153,9 @@ CONTAINS
     !
     my_flop = 0
     IF (hint .GE. 0) THEN
-       CALL dbcsr_multiply_from_left(ms_left, matrix_b, matrix_c, error,&
+       !CALL dbcsr_multiply_from_left(ms_left, matrix_b, matrix_c, error,&
+       !     flop=my_flop)
+       CALL dbcsr_mult_e_ec_m (ms_left, matrix_b, matrix_c, error,&
             flop=my_flop)
        IF (PRESENT (flop)) flop = my_flop
     ELSE
@@ -188,15 +197,15 @@ CONTAINS
 
     INTEGER                                  :: handle, k, output_unit
     INTEGER(KIND=int_8)                      :: flop
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: failure, ionode, ldbg
     REAL(kind=dp)                            :: checksum, newtime, oldtime, &
                                                 trace, walltime1, walltime2
+    TYPE(array_i1d_obj)                      :: col_blk_size_right
     TYPE(cp_fm_type), POINTER                :: fmout
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist
     TYPE(dbcsr_type)                         :: matrix_a, matrix_b, &
                                                 matrix_bt, matrix_c
-    TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_left
 
     CALL timeset(routineN,handle)
 
@@ -207,7 +216,6 @@ CONTAINS
     output_unit = 0
     IF (ionode) output_unit = cp_logger_get_default_unit_nr (logger)
     !Do the new multiplication
-    dist2d_left => matrix_s%distribution_2d
     CALL dbcsr_init (matrix_a, error)
     CALL dbcsr_from_sm(matrix_a, matrix_s, error)
     CALL dbcsr_verify_matrix(matrix_a, error)
@@ -245,17 +253,16 @@ CONTAINS
     CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
     
     IF (MOD(hint,2) .EQ. 0) THEN
-       CALL dbcsr_create_dist2d_r_unrot(dist2d, dist2d_left, k,&
-            col_blk_size, error=error)
+       CALL dbcsr_create_dist_r_unrot (dist_right, matrix_a%dist, k,&
+            col_blk_size_right, error)
     ELSE
-       CALL dbcsr_create_dist2d_r(dist2d, dist2d_left, k,&
-            col_blk_size, error=error)
+       CALL dbcsr_create_dist_r_rot (dist_right, matrix_a%dist, k,&
+            col_blk_size_right, error)
     ENDIF
-
     CALL dbcsr_init (matrix_b, error)
-    CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist2d,&
-         row_blk_size=array_data(matrix_a%row_blk_size),&
-         col_blk_size=col_blk_size,&
+    CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist_right,&
+         row_blk_size=matrix_a%row_blk_size,&
+         col_blk_size=col_blk_size_right,&
          error=error)
     CALL dbcsr_verify_matrix(matrix_b, error)
 
@@ -288,10 +295,14 @@ CONTAINS
     CALL dbcsr_verify_matrix (matrix_bt, error)
     !CALL dbcsr_destroy (matrix_bt, error)
     !
+    CALL dbcsr_distribution_new (product_dist,&
+         dbcsr_distribution_mp (matrix_a%dist),&
+         dbcsr_distribution_row_dist (matrix_a%dist),&
+         dbcsr_distribution_col_dist (matrix_b%dist))
     !
     walltime1 = m_walltime()
     CALL dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c,&
-         matrix_b%dist, hint, error, flop=flop)
+         product_dist, hint, error, flop=flop)
     !CALL dbcsr_sm_sm_multiply(matrix_bt, matrix_a, matrix_c,&
     !     dist_result, hint, error)
     !CALL dbcsr_distribution_release (dist_result)
@@ -338,15 +349,16 @@ CONTAINS
        WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')" SMFM Sx checksum",&
             checksum*checksum, " time ", oldtime
     ENDIF
-    CALL dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist2d,&
-         row_blk_size=array_data(matrix_a%row_blk_size),&
-         col_blk_size=col_blk_size,&
+    CALL dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist_right,&
+         row_blk_size=matrix_a%row_blk_size,&
+         col_blk_size=col_blk_size_right,&
          error=error)
-    DEALLOCATE(col_blk_size)
-    CALL distribution_2d_release (dist2d, error)
+    CALL array_release (col_blk_size_right)
     CALL dbcsr_destroy (matrix_a,error)
     CALL dbcsr_destroy (matrix_b, error)
     CALL cp_fm_release (fmout, error)
+    CALL dbcsr_distribution_release (dist_right)
+    CALL dbcsr_distribution_release (product_dist)
 
     CALL timestop(handle)
 

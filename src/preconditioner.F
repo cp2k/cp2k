@@ -2527,8 +2527,8 @@ END SUBROUTINE make_full_all_ortho
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: k
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size
-    TYPE(array_i1d_obj)                      :: precond_row_blk_size_array
+    TYPE(array_i1d_obj)                      :: col_blk_size, &
+                                                precond_row_blk_size_array
     TYPE(dbcsr_distribution_obj)             :: dist_result
     TYPE(dbcsr_type)                         :: matrix_result, matrix_right
     TYPE(distribution_2d_type), POINTER      :: dist2d_precond, dist2d_result
@@ -2542,7 +2542,7 @@ END SUBROUTINE make_full_all_ortho
     !CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
     !     matrix_in,0.0_dp,matrix_out,error=error)
     CALL cp_fm_get_info(matrix_in, ncol_global=k, error=error)
-    NULLIFY (dist2d_precond, dist2d_result, col_blk_size)
+    NULLIFY (dist2d_precond, dist2d_result)
     CALL cp_dbcsr_get_dist2d (preconditioner_env%dbcsr_matrix, dist2d_precond,&
          error)
     CALL dbcsr_create_dist2d_r_unrot(dist2d_result, dist2d_precond, k,&
@@ -2551,8 +2551,8 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_init (matrix_right, error)
     precond_row_blk_size_array =&
          preconditioner_env%dbcsr_matrix%row_blk_size
-    CALL dbcsr_from_fm (matrix_right, matrix_in, 0.0_dp, dist2d_result,&
-         row_blk_size = array_data (precond_row_blk_size_array),&
+    CALL dbcsr_from_fm (matrix_right, matrix_in, 0.0_dp, dist_result,&
+         row_blk_size = precond_row_blk_size_array,&
          col_blk_size = col_blk_size, error=error)
     WRITE(*,*)'Pre checksum:',dbcsr_checksum (matrix_right, error)
     !CALL dbcsr_get_info (matrix_in, dist2d=dist2d, error=error)
