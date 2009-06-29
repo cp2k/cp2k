@@ -37,7 +37,8 @@ MODULE rt_matrix_exp
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -695,9 +696,10 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE arnoldi(mos_old,mos_new,Hre,Him,error)
+  SUBROUTINE arnoldi(mos_old,mos_new,eps_exp,Hre,Him,error)
 
     TYPE(cp_fm_p_type), DIMENSION(2)         :: mos_old, mos_new
+    REAL(KIND=dp)                            :: eps_exp
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: Hre
     TYPE(cp_fm_type), POINTER                :: Him
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -713,7 +715,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     LOGICAL                                  :: convergence, double_col, &
                                                 double_row, failure
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: norm1, results
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: last_norm, norm1, results
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: D, mat1, mat2, mat3, N
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: H_approx, H_approx_save
@@ -722,8 +724,7 @@ CONTAINS
       POINTER                                :: V_mats
     TYPE(cp_cfm_type), POINTER               :: myH, mymos, tmp_mat
     TYPE(cp_fm_struct_type), POINTER         :: newstruct
-    TYPE(cp_fm_type), POINTER                :: iter_mos1, iter_mos2, work, &
-                                                work1
+    TYPE(cp_fm_type), POINTER                :: work, work1
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure=.FALSE.
@@ -737,7 +738,7 @@ CONTAINS
     CALL cp_fm_get_info(mos_old(1)%matrix,ncol_local=ldim,ncol_global=nmo,error=error)    
     
     ALLOCATE(results(nmo),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
     ALLOCATE(norm1(nmo),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
     DO i=1,ldim
@@ -779,13 +780,9 @@ CONTAINS
 
 
     !matrices for adaptive arnoldi (convergence check
-    CALL cp_fm_create(iter_mos1,matrix_struct=mos_old(1)%matrix%matrix_struct,error=error)
-    CALL cp_fm_create(iter_mos2,matrix_struct=mos_old(1)%matrix%matrix_struct,error=error)
-    iter_mos1%local_data=0.0_dp
-    iter_mos2%local_data=0.0_dp
 
     !!! number of arnoldi steps, 
-    narnoldi=MIN(10,nao)
+    narnoldi=MIN(18,nao)
 
     ALLOCATE(V_mats(narnoldi+1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -806,6 +803,8 @@ CONTAINS
 
     !!! normalize the mo vectors
     CALL cp_fm_get_info(mos_old(1)%matrix,ncol_local=ncol_local,col_indices=col_indices,error=error) 
+    ALLOCATE(last_norm(ncol_local),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
     norm1=0.0_dp
     CALL cp_cfm_schur_product_cc(V_mats(1)%matrix,V_mats(1)%matrix,tmp_mat,error)
 
@@ -831,9 +830,6 @@ CONTAINS
 
     H_approx_save=zero
     
-
-    
-
     DO i=2,narnoldi+1
        IF(PRESENT(Hre))THEN          
           CALL cp_cfm_gemm("N","N",nao,nmo,nao,one,myH,&
@@ -875,14 +871,18 @@ CONTAINS
           icol_global=col_indices(icol_local)
           results(icol_global)=SUM(REAL(tmp_mat%local_data(:,icol_local),dp))
        END DO
+       CALL mp_sum(results,para_env%group)
        IF(i.LE.narnoldi)THEN
-          
-          CALL mp_sum(results,para_env%group)
           DO icol_local=1,ncol_local
              icol_global=col_indices(icol_local)
              H_approx_save(i,i-1,icol_local)=SQRT(results(icol_global))
+             last_norm(icol_local)=SQRT(results(icol_global))
              V_mats(i)%matrix%local_data(:,icol_local)=V_mats(i)%matrix%local_data(:,icol_local)/SQRT(results(icol_global))
-             
+          END DO
+       ELSE
+          DO icol_local=1,ncol_local 
+             icol_global=col_indices(icol_local)       
+             last_norm(icol_local)=SQRT(results(icol_global))
           END DO
        END IF
     
@@ -950,38 +950,43 @@ CONTAINS
           CALL dgemm("N",'N',mydim,mydim,mydim,one,mat1(1,1),mydim,mat1(1,1),mydim,zero,N(1,1),mydim)     
           CALL dgemm("N",'N',mydim,mydim,mydim,one,N(1,1),mydim,N(1,1),mydim,zero,mat1(1,1),mydim)
           CALL dgemm("N",'N',mydim,mydim,mydim,one,mat1(1,1),mydim,mat1(1,1),mydim,zero,N(1,1),mydim)
-          H_approx(:,:,icol_local)=N(:,:)
+          DO idim=1,mydim
+             DO j=1,mydim          
+                H_approx(idim,j,icol_local)=N(idim,j)
+             END DO
+          END DO
        END DO
 
        ! H_approx is exp(H_approx) right now, calculate new MOs and check for convergence
-       mymos%local_data=zero
+       conv_norm=0.0_dp
+       results=0.0_dp
+       
        DO icol_local=1,ncol_local
-          DO idim=1,mydim
-             mymos%local_data(:,icol_local)=mymos%local_data(:,icol_local)+&
-                  V_mats(idim)%matrix%local_data(:,icol_local)*H_approx(idim,1,icol_local)
-          END DO
           icol_global=col_indices(icol_local)
-          mymos%local_data(:,icol_local)= mymos%local_data(:,icol_local)*norm1(icol_global)
+          results(icol_global)= last_norm(icol_local)* H_approx(i-1,1,icol_local)
+          conv_norm=MAX(conv_norm,ABS(results(icol_global)))
        END DO
 
-       results=0.0_dp
-       DO icol_local=1,ncol_local
-          mos_new(1)%matrix%local_data(:,icol_local)=REAL(mymos%local_data(:,icol_local),KIND=dp)
-          mos_new(2)%matrix%local_data(:,icol_local)=AIMAG(mymos%local_data(:,icol_local))
-          conv_norm=DOT_PRODUCT(mos_new(1)%matrix%local_data(:,icol_local)-iter_mos1%local_data(:,icol_local),&
-               mos_new(1)%matrix%local_data(:,icol_local)-iter_mos1%local_data(:,icol_local))
-          conv_norm=conv_norm+DOT_PRODUCT(&
-               mos_new(2)%matrix%local_data(:,icol_local)-iter_mos2%local_data(:,icol_local),&
-               mos_new(2)%matrix%local_data(:,icol_local)-iter_mos2%local_data(:,icol_local))
-          icol_global=col_indices(icol_local)
-          results(icol_global)=conv_norm
-       END DO
-       CALL mp_sum(results,para_env%group)
-       results=SQRT(results/REAL(nmo,dp))
-       convergence=.TRUE.
-       DO idim=1,SIZE(results)
-          IF(results(idim).GE.1.0E-8_dp)convergence=.FALSE.
-       END DO
+       CALL mp_max(conv_norm,para_env%group)
+       convergence=.FALSE.
+       IF(conv_norm.LT.eps_exp.OR.i.GT.narnoldi)THEN
+          
+          mymos%local_data=zero
+          DO icol_local=1,ncol_local
+             DO idim=1,mydim
+                mymos%local_data(:,icol_local)=mymos%local_data(:,icol_local)+&
+                     V_mats(idim)%matrix%local_data(:,icol_local)*H_approx(idim,1,icol_local)
+             END DO
+             icol_global=col_indices(icol_local)
+             mymos%local_data(:,icol_local)= mymos%local_data(:,icol_local)*norm1(icol_global)
+          END DO
+          DO icol_local=1,ncol_local
+             mos_new(1)%matrix%local_data(:,icol_local)=REAL(mymos%local_data(:,icol_local),KIND=dp)
+             mos_new(2)%matrix%local_data(:,icol_local)=AIMAG(mymos%local_data(:,icol_local))
+          END DO
+          IF(conv_norm.LT.eps_exp)convergence=.TRUE.
+       END IF
+
        DEALLOCATE(ipivot,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(mat1,stat=stat)
@@ -996,12 +1001,12 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        IF(convergence)EXIT
-       DO icol_local=1,ncol_local
-          iter_mos1%local_data(:,icol_local)=mos_new(1)%matrix%local_data(:,icol_local)
-          iter_mos2%local_data(:,icol_local)=mos_new(2)%matrix%local_data(:,icol_local)
-       END DO
-    END DO
 
+    END DO
+    CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
+         "ARNOLDI method did not converge"//&
+         CPSourceFileRef,&
+         only_ionode=.TRUE.)
     !deallocate all work matrices
 
     DO i=1,SIZE(V_mats)
@@ -1016,9 +1021,6 @@ CONTAINS
        CALL cp_fm_release(work1,error)
     END IF
 
-    CALL cp_fm_release(iter_mos1,error)
-    CALL cp_fm_release(iter_mos2,error)
-
     CALL cp_cfm_release(tmp_mat,error)
     DEALLOCATE(V_mats,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1029,6 +1031,8 @@ CONTAINS
     DEALLOCATE(results,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
     DEALLOCATE(norm1,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(last_norm,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
     CALL timestop(handle)
   END SUBROUTINE arnoldi

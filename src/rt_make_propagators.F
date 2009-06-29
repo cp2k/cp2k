@@ -345,7 +345,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ispin, lb, ldim, &
                                                 ndim, nspin, ub
-    REAL(dp)                                 :: dt, t
+    REAL(dp)                                 :: dt, eps_arnoldi, t
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old, new_Ham, &
                                                 old_Ham
@@ -367,6 +367,7 @@ CONTAINS
          name="TMP_B",&
          error=error)
     nspin=SIZE(mos_new)/2
+    eps_arnoldi=qs_env%dft_control%rtp_control%eps_exp
     SELECT CASE(qs_env%dft_control%rtp_control%propagator)
     CASE(do_etrs)
        IF(rtp%iter==1)THEN
@@ -379,12 +380,14 @@ CONTAINS
              CALL cp_fm_scale(dt,tmp_mat_H,error)
              
              IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Him=tmp_mat_H,error=error)             
+                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
+                     eps_arnoldi,Him=tmp_mat_H,error=error)             
              ELSE
                 CALL cp_fm_to_fm(old_ham(lb)%matrix,tmp_mat_B,error) 
                 CALL cp_fm_scale(dt,tmp_mat_B,error)
 
-                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
+                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
+                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
              END IF
           END DO
           DO i=1,SIZE(mos_new)
@@ -400,11 +403,13 @@ CONTAINS
           CALL cp_fm_to_fm(new_ham(ub)%matrix,tmp_mat_H,error) 
           CALL cp_fm_scale(dt,tmp_mat_H,error)
           IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
-             CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Him=tmp_mat_H,error=error)             
+             CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
+                  eps_arnoldi,Him=tmp_mat_H,error=error)             
           ELSE
              CALL cp_fm_to_fm(new_ham(lb)%matrix,tmp_mat_B,error) 
              CALL cp_fm_scale(dt,tmp_mat_B,error)
-             CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
+             CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
+                  eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
           END IF
           
        END DO
@@ -424,9 +429,11 @@ CONTAINS
                    tmp_mat_B%local_data(:,i)=0.5_dp*dt*old_ham(lb)%matrix%local_data(:,i)+&
                         0.5_dp*dt*new_ham(lb)%matrix%local_data(:,i)
                 END DO
-                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
+                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
+                     eps_arnoldi,Hre=tmp_mat_B,Him=tmp_mat_H,error=error)             
              ELSE
-                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),Him=tmp_mat_H,error=error)             
+                CALL arnoldi(mos_old(lb:ub),mos_new(lb:ub),&
+                     eps_arnoldi,Him=tmp_mat_H,error=error)             
              END IF
              
 
