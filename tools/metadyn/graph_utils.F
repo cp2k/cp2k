@@ -1,0 +1,172 @@
+!-----------------------------------------------------------------------------!
+!   FES: a fast and general program to map metadynamics on grids              !
+!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009 Teodoro Laino       !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief   Module containing utils for mapping FESs
+!> \author Teodoro Laino [tlaino] - 06.2009
+!> \par History
+!>     06.2009 created [tlaino]
+!>     teodoro.laino .at. gmail.com 
+!>
+!> \par Note
+!>     Please report any bug to the author
+! *****************************************************************************
+MODULE graph_utils
+  USE kinds,                           ONLY: dp
+
+  IMPLICIT NONE
+  PUBLIC :: get_val_res,&
+            point_pbc,&
+            point_no_pbc,&
+            derivative
+
+CONTAINS
+
+! *****************************************************************************
+!> \brief computes the derivative of the FES w.r.t CVs
+!> \par History
+!>      06.2009 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
+  FUNCTION derivative(fes,pos0, ndim, ngrid, dp_grid) RESULT(der)
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fes
+    INTEGER, DIMENSION(:), INTENT(IN)        :: pos0
+    INTEGER, INTENT(IN)                      :: ndim
+    INTEGER, DIMENSION(:), INTENT(IN)        :: ngrid
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: dp_grid
+    REAL(KIND=dp), DIMENSION(ndim)           :: der
+
+    INTEGER                                  :: i, j, pnt
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pos
+
+    ALLOCATE(pos(ndim))
+    pos = pos0
+    DO i = 1, ndim
+       der(i) = 0.0_dp
+       DO j = 1,-1,-2
+          pos(i) = pos0(i) + j
+          pnt    = point_no_pbc(pos,ngrid,ndim)
+          der(i) = der(i) + REAL(j,KIND=dp)*(-fes(pnt))
+       END DO
+       pos(i) = pos0(i)
+       der(i) = der(i) / (2.0_dp*dp_grid(i))
+    END DO
+    DEALLOCATE(pos)
+
+  END FUNCTION derivative
+
+! *****************************************************************************
+!> \brief Computes the pointer to the 1D array given the n-dimensional position
+!>        PBC version
+!> \par History
+!>      03.2006 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
+  FUNCTION point_pbc (pos,iperd,ngrid,ndim) RESULT(pnt)
+    INTEGER, DIMENSION(:), INTENT(IN)        :: pos, iperd, ngrid
+    INTEGER, INTENT(IN)                      :: ndim
+    INTEGER                                  :: pnt
+
+    INTEGER                                  :: idim, lpnt
+
+    idim=1
+    pnt=pos(idim)
+    IF (iperd(idim) == 1) THEN
+       lpnt = pos(idim)
+       lpnt = 1000*ngrid(idim)+lpnt
+       lpnt = MOD(lpnt,ngrid(idim))
+       IF (lpnt==0) lpnt=ngrid(idim)
+       pnt = lpnt
+    END IF
+    DO idim=2,ndim
+       lpnt = pos(idim)
+       IF (iperd(idim) == 1) THEN
+          lpnt = 1000*ngrid(idim)+lpnt
+          lpnt = MOD(lpnt,ngrid(idim))
+          IF (lpnt==0) lpnt=ngrid(idim)
+       END IF
+       pnt=pnt+(lpnt-1) * PRODUCT(ngrid(1:idim-1))
+    END DO
+  END FUNCTION point_pbc
+
+! *****************************************************************************
+!> \brief Computes the pointer to the 1D array given the n-dimensional position
+!>        non-PBC version
+!> \par History
+!>      03.2006 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
+  FUNCTION point_no_pbc (pos, ngrid, ndim) RESULT(pnt)
+    INTEGER, DIMENSION(:), INTENT(IN)        :: pos, ngrid
+    INTEGER, INTENT(IN)                      :: ndim
+    INTEGER                                  :: pnt
+
+    INTEGER                                  :: i
+
+    pnt=pos(1)
+    DO i=2,ndim
+       pnt=pnt+(pos(i)-1) * PRODUCT(ngrid(1:i-1))
+    END DO
+
+  END FUNCTION point_no_pbc
+
+! *****************************************************************************
+!> \brief Parser informations from the cp2k input/restart
+!> \par History
+!>      03.2006 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
+  SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val)
+    INTEGER, INTENT(IN)                      :: unit
+    CHARACTER(len=*)                         :: section
+    CHARACTER(len=*), OPTIONAL               :: keyword, subsection
+    INTEGER, INTENT(OUT), OPTIONAL           :: i_val
+
+    CHARACTER(len=512)                       :: line
+    INTEGER                                  :: my_ind, stat
+
+    REWIND(unit)
+    CALL search(unit,TRIM(section),line,stat=stat)
+
+    IF (stat/=0) THEN 
+       WRITE(6,*)"Pattern: "//TRIM(section)//" not found in input file!"
+       STOP "Search failed!"
+    END IF
+
+    IF (PRESENT(keyword)) THEN
+       CALL search(unit,TRIM(keyword),line,stat)
+       my_ind=INDEX(line,TRIM(keyword))+LEN_TRIM(keyword)+1
+       IF (PRESENT(i_val)) READ(line(my_ind:),*)i_val
+    END IF
+
+    IF (PRESENT(subsection)) THEN
+       CALL search(unit,TRIM(subsection),line,stat)
+    END IF
+
+  END SUBROUTINE get_val_res
+
+  ! *****************************************************************************
+  SUBROUTINE search(unit, key, line, stat)
+    INTEGER, INTENT(in)                      :: unit
+    CHARACTER(LEN=*), INTENT(IN)             :: key
+    CHARACTER(LEN=512), INTENT(OUT)          :: line
+    INTEGER, INTENT(out)                     :: stat
+
+    stat = 99
+    DO WHILE (.TRUE.)
+       READ(unit,'(A)',ERR=100,END=100) line
+       IF (INDEX(line,TRIM(key)) /= 0) THEN 
+          stat = 0
+          EXIT 
+       END IF
+    END DO
+100 CONTINUE
+  END SUBROUTINE search
+
+END MODULE graph_utils

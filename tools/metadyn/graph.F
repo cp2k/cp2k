@@ -14,88 +14,21 @@
 !> \par Note
 !>     Please report any bug to the author
 ! *****************************************************************************
-PROGRAM fes_compute
+PROGRAM graph
 
-  USE kinds,                           ONLY: dp,&
-                                             sp,&
-                                             default_string_length
-  USE machine,                         ONLY: m_getlog,&
-                                             m_hostnm,&
-                                             m_getarg,&
+  USE graph_methods,                   ONLY: fes_compute_low,&
+                                             fes_min,&
+                                             fes_only_write,&
+                                             fes_path,&
+                                             fes_write
+  USE graph_utils,                     ONLY: get_val_res
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE machine,                         ONLY: m_getarg,&
                                              m_iargc
   USE mathconstants,                   ONLY: pi
-  
+
   IMPLICIT NONE
-  
-  INTERFACE
-! *****************************************************************************
-     SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val)
-       IMPLICIT NONE
-       INTEGER, INTENT(IN)            :: unit
-       CHARACTER (len=*)              :: section 
-       CHARACTER (len=*),OPTIONAL     :: subsection 
-       CHARACTER (len=*),OPTIONAL     :: keyword
-       INTEGER, OPTIONAL, INTENT(OUT) :: i_val
-     END SUBROUTINE get_val_res
-
-! *****************************************************************************
-     RECURSIVE SUBROUTINE fes_compute_low(idim, nn, fes, gauss, ind, ind0, nfes, ndim, ngauss, ngrid, iperd)
-       USE kinds,                           ONLY: dp,&
-                                                  sp       
-       IMPLICIT NONE
-       INTEGER, INTENT(in) :: idim, nfes, ngauss, ndim
-       INTEGER, DIMENSION(:) :: nn, ind, ind0, iperd
-       INTEGER, DIMENSION(:), POINTER :: ngrid
-       REAL(KIND=dp), DIMENSION(:), POINTER   :: fes
-       REAL(KIND=dp), DIMENSION(:,:), POINTER :: gauss
-     END SUBROUTINE fes_compute_low
-
-! *****************************************************************************
-     RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw)
-       USE kinds,                           ONLY: dp,&
-                                                  sp
-       IMPLICIT NONE
-       INTEGER, INTENT(in) :: idim, ndim, ndw
-       INTEGER, DIMENSION(:), POINTER :: pos
-       INTEGER, DIMENSION(:), POINTER :: ngrid
-       REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
-     END SUBROUTINE fes_write
-
-! *****************************************************************************
-     RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, ndw)
-       USE kinds,                           ONLY: dp,&
-                                                  sp       
-       IMPLICIT NONE
-       INTEGER, INTENT(IN) :: ndw
-       INTEGER, INTENT(in) :: idim, ndim
-       INTEGER, DIMENSION(:), POINTER :: ngrid
-       INTEGER, DIMENSION(:), POINTER :: pos
-       
-       REAL(KIND=dp), DIMENSION(:), POINTER   :: fes
-     END SUBROUTINE fes_only_write
-
-! *****************************************************************************
-     SUBROUTINE fes_min(fes,  ndim, ngrid, dp_grid, x0, ndw)
-       USE kinds,                           ONLY: dp,&
-                                                  sp
-       IMPLICIT NONE
-       INTEGER, INTENT(in) :: ndim, ndw
-       INTEGER, DIMENSION(:), POINTER :: ngrid
-       REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
-     END SUBROUTINE fes_min
-
-! *****************************************************************************
-     SUBROUTINE fes_path(fes,  ndim, ngrid, dp_grid, x0, ndw, minima)
-       USE kinds,                           ONLY: dp,&
-                                                  sp
-       IMPLICIT NONE
-       REAL(KIND=dp), DIMENSION(:,:), POINTER :: minima
-       INTEGER, INTENT(in) :: ndim, ndw
-       INTEGER, DIMENSION(:), POINTER :: ngrid
-       REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
-     END SUBROUTINE fes_path
-
-  END INTERFACE
 
   INTEGER :: i, ix ,id, it, ip, stat, itmp, iw
   INTEGER :: ndim, ndw, nt_p, nt, nh, nf, nwr, ncount, nprd
@@ -120,7 +53,6 @@ PROGRAM fes_compute
   LOGICAL :: fix, lstride
   LOGICAL :: l_grid, l_dp, l_orac, l_cp2k, l_math, l_fmin, l_pmin
   CHARACTER(LEN=default_string_length) :: per_label
-  INTRINSIC :: random_seed, random_number
 
   ! Initialize variables
   nprd    = 0
@@ -298,11 +230,11 @@ PROGRAM fes_compute
      ENDIF
 
      IF (INDEX(wq_char,'-dp').NE.0)THEN
+        l_dp  =.TRUE.
+        l_grid=.FALSE.
         DO ix=1,ndim
            CALL M_GETARG(i+ix,wq_char)
            READ(wq_char,*)dp_grid(ix)
-           l_dp=.TRUE.
-           l_grid=.FALSE.
         END DO
      END IF
      
@@ -338,7 +270,8 @@ PROGRAM fes_compute
            ENDDO
         ENDIF
      END DO
-     IF (ANY(minima==HUGE(0.0_dp))) STOP "-find-path requires the specification of -point-a and -point-b !"
+     IF (ANY(minima==HUGE(0.0_dp))) &
+          STOP "-find-path requires the specification of -point-a and -point-b !"
   ELSE
      ALLOCATE(minima(0,0))
   END IF
@@ -497,7 +430,8 @@ PROGRAM fes_compute
   DO i=1,ndim
      per_label = ""
      IF (iperd(i)/=0) per_label = "(PERIODIC COLVAR)"
-     WRITE(iw,'("FES|",T7,"COLVAR # ",i3," ::",5x,"(",f7.3," ,",f7.3,")",5X,A)')i_map(i),x0(i),xf(i),TRIM(per_label)
+     WRITE(iw,'("FES|",T7,"COLVAR # ",i3," ::",5x,"(",f7.3," ,",f7.3,")",5X,A)')&
+          i_map(i),x0(i),xf(i),TRIM(per_label)
   END DO
   WRITE(iw,'("FES|",T7,a15,5x,7i7)'   )"NGRID        ::",(ngrid(id),id=ndim,ndim-ndw+1,-1)
   WRITE(iw,'("FES|",T7,a15,5x,5f7.3)' )"DX           ::",(dp_grid(id),id=ndim,ndim-ndw+1,-1)
@@ -635,394 +569,5 @@ PROGRAM fes_compute
 
   ! Terminate FES
   WRITE(iw,'(/,A,/)') "FES| NORMAL FES TERMINATION."
-END PROGRAM fes_compute
 
-! *****************************************************************************
-!> \brief Efficiently map the gaussians on the grid
-!> \par History
-!>      03.2006 created [tlaino]
-!>      teodoro.laino .at. gmail.com 
-!> \author Teodoro Laino
-! *****************************************************************************
-RECURSIVE SUBROUTINE fes_compute_low(idim, nn, fes, gauss, ind, ind0, nfes, ndim, ngauss, ngrid, iperd)
-  USE kinds,                           ONLY: dp,&
-                                             sp       
-  IMPLICIT NONE
-  INTEGER :: i,pnt,j,k
-  INTEGER, INTENT(in) :: idim, nfes, ngauss, ndim
-  INTEGER, DIMENSION(:) :: nn, ind, ind0, iperd
-  INTEGER, DIMENSION(:), POINTER :: pos , ll, ngrid
-  
-  REAL(KIND=dp), DIMENSION(:), POINTER   :: fes
-  REAL(KIND=dp), DIMENSION(:,:), POINTER :: gauss
-  REAL(KIND=dp) :: prod
-
-  ALLOCATE(pos(ndim),ll(ndim))
-  pos=ind
-  k=nn(idim)
-
-  DO i = -k, k
-     pos(idim) = ind(idim)+i
-     IF (iperd(idim) == 0 ) THEN
-        IF (pos(idim) .GT. ngrid(idim)) CYCLE
-        IF (pos(idim) .LT. 1) CYCLE
-     END IF
-     IF(idim/=1) THEN 
-        CALL fes_compute_low(idim-1, nn, fes, gauss, pos, ind0, nfes, ndim, ngauss, ngrid, iperd)
-     ELSE
-        pnt  = point(pos,iperd)
-        prod = 1.0_dp
-        DO j=1,ndim
-           ll(j) = pos(j) - ind0(j)
-           prod  = prod*gauss(ll(j),j)
-        END DO
-        fes(pnt)=fes(pnt)+prod
-     END IF
-  END DO
-  DEALLOCATE(pos,ll)
-  
-CONTAINS
-  
-  INTEGER FUNCTION point (pos,iperd) RESULT(pnt)
-    INTEGER, DIMENSION (:) :: pos, iperd
-    INTEGER :: idim, lpnt
-    
-    idim=1
-    pnt=pos(idim)
-    IF (iperd(idim) == 1) THEN
-       lpnt = pos(idim)
-       lpnt = 1000*ngrid(idim)+lpnt
-       lpnt = MOD(lpnt,ngrid(idim))
-       IF (lpnt==0) lpnt=ngrid(idim)
-       pnt = lpnt
-    END IF
-    DO idim=2,ndim
-       lpnt = pos(idim)
-       IF (iperd(idim) == 1) THEN
-          lpnt = 1000*ngrid(idim)+lpnt
-          lpnt = MOD(lpnt,ngrid(idim))
-          IF (lpnt==0) lpnt=ngrid(idim)
-       END IF
-       pnt=pnt+(lpnt-1) * PRODUCT(ngrid(1:idim-1))
-    END DO
-  END FUNCTION point
-  
-END SUBROUTINE fes_compute_low
-
-! *****************************************************************************
-!> \brief Parser informations from the cp2k input/restart
-!> \par History
-!>      03.2006 created [tlaino]
-!>      teodoro.laino .at. gmail.com 
-!> \author Teodoro Laino
-! *****************************************************************************
-SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val)
-  IMPLICIT NONE
-  INTEGER, INTENT(IN)            :: unit
-  CHARACTER (len=*)              :: section 
-  CHARACTER (len=*),OPTIONAL     :: subsection 
-  CHARACTER (len=*),OPTIONAL     :: keyword
-  INTEGER, OPTIONAL, INTENT(OUT) :: i_val
-  ! Variables
-  INTEGER :: stat, my_ind
-  CHARACTER (len=512)        :: line
-
-  REWIND(unit)
-  CALL search(unit,TRIM(section),line,stat=stat)
-  
-  IF (stat/=0) THEN 
-     WRITE(6,*)"Pattern: "//TRIM(section)//" not found in input file!"
-     STOP "Search failed!"
-  END IF
-
-  IF (PRESENT(keyword)) THEN
-     CALL search(unit,TRIM(keyword),line,stat)
-     my_ind=INDEX(line,TRIM(keyword))+LEN_TRIM(keyword)+1
-     IF (PRESENT(i_val)) READ(line(my_ind:),*)i_val
-  END IF
-     
-  IF (PRESENT(subsection)) THEN
-     CALL search(unit,TRIM(subsection),line,stat)
-  END IF
-
-CONTAINS
-  
-! *****************************************************************************
-  SUBROUTINE search(unit, key, line, stat)
-    IMPLICIT NONE
-    INTEGER, INTENT(in)            :: unit
-    CHARACTER(LEN=*), INTENT(IN)   :: key
-    CHARACTER(LEN=512),INTENT(OUT) :: line
-    INTEGER, INTENT(out)           :: stat
-    
-    stat = 99
-    DO WHILE (.TRUE.)
-       READ(unit,'(A)',ERR=100,END=100) line
-       IF (INDEX(line,TRIM(key)) /= 0) THEN 
-          stat = 0
-          EXIT 
-       END IF
-    END DO
-100 CONTINUE
-  END SUBROUTINE search
-
-END SUBROUTINE get_val_res
-
-! *****************************************************************************
-!> \brief Writes the FES on the file
-!> \par History
-!>      03.2006 created [tlaino]
-!>      teodoro.laino .at. gmail.com 
-!> \author Teodoro Laino
-! *****************************************************************************
-RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw)
-  USE kinds,                           ONLY: dp,&
-                                             sp
-  IMPLICIT NONE
-  INTEGER, INTENT(IN) :: ndw
-  INTEGER :: i,pnt,id,dimval
-  INTEGER, INTENT(in) :: idim, ndim
-  INTEGER, DIMENSION(:), POINTER :: pos, ngrid
-  
-  REAL(KIND=dp), DIMENSION(:), POINTER   :: xx
-  REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
-
-  ALLOCATE(xx(ndim))
-  xx = x0
-  DO i = 1,ngrid(idim)
-     pos(idim)=i
-     IF(idim/=ndim-ndw+1) THEN
-        CALL fes_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw)
-     ELSE        
-        pnt=point(pos)
-        xx = x0 + dp_grid * ( pos - 1 )
-        dimval = PRODUCT(ngrid(1:ndim-ndw)) 
-        WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1),MINVAL(-fes(pnt:pnt+dimval-1))
-     END IF     
-  END DO
-  DEALLOCATE(xx)
-  
-CONTAINS
-  
-  INTEGER FUNCTION point (pos) RESULT(pnt)
-    
-    INTEGER, DIMENSION (:) :: pos
-    INTEGER :: i
-    pnt=pos(1)
-    DO i=2,ndim
-       pnt=pnt+(pos(i)-1) * PRODUCT(ngrid(1:i-1))
-    END DO
-    
-  END FUNCTION point
-  
-END SUBROUTINE fes_write
-
-! *****************************************************************************
-!> \brief Writes the FES on the file when stride is requested
-!> \par History
-!>      03.2006 created [tlaino]
-!>      teodoro.laino .at. gmail.com 
-!> \author Teodoro Laino
-! *****************************************************************************
-RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, ndw)
-  USE kinds,                           ONLY: dp,&
-                                             sp
-  IMPLICIT NONE
-  INTEGER, INTENT(IN) :: ndw
-  INTEGER :: i,pnt,dimval
-  INTEGER, INTENT(in) :: idim, ndim
-  INTEGER, DIMENSION(:), POINTER :: pos, ngrid
-  
-  REAL(KIND=dp), DIMENSION(:), POINTER   :: fes
-
-  DO i = 1,ngrid(idim)
-     pos(idim)=i
-     IF(idim/=ndim-ndw+1) THEN
-        CALL fes_only_write(idim-1, fes,  pos,  ndim, ngrid, ndw)
-     ELSE        
-        pnt=point(pos)
-        dimval = PRODUCT(ngrid(1:ndim-ndw))
-        WRITE(123,'(1f12.5)')MINVAL(-fes(pnt:pnt+dimval-1))
-     END IF
-  END DO
-
-CONTAINS
-  
-  INTEGER FUNCTION point (pos) RESULT(pnt)
-    
-    INTEGER, DIMENSION (:) :: pos
-    INTEGER :: i
-    pnt=pos(1)
-    DO i=2,ndim
-       pnt=pnt+(pos(i)-1) * PRODUCT(ngrid(1:i-1))
-    END DO
-    
-  END FUNCTION point
-  
-END SUBROUTINE fes_only_write
-
-! *****************************************************************************
-!> \brief Finds minima of the FES
-!> \par History
-!>      06.2009 created [tlaino]
-!>      teodoro.laino .at. gmail.com 
-!> \author Teodoro Laino
-! *****************************************************************************
-SUBROUTINE fes_min(fes, ndim, ngrid, dp_grid, x0, ndw)
-  USE kinds,                           ONLY: dp,&
-                                             sp
-  IMPLICIT NONE
-  INTEGER, INTENT(IN) :: ndw
-  INTEGER :: i,j,k,pnt,id,ntrials,nacc
-  INTEGER, INTENT(in) :: ndim
-  INTEGER, DIMENSION(:), POINTER :: pos, ngrid, pos0
-
-  REAL(KIND=dp), DIMENSION(:), POINTER   :: xx, dx, rnd
-  REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
-  REAL(KIND=dp)                          :: norm_dx, resto
-  INTEGER, DIMENSION(:,:), ALLOCATABLE   :: history
-  INTEGER, DIMENSION(ndim)               :: Dpos, ntrust
-  LOGICAL                                :: do_save
-
-  ALLOCATE(xx(ndim),dx(ndim),pos0(ndim),rnd(ndim),pos(ndim))
-  ALLOCATE(history(ndim,ntrials))
-
-  ntrust  = ngrid/10
-  ntrials = PRODUCT (ngrid)
-  WRITE(6,'(A,10I6)',ADVANCE="no")"FES| Trust hyper-radius ",ntrust
-  WRITE(6,'(A,10F12.6)')" which is equivalent to: ",ntrust*dp_grid
-
-  history = 0
-  nacc    = 0
-  DO j = 1, ntrials
-     ! Loop over all points
-     pnt = j
-     DO k = ndim, 2, -1
-        pos0(k) = pnt/PRODUCT(ngrid(1:k-1))
-        resto = MOD(pnt,PRODUCT(ngrid(1:k-1)))
-        IF (resto/=0) THEN 
-           pnt = pnt -pos0(k)*PRODUCT(ngrid(1:k-1))
-           pos0(k)=pos0(k)+1
-        ELSE
-           pnt = PRODUCT(ngrid(1:k-1))
-        END IF
-     END DO
-     pos0(1) = pnt
-
-     IF (ANY(pos0<ntrust))       CYCLE
-     IF (ANY(pos0>ngrid-ntrust)) CYCLE
-  
-     ! Evaluate position and derivative
-     pos = pos0
-     xx  = x0 + dp_grid * ( pos - 1 )
-     dx = derivative (fes, pos, ndim, ngrid, dp_grid)
-
-     ! Integrate till derivative is small enough..
-     DO i = 1, 100
-        pnt = point(pos,ndim,ngrid)
-        !WRITE(10+j,'(10f20.10)')(xx(id),id=ndim,1,-1),-fes(pnt)  
-        
-        norm_dx = SQRT(DOT_PRODUCT(dx,dx))
-        xx  = xx - MIN(0.1_dp,norm_dx)*dx/norm_dx
-        ! Re-evaluating pos
-        pos = CEILING((xx-x0)/dp_grid)+1
-
-        ! Incremental pos
-        dx  = derivative (fes, pos, ndim, ngrid, dp_grid)
-     END DO
-
-     ! Compare with the available minima and if they are the same skip
-     ! saving this position..
-     do_save = .TRUE.
-     DO i = 1, nacc
-        Dpos = pos - history(:,i)
-        norm_dx  = DOT_PRODUCT(Dpos,Dpos)
-        IF ((SQRT(REAL(norm_dx,KIND=dp))<=MAXVAL(ntrust)).OR.(fes(pnt)<1.0E-3_dp)) THEN 
-           do_save = .FALSE.
-           EXIT
-        END IF
-     END DO
-     IF (do_save) THEN
-        pnt = point(pos,ndim,ngrid)
-        xx  = x0+dp_grid*(pos-1)
-        WRITE(6,'(A,5F12.6)',ADVANCE="NO") "FES| Minimum found (",(xx(id),id=ndim,ndim-ndw+1,-1)
-        WRITE(6,'(A,F12.6,A)')" ). FES value = ",-fes(pnt)," Hartree."
-        nacc = nacc + 1
-        history (:,nacc) = pos
-     END IF
-  END DO
-  WRITE(6,'(A,I6,A)') "FES| Number of Minimum found: ",nacc,"."
-
-  DEALLOCATE(xx,dx,pos0,rnd,pos)
-  DEALLOCATE(history)
-
-CONTAINS
-  
-  FUNCTION point (pos,ndim,ngrid) RESULT(pnt)
-    IMPLICIT NONE
-    INTEGER                           :: pnt
-    INTEGER, DIMENSION(:), INTENT(IN) :: pos
-    INTEGER, INTENT(IN)               :: ndim
-    INTEGER, DIMENSION(:), INTENT(IN) :: ngrid
-    INTEGER :: i
-
-    pnt=pos(1)
-    DO i=2,ndim
-       pnt=pnt+(pos(i)-1) * PRODUCT(ngrid(1:i-1))
-    END DO
-  END FUNCTION point
-
-  FUNCTION derivative(fes,pos0, ndim, ngrid, dp_grid) RESULT(der)
-    USE kinds,                           ONLY: dp,&
-                                               sp
-    IMPLICIT NONE
-    INTEGER, DIMENSION(:), INTENT(IN)       :: pos0
-    INTEGER, INTENT(IN)                     :: ndim
-    INTEGER, DIMENSION(:), INTENT(IN)       :: ngrid
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: dp_grid, fes
-    REAL(KIND=dp), DIMENSION(ndim)          :: der
-    INTEGER, DIMENSION(:), ALLOCATABLE      :: pos
-    INTEGER :: i, j, pnt
-
-    ALLOCATE(pos(ndim))
-    pos = pos0
-    DO i = 1, ndim
-       der(i) = 0.0_dp
-       DO j = 1,-1,-2
-          pos(i) = pos0(i) + j
-          pnt    = point(pos,ndim,ngrid)
-          der(i) = der(i) + REAL(j,KIND=dp)*(-fes(pnt))
-       END DO
-       pos(i) = pos0(i)
-       der(i) = der(i) / (2.0_dp*dp_grid(i))
-    END DO
-    DEALLOCATE(pos)
-  END FUNCTION derivative
-
-END SUBROUTINE fes_min
-
-! *****************************************************************************
-!> \brief Finds path between two points (a) and (b)
-!> \par History
-!>      06.2009 created [tlaino]
-!>      teodoro.laino .at. gmail.com 
-!> \author Teodoro Laino
-! *****************************************************************************
-SUBROUTINE fes_path(fes, ndim, ngrid, dp_grid, x0, ndw, minima)
-  USE kinds,                           ONLY: dp,&
-                                             sp
-  IMPLICIT NONE
-  INTEGER, INTENT(IN) :: ndw
-  INTEGER :: i,j,k,pnt,id,ntrials,nacc
-  INTEGER, INTENT(in) :: ndim
-  INTEGER, DIMENSION(:), POINTER :: pos, ngrid, pos0
-
-  REAL(KIND=dp), DIMENSION(:), POINTER   :: xx, dx, rnd
-  REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
-  REAL(KIND=dp)                          :: norm_dx, resto
-  REAL(KIND=dp), DIMENSION(:,:), POINTER :: minima
-  INTEGER, DIMENSION(ndim)               :: Dpos, ntrust
-  LOGICAL                                :: do_save
-
-
-END SUBROUTINE fes_path
+END PROGRAM graph

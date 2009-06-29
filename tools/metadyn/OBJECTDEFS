@@ -6,4 +6,6 @@ FESOBJ=machine.o\
  f77_blas_poison.o\
  kinds.o\
  graph.o\
+ graph_methods.o\
+ graph_utils.o\
  mathconstants.o
