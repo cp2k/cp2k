@@ -73,6 +73,28 @@ PROGRAM fes_compute
        
        REAL(KIND=dp), DIMENSION(:), POINTER   :: fes
      END SUBROUTINE fes_only_write
+
+! *****************************************************************************
+     SUBROUTINE fes_min(fes,  ndim, ngrid, dp_grid, x0, ndw)
+       USE kinds,                           ONLY: dp,&
+                                                  sp
+       IMPLICIT NONE
+       INTEGER, INTENT(in) :: ndim, ndw
+       INTEGER, DIMENSION(:), POINTER :: ngrid
+       REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
+     END SUBROUTINE fes_min
+
+! *****************************************************************************
+     SUBROUTINE fes_path(fes,  ndim, ngrid, dp_grid, x0, ndw, minima)
+       USE kinds,                           ONLY: dp,&
+                                                  sp
+       IMPLICIT NONE
+       REAL(KIND=dp), DIMENSION(:,:), POINTER :: minima
+       INTEGER, INTENT(in) :: ndim, ndw
+       INTEGER, DIMENSION(:), POINTER :: ngrid
+       REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
+     END SUBROUTINE fes_path
+
   END INTERFACE
 
   INTEGER :: i, ix ,id, it, ip, stat, itmp, iw
@@ -89,15 +111,16 @@ PROGRAM fes_compute
   REAL(KIND=dp), POINTER :: ss0(:,:)
   REAL(KIND=dp), POINTER :: delta_s(:,:)
   REAL(KIND=dp), POINTER :: gauss(:,:),fes(:)
-  REAL(KIND=dp), POINTER :: ww(:)
+  REAL(KIND=dp), POINTER :: ww(:), minima(:,:)
   REAL(KIND=dp), POINTER :: dp_grid(:),x0(:),xf(:), tmpr(:)
   REAL(KIND=dp) :: dp2,  eps_cut
 
   CHARACTER(LEN=80) :: wq_char, file, out
 
   LOGICAL :: fix, lstride
-  LOGICAL :: l_grid, l_dp, l_orac, l_cp2k, l_math
+  LOGICAL :: l_grid, l_dp, l_orac, l_cp2k, l_math, l_fmin, l_pmin
   CHARACTER(LEN=default_string_length) :: per_label
+  INTRINSIC :: random_seed, random_number
 
   ! Initialize variables
   nprd    = 0
@@ -114,25 +137,32 @@ PROGRAM fes_compute
   l_orac  = .FALSE.
   l_cp2k  = .FALSE.
   l_math  = .FALSE.
+  l_fmin  = .FALSE.
+  l_pmin  = .FALSE.
   iw      = 6
 
   argcount = m_iargc()
   IF(argcount==0)THEN
      WRITE(iw,*)'USAGE:'
      WRITE(iw,*)'graf  '
-     WRITE(iw,*)'[-ngrid 50     ]   (mesh dimension. DEFAULT :: 100)'
-     WRITE(iw,*)'[-ndim 3       ]   (number of collective variables NCV)'
-     WRITE(iw,*)'[-ndw 1 3      ]   (CVs for the free energy surface)'
-     WRITE(iw,*)'[-periodic 2 3 ]   (CVs with periodic boundary conditions (-pi,pi] )'
-     WRITE(iw,*)'[-stride 10    ]   (how often the FES is written)'
-     WRITE(iw,*)'[-fix 1.1 ...  ]   (define the region for the FES)'
-     WRITE(iw,*)'                   (if omitted this is automatically calculated)'
-     WRITE(iw,*)'[-cutoff 2.]       (the hills are cutoffed at 2)'
-     WRITE(iw,*)'[-file filename]'
-     WRITE(iw,*)'[-out  filename]'
-     WRITE(iw,*)'[-orac ]           (if energies are written in orac intern units)'
-     WRITE(iw,*)'[-cp2k ]           (if CP2K restart file is provided)'
-     WRITE(iw,*)'[-mathlab ]        (file storing FES in Mathlab format. Default format Gnuplot.'
+     WRITE(iw,*)'[-ngrid  50 .. ..]   (Mesh dimension. Default :: 100)'
+     WRITE(iw,*)'[-dp   0.05 .. ..]   (Alternative to -ngrid, allows the specification of the mesh dx)'
+     WRITE(iw,*)'[-ndim  3        ]   (Number of collective variables NCV)'
+     WRITE(iw,*)'[-ndw  1 3  ..   ]   (CVs for the free energy surface)'
+     WRITE(iw,*)'[-periodic 2 3 ..]   (CVs with periodic boundary conditions (-pi,pi] )'
+     WRITE(iw,*)'[-stride 10      ]   (How often the FES is written)'
+     WRITE(iw,*)'[-fix   1.1 .. ..]   (Define the region for the FES)'
+     WRITE(iw,*)'                     (If omitted this is automatically calculated)'
+     WRITE(iw,*)'[-cutoff 2.      ]   (The hills are cutoffed at 2)'
+     WRITE(iw,*)'[-file   filename]'
+     WRITE(iw,*)'[-out    filename]'
+     WRITE(iw,*)'[-orac]              (If energies are written in orac intern units)'
+     WRITE(iw,*)'[-cp2k]              (Specify if a CP2K restart file is provided)'
+     WRITE(iw,*)'[-mathlab]           (File storing FES in Mathlab format. Default format Gnuplot)'
+     WRITE(iw,*)'[-find-minima]       (Tries to finds all minima in the computed FES)'
+     WRITE(iw,*)'[-find-path]         (Finds MEP between all minima (found) in the computed FES)'
+     WRITE(iw,*)'[-point-a]           (Specifies point (a) when using -find-path option)'
+     WRITE(iw,*)'[-point-b]           (Specifies point (b) when using -find-path option)'
      WRITE(iw,*)''
      WRITE(iw,*)'DEFAULT OUTPUT: fes.dat'
      WRITE(iw,*)''
@@ -176,11 +206,23 @@ PROGRAM fes_compute
         l_cp2k=.TRUE.
      ENDIF
 
+     IF (INDEX(wq_char,'-find-minima').NE.0)THEN
+        l_fmin=.TRUE.
+     ENDIF
+
+     IF (INDEX(wq_char,'-find-path').NE.0)THEN
+        l_pmin=.TRUE.
+     ENDIF
+
      IF (INDEX(wq_char,'-mathlab').NE.0)THEN
         l_math=.TRUE.
      ENDIF
   END DO
   IF (l_cp2k) l_orac = .FALSE.
+
+  ! Initializing random numbers
+  CALL RANDOM_SEED()
+  CALL RANDOM_NUMBER(dum)
 
   ! Basic Allocation
   ndw = ndim
@@ -275,6 +317,32 @@ PROGRAM fes_compute
      ENDIF
   ENDDO
 
+  IF (l_pmin) THEN
+     ALLOCATE(minima(ndw,2))
+     minima = HUGE(0.0_dp)
+     ! Read for starting point (a) and (b)
+     DO i=1,argcount
+        CALL M_GETARG(i,wq_char)
+        
+        IF (INDEX(wq_char,'-point-a').NE.0)THEN
+           DO id=1,ndw
+              CALL M_GETARG(i+id,wq_char)
+              READ(wq_char,*)minima(id,1)
+           ENDDO
+        ENDIF
+
+        IF (INDEX(wq_char,'-point-b').NE.0)THEN
+           DO id=1,ndw
+              CALL M_GETARG(i+id,wq_char)
+              READ(wq_char,*)minima(id,2)
+           ENDDO
+        ENDIF
+     END DO
+     IF (ANY(minima==HUGE(0.0_dp))) STOP "-find-path requires the specification of -point-a and -point-b !"
+  ELSE
+     ALLOCATE(minima(0,0))
+  END IF
+
   !  Defines the order of the collectiv var.: first the "wanted" ones, then the others
   ALLOCATE(i_map(ndim),stat=stat)
   IF (stat/=0) STOP "Allocation Error" 
@@ -315,11 +383,13 @@ PROGRAM fes_compute
      ngrid=100
   END IF
 
+  WRITE(iw,'(/,70("*"))')
+  WRITE(iw,'("FES|",T7,A,/)')"Parsing file:   <"//TRIM(file)//">"
+
   OPEN(10,file=file,status='old')
   IF (l_cp2k) THEN
      CALL get_val_res(unit=10,section="&METADYN",keyword="NHILLS_START_VAL", i_val=nt)
   ELSE
-     OPEN(10,file=file,status='old')
      nt=0
      DO WHILE (.TRUE.)
         READ(10,*,END=100,ERR=100)dum
@@ -418,7 +488,7 @@ PROGRAM fes_compute
      dp_grid=(xf-x0)/DBLE(ngrid-1)
   END IF
   
-  WRITE(iw,'(/,70("*"))')
+  WRITE(iw,'(70("*"))')
   WRITE(iw,'("FES|",T7,A,/)')"Parameters for FES:"
   WRITE(iw,'("FES|",T7,A15,5x,i7)')"NDIM         ::",ndim
   WRITE(iw,'("FES|",T7,A15,5x,i7)')"NWD          ::",ndw
@@ -516,9 +586,15 @@ PROGRAM fes_compute
   ix=0
   IF (l_math) WRITE(123,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
   ind   = 1   
-  CALL fes_write(ndim, fes,  ind, ndim, ngrid, dp_grid, x0, ndw)
+  CALL fes_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw)
   CLOSE(123)
-  
+ 
+  ! If requested find minima
+  IF (l_fmin) CALL fes_min(fes, ndim, ngrid, dp_grid, x0, ndw)
+
+  ! If requested find path
+  IF (l_pmin) CALL fes_path(fes, ndim, ngrid, dp_grid, x0, ndw, minima)
+     
   ! Free memory
   DEALLOCATE(ngrid,stat=stat)
   IF (stat/=0) STOP "Deallocation Error"
@@ -553,6 +629,8 @@ PROGRAM fes_compute
   DEALLOCATE(fes,stat=stat )
   IF (stat/=0) STOP "Deallocation Error"
   DEALLOCATE(iprd,stat=stat )
+  IF (stat/=0) STOP "Deallocation Error"
+  DEALLOCATE(minima,stat=stat)
   IF (stat/=0) STOP "Deallocation Error"
 
   ! Terminate FES
@@ -737,7 +815,7 @@ CONTAINS
     
   END FUNCTION point
   
-END SUBROUTINE FES_WRITE
+END SUBROUTINE fes_write
 
 ! *****************************************************************************
 !> \brief Writes the FES on the file when stride is requested
@@ -781,4 +859,170 @@ CONTAINS
     
   END FUNCTION point
   
-END SUBROUTINE FES_ONLY_WRITE
+END SUBROUTINE fes_only_write
+
+! *****************************************************************************
+!> \brief Finds minima of the FES
+!> \par History
+!>      06.2009 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
+SUBROUTINE fes_min(fes, ndim, ngrid, dp_grid, x0, ndw)
+  USE kinds,                           ONLY: dp,&
+                                             sp
+  IMPLICIT NONE
+  INTEGER, INTENT(IN) :: ndw
+  INTEGER :: i,j,k,pnt,id,ntrials,nacc
+  INTEGER, INTENT(in) :: ndim
+  INTEGER, DIMENSION(:), POINTER :: pos, ngrid, pos0
+
+  REAL(KIND=dp), DIMENSION(:), POINTER   :: xx, dx, rnd
+  REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
+  REAL(KIND=dp)                          :: norm_dx, resto
+  INTEGER, DIMENSION(:,:), ALLOCATABLE   :: history
+  INTEGER, DIMENSION(ndim)               :: Dpos, ntrust
+  LOGICAL                                :: do_save
+
+  ALLOCATE(xx(ndim),dx(ndim),pos0(ndim),rnd(ndim),pos(ndim))
+  ALLOCATE(history(ndim,ntrials))
+
+  ntrust  = ngrid/10
+  ntrials = PRODUCT (ngrid)
+  WRITE(6,'(A,10I6)',ADVANCE="no")"FES| Trust hyper-radius ",ntrust
+  WRITE(6,'(A,10F12.6)')" which is equivalent to: ",ntrust*dp_grid
+
+  history = 0
+  nacc    = 0
+  DO j = 1, ntrials
+     ! Loop over all points
+     pnt = j
+     DO k = ndim, 2, -1
+        pos0(k) = pnt/PRODUCT(ngrid(1:k-1))
+        resto = MOD(pnt,PRODUCT(ngrid(1:k-1)))
+        IF (resto/=0) THEN 
+           pnt = pnt -pos0(k)*PRODUCT(ngrid(1:k-1))
+           pos0(k)=pos0(k)+1
+        ELSE
+           pnt = PRODUCT(ngrid(1:k-1))
+        END IF
+     END DO
+     pos0(1) = pnt
+
+     IF (ANY(pos0<ntrust))       CYCLE
+     IF (ANY(pos0>ngrid-ntrust)) CYCLE
+  
+     ! Evaluate position and derivative
+     pos = pos0
+     xx  = x0 + dp_grid * ( pos - 1 )
+     dx = derivative (fes, pos, ndim, ngrid, dp_grid)
+
+     ! Integrate till derivative is small enough..
+     DO i = 1, 100
+        pnt = point(pos,ndim,ngrid)
+        !WRITE(10+j,'(10f20.10)')(xx(id),id=ndim,1,-1),-fes(pnt)  
+        
+        norm_dx = SQRT(DOT_PRODUCT(dx,dx))
+        xx  = xx - MIN(0.1_dp,norm_dx)*dx/norm_dx
+        ! Re-evaluating pos
+        pos = CEILING((xx-x0)/dp_grid)+1
+
+        ! Incremental pos
+        dx  = derivative (fes, pos, ndim, ngrid, dp_grid)
+     END DO
+
+     ! Compare with the available minima and if they are the same skip
+     ! saving this position..
+     do_save = .TRUE.
+     DO i = 1, nacc
+        Dpos = pos - history(:,i)
+        norm_dx  = DOT_PRODUCT(Dpos,Dpos)
+        IF ((SQRT(REAL(norm_dx,KIND=dp))<=MAXVAL(ntrust)).OR.(fes(pnt)<1.0E-3_dp)) THEN 
+           do_save = .FALSE.
+           EXIT
+        END IF
+     END DO
+     IF (do_save) THEN
+        pnt = point(pos,ndim,ngrid)
+        xx  = x0+dp_grid*(pos-1)
+        WRITE(6,'(A,5F12.6)',ADVANCE="NO") "FES| Minimum found (",(xx(id),id=ndim,ndim-ndw+1,-1)
+        WRITE(6,'(A,F12.6,A)')" ). FES value = ",-fes(pnt)," Hartree."
+        nacc = nacc + 1
+        history (:,nacc) = pos
+     END IF
+  END DO
+  WRITE(6,'(A,I6,A)') "FES| Number of Minimum found: ",nacc,"."
+
+  DEALLOCATE(xx,dx,pos0,rnd,pos)
+  DEALLOCATE(history)
+
+CONTAINS
+  
+  FUNCTION point (pos,ndim,ngrid) RESULT(pnt)
+    IMPLICIT NONE
+    INTEGER                           :: pnt
+    INTEGER, DIMENSION(:), INTENT(IN) :: pos
+    INTEGER, INTENT(IN)               :: ndim
+    INTEGER, DIMENSION(:), INTENT(IN) :: ngrid
+    INTEGER :: i
+
+    pnt=pos(1)
+    DO i=2,ndim
+       pnt=pnt+(pos(i)-1) * PRODUCT(ngrid(1:i-1))
+    END DO
+  END FUNCTION point
+
+  FUNCTION derivative(fes,pos0, ndim, ngrid, dp_grid) RESULT(der)
+    USE kinds,                           ONLY: dp,&
+                                               sp
+    IMPLICIT NONE
+    INTEGER, DIMENSION(:), INTENT(IN)       :: pos0
+    INTEGER, INTENT(IN)                     :: ndim
+    INTEGER, DIMENSION(:), INTENT(IN)       :: ngrid
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: dp_grid, fes
+    REAL(KIND=dp), DIMENSION(ndim)          :: der
+    INTEGER, DIMENSION(:), ALLOCATABLE      :: pos
+    INTEGER :: i, j, pnt
+
+    ALLOCATE(pos(ndim))
+    pos = pos0
+    DO i = 1, ndim
+       der(i) = 0.0_dp
+       DO j = 1,-1,-2
+          pos(i) = pos0(i) + j
+          pnt    = point(pos,ndim,ngrid)
+          der(i) = der(i) + REAL(j,KIND=dp)*(-fes(pnt))
+       END DO
+       pos(i) = pos0(i)
+       der(i) = der(i) / (2.0_dp*dp_grid(i))
+    END DO
+    DEALLOCATE(pos)
+  END FUNCTION derivative
+
+END SUBROUTINE fes_min
+
+! *****************************************************************************
+!> \brief Finds path between two points (a) and (b)
+!> \par History
+!>      06.2009 created [tlaino]
+!>      teodoro.laino .at. gmail.com 
+!> \author Teodoro Laino
+! *****************************************************************************
+SUBROUTINE fes_path(fes, ndim, ngrid, dp_grid, x0, ndw, minima)
+  USE kinds,                           ONLY: dp,&
+                                             sp
+  IMPLICIT NONE
+  INTEGER, INTENT(IN) :: ndw
+  INTEGER :: i,j,k,pnt,id,ntrials,nacc
+  INTEGER, INTENT(in) :: ndim
+  INTEGER, DIMENSION(:), POINTER :: pos, ngrid, pos0
+
+  REAL(KIND=dp), DIMENSION(:), POINTER   :: xx, dx, rnd
+  REAL(KIND=dp), DIMENSION(:), POINTER   :: fes, dp_grid, x0
+  REAL(KIND=dp)                          :: norm_dx, resto
+  REAL(KIND=dp), DIMENSION(:,:), POINTER :: minima
+  INTEGER, DIMENSION(ndim)               :: Dpos, ntrust
+  LOGICAL                                :: do_save
+
+
+END SUBROUTINE fes_path
