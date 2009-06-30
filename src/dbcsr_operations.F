@@ -1971,11 +1971,10 @@ CONTAINS
 
 
 
-
 ! *****************************************************************************
 !> \brief Multiplies two DBCSR matrices, using the current local data.
 !>
-!>        Uses non-blocking sends and receives instead of RMA.
+!> Attempts to block consecutive columns in rows of the right matrix.
 !> \param[in] left, right     left and right DBCSR matrices
 !> \param[in,out] product     resulting DBCSR product matrix
 !> \param[in,out] wm          DBCSR product working matrix
@@ -1999,36 +1998,37 @@ CONTAINS
                                                 beta_add = 1.0_dp, &
                                                 beta_new = 0.0_dp
 
-    CHARACTER                                :: a_type, b_type
+    CHARACTER                                :: a_type, b_type, use_a_type, &
+                                                use_b_type
     INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
       a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
       b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_col, c_nze, c_row, i, &
       lda, ldb, new_blk, num_symmetries, old_blk, old_row_begin_blk, &
-      old_size, row_begin_blk, row_blk, size_c_blk_ps, stat, timing_handle
+      old_size, prev_b_col, row_begin_blk, row_blk, size_c_blk_ps, stat, &
+      timing_handle, use_a_col_size_logical, use_a_offset, &
+      use_a_row_size_logical, use_b_col_size, use_b_offset, use_c_offset, &
+      use_lda, use_ldb
     INTEGER(KIND=int_4)                      :: offset
-    INTEGER(KIND=int_8)                      :: coordinate, epoch, lflop
+    INTEGER(KIND=int_8)                      :: coordinate, lflop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
     INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
                                                 left_row_blk_size, &
                                                 right_col_blk_size, &
                                                 right_row_blk_size
-    LOGICAL                                  :: block_exists, tr_a
-    REAL(KIND=dp)                            :: beta, tstart, tstop
+    LOGICAL                                  :: block_exists, &
+                                                start_fresh_extent, tr_a, &
+                                                use_accumulated_data
+    REAL(KINd=dp)                            :: beta, epoch, tstart, tstop, &
+                                                use_alpha, use_beta
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     epoch = m_walltime()
-    !t_all = t_all
     DBG "Doing NN matrix multiplication",left%name,' x ',right%name
     DBG "Pre-mult blk sizes, data", product%w%lastblk, product%w%datasize
-    ! c_blk_ps contains the block pointers in the product's current row
-    !.!ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
-    !IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
-    !     product%nblkcols_total)
     lflop = 0
-    num_symmetries = 1
     left_row_blk_size => array_data (left%row_blk_size)
     left_col_blk_size => array_data (left%col_blk_size)
     right_row_blk_size => array_data (right%row_blk_size)
@@ -2041,9 +2041,6 @@ CONTAINS
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
     CALL ensure_array_size(product%w%data,&
          ub=MAX(product%w%datasize,left%nfullrows_total*right%nfullcols_total), error=error)
-       !CALL ensure_array_size(product%w%data,&
-       !     ub=product%w%datasize+a_row_size*right%nfullcols_total &
-       !     * MAX(1, (left%nblkrows_total-a_row)/4), error=error)
     ! c_blk_ps contains the block pointers in the product's current row
     ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
     IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
@@ -2053,6 +2050,8 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps_p",&
          product%nblkcols_total)
     size_c_blk_ps = 0
+    !
+    use_accumulated_data = .FALSE.
     !
     DO a_row = 1, left%nblkrows_total
        a_row_log = a_row
@@ -2111,13 +2110,13 @@ CONTAINS
           !a_data => left%data(ABS(left%blk_p(a_blk))&
           !     :ABS(left%blk_p(a_blk))+a_nze-1)
           b_row_size = a_col_size_logical
-          ! For index-augmented matrices.
+          ! Handle transposed blocks.
           IF (left%blk_p(a_blk) .LT. 0) THEN
              lda = a_col_size
              a_type = 'T'
           ENDIF
-          b_type = 'N'
           ldb = b_row_size
+          start_fresh_extent = .TRUE.
           DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
              b_col = right%col_i(b_blk)
              c_col = b_col
@@ -2126,23 +2125,19 @@ CONTAINS
              b_nze = b_row_size * b_col_size
              !b_data => right%data(&
              !     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
-             !!IF (right%blk_p(b_blk) .LT. 0) THEN
-             !!   b_type = 'T'
-             !!   ldb = b_col_size
-             !!ELSE
-             !!   b_type = 'N'
-             !!   ldb = b_row_size
-             !!ENDIF
+             IF (right%blk_p(b_blk) .LT. 0) THEN
+                b_type = 'T'
+                ldb = b_col_size
+             ELSE
+                b_type = 'N'
+                ldb = b_row_size
+             ENDIF
              c_nze = a_row_size * b_col_size
              offset = c_blk_ps(c_col)
              block_exists = c_blk_ps(c_col) .GT. 0
              DBG "Found old?", block_exists!, product%w%col_i(old_blk), c_col, old_blk
              ! Try to find the current coordinate in the current row index
              IF (.NOT. block_exists) THEN
-                !.!CALL add_work_coordinate(wm, c_row, c_col, c_blk_p, error=error)
-                !product%w%row_i(product%w%lastblk+1) = c_row
-                !product%w%col_i(product%w%lastblk+1) = c_col
-                !product%w%blk_p(product%w%lastblk+1) = c_blk_p
                 new_blk = new_blk+1
                 new_index(1, new_blk) = c_row
                 new_index(2, new_blk) = c_col
@@ -2155,63 +2150,102 @@ CONTAINS
                 c_blk_p = c_blk_p + c_nze
                 product%w%datasize = product%w%datasize + c_nze
                 product%w%lastblk = product%w%lastblk + 1
-                !CALL btree_add (product%w%tree, coordinate, offset, block_exists,&
-                !     existing_value = offset)
-                !CALL btree_verify (index)
-                !IF (block_exists) THEN
-                !   IF (dbg) WRITE(*,*)routineP//' EXISTS'
-                !   ! We can not rewind c_blk_p!
-                !   product%w%datasize = product%w%datasize - c_nze
-                !   product%w%lastblk = product%w%lastblk - 1
-                !ENDIF
-                !c_blk_ps(c_col) = offset
                 beta = beta_new
              ELSE
                 beta = beta_add
              ENDIF
-             !offset = 1 + ithread * 4096
-             !.!c_data => product%w%data(c_blk_ps(c_col):c_blk_ps(c_col)+c_nze-1)
              !DBG 'offset:',offset,offset+c_nze-1,'of',product%w%datasize,UBOUND(product%w%data),'ex',block_exists
-             !% CALL OMP_SET_LOCK (data_lock)
              !c_data => product%w%data(offset:offset+c_nze-1)
-             !% CALL OMP_UNSET_LOCK (data_lock)
              !IF (dbg) WRITE(*,&
              !     "(1X,A,A1,1X,A1,A,I6,A,F4.1,' (',I3,',',I3,')=(',I3,',',I3,')x(',I3,',',I3,')')")&
              !                   !routineN//' DGEMM ',a_type,b_type,' at',c_blk_ps(c_col),' beta=', beta,&
              !     routineN//' DGEMM ',a_type,b_type,' at',offset,' beta=', beta,&
              !     c_row,c_col,a_row,a_col,b_row,b_col
-             t_dgemm = t_dgemm - (m_walltime() - epoch)
-             CALL DGEMM(a_type, b_type,&
-                  a_row_size_logical, b_col_size, a_col_size_logical,&
-                  alpha,&
-                  left%data(ABS(left%blk_p(a_blk))), lda,&
-                  right%data(ABS(right%blk_p(b_blk))), ldb, beta,&
-                  product%w%data(offset), a_row_size_logical)
-             t_dgemm = t_dgemm + (m_walltime() - epoch)
-             !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
-             !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
-             lflop = lflop + a_row_size * b_col_size * a_col_size * 2
+             !
+             ! If we start afresh, then set the variables.
+             new_extent: IF (start_fresh_extent) THEN
+                use_a_type = a_type
+                use_b_type = b_type
+                use_a_row_size_logical = a_row_size_logical
+                use_b_col_size = b_col_size
+                use_a_col_size_logical = a_col_size_logical
+                use_alpha = alpha
+                use_a_offset = ABS (left%blk_p(a_blk))
+                use_lda = lda
+                use_b_offset = ABS (right%blk_p(b_blk))
+                use_ldb = ldb
+                use_beta = beta
+                use_c_offset = offset
+                prev_b_col = b_col
+                start_fresh_extent = .FALSE.
+             ELSE
+                use_accumulated_data = .TRUE.
+                ! Check to see whether the right matrix row extent can
+                ! be expanded: is the previous column of the extent
+                ! directly before the current one?
+                IF (b_blk .LE. right%row_p(b_row+1) &
+                     .AND. prev_b_col .EQ. b_col-1 .AND. b_type .EQ. 'N') THEN
+                   use_accumulated_data = .FALSE.
+                   prev_b_col = b_col
+                ENDIF
+                use_b_col_size = use_b_col_size + b_col_size
+             ENDIF new_extent
+             end_of_row: IF (b_blk .EQ. right%row_p(b_row+1)) THEN
+                use_accumulated_data = .TRUE.
+             ENDIF end_of_row
+             flush_dgemm: IF (use_accumulated_data) THEN
+                t_dgemm = t_dgemm - (m_walltime() - epoch)
+                CALL DGEMM(use_a_type, use_b_type,&
+                     use_a_row_size_logical, use_b_col_size,&
+                     use_a_col_size_logical,&
+                     use_alpha,&
+                     left%data(use_a_offset), use_lda,&
+                     right%data(use_b_offset), use_ldb, use_beta,&
+                     product%w%data(use_c_offset), use_a_row_size_logical)
+                !CALL DGEMM(a_type, b_type,&
+                !     a_row_size_logical, b_col_size, a_col_size_logical,&
+                !     alpha,&
+                !     left%data(ABS(left%blk_p(a_blk))), lda,&
+                !     right%data(ABS(right%blk_p(b_blk))), ldb, beta,&
+                !     product%w%data(offset), a_row_size_logical)
+                t_dgemm = t_dgemm + (m_walltime() - epoch)
+                lflop = lflop + INT(use_a_row_size_logical, int_8)&
+                     * INT(use_b_col_size, int_8)&
+                     * INT(use_a_col_size_logical, int_8) * INT(2, int_8)
+                use_accumulated_data = .FALSE.
+                use_b_col_size = 0
+                start_fresh_extent = .TRUE.
+             ENDIF flush_dgemm
           ENDDO ! b
        ENDDO ! a_col
     ENDDO ! a_row
+    IF (.NOT. start_fresh_extent) THEN
+       t_dgemm = t_dgemm - (m_walltime() - epoch)
+       CALL DGEMM(use_a_type, use_b_type,&
+            use_a_row_size_logical, use_b_col_size,&
+            use_a_col_size_logical,&
+            use_alpha,&
+            left%data(use_a_offset), use_lda,&
+            right%data(use_b_offset), use_ldb, use_beta,&
+            product%w%data(use_c_offset), use_a_row_size_logical)
+       !CALL DGEMM(a_type, b_type,&
+       !     a_row_size_logical, b_col_size, a_col_size_logical,&
+       !     alpha,&
+       !     left%data(ABS(left%blk_p(a_blk))), lda,&
+       !     right%data(ABS(right%blk_p(b_blk))), ldb, beta,&
+       !     product%w%data(offset), a_row_size_logical)
+       t_dgemm = t_dgemm + (m_walltime() - epoch)
+       lflop = lflop + a_row_size * b_col_size * a_col_size * 2
+       use_accumulated_data = .FALSE.
+    ENDIF
 
-    !DEALLOCATE (c_blk_ps)
+    DEALLOCATE (c_blk_ps, c_blk_ps_p)
     ELSE
        DBG 'One of the matrices is empty!'
     ENDIF
-    !IF (dbg) CALL btree_verify (product%w%tree)
     ! Now merge the two indices
     CALL merge_arrays (product%w%row_i, product%w%col_i, product%w%blk_p, old_size, new_index, new_blk)
-    !WRITE(*,*)'NEW TOTAL TIME', nanotot, REAL(nanotot)/(2.3*REAL(10**6)),'ms'
     DBG "Post-mult blk sizes, data", product%w%lastblk, product%w%datasize
-    !dbg = .TRUE.
-    IF (dbg) THEN
-       tstop = m_walltime ()
-       IF (tstop-tstart .NE. 0) THEN
-          DBG tstop-tstart,'s',&
-               (REAL(lflop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
-       ENDIF
-    ENDIF
     IF (PRESENT (flop)) flop = lflop
     t_all = t_all + (m_walltime() - epoch)
     CALL timestop(timing_handle)
