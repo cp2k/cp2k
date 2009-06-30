@@ -2003,11 +2003,10 @@ CONTAINS
     INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
       a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
       b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_col, c_nze, c_row, i, &
-      lda, ldb, new_blk, num_symmetries, old_blk, old_row_begin_blk, &
-      old_size, prev_b_col, row_begin_blk, row_blk, size_c_blk_ps, stat, &
-      timing_handle, use_a_col_size_logical, use_a_offset, &
-      use_a_row_size_logical, use_b_col_size, use_b_offset, use_c_offset, &
-      use_lda, use_ldb
+      lda, ldb, new_blk, old_blk, old_row_begin_blk, old_size, prev_b_col, &
+      row_begin_blk, row_blk, size_c_blk_ps, stat, timing_handle, &
+      use_a_col_size_logical, use_a_offset, use_a_row_size_logical, &
+      use_b_col_size, use_b_offset, use_c_offset, use_lda, use_ldb
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate, lflop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
@@ -2018,8 +2017,8 @@ CONTAINS
     LOGICAL                                  :: block_exists, &
                                                 start_fresh_extent, tr_a, &
                                                 use_accumulated_data
-    REAL(KINd=dp)                            :: beta, epoch, tstart, tstop, &
-                                                use_alpha, use_beta
+    REAL(KINd=dp)                            :: beta, epoch, use_alpha, &
+                                                use_beta
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
