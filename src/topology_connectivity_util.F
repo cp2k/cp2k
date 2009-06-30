@@ -1417,10 +1417,10 @@ CONTAINS
        nimpr = 0
        IF (ASSOCIATED(conn_info%impr_a)) THEN
           nimpr = SIZE(conn_info%impr_a)
-          CALL reallocate(conn_info%impr_a,1,nimpr)
-          CALL reallocate(conn_info%impr_b,1,nimpr)
-          CALL reallocate(conn_info%impr_c,1,nimpr)
-          CALL reallocate(conn_info%impr_d,1,nimpr)
+          CALL reallocate(conn_info%impr_a,1,nimpr*fac)
+          CALL reallocate(conn_info%impr_b,1,nimpr*fac)
+          CALL reallocate(conn_info%impr_c,1,nimpr*fac)
+          CALL reallocate(conn_info%impr_d,1,nimpr*fac)
        END IF
 
        nbond_c = 0
