@@ -11,13 +11,12 @@
 !> \author Joost VandeVondele (09.2002)
 ! *****************************************************************************
 MODULE preconditioner
+!USE f77_blas_generic,                ONLY: BL_DOT
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj,&
-                                             array_new,&
+                                             array_nullify,&
                                              array_release
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
-                                             cp_dbcsr_get_dist2d,&
-                                             dbcsr_sm_sm_multiply
+  USE cp_dbcsr_operations,             ONLY: dbcsr_sm_sm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -37,7 +36,10 @@ MODULE preconditioner
        cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_release,&
+                                             dbcsr_get_info,&
+                                             dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_slot_blk_p,&
                                              dbcsr_slot_col_i,&
@@ -45,14 +47,10 @@ MODULE preconditioner
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: &
        dbcsr_addto_index_array, dbcsr_checksum, dbcsr_create, &
-       dbcsr_create_dist2d_r, dbcsr_create_dist2d_r_unrot, dbcsr_destroy, &
-       dbcsr_dist2d_to_dist, dbcsr_ensure_data_size, dbcsr_extract_column, &
-       dbcsr_finalize, dbcsr_from_fm, dbcsr_from_sm, dbcsr_get_info, &
+       dbcsr_create_dist_r_unrot, dbcsr_destroy, dbcsr_ensure_data_size, &
+       dbcsr_extract_column, dbcsr_finalize, dbcsr_from_fm, dbcsr_from_sm, &
        dbcsr_init, dbcsr_new_transposed, dbcsr_set_diagonal, &
        dbcsr_verify_matrix, dbcsr_work_create, dbcsr_work_destroy
-  USE distribution_2d_types,           ONLY: distribution_2d_release,&
-                                             distribution_2d_type
-!USE f77_blas_generic,                ONLY: BL_DOT
   USE input_constants,                 ONLY: &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_s_inverse, &
@@ -2287,7 +2285,6 @@ END SUBROUTINE make_full_all_ortho
     TYPE(dbcsr_distribution_obj)             :: dist_col, dist_main
     TYPE(dbcsr_type)                         :: col1_m, col2_m, col2_t_m, &
                                                 mat_t, p_m, v_m, w1_m, w2_m
-    TYPE(distribution_2d_type), POINTER      :: dist2d_col, dist2d_main
 
 !
 !
@@ -2321,12 +2318,10 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_init (mat_t, error)
     CALL dbcsr_from_sm (mat_t, matrix_t, error=error)
     !
-    NULLIFY (dist2d_main)
     CALL dbcsr_get_info (mat_t, row_blk_size=row_blk_size_array,&
          col_blk_size=col_blk_size_array, nblkrows_total=nblkrows_total,&
          nblkcols_total=nblkcols_total, nfullrows_total=nfullrows_total,&
          distribution=dist_main, error=error)
-    CALL cp_dbcsr_get_dist2d (mat_t, dist2d_main, error)
     col_blk_size => array_data (col_blk_size_array)
     ! Create the square matrices.
     CALL dbcsr_init (w1_m, error)
@@ -2340,16 +2335,13 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_work_create (w1_m, nblks_guess=nblkrows_total,&
          sizedata_guess=nz, error=error)
     ! Create the column matrices
-    ! The col_col_blk_size array is modified to reflect the changing column
-    ! widths.
-    NULLIFY (dist2d_col)
-    CALL dbcsr_create_dist2d_r (dist2d_col, dist2d_main, ncolumns=1,&
-         error=error)
-    CALL dbcsr_dist2d_to_dist (dist2d_col, dist_col, error)
-    ALLOCATE (col_col_blk_size(1), stat=stat)
-    IF (stat /= 0) CALL stop_memory (routineP, "col_col_blk_size", 1)
+    ! The col_col_blk_size array is modified for each column to
+    ! reflect the changing column widths.
+    CALL array_nullify (col_col_blk_size_array)
+    CALL dbcsr_create_dist_r_unrot (dist_col, dist_main, 1,&
+         col_col_blk_size_array)
+    col_col_blk_size => array_data (col_blk_size_array)
     col_col_blk_size(1) = 1
-    CALL array_new (col_col_blk_size_array, col_col_blk_size, gift=.TRUE.)
     CALL dbcsr_init (col1_m, error)
     CALL dbcsr_create (col1_m, "col1", dist_col, "N", row_blk_size_array,&
          col_col_blk_size_array, nze=nz, nblks=nblkrows_total, error=error)
@@ -2386,7 +2378,6 @@ END SUBROUTINE make_full_all_ortho
          col_col_blk_size_array, nze=nz, nblks=nblkrows_total, error=error)
     CALL dbcsr_work_create (p_m, nblks_guess=nblkrows_total,&
          sizedata_guess=nz, error=error)
-    CALL distribution_2d_release (dist2d_col, error)
     CALL dbcsr_distribution_release (dist_col)
     !
     ! Z = diag(ones(n,1));
@@ -2501,7 +2492,6 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_destroy (mat_t, error)
     CALL dbcsr_init (pc, error)
     pc = w2_m
-    CALL cp_dbcsr_add_dist2d (pc, dist2d_main, error)
     CALL dbcsr_work_destroy (col1_m%w, error)
     CALL dbcsr_work_destroy (col2_m%w, error)
     CALL dbcsr_work_destroy (w1_m%w, error)
@@ -2527,47 +2517,31 @@ END SUBROUTINE make_full_all_ortho
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: k
-    TYPE(array_i1d_obj)                      :: col_blk_size, &
-                                                precond_row_blk_size_array
+    TYPE(array_i1d_obj)                      :: col_blk_size
     TYPE(dbcsr_distribution_obj)             :: dist_result
     TYPE(dbcsr_type)                         :: matrix_result, matrix_right
-    TYPE(distribution_2d_type), POINTER      :: dist2d_precond, dist2d_result
 
 !TYPE(dbcsr_type), INTENT(IN)             :: matrix_in
 !TYPE(dbcsr_type), INTENT(OUT)            :: matrix_out
 !----
 
     WRITE(*,*)' APPLYING SPARSE SINGLE KINETIC'
-    !CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
-    !CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
-    !     matrix_in,0.0_dp,matrix_out,error=error)
     CALL cp_fm_get_info(matrix_in, ncol_global=k, error=error)
-    NULLIFY (dist2d_precond, dist2d_result)
-    CALL cp_dbcsr_get_dist2d (preconditioner_env%dbcsr_matrix, dist2d_precond,&
-         error)
-    CALL dbcsr_create_dist2d_r_unrot(dist2d_result, dist2d_precond, k,&
-         col_blk_size, error=error)
-    CALL dbcsr_dist2d_to_dist (dist2d_result, dist_result, error)
+    CALL dbcsr_create_dist_r_unrot (dist_result,&
+         dbcsr_distribution (preconditioner_env%dbcsr_matrix), k,&
+         col_blk_size)
     CALL dbcsr_init (matrix_right, error)
-    precond_row_blk_size_array =&
-         preconditioner_env%dbcsr_matrix%row_blk_size
     CALL dbcsr_from_fm (matrix_right, matrix_in, 0.0_dp, dist_result,&
-         row_blk_size = precond_row_blk_size_array,&
+         row_blk_size = dbcsr_row_block_sizes(preconditioner_env%dbcsr_matrix),&
          col_blk_size = col_blk_size, error=error)
     WRITE(*,*)'Pre checksum:',dbcsr_checksum (matrix_right, error)
-    !CALL dbcsr_get_info (matrix_in, dist2d=dist2d, error=error)
     CALL dbcsr_init (matrix_result, error)
-    !CALL dbcsr_print (preconditioner_env%dbcsr_matrix, error)
-    !CALL dbcsr_print (matrix_right, error)
     CALL dbcsr_sm_sm_multiply (preconditioner_env%dbcsr_matrix,&
          matrix_right, matrix_result, dist_result, 0, error)
-    ! CALL dbcsr_to_fm (matrix_result, matrix_out, error)
-    !CALL dbcsr_verify_matrix (matrix_result, error)
     CALL dbcsr_distribution_release (dist_result)
     CALL dbcsr_destroy (matrix_right, error)
     WRITE(*,*)'Post checksum:',dbcsr_checksum (matrix_result, error)
     CALL dbcsr_destroy (matrix_result, error)
-    CALL distribution_2d_release (dist2d_result, error)
     WRITE(*,*)' DONE'
   END SUBROUTINE apply_sparse_single
 

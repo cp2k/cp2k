@@ -20,7 +20,8 @@ MODULE dbcsr_methods
                                              array_release,&
                                              array_size
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_mp_obj
+                                             dbcsr_mp_obj,&
+                                             dbcsr_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -38,6 +39,11 @@ MODULE dbcsr_methods
             dbcsr_distribution_row_dist, dbcsr_distribution_col_dist,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nlocal_cols,&
             dbcsr_distribution_local_rows, dbcsr_distribution_local_cols
+  PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
+            dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
+            dbcsr_nblkrows_total, dbcsr_nblkcols_total, dbcsr_nfullrows_total,&
+            dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
+            dbcsr_nfullrows_local, dbcsr_nfullcols_local
 
   
 
@@ -402,4 +408,150 @@ CONTAINS
     processor = dist%d%mp_env%mp%pgrid(dist%d%row_dist%low%data(row),&
          dist%d%col_dist%low%data(col))
   END FUNCTION dbcsr_distribution_processor
+
+! Pertaining to the dbcsr matrix.
+
+  FUNCTION dbcsr_nblkrows_total(matrix) RESULT (nblkrows_total)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: nblkrows_total
+
+    nblkrows_total = matrix%nblkrows_total
+  END FUNCTION dbcsr_nblkrows_total
+
+  FUNCTION dbcsr_nblkcols_total(matrix) RESULT (nblkcols_total)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: nblkcols_total
+
+    nblkcols_total = matrix%nblkcols_total
+  END FUNCTION dbcsr_nblkcols_total
+  FUNCTION dbcsr_nfullrows_total(matrix) RESULT (nfullrows_total)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: nfullrows_total
+
+    nfullrows_total = matrix%nfullrows_total
+  END FUNCTION dbcsr_nfullrows_total
+  FUNCTION dbcsr_nfullcols_total(matrix) RESULT (nfullcols_total)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: nfullcols_total
+
+    nfullcols_total = matrix%nfullcols_total
+  END FUNCTION dbcsr_nfullcols_total
+  FUNCTION dbcsr_nblkrows_local(matrix) RESULT (nblkrows_local)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: nblkrows_local
+
+    nblkrows_local = matrix%nblkrows_local
+  END FUNCTION dbcsr_nblkrows_local
+  FUNCTION dbcsr_nblkcols_local(matrix) RESULT (nblkcols_local)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: nblkcols_local
+
+    nblkcols_local = matrix%nblkcols_local
+  END FUNCTION dbcsr_nblkcols_local
+  FUNCTION dbcsr_nfullrows_local(matrix) RESULT (nfullrows_local)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: nfullrows_local
+
+    nfullrows_local = matrix%nfullrows_local
+  END FUNCTION dbcsr_nfullrows_local
+  FUNCTION dbcsr_nfullcols_local(matrix) RESULT (nfullcols_local)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: nfullcols_local
+
+    nfullcols_local = matrix%nfullcols_local
+  END FUNCTION dbcsr_nfullcols_local
+
+  FUNCTION dbcsr_distribution (matrix) RESULT (distribution)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_distribution_obj)             :: distribution
+
+    distribution = matrix%dist
+  END FUNCTION dbcsr_distribution
+
+  FUNCTION dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
+
+    row_blk_sizes = matrix%row_blk_size
+  END FUNCTION dbcsr_row_block_sizes
+
+  FUNCTION dbcsr_col_block_sizes (matrix) RESULT (col_blk_sizes)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(array_i1d_obj)                      :: col_blk_sizes
+
+    col_blk_sizes = matrix%col_blk_size
+  END FUNCTION dbcsr_col_block_sizes
+! *****************************************************************************
+!> \brief Gets information about a matrix
+!> \param[in] matrix          matrix to query
+!> \param[out] nblkrows_total
+!> \param[out] nblkcols_total
+!> \param[out] nfullrows_total
+!> \param[out] nfullcols_total
+!> \param[out] nblkrows_local
+!> \param[out] nblkrows_local
+!> \param[out] nfullrows_local
+!> \param[out] nfullrows_local
+!> \param[out] my_prow, my_pcol
+!> \param[out] local_rows, local_cols
+!> \param[out] proc_row_dist, proc_col_dist
+!> \param[out] row_blk_size
+!> \param[out] col_blk_size
+!> \param[out] distribution   the data distribution of the matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_info(matrix, nblkrows_total, nblkcols_total,&
+       nfullrows_total, nfullcols_total,&
+       nblkrows_local, nblkcols_local,&
+       nfullrows_local, nfullcols_local,&
+       my_prow, my_pcol,&
+       local_rows, local_cols, proc_row_dist, proc_col_dist,&
+       row_blk_size, col_blk_size, distribution,&
+       error)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, &
+      nfullrows_total, nfullcols_total, nblkrows_local, nblkcols_local, &
+      nfullrows_local, nfullcols_local, my_prow, my_pcol
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_rows, local_cols, &
+                                                proc_row_dist, proc_col_dist
+    TYPE(array_i1d_obj), INTENT(OUT), &
+      OPTIONAL                               :: row_blk_size, col_blk_size
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT), OPTIONAL                  :: distribution
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_info', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (matrix%valid, cp_warning_level, cp_caller_error,&
+         routineP,"Invalid matrix", error=error)
+    IF (PRESENT (nblkrows_total)) nblkrows_total = matrix%nblkrows_total
+    IF (PRESENT (nblkcols_total)) nblkcols_total = matrix%nblkcols_total
+    IF (PRESENT (nfullrows_total)) nfullrows_total = matrix%nfullrows_total
+    IF (PRESENT (nfullcols_total)) nfullcols_total = matrix%nfullcols_total
+    IF (PRESENT (nblkrows_local)) nblkrows_local = matrix%nblkrows_local
+    IF (PRESENT (nblkcols_local)) nblkcols_local = matrix%nblkcols_local
+    IF (PRESENT (nfullrows_local)) nfullrows_local = matrix%nfullrows_local
+    IF (PRESENT (nfullcols_local)) nfullcols_local = matrix%nfullcols_local
+    IF (PRESENT (row_blk_size)) row_blk_size = matrix%row_blk_size
+    IF (PRESENT (col_blk_size)) col_blk_size = matrix%col_blk_size
+    IF (PRESENT (distribution)) distribution = matrix%dist
+    IF (PRESENT (local_rows)) &
+         local_rows => array_data (dbcsr_distribution_local_rows (matrix%dist))
+    IF (PRESENT (local_cols)) &
+         local_cols => array_data (dbcsr_distribution_local_cols (matrix%dist))
+    IF (PRESENT (proc_row_dist)) &
+         proc_row_dist => array_data (dbcsr_distribution_row_dist (matrix%dist))
+    IF (PRESENT (proc_col_dist)) &
+         proc_col_dist => array_data (dbcsr_distribution_col_dist (matrix%dist))
+    IF (PRESENT (my_prow)) &
+       my_prow = dbcsr_mp_myprow (dbcsr_distribution_mp (matrix%dist))
+    IF (PRESENT (my_pcol)) &
+       my_pcol = dbcsr_mp_mypcol (dbcsr_distribution_mp (matrix%dist))
+  END SUBROUTINE dbcsr_get_info
+
+
+
 END MODULE dbcsr_methods

@@ -254,10 +254,10 @@ CONTAINS
     
     IF (MOD(hint,2) .EQ. 0) THEN
        CALL dbcsr_create_dist_r_unrot (dist_right, matrix_a%dist, k,&
-            col_blk_size_right, error)
+            col_blk_size_right)
     ELSE
        CALL dbcsr_create_dist_r_rot (dist_right, matrix_a%dist, k,&
-            col_blk_size_right, error)
+            col_blk_size_right)
     ENDIF
     CALL dbcsr_init (matrix_b, error)
     CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist_right,&
@@ -280,15 +280,6 @@ CONTAINS
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 3*x  checksum", checksum
     ENDIF
     CALL dbcsr_scale(matrix_b,alpha_scalar=1.0_dp/3.0_dp,error=error)
-
-    !
-    ! Transpose of the row (transposed column) matrix
-    !CALL dbcsr_create_dist2d_transposed (dist2d_result, dist2d, error)
-    !CALL dbcsr_transpose_distribution (dist_result, matrix_b%dist)
-    !CALL dbcsr_create_dist_r_rot(dist_result, matrix_x%dist, k,&
-    !     col_blk_size_array, error=error)
-    !CALL array_release (col_blk_size_array)
-    !CALL dbcsr_distribution_release (dist_right) ! Not used now
 
    !
     CALL dbcsr_new_transposed (matrix_bt, matrix_b, error=error)

@@ -41,9 +41,10 @@ MODULE dbcsr_util
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_distribution_processor, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_new, dbcsr_mp_new_transposed, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release
+       dbcsr_get_info, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
+       dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_new_transposed, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_mp_release
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_meta_size, dbcsr_mp_obj, &
@@ -99,7 +100,7 @@ MODULE dbcsr_util
 
   ! Main
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize,&
-       dbcsr_from_fm, dbcsr_from_sm, dbcsr_get_info,&
+       dbcsr_from_fm, dbcsr_from_sm, &
        dbcsr_checksum, dbcsr_verify_matrix,&
        dbcsr_repoint_index,&
        dbcsr_init,&
@@ -396,107 +397,6 @@ CONTAINS
     DBGV ' data allocated', ASSOCIATED(matrix%data)
     DBGV ' index allocated', ASSOCIATED(matrix%index)
   END SUBROUTINE dbcsr_create
-
-
-! *****************************************************************************
-!> \brief Gets information about a matrix
-!> \param[in] matrix          matrix to query
-!> \param[out] nblkrows_total
-!> \param[out] nblkcols_total
-!> \param[out] nfullrows_total
-!> \param[out] nfullcols_total
-!> \param[out] nblkrows_local
-!> \param[out] nblkrows_local
-!> \param[out] nfullrows_local
-!> \param[out] nfullrows_local
-!> \param[out] my_prow, my_pcol
-!> \param[out] local_rows, local_cols
-!> \param[out] proc_row_dist, proc_col_dist
-!> \param[out] row_blk_size
-!> \param[out] col_blk_size
-!> \param[out] meta           the metadata on the matrix as an array
-!> \param[out] distribution   the data distribution of the matrix
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_get_info(matrix, nblkrows_total, nblkcols_total,&
-       nfullrows_total, nfullcols_total,&
-       nblkrows_local, nblkcols_local,&
-       nfullrows_local, nfullcols_local,&
-       my_prow, my_pcol,&
-       local_rows, local_cols, proc_row_dist, proc_col_dist,&
-       row_blk_size, col_blk_size, meta, distribution,&
-       error)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
-    INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, &
-      nfullrows_total, nfullcols_total, nblkrows_local, nblkcols_local, &
-      nfullrows_local, nfullcols_local, my_prow, my_pcol
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_rows, local_cols, &
-                                                proc_row_dist, proc_col_dist
-    TYPE(array_i1d_obj), INTENT(OUT), &
-      OPTIONAL                               :: row_blk_size, col_blk_size
-    INTEGER, DIMENSION(dbcsr_meta_size), &
-      INTENT(OUT), OPTIONAL                  :: meta
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(OUT), OPTIONAL                  :: distribution
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_info', &
-      routineP = moduleN//':'//routineN
-
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    CALL cp_assert (matrix%valid, cp_warning_level, cp_caller_error,&
-         routineP,"Invalid matrix", error=error)
-    IF (PRESENT (nblkrows_total)) nblkrows_total = matrix%nblkrows_total
-    IF (PRESENT (nblkcols_total)) nblkcols_total = matrix%nblkcols_total
-    IF (PRESENT (nfullrows_total)) nfullrows_total = matrix%nfullrows_total
-    IF (PRESENT (nfullcols_total)) nfullcols_total = matrix%nfullcols_total
-    IF (PRESENT (nblkrows_local)) nblkrows_local = matrix%nblkrows_local
-    IF (PRESENT (nblkcols_local)) nblkcols_local = matrix%nblkcols_local
-    IF (PRESENT (nfullrows_local)) nfullrows_local = matrix%nfullrows_local
-    IF (PRESENT (nfullcols_local)) nfullcols_local = matrix%nfullcols_local
-    IF (PRESENT (row_blk_size)) row_blk_size = matrix%row_blk_size
-    IF (PRESENT (col_blk_size)) col_blk_size = matrix%col_blk_size
-    IF (PRESENT (meta)) CALL dbcsr_pack_meta (matrix, meta, error)
-    IF (PRESENT (distribution)) distribution = matrix%dist
-    !IF (PRESENT (dist2d)) dist2d => matrix%dist2d
-!    CALL distribution_2d_get(dist2d, row_distribution=prow_dist,&
-!         col_distribution=pcol_dist, error=error, blacs_env=blacs_env,&
-!         n_flat_local_rows=nblkrows_local, n_flat_local_cols=nblkcols_local,&
-!         n_row_distribution=nblkrows_total, n_col_distribution=nblkcols_total,&
-!         flat_local_rows=blkrows_local, flat_local_cols=blkcols_local)
-    IF (PRESENT (local_rows)) &
-         !CALL distribution_2d_get(matrix%dist2d, flat_local_rows=local_rows,&
-         !error=error)
-         local_rows => array_data (dbcsr_distribution_local_rows (matrix%dist))
-    IF (PRESENT (local_cols)) &
-         !CALL distribution_2d_get(matrix%dist2d, flat_local_cols=local_cols,&
-         !error=error)
-         local_cols => array_data (dbcsr_distribution_local_cols (matrix%dist))
-    IF (PRESENT (proc_row_dist)) &
-         !CALL distribution_2d_get(matrix%dist2d,&
-         !row_distribution = proc_row_dist, error=error)
-         proc_row_dist => array_data (dbcsr_distribution_row_dist (matrix%dist))
-    IF (PRESENT (proc_col_dist)) &
-         !CALL distribution_2d_get(matrix%dist2d,&
-         !col_distribution = proc_col_dist, error=error)
-         proc_col_dist => array_data (dbcsr_distribution_col_dist (matrix%dist))
-    !IF (PRESENT (my_pcol) .OR. PRESENT (my_prow)) THEN
-    !   CALL distribution_2d_get(matrix%dist2d, blacs_env=blacs_env, error=error)
-    !   !CALL get_blacs_info(blacs_env, para_env=para_env, blacs2mpi=blacs2mpi,&
-    !   !  mpi2blacs=mpi2blacs, my_process_row=myprow, my_process_column=mypcol,&
-    !   !  number_of_process_rows=nprows, number_of_process_columns=npcols)
-    !   IF (PRESENT (my_prow)) &
-    !        CALL get_blacs_info (blacs_env, my_process_row = my_prow)
-    !   IF (PRESENT (my_pcol)) &
-    !        CALL get_blacs_info (blacs_env, my_process_column = my_pcol)
-    !ENDIF
-    IF (PRESENT (my_prow)) &
-       my_prow = dbcsr_mp_myprow (dbcsr_distribution_mp (matrix%dist))
-    IF (PRESENT (my_pcol)) &
-       my_pcol = dbcsr_mp_mypcol (dbcsr_distribution_mp (matrix%dist))
-  END SUBROUTINE dbcsr_get_info
 
 
 ! *****************************************************************************
@@ -1555,8 +1455,7 @@ CONTAINS
     meta(10) = nfullcols_local
   END SUBROUTINE meta_from_dist
 
-  SUBROUTINE test_create_bl_distribution(error)
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+  SUBROUTINE test_create_bl_distribution()
 
     INTEGER, PARAMETER                       :: rpt = 10
 
@@ -1570,7 +1469,7 @@ CONTAINS
        CALL RANDOM_NUMBER (rn)
        bins = MAX(1, INT(rn*8))
        CALL create_bl_distribution (block_distribution,&
-            block_size, elements, bins, error)
+            block_size, elements, bins)
        CALL array_release (block_distribution)
        CALL array_release (block_size)
     ENDDO
@@ -1584,10 +1483,9 @@ CONTAINS
 !> \param[in] nbins             number of bins
 ! *****************************************************************************
   SUBROUTINE create_bl_distribution (block_distribution,&
-       block_size, nelements, nbins, error)
+       block_size, nelements, nbins)
     TYPE(array_i1d_obj), INTENT(OUT)         :: block_distribution, block_size
     INTEGER, INTENT(IN)                      :: nelements, nbins
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution', &
       routineP = moduleN//':'//routineN
@@ -2209,16 +2107,14 @@ CONTAINS
 !> \param[in] dist_left       the distribution of the left matrix
 !> \param[in] ncolumns        number of columns in right matrix
 !> \param[out] right_col_blk_sizes      sizes of blocks in the created column
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_r_unrot(dist_right, dist_left, ncolumns,&
-       right_col_blk_sizes, error)
+       right_col_blk_sizes)
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist_right
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_left
     INTEGER, INTENT(IN)                      :: ncolumns
     TYPE(array_i1d_obj), INTENT(OUT)         :: right_col_blk_sizes
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_unrot', &
       routineP = moduleN//':'//routineN
@@ -2230,7 +2126,7 @@ CONTAINS
 
     right_mp_env = dbcsr_distribution_mp (dist_left)
     CALL create_bl_distribution (right_col_dist,&
-         right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env), error)
+         right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env))
     CALL dbcsr_distribution_new (dist_right, right_mp_env,&
          dbcsr_distribution_col_dist (dist_left), right_col_dist,&
          local_rows=dbcsr_distribution_local_rows (dist_left))
@@ -2247,16 +2143,14 @@ CONTAINS
 !> \param[in] dist_left       the distribution of the left matrix
 !> \param[in] ncolumns        number of columns in right matrix
 !> \param[out] right_col_blk_sizes      sizes of blocks in the created column
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_r_rot(dist_right, dist_left, ncolumns,&
-       right_col_blk_sizes, error)
+       right_col_blk_sizes)
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist_right
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_left
     INTEGER, INTENT(IN)                      :: ncolumns
     TYPE(array_i1d_obj), INTENT(OUT)         :: right_col_blk_sizes
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_rot', &
       routineP = moduleN//':'//routineN
@@ -2270,7 +2164,7 @@ CONTAINS
     CALL dbcsr_mp_new_transposed (right_mp_env,&
          dbcsr_distribution_mp (dist_left))
     CALL create_bl_distribution (right_col_dist,&
-         right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env), error)
+         right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env))
     CALL dbcsr_distribution_new (dist_right, right_mp_env,&
          dbcsr_distribution_col_dist (dist_left), right_col_dist,&
          local_rows=dbcsr_distribution_local_cols (dist_left))
@@ -2288,16 +2182,14 @@ CONTAINS
 !> \param[in] dist_right      old distribution of the right matrix
 !> \param[in] nrows           number of rows in the left matrix
 !> \param[out] left_row_blk_sizes       sizes of blocks in the created rows
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_l_unrot(dist_left, dist_right, nrows,&
-       left_row_blk_sizes, error)
+       left_row_blk_sizes)
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist_left
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_right
     INTEGER, INTENT(IN)                      :: nrows
     TYPE(array_i1d_obj), INTENT(OUT)         :: left_row_blk_sizes
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_l_unrot', &
       routineP = moduleN//':'//routineN
@@ -2309,7 +2201,7 @@ CONTAINS
 
     left_mp_env = dbcsr_distribution_mp (dist_left)
     CALL create_bl_distribution (left_row_dist,&
-         left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env), error)
+         left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env))
     CALL dbcsr_distribution_new (dist_left, left_mp_env,&
          left_row_dist, dbcsr_distribution_col_dist (dist_right),&
          local_cols=dbcsr_distribution_local_cols (dist_right))
@@ -2324,18 +2216,16 @@ CONTAINS
 !>      created so that it is appropriate to the parallel environment.
 !> \param[out] dist_left      new distribution for the left matrix
 !> \param[in] dist_right      the distribution of the right matrix
-!> \param[in] nrows           number of rows in left matrix
+!> \param[in] nrows           (optional) number of rows in left matrix
 !> \param[out] left_row_blk_sizes      sizes of blocks in the created rows
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_l_rot(dist_right, dist_left, nrows,&
-       left_row_blk_sizes, error)
+       left_row_blk_sizes)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_right
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist_left
     INTEGER, INTENT(IN)                      :: nrows
     TYPE(array_i1d_obj), INTENT(OUT)         :: left_row_blk_sizes
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_l_rot', &
       routineP = moduleN//':'//routineN
@@ -2348,7 +2238,7 @@ CONTAINS
     CALL dbcsr_mp_new_transposed (left_mp_env,&
          dbcsr_distribution_mp (dist_right))
     CALL create_bl_distribution (left_row_dist,&
-         left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env), error)
+         left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env))
     CALL dbcsr_distribution_new (dist_left, left_mp_env,&
          left_row_dist, dbcsr_distribution_row_dist (dist_right),&
          local_cols=dbcsr_distribution_local_rows (dist_right))
@@ -4810,13 +4700,11 @@ CONTAINS
 !> \brief Copies metadata into an array.
 !> \param[in] matrix      Matrix
 !> \param[out] meta       Metadata elements
-!> \param[in,out] error   cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_pack_meta(matrix, meta, error)
+  SUBROUTINE dbcsr_pack_meta(matrix, meta)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     INTEGER, DIMENSION(dbcsr_meta_size), &
       INTENT(OUT)                            :: meta
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_pack_meta', &
       routineP = moduleN//':'//routineN
@@ -4844,8 +4732,7 @@ CONTAINS
        meta(11) = 3
     CASE DEFAULT
        meta(11) = -1
-       CALL cp_assert(.FALSE., cp_failure_level,&
-            cp_wrong_args_error, routineP, "Invalid matrix type.", error)
+       CALL bcsr_assert(5, .FALSE., routineP, "Invalid matrix type.")
     END SELECT
   END SUBROUTINE dbcsr_pack_meta
 
@@ -5409,7 +5296,6 @@ CONTAINS
                                                 next_data_p, row, src_blk, &
                                                 src_blk_p, src_nblk_rows_total
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    INTEGER, DIMENSION(dbcsr_meta_size)      :: meta
     LOGICAL                                  :: symmetric_src, transposed_src
 
 !   ---------------------------------------------------------------------------
@@ -5420,7 +5306,7 @@ CONTAINS
     col_blk_size => array_data (matrix%col_blk_size)
     !> We first ensure there is enough space in the vector matrix,
     !> then we build it up.
-    CALL dbcsr_get_info (matrix, meta=meta, error=error,&
+    CALL dbcsr_get_info (matrix, error=error,&
          nblkrows_total = src_nblk_rows_total)
     !> Now go through the rows and find the appropriate column. If it
     !> exists, place the data into the vector matrix and update the
