@@ -168,7 +168,6 @@ MODULE hfx_derivatives
       DIMENSION(:,:), POINTER                :: screen_coeffs_kind, tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
     REAL(dp)                                 :: ln_10, B11(3), rab2, D11(3), rcd2, log10_eps_schwarz,&
                                                 log10_pmax, max_val2_set, pbc_B(3), pbc_D(3), log_2
-    INTEGER(int_8)                           :: hash_idx, N_pmat
     INTEGER                                  :: nsgf_max
     REAL(dp), DIMENSION(:), ALLOCATABLE      :: pbd_buf, pbc_buf, pad_buf, pac_buf, &
                                                 pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta
@@ -185,6 +184,14 @@ MODULE hfx_derivatives
     INTEGER                                  :: kind_kind_idx, swap_id
     REAL(dp)                                 :: pmax_1, pmax_2, pmax_3, pmax_4
     REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4
+    INTEGER, DIMENSION(:), POINTER           :: shm_block_offset
+    INTEGER, DIMENSION(:,:), POINTER         :: shm_atomic_block_offset
+    INTEGER, DIMENSION(:,:,:,:), POINTER     :: shm_set_offset
+    INTEGER                                  :: offset_bd, offset_bc, offset_ad, offset_ac, &
+                                                atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, &
+                                                atomic_offset_ac
+    INTEGER, DIMENSION(:,:), POINTER         :: offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set
+
 
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
@@ -262,7 +269,11 @@ MODULE hfx_derivatives
 !$OMP                                  screen_coeffs_kind,&
 !$OMP                                  screen_coeffs_pgf,&
 !$OMP                                  nkind,&
-!$OMP                                  radii_pgf)
+!$OMP                                  radii_pgf,&
+!$OMP                                  shm_atomic_block_offset,&
+!$OMP                                  shm_set_offset,&
+!$OMP                                  shm_block_offset)
+
 
     i_thread = 0
 !$  i_thread = omp_get_thread_num()
@@ -359,29 +370,37 @@ MODULE hfx_derivatives
       ENDDO
     ENDDO
 
-    N_pmat = rho%rho_ao(1)%matrix%nrow
-
+    ncpu = para_env%num_pe
+    n_processes = ncpu * n_threads
 
 
 !$OMP MASTER
-    NULLIFY(full_density)
-    NULLIFY(full_density_beta)
-    ALLOCATE(full_density(N_pmat*(N_pmat+1)/2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !! Set pointer for is_assoc helper
     shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block 
     shm_number_of_p_entries = actual_x_data%number_of_p_entries
+    shm_atomic_block_offset => actual_x_data%atomic_block_offset
+    shm_set_offset => actual_x_data%set_offset
+    shm_block_offset => actual_x_data%block_offset
+
+    NULLIFY(full_density)
+    NULLIFY(full_density_beta)
+    ALLOCATE(full_density(shm_block_offset(ncpu+1)),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+ 
+ 
     !! Get the full density from all the processors
     CALL timeset(routineN//"_getP",handle_getP)
-    CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, actual_x_data%number_of_p_entries,&
-                          actual_x_data%is_assoc_atomic_block, natom, last_sgf_global, &
-                          kind_of, basis_parameter, N_pmat, get_max_vals_spin=.FALSE., error=error)
+    CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, shm_number_of_p_entries,&
+                          shm_is_assoc_atomic_block, actual_x_data%map_atoms_to_cpus, &
+                          shm_block_offset, natom, last_sgf_global, &
+                          kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     IF(nspins == 2) THEN
-      ALLOCATE(full_density_beta(N_pmat*(N_pmat+1)/2),STAT=stat)
+      ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, actual_x_data%number_of_p_entries,&
-                           actual_x_data%is_assoc_atomic_block, natom, last_sgf_global, &
-                           kind_of, basis_parameter, N_pmat, get_max_vals_spin=.FALSE., error=error)
+      CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, shm_number_of_p_entries,&
+                            shm_is_assoc_atomic_block, actual_x_data%map_atoms_to_cpus, &
+                            shm_block_offset, natom, last_sgf_global, &
+                            kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     END IF
     CALL timestop(handle_getP)
 
@@ -392,9 +411,11 @@ MODULE hfx_derivatives
       shm_initial_p => actual_x_data%initial_p
       CALL update_pmax_mat(actual_x_data%initial_p, &
                            actual_x_data%map_atom_to_kind_atom, &
+                           actual_x_data%set_offset, &
+                           actual_x_data%atomic_block_offset, &
                            full_density,full_density_beta,&
                            natom,max_set, kind_of, basis_parameter, &
-                           last_sgf_global, N_pmat, nkind, error)
+                           last_sgf_global, nkind, error)
     END IF 
 
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
@@ -517,8 +538,6 @@ MODULE hfx_derivatives
 !$OMP END MASTER
 !$OMP BARRIER
 
-    ncpu = para_env%num_pe
-    n_processes = ncpu * n_threads
 
 
 
@@ -681,6 +700,32 @@ MODULE hfx_derivatives
             nsgfd_total = basis_parameter(lkind)%nsgf_total
             pd1 = last_sgf_global(latom) - nsgfd_total
 
+            atomic_offset_bd = shm_atomic_block_offset(jatom,latom)
+            atomic_offset_bc = shm_atomic_block_offset(jatom,katom)
+            atomic_offset_ad = shm_atomic_block_offset(iatom,latom)
+            atomic_offset_ac = shm_atomic_block_offset(iatom,katom)
+
+            IF( jatom < latom) THEN
+              offset_bd_set => shm_set_offset(:,:,lkind,jkind)
+            ELSE
+              offset_bd_set => shm_set_offset(:,:,jkind,lkind)
+            END IF
+            IF( jatom < katom) THEN
+              offset_bc_set => shm_set_offset(:,:,kkind,jkind)
+            ELSE
+              offset_bc_set => shm_set_offset(:,:,jkind,kkind)
+            END IF
+            IF( iatom < latom) THEN
+              offset_ad_set => shm_set_offset(:,:,lkind,ikind)
+            ELSE
+              offset_ad_set => shm_set_offset(:,:,ikind,lkind)
+            END IF
+            IF( iatom < katom) THEN
+              offset_ac_set => shm_set_offset(:,:,kkind,ikind)
+            ELSE
+              offset_ac_set => shm_set_offset(:,:,ikind,kkind)
+            END IF
+
             IF( screen_pmat_forces ) THEN
               swap_id = 16
               kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
@@ -810,15 +855,19 @@ MODULE hfx_derivatives
                 END IF 
   
                 IF(cartesian_estimate<eps_schwarz) CYCLE
-                CALL prefetch_density_matrix(pa1, pb1, pc1, pd1,&
-                                             nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                             sgfa, sgfb, sgfc, sgfd, full_density, &
-                                             pbd_buf, pbc_buf, pad_buf, pac_buf, N_pmat)
+                CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), & 
+                                             full_density, pbd_buf, pbc_buf, pad_buf, pac_buf, &
+                                             iatom, jatom, katom, latom, &
+                                             iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
+                                             offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
+                                             atomic_offset_ad, atomic_offset_ac)
                 IF( nspins == 2 ) THEN
-                  CALL prefetch_density_matrix(pa1, pb1, pc1, pd1,&
-                                               nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                               sgfa, sgfb, sgfc, sgfd, full_density_beta, &
-                                               pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, N_pmat)
+                  CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), & 
+                                               full_density_beta, pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
+                                               iatom, jatom, katom, latom, &
+                                               iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
+                                               offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
+                                               atomic_offset_ad, atomic_offset_ac)
                 END IF
 
 
@@ -1255,69 +1304,125 @@ MODULE hfx_derivatives
 !> \param ma_max, mb_max, mc_max, md_max: Size of matrix blocks
 !> \param sgfa, sgfb, sgfc, sgfd offsets
 !> \param pbd, pbc, pad, pac buffers that will contain P(b,d), P(b,c) ...
-!> \param N_pmat linear Size of density matrix
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE prefetch_density_matrix(pa1, pb1, pc1, pd1, ma_max, mb_max, mc_max, md_max, &
-                                     sgfa, sgfb, sgfc, sgfd, density, &
-                                     pbd, pbc, pad, pac, N_pmat)
+  SUBROUTINE prefetch_density_matrix(ma_max, mb_max, mc_max, md_max, &
+                                     density, pbd, pbc, pad, pac, &
+                                     iatom, jatom, katom, latom, &
+                                     iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
+                                     offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
+                                     atomic_offset_ad, atomic_offset_ac)
 
-    INTEGER, INTENT(IN)                      :: pa1, pb1, pc1, pd1, ma_max, &
-                                                mb_max, mc_max, md_max, sgfa, &
-                                                sgfb, sgfc, sgfd
-    REAL(dp), DIMENSION(:)                   :: density
-    REAL(dp), DIMENSION(*)                   :: pbd, pbc, pad, pac
-    INTEGER(int_8), INTENT(IN)               :: N_pmat
+    INTEGER, INTENT(IN)                      :: ma_max, mb_max, mc_max, md_max
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: density
+    REAL(dp), DIMENSION(*), INTENT(INOUT)    :: pbd, pbc, pad, pac
+    INTEGER, INTENT(IN)                      :: iatom, jatom, katom, latom, &
+                                                iset, jset, kset, lset
+    INTEGER, DIMENSION(:, :), POINTER        :: offset_bd_set, offset_bc_set, &
+                                                offset_ad_set, offset_ac_set
+    INTEGER, INTENT(IN)                      :: atomic_offset_bd, &
+                                                atomic_offset_bc, &
+                                                atomic_offset_ad, &
+                                                atomic_offset_ac
 
-    INTEGER                                  :: i, ma, mb, mc, md, pa, pa2, &
-                                                pb, pb2, pc, pc2, pd, pd2
+    INTEGER                                  :: i, j, ma, mb, mc, md, &
+                                                offset_ac, offset_ad, &
+                                                offset_bc, offset_bd
 
-    i = 1
-    DO md=1,md_max
-      pd2 = md+sgfd-1
-      pd = pd1 + pd2
-      DO mb=1,mb_max
-        pb2 = mb+sgfb-1
-        pb = pb1 + pb2
-        pbd(i) = density(get_1d_idx(pb,pd,N_pmat))
-        i = i+1
+    IF( jatom >= latom ) THEN
+      i = 1
+      offset_bd = offset_bd_set(jset,lset) + atomic_offset_bd - 1
+      j = offset_bd
+      DO md=1,md_max
+        DO mb=1,mb_max
+          pbd(i) = density(j)
+          i = i + 1
+          j = j + 1
+        END DO
       END DO
-    END DO
-    i = 1
-    DO mc=1,mc_max
-      pc2 = mc+sgfc-1
-      pc = pc1 + pc2
-      DO mb=1,mb_max
-        pb2 = mb+sgfb-1
-        pb = pb1 + pb2
-        pbc(i) = density(get_1d_idx(pb,pc,N_pmat))
-        i = i+1
+    ELSE
+      i = 1
+      offset_bd = offset_bd_set(lset,jset) + atomic_offset_bd - 1
+      DO md=1,md_max
+        j = offset_bd + md - 1
+        DO mb=1,mb_max
+          pbd(i) = density(j)
+          i = i + 1
+          j = j + md_max
+        END DO
       END DO
-    END DO
-    i = 1
-    DO md=1,md_max
-      pd2 = md+sgfd-1
-      pd = pd1 + pd2
-      DO ma=1,ma_max
-        pa2 = ma+sgfa-1
-        pa = pa1 + pa2
-        pad(i) = density(get_1d_idx(pa,pd,N_pmat))
-        i = i+1
+    END IF
+    IF ( jatom >= katom ) THEN
+      i = 1
+      offset_bc = offset_bc_set(jset,kset) + atomic_offset_bc - 1
+      j = offset_bc
+      DO mc=1,mc_max
+        DO mb=1,mb_max
+          pbc(i) = density(j)
+          i = i + 1
+          j = j + 1
+        END DO
       END DO
-    END DO
-    i = 1
-    DO mc=1,mc_max
-      pc2 = mc+sgfc-1
-      pc = pc1 + pc2
-      DO ma=1,ma_max
-        pa2 = ma+sgfa-1
-        pa = pa1 + pa2
-        pac(i) = density(get_1d_idx(pa,pc,N_pmat))
-        i = i+1
+    ELSE
+      i = 1
+      offset_bc = offset_bc_set(kset,jset) + atomic_offset_bc - 1
+      DO mc=1,mc_max
+        j = offset_bc + mc -1
+        DO mb=1,mb_max
+          pbc(i) = density(j)
+          i = i + 1
+          j = j + mc_max
+        END DO
       END DO
-    END DO
+    END IF
+    IF( iatom >= latom) THEN
+      i = 1
+      offset_ad = offset_ad_set(iset,lset) + atomic_offset_ad - 1
+      j = offset_ad
+      DO md=1,md_max
+        DO ma=1,ma_max
+          pad(i) = density(j)
+          i = i + 1
+          j = j + 1
+        END DO
+      END DO
+    ELSE
+      i = 1
+      offset_ad = offset_ad_set(lset,iset) + atomic_offset_ad - 1
+      DO md=1,md_max
+        j = offset_ad + md -1
+        DO ma=1,ma_max
+          pad(i) = density(j)
+          i = i + 1
+          j = j + md_max
+        END DO
+      END DO
+    END IF
+    IF( iatom >= katom ) THEN
+      i = 1
+      offset_ac = offset_ac_set(iset,kset) + atomic_offset_ac - 1
+      j = offset_ac
+      DO mc=1,mc_max
+        DO ma=1,ma_max
+          pac(i) = density(j)
+          i = i + 1
+          j = j + 1
+        END DO
+      END DO
+    ELSE
+      i = 1
+      offset_ac = offset_ac_set(kset,iset) + atomic_offset_ac - 1
+      DO mc=1,mc_max
+        j = offset_ac + mc - 1
+        DO ma=1,ma_max
+          pac(i) = density(j)
+          i = i + 1
+          j = j + mc_max
+        END DO
+      END DO
+    END IF
   END SUBROUTINE prefetch_density_matrix
 
 ! *****************************************************************************

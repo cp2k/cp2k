@@ -14,7 +14,8 @@ MODULE hfx_communication
                                              get_atomic_kind_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE hfx_types,                       ONLY: hfx_basis_type,&
+  USE hfx_types,                       ONLY: hfx_2D_map,&
+                                             hfx_basis_type,&
                                              hfx_type
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -41,7 +42,10 @@ MODULE hfx_communication
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC get_full_density, distribute_ks_matrix, scale_and_add_fock_to_ks_matrix, get_is_assoc_atomic_block
+  PUBLIC get_full_density,&
+         distribute_ks_matrix,&
+         scale_and_add_fock_to_ks_matrix,&
+         get_atomic_block_maps
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_communication'
 
 !***
@@ -70,20 +74,21 @@ MODULE hfx_communication
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, is_assoc_atomic_block,&
-                              natom, last_sgf_global, kind_of, basis_parameter, N_pmat, &
-                              get_max_vals_spin, rho_beta, error)
+                              map_atoms_to_cpus, block_offset, natom, last_sgf_global, kind_of, &
+                              basis_parameter, get_max_vals_spin, rho_beta, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:), POINTER          :: full_density
     TYPE(real_matrix_type), POINTER          :: rho
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
+    TYPE(hfx_2D_map), DIMENSION(:), POINTER  :: map_atoms_to_cpus
+    INTEGER, DIMENSION(:), POINTER           :: block_offset
     INTEGER, INTENT(IN)                      :: natom
     INTEGER                                  :: last_sgf_global(0:natom), &
                                                 kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    INTEGER(int_8), INTENT(IN)               :: N_pmat
     LOGICAL, INTENT(IN)                      :: get_max_vals_spin
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: rho_beta
@@ -92,10 +97,10 @@ MODULE hfx_communication
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_full_density', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_from, dest, i, iatom, &
-                                                icpu, ikind, istat, jatom, &
-                                                jkind, mepos, ncpu, pa, pa1, &
-                                                pb, pb1, req(2), source
+    INTEGER :: block_size, data_from, dest, i, iatom, icpu, ikind, iset, &
+      istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, &
+      req(2), source, source_cpu
+    INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
@@ -114,29 +119,51 @@ MODULE hfx_communication
     i=1
     DO iatom=1,rho%nblock_row
       block_node => first_block_node(rho,iatom)
+      ikind = kind_of(iatom)
+      nseta = basis_parameter(ikind)%nset
+      nsgfa => basis_parameter(ikind)%nsgf
       IF (get_max_vals_spin ) block_node_beta => first_block_node(rho_beta,iatom)
       DO WHILE (ASSOCIATED(block_node))
         CALL get_block_node(block_node=block_node,&
                             block_col=jatom,&
                             BLOCK=sparse_block)
+        jkind = kind_of(jatom)
+        nsetb = basis_parameter(jkind)%nset
+        nsgfb => basis_parameter(jkind)%nsgf
         IF( get_max_vals_spin ) THEN
           CALL get_block_node(block_node=block_node_beta,&
                               block_col=jatom,&
                               BLOCK=sparse_block_beta)
-          DO pb=1,SIZE(sparse_block,2)
-            DO pa=1,SIZE(sparse_block,1)
-              sendbuffer(i)= MAX(ABS(sparse_block(pa,pb)), ABS(sparse_block_beta(pa,pb)))
-              i=i+1
+          pa = 0
+          DO iset = 1,nseta
+            pb = 0
+            DO jset = 1,nsetb
+              DO pa1 = pa+1, pa + nsgfa(iset)
+                DO pb1 = pb+1, pb + nsgfb(jset)
+                  sendbuffer(i) = MAX(ABS(sparse_block(pa1,pb1)),ABS(sparse_block_beta(pa1,pb1)))
+                  i = i + 1
+                END DO
+              END DO
+              pb = pb + nsgfb(jset)
             END DO
+            pa = pa + nsgfa(iset)
           END DO
           block_node => next_block_node(block_node)
           block_node_beta => next_block_node(block_node_beta)
         ELSE
-          DO pb=1,SIZE(sparse_block,2)
-            DO pa=1,SIZE(sparse_block,1)
-              sendbuffer(i)= sparse_block(pa,pb)
-              i=i+1
+          pa = 0
+          DO iset = 1,nseta
+            pb = 0
+            DO jset = 1,nsetb
+              DO pa1 = pa+1, pa + nsgfa(iset)
+                DO pb1 = pb+1, pb + nsgfb(jset)
+                  sendbuffer(i) = sparse_block(pa1,pb1)
+                  i = i + 1
+                END DO
+              END DO
+              pb = pb + nsgfb(jset)
             END DO
+            pa = pa + nsgfa(iset)
           END DO
           block_node => next_block_node(block_node)
         END IF
@@ -154,24 +181,11 @@ MODULE hfx_communication
         CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
                           para_env%group,req(1),req(2),13)
       ENDIF
-      i = 1
       data_from = MODULO(mepos - icpu,ncpu)
-      DO iatom=1,natom
-        ikind = kind_of(iatom)
-        pa1 = last_sgf_global(iatom) - basis_parameter(ikind)%nsgf_total
-        DO jatom=iatom,natom
-          jkind =kind_of(jatom)
-          pb1 = last_sgf_global(jatom) - basis_parameter(jkind)%nsgf_total
-          IF(is_assoc_atomic_block(jatom,iatom)-1 == MODULO(data_from,ncpu)) THEN
-            DO pb = pb1+1, pb1+ basis_parameter(jkind)%nsgf_total 
-              DO pa = pa1+1,pa1+ basis_parameter(ikind)%nsgf_total
-                full_density(get_1d_idx(pa,pb,N_pmat)) = sendbuffer(i)
-                i = i + 1
-              END DO
-            END DO
-          END IF
-        END DO
-      END DO
+      source_cpu = MODULO(data_from,ncpu) + 1
+      block_size = block_offset(source_cpu+1) - block_offset(source_cpu)
+      full_density(block_offset(source_cpu):block_offset(source_cpu)+block_size-1) = sendbuffer(1:block_size)
+
       IF (icpu .NE. ncpu -1) THEN
         CALL mp_waitall(req)
       ENDIF
@@ -205,7 +219,7 @@ MODULE hfx_communication
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, is_assoc_atomic_block,&
-                                  natom, last_sgf_global, kind_of, basis_parameter, N_pmat, &
+                                  block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
                                   off_diag_fac, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -213,22 +227,22 @@ MODULE hfx_communication
     TYPE(real_matrix_type), POINTER          :: ks_matrix
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
+    INTEGER, DIMENSION(:), POINTER           :: block_offset
     INTEGER, INTENT(IN)                      :: natom
     INTEGER                                  :: last_sgf_global(0:natom), &
                                                 kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    INTEGER(int_8), INTENT(IN)               :: N_pmat
     REAL(dp), INTENT(IN), OPTIONAL           :: off_diag_fac
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_to, dest, i, iatom, &
-                                                icpu, ikind, istat, jatom, &
-                                                jkind, mepos, ncpu, pa, pa1, &
-                                                pb, pb1, req(2), source
+    INTEGER :: block_size, data_to, dest, dest_cpu, i, iatom, icpu, ikind, &
+      iset, istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, &
+      pb, pb1, req(2), source
+    INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
     LOGICAL                                  :: failure
     REAL(dp)                                 :: my_fac
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
@@ -256,31 +270,13 @@ MODULE hfx_communication
     DO icpu = 1,ncpu
       i = 1
       data_to = mepos-icpu
-      DO iatom=1,natom
-        ikind = kind_of(iatom)
-        pa1 = last_sgf_global(iatom) - basis_parameter(ikind)%nsgf_total
-        DO jatom=iatom,natom
-          jkind = kind_of(jatom)
-          pb1 = last_sgf_global(jatom) - basis_parameter(jkind)%nsgf_total
-          IF(is_assoc_atomic_block(jatom,iatom)-1 == MODULO(data_to,ncpu)) THEN
-            DO pb=pb1+1,pb1+ basis_parameter(jkind)%nsgf_total
-              DO pa=pa1+1,pa1+ basis_parameter(ikind)%nsgf_total
-                !! ** We need to scale all non diagonal elements
-                IF(iatom == jatom .AND. pa==pb) THEN
-                  sendbuffer(i) = sendbuffer(i) + full_ks(get_1d_idx(pa,pb,N_pmat))
-                ELSE
-                  sendbuffer(i) = sendbuffer(i) + full_ks(get_1d_idx(pa,pb,N_pmat)) * my_fac
-                END IF
-                i = i+1
-              END DO
-            END DO  
-          END IF
-        END DO
-      END DO
-
+      dest_cpu = MODULO(data_to, ncpu) + 1
+      block_size = block_offset(dest_cpu+1) - block_offset(dest_cpu)
+      sendbuffer(1:block_size) = sendbuffer(1:block_size) + full_ks(block_offset(dest_cpu):block_offset(dest_cpu)+block_size-1)
       IF ( icpu .EQ. ncpu ) EXIT
       CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
                         para_env%group,req(1),req(2),13)
+
       CALL mp_waitall(req)
       swapbuffer=>sendbuffer
       sendbuffer=>recbuffer
@@ -292,26 +288,38 @@ MODULE hfx_communication
     i = 1
     DO iatom=1,ks_matrix%nblock_row
       ikind = kind_of(iatom)
-      block_node => first_block_node(ks_matrix,iatom)
-      IF (.NOT. ASSOCIATED(block_node)) CYCLE
-      pa1 = last_sgf_global(iatom) - basis_parameter(ikind)%nsgf_total 
+      nseta = basis_parameter(ikind)%nset
+      nsgfa => basis_parameter(ikind)%nsgf
       block_node => first_block_node(ks_matrix,iatom)
       DO WHILE (ASSOCIATED(block_node))
         CALL get_block_node(block_node=block_node,&
                             block_col=jatom,&
                             BLOCK=sparse_block)
-        block_node => next_block_node(block_node)
         jkind = kind_of(jatom)
-        pb1 = last_sgf_global(jatom) - basis_parameter(jkind)%nsgf_total
-        DO pb = 1,SIZE(sparse_block,2)
-          DO pa = 1,SIZE(sparse_block,1)
-            sparse_block(pa,pb) = sendbuffer(i) + sparse_block(pa,pb)
-            i = i + 1
+        nsetb = basis_parameter(jkind)%nset
+        nsgfb => basis_parameter(jkind)%nsgf
+        pa = 0
+        DO iset = 1,nseta
+          pb = 0
+          DO jset = 1,nsetb
+            DO pa1 = pa+1,pa + nsgfa(iset)
+              DO pb1 = pb+1,pb + nsgfb(jset)
+                IF(iatom == jatom .AND. pa1==pb1) THEN
+                  sparse_block(pa1,pb1) = sendbuffer(i) + sparse_block(pa1,pb1)
+                ELSE
+                  sparse_block(pa1,pb1) = sendbuffer(i)*my_fac + sparse_block(pa1,pb1)
+                END IF
+                i = i + 1
+              END DO
+            END DO
+            pb = pb + nsgfb(jset)
           END DO
-        END DO 
+          pa = pa + nsgfa(iset)
+        END DO
+        block_node => next_block_node(block_node)
       END DO
     END DO
-    
+
     DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             
@@ -338,7 +346,7 @@ MODULE hfx_communication
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
-                                             scaling_factor, N_pmat, error)
+                                             scaling_factor, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -346,7 +354,6 @@ MODULE hfx_communication
       POINTER                                :: ks_matrix
     INTEGER, INTENT(IN)                      :: irep
     REAL(dp), INTENT(IN)                     :: scaling_factor
-    INTEGER(int_8), INTENT(IN)               :: N_pmat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -400,8 +407,9 @@ MODULE hfx_communication
        full_ks = full_ks * scaling_factor
     END IF
     CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, actual_x_data%number_of_p_entries, &
-                              actual_x_data%is_assoc_atomic_block,&
-                              natom, last_sgf_global, kind_of, basis_parameter, N_pmat, error=error)
+                              actual_x_data%is_assoc_atomic_block, &
+                              actual_x_data%block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
+                              off_diag_fac=0.5_dp,error=error)
     DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -410,10 +418,11 @@ MODULE hfx_communication
       IF(scaling_factor /= 1.0_dp ) THEN
          full_ks = full_ks * scaling_factor
       END IF
-
       CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(2)%matrix, actual_x_data%number_of_p_entries, &
-                                actual_x_data%is_assoc_atomic_block,&
-                                natom, last_sgf_global, kind_of, basis_parameter, N_pmat, error=error)
+                              actual_x_data%is_assoc_atomic_block, &
+                              actual_x_data%block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
+                              off_diag_fac=0.5_dp,error=error)
+
       DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -447,17 +456,20 @@ MODULE hfx_communication
   END FUNCTION get_1D_idx
 
 ! *****************************************************************************
-!> \brief create a local array that reflects the ks matrix sparsity
+!> \brief create a several maps array that reflects the ks matrix sparsity
 !> \param para_en v
 !> \par History
 !>      11.2007 refactored [Joost VandeVondele]
+!>      07.2009 add new maps
 !> \notes
 !>      is_assoc_atomic_block returns the mpi rank + 1 for associated blocks,
 !>      zero for unassiated blocks
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE get_is_assoc_atomic_block(matrix,basis_parameter,kind_of,&
-                    is_assoc_atomic_block,number_of_p_entries,para_env,error)
+  SUBROUTINE get_atomic_block_maps(matrix,basis_parameter,kind_of,&
+                                   is_assoc_atomic_block,number_of_p_entries,&
+                                   para_env,atomic_block_offset, set_offset, &
+                                   block_offset, map_atoms_to_cpus, nkind, error)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(hfx_basis_type), DIMENSION(:)       :: basis_parameter
@@ -465,17 +477,23 @@ MODULE hfx_communication
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: is_assoc_atomic_block
     INTEGER, INTENT(OUT)                     :: number_of_p_entries
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, DIMENSION(:, :), POINTER        :: atomic_block_offset
+    INTEGER, DIMENSION(:, :, :, :), POINTER  :: set_offset
+    INTEGER, DIMENSION(:), POINTER           :: block_offset
+    TYPE(hfx_2D_map), DIMENSION(:), POINTER  :: map_atoms_to_cpus
+    INTEGER                                  :: nkind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_is_assoc_atomic_block', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atomic_block_maps', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, ibuf, icpu, &
-                                                ikind, itask, jatom, jkind, &
-                                                number_of_p_blocks, stat, &
-                                                tmp(2)
+    INTEGER :: handle, iatom, ibuf, icpu, ikind, ilist, iset, itask, jatom, &
+      jkind, jset, natom, ncpu, nseta, nsetb, number_of_p_blocks, offset, &
+      stat, tmp(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buffer_in, buffer_out, &
-                                                rcount, rdispl
+                                                counter, rcount, rdispl
+    INTEGER, DIMENSION(:), POINTER           :: iatom_list, jatom_list, &
+                                                nsgfa, nsgfb
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
@@ -556,8 +574,87 @@ MODULE hfx_communication
        ENDIF
     ENDDO
 
+IF( ASSOCIATED(map_atoms_to_cpus) ) THEN
+      DO icpu=1,para_env%num_pe
+        DEALLOCATE(map_atoms_to_cpus(icpu)%iatom_list)
+        DEALLOCATE(map_atoms_to_cpus(icpu)%jatom_list)
+      END DO
+      DEALLOCATE(map_atoms_to_cpus)
+    END IF
+
+    natom = SIZE(is_assoc_atomic_block,1)
+    ALLOCATE(map_atoms_to_cpus(para_env%num_pe), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(counter(para_env%num_pe), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    counter = 0
+
+    DO iatom=1,natom
+      DO jatom=iatom,natom
+        icpu = is_assoc_atomic_block(jatom,iatom)
+        IF( icpu>0 ) counter(icpu) = counter(icpu) + 1
+      END DO
+    END DO
+    DO icpu = 1,para_env%num_pe
+      ALLOCATE(map_atoms_to_cpus(icpu)%iatom_list(counter(icpu)),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(map_atoms_to_cpus(icpu)%jatom_list(counter(icpu)),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    counter = 0
+    DO iatom=1,natom
+      DO jatom=iatom,natom
+        icpu = is_assoc_atomic_block(jatom,iatom)
+        IF( icpu >0 ) THEN
+          counter(icpu) = counter(icpu) + 1
+          map_atoms_to_cpus(icpu)%jatom_list(counter(icpu))=jatom
+          map_atoms_to_cpus(icpu)%iatom_list(counter(icpu))=iatom
+        END IF
+      END DO
+    END DO
+
+    DEALLOCATE(counter, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ncpu = para_env%num_pe
+    offset = 1
+    atomic_block_offset = 0
+    block_offset = 0
+    DO icpu = 1, ncpu
+      iatom_list => map_atoms_to_cpus(icpu)%iatom_list
+      jatom_list => map_atoms_to_cpus(icpu)%jatom_list
+      block_offset(icpu) = offset
+      DO ilist = 1,SIZE(iatom_list)
+        iatom = iatom_list(ilist)
+        ikind = kind_of(iatom)
+        jatom = jatom_list(ilist)
+        jkind = kind_of(jatom)
+        atomic_block_offset(iatom,jatom) = offset
+        atomic_block_offset(jatom,iatom) = offset
+        offset = offset + basis_parameter(ikind)%nsgf_total * basis_parameter(jkind)%nsgf_total
+      END DO
+    END DO
+    block_offset(ncpu+1) = offset
+
+    set_offset = 0
+    DO ikind=1,nkind
+      nseta = basis_parameter(ikind)%nset
+      nsgfa => basis_parameter(ikind)%nsgf
+      DO jkind=1,nkind
+        nsetb = basis_parameter(jkind)%nset
+        nsgfb => basis_parameter(jkind)%nsgf
+        offset = 1
+        DO iset = 1,nseta
+          DO jset = 1,nsetb
+            set_offset(jset,iset,jkind,ikind) = offset
+            offset = offset + nsgfa(iset)*nsgfb(jset)
+          END DO
+        END DO
+      END DO
+    END DO
+
     CALL timestop(handle)
 
-  END SUBROUTINE get_is_assoc_atomic_block
+  END SUBROUTINE get_atomic_block_maps
 
 END MODULE hfx_communication

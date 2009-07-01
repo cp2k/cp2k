@@ -308,7 +308,6 @@ CONTAINS
 
     INTEGER :: adiabatic_functional, adiabatic_model, handle, ikind, irep, &
       ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
-    INTEGER(int_8)                           :: N_pmat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, do_ppl, explicit_potential, failure, gapw, gapw_xc, &
       hfx_treat_lsd_in_core, ionode, my_kg_gpw, scp_dft, uniform_occupation, &
@@ -754,11 +753,10 @@ CONTAINS
               
              !! Scale and add Fock matrix to KS matrix
              IF(do_hfx) THEN
-               N_pmat = rho%rho_ao(1)%matrix%nrow
                CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 1 ,&
-                                                    scale_dEx1, N_pmat, error)
+                                                    scale_dEx1, error)
                CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 2 ,&
-                                                    scale_dEx2, N_pmat, error)
+                                                    scale_dEx2, error)
              END IF
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)

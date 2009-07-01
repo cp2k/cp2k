@@ -120,30 +120,31 @@ MODULE hfx_screening_methods
 !>     09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, &
+  SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, set_offset, atomic_block_offset, &
                              full_density, full_density_beta, natom, &
                              max_set ,kind_of,basis_parameter, last_sgf_global,&
-                             N_pmat, nkind, error)
+                             nkind, error)
 
     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
+    INTEGER, DIMENSION(:, :, :, :), POINTER  :: set_offset
+    INTEGER, DIMENSION(:, :), POINTER        :: atomic_block_offset
     REAL(dp), DIMENSION(:), POINTER          :: full_density, &
                                                 full_density_beta
     INTEGER, INTENT(IN)                      :: natom, max_set
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    INTEGER                                  :: last_sgf_global(0:natom)
-    INTEGER(int_8), INTENT(IN)               :: N_pmat
-    INTEGER                                  :: nkind
+    INTEGER                                  :: last_sgf_global(0:natom), &
+                                                nkind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, jatom, jkind, jset, katom, kind_kind_idx, kkind, &
-      kset, mb, mc, nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, &
-      pc1, pc2, sgfb, sgfc
+    INTEGER :: act_atomic_block_offset, act_set_offset, handle, i, jatom, &
+      jkind, jset, katom, kind_kind_idx, kkind, kset, mb, mc, nsetb, nsetc, &
+      nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, sgfb, sgfc
     INTEGER, DIMENSION(:), POINTER           :: nsgfb, nsgfc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
@@ -173,34 +174,67 @@ MODULE hfx_screening_methods
         first_sgfc => basis_parameter(kkind)%first_sgf
         nsgfc => basis_parameter(kkind)%nsgf
         pc1 = last_sgf_global(katom) - nsgfc_total
+        act_atomic_block_offset = atomic_block_offset(katom,jatom)
         DO jset = 1,nsetb
           sgfb = first_sgfb(1,jset)
           DO kset = 1,nsetc
-            sgfc = first_sgfc(1,kset)
-            pmax_tmp = 0.0_dp
-            DO mc = 1,nsgfc(kset)
-               pc2 = mc+sgfc-1
-               pc = pc1 + pc2
-               DO mb = 1,nsgfb(jset)
+            IF( katom >= jatom ) THEN
+              sgfc = first_sgfc(1,kset)
+              pmax_tmp = 0.0_dp
+              act_set_offset = set_offset(kset,jset,kkind,jkind)
+              i = act_set_offset + act_atomic_block_offset - 1
+              DO mc = 1,nsgfc(kset)
+                pc2 = mc+sgfc-1
+                pc = pc1 + pc2
+                DO mb = 1,nsgfb(jset)
                   pb2 = mb+sgfb-1
                   pb = pb1 + pb2
-                  pmax_tmp=MAX(pmax_tmp,ABS(full_density(get_1d_idx(pb,pc,N_pmat))))
+                  pmax_tmp=MAX(pmax_tmp,ABS(full_density(i)))
                   IF( ASSOCIATED(full_density_beta) ) THEN
-                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(get_1d_idx(pb,pc,N_pmat))))
+                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i)))
                   END IF
-               ENDDO
-            ENDDO
-            IF(pmax_tmp == 0.0_dp) THEN
-              pmax_tmp = log_zero
+                  i=i+1
+                ENDDO
+              ENDDO
+              IF(pmax_tmp == 0.0_dp) THEN
+                pmax_tmp = log_zero
+              ELSE
+                pmax_tmp = LOG10(pmax_tmp)
+              END IF
+              kind_kind_idx = INT(get_1D_idx(jkind,kkind,INT(nkind,int_8)))
+              pmax_set(kind_kind_idx)%p_kind(jset, &
+                       kset, &
+                       map_atom_to_kind_atom(jatom), &
+                       map_atom_to_kind_atom(katom)) = pmax_tmp
             ELSE
-              pmax_tmp = LOG10(pmax_tmp)
+              sgfc = first_sgfc(1,kset)
+              pmax_tmp = 0.0_dp
+              act_set_offset = set_offset(jset,kset,jkind,kkind)
+              DO mc = 1,nsgfc(kset)
+                i = act_set_offset + act_atomic_block_offset -1 + mc -1
+                pc2 = mc+sgfc-1
+                pc = pc1 + pc2
+                DO mb = 1,nsgfb(jset)
+                  pb2 = mb+sgfb-1
+                  pb = pb1 + pb2
+                  pmax_tmp=MAX(pmax_tmp,ABS(full_density(i)))
+                  IF( ASSOCIATED(full_density_beta) ) THEN
+                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i)))
+                  END IF
+                  i= i + nsgfc(kset)
+                ENDDO
+              ENDDO
+              IF(pmax_tmp == 0.0_dp) THEN
+                pmax_tmp = log_zero
+              ELSE
+                pmax_tmp = LOG10(pmax_tmp)
+              END IF
+              kind_kind_idx = INT(get_1D_idx(jkind,kkind,INT(nkind,int_8)))
+              pmax_set(kind_kind_idx)%p_kind(jset, &
+                       kset, &
+                       map_atom_to_kind_atom(jatom), &
+                       map_atom_to_kind_atom(katom)) = pmax_tmp
             END IF
-            kind_kind_idx = INT(get_1D_idx(jkind,kkind,INT(nkind,int_8)))
-            pmax_set(kind_kind_idx)%p_kind(jset, &
-                     kset, &
-                     map_atom_to_kind_atom(jatom), &
-                     map_atom_to_kind_atom(katom)) = pmax_tmp
-                               
           END DO
         END DO
       END DO

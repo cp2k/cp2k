@@ -23,8 +23,8 @@ MODULE hfx_energy_potential
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: distribute_ks_matrix,&
-                                             get_full_density,&
-                                             get_is_assoc_atomic_block
+                                             get_atomic_block_maps,&
+                                             get_full_density
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
                                              hfx_add_single_cache_element,&
                                              hfx_decompress_first_cache,&
@@ -58,7 +58,8 @@ MODULE hfx_energy_potential
   USE mathconstants
   USE message_passing,                 ONLY: mp_max_i8,&
                                              mp_sum,&
-                                             mp_sum_i8
+                                             mp_sum_i8,&
+                                             mp_sync
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -215,7 +216,7 @@ MODULE hfx_energy_potential
 
     INTEGER                                  :: max_pgf
     INTEGER(int_8)                           :: nanotime, time_1, time_2,memsize_before,memsize_after,&
-                                                max_val_memory, max_val_memory_tmp, N_pmat,tmp_i8(8)
+                                                max_val_memory, max_val_memory_tmp, tmp_i8(8)
     REAL(dp)                                 :: BD2, AC2, min_PQ2, max_val2_set
     TYPE(lib_int)                            :: private_lib
     INTEGER                                  :: nrow, ncol, pa, pd
@@ -237,6 +238,15 @@ MODULE hfx_energy_potential
     INTEGER                                  :: kind_kind_idx, swap_id
     REAL(dp)                                 :: pmax_1, pmax_2, pmax_3, pmax_4
     REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4
+    INTEGER, DIMENSION(:), POINTER           :: shm_block_offset
+    INTEGER, DIMENSION(:,:), POINTER         :: shm_atomic_block_offset
+    INTEGER, DIMENSION(:,:,:,:), POINTER     :: shm_set_offset
+    INTEGER                                  :: offset_bd, offset_bc, offset_ad, offset_ac, &
+                                                atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, &
+                                                atomic_offset_ac
+    INTEGER                                  :: act_atomic_block_offset, act_set_offset, ma, j
+    INTEGER, DIMENSION(:,:), POINTER         :: offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set
+    REAL(dp)                                 :: ene_x_aa_diag, ene_x_bb_diag
 
 
     CALL timeset(routineN,handle)
@@ -334,7 +344,10 @@ MODULE hfx_energy_potential
 !$OMP                                  screen_coeffs_pgf,&
 !$OMP                                  radii_pgf,&
 !$OMP                                  nkind,&
-!$OMP                                  ispin)
+!$OMP                                  ispin,&
+!$OMP                                  shm_atomic_block_offset,&
+!$OMP                                  shm_set_offset,&
+!$OMP                                  shm_block_offset)
 
 
     ln_10 = LOG(10.0_dp)
@@ -368,6 +381,9 @@ MODULE hfx_energy_potential
     basis_info        => actual_x_data%basis_info
 
     treat_lsd_in_core = general_parameter%treat_lsd_in_core
+
+    ncpu = para_env%num_pe 
+    n_processes = ncpu * n_threads
 
     !! initalize some counters
     neris_total = 0_int_8
@@ -463,10 +479,57 @@ MODULE hfx_energy_potential
       ENDDO
     ENDDO
 
-    N_pmat = rho%rho_ao(1)%matrix%nrow
+!$OMP BARRIER
+!$OMP MASTER
+    !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
+    IF( geometry_did_change ) THEN
+      CALL get_atomic_block_maps(ks_matrix(1)%matrix,basis_parameter,kind_of,&
+                                 actual_x_data%is_assoc_atomic_block,&
+                                 actual_x_data%number_of_p_entries ,&
+                                 para_env, &
+                                 actual_x_data%atomic_block_offset,&
+                                 actual_x_data%set_offset,&
+                                 actual_x_data%block_offset,&
+                                 actual_x_data%map_atoms_to_cpus,&
+                                 nkind,&
+                                 error)
+
+      shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
+
+      !! Get occupation of KS-matrix
+      ks_fully_occ = .TRUE.
+      outer: DO iatom=1,natom
+        DO jatom=iatom,natom
+          IF(shm_is_assoc_atomic_block(jatom,iatom) == 0 ) THEN
+            ks_fully_occ = .FALSE.
+            EXIT outer
+          END IF
+        END DO
+      END DO outer
+        
+      IF ( .NOT. ks_fully_occ) THEN
+        WRITE(error_msg,'(A,A,A)') "The Kohn Sham matrix is not 100% occupied. This "//&
+             "may result in uncorrect Hartree-Fock results. Try to decrease EPS_PGF_ORB "//&
+             "in the QS section. "
+        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                       error_msg,&
+                       error,&
+                       only_ionode=.TRUE.)
+      END IF
+    END IF
+
+    ! ** Set pointers
+    shm_number_of_p_entries = actual_x_data%number_of_p_entries
+    shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
+    shm_atomic_block_offset => actual_x_data%atomic_block_offset
+    shm_set_offset => actual_x_data%set_offset
+    shm_block_offset => actual_x_data%block_offset
+!$OMP END MASTER
+!$OMP BARRIER
+
     ! ** Reset storage counter given by MAX_MEMORY by subtracting all buffers
     ! ** Fock and density Matrices (shared)
-    subtr_size_mb = 2_int_8*N_pmat*(N_pmat+1)/2
+    subtr_size_mb = 2_int_8*shm_block_offset(ncpu+1) 
     ! ** if non restricted ==> alpha/beta spin
     IF (.NOT. treat_lsd_in_core ) THEN 
       IF( nspins == 2) subtr_size_mb = subtr_size_mb * 2_int_8
@@ -596,53 +659,70 @@ MODULE hfx_energy_potential
     END DO
 !$OMP BARRIER
 !$OMP MASTER
-    !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
-    IF( geometry_did_change ) THEN
-      CALL get_is_assoc_atomic_block(ks_matrix(1)%matrix,basis_parameter,kind_of,&
-                    actual_x_data%is_assoc_atomic_block,actual_x_data%number_of_p_entries ,para_env, error)
-      shm_number_of_p_entries = actual_x_data%number_of_p_entries
-      shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
+!    !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
+!    IF( geometry_did_change ) THEN
+!      CALL get_atomic_block_maps(ks_matrix(1)%matrix,basis_parameter,kind_of,&
+!                                 actual_x_data%is_assoc_atomic_block,&
+!                                 actual_x_data%number_of_p_entries ,&
+!                                 para_env, &
+!                                 actual_x_data%atomic_block_offset,&
+!                                 actual_x_data%set_offset,&
+!                                 actual_x_data%block_offset,&
+!                                 actual_x_data%map_atoms_to_cpus,&
+!                                 nkind,&
+!                                 error)
+!
+!      shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
+!
+!      !! Get occupation of KS-matrix
+!      ks_fully_occ = .TRUE.
+!      outer: DO iatom=1,natom
+!        DO jatom=iatom,natom
+!          IF(shm_is_assoc_atomic_block(jatom,iatom) == 0 ) THEN
+!            ks_fully_occ = .FALSE.
+!            EXIT outer
+!          END IF
+!        END DO
+!      END DO outer
+!        
+!      IF ( .NOT. ks_fully_occ) THEN
+!        WRITE(error_msg,'(A,A,A)') "The Kohn Sham matrix is not 100% occupied. This "//&
+!             "may result in uncorrect Hartree-Fock results. Try to decrease EPS_PGF_ORB "//&
+!             "in the QS section. "
+!        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+!                       error_msg,&
+!                       error,&
+!                       only_ionode=.TRUE.)
+!      END IF
+!    END IF
 
-      !! Get occupation of KS-matrix
-      ks_fully_occ = .TRUE.
-      outer: DO iatom=1,natom
-        DO jatom=iatom,natom
-          IF(shm_is_assoc_atomic_block(jatom,iatom) == 0 ) THEN
-            ks_fully_occ = .FALSE.
-            EXIT outer
-          END IF
-        END DO
-      END DO outer
-        
-      IF ( .NOT. ks_fully_occ) THEN
-        WRITE(error_msg,'(A,A,A)') "The Kohn Sham matrix is not 100% occupied. This "//&
-             "may result in uncorrect Hartree-Fock results. Try to decrease EPS_PGF_ORB "//&
-             "in the QS section. "
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       error_msg,&
-                       error,&
-                       only_ionode=.TRUE.)
-      END IF
-    END IF
+    ! ** Set pointers
+    shm_number_of_p_entries = actual_x_data%number_of_p_entries
+    shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
+    shm_atomic_block_offset => actual_x_data%atomic_block_offset
+    shm_set_offset => actual_x_data%set_offset
+    shm_block_offset => actual_x_data%block_offset
+
 
     !! Let master thread get the density (avoid problems with MPI)
     !! Get the full density from all the processors
     NULLIFY(full_density)
     NULLIFY(full_density_beta)
-    ALLOCATE(full_density(N_pmat*(N_pmat+1)/2),STAT=stat)
+    ALLOCATE(full_density(shm_block_offset(ncpu+1)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     IF( .NOT. treat_lsd_in_core .OR. nspins == 1 ) THEN
       CALL timeset(routineN//"_getP",handle_getP)
       CALL get_full_density(para_env, full_density, rho%rho_ao(ispin)%matrix, shm_number_of_p_entries,&
-                            shm_is_assoc_atomic_block, natom, last_sgf_global, &
-                            kind_of, basis_parameter, N_pmat, get_max_vals_spin=.FALSE., error=error)   
+                            shm_is_assoc_atomic_block, actual_x_data%map_atoms_to_cpus, &
+                            actual_x_data%block_offset, natom, last_sgf_global, &
+                            kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)   
 
       IF(nspins == 2) THEN
-        ALLOCATE(full_density_beta(N_pmat*(N_pmat+1)/2),STAT=stat)
+        ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
         CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, shm_number_of_p_entries,&
-                              shm_is_assoc_atomic_block, natom, last_sgf_global, &
-                              kind_of, basis_parameter, N_pmat, get_max_vals_spin=.FALSE., error=error)
+                              shm_is_assoc_atomic_block, actual_x_data%map_atoms_to_cpus,& 
+                              actual_x_data%block_offset, natom, last_sgf_global, &
+                              kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
       END IF
       CALL timestop(handle_getP)
 
@@ -655,17 +735,20 @@ MODULE hfx_energy_potential
         IF(geometry_did_change ) THEN
           CALL update_pmax_mat(actual_x_data%initial_p, &
                                actual_x_data%map_atom_to_kind_atom, &
+                               actual_x_data%set_offset,&
+                               actual_x_data%atomic_block_offset,&
                                full_density,full_density_beta,&
                                natom,max_set, kind_of, basis_parameter, &
-                               last_sgf_global, N_pmat, nkind, error)
+                               last_sgf_global, nkind, error)
         END IF
       END IF
     ELSE
       IF( do_p_screening ) THEN
         CALL timeset(routineN//"_getP",handle_getP)
         CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, shm_number_of_p_entries,&
-                              shm_is_assoc_atomic_block, natom, last_sgf_global, &
-                              kind_of, basis_parameter, N_pmat, get_max_vals_spin=.TRUE., &
+                              shm_is_assoc_atomic_block, actual_x_data%map_atoms_to_cpus, &
+                              actual_x_data%block_offset, natom, last_sgf_global, &
+                              kind_of, basis_parameter,  get_max_vals_spin=.TRUE., &
                               rho_beta=rho%rho_ao(2)%matrix, error=error)   
         CALL timestop(handle_getP)
 
@@ -677,28 +760,31 @@ MODULE hfx_energy_potential
         IF(geometry_did_change ) THEN
           CALL update_pmax_mat(actual_x_data%initial_p, &
                                actual_x_data%map_atom_to_kind_atom, &
+                               actual_x_data%set_offset,&
+                               actual_x_data%atomic_block_offset,&
                                full_density,full_density_beta,&
                                natom,max_set, kind_of, basis_parameter, &
-                               last_sgf_global, N_pmat, nkind, error)
+                               last_sgf_global, nkind, error)
         END IF
       END IF
       ! ** Now get the density(ispin)
       CALL get_full_density(para_env, full_density, rho%rho_ao(ispin)%matrix, shm_number_of_p_entries,&
-                            shm_is_assoc_atomic_block, natom, last_sgf_global, &
-                            kind_of, basis_parameter, N_pmat, get_max_vals_spin=.FALSE., error=error)
+                            shm_is_assoc_atomic_block, actual_x_data%map_atoms_to_cpus, &
+                            actual_x_data%block_offset, natom, last_sgf_global, &
+                            kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     END IF
 
     NULLIFY(full_ks, full_ks_beta)
     nrow = rho%rho_ao(1)%matrix%nrow
     ncol = rho%rho_ao(1)%matrix%ncol
-    ALLOCATE(actual_x_data%full_ks_alpha(N_pmat*(N_pmat+1)/2),STAT=stat)
+    ALLOCATE(actual_x_data%full_ks_alpha(shm_block_offset(ncpu+1)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     full_ks => actual_x_data%full_ks_alpha
     full_ks = 0.0_dp
    
     IF (.NOT. treat_lsd_in_core ) THEN 
       IF(nspins==2) THEN
-        ALLOCATE(actual_x_data%full_ks_beta(N_pmat*(N_pmat+1)/2),STAT=stat)
+        ALLOCATE(actual_x_data%full_ks_beta(shm_block_offset(ncpu+1)),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         full_ks_beta => actual_x_data%full_ks_beta
         full_ks_beta = 0.0_dp
@@ -808,8 +894,6 @@ MODULE hfx_energy_potential
 !$OMP END MASTER
 !$OMP BARRIER
 
-    ncpu = para_env%num_pe 
-    n_processes = ncpu * n_threads
 
     coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
     ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
@@ -955,6 +1039,32 @@ MODULE hfx_energy_potential
             nsgfd_total = basis_parameter(lkind)%nsgf_total
             pd1 = last_sgf_global(latom) - nsgfd_total
 
+            atomic_offset_bd = shm_atomic_block_offset(jatom,latom)
+            atomic_offset_bc = shm_atomic_block_offset(jatom,katom)
+            atomic_offset_ad = shm_atomic_block_offset(iatom,latom)
+            atomic_offset_ac = shm_atomic_block_offset(iatom,katom)
+
+            IF( jatom < latom) THEN
+              offset_bd_set => shm_set_offset(:,:,lkind,jkind)
+            ELSE
+              offset_bd_set => shm_set_offset(:,:,jkind,lkind)
+            END IF
+            IF( jatom < katom) THEN
+              offset_bc_set => shm_set_offset(:,:,kkind,jkind)
+            ELSE
+              offset_bc_set => shm_set_offset(:,:,jkind,kkind)
+            END IF
+            IF( iatom < latom) THEN
+              offset_ad_set => shm_set_offset(:,:,lkind,ikind)
+            ELSE
+              offset_ad_set => shm_set_offset(:,:,ikind,lkind)
+            END IF
+            IF( iatom < katom) THEN
+              offset_ac_set => shm_set_offset(:,:,kkind,ikind)
+            ELSE
+              offset_ac_set => shm_set_offset(:,:,ikind,kkind)
+            END IF
+
             IF( do_p_screening) THEN
               swap_id = 0
               kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
@@ -1089,7 +1199,6 @@ MODULE hfx_energy_potential
                 ELSE
                   pmax_entry = 0.0_dp
                 END IF
-
                 log10_pmax = pmax_entry
                 max_val2 = max_val2 + log10_pmax
                 IF(max_val2<log10_eps_schwarz) CYCLE
@@ -1288,18 +1397,20 @@ MODULE hfx_energy_potential
                   END IF
                 END IF
                 !! Update Kohn-Sham matrix
-                CALL update_fock_matrix(pa1, pb1, pc1, pd1, &
-                                        nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                        sgfa, sgfb, sgfc, sgfd, fac, symm_fac, full_density, full_ks, &
+                CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), & 
+                                        fac, symm_fac, full_density, full_ks, &
                                         primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
-                                        kbc_buf, kad_buf, kac_buf, N_pmat)
+                                        kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom,&
+                                        iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set,&
+                                        atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                 IF( .NOT. treat_lsd_in_core ) THEN
                   IF( nspins == 2 ) THEN
-                    CALL update_fock_matrix(pa1, pb1, pc1, pd1, &
-                                            nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                            sgfa, sgfb, sgfc, sgfd, fac, symm_fac, full_density_beta, full_ks_beta, &
+                    CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), & 
+                                            fac, symm_fac, full_density_beta, full_ks_beta, &
                                             primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
-                                            kbc_buf, kad_buf, kac_buf, N_pmat)
+                                            kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom,&
+                                            iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set,offset_ac_set,&
+                                            atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                   END IF
                 END IF
               END DO ! i_set_list_kl
@@ -1362,9 +1473,9 @@ MODULE hfx_energy_potential
     !! Calculate the exchange energies from the Kohn-Sham matrix. Before we can go on, we have to symmetrize.
     ene_x_aa = 0.0_dp
     ene_x_bb = 0.0_dp
-   
-    mb_size_p = N_pmat*(N_pmat+1)/2 /1024/128
-    mb_size_f = N_pmat*(N_pmat+1)/2 /1024/128
+ 
+    mb_size_p = shm_block_offset(ncpu+1) /1024/128
+    mb_size_f = shm_block_offset(ncpu+1) /1024/128
     IF (.NOT. treat_lsd_in_core ) THEN
       IF( nspins == 2) THEN
         mb_size_f = mb_size_f * 2
@@ -1384,14 +1495,56 @@ MODULE hfx_energy_potential
     mb_size_buffers = mb_size_buffers /1024/128
 
     CALL timestop(handle_main)
-    
+  
+    ene_x_aa_diag = 0.0_dp 
+    ene_x_bb_diag = 0.0_dp
+    DO iatom = 1,natom
+      ikind = kind_of(iatom)
+      nseta = basis_parameter(ikind)%nset
+      nsgfa => basis_parameter(ikind)%nsgf
+      jatom = iatom
+      jkind = kind_of(jatom)
+      nsetb = basis_parameter(jkind)%nset
+      nsgfb => basis_parameter(jkind)%nsgf
+      act_atomic_block_offset = shm_atomic_block_offset(jatom,iatom)
+      DO iset=1,nseta
+        DO jset=1,nsetb
+          act_set_offset = shm_set_offset(jset,iset,jkind,ikind)
+          i = act_set_offset + act_atomic_block_offset - 1
+          DO ma=1,nsgfa(iset)
+            j = shm_set_offset(iset,jset,jkind,ikind) + act_atomic_block_offset - 1 + ma -1
+            DO mb=1,nsgfb(jset)
+              IF(i>j) THEN
+                full_ks(i) = (full_ks(i) + full_ks(j))
+                full_ks(j) = full_ks(i) 
+                IF( .NOT. treat_lsd_in_core .AND. nspins == 2 ) THEN
+                  full_ks_beta(i) = (full_ks_beta(i) + full_ks_beta(j))
+                  full_ks_beta(j) = full_ks_beta(i) 
+                END IF
+              END IF  
+              ! ** For adiabatically rescaled functionals we need the energy coming from the diagonal elements
+              IF( i==j ) THEN
+                ene_x_aa_diag = ene_x_aa_diag + full_ks(i)*full_density(i)
+                IF( .NOT. treat_lsd_in_core .AND. nspins == 2 ) THEN
+                  ene_x_bb_diag = ene_x_bb_diag + full_ks_beta(i)*full_density_beta(i) 
+                END IF
+              END IF
+              i = i+ 1
+              j = j+nsgfa(iset)
+            END DO
+          END DO
+        END DO
+      END DO
+    END DO
+
+    CALL mp_sync(para_env%group)
     IF( distribute_fock_matrix) THEN
       !! Distribute the current KS-matrix to all the processes
       CALL timeset(routineN//"_dist_KS",handle_dist_ks)
       CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(ispin)%matrix, shm_number_of_p_entries, &
                                 shm_is_assoc_atomic_block,&
-                                natom, last_sgf_global, kind_of, basis_parameter, &
-                                N_pmat, off_diag_fac=0.5_dp,error=error)
+                                shm_block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
+                                off_diag_fac=0.5_dp,error=error)
 
       NULLIFY(full_ks)
       DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
@@ -1400,8 +1553,8 @@ MODULE hfx_energy_potential
         IF(nspins == 2) THEN
           CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, shm_number_of_p_entries, &
                                     shm_is_assoc_atomic_block,&
-                                    natom, last_sgf_global, kind_of, basis_parameter, &
-                                    N_pmat, off_diag_fac=0.5_dp, error=error)
+                                    shm_block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
+                                    off_diag_fac=0.5_dp, error=error)
           NULLIFY(full_ks_beta)
           DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1423,27 +1576,19 @@ MODULE hfx_energy_potential
       !! Update energy type
       energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb) + energy%ex
     ELSE
-      DO pa=1,N_pmat
-        DO pd=pa,N_pmat
-          IF(pa/=pd) THEN
-            full_ks(get_1d_idx(pa,pd,N_pmat)) = full_ks(get_1d_idx(pa,pd,N_pmat)) * 0.5_dp
-            ene_x_aa = ene_x_aa + 2.0_dp * full_density(get_1d_idx(pa,pd,N_pmat))*full_ks(get_1d_idx(pa,pd,N_pmat))
-          ELSE
-            ene_x_aa = ene_x_aa + full_density(get_1d_idx(pa,pd,N_pmat))*full_ks(get_1d_idx(pa,pd,N_pmat))
-          END IF
-        END DO
+      ! ** It is easier to correct the following expression by the diagonal energy contribution,
+      ! ** than explicitly going throuhg the diagonal elements
+      DO pa=1,SIZE(full_ks)
+        ene_x_aa = ene_x_aa + full_ks(pa)*full_density(pa)
       END DO
+      ! ** Now correct
+      ene_x_aa = (ene_x_aa + ene_x_aa_diag)*0.5_dp
       IF( nspins == 2 ) THEN
-        DO pa=1,N_pmat
-          DO pd=pa,N_pmat
-            IF(pa/=pd) THEN
-              full_ks_beta(get_1d_idx(pa,pd,N_pmat)) = full_ks_beta(get_1d_idx(pa,pd,N_pmat)) * 0.5_dp
-              ene_x_bb = ene_x_bb + 2.0_dp * full_density_beta(get_1d_idx(pa,pd,N_pmat))*full_ks_beta(get_1d_idx(pa,pd,N_pmat))
-            ELSE
-              ene_x_bb = ene_x_bb + full_density_beta(get_1d_idx(pa,pd,N_pmat))*full_ks_beta(get_1d_idx(pa,pd,N_pmat))
-            END IF
-          END DO
+        DO pa=1,SIZE(full_ks)
+          ene_x_bb = ene_x_bb + full_ks_beta(pa)*full_density_beta(pa)
         END DO
+        ! ** Now correct
+        ene_x_bb = (ene_x_bb + ene_x_bb_diag)*0.5_dp
       END IF
       CALL mp_sum(ene_x_aa, para_env%group)
       IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
@@ -1939,76 +2084,133 @@ MODULE hfx_energy_potential
 !> \param prim primitive integrals
 !> \param pbd, pbc, pad, pac buffers that will contain P(b,d), P(b,c) ...
 !> \param kbd, kbc, kad, kac buffers for KS(b,d), KS(b,c) ...
-!> \param N_pmat 1D size of density/fock matrix
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
 
-  SUBROUTINE update_fock_matrix(pa1, pb1, pc1, pd1, ma_max, mb_max, mc_max, md_max, &
-                                sgfa, sgfb, sgfc, sgfd, fac, symm_fac, density, ks, prim, &
-                                pbd, pbc, pad, pac, kbd, kbc, kad, kac, N_pmat)
+  SUBROUTINE update_fock_matrix(ma_max, mb_max, mc_max, md_max, &
+                                fac, symm_fac, density, ks, prim, &
+                                pbd, pbc, pad, pac, kbd, kbc, kad, kac, &
+                                iatom, jatom, katom, latom, &
+                                iset, jset, kset, lset,  offset_bd_set, offset_bc_set, offset_ad_set,&
+                                offset_ac_set, atomic_offset_bd, atomic_offset_bc, atomic_offset_ad,&
+                                atomic_offset_ac)
 
-    INTEGER, INTENT(IN)                      :: pa1, pb1, pc1, pd1, ma_max, &
-                                                mb_max, mc_max, md_max, sgfa, &
-                                                sgfb, sgfc, sgfd
+    INTEGER, INTENT(IN)                      :: ma_max, mb_max, mc_max, md_max
     REAL(dp), INTENT(IN)                     :: fac, symm_fac
-    REAL(dp), DIMENSION(:)                   :: density, ks
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: density
+    REAL(dp), DIMENSION(:), INTENT(OUT)      :: ks
     REAL(dp), DIMENSION(ma_max*mb_max*mc_max&
       *md_max), INTENT(IN)                   :: prim
-    REAL(dp), DIMENSION(*)                   :: pbd, pbc, pad, pac, kbd, kbc, &
+    REAL(dp), DIMENSION(*), INTENT(INOUT)    :: pbd, pbc, pad, pac, kbd, kbc, &
                                                 kad, kac
-    INTEGER(int_8), INTENT(IN)               :: N_pmat
+    INTEGER, INTENT(IN)                      :: iatom, jatom, katom, latom, &
+                                                iset, jset, kset, lset
+    INTEGER, DIMENSION(:, :), POINTER        :: offset_bd_set, offset_bc_set, &
+                                                offset_ad_set, offset_ac_set
+    INTEGER, INTENT(IN)                      :: atomic_offset_bd, &
+                                                atomic_offset_bc, &
+                                                atomic_offset_ad, &
+                                                atomic_offset_ac
 
-    INTEGER                                  :: i, ma, mb, mc, md, p_index, &
-                                                pa, pa2, pb, pb2, pc, pc2, &
-                                                pd, pd2
+    INTEGER                                  :: i, j, ma, mb, mc, md, &
+                                                offset_ac, offset_ad, &
+                                                offset_bc, offset_bd, p_index
     REAL(dp)                                 :: ks_bc, ks_bd, p_bc, p_bd, tmp
 
-    i = 1
-    DO md=1,md_max
-      pd2 = md+sgfd-1
-      pd = pd1 + pd2
-      DO mb=1,mb_max
-        pb2 = mb+sgfb-1
-        pb = pb1 + pb2
-        pbd(i) = density(get_1d_idx(pb,pd,N_pmat))
-        i = i+1
-      END DO
-    END DO  
-    i = 1
-    DO mc=1,mc_max
-      pc2 = mc+sgfc-1
-      pc = pc1 + pc2
-      DO mb=1,mb_max
-        pb2 = mb+sgfb-1
-        pb = pb1 + pb2
-        pbc(i) = density(get_1d_idx(pb,pc,N_pmat))
-        i = i+1
-      END DO
-    END DO  
-    i = 1
-    DO md=1,md_max
-      pd2 = md+sgfd-1
-      pd = pd1 + pd2
-      DO ma=1,ma_max
-        pa2 = ma+sgfa-1
-        pa = pa1 + pa2
-        pad(i) = density(get_1d_idx(pa,pd,N_pmat))
-        i = i+1
-      END DO
-    END DO  
-    i = 1
-    DO mc=1,mc_max
-      pc2 = mc+sgfc-1
-      pc = pc1 + pc2
-      DO ma=1,ma_max
-        pa2 = ma+sgfa-1
-        pa = pa1 + pa2
-        pac(i) = density(get_1d_idx(pa,pc,N_pmat))
-        i = i+1
-      END DO
-    END DO  
+    IF( jatom >= latom ) THEN       
+      i = 1
+      offset_bd = offset_bd_set(jset,lset) + atomic_offset_bd - 1
+      j = offset_bd
+      DO md=1,md_max
+        DO mb=1,mb_max
+          pbd(i) = density(j)
+          i = i + 1
+          j = j + 1
+        END DO
+      END DO  
+    ELSE
+      i = 1
+      offset_bd = offset_bd_set(lset,jset) + atomic_offset_bd - 1
+      DO md=1,md_max
+        j = offset_bd + md - 1
+        DO mb=1,mb_max
+          pbd(i) = density(j)
+          i = i + 1
+          j = j + md_max
+        END DO
+      END DO  
+    END IF
+    IF ( jatom >= katom ) THEN
+      i = 1
+      offset_bc = offset_bc_set(jset,kset) + atomic_offset_bc - 1
+      j = offset_bc
+      DO mc=1,mc_max
+        DO mb=1,mb_max
+          pbc(i) = density(j)
+          i = i + 1
+          j = j + 1 
+        END DO
+      END DO  
+    ELSE
+      i = 1
+      offset_bc = offset_bc_set(kset,jset) + atomic_offset_bc - 1
+      DO mc=1,mc_max
+        j = offset_bc + mc -1
+        DO mb=1,mb_max
+          pbc(i) = density(j)
+          i = i + 1
+          j = j + mc_max 
+        END DO
+      END DO  
+    END IF
+    IF( iatom >= latom) THEN
+      i = 1
+      offset_ad = offset_ad_set(iset,lset) + atomic_offset_ad - 1
+      j = offset_ad
+      DO md=1,md_max
+        DO ma=1,ma_max
+          pad(i) = density(j)
+          i = i + 1
+          j = j + 1
+        END DO
+      END DO  
+    ELSE
+      i = 1
+      offset_ad = offset_ad_set(lset,iset) + atomic_offset_ad - 1
+      DO md=1,md_max
+        j = offset_ad + md -1
+        DO ma=1,ma_max
+          pad(i) = density(j)
+          i = i + 1
+          j = j + md_max
+        END DO
+      END DO  
+    END IF
+    IF( iatom >= katom ) THEN
+      i = 1
+      offset_ac = offset_ac_set(iset,kset) + atomic_offset_ac - 1
+      j = offset_ac
+      DO mc=1,mc_max
+        DO ma=1,ma_max
+          pac(i) = density(j)
+          i = i + 1
+          j = j + 1
+        END DO
+      END DO  
+    ELSE
+      i = 1
+      offset_ac = offset_ac_set(kset,iset) + atomic_offset_ac - 1
+      DO mc=1,mc_max
+        j = offset_ac + mc - 1
+        DO ma=1,ma_max
+          pac(i) = density(j)
+          i = i + 1
+          j = j + mc_max
+        END DO
+      END DO  
+    END IF
 
     kbd(1:mb_max*md_max) = 0.0_dp
     kbc(1:mb_max*mc_max) = 0.0_dp
@@ -2032,60 +2234,103 @@ MODULE hfx_energy_potential
             kac((mc-1)*ma_max+ma) = kac((mc-1)*ma_max+ma)-tmp*p_bd
           END DO
           kbd((md-1)*mb_max+mb) = kbd((md-1)*mb_max+mb) - ks_bd
-          kbc((mc-1)*mb_max+mb)=kbc((mc-1)*mb_max+mb) - ks_bc
+          kbc((mc-1)*mb_max+mb) = kbc((mc-1)*mb_max+mb) - ks_bc
         END DO
       END DO
     END DO
 
-
-    i = 1
-    DO md=1,md_max
-      pd2 = md+sgfd-1
-      pd = pd1 + pd2
-      DO mb=1,mb_max
-        pb2 = mb+sgfb-1
-        pb = pb1 + pb2
-        !$OMP ATOMIC
-        ks(get_1d_idx(pb,pd,N_pmat)) = ks(get_1d_idx(pb,pd,N_pmat)) + kbd(i)
-        i = i+1
+    IF(jatom>=latom) THEN
+      i = 1
+      j = offset_bd
+      DO md=1,md_max
+        DO mb=1,mb_max
+          !$OMP ATOMIC
+          ks(j) = ks(j) + kbd(i)
+          i = i + 1
+          j = j + 1
+        END DO
       END DO
-    END DO  
-    i = 1
-    DO mc=1,mc_max
-      pc2 = mc+sgfc-1
-      pc = pc1 + pc2
-      DO mb=1,mb_max
-        pb2 = mb+sgfb-1
-        pb = pb1 + pb2
-        !$OMP ATOMIC
-        ks(get_1d_idx(pb,pc,N_pmat)) = ks(get_1d_idx(pb,pc,N_pmat)) + kbc(i) 
-        i = i+1
+    ELSE
+      i = 1
+      DO md=1,md_max
+        j = offset_bd+md-1
+        DO mb=1,mb_max
+          !$OMP ATOMIC
+          ks(j) = ks(j) + kbd(i)
+          i = i + 1
+          j = j + md_max
+        END DO
       END DO
-    END DO  
-    i = 1
-    DO md=1,md_max
-      pd2 = md+sgfd-1
-      pd = pd1 + pd2
-      DO ma=1,ma_max
-        pa2 = ma+sgfa-1
-        pa = pa1 + pa2
-        !$OMP ATOMIC
-        ks(get_1d_idx(pa,pd,N_pmat)) = ks(get_1d_idx(pa,pd,N_pmat)) + kad(i)
-        i = i+1
+    END IF
+    IF(jatom>=katom) THEN
+      i = 1
+      j = offset_bc
+      DO mc=1,mc_max
+        DO mb=1,mb_max
+          !$OMP ATOMIC
+          ks(j) = ks(j) + kbc(i)
+          i = i + 1
+          j = j + 1
+        END DO
       END DO
-    END DO  
-    i = 1
-    DO mc=1,mc_max
-      pc2 = mc+sgfc-1
-      pc = pc1 + pc2
-      DO ma=1,ma_max
-        pa2 = ma+sgfa-1
-        pa = pa1 + pa2
-        !$OMP ATOMIC
-        ks(get_1d_idx(pa,pc,N_pmat)) = ks(get_1d_idx(pa,pc,N_pmat)) + kac(i)
-        i = i+1
+    ELSE
+      i = 1
+      DO mc=1,mc_max
+        j = offset_bc + mc -1
+        DO mb=1,mb_max
+          !$OMP ATOMIC
+          ks(j) = ks(j) + kbc(i)
+          i = i + 1
+          j = j + mc_max
+        END DO
       END DO
-    END DO  
+    END IF
+    IF(iatom>=latom) THEN
+      i = 1
+      j = offset_ad
+      DO md=1,md_max
+        DO ma=1,ma_max
+          !$OMP ATOMIC
+          ks(j) = ks(j) + kad(i)
+          i = i + 1
+          j = j + 1
+        END DO
+      END DO
+    ELSE
+      i = 1
+      DO md=1,md_max
+        j = offset_ad + md - 1
+        DO ma=1,ma_max
+          !$OMP ATOMIC
+          ks(j) = ks(j) + kad(i)
+          i = i + 1
+          j = j + md_max
+        END DO
+      END DO
+    END IF
+    IF(iatom>=katom) THEN
+      i = 1
+      j = offset_ac
+      DO mc=1,mc_max
+        DO ma=1,ma_max
+          !$OMP ATOMIC
+          ks(j) = ks(j) + kac(i)
+          i = i + 1
+          j = j + 1
+        END DO
+      END DO
+    ELSE
+      i = 1
+      DO mc=1,mc_max
+        j = offset_ac + mc -1
+        DO ma=1,ma_max
+          !$OMP ATOMIC
+          ks(j) = ks(j) + kac(i)
+          i = i + 1
+          j = j + mc_max
+        END DO
+      END DO
+    END IF
   END SUBROUTINE update_fock_matrix
 
 #include "hfx_get_pmax_val.h"

@@ -67,7 +67,7 @@ MODULE hfx_types
           hfx_p_type, hfx_init_container,&
           hfx_basis_info_type, hfx_screen_coeff_type,&
           hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
-          pair_set_list_type, hfx_p_kind
+          pair_set_list_type, hfx_p_kind, hfx_2D_map
 
 #define CACHE_SIZE 1024
 
@@ -243,6 +243,12 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
+  TYPE hfx_2D_map
+    INTEGER, DIMENSION(:), POINTER           :: iatom_list
+    INTEGER, DIMENSION(:), POINTER           :: jatom_list
+  END TYPE
+
+! *****************************************************************************
 !> \brief stores some data used in construction of Kohn-Sham matrix
 !> \param potential_parameter stores information on the potential (1/r, erfc(wr)/r
 !> \param screening_parameter stores screening infos such as epsilon
@@ -317,6 +323,10 @@ MODULE hfx_types
      LOGICAL                                  :: screen_funct_is_initialized
      TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: initial_p
      INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
+     TYPE(hfx_2D_map), DIMENSION(:), POINTER  :: map_atoms_to_cpus
+     INTEGER, DIMENSION(:,:), POINTER         :: atomic_block_offset
+     INTEGER, DIMENSION(:,:,:,:), POINTER     :: set_offset
+     INTEGER, DIMENSION(:), POINTER           :: block_offset
   END TYPE hfx_type
 
 ! *****************************************************************************
@@ -397,6 +407,8 @@ MODULE hfx_types
         CALL section_vals_val_get(hfx_section, "FRACTION", r_val=real_val, i_rep_section=irep,error=error)
         actual_x_data%general_parameter%fraction = real_val
         actual_x_data%n_rep_hf = n_rep_hf  
+
+        NULLIFY(actual_x_data%map_atoms_to_cpus)
        
         CALL section_vals_val_get(hfx_section, "TREAT_LSD_IN_CORE", l_val=logic_val, i_rep_section=irep,error=error)
         actual_x_data%general_parameter%treat_lsd_in_core = logic_val
@@ -527,6 +539,12 @@ MODULE hfx_types
         !! ** This guy is allocated on the master thread only 
         IF (i_thread == 1 ) THEN 
           ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%atomic_block_offset(natom,natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%set_offset(max_set, max_set, nkind, nkind),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%block_offset(para_env%num_pe+1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
     
@@ -806,6 +824,13 @@ MODULE hfx_types
         IF( i_thread == 1 ) THEN 
           DEALLOCATE(actual_x_data%is_assoc_atomic_block,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%atomic_block_offset,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%set_offset,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%block_offset,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
         END IF
     
         !! BASIS parameter
@@ -868,6 +893,17 @@ MODULE hfx_types
           actual_x_data%screen_funct_is_initialized = .FALSE. 
         END IF
 
+        ! ** maps
+        IF( ASSOCIATED(actual_x_data%map_atoms_to_cpus) ) THEN
+          DO i=1,SIZE(actual_x_data%map_atoms_to_cpus)
+            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%iatom_list,STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%jatom_list,STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END DO
+          DEALLOCATE(actual_x_data%map_atoms_to_cpus,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
       END DO
 
     END DO
