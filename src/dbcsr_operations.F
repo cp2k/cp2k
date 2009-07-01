@@ -366,6 +366,7 @@ CONTAINS
        ENDIF calc_case_right
        !
        ! No waits in first loop iteration.
+       right_src_p_calc = right_src_p
        IF (right_prow_i .GT. 0) THEN
           ! Now we transfer/multiply with the left matrix
           DO mult = 1, left_multiplicity
