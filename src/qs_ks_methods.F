@@ -78,8 +78,7 @@ MODULE qs_ks_methods
   USE kg_gpw_correction,               ONLY: kg_gpw_ekin_mol
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_p_type
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
-  USE kinds,                           ONLY: dp,&
-                                             int_8
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_restraint
   USE particle_types,                  ONLY: particle_type
