@@ -6,7 +6,7 @@ CPP      =
 FC       = ftn -freeform -cpp
 LD       = ftn
 AR       = ar -r
-DFLAGS   = -D__XT5 -D__FFTW3 -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
+DFLAGS   = -D__XT5 -D__FFTW3 -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK -D__NO_STATM_ACCESS
 CPPFLAGS = -traditional -C $(DFLAGS) -P -I$(FFTW_INC)
 CPPFLAGS =
 FCFLAGS  = -target=linux -march=barcelona -O3 -OPT:Ofast -OPT:early_intrinsics=ON -LNO:simd=2 -intrinsic=PGI -I$(FFTW_INC) $(DFLAGS)
