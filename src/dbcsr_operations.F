@@ -134,6 +134,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     debug_level=0
+    t_all = 0.0_dp
+    t_dgemm = 0.0_dp
     IF (dbg) debug_level = 2
     IF (dbcsr_mp_nprows (dbcsr_distribution_mp (right_matrix%dist)) .NE.&
          dbcsr_mp_npcols (dbcsr_distribution_mp (right_matrix%dist))) THEN
@@ -582,6 +584,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     debug_level=0
+    t_all = 0.0_dp
+    t_dgemm = 0.0_dp
     IF (dbg) debug_level = 2
     CALL timeset (routineN, timing_handle)
     CALL btree_new (product_matrix%w%tree)
@@ -794,7 +798,7 @@ CONTAINS
           ENDDO
        ENDIF xfer_case_left
        calc_case_left: IF (right_prow_i .GT. 0) THEN
-             !left_src_p_calc = left_pgrid (left_prow, right_prow-1)
+             !left_src_p_calc == left_pgrid (left_prow, right_prow-1)
           DO mult = 1, left_multiplicity
              CALL dbcsr_repoint_index (lbuffer_calc%mats(mult), error=error)
              tstart = m_walltime ()
