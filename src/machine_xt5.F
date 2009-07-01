@@ -167,6 +167,7 @@ END SUBROUTINE m_datum
      MemLikelyFree=0
      meminfo=""
 
+#ifndef __NO_STATM_ACCESS
      OPEN(UNIT=8123,file="/proc/meminfo",ACCESS="STREAM",ERR=901)
      i=0
      DO
@@ -206,6 +207,8 @@ END SUBROUTINE m_datum
               ENDIF
            ENDIF
         END FUNCTION
+#endif
+
   END SUBROUTINE m_memory_details
 
 ! *****************************************************************************
