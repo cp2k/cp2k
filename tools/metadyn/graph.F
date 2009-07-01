@@ -31,7 +31,7 @@ PROGRAM graph
   IMPLICIT NONE
 
   CHARACTER(LEN=80)                        :: file, out, wq_char
-  CHARACTER(LEN=default_string_length)     :: per_label
+  CHARACTER(LEN=default_string_length)     :: per_label, active_label
   INTEGER                                  :: argcount, coor, i, id, ip, &
                                               it, iw, ix, ncount, ndim, &
                                               ndw, nf, nfes, ngauss, nh, &
@@ -421,12 +421,15 @@ PROGRAM graph
   WRITE(iw,'("FES|",T7,A15,5x,i7)')"NDIM         ::",ndim
   WRITE(iw,'("FES|",T7,A15,5x,i7)')"NWD          ::",ndw
   WRITE(iw,'("FES|",T7,A15,5x,i7)')"HILLS        ::",nt
-  it=ndim
-  DO i=1,ndim
+  it=0
+  DO i=ndim,1,-1
+     it = it + 1
      per_label = ""
-     IF (iperd(i)/=0) per_label = "(PERIODIC COLVAR)"
-     WRITE(iw,'("FES|",T7,"COLVAR # ",i3," ::",5x,"(",f7.3," ,",f7.3,")",5X,A)')&
-          i_map(i),x0(i),xf(i),TRIM(per_label)
+     active_label = "(NO MAPPED)"
+     IF (iperd(i)/=0) per_label = "(PERIODIC)"
+     IF (it<=ndw)     active_label = "(   MAPPED)"
+     WRITE(iw,'("FES|",T7,"COLVAR # ",i3," ::",5x,"(",f7.3," ,",f7.3,")",T48,A,T60,A)')&
+          i_map(i),x0(i),xf(i),TRIM(per_label),TRIM(active_label)
   END DO
   WRITE(iw,'("FES|",T7,a15,5x,7i7)'   )"NGRID        ::",(ngrid(id),id=ndim,ndim-ndw+1,-1)
   WRITE(iw,'("FES|",T7,a15,5x,5f7.3)' )"DX           ::",(dp_grid(id),id=ndim,ndim-ndw+1,-1)

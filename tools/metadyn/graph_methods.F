@@ -159,12 +159,13 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ndw
 
     INTEGER                                  :: i, id, j, k, nacc, ntrials, &
-                                                pnt
+                                                pnt, iter
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: history
     INTEGER, DIMENSION(:), POINTER           :: pos, pos0
     INTEGER, DIMENSION(ndim)                 :: Dpos, ntrust
     LOGICAL                                  :: do_save
-    REAL(KIND=dp)                            :: norm_dx, resto
+    REAL(KIND=dp)                            :: fes_now, fes_old, norm_dx, &
+                                                resto
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dx, rnd, xx
 
     ntrust  = ngrid/10
@@ -203,8 +204,13 @@ CONTAINS
        dx = derivative (fes, pos, iperd, ndim, ngrid, dp_grid)
 
        ! Integrate till derivative is small enough..
-       DO i = 1, 100
-          pnt = point_no_pbc(pos,ngrid,ndim)
+       pnt     = point_no_pbc(pos,ngrid,ndim)
+       fes_now = -fes(pnt)
+       fes_old = HUGE(0.0_dp)
+
+       i = 1
+       DO WHILE ((i<=100).OR.(fes_now < fes_old))
+          fes_old = fes_now
           !WRITE(10+j,'(10f20.10)')(xx(id),id=ndim,1,-1),-fes(pnt)  
 
           norm_dx = SQRT(DOT_PRODUCT(dx,dx))
@@ -215,8 +221,12 @@ CONTAINS
           CALL pbc(pos, iperd, ngrid, ndim)
 
           ! Incremental pos
-          dx  = derivative (fes, pos, iperd, ndim, ngrid, dp_grid)
+          dx      = derivative (fes, pos, iperd, ndim, ngrid, dp_grid)
+          pnt     = point_no_pbc(pos,ngrid,ndim)
+          fes_now = -fes(pnt)
+          i   = i + 1
        END DO
+       iter = i
 
        ! Compare with the available minima and if they are the same skip
        ! saving this position..
@@ -235,7 +245,7 @@ CONTAINS
           pnt = point_no_pbc(pos,ngrid,ndim)
           xx  = x0+dp_grid*(pos-1)
           WRITE(6,'(A,5F12.6)',ADVANCE="NO") "FES| Minimum found (",(xx(id),id=ndim,ndim-ndw+1,-1)
-          WRITE(6,'(A,F12.6,A)')" ). FES value = ",-fes(pnt)," Hartree."
+          WRITE(6,'(A,F12.6,A,I6)')" ). FES value = ",-fes(pnt)," Hartree. Number of Iter: ",iter
           nacc = nacc + 1
           history (:,nacc) = pos
        END IF
