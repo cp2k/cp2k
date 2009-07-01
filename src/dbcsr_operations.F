@@ -2042,8 +2042,13 @@ CONTAINS
     old_size = product%w%lastblk
     new_blk = 0
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
-    CALL ensure_array_size(product%w%data,&
-         ub=MAX(product%w%datasize,left%nfullrows_total*right%nfullcols_total), error=error)
+    IF (left%nfullrows_local*right%nfullcols_local .GT.&
+         SIZE (product%w%data)) THEN
+       CALL ensure_array_size(product%w%data,&
+            ub=MAX(product%w%datasize,&
+            left%nfullrows_local*right%nfullcols_local),&
+            error=error)
+    ENDIF
     ! c_blk_ps contains the block pointers in the product's current row
     ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
     IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&

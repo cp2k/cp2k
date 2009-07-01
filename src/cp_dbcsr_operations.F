@@ -26,7 +26,9 @@ MODULE cp_dbcsr_operations
                                              dbcsr_distribution_new,&
                                              dbcsr_distribution_release,&
                                              dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_group
+                                             dbcsr_mp_group,&
+                                             dbcsr_nfullcols_local,&
+                                             dbcsr_nfullrows_local
   USE dbcsr_operations,                ONLY: dbcsr_mult_e_ec_m,&
                                              dbcsr_scale,&
                                              dbcsr_trace
@@ -127,8 +129,8 @@ CONTAINS
     !IF (dbg) WRITE(*,*)routineP//' C initial index is', matrix_c%index
     IF (dbg) WRITE(*,*)routineP//'Creating work matrix...'
     IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
-    CALL dbcsr_work_create(matrix_c,&
-         sizedata_guess=INT(3*SIZE(matrix_a%data)), error=error)
+    i = dbcsr_nfullrows_local(matrix_a) * dbcsr_nfullcols_local(matrix_b)
+    CALL dbcsr_work_create(matrix_c, sizedata_guess=i, error=error)
     IF (dbg) WRITE(*,*)routineP//'Multiplying...'
     IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
     !
