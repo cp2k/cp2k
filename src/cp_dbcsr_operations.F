@@ -298,7 +298,7 @@ CONTAINS
     !     dist_result, hint, error)
     !CALL dbcsr_distribution_release (dist_result)
     walltime2 = m_walltime()
-    newtime = walltime2-walltime1
+    newtime = MAX (walltime2-walltime1, 1.0_dp)
     CALL dbcsr_destroy (matrix_bt, error)
     !
     CALL dbcsr_verify_matrix(matrix_c, error)
