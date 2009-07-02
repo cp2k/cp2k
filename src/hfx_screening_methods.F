@@ -123,7 +123,7 @@ MODULE hfx_screening_methods
   SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, set_offset, atomic_block_offset, &
                              full_density, full_density_beta, natom, &
                              max_set ,kind_of,basis_parameter, last_sgf_global,&
-                             nkind, error)
+                             nkind, is_assoc_atomic_block, error)
 
     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
@@ -137,6 +137,7 @@ MODULE hfx_screening_methods
       POINTER                                :: basis_parameter
     INTEGER                                  :: last_sgf_global(0:natom), &
                                                 nkind
+    INTEGER, DIMENSION(:,:)                  :: is_assoc_atomic_block
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
@@ -167,6 +168,7 @@ MODULE hfx_screening_methods
       pb1 = last_sgf_global(jatom) - nsgfb_total
 
       DO katom = 1,natom
+        IF( .NOT. is_assoc_atomic_block(jatom,katom) >=1 ) CYCLE
         kkind = kind_of(katom)
         IF( kkind < jkind ) CYCLE
         nsgfc_total = basis_parameter(kkind)%nsgf_total

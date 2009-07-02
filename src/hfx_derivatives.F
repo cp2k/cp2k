@@ -415,7 +415,7 @@ MODULE hfx_derivatives
                            actual_x_data%atomic_block_offset, &
                            full_density,full_density_beta,&
                            natom,max_set, kind_of, basis_parameter, &
-                           last_sgf_global, nkind, error)
+                           last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block, error)
     END IF 
 
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already

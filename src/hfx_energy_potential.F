@@ -739,7 +739,7 @@ MODULE hfx_energy_potential
                                actual_x_data%atomic_block_offset,&
                                full_density,full_density_beta,&
                                natom,max_set, kind_of, basis_parameter, &
-                               last_sgf_global, nkind, error)
+                               last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block, error)
         END IF
       END IF
     ELSE
@@ -764,7 +764,7 @@ MODULE hfx_energy_potential
                                actual_x_data%atomic_block_offset,&
                                full_density,full_density_beta,&
                                natom,max_set, kind_of, basis_parameter, &
-                               last_sgf_global, nkind, error)
+                               last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block, error)
         END IF
       END IF
       ! ** Now get the density(ispin)
@@ -1507,6 +1507,7 @@ MODULE hfx_energy_potential
       nsetb = basis_parameter(jkind)%nset
       nsgfb => basis_parameter(jkind)%nsgf
       act_atomic_block_offset = shm_atomic_block_offset(jatom,iatom)
+      IF( .NOT. shm_is_assoc_atomic_block(iatom,iatom) >=1 ) CYCLE
       DO iset=1,nseta
         DO jset=1,nsetb
           act_set_offset = shm_set_offset(jset,iset,jkind,ikind)
