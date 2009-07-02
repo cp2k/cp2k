@@ -137,7 +137,7 @@ MODULE hfx_screening_methods
       POINTER                                :: basis_parameter
     INTEGER                                  :: last_sgf_global(0:natom), &
                                                 nkind
-    INTEGER, DIMENSION(:,:)                  :: is_assoc_atomic_block
+    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
