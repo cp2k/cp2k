@@ -15,6 +15,7 @@
 ! *****************************************************************************
 MODULE library_tests
 
+  USE ai_coulomb_test,                 ONLY: eri_test
   USE cell_types,                      ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
@@ -150,9 +151,10 @@ CONTAINS
     !
     IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env, iw)
     !
-    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw, globenv%fftw_plan_type, globenv%fftw_arrays_aligned, error=error )
+    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw, globenv%fftw_plan_type, &
+                                              globenv%fftw_arrays_aligned, error=error )
     !
-    ! runtest 4 has been deleted and can be recycled
+    IF ( runtest ( 4 ) /= 0 ) CALL eri_test ( iw, error )
     !
     IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( error )
     !
@@ -198,6 +200,7 @@ CONTAINS
 !> I    COPY     n                                                             I
 !> I    MATMUL   n                                                             I
 !> I    FFT      n                                                             I
+!> I    ERI      n                                                             I
 !> I    PW_FFT   n                                                             I
 !> I    Clebsch-Gordon n                                                       I
 !> I    RS_GRIDS n                                                             I
@@ -232,6 +235,7 @@ CONTAINS
     CALL section_vals_val_get(test_section,'copy',i_val=runtest(1),error=error )
     CALL section_vals_val_get(test_section,'matmul',i_val=runtest(2),error=error )
     CALL section_vals_val_get(test_section,'fft',i_val=runtest(3),error=error )
+    CALL section_vals_val_get(test_section,'eri',i_val=runtest(4),error=error )
     CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest(6),error=error )
     CALL section_vals_val_get(test_section,'mpi',i_val=runtest (8),error=error )
     CALL section_vals_val_get(test_section,'rng',i_val=runtest(9),error=error )
@@ -704,7 +708,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   test rs_pw_transfer performance
 !> \author  Joost VandeVondele
-!>      9.2008 Randomise rs grid [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+!>      9.2008 Randomise rs grid [Iain Bethune] 
+!>      (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE rs_pw_transfer_test ( para_env, iw, globenv, rs_pw_transfer_section, error )
 

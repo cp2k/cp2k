@@ -42,6 +42,7 @@ MODULE gamma
 
   PUBLIC :: deallocate_md_ftable,&
             fgamma,&
+            fgamma_ref,&
             init_md_ftable
 
   INTERFACE fgamma

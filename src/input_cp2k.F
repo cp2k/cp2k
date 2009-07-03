@@ -638,6 +638,12 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="eri",&
+         description="Tests the performance and correctness of ERI libraries ",&
+         usage="eri 1",default_i_val=0,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="clebsch_gordon",variants=(/"clebsch"/),&
          description="Tests the Clebsch-Gordon Coefficients. "//&
          "Tests are repeated the given number of times.",&

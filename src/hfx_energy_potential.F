@@ -77,6 +77,7 @@ MODULE hfx_energy_potential
   PRIVATE
    
   PUBLIC  integrate_four_center
+  PUBLIC  coulomb4
   INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_energy_potential'

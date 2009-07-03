@@ -1,9 +1,14 @@
 OBJECTS_GENERIC =\
  ai_angmom.o\
  ai_coulomb.o\
+ ai_coulomb_test.o\
  ai_derivatives.o\
  ai_elec_field.o\
+ ai_eri_debug.o\
  ai_fermi_contact.o\
+ ai_geminals.o\
+ ai_geminals_debug.o\
+ ai_geminals_utils.o\
  ai_kinetic.o\
  ai_moments.o\
  ai_onecenter.o\
