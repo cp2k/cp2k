@@ -2102,7 +2102,7 @@ MODULE hfx_energy_potential
     INTEGER, INTENT(IN)                      :: ma_max, mb_max, mc_max, md_max
     REAL(dp), INTENT(IN)                     :: fac, symm_fac
     REAL(dp), DIMENSION(:), INTENT(IN)       :: density
-    REAL(dp), DIMENSION(:), INTENT(OUT)      :: ks
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: ks
     REAL(dp), DIMENSION(ma_max*mb_max*mc_max&
       *md_max), INTENT(IN)                   :: prim
     REAL(dp), DIMENSION(*), INTENT(INOUT)    :: pbd, pbc, pad, pac, kbd, kbc, &
