@@ -816,15 +816,11 @@ CONTAINS
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
                 END DO
              CASE (xc_deriv_collocate)
-!deb
-WRITE(6,*) "PW"
                 DO idir=1,3
                    CALL pw_copy ( my_rho_g, tmp_g ,error=error)
                    CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
-WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
                 END DO
-!deb
                CALL cp_unimplemented_error(fromWhere=routineP, &
                     message="Drho collocation not implemented", &
                     error=error, error_level=cp_failure_level)
@@ -867,15 +863,11 @@ WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
                         coeffs=nn50_deriv_coeffs, idir=idir, error=error)
                 END DO
              CASE (xc_deriv_collocate)
-!deb
-WRITE(6,*) "PW"
                 DO idir=1,3
                    CALL pw_copy ( my_rho_g, tmp_g ,error=error)
                    CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw ,error=error)
-WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
                 END DO
-!deb
                CALL cp_unimplemented_error(fromWhere=routineP, &
                     message="Drho collocation not implemented", &
                     error=error, error_level=cp_failure_level)

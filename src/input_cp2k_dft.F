@@ -271,6 +271,13 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="GEMINAL_FILE_NAME",&
+         description="Name of the geminal basis set file, may include a path",&
+         usage="GEMINAL_FILE_NAME <FILENAME>",&
+         default_lc_val="BASIS_GEMINAL",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME",&
          variants=(/"RESTART_FILE_NAME"/),&
          description="Name of the wavefunction restart file, may include a path."//&

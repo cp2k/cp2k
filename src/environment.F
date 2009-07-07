@@ -391,6 +391,7 @@ CONTAINS
       routineP = moduleN//':'//routineN, start_section_label = "GLOBAL"
 
     CHARACTER(len=default_path_length)       :: basis_set_file_name, &
+                                                geminal_file_name, &
                                                 coord_file_name, &
                                                 mm_potential_file_name, &
                                                 potential_file_name
@@ -572,6 +573,8 @@ CONTAINS
                i_rep_section=i_force_eval(iforce_eval),error=error)
           CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
                c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
+          CALL section_vals_val_get(dft_section,"GEMINAL_FILE_NAME",&
+               c_val=geminal_file_name , ignore_required=.TRUE., error=error)
           CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
                c_val=potential_file_name , ignore_required=.TRUE., error=error)
 
@@ -597,6 +600,8 @@ CONTAINS
                ADJUSTR(env_num(:40)),&
                start_section_label//"| Basis set file name",&
                ADJUSTR(basis_set_file_name(:40)),&
+               start_section_label//"| Geminal file name",&
+               ADJUSTR(geminal_file_name(:40)),&
                start_section_label//"| Potential file name",&
                ADJUSTR(potential_file_name(:40)),&
                start_section_label//"| MM Potential file name",&

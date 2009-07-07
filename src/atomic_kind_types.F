@@ -23,7 +23,9 @@ MODULE atomic_kind_types
        allocate_gto_basis_set, deallocate_gto_basis_set, get_gto_basis_set, &
        gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, &
        read_gto_basis_set, set_gto_basis_set, write_aux_basis_set, &
-       write_gto_basis_set, write_orb_basis_set
+       write_gto_basis_set, write_orb_basis_set, &
+       read_geminal_basis_set, write_geminal_basis_set, allocate_geminal_basis_set, &
+       deallocate_geminal_basis_set, get_geminal_basis_set, geminal_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -115,6 +117,7 @@ MODULE atomic_kind_types
      TYPE(gto_basis_set_type), POINTER      :: soft_basis_set
      TYPE(gto_basis_set_type), POINTER      :: hard_basis_set
      TYPE(gto_basis_set_type), POINTER      :: aux_fit_basis_set
+     TYPE(geminal_basis_set_type), POINTER  :: geminal_basis_set
      TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set
      REAL(dp)                               :: hard_radius     ! for hard and soft exp
      REAL(dp)                               :: hard0_radius    ! for hard exp of rho0
@@ -211,6 +214,7 @@ CONTAINS
        NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
        NULLIFY (atomic_kind_set(ikind)%aux_fit_basis_set)
        NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
+       NULLIFY (atomic_kind_set(ikind)%geminal_basis_set)
        NULLIFY (atomic_kind_set(ikind)%atom_list)
        NULLIFY (atomic_kind_set(ikind)%elec_conf)
        NULLIFY (atomic_kind_set(ikind)%hard_basis_set)
@@ -299,6 +303,9 @@ CONTAINS
           IF (ASSOCIATED(atomic_kind_set(ikind)%orb_basis_set)) THEN
              CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set,error)
           END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%geminal_basis_set)) THEN
+             CALL deallocate_geminal_basis_set(atomic_kind_set(ikind)%geminal_basis_set,error)
+          END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%paw_proj_set)) THEN
              CALL deallocate_paw_proj_set(atomic_kind_set(ikind)%paw_proj_set,error)
           END IF
@@ -345,6 +352,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
        gth_potential,se_parameter,dftb_parameter,aux_basis_set,aux_fit_basis_set,orb_basis_set,&
+       geminal_basis_set,&
        element_symbol,name,mass,kind_number,natom,atom_list,alpha_core_charge,&
        ccore_charge,core_charge,alpha_scp,I_scp,core_charge_radius,ncgf,nsgf,rcov,z,zeff,qeff,a_pol,&
        soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
@@ -367,6 +375,8 @@ CONTAINS
       POINTER                                :: aux_basis_set, &
                                                 aux_fit_basis_set, &
                                                 orb_basis_set
+    TYPE(geminal_basis_set_type), OPTIONAL, &
+      POINTER                                :: geminal_basis_set
     CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
@@ -445,6 +455,7 @@ CONTAINS
              orb_basis_set => atomic_kind%orb_basis_set
           END IF
        END IF
+       IF (PRESENT(geminal_basis_set)) geminal_basis_set => atomic_kind%geminal_basis_set
        IF (PRESENT(element_symbol)) element_symbol = atomic_kind%element_symbol
        IF (PRESENT(name)) name = atomic_kind%name
        IF (PRESENT(mass)) mass = atomic_kind%mass
@@ -1445,7 +1456,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
       aux_fit_basis_set_name, keyword, orb_basis_set_name, potential_name, &
-      potential_type
+      potential_type, geminal_basis_set_name
     INTEGER                                  :: handle, i, i_rep, ipos, &
                                                 k_rep, n_rep, naux, ngauss, &
                                                 ngrid_ang, ngrid_rad, norb, &
@@ -1453,9 +1464,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: check, explicit_basis, &
                                                 explicit_potential, failure, &
-                                                section_enabled
+                                                explicit_geminal, section_enabled
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(section_vals_type), POINTER         :: basis_section, &
+    TYPE(section_vals_type), POINTER         :: basis_section, geminal_section, &
                                                 dft_plus_u_section, &
                                                 dft_section, potential_section
 
@@ -1554,6 +1565,8 @@ CONTAINS
             keyword_name="AUX_BASIS_NORMALIZATION", i_val=naux,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="BASIS_SET",c_val=orb_basis_set_name,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="GEMINAL_BASIS_SET",c_val=geminal_basis_set_name,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="BASIS_NORMALIZATION", i_val=norb,error=error)
        ! seems like atomic_kind is not initialised here
@@ -1679,6 +1692,13 @@ CONTAINS
        CALL section_vals_get(potential_section, explicit=explicit_potential,error=error)
     END IF
 
+    explicit_geminal = .FALSE.
+    IF (k_rep>0) THEN
+       geminal_section  => section_vals_get_subs_vals(kind_section,"GEMINAL",i_rep_section=k_rep,&
+            can_return_null=.TRUE.,error=error)
+       CALL section_vals_get(geminal_section, explicit=explicit_geminal,error=error)
+    END IF
+
     SELECT CASE(method_id)
     CASE(do_method_dftb,do_method_rm1, do_method_am1, do_method_mndo, &
          do_method_pdg, do_method_pm3, do_method_pm6, do_method_mndod,&
@@ -1752,6 +1772,7 @@ CONTAINS
 
     CASE DEFAULT
 
+       ! Allocate and initialise the basis set data set structure
        IF ((orb_basis_set_name /= '').OR.explicit_basis) THEN
           CALL allocate_gto_basis_set(atomic_kind%orb_basis_set,error)
           CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
@@ -1762,6 +1783,7 @@ CONTAINS
                "No basis set type was defined for the "//&
                "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
        END IF
+
        ! Allocate and initialise the auxiliary basis set data set structure
        IF (aux_basis_set_name /= '') THEN
           CALL allocate_gto_basis_set(atomic_kind%aux_basis_set,error)
@@ -1780,6 +1802,12 @@ CONTAINS
                norm_type=naux)
        END IF
 
+       ! Allocate and initialise the geminal basis set data set structure 
+       IF ((geminal_basis_set_name /= '').OR.explicit_geminal) THEN
+          CALL allocate_geminal_basis_set(atomic_kind%geminal_basis_set,error)
+          CALL read_geminal_basis_set(atomic_kind%element_symbol,geminal_basis_set_name,&
+               atomic_kind%geminal_basis_set,para_env,dft_section,geminal_section,error=error)
+       END IF
 
        ! If Ghost atom we don't need to allocate/initialize anything connected to POTENTIAL
        IF (atomic_kind%ghost) THEN

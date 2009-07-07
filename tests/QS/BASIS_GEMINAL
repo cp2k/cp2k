@@ -1,0 +1,42 @@
+################################################################################
+#
+# Geminal basis set data base file for Quickstep
+#
+################################################################################
+#
+# Basis set format:
+#
+# Element symbol  Name of the basis set  Alias names
+# nset (repeat the following block of lines nset times)
+# lmin lmax ls nexp nshell(lmin) nshell(lmin+1) ... nshell(lmax-1) nshell(lmax)
+# a(1,1,1)  a(2,2,1)      a(1,2,1)          c(1,l,1)      c(1,l,2) ...      c(1,l,nshell(l)), l=lmin,lmax
+# a(1,1,2)  a(2,2,2)      a(1,2,2)          c(2,l,1)      c(2,l,2) ...      c(2,l,nshell(l)), l=lmin,lmax
+#  .         .             .                 .                       .
+#  .         .             .                 .                       .
+#  .         .             .                 .                       .
+# a(1,1,nexp) ...  ...  ...  ...   ...      c(nexp,l,1)   c(nexp,l,2)       c(nexp,l,nshell(l)), l=lmin,lmax
+#
+#
+# nset     : Number of exponent sets
+# lmax     : Maximum angular momentum quantum number l for R coordinate
+# lmin     : Minimum angular momentum quantum number l for R coordinate
+# ls       : Angular momentum quantum number l for S coordinate
+# nshell(l): Number of shells for angular momentum quantum number l
+# a        : Exponents (2,2) matrix
+# c        : Contraction coefficient
+#
+################################################################################
+#
+H GT1
+  2
+  0  0  0  1  1
+        1.0000000000   1.0000000000   0.0000000000   1.000000000
+  0  0  2  1  1
+        1.0000000000   1.0000000000   0.0000000000   1.000000000
+#
+O GT1
+  2
+  0  0  0  1  1
+        4.0000000000   1.0000000000   0.0000000000   1.000000000
+  0  0  2  1  1
+        2.0000000000   1.0000000000   0.0000000000   1.000000000
