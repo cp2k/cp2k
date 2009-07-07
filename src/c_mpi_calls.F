@@ -99,17 +99,18 @@ MODULE c_mpi_calls
 
 #ifndef __mpi_f_bindings
   INTERFACE
-    !> We assume that the type for the argument size corresponds to intptr_t.
-    !> It is MPI_ADDRESS_TYPE in fortran.
-    FUNCTION mpi_alloc_mem_c(size, info, baseptr)&
-         RESULT(res) BIND(C, name="MPI_Alloc_mem")
-      USE ISO_C_BINDING
-      INCLUDE "mpif.h"
-      INTEGER(KIND=C_INTPTR_T), VALUE, INTENT(IN)       :: size
-      INTEGER(KIND=C_INT), VALUE, INTENT(IN)            :: info
-      TYPE(C_PTR), INTENT(INOUT)                        :: baseptr
-      INTEGER(KIND=C_INT)                               :: res
-    END FUNCTION mpi_alloc_mem_c
+     !> We assume that the type for the argument size corresponds to intptr_t.
+     !> It is MPI_ADDRESS_TYPE in fortran.
+     FUNCTION mpi_alloc_mem_c(size, info, baseptr)&
+          RESULT(res) BIND(C, name="MPI_Alloc_mem")
+         USE ISO_C_BINDING
+    INTEGER(KIND=C_INTPTR_T), INTENT(IN), &
+      VALUE                                  :: size
+    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: info
+    TYPE(C_PTR), INTENT(INOUT)               :: baseptr
+    INTEGER(KIND=C_INT)                      :: res
+
+     END FUNCTION mpi_alloc_mem_c
   END INTERFACE
 
 #else /* !__mpi_f_bindings */
@@ -118,13 +119,14 @@ MODULE c_mpi_calls
      !> We guess the name of the fortran binding name.
      SUBROUTINE mpi_alloc_mem_f(size, info, baseptr, ierr)&
           BIND(C, name=__MPI_F_ALLOC_DECL)
-      USE ISO_C_BINDING
-      INCLUDE "mpif.h"
-      INTEGER(KIND=MPI_ADDRESS_KIND), INTENT(IN)        :: size
-      INTEGER, INTENT(IN)                               :: info
-      TYPE(C_PTR), INTENT(INOUT)                        :: baseptr
-      INTEGER, INTENT(INOUT)                            :: ierr
-    END SUBROUTINE mpi_alloc_mem_f
+        USE ISO_C_BINDING
+    INTEGER(KIND=MPI_ADDRESS_KIND), &
+      INTENT(IN)                             :: size
+    INTEGER, INTENT(IN)                      :: info
+    TYPE(C_PTR), INTENT(INOUT)               :: baseptr
+    INTEGER, INTENT(INOUT)                   :: ierr
+
+     END SUBROUTINE mpi_alloc_mem_f
   END INTERFACE
 
 #endif /* !__mpi_f_bindings */
