@@ -69,6 +69,17 @@ MODULE dbcsr_operations
 
 #define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
 
+  INTEGER, PARAMETER, PRIVATE :: rpslot_owner = 1
+  INTEGER, PARAMETER, PRIVATE :: rpslot_addblks = 2
+  INTEGER, PARAMETER, PRIVATE :: rpslot_addoffset = 3
+  INTEGER, PARAMETER, PRIVATE :: rpslot_oldblks = 4
+  INTEGER, PARAMETER, PRIVATE :: rpslot_oldoffset = 5
+  INTEGER, PARAMETER, PRIVATE :: rpslot_totaloffset = 6
+  INTEGER, PARAMETER, PRIVATE :: rpnslots = 6
+
+
+  LOGICAL, PARAMETER, PRIVATE :: detailed_timing = .FALSE.
+
 
 CONTAINS
 
@@ -96,32 +107,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mult_e_ec_m', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: debug_level, entries, i, img, left_dst_image, left_dst_p, &
+    INTEGER :: debug_level, i, img, left_dst_image, left_dst_p, &
       left_dst_pcol, left_dst_prow, left_multiplicity, left_mypcol, &
       left_myprow, left_nimages, left_npcols, left_nprows, left_p_recv, &
       left_p_send, left_src_image, left_src_p, left_src_pcol, left_src_prow, &
       mp_group, mult, mynode, mypcol, myprow, nblks, npcols, nprows, &
-      numnodes, nze, right_data_rr, right_data_sr, right_dst_p, &
+      numnodes, nze, output_unit, right_data_rr, right_data_sr, right_dst_p, &
       right_dst_prow, right_index_rr, right_index_sr, right_mypcol, &
       right_myprow, right_npcols, right_nprows, right_p_recv, right_p_send, &
       right_prow_i, right_src_p, right_src_p_calc, right_src_prow, &
       timing_handle
     INTEGER(KIND=int_8)                      :: flop_single, flop_total
-    INTEGER(KIND=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: keys
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: left_data_rr, left_data_sr, &
                                                 left_index_rr, left_index_sr
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes, tmp_index
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
     INTEGER, DIMENSION(:), POINTER           :: left_index_rp, left_index_sp, &
                                                 right_index_rp, right_index_sp
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, pgrid, right_pgrid
+    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t_all, t_dgemm, trun, trun_t, &
                                                 tstart, tstop
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: my_waits
     REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_rp, left_data_sp, &
                                                 right_data_rp, right_data_sp
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
     TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
     TYPE(dbcsr_mp_obj)                       :: mp_obj
@@ -145,8 +156,12 @@ CONTAINS
        RETURN
     ENDIF
     CALL timeset (routineN, timing_handle)
-    CALL btree_new (product_matrix%w%tree)
+    logger => cp_error_get_logger (error)
+    ionode = logger%para_env%mepos == logger%para_env%source
+    output_unit = 0
+    IF (ionode) output_unit = cp_logger_get_default_unit_nr (logger)
     tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
+    t_dgemm = 0.0_dp ; t_all = 0.0_dp
     flop_total = 0
     trun_t = m_walltime ()
     left_nimages = left_set%image_dist%col_decimation
@@ -176,12 +191,13 @@ CONTAINS
     CALL bcsr_assert (debug_level,&
          left_multiplicity * npcols .EQ. left_nimages*nprows, routineP,&
          "Mulitplicity and image  mismatch with processer grid.")
-    ALLOCATE (tmp_index (3, product_matrix%nblkcols_total*product_matrix%nblkrows_total))
     CALL ensure_array_size(product_matrix%w%row_i,&
          ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
     CALL ensure_array_size(product_matrix%w%col_i,&
          ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
     CALL ensure_array_size(product_matrix%w%blk_p,&
+         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
+    CALL ensure_array_size(product_matrix%w%blk_d,&
          ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
     DBG 'pgrid shape', SHAPE (pgrid)
     IF (dbg .AND. mynode .EQ. 0) THEN
@@ -459,13 +475,18 @@ CONTAINS
              tstart = m_walltime ()
              CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult), rbuffer_calc,&
                   product_matrix, error, flop=flop_single,&
-                  t_all=t_all, t_dgemm=t_dgemm, new_index=tmp_index)
+                  t_all=t_all, t_dgemm=t_dgemm)
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
-             IF (dbg .AND. tstop-tstart .NE. 0) THEN
-                DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-                     (REAL(flop_total, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
+             IF (tstop-tstart .EQ. 0) tstop = tstart+0.000001_dp
+             !IF (dbg .AND. tstop-tstart .NE. 0) THEN
+             IF (ionode .AND. detailed_timing) THEN
+                WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
+                     "Segment Local Multiplication time ",tstop-tstart," and ",&
+                     (REAL(flop_single, dp)/1000000.0_dp)/(tstop-tstart),&
+                     " MFLOPS", REAL(flop_single), "FLOP"
              ENDIF
+             !ENDIF
              trun = trun + (tstop - tstart)
           ENDDO
        ENDIF calc_case_left
@@ -473,13 +494,23 @@ CONTAINS
        CALL dbcsr_switch_m_ptrs (rbuffer_calc, rbuffer_comm)
     ENDDO k_index
     trun_t = m_walltime () - trun_t
-    IF (trun_t .EQ. 0) trun_t = 0.001_dp
-    IF (dbg) THEN
-       WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
-            routineN//' Total Local Multiplication time',&
-            trun_t,' and',&
-            (REAL(flop_total, dp)/1000000.0_dp)/trun_t,' MFLOPS',flop_total
+    IF (trun_t .EQ. 0) trun_t = 0.000001_dp
+    IF (trun .EQ. 0) trun = 0.000001_dp
+    !IF (dbg) THEN
+    IF (ionode .AND. detailed_timing) THEN
+       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
+            "  Total Local Multiplication time ",trun,"and ",&
+            (REAL(flop_total, dp)/1000000.0_dp)/trun,&
+            "MFLOPS"
+       WRITE(output_unit,'(1X,A,F9.4,1X,A,F9.4,1X,F9.4,"%")')&
+            "  Total Local DGEMM time          ",t_dgemm,&
+            "index time ", t_all - t_dgemm, 100.0_dp*(t_all-t_dgemm)/t_all
+       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
+            "        Total Multiplication time ",trun_t,"and ",&
+            (REAL(flop_total, dp)/1000000.0_dp)/trun_t,&
+            "MFLOPS"
     ENDIF
+    !ENDIF
     DO img = 1, left_nimages
        CALL mp_window_destroy (left_set%data_windows(img))
        CALL mp_window_destroy (left_set%index_windows(img))
@@ -495,35 +526,7 @@ CONTAINS
     CALL dbcsr_destroy_array (lbuffer_2, error)
     DEALLOCATE (my_sizes)
     !
-    !IF (dbg) THEN
-    !   ALLOCATE (all_waits(4, 0:right_nprows, 0:numnodes-1))
-    !   CALL mp_allgather (my_waits, all_waits, mp_group)
-    !   logger => cp_error_get_logger (error)
-    !   IF (logger%para_env%mepos == logger%para_env%source) THEN
-    !      output_unit = cp_logger_get_default_unit_nr (logger)
-    !      WRITE(output_unit,'(A)')"Waiting times per place per step"
-    !      DO right_prow_i = 0, right_nprows
-    !         WRITE(output_unit,'(4(F9.4),5X,4(F9.4))')&
-    !              (MAXVAL(all_waits(i,right_prow_i,:)), i=1, 4),&
-    !              (SUM(all_waits(i,right_prow_i,:))/numnodes, i=1, 4)
-    !         WRITE(*,'(A,I4)')"Step ", right_prow_i
-    !         DO i = 0, numnodes-1
-    !            WRITE(*,'(I4,1X,4(F9.4))')i, all_waits(:, right_prow_i, i)
-    !         ENDDO
-    !      ENDDO
-    !   ENDIF
-    !ENDIF
-    !
-    entries = btree_get_entries (product_matrix%w%tree)
-    CALL ensure_array_size (product_matrix%w%blk_p, ub=entries, error=error)
-    ALLOCATE (keys (entries))
-    CALL btree_delete (product_matrix%w%tree, keys, product_matrix%w%blk_p)
-    CALL ensure_array_size(product_matrix%w%row_i, ub=entries, error=error)
-    CALL ensure_array_size(product_matrix%w%col_i, ub=entries, error=error)
-    CALL dbcsr_unpack_i8_2i4 (keys, product_matrix%w%row_i,&
-         product_matrix%w%col_i)
-    DEALLOCATE (keys)
-    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error)
+    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error=error)
     !
     IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
@@ -556,23 +559,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mult_e_ec_m_rma', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: debug_level, entries, i, img, left_multiplicity, left_mypcol, &
+    INTEGER :: debug_level, i, img, left_multiplicity, left_mypcol, &
       left_myprow, left_nimages, left_npcols, left_nprows, left_src_image, &
       left_src_p_calc, left_src_p_comm, left_src_pcol, left_src_prow, &
       mp_group, mult, mynode, mypcol, myprow, nblks, npcols, nprows, &
-      numnodes, nze, right_mypcol, right_myprow, right_npcols, right_nprows, &
-      right_prow_i, right_src_p_calc, right_src_p_comm, right_src_prow, &
-      timing_handle
+      numnodes, nze, output_unit, right_mypcol, right_myprow, right_npcols, &
+      right_nprows, right_prow_i, right_src_p_calc, right_src_p_comm, &
+      right_src_prow, timing_handle
     INTEGER(KIND=int_8)                      :: flop_single, flop_total
-    INTEGER(KIND=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: keys
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes, tmp_index
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, pgrid, right_pgrid
+    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t_all, t_dgemm, trun, trun_t, &
                                                 tstart, tstop
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: my_waits
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
     TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
     TYPE(dbcsr_mp_obj)                       :: mp_obj
@@ -589,8 +592,12 @@ CONTAINS
     t_dgemm = 0.0_dp
     IF (dbg) debug_level = 2
     CALL timeset (routineN, timing_handle)
-    CALL btree_new (product_matrix%w%tree)
+    logger => cp_error_get_logger (error)
+    ionode = logger%para_env%mepos == logger%para_env%source
+    output_unit = 0
+    IF (ionode) output_unit = cp_logger_get_default_unit_nr (logger)
     tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
+    t_dgemm = 0.0_dp ; t_all = 0.0_dp
     flop_total = 0
     trun_t = m_walltime ()
     left_nimages = left_set%image_dist%col_decimation
@@ -620,12 +627,13 @@ CONTAINS
     CALL bcsr_assert (debug_level,&
          left_multiplicity * npcols .EQ. left_nimages*nprows, routineP,&
          "Mulitplicity and image  mismatch with processer grid.")
-    ALLOCATE (tmp_index (3, product_matrix%nblkcols_total*product_matrix%nblkrows_total))
     CALL ensure_array_size(product_matrix%w%row_i,&
          ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
     CALL ensure_array_size(product_matrix%w%col_i,&
          ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
     CALL ensure_array_size(product_matrix%w%blk_p,&
+         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
+    CALL ensure_array_size(product_matrix%w%blk_d,&
          ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
     DBG 'pgrid shape', SHAPE (pgrid)
     DBG 'left images, multiplicity', left_nimages, left_multiplicity
@@ -805,13 +813,18 @@ CONTAINS
              tstart = m_walltime ()
              CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult), rbuffer_calc,&
                   product_matrix, error, flop=flop_single,&
-                  t_all=t_all, t_dgemm=t_dgemm, new_index=tmp_index)
+                  t_all=t_all, t_dgemm=t_dgemm)
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
-             IF (dbg .AND. tstop-tstart .NE. 0) THEN
-                DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-                     (REAL(flop_total, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
+             IF (tstop-tstart .EQ. 0) tstop = tstart+0.000001_dp
+             !IF (dbg .AND. tstop-tstart .NE. 0) THEN
+             IF (ionode .AND. detailed_timing) THEN
+                WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
+                     "Segment Local Multiplication time ",tstop-tstart," and ",&
+                     (REAL(flop_single, dp)/1000000.0_dp)/(tstop-tstart),&
+                     " MFLOPS", REAL(flop_single), "FLOP"
              ENDIF
+             !ENDIF
              trun = trun + (tstop - tstart)
           ENDDO
        ENDIF calc_case_left
@@ -820,13 +833,23 @@ CONTAINS
        CALL dbcsr_switch_m_ptrs (rbuffer_calc, rbuffer_comm)
     ENDDO k_index
     trun_t = m_walltime () - trun_t
-    IF (trun_t .EQ. 0) trun_t = 0.001_dp
-    IF (dbg) THEN
-       WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
-            routineN//' Total Local Multiplication time',&
-            trun_t,' and',&
-            (REAL(flop_total, dp)/1000000.0_dp)/trun_t,' MFLOPS',flop_total
+    IF (trun_t .EQ. 0) trun_t = 0.000001_dp
+    IF (trun .EQ. 0) trun = 0.000001_dp
+    !IF (dbg) THEN
+    IF (ionode .AND. detailed_timing) THEN
+       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
+            "  Total Local Multiplication time ",trun,"and ",&
+            (REAL(flop_total, dp)/1000000.0_dp)/trun,&
+            "MFLOPS"
+       WRITE(output_unit,'(1X,A,F9.4,1X,A,F9.4,1X,F9.4,"%")')&
+            "  Total Local DGEMM time          ",t_dgemm,&
+            "index time ", t_all - t_dgemm, 100.0_dp*(t_all-t_dgemm)/t_all
+       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
+            "        Total Multiplication time ",trun_t,"and ",&
+            (REAL(flop_total, dp)/1000000.0_dp)/trun_t,&
+            "MFLOPS"
     ENDIF
+    !ENDIF
     DO img = 1, left_nimages
        CALL mp_window_destroy (left_set%data_windows(img))
        CALL mp_window_destroy (left_set%index_windows(img))
@@ -842,35 +865,7 @@ CONTAINS
     CALL dbcsr_destroy_array (lbuffer_2, error)
     DEALLOCATE (my_sizes)
     !
-    !IF (dbg) THEN
-    !   ALLOCATE (all_waits(4, 0:right_nprows, 0:numnodes-1))
-    !   CALL mp_allgather (my_waits, all_waits, mp_group)
-    !   logger => cp_error_get_logger (error)
-    !   IF (logger%para_env%mepos == logger%para_env%source) THEN
-    !      output_unit = cp_logger_get_default_unit_nr (logger)
-    !      WRITE(output_unit,'(A)')"Waiting times per place per step"
-    !      DO right_prow_i = 0, right_nprows
-    !         WRITE(output_unit,'(4(F9.4),5X,4(F9.4))')&
-    !              (MAXVAL(all_waits(i,right_prow_i,:)), i=1, 4),&
-    !              (SUM(all_waits(i,right_prow_i,:))/numnodes, i=1, 4)
-    !         WRITE(*,'(A,I4)')"Step ", right_prow_i
-    !         DO i = 0, numnodes-1
-    !            WRITE(*,'(I4,1X,4(F9.4))')i, all_waits(:, right_prow_i, i)
-    !         ENDDO
-    !      ENDDO
-    !   ENDIF
-    !ENDIF
-    !
-    entries = btree_get_entries (product_matrix%w%tree)
-    CALL ensure_array_size (product_matrix%w%blk_p, ub=entries, error=error)
-    ALLOCATE (keys (entries))
-    CALL btree_delete (product_matrix%w%tree, keys, product_matrix%w%blk_p)
-    CALL ensure_array_size(product_matrix%w%row_i, ub=entries, error=error)
-    CALL ensure_array_size(product_matrix%w%col_i, ub=entries, error=error)
-    CALL dbcsr_unpack_i8_2i4 (keys, product_matrix%w%row_i,&
-         product_matrix%w%col_i)
-    DEALLOCATE (keys)
-    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error)
+    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error=error)
     !
     IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
@@ -1170,7 +1165,7 @@ CONTAINS
     ENDDO k_index
     trun_t = m_walltime () - trun_t
     IF (trun_t .EQ. 0) trun_t = 0.001_dp
-    IF (dbg) THEN
+    IF (dbg .AND. detailed_timing) THEN
        WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
             routineN//' Total Local Multiplication time',&
             trun_t,' and',&
@@ -1219,7 +1214,7 @@ CONTAINS
     CALL dbcsr_unpack_i8_2i4 (keys, product_matrix%w%row_i,&
          product_matrix%w%col_i)
     DEALLOCATE (keys)
-    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error)
+    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error=error)
     !
     IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
@@ -1502,7 +1497,7 @@ CONTAINS
     !WRITE(*,*)'NEW TOTAL TIME', nanotot, REAL(nanotot)/(2.3*REAL(10**6)),'ms'
     DBG "Post-mult blk sizes, data", wm%lastblk, wm%datasize
     !dbg = .TRUE.
-    IF (dbg) THEN
+    IF (dbg .AND. detailed_timing) THEN
        tstop = m_walltime ()
        IF (tstop-tstart .NE. 0) THEN
           DBG tstop-tstart,'s',&
@@ -1559,7 +1554,7 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: flop_single, flop_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: left_data_rr, left_data_sr, &
                                                 left_index_rr, left_index_sr
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes, tmp_index
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
     INTEGER, DIMENSION(:), POINTER           :: left_index_rp, left_index_sp, &
                                                 right_index_rp, right_index_sp
@@ -1615,12 +1610,13 @@ CONTAINS
     left_mypcol = dbcsr_mp_mypcol (left_mp)
     left_nprows = dbcsr_mp_nprows (left_mp)
     left_npcols = dbcsr_mp_npcols (left_mp)
-    ALLOCATE (tmp_index (3, product_matrix%nblkcols_total*product_matrix%nblkrows_total))
     CALL ensure_array_size(product_matrix%w%row_i,&
          ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
     CALL ensure_array_size(product_matrix%w%col_i,&
          ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
     CALL ensure_array_size(product_matrix%w%blk_p,&
+         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
+    CALL ensure_array_size(product_matrix%w%blk_d,&
          ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
     DBG 'product pgrid shape', SHAPE (dbcsr_mp_pgrid (mp_obj))
     DBG 'left pgrid shape', SHAPE (left_pgrid),';',left_nprows,left_images
@@ -1904,11 +1900,11 @@ CONTAINS
              CALL dbcsr_repoint_index (lbuffer_calc%mats(mult), error=error)
              tstart = m_walltime ()
              CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult), rbuffer_calc,&
-                  product_matrix, error, flop=flop_single, new_index=tmp_index,&
+                  product_matrix, error, flop=flop_single,&
                   t_all=t_all, t_dgemm=t_dgemm)
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
-             IF (tstop-tstart .NE. 0) THEN
+             IF (tstop-tstart .NE. 0 .AND. detailed_timing) THEN
                 DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
                      (REAL(flop_total, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
              ENDIF
@@ -1920,7 +1916,7 @@ CONTAINS
     ENDDO k_index
     trun_t = m_walltime () - trun_t
     IF (trun_t .EQ. 0) trun_t = 0.001_dp
-    IF (dbg) THEN
+    IF (dbg .AND. detailed_timing) THEN
        WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
             routineN//' Total Local Multiplication time',&
             trun_t,' and',&
@@ -1968,12 +1964,11 @@ CONTAINS
     !     product_matrix%w%col_i)
     !DEALLOCATE (keys)
     !CALL mp_sync (mp_group)
-    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error)
+    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error=error)
     !
     IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
   END SUBROUTINE dbcsr_multiply_from_left_sqpg
-
 
 
 ! *****************************************************************************
@@ -1987,14 +1982,13 @@ CONTAINS
 !> \param[out] flop           (optional) number of effective double-precision
 !>                            floating point operations performed
 ! *****************************************************************************
-  SUBROUTINE dbcsr_nn_mult_lin(left, right, product, error, flop, new_index,&
+  SUBROUTINE dbcsr_nn_mult_lin(left, right, product, error, flop,&
        t_all, t_dgemm)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
-    INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: new_index
     REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_dgemm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult_lin', &
@@ -2007,23 +2001,29 @@ CONTAINS
                                                 use_b_type
     INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
       a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
-      b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_col, c_nze, c_row, i, &
-      lda, ldb, new_blk, old_blk, old_row_begin_blk, old_size, prev_b_col, &
+      b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_blk_pt, c_col, c_nze, &
+      c_row, datasize, i, ithread, lastblk, lda, ldb, new_blk, new_row_blks, &
+      nthreads, old_blk, old_row_begin_blk, old_size, prev_b_col, &
       row_begin_blk, row_blk, size_c_blk_ps, stat, timing_handle, &
       use_a_col_size_logical, use_a_offset, use_a_row_size_logical, &
       use_b_col_size, use_b_offset, use_c_offset, use_lda, use_ldb
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate, lflop
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
-    INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
-                                                left_row_blk_size, &
-                                                right_col_blk_size, &
-                                                right_row_blk_size
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_nnew_blk, c_blk_ps, &
+                                                c_blk_ps_p
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mt_row_processing
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: new_index
+    INTEGER, DIMENSION(:), POINTER :: left_col_blk_size, left_row_blk_size, &
+      new_blk_d, new_blk_p, new_col_i, new_row_i, right_col_blk_size, &
+      right_row_blk_size
     LOGICAL                                  :: block_exists, &
                                                 start_fresh_extent, tr_a, &
                                                 use_accumulated_data
-    REAL(KINd=dp)                            :: beta, epoch, use_alpha, &
-                                                use_beta
+    REAL(KIND=dp)                            :: beta, epoch, mt_t_dgemm, &
+                                                use_alpha, use_beta
+
+    !$ INTEGER(KIND=omp_lock_kind)           :: data_lock, index_lock
+    INTEGER, DIMENSION(:,:), ALLOCATABLE     :: exchange
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -2032,16 +2032,14 @@ CONTAINS
     epoch = m_walltime()
     DBG "Doing NN matrix multiplication",left%name,' x ',right%name
     DBG "Pre-mult blk sizes, data", product%w%lastblk, product%w%datasize
-    lflop = 0
     left_row_blk_size => array_data (left%row_blk_size)
     left_col_blk_size => array_data (left%col_blk_size)
     right_row_blk_size => array_data (right%row_blk_size)
     right_col_blk_size => array_data (right%col_blk_size)
     c_blk_p = product%w%datasize + 1
     DBG 'A rows:',left%nblkrows_total
-    old_blk = 1
     old_size = product%w%lastblk
-    new_blk = 0
+    mt_t_dgemm = 0.0_dp
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
     IF (left%nfullrows_local*right%nfullcols_local .GT.&
          SIZE (product%w%data)) THEN
@@ -2050,6 +2048,72 @@ CONTAINS
             left%nfullrows_local*right%nfullcols_local),&
             error=error)
     ENDIF
+    ALLOCATE (mt_row_processing(rpnslots, left%nblkrows_total))
+    !
+    !$OMP PARALLEL DEFAULT (NONE) &
+    !$OMP          PRIVATE(a_row, a_col, a_blk,&
+    !$OMP                  b_row, b_col, b_blk,&
+    !$OMP                  c_row, c_col,&
+    !$OMP                  a_row_log, a_col_log,&
+    !$OMP                  a_row_size_logical,&
+    !$OMP                  a_col_size_logical,&
+    !$OMP                  a_row_size, a_col_size, a_nze,&
+    !$OMP                  b_row_size, b_col_size, b_nze, c_nze,&
+    !$OMP                  lda, ldb,&
+    !$OMP                  tr_a,&
+    !$OMP                  beta,&
+    !$OMP                  a_type, b_type,&
+    !$OMP                  coordinate,&
+    !$OMP                  offset,&
+    !$OMP                  block_exists,&
+    !$OMP                  c_blk_ps, c_blk_ps_p, size_c_blk_ps,&
+    !$OMP                  new_blk, row_blk, row_begin_blk, new_row_blks,&
+    !$OMP                  old_blk, old_row_begin_blk,&
+    !$OMP                  start_fresh_extent, use_accumulated_data,&
+    !$OMP                  use_a_type, use_b_type,&
+    !$OMP                  use_a_row_size_logical, use_a_col_size_logical,&
+    !$OMP                  use_b_col_size,&
+    !$OMP                  use_alpha, use_beta,&
+    !$OMP                  use_a_offset, use_b_offset, use_c_offset,&
+    !$OMP                  use_lda, use_ldb,&
+    !$OMP                  prev_b_col,&
+    !$OMP                  lastblk, datasize, c_blk_pt,&
+    !$OMP                  stat, i,&
+    !$OMP                  ithread)&
+    !$OMP          REDUCTION (+: lflop, mt_t_dgemm) &
+    !$OMP          SHARED (nthreads, mt_row_processing, epoch, dbg, error,&
+    !$OMP                  new_index, all_nnew_blk, exchange,&
+    !$OMP                  left, right, product,&
+    !$OMP                  left_row_blk_size, left_col_blk_size,&
+    !$OMP                  right_row_blk_size, right_col_blk_size,&
+    !$OMP                  old_size,&
+    !$OMP                  c_blk_p,&
+    !$OMP                  new_row_i, new_col_i, new_blk_p, new_blk_d)
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    !$OMP SINGLE
+    nthreads = 1
+    !$ nthreads = OMP_GET_NUM_THREADS ()
+    ALLOCATE (new_index (4, left%nfullrows_local*right%nfullcols_local,&
+         0:nthreads-1))
+    ALLOCATE (all_nnew_blk(0:nthreads-1))
+    ALLOCATE (exchange(2, 0:nthreads-1))
+    ! Bad assumption for now: Assume alway the same number of threads.
+    IF (.NOT. ASSOCIATED (product%w%datas)) THEN
+       ALLOCATE (product%w%datas(nthreads))
+       ALLOCATE (product%w%lastblks(nthreads))
+       product%w%lastblks(:) = 0
+       ALLOCATE (product%w%datasizes(nthreads))
+       product%w%datasizes(:) = 0
+       DO i = 1, nthreads
+          NULLIFY (product%w%datas(i)%r, product%w%datas(i)%c)
+       ENDDO
+    ENDIF
+    !$OMP END SINGLE
+    CALL ensure_array_size(product%w%datas(ithread+1)%r,&
+         ub=MAX(product%w%datasize,&
+         left%nfullrows_local*right%nfullcols_local),&
+         error=error)
     ! c_blk_ps contains the block pointers in the product's current row
     ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
     IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
@@ -2059,9 +2123,17 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps_p",&
          product%nblkcols_total)
     size_c_blk_ps = 0
+    c_blk_pt = 1
+    lastblk = 0
+    datasize = 0
     !
+    mt_t_dgemm = 0.0_dp
+    lflop = 0
+    old_blk = 1
     use_accumulated_data = .FALSE.
-    !
+    new_blk = 0
+    start_fresh_extent = .TRUE.
+    !$OMP DO
     DO a_row = 1, left%nblkrows_total
        a_row_log = a_row
        DBG '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
@@ -2099,6 +2171,9 @@ CONTAINS
              ENDIF
           ENDDO
        ENDIF
+       mt_row_processing(rpslot_oldblks, a_row) = size_c_blk_ps
+       mt_row_processing(rpslot_addoffset, a_row) = new_blk+1
+       new_row_blks = 0
        DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
           row_blk = row_begin_blk
           old_blk = old_row_begin_blk
@@ -2144,23 +2219,27 @@ CONTAINS
              c_nze = a_row_size * b_col_size
              offset = c_blk_ps(c_col)
              block_exists = c_blk_ps(c_col) .GT. 0
-             DBG "Found old?", block_exists!, product%w%col_i(old_blk), c_col, old_blk
+             DBG "Found old?", block_exists, c_blk_ps(c_col), offset
              ! Try to find the current coordinate in the current row index
              IF (.NOT. block_exists) THEN
                 new_blk = new_blk+1
-                new_index(1, new_blk) = c_row
-                new_index(2, new_blk) = c_col
-                new_index(3, new_blk) = c_blk_p
+                new_index(1, new_blk, ithread) = c_row
+                new_index(2, new_blk, ithread) = c_col
+                new_index(3, new_blk, ithread) = c_blk_pt
+                new_index(4, new_blk, ithread) = ithread+1
+                new_row_blks = new_row_blks + 1
                 DBG 'Adding coordinate', c_row, c_col, c_blk_p
-                offset = c_blk_p
+                offset = c_blk_pt
+                c_blk_pt = c_blk_pt + c_nze
+                !WRITE(*,'("(",I4,"): ",A,1X,I7)')ithread,"GOT offset", offset
+                datasize = datasize + c_nze
+                lastblk = lastblk + 1
                 c_blk_ps (c_col) = offset
                 size_c_blk_ps = size_c_blk_ps + 1
                 c_blk_ps_p(size_c_blk_ps) = c_col
-                c_blk_p = c_blk_p + c_nze
-                product%w%datasize = product%w%datasize + c_nze
-                product%w%lastblk = product%w%lastblk + 1
                 beta = beta_new
              ELSE
+                DBG 'Using existing coordinate at', offset
                 beta = beta_add
              ENDIF
              !DBG 'offset:',offset,offset+c_nze-1,'of',product%w%datasize,UBOUND(product%w%data),'ex',block_exists
@@ -2187,6 +2266,7 @@ CONTAINS
                 use_c_offset = offset
                 prev_b_col = b_col
                 start_fresh_extent = .FALSE.
+                DBG "New extent", a_row_log, b_row, b_col, ';', a_blk, b_blk
              ELSE
                 use_accumulated_data = .TRUE.
                 ! Check to see whether the right matrix row extent can
@@ -2196,6 +2276,7 @@ CONTAINS
                      .AND. prev_b_col .EQ. b_col-1 .AND. b_type .EQ. 'N') THEN
                    use_accumulated_data = .FALSE.
                    prev_b_col = b_col
+                   DBG "Continuing at b_col", b_col
                 ENDIF
                 use_b_col_size = use_b_col_size + b_col_size
              ENDIF new_extent
@@ -2203,21 +2284,26 @@ CONTAINS
                 use_accumulated_data = .TRUE.
              ENDIF end_of_row
              flush_dgemm: IF (use_accumulated_data) THEN
-                t_dgemm = t_dgemm - (m_walltime() - epoch)
+                mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
+                IF (dbg) WRITE(*,&
+                     "(1X,A,A1,1X,A1,A,I6,A,F4.1)")&
+                     routineN//' DGEMM ',use_a_type,use_b_type,&
+                     ' at',use_c_offset,' beta=', use_beta
                 CALL DGEMM(use_a_type, use_b_type,&
                      use_a_row_size_logical, use_b_col_size,&
                      use_a_col_size_logical,&
                      use_alpha,&
                      left%data(use_a_offset), use_lda,&
                      right%data(use_b_offset), use_ldb, use_beta,&
-                     product%w%data(use_c_offset), use_a_row_size_logical)
+                     !product%w%data(use_c_offset), use_a_row_size_logical)
+                     product%w%datas(ithread+1)%r(use_c_offset), use_a_row_size_logical)
                 !CALL DGEMM(a_type, b_type,&
                 !     a_row_size_logical, b_col_size, a_col_size_logical,&
                 !     alpha,&
                 !     left%data(ABS(left%blk_p(a_blk))), lda,&
                 !     right%data(ABS(right%blk_p(b_blk))), ldb, beta,&
                 !     product%w%data(offset), a_row_size_logical)
-                t_dgemm = t_dgemm + (m_walltime() - epoch)
+                mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
                 lflop = lflop + INT(use_a_row_size_logical, int_8)&
                      * INT(use_b_col_size, int_8)&
                      * INT(use_a_col_size_logical, int_8) * INT(2, int_8)
@@ -2227,65 +2313,100 @@ CONTAINS
              ENDIF flush_dgemm
           ENDDO ! b
        ENDDO ! a_col
+       mt_row_processing(rpslot_owner, a_row) = ithread
+       mt_row_processing(rpslot_addblks, a_row) = new_row_blks
     ENDDO ! a_row
-    IF (.NOT. start_fresh_extent) THEN
-       t_dgemm = t_dgemm - (m_walltime() - epoch)
-       CALL DGEMM(use_a_type, use_b_type,&
-            use_a_row_size_logical, use_b_col_size,&
-            use_a_col_size_logical,&
-            use_alpha,&
-            left%data(use_a_offset), use_lda,&
-            right%data(use_b_offset), use_ldb, use_beta,&
-            product%w%data(use_c_offset), use_a_row_size_logical)
-       !CALL DGEMM(a_type, b_type,&
-       !     a_row_size_logical, b_col_size, a_col_size_logical,&
-       !     alpha,&
-       !     left%data(ABS(left%blk_p(a_blk))), lda,&
-       !     right%data(ABS(right%blk_p(b_blk))), ldb, beta,&
-       !     product%w%data(offset), a_row_size_logical)
-       t_dgemm = t_dgemm + (m_walltime() - epoch)
-       lflop = lflop + a_row_size * b_col_size * a_col_size * 2
-       use_accumulated_data = .FALSE.
-    ENDIF
-
+    !$OMP END DO
     DEALLOCATE (c_blk_ps, c_blk_ps_p)
+    ! Now merge the new indices with the old index.
+    all_nnew_blk(ithread) = new_blk
+    product%w%lastblks(ithread+1) = lastblk
+    product%w%datasizes(ithread+1) = datasize
+    !$OMP BARRIER
+    
+    CALL accumulate_row_offsets (mt_row_processing, exchange,&
+         SIZE(mt_row_processing,2))
+    ! The upper replaces this commented block.
+    !!$OMP SINGLE
+    !mt_row_processing(rpslot_totaloffset, 1) = 1
+    !mt_row_processing(rpslot_oldoffset, 1) = 1
+    !DO a_row = 2, left%nblkrows_total
+    !   mt_row_processing(rpslot_totaloffset, a_row)&
+    !        = mt_row_processing(rpslot_totaloffset, a_row-1)&
+    !        + mt_row_processing(rpslot_addblks, a_row-1)&
+    !        + mt_row_processing(rpslot_oldblks, a_row-1)
+    !   mt_row_processing(rpslot_oldoffset, a_row)&
+    !        = mt_row_processing(rpslot_oldoffset, a_row-1)&
+    !        + mt_row_processing(rpslot_oldblks, a_row-1)
+    !ENDDO
+    !!$OMP END SINGLE
+
+    !$OMP SINGLE
+    product%w%lastblk = product%w%lastblk + SUM(product%w%lastblks(:))
+    product%w%datasize = product%w%datasize + SUM(product%w%datasizes(:))
+    !WRITE(*,*)"New total # blocks:", product%w%lastblk
+    !WRITE(*,*)"New all # blocks:  ", product%w%lastblks
+    !WRITE(*,*)"New total size:", product%w%datasize
+    !WRITE(*,*)"New all sizes: ", product%w%datasizes
+    i = old_size + SUM (all_nnew_blk)
+    ALLOCATE (new_row_i(i), new_col_i(i), new_blk_p(i), new_blk_d(i))
+    !$OMP END SINGLE
+    !$OMP BARRIER
+    CALL merge_many_arrays (new_row_i, new_col_i, new_blk_p,&
+         product%w%row_i, product%w%col_i, product%w%blk_p,&
+         old_size, new_index, all_nnew_blk, mt_row_processing,&
+         new_blk_d, product%w%blk_d)
+    !$OMP END PARALLEL
+    DEALLOCATE (new_index)
     ELSE
        DBG 'One of the matrices is empty!'
     ENDIF
-    ! Now merge the two indices
-    CALL merge_arrays (product%w%row_i, product%w%col_i, product%w%blk_p, old_size, new_index, new_blk)
     DBG "Post-mult blk sizes, data", product%w%lastblk, product%w%datasize
     IF (PRESENT (flop)) flop = lflop
     t_all = t_all + (m_walltime() - epoch)
+    t_dgemm = t_dgemm + mt_t_dgemm
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_nn_mult_lin
 
 
 ! *****************************************************************************
-!> \brief Merges two sorted indices
-!> \param[in,out] old_row_i, old_col_i, old_blk_p      current index and
-!>                                                     merged result
-!> \param[in] add_ip                    index to add into the current index
+!> \brief Merges two arrays
+!> \param[in,out] new_row_i, new_col_i, new_blk_p      merged result
+!> \param[in] new_size                  size of merged index
+!> \param[in,out] old_row_i, old_col_i, old_blk_p      current index
 !> \param[in] old_size                  size of current index
+!> \param[in] add_ip                    index to add into the current index
 !> \param[in] add_size                  size of index to add into the current
 !>                                      index
 ! *****************************************************************************
-  SUBROUTINE merge_arrays (old_row_i, old_col_i, old_blk_p, old_size,&
-       add_ip, add_size)
-    INTEGER, DIMENSION(:), POINTER           :: old_row_i, old_col_i, &
-                                                old_blk_p
+  SUBROUTINE merge_arrays (new_row_i, new_col_i, new_blk_p, new_size,&
+       old_row_i, old_col_i, old_blk_p, old_size,&
+       add_ip, add_size, new_blk_d, old_blk_d)
+    INTEGER, INTENT(IN)                      :: new_size
+    INTEGER, DIMENSION(new_size), &
+      INTENT(OUT)                            :: new_blk_p, new_col_i, &
+                                                new_row_i
     INTEGER, INTENT(IN)                      :: old_size
-    INTEGER, DIMENSION(:, :), INTENT(IN)     :: add_ip
+    INTEGER, DIMENSION(old_size), INTENT(IN) :: old_blk_p, old_col_i, &
+                                                old_row_i
     INTEGER, INTENT(IN)                      :: add_size
+    INTEGER, DIMENSION(4, add_size), &
+      INTENT(IN)                             :: add_ip
+    INTEGER, DIMENSION(new_size), &
+      INTENT(OUT), OPTIONAL                  :: new_blk_d
+    INTEGER, DIMENSION(old_size), &
+      INTENT(IN), OPTIONAL                   :: old_blk_d
 
     INTEGER                                  :: add_blk, merge_from_whom, &
-                                                new_blk, new_size, old_blk
-    INTEGER, DIMENSION(:), POINTER           :: new_blk_p, new_col_i, &
-                                                new_row_i, tmp_p
+                                                new_blk, old_blk
+    LOGICAL                                  :: multidata
 
 !
+!
 
-    new_size = old_size+add_size
+    multidata = PRESENT (old_blk_d) .AND. PRESENT (new_blk_d)
+    CALL bcsr_assert(2, old_size+add_size .EQ. new_size, "merge_arrays",&
+         "Mismatch of new and old size")
     !WRITE (*,*) " Old array", old_size
     !DO i = 1, old_size
     !   WRITE(*,'(I7,2X,I7,2X,I7)')old_row_i(i),old_col_i(i),old_blk_p(i)
@@ -2295,9 +2416,6 @@ CONTAINS
     !   WRITE(*,'(I7,2X,I7,2X,I7)')add_ip (1:3, i)
     !ENDDO
     IF (add_size .GT. 0) THEN
-       ALLOCATE (new_row_i (new_size))
-       ALLOCATE (new_col_i (new_size))
-       ALLOCATE (new_blk_p (new_size))
        old_blk = 1
        add_blk = 1
        new_blk = 1
@@ -2305,6 +2423,7 @@ CONTAINS
           new_row_i(1:add_size) = add_ip(1, 1:add_size)
           new_col_i(1:add_size) = add_ip(2, 1:add_size)
           new_blk_p(1:add_size) = add_ip(3, 1:add_size)
+          IF (multidata) new_blk_d(1:add_size) = add_ip(4, 1:add_size)
        ELSE
           DO WHILE (new_blk .LE. new_size)
              merge_from_whom = 0
@@ -2345,12 +2464,14 @@ CONTAINS
                 new_row_i(new_blk) = add_ip(1, add_blk)
                 new_col_i(new_blk) = add_ip(2, add_blk)
                 new_blk_p(new_blk) = add_ip(3, add_blk)
+                IF (multidata) new_blk_d(new_blk) = add_ip(4, add_blk)
                 add_blk = add_blk + 1
              CASE (1)
                 ! Merges from the old array
                 new_row_i(new_blk) = old_row_i(old_blk)
                 new_col_i(new_blk) = old_col_i(old_blk)
                 new_blk_p(new_blk) = old_blk_p(old_blk)
+                IF (multidata) new_blk_p(new_blk) = old_blk_d(old_blk)
                 old_blk = old_blk + 1
              CASE DEFAULT
                 !WRITE(*,*)"Error: Nothing to merge"
@@ -2358,21 +2479,201 @@ CONTAINS
              new_blk = new_blk + 1
           ENDDO
        ENDIF
-       tmp_p => old_row_i
-       old_row_i => new_row_i
-       DEALLOCATE (tmp_p)
-       tmp_p => old_col_i
-       old_col_i => new_col_i
-       DEALLOCATE (tmp_p)
-       tmp_p => old_blk_p
-       old_blk_p => new_blk_p
-       DEALLOCATE (tmp_p)
+    ELSE
+       new_row_i(1:old_size) = old_row_i(1:old_size)
+       new_col_i(1:old_size) = old_col_i(1:old_size)
+       new_blk_p(1:old_size) = old_blk_p(1:old_size)
+       IF (multidata) new_blk_d(1:old_size) = old_blk_d(1:old_size)
     ENDIF
     !WRITE (*,*) " New array"
     !DO i = 1, new_size
-    !   WRITE(*,'(I7,2X,I7,2X,I7)')old_row_i(i),old_col_i(i),old_blk_p(i)
+    !   WRITE(*,'(4(2X,I7))')new_row_i(i),new_col_i(i),new_blk_p(i)
     !ENDDO
   END SUBROUTINE merge_arrays
+
+
+! *****************************************************************************
+!> \brief Merges many sorted indices
+!> \param[in,out] new_row_i, new_col_i, new_blk_p      merge index
+!> \param[in,out] old_row_i, old_col_i, old_blk_p      current index
+!> \param[in] add_ip                    index to add into the current index
+!> \param[in] old_size                  size of current index
+!> \param[in] add_sizes                 size of index to add into the current
+!>                                      index
+!> \param[in] row_metadata              who processed a row, how many elements
+!>                                      were added, and how many were in the
+!>                                      old row
+!> \param[in] new_blk_d, old_blk_d      (optional) new and old location of data
+!>                                      blocks
+! *****************************************************************************
+  SUBROUTINE merge_many_arrays (&
+       new_row_i, new_col_i, new_blk_p,&
+       old_row_i, old_col_i, old_blk_p, old_size,&
+       add_ip, add_sizes, row_metadata,&
+       new_blk_d, old_blk_d)
+    INTEGER, DIMENSION(:), POINTER           :: new_row_i, new_col_i, &
+                                                new_blk_p, old_row_i, &
+                                                old_col_i, old_blk_p
+    INTEGER, INTENT(IN)                      :: old_size
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: add_ip
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: add_sizes
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: row_metadata
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: new_blk_d, old_blk_d
+
+    INTEGER                                  :: a1, a2, ablks, add_size, &
+                                                ithread, n1, n2, new_size, &
+                                                nrows, nthreads, o1, o2, &
+                                                oblks, row
+    INTEGER, DIMENSION(:), POINTER           :: tmp_p
+    LOGICAL                                  :: multidata
+
+!
+
+    multidata = PRESENT (old_blk_d) .AND. PRESENT (new_blk_d)
+    ithread = 0
+    nthreads = 1
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    !$ nthreads = OMP_GET_NUM_THREADS ()
+    !IF (ithread .EQ. 0) THEN
+    !   WRITE (*,*) " MANY Old array", old_size
+    !   DO n1 = 1, old_size
+    !      WRITE(*,'(I7,2X,I7,2X,I7)')old_row_i(n1),old_col_i(n1),old_blk_p(n1)
+    !   ENDDO
+    !   DO n1 = 0, nthreads-1
+    !      WRITE (*,*) " MANY Add array from", n1, ":", add_sizes(n1)
+    !      DO n2 = 1, add_sizes(n1)
+    !         WRITE(*,'(4(2X,I7))')add_ip (1:4, n2, n1)
+    !      ENDDO
+    !   ENDDO
+    !   WRITE(*,*)"Metadata:"
+    !   DO n1 = 1, SIZE (row_metadata, 2)
+    !      WRITE(*,'(6(1X,I5))') row_metadata(:, n1)
+    !   ENDDO
+    !ENDIF
+    !!$OMP BARRIER
+    nrows = SIZE(row_metadata, 2)
+    add_size = SUM (add_sizes)
+    new_size = old_size+add_size
+    ! There's nothing to do if nothing was added
+    IF (add_size .GT. 0) THEN
+       ! Process my rows.
+       DO row = 1, nrows
+          IF (row_metadata(rpslot_owner, row) .EQ. ithread) THEN
+             oblks = row_metadata(rpslot_oldblks, row)
+             o1 = row_metadata(rpslot_oldoffset, row)
+             o2 = o1 + oblks - 1
+             ablks = row_metadata(rpslot_addblks, row)
+             a1 = row_metadata(rpslot_addoffset, row)
+             a2 = a1 + ablks - 1
+             n1 = row_metadata(rpslot_totaloffset, row)
+             n2 = n1 + oblks + ablks - 1
+             IF (n2 .GE. n1) THEN
+                CALL merge_arrays(new_row_i(n1:n2), new_col_i(n1:n2),&
+                     new_blk_p(n1:n2), oblks + ablks,&
+                     old_row_i(o1:o2), old_col_i(o1:o2),&
+                     old_blk_p(o1:o2), oblks,&
+                     add_ip(:,a1:a2,ithread), ablks,&
+                     new_blk_d(n1:n2), old_blk_d(o1:o2))
+             ENDIF
+          END IF
+       ENDDO
+       ! Now set the pointers to the arrays with the new values.
+       IF (ithread .EQ. 0) THEN
+          tmp_p => old_row_i
+          old_row_i => new_row_i
+          DEALLOCATE (tmp_p)
+          tmp_p => old_col_i
+          old_col_i => new_col_i
+          DEALLOCATE (tmp_p)
+          tmp_p => old_blk_p
+          old_blk_p => new_blk_p
+          DEALLOCATE (tmp_p)
+          IF (multidata) THEN
+             tmp_p => old_blk_d
+             old_blk_d => new_blk_d
+             DEALLOCATE (tmp_p)
+          ENDIF
+       ENDIF
+    ELSE
+       IF (ithread .EQ. 0) THEN
+          DEALLOCATE (new_row_i, new_col_i, new_blk_p)
+          IF (multidata) DEALLOCATE (new_blk_d)
+       ENDIF
+    ENDIF
+    !!!$OMP BARRIER
+    !IF (ithread .EQ. 0) THEN
+    !   WRITE (*,*) " MANY New array"
+    !   DO i = 1, new_size
+    !      WRITE(*,'(4(2X,I7))')old_row_i(i),old_col_i(i),&
+    !           old_blk_p(i),old_blk_d(i)
+    !   ENDDO
+    !ENDIF
+  END SUBROUTINE merge_many_arrays
+
+
+! *****************************************************************************
+!> \brief Accumulates sums.
+!>
+!> accumulates[x,i],i>1 = \sum_{j=1,i-1}terms[x,j]
+!> \param[in] terms                     terms to accumulate
+!> \param[out] accumulates              accumulations of terms
+!> \par Must be a pointer to force pass by reference.
+!> \param exchange                      for exchanging data
+! *****************************************************************************
+  SUBROUTINE accumulate_row_offsets (row_meta, exchange, n)
+    !INTEGER, DIMENSION(:, :), INTENT(INOUT), VOLATILE :: row_meta
+    !INTEGER, DIMENSION(:, :), POINTER                 :: row_meta
+    INTEGER, DIMENSION(rpnslots, *)          :: row_meta
+    INTEGER, DIMENSION(:, 0:), &
+      INTENT(INOUT), VOLATILE                :: exchange
+    INTEGER, INTENT(IN)                      :: n
+
+    INTEGER                                  :: i, ithread, my_first, &
+                                                my_last, nthreads, s_add, &
+                                                s_old, segment_size
+
+    ithread = 0 ; nthreads = 1
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    !$ nthreads = OMP_GET_NUM_THREADS ()
+    !segment_size = CEILING (n / nthreads)
+    segment_size = n / nthreads
+    IF (nthreads * segment_size .LT. n) segment_size = segment_size + 1
+    my_first = 1 + ithread * segment_size
+    my_last = MIN (n, (ithread+1) * segment_size)
+    exchange(2, ithread) = SUM (row_meta(rpslot_addblks, my_first:my_last))
+    exchange(1, ithread) = exchange(2, ithread)&
+         + SUM (row_meta(rpslot_oldblks, my_first:my_last))
+    !$OMP BARRIER
+    !$OMP SINGLE
+    DO i = 1, nthreads-2
+       exchange(:, i) = exchange(:, i-1) + exchange(:, i)
+    ENDDO
+    exchange(:, 1:nthreads-1) = exchange(:, 0:nthreads-2) + 1
+    exchange(:, 0) = 1
+    !$OMP END SINGLE
+    IF (my_first .LE. my_last) THEN
+       row_meta(rpslot_totaloffset, my_first) = exchange(1, ithread)
+       row_meta(rpslot_oldoffset, my_first) = exchange(2, ithread)
+    ENDIF
+    !IF (ithread .EQ. 0) THEN
+    !   WRITE(*,*)"row_meta preassign"
+    !   WRITE(*,'(6(1X,I5))')row_meta(:,1:n)
+    !ENDIF
+    DO i = my_first+1, my_last
+       s_add = row_meta(rpslot_addblks, i-1)
+       s_old = row_meta(rpslot_oldblks, i-1)
+       !IF (ithread .EQ. 0) THEN
+       !   WRITE(*,'(A,I3,1X,I3,1X,A,2(1X,I5),A,6(1X,I5))')'me',ithread,i,&
+       !        'add, old', s_add, s_old, ';',row_meta(:,i-1)
+       !ENDIF
+       row_meta(rpslot_totaloffset, i) = row_meta(rpslot_totaloffset, i-1)&
+            + s_add+s_old
+       row_meta(rpslot_oldoffset, i) = row_meta(rpslot_oldoffset, i-1)&
+            + s_old
+    ENDDO
+    !$OMP FLUSH (row_meta)
+  END SUBROUTINE accumulate_row_offsets
+
 
 
 ! *****************************************************************************
@@ -2487,7 +2788,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        DBG 'Both matrices were empty!'
     ENDIF
     DBG "Post-add blk sizes, data", wm%lastblk, wm%datasize
-    IF (dbg) THEN
+    IF (dbg .AND. detailed_timing) THEN
        tstop = m_walltime ()
        IF (tstop-tstart .NE. 0) THEN
           DBG tstop-tstart,'s',&

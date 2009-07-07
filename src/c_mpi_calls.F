@@ -210,13 +210,10 @@ CONTAINS
      mp_info = MPI_INFO_NULL
 #ifdef __c_bindings
 #ifndef __mpi_f_bindings
-     WRITE(*,*)'Using C bindings'
      mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
 #else
-     WRITE(*,*)'Using fortran bindings'
      CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
 #endif
-     WRITE(*,*)'base ptr',mp_baseptr
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
@@ -271,7 +268,6 @@ CONTAINS
 #else
      CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
 #endif
-     WRITE(*,*)'base ptr',mp_baseptr,length
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
 #else /* __c_bindings */
      CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)

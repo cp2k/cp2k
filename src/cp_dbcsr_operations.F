@@ -148,6 +148,7 @@ CONTAINS
     DO i = 1, SIZE (ms_left%mats)
        CALL dbcsr_verify_matrix(ms_left%mats(i), error)
     ENDDO
+    IF (PRESENT (flop)) flop = 0.0
     flops = dbcsr_checksum(matrix_d, error)
     DBG "DBCSR norm. S checksum", flops
     !CALL dbcsr_print(matrix_e, error)
@@ -294,12 +295,14 @@ CONTAINS
          dbcsr_distribution_col_dist (matrix_b%dist))
     !
     walltime1 = m_walltime()
+    flop = 0
     CALL dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c,&
          product_dist, hint, error, flop=flop)
     !CALL dbcsr_sm_sm_multiply(matrix_bt, matrix_a, matrix_c,&
     !     dist_result, hint, error)
     !CALL dbcsr_distribution_release (dist_result)
     walltime2 = m_walltime()
+    newtime = 0.0_dp
     newtime = MAX (walltime2-walltime1, 1.0_dp)
     CALL dbcsr_destroy (matrix_bt, error)
     !

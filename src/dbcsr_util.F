@@ -46,7 +46,7 @@ MODULE dbcsr_util
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_mp_release
   USE dbcsr_types,                     ONLY: &
-       dbcsr_array_type, dbcsr_distribution_obj, &
+       dbcsr_array_type, dbcsr_data, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_meta_size, dbcsr_mp_obj, &
        dbcsr_num_slots, dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, &
        dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
@@ -66,6 +66,8 @@ MODULE dbcsr_util
                                              mp_alltoall,&
                                              mp_deallocate,&
                                              mp_sum
+
+  !$ USE OMP_LIB
   USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
                                              next_block_node,&
@@ -434,6 +436,10 @@ CONTAINS
             matrix%dist))))
     ENDIF
     NULLIFY(matrix%w%data)
+    NULLIFY(matrix%w%datas)
+    NULLIFY(matrix%w%blk_d)
+    NULLIFY(matrix%w%datasizes)
+    NULLIFY(matrix%w%lastblks)
     ALLOCATE(matrix%w%data(nze), stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, 'matrix%w%data', nze)
     !
@@ -458,11 +464,13 @@ CONTAINS
 !>                            is true
 !> \param[in] reshuffle       whether the data should be reshuffled,
 !>                            default is false
+!> \param[in] keepdata        whether to deallocate the data or not, default
+!>                            is false
 !> \param error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_finalize(matrix, resort, reshuffle, error)
+  SUBROUTINE dbcsr_finalize(matrix, resort, reshuffle, keepdata, error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: resort, reshuffle
+    LOGICAL, INTENT(IN), OPTIONAL            :: resort, reshuffle, keepdata
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_finalize', &
@@ -473,7 +481,8 @@ CONTAINS
                                                 timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: shfl, srt
+    LOGICAL                                  :: lkeepdata, multidata, shfl, &
+                                                srt
     TYPE(dbcsr_work_type)                    :: wm
 
     DEBUG_HEADER
@@ -483,10 +492,18 @@ CONTAINS
     IF (dbg) WRITE(*,*)routineN//' finalizing matrix', matrix%name
     wm = matrix%w
     srt = .TRUE.
+    lkeepdata = .FALSE.
+    IF (PRESENT (keepdata)) lkeepdata = keepdata
+    multidata = ASSOCIATED (matrix%w%blk_d) .AND. ASSOCIATED (matrix%w%datas)
     IF (PRESENT (resort)) srt = resort
     IF (srt) THEN
-       CALL dbcsr_sort_indices(wm%lastblk, wm%row_i, wm%col_i, wm%blk_p,&
-            error=error)
+       IF (multidata) THEN
+          CALL dbcsr_sort_indices(wm%lastblk, wm%row_i, wm%col_i, wm%blk_p,&
+               blk_d=matrix%w%blk_d, error=error)
+       ELSE
+          CALL dbcsr_sort_indices(wm%lastblk, wm%row_i, wm%col_i, wm%blk_p,&
+               error=error)
+       ENDIF
        !CALL dbcsr_wm_merge_blocks(wm, error)
     ENDIF
     IF(.NOT.ASSOCIATED(matrix%data)) THEN
@@ -561,6 +578,7 @@ CONTAINS
     matrix%col_i(:) = wm%col_i(1:matrix%nblks)
     shfl = .FALSE.
     IF (PRESENT (reshuffle)) shfl = reshuffle
+    IF (multidata) shfl = .TRUE.
     row_blk_size => array_data (matrix%row_blk_size)
     col_blk_size => array_data (matrix%col_blk_size)
     IF (.NOT.shfl) THEN
@@ -571,16 +589,21 @@ CONTAINS
        IF (stat /= 0) CALL stop_memory (routineP, "sizes", matrix%nblks)
        CALL calc_blk_sizes (sizes, matrix%row_p, matrix%col_i,&
             array_data(matrix%row_blk_size), array_data(matrix%col_blk_size))
-       CALL dbcsr_sort_data(matrix%blk_p, wm%blk_p(1:matrix%nblks),&
-            sizes, matrix%data, wm%data, error)
+       IF (.NOT. multidata) THEN
+          CALL dbcsr_sort_data(matrix%blk_p, wm%blk_p(1:matrix%nblks),&
+               sizes, matrix%data, wm%data, error=error)
+       ELSE
+          CALL dbcsr_sort_data(matrix%blk_p, wm%blk_p(1:matrix%nblks),&
+               sizes, matrix%data, wm%data, wm%datas, wm%blk_d, error)
+       ENDIF
        DEALLOCATE(sizes)
     ENDIF
 
     wm%datasize = 0
     wm%lastblk = 0
     matrix%w = wm
-    CALL dbcsr_work_destroy(matrix%w, keepfinal=.TRUE., keepfinaldata=.TRUE.,&
-         error=error)
+    CALL dbcsr_work_destroy(matrix%w, keepdata=lkeepdata, keepfinal=.TRUE.,&
+         keepfinaldata=.TRUE., error=error)
     matrix%valid = .TRUE.
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_finalize
@@ -636,6 +659,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_destroy', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     LOGICAL                                  :: datasharing, dbg, lkeepdata, &
                                                 lkeepfinal, lkeepfinaldata
 
@@ -670,6 +694,24 @@ CONTAINS
     IF (ASSOCIATED (wm%blk_p)) THEN
        DEALLOCATE(wm%blk_p)
        NULLIFY (wm%blk_p)
+    ENDIF
+    IF (ASSOCIATED (wm%datas)) THEN
+       DO i = 1, SIZE(wm%datas)
+          DEALLOCATE (wm%datas(i)%r)
+       ENDDO
+       DEALLOCATE (wm%datas)
+    ENDIF
+    IF (ASSOCIATED (wm%blk_d)) THEN
+       DEALLOCATE (wm%blk_d)
+       NULLIFY (wm%blk_d)
+    ENDIF
+    IF (ASSOCIATED (wm%lastblks)) THEN
+       DEALLOCATE (wm%lastblks)
+       NULLIFY (wm%lastblks)
+    ENDIF
+    IF (ASSOCIATED (wm%datasizes)) THEN
+       DEALLOCATE (wm%datasizes)
+       NULLIFY (wm%datasizes)
     ENDIF
   END SUBROUTINE dbcsr_work_destroy
 
@@ -2602,9 +2644,10 @@ CONTAINS
     CALL bcsr_assert(dbg, m%index(1).GT.0, r, 'Index size 0')
     DO i = dbcsr_slot_row_p, dbcsr_num_slots
        CALL bcsr_assert(dbg, m%index(i) .GT. 0, r, 'Index member is 0')
-       IF (i .LE. dbcsr_num_slots-2) &
+       IF (.NOT. (i.EQ.dbcsr_slot_col_i.OR.i.EQ.dbcsr_slot_blk_p)) THEN
             CALL bcsr_assert(dbg,m%index(i) .LE. m%index(1), r,&
             'Index member is greater than size')
+         ENDIF
     ENDDO
     !
     IF(dbg.GE.4) WRITE(*,*)r//' row_p extents',m%index(dbcsr_slot_row_p+1),&
@@ -2778,12 +2821,12 @@ CONTAINS
     IF (PRESENT (onlydata)) THEN
        IF (onlydata) THEN
           CALL dbcsr_sort_indices(matrix%nblks, matrix%row_p, matrix%col_i,&
-               matrix%blk_p, error)
+               matrix%blk_p, error=error)
        ENDIF
     ENDIF
     ALLOCATE(sizes(matrix%nblks), stat=stat)
     IF (stat /= 0) CALL stop_memory(routineN, "sizes", matrix%nblks)
-!$OMP PARALLEL DO PRIVATE(row, blk, row_size, col_size)
+    !$OMP PARALLEL DO PRIVATE(row, blk, row_size, col_size)
     DO row = 1, matrix%nblkrows_total
        row_size = row_blk_size(row)
        DO blk = matrix%row_p(row)+1, matrix%row_p(row+1)
@@ -2791,7 +2834,7 @@ CONTAINS
           sizes(blk) = row_size*col_size
        ENDDO
     ENDDO
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     IF (matrix%special_memory) THEN
        CALL mp_allocate(new_data, SIZE(matrix%data), stat=stat)
     ELSE
@@ -2799,7 +2842,7 @@ CONTAINS
     ENDIF
     IF (stat /= 0) CALL stop_memory(routineN, "new_data", SIZE(matrix%data))
     CALL dbcsr_sort_data(matrix%blk_p, matrix%blk_p, sizes,&
-         new_data, matrix%data, error)
+         new_data, matrix%data, error=error)
     IF (matrix%special_memory) THEN
        CALL mp_deallocate(matrix%data)
     ELSE
@@ -2820,20 +2863,21 @@ CONTAINS
 !> \param[in,out] row_i       row indices
 !> \param[in,out] col_i       column indices
 !> \param[in,out] blk_p       (optional) block pointers
+!> \param[in,out] blk_d       (optional) data storage
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_sort_indices(n, row_i, col_i, blk_p, error)
+  SUBROUTINE dbcsr_sort_indices(n, row_i, col_i, blk_p, blk_d, error)
     INTEGER, INTENT(IN)                      :: n
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: row_i, col_i
     INTEGER, DIMENSION(:), INTENT(INOUT), &
-      OPTIONAL                               :: blk_p
+      OPTIONAL                               :: blk_p, blk_d
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_indices', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat, timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: buf
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: buf, buf_d
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -2850,6 +2894,11 @@ CONTAINS
        IF (stat /= 0) CALL stop_memory(routineP, 'buf', n)
        buf(1:n) = blk_p(1:n)
     ENDIF
+    IF (PRESENT (blk_d)) THEN
+       ALLOCATE(buf_d(n), stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineP, 'buf_d', n)
+       buf_d(1:n) = blk_d(1:n)
+    ENDIF
     !> Create an ordering for both rows and columns while. If the blk_p must be
     !> rearranged, then the col_i array will be used as a permutation vector.
     row_i(:) = ISHFT(row_i(:), 16) + col_i
@@ -2861,6 +2910,9 @@ CONTAINS
     DO i = 1, n
        IF (PRESENT (blk_p)) THEN
           blk_p(i) = buf(col_i(i))
+       ENDIF
+       IF (PRESENT (blk_d)) THEN
+          blk_d(i) = buf_d(col_i(i))
        ENDIF
        col_i(i) = IAND(row_i(i), (ISHFT(1,16)-1))
        row_i(i) = ISHFT(row_i(i), -16)
@@ -2877,18 +2929,17 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(OUT)       :: sizes
     INTEGER, DIMENSION(:), INTENT(IN)        :: row_p, col_i, rbs, cbs
 
-    INTEGER                                  :: blk, col_size, nrows, row, &
-                                                row_size
+    INTEGER                                  :: blk, nrows, row, row_size
 
     nrows = SIZE (row_p)-1
-!$OMP PARALLEL DO PRIVATE (row, blk, row_size, col_size)
+    !$OMP PARALLEL DO PRIVATE (row, blk, row_size)
     DO row = 1, nrows
        row_size = rbs(row)
        FORALL (blk = row_p(row)+1 : row_p(row+1))
           sizes(blk) = row_size * cbs(col_i(blk))
        END FORALL
     ENDDO
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
   END SUBROUTINE calc_blk_sizes
 
 
@@ -2901,33 +2952,43 @@ CONTAINS
 !> \param[in] sizes           sizes of the data blocks
 !> \param[out] dst            sorted data
 !> \param[in] src             existing unordered data
+!> \param[in] srcs            (optional) multiple source areas
+!> \param[in] blk_d           (optional) mapping from blocks to source areas
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_sort_data(blk_p, old_blk_p, sizes, dst, src, error)
+  SUBROUTINE dbcsr_sort_data(blk_p, old_blk_p, sizes, dst, src,&
+       srcs, old_blk_d, error)
     INTEGER, DIMENSION(:), INTENT(OUT)       :: blk_p
     INTEGER, DIMENSION(:), INTENT(IN)        :: old_blk_p, sizes
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: dst
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: src
+    TYPE(dbcsr_data), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: srcs
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: old_blk_d
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_data', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, nblks, timing_handle
+    LOGICAL                                  :: multidata
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
+    multidata = PRESENT (srcs) .AND. PRESENT (old_blk_d)
     nblks = SIZE(old_blk_p)
     DBG 'blk sizes', SIZE(blk_p), nblks
     DBG 'data sizes', SIZE(dst), SIZE(src)
     CALL cp_assert(SIZE(blk_p).GE.nblks, cp_failure_level,&
          cp_wrong_args_error, routineN, 'Destination blk_p too small.', error)
-    CALL cp_assert(SIZE(dst).GE.SIZE(src), cp_warning_level,&
-         cp_wrong_args_error, routineN,&
-         'Destination data space may be too small.',&
-         error)
+    ! If the source is deliberately bigger, we don't want any warnings.
+    !CALL cp_assert(SIZE(dst).GE.SIZE(src), cp_warning_level,&
+    !     cp_wrong_args_error, routineN,&
+    !     'Destination data space may be too small.',&
+    !     error)
     DBGV 'old_blk_p',old_blk_p
     DBGV 'sizes', sizes
     IF (SIZE (old_blk_p) .GT. 0) THEN
@@ -2935,10 +2996,16 @@ CONTAINS
        DO i = 2, nblks
           blk_p(i) = SIGN(ABS(blk_p(i-1)) + sizes(i-1), old_blk_p(i))
        ENDDO
-       !$OMP PARALLEL DO PRIVATE(i)
+       !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(i)
        DO i = 1, nblks
-          dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
-               src(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
+          IF (.NOT. multidata) THEN
+             dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
+                  src(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
+          ELSE
+             dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
+                  srcs(old_blk_d(i))&
+                  %r(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
+          ENDIF
        ENDDO
        !$OMP END PARALLEL DO
     ENDIF
@@ -2969,6 +3036,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sorts the data in a matrix so that the data blocks follow
 !>        sequentially and does various transposing options.
+!>
+!> As opposed to dbcsr_sort_data, this routine calculates block sizes
 !> \param[out] blk_p          re-arranged block pointers reflecting the new
 !>                            data order
 !> \param[in] old_blk_p       current block pointers
@@ -3461,16 +3530,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
-    INTEGER :: blk, blk_l, blk_p, col, col_images, col_img, dst_p, mp_group, &
-      nsymmetries, numproc, nze, pcol, prow, row, src_p, stored_col, &
-      stored_row, symmetry_i, timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_ps, blks, recv_meta, &
-                                                send_meta
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: rd_disp, rm_disp, sd_disp, &
-                                                sdp, sm_disp, smp, &
-                                                total_recv_count, &
+    INTEGER :: blk, blk_l, blk_p, col, col_images, col_img, data_p, dst_p, i, &
+      ithread, mp_group, nsymmetries, nthreads, numproc, nze, pcol, prow, &
+      row, sd_pos, sm_pos, src_p, stored_col, stored_row, symmetry_i, &
+      timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_ps, blks, lsdp, lsmp, &
+                                                rd_disp, recv_meta, rm_disp, &
+                                                sd_disp, sdp, send_meta, &
+                                                sm_disp, smp
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: total_recv_count, &
                                                 total_send_count
-    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: recv_count, send_count
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: myt_send_count, recv_count, &
+                                                row_dst_counts, &
+                                                row_dst_offsets, send_count
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
                                                 col_img_dist, row_blk_size, &
                                                 row_dist
@@ -3482,9 +3554,6 @@ CONTAINS
       DIMENSION(:), TARGET                   :: recv_data
     TYPE(dbcsr_distribution_obj)             :: target_dist
     TYPE(dbcsr_mp_obj)                       :: mp_obj
-
-!TYPE(dbcsr_work_type)                    :: wm
-!TYPE(dbcsr_type), POINTER                :: um
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3538,12 +3607,14 @@ CONTAINS
     ALLOCATE (recv_count(2, col_images, 0:numproc-1))
     ALLOCATE (total_send_count(2, 0:numproc-1))
     ALLOCATE (total_recv_count(2, 0:numproc-1))
-    ALLOCATE (sdp(col_images, 0:numproc-1))
-    ALLOCATE (sd_disp(col_images, 0:numproc-1))
-    ALLOCATE (smp(col_images, 0:numproc-1))
-    ALLOCATE (sm_disp(col_images, 0:numproc-1))
-    ALLOCATE (rd_disp(col_images, 0:numproc-1))
-    ALLOCATE (rm_disp(col_images, 0:numproc-1))
+    ALLOCATE (sdp(0:numproc-1))
+    ALLOCATE (sd_disp(0:numproc-1))
+    ALLOCATE (smp(0:numproc-1))
+    ALLOCATE (sm_disp(0:numproc-1))
+    ALLOCATE (rd_disp(0:numproc-1))
+    ALLOCATE (rm_disp(0:numproc-1))
+    ALLOCATE (row_dst_counts(2, 0:numproc-1, sm%nblkrows_total))
+    ALLOCATE (row_dst_offsets(2, 0:numproc-1, sm%nblkrows_total))
     ! We know the upper bound of how big the new matrix will be, so we can
     ! easily allocate the new one.
     DBG 'A0'
@@ -3553,9 +3624,37 @@ CONTAINS
             'N', sm%row_blk_size, sm%col_blk_size,&
             0, 0, error=error, special=.TRUE.)
     ENDDO
-    ! Count initial sizes for sending.
     DBG 'A'
     send_count(:,:,:) = 0
+    row_dst_counts(:,:,:) = 0
+    !$OMP PARALLEL DEFAULT (NONE) &
+    !$OMP          PRIVATE(i, ithread, &
+    !$OMP                  row, blk, blk_p, col, col_img, symmetry_i,&
+    !$OMP                  stored_row, stored_col,&
+    !$OMP                  prow, pcol, dst_p, nze, tr,&
+    !$OMP                  sm_pos, sd_pos, lsmp, lsdp,&
+    !$OMP                  myt_send_count) &
+    !$OMP          SHARED(nthreads, dbg, numproc, error,&
+    !$OMP                 sm, ums,&
+    !$OMP                 col_images, nsymmetries,&
+    !$OMP                 row_dist, col_dist, col_img_dist,&
+    !$OMP                 row_blk_size, col_blk_size,&
+    !$OMP                 blacs2mpi, mp_group,&
+    !$OMP                 send_count, recv_count,&
+    !$OMP                 row_dst_counts, row_dst_offsets,&
+    !$OMP                 recv_data, recv_meta, send_data, send_meta,&
+    !$OMP                 total_send_count, total_recv_count,&
+    !$OMP                 sd_disp, sm_disp, rd_disp, rm_disp, sdp, smp,&
+    !$OMP                 blk_ps, blks, data_p)
+    ! Count initial sizes for sending.
+    !$OMP SINGLE
+    nthreads = 1 ; ithread = 0
+    !$ nthreads = OMP_GET_NUM_THREADS ()
+    !$OMP END SINGLE
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    ALLOCATE (myt_send_count(2, col_images, 0:numproc-1))
+    myt_send_count(:,:,:) = 0
+    !$OMP DO
     DO row = 1, sm%nblkrows_total
        DO blk = sm%row_p(row)+1, sm%row_p(row+1)
           col = sm%col_i(blk)
@@ -3572,11 +3671,29 @@ CONTAINS
              dst_p = blacs2mpi(prow, pcol)
              col_img = col_img_dist (stored_col)
              nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             send_count(1, col_img, dst_p) = send_count(1, col_img, dst_p) + 1
-             send_count(2, col_img, dst_p) = send_count(2, col_img, dst_p) + nze
+             ! These counts are meant for the thread that processes this row.
+             row_dst_counts(1, dst_p, row) =&
+                  row_dst_counts(1, dst_p, row) + metalen
+             row_dst_counts(2, dst_p, row) =&
+                  row_dst_counts(2, dst_p, row) + nze
+             !!$OMP ATOMIC
+             !send_count(1, col_img, dst_p) = send_count(1, col_img, dst_p) + 1
+             !!$OMP ATOMIC
+             !send_count(2, col_img, dst_p) = send_count(2, col_img, dst_p) + nze
+             myt_send_count(1, col_img, dst_p) =&
+                  myt_send_count(1, col_img, dst_p) + 1
+             myt_send_count(2, col_img, dst_p) =&
+                  myt_send_count(2, col_img, dst_p) + nze
           ENDDO ! symmetry_i
        ENDDO ! col_i
     ENDDO ! row
+    !$OMP END DO
+    !$OMP CRITICAL
+    send_count(:,:,:) = send_count(:,:,:) + myt_send_count(:,:,:)
+    !$OMP FLUSH (send_count)
+    !$OMP END CRITICAL
+    !$OMP BARRIER
+    !$OMP MASTER
     DBG 'B'
     CALL mp_alltoall(send_count, recv_count, 2*col_images, mp_group)
     DBG 'C'
@@ -3600,38 +3717,57 @@ CONTAINS
     ENDDO
     sd_disp = -1 ; sm_disp = -1
     rd_disp = -1 ; rm_disp = -1
-    sd_disp(1,0) = 1 ; sm_disp(1,0) = 1
-    rd_disp(1,0) = 1 ; rm_disp(1,0) = 1
+    sd_disp(0) = 1 ; sm_disp(0) = 1
+    rd_disp(0) = 1 ; rm_disp(0) = 1
     DO dst_p = 1, numproc-1
-       sm_disp(1,dst_p) = sm_disp(1,dst_p-1)&
+       sm_disp(dst_p) = sm_disp(dst_p-1)&
                         + metalen*total_send_count(1, dst_p-1)
-       sd_disp(1,dst_p) = sd_disp(1,dst_p-1)&
+       sd_disp(dst_p) = sd_disp(dst_p-1)&
                         + total_send_count(2, dst_p-1)
-       rm_disp(1,dst_p) = rm_disp(1,dst_p-1)&
+       rm_disp(dst_p) = rm_disp(dst_p-1)&
                         + metalen*total_recv_count(1, dst_p-1)
-       rd_disp(1,dst_p) = rd_disp(1,dst_p-1)&
+       rd_disp(dst_p) = rd_disp(dst_p-1)&
                         + total_recv_count(2, dst_p-1)
     ENDDO
-    DO dst_p = 0, numproc-1
-       DO col_img = 2, col_images
-          sm_disp (col_img, dst_p) = sm_disp (col_img-1, dst_p)&
-                                   + metalen*send_count(1, col_img-1, dst_p)
-          sd_disp (col_img, dst_p) = sd_disp (col_img-1, dst_p)&
-                                   + send_count(2, col_img-1, dst_p)
-          rm_disp (col_img, dst_p) = rm_disp (col_img-1, dst_p)&
-                                   + metalen*recv_count(1, col_img-1, dst_p)
-          rd_disp (col_img, dst_p) = rd_disp (col_img-1, dst_p)&
-                                   + recv_count(2, col_img-1, dst_p)
-       ENDDO
-    ENDDO
+    !DO dst_p = 0, numproc-1
+    !      sm_disp (dst_p) = sm_disp (dst_p) + metalen*total_send_count(1, dst_p)
+    !      sd_disp (dst_p) = sd_disp (dst_p) + total_send_count(2, dst_p)
+    !      rm_disp (dst_p) = rm_disp (dst_p) + metalen*total_recv_count(1, dst_p)
+    !      rd_disp (dst_p) = rd_disp (dst_p) + total_recv_count(2, dst_p)
+    !ENDDO
     sdp = sd_disp
     smp = sm_disp
+    !
+    row_dst_offsets(:,0,1) = 1
+    DO dst_p = 1, numproc-1
+       row_dst_offsets(1, dst_p, 1) = row_dst_offsets(1, dst_p-1, 1)&
+            + metalen*total_send_count(1, dst_p-1)
+       row_dst_offsets(2, dst_p, 1) = row_dst_offsets(2, dst_p-1, 1)&
+            + total_send_count(2, dst_p-1)
+    ENDDO
+    DO row = 2, sm%nblkrows_total
+       row_dst_offsets(:, :, row) =&
+            + row_dst_offsets(:, :, row-1)&
+            + row_dst_counts(:, :, row-1)
+    ENDDO
+    !WRITE(*,*)'total_send_count',total_send_count
+    !WRITE(*,*)'row_dst_offsets',row_dst_offsets
+    !WRITE(*,*)'row_dst_counts',row_dst_counts
     DBG 'send disps data',sd_disp
     DBG 'send disps meta',sm_disp
     DBG 'recv disps data',rd_disp
     DBG 'recv disps meta',rm_disp
     DBG 'D'
+    !$OMP FLUSH (total_recv_count, total_send_count,&
+    !$OMP        sd_disp, sm_disp, rd_disp, rm_disp, smp, sdp)
+    !$OMP END MASTER
+    !$OMP BARRIER
+    !WRITE(*,*)'> me:',ithread,':',smp,';',sm_disp
+    ALLOCATE (lsmp(0:numproc-1), lsdp(0:numproc-1))
+    !$OMP DO
     DO row = 1, sm%nblkrows_total
+       lsmp = row_dst_offsets(1, :, row)
+       lsdp = row_dst_offsets(2, :, row)
        DO blk = sm%row_p(row)+1, sm%row_p(row+1)
           col = sm%col_i(blk)
           blk_p = sm%blk_p(blk)
@@ -3646,94 +3782,109 @@ CONTAINS
              prow = row_dist(stored_row)
              pcol = col_dist(stored_col)
              dst_p = blacs2mpi(prow, pcol)
-             col_img = col_img_dist(stored_col)
+             !col_img = col_img_dist(stored_col)
              nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             send_meta(smp(col_img, dst_p)) = stored_row
-             send_meta(smp(col_img, dst_p)+1) = stored_col
+             sm_pos = lsmp(dst_p)
+             sd_pos = lsdp(dst_p)
+             lsmp(dst_p) = lsmp(dst_p) + metalen
+             lsdp(dst_p) = lsdp(dst_p) + nze
+             send_meta(sm_pos) = stored_row
+             send_meta(sm_pos+1) = stored_col
              DBG stored_row, stored_col, blk_p, tr, nze
-             IF (.NOT. tr) THEN
-                send_data(sdp(col_img, dst_p):sdp(col_img, dst_p)+nze-1) =&
-                     sm%data(blk_p:blk_p+nze-1)
-             ELSE
-                send_meta(smp(col_img, dst_p)) = -stored_row
-                send_data(sdp(col_img, dst_p):sdp(col_img, dst_p)+nze-1) =&
-                     sm%data(blk_p:blk_p+nze-1)
+             send_data(sd_pos:sd_pos+nze-1) =&
+                  sm%data(blk_p:blk_p+nze-1)
+             IF (tr) THEN
+                send_meta(sm_pos) = -stored_row
              ENDIF
-             smp(col_img, dst_p) = smp(col_img, dst_p) + metalen
-             sdp(col_img, dst_p) = sdp(col_img, dst_p) + nze
           ENDDO ! symmetry_i
        ENDDO ! col_i
     ENDDO ! row
+    !$OMP END DO
+    !$OMP BARRIER
     ! Exchange the data and metadata structures.
+    !$OMP MASTER
     DBG 'E'
-    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(1,:)-1,&
-         recv_data(:), total_recv_count(2,:), rd_disp(1,:)-1, mp_group)
+    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
+         recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
     DBG 'F'
     DBG 'send_meta',send_meta
-    CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(1,:)-1,&
-         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(1,:)-1, mp_group)
+    CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
+         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
     DBG 'recv_meta',recv_meta
     DBG 'G'
     ! Now fill in the data.
-    DO col_img = 1, col_images
-       CALL dbcsr_work_create(ums%mats(col_img),&
-            SUM(recv_count(1,col_img,:)),&
-            SUM(recv_count(2,col_img,:)), error=error)
-    ENDDO
+    !dbg = .TRUE.
     !DBG 'send disps data',sd_disp
     !DBG 'send disps meta',sm_disp
-    !DBG 'recv disps data',rd_disp
-    !DBG 'recv disps meta',rm_disp
+    DBG 'recv disps data',rd_disp
+    DBG 'recv disps meta',rm_disp
     ALLOCATE (blk_ps(col_images))
     ALLOCATE (blks (col_images))
     !blk_p = 1
     !blk = 1
     blk_ps(:) = 1
     blks(:) = 1
+    !$OMP END MASTER
+    !$OMP DO
+    DO col_img = 1, col_images
+       CALL dbcsr_work_create(ums%mats(col_img),&
+            SUM(recv_count(1,col_img,:)),&
+            SUM(recv_count(2,col_img,:)), error=error)
+       DEALLOCATE (ums%mats(col_img)%w%data)
+       ums%mats(col_img)%w%data => recv_data
+    ENDDO
+    !$OMP END DO
+    !$OMP BARRIER
+    !$OMP MASTER
     DO src_p = 0, numproc-1
-       !wm%data(blk_p : blk_p+recv_count(2,src_p)-1) =&
-       !     recv_data(rd_disp(src_p) :&
-       !               rd_disp(src_p)+recv_count(2,src_p)-1)
-       DO col_img = 1, col_images
-          nze = recv_count(2, col_img, src_p)
-          ums%mats(col_img)%w%data(blk_ps(col_img):blk_ps(col_img)+nze-1) =&
-               recv_data(rd_disp(col_img, src_p):rd_disp(col_img, src_p)+nze-1)
-          DBG 'processing from',src_p,'counts',send_count(1, :, src_p)
-          DO blk_l = 1, recv_count(1, col_img, src_p)
-             stored_row = recv_meta(rm_disp(col_img,src_p)+metalen*(blk_l-1))
-             stored_col = recv_meta(rm_disp(col_img,src_p)+metalen*(blk_l-1)+1)
-             !DBG 'blk: p',blk,src_p,'; row, col',stored_row,stored_col,&
-             !     '; blk_p',blk_p,'; row_rep, imgdist',row_rep,&
-             !     row_rep_dist (ABS (stored_row))
-             DBG 'blk: p',blks(col_img),src_p,'; row, col',&
-                  stored_row,stored_col,&
-                  '; blk_ps',blk_ps,'; row_rep, imgdist',col_img,&
-                  col_img_dist (ABS (stored_col))
-             !row_rep = row_rep_dist (ABS(stored_row))
-             ums%mats(col_img)%w%row_i(blks(col_img)) = ABS(stored_row)
-             ums%mats(col_img)%w%col_i(blks(col_img)) = stored_col
-             ums%mats(col_img)%w%blk_p(blks(col_img)) =&
-                  SIGN(blk_ps(col_img), stored_row)
-             nze = row_blk_size(ABS(stored_row))&
-                  * col_blk_size(stored_col)
-             !blk_p = blk_p + nze
-             !blk = blk + 1
-             blk_ps(col_img) = blk_ps(col_img) + nze
-             blks(col_img) = blks(col_img) + 1
-          ENDDO
+       !ums%mats(col_img)%w%data(blk_ps(col_img):blk_ps(col_img)+nze-1) =&
+       !     recv_data(rd_disp(col_img, src_p):rd_disp(col_img, src_p)+nze-1)
+       DBG 'processing from',src_p,col_img,'counts',recv_count(1, :, src_p)
+       DBG 'blk_ps',blk_ps
+       data_p = 0
+       DO blk_l = 1, total_recv_count(1, src_p)
+          stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
+          stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
+          col_img = col_img_dist(stored_col)
+          !DBG 'blk: p',blk,src_p,'; row, col',stored_row,stored_col,&
+          !     '; blk_p',blk_p,'; row_rep, imgdist',row_rep,&
+          !     row_rep_dist (ABS (stored_row))
+          DBG 'blk: p',blks(col_img),src_p,'; row, col',&
+               stored_row,stored_col,&
+               '; blk_ps',blk_ps,'; row_rep, imgdist',col_img,&
+               col_img_dist (ABS (stored_col))
+          nze = row_blk_size(ABS(stored_row))&
+               * col_blk_size(stored_col)
+          blk = blks(col_img)
+          blks(col_img) = blks(col_img) + 1
+          blk_p = data_p
+          data_p = data_p + nze
+          blk_ps(col_img) = blk_ps(col_img) + nze
+          ums%mats(col_img)%w%row_i(blk) = ABS(stored_row)
+          ums%mats(col_img)%w%col_i(blk) = stored_col
+          !ums%mats(col_img)%w%blk_p(blks(col_img)) =&
+          !     SIGN(blk_ps(col_img), stored_row)
+          !ums%mats(col_img)%w%blk_p(blks(col_img)) =&
+          !     rd_disp(src_p)-1+SIGN(blk_ps(col_img), stored_row)
+          ums%mats(col_img)%w%blk_p(blk) =&
+               SIGN(rd_disp(src_p) + blk_p, stored_row)
        ENDDO
     ENDDO
+    !$OMP END MASTER
+    !WRITE(*,*)'recv_count',(/ (SUM(recv_count(1,nze,:)), nze=1, col_images) /)
+    !WRITE(*,*)'blks',blks-1
+    !WRITE(*,*)'recv_count',(/ (SUM(recv_count(2,nze,:)), nze=1, col_images) /)
+    !WRITE(*,*)'blk_ps',blk_ps-1
     !
+    !$OMP END PARALLEL
     DO col_img = 1, col_images
        ums%mats(col_img)%w%lastblk = blks(col_img) - 1
        ums%mats(col_img)%w%datasize = blk_ps(col_img) - 1
-       DBG 'Finalizing normalization'
        CALL dbcsr_finalize(ums%mats(col_img),&
-            resort=.TRUE., reshuffle=.TRUE.,&
+            resort=.TRUE., reshuffle=.TRUE., keepdata=.TRUE.,&
             error=error)
+       !CALL dbcsr_verify_matrix (ums%mats(col_img), error)
     ENDDO
-    tstop = m_walltime ()
-    DBG 'time:',tstop-tstart
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
     DEALLOCATE(sdp); DEALLOCATE(sd_disp)
@@ -3744,6 +3895,8 @@ CONTAINS
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
+    tstop = m_walltime ()
+    !WRITE(*,'(1X,A,1X,EN12.4)')'make_column_images time:',tstop-tstart
     DBG 'ums(1) name',ums%mats(1)%name
     DBG 'Done making column images'
     CALL timestop(timing_handle)
@@ -4169,7 +4322,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: lb_new, lb_orig, stat, &
-                                                timing_handle, ub_new, ub_orig
+                                                ub_new, ub_orig
     INTEGER, DIMENSION(:), POINTER           :: newarray
     LOGICAL                                  :: dbg, docopy = .TRUE., &
                                                 failure = .TRUE., info, spec
@@ -4179,7 +4332,7 @@ CONTAINS
     dbg = .FALSE.
     info = .FALSE.
     CALL dbcsr_set_debug(dbg, info=info)
-    CALL timeset(routineN, timing_handle)
+
     docopy = .TRUE.
     IF (PRESENT (nocopy)) docopy = .NOT. nocopy
     spec = .FALSE.
@@ -4188,6 +4341,7 @@ CONTAINS
     IF (PRESENT (lb)) lb_new = lb
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
+       !CALL timeset(routineN, timing_handle)
        failure = .FALSE.
        !CPPrecondition(.NOT.docopy, cp_warning_level, routineP, error, failure)
        failure = .TRUE.
@@ -4198,16 +4352,18 @@ CONTAINS
           ALLOCATE(array(lb_new:ub), stat=stat)
        ENDIF
        IF (stat /= 0) CALL stop_memory(routineP, 'array', ub-lb_new+1)
-       CALL timestop(timing_handle)
+       !CALL timestop(timing_handle)
        RETURN
     ENDIF
     lb_orig = LBOUND(array,1)
     ub_orig = UBOUND(array,1)
     IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig
+    ! The existing array is big enough.
     IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
-       CALL timestop(timing_handle)
        RETURN
     ENDIF
+    ! A reallocation must be performed.
+    !CALL timeset(routineN, timing_handle)
     IF (lb_orig.GT.lb_new) THEN
        IF (PRESENT(factor)) THEN
           lb_new = MIN(lb_orig, lb_new - NINT(REAL(lb_orig - lb_new)*factor))
@@ -4249,7 +4405,7 @@ CONTAINS
        ENDIF
     END IF
     array => newarray
-    CALL timestop(timing_handle)
+    !CALL timestop(timing_handle)
   END SUBROUTINE ensure_array_size_i
 
 
@@ -4288,7 +4444,6 @@ CONTAINS
     dbg = .FALSE.
     info = .FALSE.
     CALL dbcsr_set_debug(dbg, info=info)
-    CALL timeset(routineN, timing_handle)
     docopy = .TRUE.
     IF (PRESENT (nocopy)) docopy = .NOT. nocopy
     lb_new = 1
@@ -4299,10 +4454,12 @@ CONTAINS
     lb_orig = LBOUND(array,dim)
     ub_orig = UBOUND(array,dim)
     IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig
+    ! The existing array is big enough.
     IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
-       CALL timestop(timing_handle)
        RETURN
     ENDIF
+    ! A reallocation must be performed.
+    CALL timeset(routineN,timing_handle)
     IF (lb_orig.GT.lb_new) THEN
        IF (PRESENT(factor)) THEN
           lb_new = MIN(lb_orig, lb_new - NINT(REAL(lb_orig - lb_new)*factor))
@@ -4433,7 +4590,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: lb_new, lb_orig, stat, &
-                                                timing_handle, ub_new, ub_orig
+                                                ub_new, ub_orig
     LOGICAL                                  :: dbg, docopy = .TRUE., &
                                                 failure = .TRUE., info, spec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: newarray
@@ -4443,7 +4600,6 @@ CONTAINS
     dbg = .FALSE.
     info = .FALSE.
     CALL dbcsr_set_debug(dbg, info=info)
-    CALL timeset(routineN,timing_handle)
 
     docopy = .TRUE.
     IF (PRESENT (nocopy)) docopy = .NOT. nocopy
@@ -4453,6 +4609,7 @@ CONTAINS
     IF (PRESENT (lb)) lb_new = lb
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
+       !CALL timeset(routineN,timing_handle)
        failure = .FALSE.
        !CPPrecondition(.NOT.docopy, cp_warning_level, routineP, error, failure)
        !failure = .TRUE.
@@ -4463,17 +4620,19 @@ CONTAINS
           ALLOCATE(array(lb_new:ub), stat=stat)
        ENDIF
        IF (stat /= 0) CALL stop_memory(routineP, 'array', ub-lb+1)
-       CALL timestop(timing_handle)
+       !CALL timestop(timing_handle)
        RETURN
     ENDIF
     lb_orig = LBOUND(array,1)
     ub_orig = UBOUND(array,1)
     IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig,&
          '; special?',spec
+    ! The existing array is big enough.
     IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
-       CALL timestop(timing_handle)
        RETURN
     ENDIF
+    ! A reallocation must be performed
+    !CALL timeset(routineN,timing_handle)
     IF (lb_orig.GT.lb_new) THEN
        IF (PRESENT(factor)) THEN
           lb_new = MIN(lb_orig, lb_new - NINT(REAL(lb_orig - lb_new)*factor))
@@ -4519,7 +4678,7 @@ CONTAINS
     IF(dbg.AND.bcsr_verbose)&
          WRITE(*,*)routineP//' New array',array(lb_orig:ub_orig)
     IF (dbg) WRITE(*,*)routineP//' New array size', SIZE(array)
-    CALL timestop(timing_handle)
+    !CALL timestop(timing_handle)
   END SUBROUTINE ensure_array_size_d
 
 

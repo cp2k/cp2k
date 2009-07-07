@@ -26,6 +26,7 @@ MODULE dbcsr_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_types'
 
   PUBLIC :: dbcsr_type,&
+            dbcsr_data,&
             dbcsr_work_type,&
             dbcsr_array_type,&
             dbcsr_mp_obj, dbcsr_mp_type,&
@@ -118,10 +119,26 @@ MODULE dbcsr_types
      INTEGER                            :: row_multiplicity, col_multiplicity
   END TYPE dbcsr_imagedistribution_type
 
+
+! *****************************************************************************
+!> \brief Stores actual data
+!> \var rl          stores real values
+!> \var cm          stores complex values
+! *****************************************************************************
+  TYPE dbcsr_data
+     REAL(KIND=dp), DIMENSION(:), POINTER    :: r
+     COMPLEX(KIND=dp), DIMENSION(:), POINTER :: c
+  END TYPE dbcsr_data
+
+
 ! *****************************************************************************
 !> \brief Used for assembling a real matrix.
 !> \var m           the final bcsr matrix
 !> \var data        holds actual values.
+!> \var datas       array of data-containing structures
+!> \var blk_d       the data arrays where blocks are stored
+!> \var lastblks    number of blocks associated with the data areas
+!> \var datasizes   sizes of data stored in datas
 !> \var shared_data data is shared with the final matrix
 !> \var row_i       the row index of all of the blocks.
 !> \var col_i       the column index of all of the blocks.
@@ -134,10 +151,12 @@ MODULE dbcsr_types
 ! *****************************************************************************
   TYPE dbcsr_work_type
      REAL(KIND=dp), DIMENSION(:), POINTER    :: DATA
-     LOGICAL                            :: shared_data
-     INTEGER, DIMENSION(:), POINTER     :: row_i,&
-          &                                col_i,&
-          &                                blk_p
+     TYPE(dbcsr_data), DIMENSION(:), POINTER :: datas
+     INTEGER, DIMENSION(:), POINTER          :: blk_d, lastblks, datasizes
+     LOGICAL                                 :: shared_data
+     INTEGER, DIMENSION(:), POINTER          :: row_i,&
+          &                                     col_i,&
+          &                                     blk_p
      INTEGER        :: lastblk, datasize
      TYPE(btree_i8_i4)    :: tree
   END TYPE dbcsr_work_type
