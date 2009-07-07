@@ -390,11 +390,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_global_section', &
       routineP = moduleN//':'//routineN, start_section_label = "GLOBAL"
 
-    CHARACTER(len=default_path_length)       :: basis_set_file_name, &
-                                                geminal_file_name, &
-                                                coord_file_name, &
-                                                mm_potential_file_name, &
-                                                potential_file_name
+    CHARACTER(len=default_path_length) :: basis_set_file_name, &
+      coord_file_name, geminal_file_name, mm_potential_file_name, &
+      potential_file_name
     CHARACTER(len=default_string_length)     :: env_num, project_name
     INTEGER :: i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
       num_threads, output_unit, print_level

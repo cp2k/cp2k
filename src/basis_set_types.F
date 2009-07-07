@@ -1808,14 +1808,14 @@ CONTAINS
 
     ! Allocate a Gaussian-correlated Geminal orbital basis set data set.
 
-    TYPE(geminal_basis_set_type), POINTER        :: geminal_basis_set
-    TYPE(cp_error_type), INTENT(inout)           :: error
+    TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_geminal_basis_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                      :: stat
-    LOGICAL                                      :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CALL deallocate_geminal_basis_set(geminal_basis_set,error)
@@ -1845,14 +1845,14 @@ CONTAINS
 
     ! Deallocate a Geminal basis set data set.
 
-    TYPE(geminal_basis_set_type), POINTER        :: geminal_basis_set
-    TYPE(cp_error_type), INTENT(inout)           :: error
+    TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_geminal_basis_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                      :: stat
-    LOGICAL                                      :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(geminal_basis_set))  THEN
@@ -1902,8 +1902,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_geminal_basis_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iset, nder
-
 ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(geminal_basis_set)) THEN
@@ -1938,17 +1936,17 @@ CONTAINS
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
-    INTEGER :: i, ico, ipgf, irep, iset, ishell, istr, lshell, m, maxco, &
-      maxl, maxpgf, maxshell, ncgf, nmin, nset, nsgf, stat, strlen1, strlen2, &
-      ngeminals, lss, lval
+    INTEGER :: i, ico, ipgf, irep, iset, ishell, istr, lshell, lss, lval, &
+      maxco, maxl, maxpgf, maxshell, ncgf, ngeminals, nset, stat, strlen1, &
+      strlen2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, ls, npgf, nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: l, n
+    INTEGER, DIMENSION(:, :), POINTER        :: l
     LOGICAL                                  :: failure, found, is_ok, match, &
                                                 read_from_input
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: zet
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
@@ -2266,7 +2264,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_geminal_basis_set(geminal_basis_set,name)
 
-    TYPE(geminal_basis_set_type), POINTER        :: geminal_basis_set
+    TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name
 
@@ -2287,11 +2285,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE write_geminal_basis_set(geminal_basis_set,output_unit,error)
 
-    TYPE(geminal_basis_set_type), POINTER        :: geminal_basis_set
-    INTEGER, INTENT(in)                          :: output_unit
-    TYPE(cp_error_type), INTENT(inout)           :: error
-
-    INTEGER                                      :: ipgf, iset, ishell
+    TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
+    INTEGER, INTENT(in)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
 ! -------------------------------------------------------------------------
 

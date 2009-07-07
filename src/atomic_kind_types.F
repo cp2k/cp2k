@@ -20,12 +20,12 @@
 MODULE atomic_kind_types
 
   USE basis_set_types,                 ONLY: &
-       allocate_gto_basis_set, deallocate_gto_basis_set, get_gto_basis_set, &
-       gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, &
+       allocate_geminal_basis_set, allocate_gto_basis_set, &
+       deallocate_geminal_basis_set, deallocate_gto_basis_set, &
+       geminal_basis_set_type, get_gto_basis_set, gto_basis_set_type, &
+       init_aux_basis_set, init_orb_basis_set, read_geminal_basis_set, &
        read_gto_basis_set, set_gto_basis_set, write_aux_basis_set, &
-       write_gto_basis_set, write_orb_basis_set, &
-       read_geminal_basis_set, write_geminal_basis_set, allocate_geminal_basis_set, &
-       deallocate_geminal_basis_set, get_geminal_basis_set, geminal_basis_set_type
+       write_gto_basis_set, write_orb_basis_set
   USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -1455,20 +1455,22 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
-      aux_fit_basis_set_name, keyword, orb_basis_set_name, potential_name, &
-      potential_type, geminal_basis_set_name
+      aux_fit_basis_set_name, geminal_basis_set_name, keyword, &
+      orb_basis_set_name, potential_name, potential_type
     INTEGER                                  :: handle, i, i_rep, ipos, &
                                                 k_rep, n_rep, naux, ngauss, &
                                                 ngrid_ang, ngrid_rad, norb, &
                                                 stat, z
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: check, explicit_basis, &
+                                                explicit_geminal, &
                                                 explicit_potential, failure, &
-                                                explicit_geminal, section_enabled
+                                                section_enabled
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(section_vals_type), POINTER         :: basis_section, geminal_section, &
+    TYPE(section_vals_type), POINTER         :: basis_section, &
                                                 dft_plus_u_section, &
-                                                dft_section, potential_section
+                                                dft_section, geminal_section, &
+                                                potential_section
 
     CALL timeset(routineN,handle)
 
