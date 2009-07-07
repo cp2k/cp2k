@@ -2027,7 +2027,7 @@ CONTAINS
                     (INDEX(line2,bsname2(:strlen2)) > 0) ) match = .TRUE.
             END IF
             IF (match) THEN
-               NULLIFY (gcc,l,lmax,lmin,npgf,nshell,zet)
+               NULLIFY (gcc,l,lmax,lmin,npgf,nshell,zet,ls)
                ! Read the basis set information
                IF (read_from_input) THEN
                   is_ok=cp_sll_val_next(list,val,error=error)
