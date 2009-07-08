@@ -3454,7 +3454,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     INTEGER, INTENT(IN)                      :: row, col
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_block', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col_size, frst_blk, &
@@ -4076,8 +4076,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                                                 b_offset, i
 
 !   ---------------------------------------------------------------------------
+! this points to the last empty entry
 
-    ! this points to the last empty entry
     a_offset_last = INT(pkd_vec_a(n+1)) 
     IF(a_offset_last.LE.0) CALL stop_program(routineN,"a_offset_last.LE.0!!!!!!!")
     DO i = 1,n
