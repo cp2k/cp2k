@@ -3531,9 +3531,9 @@ CONTAINS
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
     INTEGER :: blk, blk_l, blk_p, col, col_images, col_img, data_p, dst_p, i, &
-      ithread, mp_group, nsymmetries, nthreads, numproc, nze, pcol, prow, &
-      row, sd_pos, sm_pos, src_p, stored_col, stored_row, symmetry_i, &
-      timing_handle
+      ithread, mp_group, nsymmetries, nthreads, numproc, nze, pcol, &
+      prev_blk_p, prev_dst_p, prow, row, row_l, sd_pos, sm_pos, src_p, &
+      stored_col, stored_row, symmetry_i, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_ps, blks, lsdp, lsmp, &
                                                 rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
@@ -3545,9 +3545,9 @@ CONTAINS
                                                 row_dst_offsets, send_count
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
                                                 col_img_dist, row_blk_size, &
-                                                row_dist
+                                                row_dist, stored_local_rows
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: same_dst_p, tr
     REAL(KIND=dp)                            :: tstart, tstop
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
     REAL(KIND=dp), ALLOCATABLE, &
@@ -3573,6 +3573,7 @@ CONTAINS
     row_dist => array_data (dbcsr_distribution_row_dist (target_dist))
     col_img_dist => array_data (target_imgdist%col_image)
     col_dist => array_data (dbcsr_distribution_col_dist (target_dist))
+    stored_local_rows => array_data (dbcsr_distribution_local_rows (sm%dist))
     mp_obj = dbcsr_distribution_mp (target_dist)
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     numproc = dbcsr_mp_numnodes (mp_obj)
@@ -3615,29 +3616,18 @@ CONTAINS
     ALLOCATE (rm_disp(0:numproc-1))
     ALLOCATE (row_dst_counts(2, 0:numproc-1, sm%nblkrows_total))
     ALLOCATE (row_dst_offsets(2, 0:numproc-1, sm%nblkrows_total))
-    ! We know the upper bound of how big the new matrix will be, so we can
-    ! easily allocate the new one.
-    DBG 'A0'
-    DO col_img = 1, col_images
-       CALL dbcsr_init (ums%mats(col_img), error)
-       CALL dbcsr_create(ums%mats(col_img), 'col imaged'//sm%name, sm%dist,&
-            'N', sm%row_blk_size, sm%col_blk_size,&
-            0, 0, error=error, special=.TRUE.)
-    ENDDO
-    DBG 'A'
-    send_count(:,:,:) = 0
-    row_dst_counts(:,:,:) = 0
     !$OMP PARALLEL DEFAULT (NONE) &
     !$OMP          PRIVATE(i, ithread, &
-    !$OMP                  row, blk, blk_p, col, col_img, symmetry_i,&
-    !$OMP                  stored_row, stored_col,&
-    !$OMP                  prow, pcol, dst_p, nze, tr,&
+    !$OMP                  row, row_l, blk, blk_l, blk_p, col, col_img,&
+    !$OMP                  symmetry_i,&
+    !$OMP                  stored_row, stored_col, prev_blk_p,&
+    !$OMP                  prow, pcol, dst_p, prev_dst_p, same_dst_p, nze, tr,&
     !$OMP                  sm_pos, sd_pos, lsmp, lsdp,&
     !$OMP                  myt_send_count) &
     !$OMP          SHARED(nthreads, dbg, numproc, error,&
     !$OMP                 sm, ums,&
     !$OMP                 col_images, nsymmetries,&
-    !$OMP                 row_dist, col_dist, col_img_dist,&
+    !$OMP                 row_dist, col_dist, col_img_dist, stored_local_rows,&
     !$OMP                 row_blk_size, col_blk_size,&
     !$OMP                 blacs2mpi, mp_group,&
     !$OMP                 send_count, recv_count,&
@@ -3646,16 +3636,32 @@ CONTAINS
     !$OMP                 total_send_count, total_recv_count,&
     !$OMP                 sd_disp, sm_disp, rd_disp, rm_disp, sdp, smp,&
     !$OMP                 blk_ps, blks, data_p)
-    ! Count initial sizes for sending.
+    ithread = 0
     !$OMP SINGLE
-    nthreads = 1 ; ithread = 0
+    nthreads = 1
     !$ nthreads = OMP_GET_NUM_THREADS ()
-    !$OMP END SINGLE
+    !$OMP END SINGLE nowait
     !$ ithread = OMP_GET_THREAD_NUM ()
+    ! Create and allocate the imaged matrices.
+    !$OMP DO
+    DO col_img = 1, col_images
+       CALL dbcsr_init (ums%mats(col_img), error)
+       CALL dbcsr_create(ums%mats(col_img), 'col imaged'//sm%name, sm%dist,&
+            'N', sm%row_blk_size, sm%col_blk_size,&
+            0, 0, error=error, special=.TRUE.)
+    ENDDO
+    !$OMP END DO NOWAIT
+    !$OMP WORKSHARE
+    send_count(:,:,:) = 0
+    row_dst_counts(:,:,:) = 0
+    !$OMP END WORKSHARE
     ALLOCATE (myt_send_count(2, col_images, 0:numproc-1))
     myt_send_count(:,:,:) = 0
+    prev_dst_p = -1
+    ! Count initial sizes for sending.
     !$OMP DO
-    DO row = 1, sm%nblkrows_total
+    DO row_l = 1, sm%nblkrows_local
+       row = stored_local_rows(row_l)
        DO blk = sm%row_p(row)+1, sm%row_p(row+1)
           col = sm%col_i(blk)
           DO symmetry_i = 1, nsymmetries
@@ -3669,45 +3675,33 @@ CONTAINS
              prow = row_dist(stored_row)
              pcol = col_dist(stored_col)
              dst_p = blacs2mpi(prow, pcol)
+             same_dst_p = prev_dst_p .EQ. dst_p
+             prev_dst_p = dst_p
              col_img = col_img_dist (stored_col)
-             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
              ! These counts are meant for the thread that processes this row.
              row_dst_counts(1, dst_p, row) =&
                   row_dst_counts(1, dst_p, row) + metalen
-             row_dst_counts(2, dst_p, row) =&
-                  row_dst_counts(2, dst_p, row) + nze
-             !!$OMP ATOMIC
-             !send_count(1, col_img, dst_p) = send_count(1, col_img, dst_p) + 1
-             !!$OMP ATOMIC
-             !send_count(2, col_img, dst_p) = send_count(2, col_img, dst_p) + nze
              myt_send_count(1, col_img, dst_p) =&
                   myt_send_count(1, col_img, dst_p) + 1
-             myt_send_count(2, col_img, dst_p) =&
-                  myt_send_count(2, col_img, dst_p) + nze
+             IF (.NOT. same_dst_p .OR. symmetry_i .EQ. 1) THEN
+                nze = row_blk_size(stored_row) * col_blk_size(stored_col)
+                row_dst_counts(2, dst_p, row) =&
+                     row_dst_counts(2, dst_p, row) + nze
+                myt_send_count(2, col_img, dst_p) =&
+                     myt_send_count(2, col_img, dst_p) + nze
+             ENDIF
           ENDDO ! symmetry_i
        ENDDO ! col_i
     ENDDO ! row
-    !$OMP END DO
+    !$OMP END DO nowait
+    ! Merge the send counts.
     !$OMP CRITICAL
     send_count(:,:,:) = send_count(:,:,:) + myt_send_count(:,:,:)
     !$OMP FLUSH (send_count)
     !$OMP END CRITICAL
     !$OMP BARRIER
     !$OMP MASTER
-    DBG 'B'
     CALL mp_alltoall(send_count, recv_count, 2*col_images, mp_group)
-    DBG 'C'
-    DBG 'send counts',send_count
-    DBG 'recv counts',recv_count
-    ! Allocate data structures needed for data exchange.
-    ALLOCATE (recv_data(SUM(recv_count(2, :, :))))
-    ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :, :))))
-    ALLOCATE (send_data(SUM(send_count(2, :, :))))
-    ALLOCATE (send_meta(metalen*SUM(send_count(1, :, :))))
-    DBG 'send data len',SIZE (send_data)
-    DBG 'send meta len',SIZE (send_meta)
-    DBG 'recv data len',SIZE (recv_data)
-    DBG 'recv meta len',SIZE (recv_meta)
     ! Fill in the meta data structures and copy the data.
     DO dst_p = 0, numproc-1
        total_send_count(1, dst_p) = SUM (send_count (1, :, dst_p))
@@ -3715,6 +3709,17 @@ CONTAINS
        total_recv_count(1, dst_p) = SUM (recv_count (1, :, dst_p))
        total_recv_count(2, dst_p) = SUM (recv_count (2, :, dst_p))
     ENDDO
+    !$OMP END MASTER
+    !$OMP BARRIER
+    !$OMP SECTIONS
+    !$OMP SECTION
+    ! Allocate data structures needed for data exchange.
+    ALLOCATE (recv_data(SUM(recv_count(2, :, :))))
+    ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :, :))))
+    ALLOCATE (send_data(SUM(send_count(2, :, :))))
+    ALLOCATE (send_meta(metalen*SUM(send_count(1, :, :))))
+    !$OMP SECTION
+    ! Calculate displacements for processors needed for the exchanges.
     sd_disp = -1 ; sm_disp = -1
     rd_disp = -1 ; rm_disp = -1
     sd_disp(0) = 1 ; sm_disp(0) = 1
@@ -3729,15 +3734,10 @@ CONTAINS
        rd_disp(dst_p) = rd_disp(dst_p-1)&
                         + total_recv_count(2, dst_p-1)
     ENDDO
-    !DO dst_p = 0, numproc-1
-    !      sm_disp (dst_p) = sm_disp (dst_p) + metalen*total_send_count(1, dst_p)
-    !      sd_disp (dst_p) = sd_disp (dst_p) + total_send_count(2, dst_p)
-    !      rm_disp (dst_p) = rm_disp (dst_p) + metalen*total_recv_count(1, dst_p)
-    !      rd_disp (dst_p) = rd_disp (dst_p) + total_recv_count(2, dst_p)
-    !ENDDO
-    sdp = sd_disp
-    smp = sm_disp
-    !
+    !$OMP SECTION
+    ! Calculate the displacements for rows on processors needed for
+    ! the exchanges. (Used to avoid critical sections in the following
+    ! DO loop that copies data into the send buffer.)
     row_dst_offsets(:,0,1) = 1
     DO dst_p = 1, numproc-1
        row_dst_offsets(1, dst_p, 1) = row_dst_offsets(1, dst_p-1, 1)&
@@ -3750,22 +3750,32 @@ CONTAINS
             + row_dst_offsets(:, :, row-1)&
             + row_dst_counts(:, :, row-1)
     ENDDO
-    !WRITE(*,*)'total_send_count',total_send_count
-    !WRITE(*,*)'row_dst_offsets',row_dst_offsets
-    !WRITE(*,*)'row_dst_counts',row_dst_counts
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
-    DBG 'D'
-    !$OMP FLUSH (total_recv_count, total_send_count,&
-    !$OMP        sd_disp, sm_disp, rd_disp, rm_disp, smp, sdp)
-    !$OMP END MASTER
-    !$OMP BARRIER
-    !WRITE(*,*)'> me:',ithread,':',smp,';',sm_disp
+    !$OMP SECTION
+    ! Prepares some indices needed for the last DO loop that copies
+    ! from buffer to local space. Placed early to take advantage of
+    ! the SECTIONS.
+    ALLOCATE (blk_ps(col_images))
+    ALLOCATE (blks (col_images))
+    blk_ps(:) = 1
+    blks(:) = 1
+    !$OMP SECTION
+    ! Prepares the work matrices used in the last DO loop. Placed
+    ! early.
+    DO col_img = 1, col_images
+       CALL dbcsr_work_create(ums%mats(col_img),&
+            SUM(recv_count(1,col_img,:)),&
+            0, error=error)
+       ! We point to the received data, not copy it.
+       DEALLOCATE (ums%mats(col_img)%w%data)
+       ums%mats(col_img)%w%data => recv_data
+    ENDDO
+    !$OMP END SECTIONS
     ALLOCATE (lsmp(0:numproc-1), lsdp(0:numproc-1))
+    prev_dst_p = -1
+    ! Copies metadata and actual data to be send into the send buffers.
     !$OMP DO
-    DO row = 1, sm%nblkrows_total
+    DO row_l = 1, sm%nblkrows_local
+       row = stored_local_rows(row_l)
        lsmp = row_dst_offsets(1, :, row)
        lsdp = row_dst_offsets(2, :, row)
        DO blk = sm%row_p(row)+1, sm%row_p(row+1)
@@ -3782,109 +3792,77 @@ CONTAINS
              prow = row_dist(stored_row)
              pcol = col_dist(stored_col)
              dst_p = blacs2mpi(prow, pcol)
-             !col_img = col_img_dist(stored_col)
-             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
+             same_dst_p = dst_p .EQ. prev_dst_p
+             prev_dst_p = dst_p
              sm_pos = lsmp(dst_p)
-             sd_pos = lsdp(dst_p)
              lsmp(dst_p) = lsmp(dst_p) + metalen
-             lsdp(dst_p) = lsdp(dst_p) + nze
-             send_meta(sm_pos) = stored_row
-             send_meta(sm_pos+1) = stored_col
-             DBG stored_row, stored_col, blk_p, tr, nze
-             send_data(sd_pos:sd_pos+nze-1) =&
-                  sm%data(blk_p:blk_p+nze-1)
-             IF (tr) THEN
+             IF (.NOT. tr) THEN
+                send_meta(sm_pos) = stored_row
+             ELSE
                 send_meta(sm_pos) = -stored_row
+             ENDIF
+             IF (.NOT. same_dst_p .OR. symmetry_i .EQ. 1) THEN
+                nze = row_blk_size(stored_row) * col_blk_size(stored_col)
+                sd_pos = lsdp(dst_p)
+                lsdp(dst_p) = lsdp(dst_p) + nze
+                send_data(sd_pos:sd_pos+nze-1) =&
+                     sm%data(blk_p:blk_p+nze-1)
+                send_meta(sm_pos+1) = stored_col
+             ELSE
+                send_meta(sm_pos+1) = -stored_col
              ENDIF
           ENDDO ! symmetry_i
        ENDDO ! col_i
     ENDDO ! row
     !$OMP END DO
-    !$OMP BARRIER
-    ! Exchange the data and metadata structures.
     !$OMP MASTER
-    DBG 'E'
+    ! Exchange the data and metadata structures.
     CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
          recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
-    DBG 'F'
-    DBG 'send_meta',send_meta
     CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
-    DBG 'recv_meta',recv_meta
-    DBG 'G'
-    ! Now fill in the data.
-    !dbg = .TRUE.
-    !DBG 'send disps data',sd_disp
-    !DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
-    ALLOCATE (blk_ps(col_images))
-    ALLOCATE (blks (col_images))
-    !blk_p = 1
-    !blk = 1
-    blk_ps(:) = 1
-    blks(:) = 1
     !$OMP END MASTER
-    !$OMP DO
-    DO col_img = 1, col_images
-       CALL dbcsr_work_create(ums%mats(col_img),&
-            SUM(recv_count(1,col_img,:)),&
-            SUM(recv_count(2,col_img,:)), error=error)
-       DEALLOCATE (ums%mats(col_img)%w%data)
-       ums%mats(col_img)%w%data => recv_data
-    ENDDO
-    !$OMP END DO
     !$OMP BARRIER
-    !$OMP MASTER
+    ! Now create the work index and/or copy the relevant data from the
+    ! receive buffer into the local indices.
+    !$OMP SINGLE
+    prev_blk_p = 0
     DO src_p = 0, numproc-1
-       !ums%mats(col_img)%w%data(blk_ps(col_img):blk_ps(col_img)+nze-1) =&
-       !     recv_data(rd_disp(col_img, src_p):rd_disp(col_img, src_p)+nze-1)
-       DBG 'processing from',src_p,col_img,'counts',recv_count(1, :, src_p)
-       DBG 'blk_ps',blk_ps
        data_p = 0
        DO blk_l = 1, total_recv_count(1, src_p)
           stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
           stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
-          col_img = col_img_dist(stored_col)
-          !DBG 'blk: p',blk,src_p,'; row, col',stored_row,stored_col,&
-          !     '; blk_p',blk_p,'; row_rep, imgdist',row_rep,&
-          !     row_rep_dist (ABS (stored_row))
-          DBG 'blk: p',blks(col_img),src_p,'; row, col',&
-               stored_row,stored_col,&
-               '; blk_ps',blk_ps,'; row_rep, imgdist',col_img,&
-               col_img_dist (ABS (stored_col))
           nze = row_blk_size(ABS(stored_row))&
-               * col_blk_size(stored_col)
+               * col_blk_size(ABS(stored_col))
+          col_img = col_img_dist(ABS(stored_col))
           blk = blks(col_img)
           blks(col_img) = blks(col_img) + 1
-          blk_p = data_p
-          data_p = data_p + nze
           blk_ps(col_img) = blk_ps(col_img) + nze
+          IF (stored_col .GT. 0) THEN
+             blk_p = data_p
+             data_p = data_p + nze
+          ELSE
+             blk_p = prev_blk_p
+          ENDIF
           ums%mats(col_img)%w%row_i(blk) = ABS(stored_row)
-          ums%mats(col_img)%w%col_i(blk) = stored_col
-          !ums%mats(col_img)%w%blk_p(blks(col_img)) =&
-          !     SIGN(blk_ps(col_img), stored_row)
-          !ums%mats(col_img)%w%blk_p(blks(col_img)) =&
-          !     rd_disp(src_p)-1+SIGN(blk_ps(col_img), stored_row)
+          ums%mats(col_img)%w%col_i(blk) = ABS(stored_col)
           ums%mats(col_img)%w%blk_p(blk) =&
                SIGN(rd_disp(src_p) + blk_p, stored_row)
+          prev_blk_p = blk_p
        ENDDO
     ENDDO
-    !$OMP END MASTER
-    !WRITE(*,*)'recv_count',(/ (SUM(recv_count(1,nze,:)), nze=1, col_images) /)
-    !WRITE(*,*)'blks',blks-1
-    !WRITE(*,*)'recv_count',(/ (SUM(recv_count(2,nze,:)), nze=1, col_images) /)
-    !WRITE(*,*)'blk_ps',blk_ps-1
-    !
-    !$OMP END PARALLEL
+    !$OMP END SINGLE
+    ! Finalize the actual imaged matrices from the work matrices.
+    !$OMP DO
     DO col_img = 1, col_images
        ums%mats(col_img)%w%lastblk = blks(col_img) - 1
        ums%mats(col_img)%w%datasize = blk_ps(col_img) - 1
        CALL dbcsr_finalize(ums%mats(col_img),&
             resort=.TRUE., reshuffle=.TRUE., keepdata=.TRUE.,&
             error=error)
-       !CALL dbcsr_verify_matrix (ums%mats(col_img), error)
     ENDDO
+    !$OMP END DO nowait
+    !$OMP END PARALLEL
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
     DEALLOCATE(sdp); DEALLOCATE(sd_disp)
