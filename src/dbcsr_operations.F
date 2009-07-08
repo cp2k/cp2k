@@ -37,7 +37,7 @@ MODULE dbcsr_operations
                                              int_8
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: &
-       mp_allgather, mp_isendrecv, mp_rma_get, mp_sum, mp_wait, &
+       mp_allgather, mp_bcast, mp_isendrecv, mp_rma_get, mp_sum, mp_wait, &
        mp_window_create, mp_window_destroy, mp_window_fence, mp_window_type
 
   !$ USE OMP_LIB
@@ -52,7 +52,10 @@ MODULE dbcsr_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
   PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_multiply_from_left, dbcsr_trace,&
-       dbcsr_scale
+       dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block, dbcsr_copy_vec,&
+       dbcsr_put_block, dbcsr_multiply_vec, dbcsr_pack_vec, dbcsr_unpack_vec,&
+       dbcsr_btriu, dbcsr_add_on_diag, packed_vec_scale, packed_vec_bif_tech,&
+       block_add_on_diag, block_set, block_chol_inv
 
   PRIVATE
 
@@ -2799,32 +2802,33 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_wm_add
 
-
 ! *****************************************************************************
 !> \brief Scales a DBCSR matrix by alpha
 !> \param[inout] matrix_a       DBCSR matrix
 !> \param[in] alpha_scalar      (optional) a scalar
 !> \param[in] alpha_vector      (optional) a vector
+!> \param[in] alpha_matrix      (optional) a list of matrices
 !> \param[in] scale_column      (optional) do we scale the columns?
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_scale(matrix_a, alpha_scalar, alpha_vector, scale_column, error)
+  SUBROUTINE dbcsr_scale(matrix_a, alpha_scalar, alpha_vector, alpha_matrix, side, error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha_scalar
     REAL(dp), DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: alpha_vector
-    LOGICAL, INTENT(IN), OPTIONAL            :: scale_column
+      OPTIONAL                               :: alpha_vector, alpha_matrix
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a_blk, a_col, a_col_size, &
-                                                a_nze, a_row, a_row_size, &
-                                                timing_handle
+                                                a_nze, a_offset, a_row, &
+                                                a_row_size, timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: m_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: my_scale_column
-    REAL(dp), DIMENSION(:), POINTER          :: a_data
+    LOGICAL                                  :: right
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff
 
 !   ---------------------------------------------------------------------------
 
@@ -2833,22 +2837,51 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     !
     row_blk_size => array_data (matrix_a%row_blk_size)
     col_blk_size => array_data (matrix_a%col_blk_size)
-
     !
     ! set vars
-    my_scale_column = .TRUE.
-    IF(PRESENT(scale_column)) my_scale_column = scale_column
+    right = .TRUE.
+    IF(PRESENT(side)) THEN
+       SELECT CASE(side)
+       CASE('right');right = .TRUE.
+       CASE('left' );right = .FALSE.
+       CASE DEFAULT
+          WRITE(*,*) 'side='//side
+          CALL stop_program(routineN,"wrong side...")
+       END SELECT
+    ENDIF
     !
     ! check if we have enough infos
     IF(.NOT.PRESENT(alpha_scalar).AND.&
        .NOT.PRESENT(alpha_vector).AND.&
-       .NOT.PRESENT(scale_column)) THEN
+       .NOT.PRESENT(alpha_matrix).AND.&
+       .NOT.PRESENT(side)) THEN
        CALL stop_program(routineN,"missing an argument...")
     ENDIF
     !
     ! check if we have too many infos
-    IF(PRESENT(alpha_scalar).AND.PRESENT(alpha_vector)) THEN
+    IF(PRESENT(alpha_scalar).AND.PRESENT(alpha_vector).OR.&
+       PRESENT(alpha_scalar).AND.PRESENT(alpha_matrix).OR.&
+       PRESENT(alpha_vector).AND.PRESENT(alpha_matrix)) THEN
        CALL stop_program(routineN,"incompatible arguments...")
+    ENDIF
+    !
+    !
+    IF(PRESENT(alpha_matrix)) THEN
+       ALLOCATE(buff(MAXVAL(row_blk_size)*MAXVAL(col_blk_size)),&
+            &   m_offset(matrix_a%nblkcols_total))
+       buff = 0.0_dp
+       m_offset(1) = 1
+       IF(right) THEN
+          DO a_col = 2,matrix_a%nblkcols_total
+             a_col_size = col_blk_size(a_col-1)
+             m_offset(a_col) = m_offset(a_col-1) + a_col_size**2
+          ENDDO
+       ELSE
+          DO a_row = 2,matrix_a%nblkrows_total
+             a_row_size = row_blk_size(a_row-1)
+             m_offset(a_row) = m_offset(a_row-1) + a_row_size**2
+          ENDDO          
+       ENDIF
     ENDIF
     !
     !
@@ -2859,15 +2892,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           a_col = matrix_a%col_i(a_blk)
           a_col_size = col_blk_size(a_col)
           a_nze = a_row_size * a_col_size
-          a_data => matrix_a%data(ABS(matrix_a%blk_p(a_blk)):ABS(matrix_a%blk_p(a_blk))+a_nze-1)
+          a_offset = ABS(matrix_a%blk_p(a_blk))
           !
           ! let's scale
           IF(PRESENT(alpha_scalar)) THEN
              !a_data = a_data * alpha_scalar
-             CALL dscal(a_nze,alpha_scalar,a_data(1),1)
+             CALL dscal(a_nze,alpha_scalar,matrix_a%data(a_offset),1)
           ELSEIF(PRESENT(alpha_vector)) THEN
              CALL stop_program(routineN,"NYI")
-             IF(my_scale_column) THEN
+             IF(right) THEN
                 !col_global = ...
                 !DO col = 1,a_col_size
                 !   !a_data(:,col) = a_data(:,col) * alpha_vector(col_global+col)
@@ -2878,13 +2911,34 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 !DO row = 1,a_row_size
                 !   !a_data(row,:) = a_data(row,:) * alpha_vector(row_global+row)
                 !   CALL dscal(a_col_size,alpha_vector(row_global+row),a_data(row),a_col_size)
-                !ENDDO
+                   !ENDDO
+             ENDIF
+          ELSEIF(PRESENT(alpha_matrix)) THEN
+             IF(right) THEN
+                !A = A * alpha
+                CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
+                     &     1.0_dp,matrix_a%data(a_offset),a_row_size,&
+                     &            alpha_matrix(m_offset(a_col)),a_col_size,&
+                     &     0.0_dp,buff,a_row_size)
+                CALL dcopy(a_nze,buff,1,matrix_a%data(a_offset),1)
+             ELSE
+                !A = alpha * A
+                CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
+                     &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
+                     &            matrix_a%data(a_offset),a_row_size,&
+                     &     0.0_dp,buff,a_row_size)
+                CALL dcopy(a_nze,buff,1,matrix_a%data(a_offset),1)
              ENDIF
           ELSE
              CALL stop_program(routineN,"wrong logic")
           ENDIF
        ENDDO ! a_col
     ENDDO ! a_row
+
+    IF(PRESENT(alpha_matrix)) THEN
+       DEALLOCATE(buff,m_offset)
+    ENDIF
+
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_scale
@@ -2904,8 +2958,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a_blk, a_col, a_col_size, &
-                                                a_nze, a_row, a_row_size, &
-                                                row, timing_handle
+                                                a_nze, a_row, a_row_size, i, &
+                                                timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     REAL(dp), DIMENSION(:), POINTER          :: a_data
 
@@ -2929,8 +2983,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           a_data => matrix_a%data(ABS(matrix_a%blk_p(a_blk)):ABS(matrix_a%blk_p(a_blk))+a_nze-1)
           !
           ! let's trace the block
-          DO row = 1,a_row_size
-             trace = trace + a_data((row-1)*a_row_size+row)
+          DO i = 1,a_row_size
+             trace = trace + a_data((i-1)*a_row_size+i)
           ENDDO
        ENDDO ! a_col
     ENDDO ! a_row
@@ -2960,13 +3014,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: my_trans_a, my_trans_b
-    INTEGER :: a_blk, a_col, a_col_size, a_row_size, b_blk, b_col, &
-      b_col_size, b_last_blk, b_row_size, nze, row, timing_handle
+    INTEGER :: a_blk, a_col, a_col_size, a_row_size, b_blk, b_col_size, &
+      b_frst_blk, b_last_blk, b_row_size, nze, row, timing_handle
     INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
                                                 a_row_blk_size, &
                                                 b_col_blk_size, b_row_blk_size
     LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:), POINTER          :: a_data, b_data
     REAL(dp), EXTERNAL                       :: DDOT
 
 !   ---------------------------------------------------------------------------
@@ -2994,34 +3047,25 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        b_row_size = b_row_blk_size(row)
        IF(a_row_size.NE.b_row_size) CALL stop_program(routineN,"matrices not consistent")
        b_blk = matrix_b%row_p(row)+1
+       b_frst_blk = matrix_b%row_p(row)+1
        b_last_blk = matrix_b%row_p(row+1)
        DO a_blk = matrix_a%row_p(row)+1,matrix_a%row_p(row+1)
           a_col = matrix_a%col_i(a_blk)
           a_col_size = a_col_blk_size(a_col)
           !
           ! find the b_blk we assume here that the colums are ordered !
-          found = .FALSE.
-          DO
-             IF(b_blk.GT.b_last_blk) EXIT
-             b_col = matrix_b%col_i(b_blk)
-             IF(b_col.EQ.a_col) THEN
-                found = .TRUE.
-                EXIT
-             ENDIF
-             b_blk = b_blk+1
-          ENDDO
-          IF(.NOT.found) CYCLE
-          !
-          b_col_size = b_col_blk_size(b_col)
-          IF(a_col_size.NE.b_col_size) CALL stop_program(routineN,"matrices not consistent")
-          !
-          nze = a_row_size*a_col_size
-          a_data => matrix_a%data(ABS(matrix_a%blk_p(a_blk)):ABS(matrix_a%blk_p(a_blk))+nze-1)
-          b_data => matrix_b%data(ABS(matrix_b%blk_p(b_blk)):ABS(matrix_b%blk_p(b_blk))+nze-1)
-          !
-          ! let's trace the blocks
-          !trace = trace + DOT_PRODUCT(a_data,b_data)
-          trace = trace + ddot(nze,a_data(1),1,b_data(1),1)
+          CALL find_column(a_col,b_frst_blk,b_last_blk,matrix_b%col_i,b_blk,found)
+          IF(found) THEN
+             b_col_size = b_col_blk_size(a_col)
+             IF(a_col_size.NE.b_col_size) CALL stop_program(routineN,"matrices not consistent")
+             !
+             nze = a_row_size*a_col_size
+             !
+             ! let's trace the blocks
+             !trace = trace + DOT_PRODUCT(a_data,b_data)
+             trace = trace + ddot(nze,matrix_a%data(ABS(matrix_a%blk_p(a_blk))),1,&
+                  matrix_b%data(ABS(matrix_b%blk_p(b_blk))),1)
+          ENDIF
        ENDDO ! a_col
     ENDDO ! a_row
     !
@@ -3031,5 +3075,1152 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_trace_ab
+
+  SUBROUTINE find_column(find_col,frst_blk,last_blk,col_i,blk,found)
+    INTEGER, INTENT(IN)                      :: find_col, frst_blk, last_blk
+    INTEGER, DIMENSION(last_blk), INTENT(IN) :: col_i
+    INTEGER, INTENT(OUT)                     :: blk
+    LOGICAL, INTENT(OUT)                     :: found
+
+    INTEGER                                  :: col
+
+    found = .FALSE.
+    blk = frst_blk
+    DO
+       IF(blk.GT.last_blk) EXIT
+       col = col_i(blk)
+       IF(col.EQ.find_col) THEN
+          found = .TRUE.
+          EXIT
+       ENDIF
+       blk = blk+1
+    ENDDO
+  END SUBROUTINE find_column
+
+! *****************************************************************************
+!> \brief add and scale matrices 
+!>    A = alpha*A + beta*B or 
+!> \param[inout] matrix_a    DBCSR matrix
+!> \param[in] matrix_b       DBCSR matrix
+!> \param[in] alpha_scalar   (optional) 
+!> \param[in] beta_scalar    (optional)
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix_b
+    REAL(dp), INTENT(IN), OPTIONAL           :: alpha_scalar, beta_scalar
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: a_blk, a_frst_blk, a_last_blk, a_row_size, b_blk, b_col, &
+      b_col_size, b_row_size, nze, row, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
+                                                a_row_blk_size, &
+                                                b_col_blk_size, b_row_blk_size
+    LOGICAL                                  :: found
+    REAL(dp)                                 :: my_alpha_scalar, &
+                                                my_beta_scalar
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    a_row_blk_size => array_data (matrix_a%row_blk_size)
+    a_col_blk_size => array_data (matrix_a%col_blk_size)
+    b_row_blk_size => array_data (matrix_b%row_blk_size)
+    b_col_blk_size => array_data (matrix_b%col_blk_size)
+    
+    my_alpha_scalar = 1.0_dp
+    IF(PRESENT(alpha_scalar)) my_alpha_scalar = alpha_scalar
+    my_beta_scalar = 1.0_dp
+    IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
+    !
+    ! let's go
+    IF(matrix_a%nblkrows_total.NE.matrix_b%nblkrows_total) THEN
+       CALL stop_program(routineN,"matrices not consistent")
+    ENDIF
+
+    CALL dbcsr_scale(matrix_a,alpha_scalar=my_alpha_scalar,error=error)
+
+    IF(my_beta_scalar.NE.0.0_dp) THEN
+       DO row = 1, matrix_b%nblkrows_total
+          a_row_size = a_row_blk_size(row)
+          b_row_size = b_row_blk_size(row)
+          IF(a_row_size.NE.b_row_size) CALL stop_program(routineN,"matrices not consistent")
+          a_blk = matrix_a%row_p(row)+1
+          a_last_blk = matrix_a%row_p(row+1)
+          DO b_blk = matrix_b%row_p(row)+1,matrix_b%row_p(row+1)
+             b_col = matrix_b%col_i(b_blk)
+             ! find the a_blk we assume here that the colums are ordered !
+             a_frst_blk = a_blk
+             CALL find_column(b_col,a_frst_blk,a_last_blk,matrix_a%col_i,a_blk,found)
+             IF(found) THEN
+                !
+                b_col_size = b_col_blk_size(b_col)
+                !
+                nze = a_row_size*b_col_size
+                !
+                ! let's scale the block
+                CALL daxpy(nze,my_beta_scalar,matrix_b%data(ABS(matrix_a%blk_p(a_blk))),1,&
+                     &                        matrix_a%data(ABS(matrix_b%blk_p(b_blk))),1)
+             ELSE
+                CALL stop_program(routineN,"need to add the block")
+             ENDIF
+          ENDDO ! a_col
+       ENDDO ! a_row
+    ENDIF
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_add
+
+! *****************************************************************************
+!> \brief add a constant to the diagonal of a matrix
+!> \param[inout] matrix       DBCSR matrix
+!> \param[in]    alpha_scalar scalar
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_add_on_diag(matrix, alpha_scalar, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    REAL(dp), INTENT(IN)                     :: alpha_scalar
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_on_diag', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, frst_blk, i, last_blk, &
+                                                nze, offset, row, row_size, &
+                                                timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: found
+    REAL(dp), DIMENSION(:), POINTER          :: DATA
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    row_blk_size => array_data (matrix%row_blk_size)
+    col_blk_size => array_data (matrix%col_blk_size)
+    
+    DO row = 1, matrix%nblkrows_total
+       row_size = row_blk_size(row)
+       blk = matrix%row_p(row)+1
+       frst_blk = matrix%row_p(row)+1
+       last_blk = matrix%row_p(row+1)
+       CALL find_column(row,frst_blk,last_blk,matrix%col_i,blk,found)
+       IF(found) THEN
+          offset = ABS(matrix%blk_p(blk))
+          nze = row_size**2
+          DATA => matrix%data(offset:offset+nze-1)
+          !
+          ! let's add on diag
+          DO i = 1,row_size
+             DATA((i-1)*row_size+i) = DATA((i-1)*row_size+i) + alpha_scalar
+          ENDDO
+       ELSE
+          ! need to create the block
+          CALL stop_program(routineN,"need ot create the block, NYI")
+       ENDIF
+    ENDDO ! row
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_add_on_diag
+
+! *****************************************************************************
+!> \brief copy a matrix 
+!> \param[in]    matrix_a  DBCSR matrix
+!> \param[inout] matrix_b  DBCSR matrix
+!> \param[in]    name      name of the new matrix
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_b
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nze, timing_handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    CALL dbcsr_init(matrix_b, error)
+    IF(PRESENT(name)) THEN
+       CALL dbcsr_create(matrix_b, name, &
+            matrix_a%dist, matrix_a%matrix_type, matrix_a%row_blk_size,&
+            matrix_a%col_blk_size, matrix_a%nblks, matrix_a%nze, &
+            matrix_a%special_memory, error=error)
+    ELSE
+       CALL dbcsr_create(matrix_b,'copy of '//matrix_a%name, &
+            matrix_a%dist, matrix_a%matrix_type, matrix_a%row_blk_size,&
+            matrix_a%col_blk_size, matrix_a%nblks, matrix_a%nze, &
+            matrix_a%special_memory, error=error)
+    ENDIF
+    CALL ensure_array_size(matrix_b%index, ub=SIZE(matrix_a%index), error=error)
+    CALL ensure_array_size(matrix_b%data, ub=SIZE(matrix_a%data), error=error)
+    !
+    ! copy index and data
+    matrix_b%index(:) = matrix_a%index(:)
+    CALL dcopy(SIZE(matrix_a%data),matrix_a%data,1,matrix_b%data,1)
+    !
+    ! the row_p, col_i and blk_p ...
+    CALL dbcsr_repoint_index(matrix_b, error=error)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_copy
+
+! *****************************************************************************
+!> \brief copy a vector (row or column) from a matrix to another matrix
+!> \param[inout] matrix_b  matrix
+!> \param[in]    matrix_a  matrix
+!> \param[in]    what      row or column
+!> \param[in]    ivec      the column/row index
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_copy_vec(matrix_a, matrix_b, what, ivec, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix_b
+    CHARACTER(len=*), INTENT(in)             :: what
+    INTEGER, INTENT(IN)                      :: ivec
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_vec', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: a_blk, a_col_size, a_frst_blk, a_last_blk, a_offset, &
+      a_row_size, b_blk, b_col, b_col_size, b_offset, b_row_size, col, nze, &
+      row, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
+                                                a_row_blk_size, &
+                                                b_col_blk_size, b_row_blk_size
+    LOGICAL                                  :: found
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    a_row_blk_size => array_data (matrix_a%row_blk_size)
+    a_col_blk_size => array_data (matrix_a%col_blk_size)
+    b_row_blk_size => array_data (matrix_b%row_blk_size)
+    b_col_blk_size => array_data (matrix_b%col_blk_size)
+    !
+    ! let's go
+    SELECT CASE(what)
+    CASE('column')
+       col = ivec
+       CALL stop_program(routineN, "NYI")
+    CASE('row')
+       row = ivec
+       a_row_size = a_row_blk_size(row)
+       b_row_size = b_row_blk_size(row)
+       IF(a_row_size.NE.b_row_size) CALL stop_program(routineN, "matrices not consistent")
+       a_frst_blk = matrix_a%row_p(row)+1
+       a_last_blk = matrix_a%row_p(row+1)
+       DO b_blk = matrix_b%row_p(row)+1,matrix_b%row_p(row+1)
+          b_col = matrix_b%col_i(b_blk)
+          CALL find_column(b_col, a_frst_blk, a_last_blk, matrix_a%col_i, a_blk, found)
+          IF(found) THEN
+             a_col_size = a_col_blk_size(b_col)
+             b_col_size = b_col_blk_size(b_col)
+             IF(a_col_size.NE.b_col_size) CALL stop_program(routineN, "matrices not consistent")
+             nze = a_row_size * a_col_size
+             !
+             ! let's copy the block
+             a_offset = ABS(matrix_a%blk_p(a_blk))
+             b_offset = ABS(matrix_b%blk_p(b_blk))
+             CALL dcopy(nze, matrix_b%data(b_offset), 1, matrix_a%data(a_offset), 1)
+          ELSE
+             CALL stop_program(routineN, "need ot create the block, NYI")
+          ENDIF
+       ENDDO ! a_col
+    CASE DEFAULT
+       CALL stop_program(routineN,"copy what?")
+    END SELECT
+    !
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_copy_vec
+
+! *****************************************************************************
+!> \brief block triu of a dbcsr matrix
+!> \param[in] matrix_b  triu of the matrix
+!> \param[in] matrix_a  the matrix
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_btriu(matrix_b, matrix_a, error)
+
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_b
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_btriu', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, col_size, nze, &
+                                                offset, row, row_size, &
+                                                timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    CALL dbcsr_copy(matrix_b, matrix_a, name="triu of "//matrix_a%name, error=error)
+
+    row_blk_size => array_data (matrix_a%row_blk_size)
+    col_blk_size => array_data (matrix_a%col_blk_size)
+
+    !
+    ! This is not the way to do it !
+    DO row = 1, matrix_b%nblkrows_total
+       row_size = row_blk_size(row)
+       DO blk = matrix_b%row_p(row)+1,matrix_b%row_p(row+1)
+          col = matrix_b%col_i(blk)
+          IF(row.GT.col) THEN
+             col_size = col_blk_size(col)
+             offset = ABS(matrix_b%blk_p(blk))
+             nze = row_size * col_size
+             matrix_b%data(offset:offset+nze-1) = 0.0_dp
+          ENDIF
+       ENDDO
+    ENDDO
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_btriu
+
+! *****************************************************************************
+!> \brief get a block in a dbcsr matrix
+!> \param[in]  matrix DBCSR matrix
+!> \param[in]  block  the block to get
+!> \param[in]  row    the row
+!> \param[in]  col    the column
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_block(matrix,block,row,col,found,error)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: block
+    INTEGER, INTENT(IN)                      :: row, col
+    LOGICAL, INTENT(OUT)                     :: found
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col_size, frst_blk, &
+                                                last_blk, nze, offset, &
+                                                row_size
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+
+    row_blk_size => array_data (matrix%row_blk_size)
+    col_blk_size => array_data (matrix%col_blk_size)
+
+    row_size = row_blk_size(row)
+    col_size = col_blk_size(col)
+    blk = matrix%row_p(row)+1
+    frst_blk = matrix%row_p(row)+1
+    last_blk = matrix%row_p(row+1)
+    CALL find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+    IF(found) THEN
+       nze = row_size*col_size
+       !
+       ! let's copy the block
+       offset = ABS(matrix%blk_p(blk))
+       CALL dcopy(nze,matrix%data(offset),1,block(1),1)
+    ENDIF
+
+  END SUBROUTINE dbcsr_get_block
+
+! *****************************************************************************
+!> \brief put a block in a dbcsr matrix
+!> \param[in]  matrix DBCSR matrix
+!> \param[in]  block  the block to put
+!> \param[in]  row    the row
+!> \param[in]  col    the column
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_put_block(matrix, block, row, col, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: block
+    INTEGER, INTENT(IN)                      :: row, col
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_block', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col_size, frst_blk, &
+                                                last_blk, nze, offset, &
+                                                row_size
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: found
+
+! IN PARALLEL WE SHOULD ENSURE THAT THE BLOCK GOES TO THE RIGHT PLACE !
+
+    row_blk_size => array_data (matrix%row_blk_size)
+    col_blk_size => array_data (matrix%col_blk_size)
+
+    row_size = row_blk_size(row)
+    col_size = col_blk_size(col)
+    blk = matrix%row_p(row)+1
+    frst_blk = matrix%row_p(row)+1
+    last_blk = matrix%row_p(row+1)
+    CALL find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+    IF(found) THEN
+       nze = row_size*col_size
+       !
+       ! let's copy the block
+       offset = ABS(matrix%blk_p(blk))
+       CALL dcopy(nze,block(1),1,matrix%data(offset),1)
+    ELSE
+       CALL stop_program(routineN,"need ot create the block, NYI")
+    ENDIF
+
+  END SUBROUTINE dbcsr_put_block
+
+! *****************************************************************************
+!> \brief multiply a dbcsr with a column vector
+!>        c (packed column) = A (dbscr) * B_b (dbcsr)
+!> \param[in]  matrix_a  DBCSR matrix
+!> \param[in]  matrix_b  DBCSR matrix
+!> \param[in]  b_col     the column of the matrix B
+!> \param[out] pkd       the result in a packed format
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_multiply_vec(matrix_a, matrix_b, b_col, pkd, error)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a, matrix_b
+    INTEGER, INTENT(in)                      :: b_col
+    REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_vec', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: timing_handle
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: pkd_b
+
+    CALL timeset(routineN, timing_handle)
+
+    ALLOCATE(pkd_b(SIZE(pkd)))
+    !
+    ! packed the b_col
+    CALL dbcsr_pack_vec(matrix_b, b_col, pkd_b, 'column', error)
+    !
+    ! send the packed col to the right guy
+    !CALL packed_vec_bcast(pkd_b, source, , mp_obj, error)
+    !
+    ! local multiply
+    CALL dbcsr_mult_pack_vec(matrix_a, pkd_b, b_col, pkd, error)
+    !
+    ! redistribute the result
+    !CALL ...
+
+    DEALLOCATE(pkd_b)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_multiply_vec
+
+! *****************************************************************************
+!> \brief multiply a dbcsr with a packed vector as
+!>        c (packed column) = A (dbscr) * b (packed column)
+!> \param[in]  matrix      DBCSR matrix
+!> \param[in]  pkd_b       packed vector b
+!> \param[in]  b_col       the column of the packed b (this should be changed in b_col_size)
+!> \param[out] pkd_c       packed vector c
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_mult_pack_vec(matrix_a, pkd_b, b_col, pkd_c, error)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a
+    REAL(dp), DIMENSION(:), INTENT(in)       :: pkd_b
+    INTEGER, INTENT(in)                      :: b_col
+    REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd_c
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mult_pack_vec', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: a_blk, a_col, a_col_size, a_offset, a_row, a_row_size, &
+      b_col_size, b_offset, c_offset, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, a_row_blk_size
+    LOGICAL                                  :: new_c
+
+    CALL timeset(routineN, timing_handle)
+
+    a_row_blk_size => array_data (matrix_a%row_blk_size)
+    a_col_blk_size => array_data (matrix_a%col_blk_size)
+
+
+    IF(pkd_b(matrix_a%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_b(n+1).LE.0")
+
+    pkd_c(:) = 0.0_dp ! if not done
+    c_offset = matrix_a%nblkrows_total + 2
+    b_col_size = a_col_blk_size(b_col)
+
+
+    DO a_row = 1, matrix_a%nblkrows_total
+       a_row_size = a_row_blk_size(a_row)
+       new_c = .FALSE.
+       DO a_blk = matrix_a%row_p(a_row)+1,matrix_a%row_p(a_row+1)
+          a_col = matrix_a%col_i(a_blk)
+          a_offset = ABS(matrix_a%blk_p(a_blk))
+          a_col_size = a_col_blk_size(a_col)
+          b_offset = INT(pkd_b(a_col))
+          IF(b_offset.LE.0) CYCLE
+          !
+          pkd_c(a_row) = REAL(c_offset,dp)
+          CALL dgemm('N','N',a_row_size,b_col_size,a_col_size,&
+               &     1.0_dp,matrix_a%data(a_offset),a_row_size,&
+               &            pkd_b(b_offset),a_col_size,&
+               &     1.0_dp,pkd_c(c_offset),a_row_size)
+          new_c = .TRUE.
+       ENDDO ! a_col
+       IF(new_c) c_offset = c_offset + a_row_size*b_col_size
+    ENDDO ! a_row
+    pkd_c(matrix_a%nblkrows_total+1) = REAL(c_offset,dp)
+
+    IF(pkd_b(matrix_a%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_b(n+1).LE.0")
+    IF(pkd_c(matrix_a%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_c(n+1).LE.0")
+
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_mult_pack_vec
+
+! *****************************************************************************
+!> \brief pack a row or column of a dbcsr
+!> \param[in]  matrix      DBCSR matrix
+!> \param[in]  ivec        the vector to pack
+!> \param[out] pkd_vec     packed vector
+!> \param[in]  what        what to pack (row or column)
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_pack_vec(matrix, ivec, pkd_vec, what, error)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER, INTENT(IN)                      :: ivec
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec
+    CHARACTER(LEN=*), INTENT(IN)             :: what
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_pack_vec', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, col_size, frst_blk, &
+                                                last_blk, nze, row, row_size, &
+                                                timing_handle, v_offset
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: found
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    row_blk_size => array_data (matrix%row_blk_size)
+    col_blk_size => array_data (matrix%col_blk_size)
+
+    pkd_vec(:) = 0.0_dp ! should be big enough to hold all the data
+    !
+    ! let's go
+    SELECT CASE(what)
+    CASE('column')
+       v_offset = matrix%nblkrows_total+2 ! we need nblkrows_total+1 to store rows 
+       !                                    and 1 extra for adding new data
+       col = ivec
+       col_size = col_blk_size(col)
+       DO row = 1, matrix%nblkrows_total
+          row_size = row_blk_size(row)
+          blk = matrix%row_p(row)+1
+          frst_blk = matrix%row_p(row)+1
+          last_blk = matrix%row_p(row+1)
+          CALL find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+          IF(found) THEN
+             nze = row_size*col_size
+             !
+             ! let's copy the block
+             pkd_vec(row) = REAL(v_offset,dp)
+             CALL dcopy(nze,matrix%data(ABS(matrix%blk_p(blk))),1,pkd_vec(v_offset),1)
+             v_offset = v_offset + nze
+          ENDIF
+       ENDDO ! row
+       pkd_vec(matrix%nblkrows_total+1) = REAL(v_offset,dp)
+    CASE('row')
+       v_offset = matrix%nblkcols_total+2 ! we need nblkcols_total+1 to store rows 
+       !                                    and 1 extra for the size of the data
+       row = ivec
+       row_size = row_blk_size(row)
+       DO blk = matrix%row_p(row)+1,matrix%row_p(row+1)
+          col = matrix%col_i(blk)
+          col_size = col_blk_size(col)
+          nze = row_size*col_size
+          !
+          ! let's copy the block
+          pkd_vec(col) = REAL(v_offset,dp)
+          CALL dcopy(nze,matrix%data(ABS(matrix%blk_p(blk))),1,pkd_vec(v_offset),1)
+          v_offset = v_offset + nze
+       ENDDO ! col
+       pkd_vec(matrix%nblkcols_total+1) = REAL(v_offset,dp)
+    CASE DEFAULT
+       CALL stop_program(routineN,"pack what?")       
+    END SELECT
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_pack_vec
+
+! *****************************************************************************
+!> \brief unpack a row or column of a dbcsr
+!> \param[inout]  matrix      DBCSR matrix
+!> \param[in]     ivec        the vector to pack
+!> \param[in]     pkd_vec     packed vector
+!> \param[in]     what        what to unpack (row or column)
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_unpack_vec(matrix, ivec, pkd_vec, what, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    INTEGER, INTENT(IN)                      :: ivec
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_vec
+    CHARACTER(LEN=*), INTENT(IN)             :: what
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_unpack_vec', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, col_size, frst_blk, &
+                                                last_blk, nze, offset, row, &
+                                                row_size, timing_handle, &
+                                                v_offset
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: found
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    row_blk_size => array_data (matrix%row_blk_size)
+    col_blk_size => array_data (matrix%col_blk_size)
+
+    !
+    ! let's go
+    SELECT CASE(what)
+    CASE('column')
+       IF(pkd_vec(matrix%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_vec(n+1).LE.0")
+       col = ivec
+       col_size = col_blk_size(col)
+       DO row = 1, matrix%nblkrows_total
+          v_offset = INT(pkd_vec(row))
+          IF(v_offset.LE.0) CYCLE
+          row_size = row_blk_size(row)
+          blk = matrix%row_p(row)+1
+          frst_blk = matrix%row_p(row)+1
+          last_blk = matrix%row_p(row+1)
+          CALL find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+          IF(found) THEN
+             nze = row_size*col_size
+             !
+             ! let's scale the block
+             offset = ABS(matrix%blk_p(blk))
+             ! we just dcopy here, could aslo do a daxpy
+             !CALL dcopy(nze,pkd_vec(v_offset),1,matrix%data(offset),1)
+            matrix%data(offset:offset+nze-1)=pkd_vec(v_offset:v_offset+nze-1)
+          ELSE
+             !
+             ! need to add it
+             WRITE(*,*) routineN//' row',row,' col',col
+             CALL stop_program(routineN,"some more work here")
+          ENDIF
+       ENDDO ! row
+    CASE('row')
+       IF(pkd_vec(matrix%nblkcols_total+1).LE.0) CALL stop_program(routineN,"2pkd_vec(n+1).LE.0")
+       row = ivec
+       row_size = row_blk_size(row)
+       blk = matrix%row_p(row)+1
+       frst_blk = matrix%row_p(row)+1
+       last_blk = matrix%row_p(row+1)
+       DO col = 1,matrix%nblkcols_total
+          v_offset = INT(pkd_vec(col))
+          IF(v_offset.LE.0) CYCLE
+          col_size = col_blk_size(col)
+          ! we assume that the columns are ordered !
+          CALL find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+          IF(found) THEN
+             nze = row_size*col_size
+             offset = ABS(matrix%blk_p(blk))
+             ! we just dcopy here, could aslo do a daxpy
+             CALL dcopy(nze,pkd_vec(v_offset),1,matrix%data(offset),1)
+          ELSE
+             !
+             ! need to add it
+             CALL stop_program(routineN,"some more work here")
+          ENDIF
+       ENDDO ! row
+    CASE DEFAULT
+       CALL stop_program(routineN,"unpack what?")
+    END SELECT
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_unpack_vec
+
+
+! *****************************************************************************
+!> \brief Does one of the operations:
+!>      left)  pkd_ji = alpha * block_jj (block) * pkd_ji for j = 1,..., ivec - 1
+!>      right) pkd_ij = alpha * pkd_ij * block_jj (block) for j = 1,..., ivec - 1
+!>
+! *****************************************************************************
+  SUBROUTINE packed_vec_scale(alpha, block, pkd, ivec, vec_blk_size, side, error)
+    REAL(dp), INTENT(IN)                     :: alpha
+    REAL(dp), DIMENSION(:), INTENT(in)       :: block
+    REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd
+    INTEGER, INTENT(in)                      :: ivec
+    INTEGER, DIMENSION(:), INTENT(in)        :: vec_blk_size
+    CHARACTER(LEN=*), INTENT(IN)             :: side
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_scale', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iblk, k, m, n, offset
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff
+
+!   ---------------------------------------------------------------------------
+
+    ALLOCATE(buff(SIZE(pkd)))!too long buff allocated here...
+    buff=0.0_dp
+    SELECT CASE(side)
+    CASE('left')
+       iblk = 1
+       DO i = 1,ivec-1
+          offset = INT(pkd(i))
+          IF(offset.GT.0) THEN
+             m = vec_blk_size(i)
+             n = vec_blk_size(ivec)
+             k = vec_blk_size(i)
+             CALL dgemm('N','N',m,n,k,alpha,block(iblk),m,pkd(offset),k,0.0_dp,buff(1),m)
+             CALL dcopy(m*n,buff(1),1,pkd(offset),1)
+          ENDIF
+          iblk = iblk + vec_blk_size(i)**2
+       ENDDO
+    CASE('right')
+       iblk = 1
+       DO i = 1,ivec-1
+          offset = INT(pkd(i))
+          IF(offset.GT.0) THEN
+             m = vec_blk_size(ivec)
+             n = vec_blk_size(i)
+             k = vec_blk_size(i)
+             CALL dgemm('N','N',m,n,k,alpha,pkd(offset),m,block(iblk),k,0.0_dp,buff(1),m)
+             CALL dcopy(m*n,buff(1),1,pkd(offset),1)
+          ENDIF
+          iblk = iblk + vec_blk_size(i)**2
+       ENDDO
+    CASE DEFAULT
+       CALL stop_program(routineN,"side?")
+    END SELECT
+    DEALLOCATE(buff)
+
+  END SUBROUTINE packed_vec_scale
+
+! *****************************************************************************
+!> \brief Does the operations:
+!>      v(k,:) = v(k,:) - uAk(i,k)' * inv(d(i,i)) * v(i,:) / s
+!>      u(k,:) = u(k,:) -   v(i,k)' * inv(d(i,i)) * u(i,:) / s
+!>
+! *****************************************************************************
+  SUBROUTINE packed_vec_bif_tech(mat_v, mat_u, pkd_v_fac, pkd_u_fac, ivec, pkd_v, pkd_u, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: mat_v, mat_u
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v_fac, pkd_u_fac
+    INTEGER, INTENT(IN)                      :: ivec
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_v, pkd_u
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_bif_tech', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: blk, col, col_size, k_row, k_row_size, offset, row, row_size, &
+      timing_handle, u_offset, u_offset_last, ufac_offset, v_offset, &
+      v_offset_last, vfac_offset
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    row_blk_size => array_data (mat_u%row_blk_size)
+    col_blk_size => array_data (mat_u%col_blk_size)
+
+    IF(pkd_u(mat_u%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_u(n+1).LE.0")
+    IF(pkd_v(mat_v%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
+    !
+    !v(k,:) (pkd) = v(k,:) (pkd) - (inv(d(i,i)) * uAk(i,k))' / s (pkd) * v(i,:) (bcsr) i = 1,ivec-1
+    k_row = ivec
+    k_row_size = row_blk_size(k_row)
+    v_offset_last = INT(pkd_v(mat_v%nblkrows_total+1))
+    DO row = 1, mat_v%nblkrows_total
+       IF(row.GE.k_row) EXIT !i = 1,ivec-1
+       row_size = row_blk_size(row)
+       ufac_offset = INT(pkd_u_fac(row))
+       IF(ufac_offset.LE.0) CYCLE
+       DO blk = mat_v%row_p(row)+1,mat_v%row_p(row+1)
+          col = mat_v%col_i(blk)
+          col_size = col_blk_size(col)
+          offset = ABS(mat_v%blk_p(blk))
+          v_offset = INT(pkd_v(col))
+          IF(v_offset.LE.0) THEN
+             v_offset = v_offset_last
+             v_offset_last = v_offset_last + k_row_size * col_size
+             pkd_v(v_offset:v_offset+k_row_size * col_size-1) = 0.0_dp
+             pkd_v(mat_v%nblkrows_total+1) = REAL(v_offset_last,dp)
+          ENDIF
+          !
+          ! let's multiply and add
+          CALL dgemm('T', 'N', k_row_size, col_size, row_size,&
+               &    -1.0_dp, pkd_u_fac(ufac_offset), row_size,&
+               &             mat_v%data(offset), row_size,&
+                  &     1.0_dp, pkd_v(v_offset), k_row_size)
+       ENDDO
+    ENDDO ! row
+    !
+    !u(k,:) (pkd) = u(k,:) (pkd) - (inv(d(i,i)) * v(i,k)  )' / s (pkd) * u(i,:) (bcsr) i = 1,ivec-1
+    u_offset_last = INT(pkd_u(mat_u%nblkrows_total+1))
+    DO row = 1, mat_u%nblkrows_total
+       IF(row.GE.k_row) EXIT !i = 1,ivec-1
+       row_size = row_blk_size(row)
+       vfac_offset = INT(pkd_v_fac(row))
+       IF(vfac_offset.LE.0) CYCLE
+       DO blk = mat_u%row_p(row)+1,mat_u%row_p(row+1)
+          col = mat_u%col_i(blk)
+          col_size = col_blk_size(col)
+          offset = ABS(mat_u%blk_p(blk))
+          u_offset = INT(pkd_u(col))
+          IF(u_offset.LE.0) THEN
+             u_offset = u_offset_last
+             u_offset_last = u_offset_last + k_row_size * col_size
+             pkd_u(u_offset:u_offset+k_row_size * col_size-1) = 0.0_dp
+             pkd_u(mat_u%nblkrows_total+1) = REAL(u_offset_last,dp)
+          ENDIF
+          !
+          ! let's multiply and add
+          CALL dgemm('T', 'N', k_row_size, col_size, row_size,&
+               &    -1.0_dp, pkd_v_fac(vfac_offset), row_size,&
+               &             mat_u%data(offset), row_size,&
+               &     1.0_dp, pkd_u(u_offset), k_row_size)
+       ENDDO
+    ENDDO ! row
+
+    IF(pkd_u(mat_u%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_u(n+1).LE.0")
+    IF(pkd_v(mat_v%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE packed_vec_bif_tech
+
+  SUBROUTINE packed_vec_bcast(pkd_vec, source, scope, mp_obj, error)
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec
+    INTEGER, INTENT(IN)                      :: source
+    CHARACTER(LEN=*), INTENT(IN)             :: scope
+    TYPE(dbcsr_mp_obj)                       :: mp_obj
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_bcast', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: icol, irow, mp_group, mynode, &
+                                                mypcol, myprow, npcols, &
+                                                nprows, numnodes, src, &
+                                                timing_handle
+    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    numnodes = dbcsr_mp_numnodes (mp_obj)
+    mynode = dbcsr_mp_mynode (mp_obj)
+    myprow = dbcsr_mp_myprow (mp_obj)
+    mypcol = dbcsr_mp_mypcol (mp_obj)
+    npcols = dbcsr_mp_npcols (mp_obj)
+    nprows = dbcsr_mp_nprows (mp_obj)
+    blacs2mpi => dbcsr_mp_pgrid (mp_obj)
+    mp_group = dbcsr_mp_group (mp_obj)
+
+    ALLOCATE(buff(SIZE(pkd_vec)))
+    SELECT CASE(scope)
+    CASE('rowise')
+       !
+       ! simple hack
+       DO icol = 0,npcols-1
+          buff = pkd_vec
+          src = blacs2mpi(source,icol)
+          CALL mp_bcast(buff,src,mp_group)
+          IF(mypcol.EQ.icol) THEN
+             pkd_vec = buff
+          ENDIF
+       ENDDO
+    CASE('columnwise')
+       !
+       ! simple hack
+       DO irow = 0,nprows-1
+          buff = pkd_vec
+          src = blacs2mpi(irow,source)
+          CALL mp_bcast(buff,src,mp_group)
+          IF(myprow.EQ.irow) THEN
+             pkd_vec = buff
+          ENDIF
+       ENDDO
+    CASE('all')
+       CALL mp_bcast(pkd_vec,source,mp_group)
+    CASE DEFAULT
+       CALL stop_program(routineN,"how do you wanna bcast")
+    END SELECT
+    DEALLOCATE(buff)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE packed_vec_bcast
+
+  SUBROUTINE packed_vec_reduce(pkd_vec, to, scope, vec_blk_size, n, mp_obj, error)
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec
+    INTEGER, INTENT(IN)                      :: to
+    CHARACTER(LEN=*), INTENT(IN)             :: scope
+    INTEGER, DIMENSION(:), INTENT(IN)        :: vec_blk_size
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(dbcsr_mp_obj)                       :: mp_obj
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_reduce', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: icol, irow, mp_group, mynode, &
+                                                mypcol, myprow, npcols, &
+                                                nprows, numnodes, src, &
+                                                timing_handle
+    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff, sums
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    numnodes = dbcsr_mp_numnodes (mp_obj)
+    mynode = dbcsr_mp_mynode (mp_obj)
+    myprow = dbcsr_mp_myprow (mp_obj)
+    mypcol = dbcsr_mp_mypcol (mp_obj)
+    npcols = dbcsr_mp_npcols (mp_obj)
+    nprows = dbcsr_mp_nprows (mp_obj)
+    blacs2mpi => dbcsr_mp_pgrid (mp_obj)
+    mp_group = dbcsr_mp_group (mp_obj)
+
+    IF(pkd_vec(n+1).LE.0) CALL stop_program(routineN,"a_offset_last.LE.0!!!!!!!")
+
+    ALLOCATE(buff(SIZE(pkd_vec)),sums(SIZE(pkd_vec)))
+    sums = 0.0_dp
+    SELECT CASE(scope)
+    CASE('rowise')
+       CALL stop_program(routineN,"more work here")
+       !
+       ! simple hack
+       DO icol = 0,npcols-1
+          buff = pkd_vec
+          src = blacs2mpi(to,icol)
+          CALL mp_bcast(buff,src,mp_group)
+          IF(mypcol.EQ.icol) THEN
+             pkd_vec = buff
+             CALL add_packed_vecs(sums,buff,vec_blk_size,n,error)
+          ENDIF
+       ENDDO
+    CASE('columnwise')
+       !CALL stop_program(routineN,"more work here")
+       !
+       ! simple hack
+       DO irow = 0,nprows-1
+          buff = pkd_vec
+          src = blacs2mpi(irow,to)
+          CALL mp_bcast(buff,src,mp_group)
+          IF(myprow.EQ.irow) THEN
+             CALL add_packed_vecs(sums,buff,vec_blk_size,n,error)
+          ENDIF
+       ENDDO
+    CASE('all')
+       CALL stop_program(routineN,"more work here")
+    CASE DEFAULT
+       CALL stop_program(routineN,"how do you wanna reduce")
+    END SELECT
+    pkd_vec = sums
+    DEALLOCATE(buff,sums)
+
+    IF(pkd_vec(n+1).LE.0) CALL stop_program(routineN,"a_offset_last.LE.0!!!!!!!")
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE packed_vec_reduce
+
+  SUBROUTINE add_packed_vecs(pkd_vec_a,pkd_vec_b,vec_blk_size,n,error)
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec_a
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_vec_b
+    INTEGER, DIMENSION(:), INTENT(IN)        :: vec_blk_size
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_packed_vecs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: a_offset, a_offset_last, &
+                                                b_offset, i
+
+!   ---------------------------------------------------------------------------
+
+    ! this points to the last empty entry
+    a_offset_last = INT(pkd_vec_a(n+1)) 
+    IF(a_offset_last.LE.0) CALL stop_program(routineN,"a_offset_last.LE.0!!!!!!!")
+    DO i = 1,n
+       b_offset = INT(pkd_vec_b(i))
+       a_offset = INT(pkd_vec_a(i))
+       IF(b_offset.LE.0) CYCLE
+       IF(a_offset.GT.0) THEN
+          ! the block exsits in a, just add
+          CALL daxpy(vec_blk_size(i),1.0_dp,pkd_vec_b(b_offset),1,pkd_vec_a(a_offset),1)
+       ELSE
+          ! the block doesnt exsit in a, copy b at the end
+          CALL dcopy(vec_blk_size(i),pkd_vec_b(b_offset),1,pkd_vec_a(a_offset_last),1)
+          a_offset_last = a_offset_last + vec_blk_size(i)
+       ENDIF
+    ENDDO
+    ! reset the last empty entry if needed
+    pkd_vec_a(n+1) = REAL(a_offset_last,dp)
+  END SUBROUTINE add_packed_vecs
+
+  SUBROUTINE bcast_block(blk, source, scope, mp_obj, error)
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: blk
+    INTEGER, INTENT(IN)                      :: source
+    CHARACTER(LEN=*), INTENT(IN)             :: scope
+    TYPE(dbcsr_mp_obj)                       :: mp_obj
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'bcast_block', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: icol, irow, mp_group, mynode, &
+                                                mypcol, myprow, npcols, &
+                                                nprows, numnodes, src
+    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff
+
+!   ---------------------------------------------------------------------------
+
+    numnodes = dbcsr_mp_numnodes (mp_obj)
+    mynode = dbcsr_mp_mynode (mp_obj)
+    myprow = dbcsr_mp_myprow (mp_obj)
+    mypcol = dbcsr_mp_mypcol (mp_obj)
+    npcols = dbcsr_mp_npcols (mp_obj)
+    nprows = dbcsr_mp_nprows (mp_obj)
+    blacs2mpi => dbcsr_mp_pgrid (mp_obj)
+    mp_group = dbcsr_mp_group (mp_obj)
+
+    ALLOCATE(buff(SIZE(blk)))
+    SELECT CASE(scope)
+    CASE('rowise')
+       !
+       ! simple hack
+       DO icol = 0,npcols-1
+          buff = blk
+          src = blacs2mpi(source,icol)
+          CALL mp_bcast(buff,src,mp_group)
+          IF(mypcol.EQ.icol) THEN
+             blk = buff
+          ENDIF
+       ENDDO
+    CASE('columnwise')
+       !
+       ! simple hack
+       DO irow = 0,nprows-1
+          buff = blk
+          src = blacs2mpi(irow,source)
+          CALL mp_bcast(buff,src,mp_group)
+          IF(myprow.EQ.irow) THEN
+             blk = buff
+          ENDIF
+       ENDDO
+    CASE('all')
+       CALL stop_program(routineN,"more work here")
+    CASE DEFAULT
+       CALL stop_program(routineN,"how do you wanna bcast")
+    END SELECT
+    DEALLOCATE(buff)
+
+  END SUBROUTINE bcast_block
+
+  SUBROUTINE block_add_on_diag( m, blk, alpha)
+    INTEGER, INTENT(in)                      :: m
+    REAL(dp), INTENT(inout)                  :: blk(m,m)
+    REAL(dp), INTENT(in)                     :: alpha
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+!   ---------------------------------------------------------------------------
+
+    DO i=1,m
+       blk(i,i) = blk(i,i) + alpha
+    ENDDO
+  END SUBROUTINE block_add_on_diag
+
+  SUBROUTINE block_set( m, n, blk, alpha, beta)
+    INTEGER                                  :: m, n
+    REAL(dp)                                 :: blk(m,n)
+    REAL(dp), OPTIONAL                       :: alpha, beta
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    REAL(dp)                                 :: my_alpha, my_beta
+
+!   ---------------------------------------------------------------------------
+
+    my_beta = 0.0_dp
+    my_alpha = 0.0_dp
+    IF(PRESENT(alpha)) my_alpha = alpha
+    IF(PRESENT(beta)) my_beta = beta
+    blk(:,:) = my_beta
+    IF(m.EQ.n) THEN
+       DO i=1,m
+          blk(i,i)=my_alpha
+       ENDDO
+    ENDIF
+  END SUBROUTINE block_set
+
+  SUBROUTINE block_chol_inv(m, blk)
+    INTEGER                                  :: m
+    REAL(dp)                                 :: blk(m,m)
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_chol_inv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, info, j
+
+!   ---------------------------------------------------------------------------
+
+    CALL dpotrf( 'U', m, blk, m, info )
+    IF(info.NE.0)CALL stop_program(routineN,"error in dpotrf")
+    CALL dpotri( 'U', m, blk, m, info )
+    IF(info.NE.0)CALL stop_program(routineN,"error in dpotri")
+    !
+    ! symmetrize
+    DO i=1,m
+       DO j=i,m
+          blk(j,i)=blk(i,j)
+       ENDDO
+    ENDDO
+  END SUBROUTINE block_chol_inv
 
 END MODULE dbcsr_operations

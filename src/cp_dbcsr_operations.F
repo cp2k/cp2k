@@ -29,7 +29,9 @@ MODULE cp_dbcsr_operations
                                              dbcsr_mp_group,&
                                              dbcsr_nfullcols_local,&
                                              dbcsr_nfullrows_local
-  USE dbcsr_operations,                ONLY: dbcsr_mult_e_ec_m,&
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_mult_e_ec_m,&
                                              dbcsr_scale,&
                                              dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
@@ -207,8 +209,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: fmout
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist
-    TYPE(dbcsr_type)                         :: matrix_a, matrix_b, &
-                                                matrix_bt, matrix_c
+    TYPE(dbcsr_type)                         :: matrix_a, matrix_a2, &
+                                                matrix_b, matrix_bt, matrix_c
 
     CALL timeset(routineN,handle)
 
@@ -247,7 +249,23 @@ CONTAINS
        WRITE(output_unit, '(T2,2(A,F12.4))')"DBCSR 2*S  checksum", checksum, " trace(2*S)",trace
     ENDIF
     CALL dbcsr_scale(matrix_a,alpha_scalar=0.5_dp,error=error)
+    !
+    ! test the copy and add
+    CALL dbcsr_copy(matrix_a2,matrix_a,error=error)
+    checksum = 0.0_dp
+    checksum = dbcsr_checksum(matrix_a2, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Sbis  checksum", checksum
+    ENDIF
+    CALL dbcsr_add(matrix_a2,matrix_a,alpha_scalar=-2.0_dp,beta_scalar=2.0_dp,error=error)
+    checksum = 0.0_dp
+    checksum = dbcsr_checksum(matrix_a2, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR copy and add: 2*S-2*S  checksum", checksum
+    ENDIF
+    CALL dbcsr_destroy(matrix_a2,error)
 
+    checksum = 0.0_dp
     CALL cp_fm_frobenius_norm(matrix_x, checksum, error)
     !WRITE(*,*)'x checksum',checksum*checksum
     IF (ldbg.AND.ionode) THEN
