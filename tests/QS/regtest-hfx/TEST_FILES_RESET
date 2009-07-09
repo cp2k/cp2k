@@ -222,3 +222,5 @@ CH-hfx-md.inp
 # more numerics
 CH-hfx-md-2.inp
 CH-hfx-md.inp
+# redefinition of input 
+H2O-geminal-1.inp

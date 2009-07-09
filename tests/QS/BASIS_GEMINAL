@@ -22,7 +22,7 @@
 # lmin     : Minimum angular momentum quantum number l for R coordinate
 # ls       : Angular momentum quantum number l for S coordinate
 # nshell(l): Number of shells for angular momentum quantum number l
-# a        : Exponents (2,2) matrix
+# a        : Cholesky matrix (2,2) : exponents are a*a(T)
 # c        : Contraction coefficient
 #
 ################################################################################

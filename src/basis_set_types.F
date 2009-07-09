@@ -1943,6 +1943,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: l
     LOGICAL                                  :: failure, found, is_ok, match, &
                                                 read_from_input
+    REAL(KIND=dp), DIMENSION(2, 2)           :: zl
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
@@ -2124,14 +2125,19 @@ CONTAINS
                              __LINE__,&
                              "Error reading the Basis set from input file!!")
                         CALL val_get(val,c_val=line_att,error=error)
-                        READ(line_att,*)zet(1,1,ipgf,iset),zet(2,2,ipgf,iset),zet(1,2,ipgf,iset),&
-                                       (gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
-                        zet(2,1,ipgf,iset)=zet(1,2,ipgf,iset)
+                        READ(line_att,*)zl(1,1),zl(2,2),zl(1,2),(gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
+                        zet(1,1,ipgf,iset)=zl(1,1)**2
+                        zet(2,2,ipgf,iset)=zl(2,2)**2 + zl(1,2)**2
+                        zet(1,2,ipgf,iset)=zl(1,1)*zl(1,2)
+                        zet(2,1,ipgf,iset)=zl(1,1)*zl(1,2)
                      ELSE
-                        CALL parser_get_object(parser,zet(1,1,ipgf,iset),newline=.TRUE.,error=error)
-                        CALL parser_get_object(parser,zet(2,2,ipgf,iset),error=error)
-                        CALL parser_get_object(parser,zet(1,2,ipgf,iset),error=error)
-                        zet(2,1,ipgf,iset)=zet(1,2,ipgf,iset)
+                        CALL parser_get_object(parser,zl(1,1),newline=.TRUE.,error=error)
+                        CALL parser_get_object(parser,zl(2,2),error=error)
+                        CALL parser_get_object(parser,zl(1,2),error=error)
+                        zet(1,1,ipgf,iset)=zl(1,1)**2
+                        zet(2,2,ipgf,iset)=zl(2,2)**2 + zl(1,2)**2
+                        zet(1,2,ipgf,iset)=zl(1,1)*zl(1,2)
+                        zet(2,1,ipgf,iset)=zl(1,1)*zl(1,2)
                         DO ishell=1,nshell(iset)
                            CALL parser_get_object(parser,gcc(ipgf,ishell,iset),error=error)
                         END DO
