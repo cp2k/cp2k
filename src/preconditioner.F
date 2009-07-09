@@ -39,11 +39,13 @@ MODULE preconditioner
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_mp,&
                                              dbcsr_distribution_release,&
                                              dbcsr_get_info,&
                                              dbcsr_row_block_sizes
   USE dbcsr_operations
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_mp_obj,&
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
@@ -1140,11 +1142,15 @@ END SUBROUTINE make_full_kinetic
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_fm_type), POINTER                :: fm_work
 
     failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
     CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
 
     NULLIFY(fm_work)
@@ -1173,6 +1179,8 @@ END SUBROUTINE make_full_kinetic
     CALL cp_fm_upper_to_full(fm,fm_work,error=error)
     CALL cp_fm_release(fm_work,error=error)
 
+    CALL timestop(handle)
+
   END SUBROUTINE make_full_inverse_cholesky
 
   SUBROUTINE make_full_fact_cholesky(preconditioner_env, fm, matrix_s, &
@@ -1188,10 +1196,14 @@ END SUBROUTINE make_full_kinetic
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_fact_cholesky', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: sub_error
 
     failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
     CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
     !
     ! compute the inverse of SPD matrix fm using the Cholesky factorization
@@ -1213,6 +1225,8 @@ END SUBROUTINE make_full_kinetic
        ENDIF
     ENDIF
 
+    CALL timestop(handle)
+ 
   END SUBROUTINE make_full_fact_cholesky
 
 ! *****************************************************************************
@@ -1854,10 +1868,9 @@ END SUBROUTINE make_full_all_ortho
     REAL(KIND=dp), PARAMETER                 :: thresh_inner = 1.0E-2_dp, &
                                                 thresh_post = 1.0E-5_dp
 
-    INTEGER                                  :: d_offset, k, n, &
-                                                nblkcols_total, &
-                                                nblkrows_total, &
-                                                nfullrows_total
+    INTEGER :: d_offset, handle, istat, k, max_blk_size, max_row_blk_size, &
+      max_vec_size, n, nblkcols_total, nblkrows_local, nblkrows_total, &
+      nfullrows_total
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: failure, found
     REAL(dp)                                 :: s, trace
@@ -1868,19 +1881,19 @@ END SUBROUTINE make_full_all_ortho
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: fm_work1, fm_work2
     TYPE(dbcsr_distribution_obj)             :: dist, dist_main
+    TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_type)                         :: mat_li, mat_li_scaled, &
                                                 mat_lt, mat_s, mat_t, &
                                                 mat_tmp, mat_v
     TYPE(distribution_2d_type), POINTER      :: dist2d_main
 
-!TYPE(dbcsr_mp_obj)                       :: mp_obj
-!
-!
 !
 ! These threshould should be make specifiable in the input. -UB
 !
 
     failure = .FALSE.
+
+    CALL timeset(routineN,handle)
 
     no_parallel_for_now: IF(preconditioner_env%para_env%num_pe.EQ.1) THEN
 
@@ -1926,19 +1939,29 @@ END SUBROUTINE make_full_all_ortho
     n = mat_t%nblkrows_total
     d_offset = 1
 
-    !mp_obj = dbcsr_distribution_mp (mat_s%dist)
+    mp_obj = dbcsr_distribution_mp (mat_s%dist)
     row_blk_size => array_data(row_blk_size_array)
 
-    ALLOCATE(pkd_u(100000),pkd_v(100000),pkd_v_fac(100000),pkd_u_fac(100000), &
-         &   pkd_d(100000),pkd_inv_d(100000),blk(100000))
+    max_row_blk_size = MAXVAL(row_blk_size)
+    max_blk_size = max_row_blk_size**2
+    nblkrows_local = mat_s%nblkrows_local
+    max_vec_size = nblkrows_local*max_blk_size
 
-    pkd_u=0.0_dp
-    pkd_v=0.0_dp
-    pkd_v_fac=0.0_dp
-    pkd_u_fac=0.0_dp
-    pkd_d=0.0_dp
-    pkd_inv_d=0.0_dp
-    blk=0.0_dp
+    WRITE(*,*) 'max_blk_size',max_blk_size
+    WRITE(*,*) 'max_vec_size',max_vec_size
+
+    ALLOCATE(pkd_u(max_vec_size), pkd_v(max_vec_size), pkd_v_fac(max_vec_size),&
+         &   pkd_u_fac(max_vec_size), pkd_d(max_vec_size), pkd_inv_d(max_vec_size), &
+         &   blk(max_blk_size), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    pkd_u(:) = 0.0_dp
+    pkd_v(:) = 0.0_dp
+    pkd_d(:) = 0.0_dp
+    pkd_v_fac(:) = 0.0_dp
+    pkd_u_fac(:) = 0.0_dp
+    pkd_inv_d(:) = 0.0_dp
+    blk(:) = 0.0_dp
 
     !numnodes = dbcsr_mp_numnodes (mp_obj)
     !mynode = dbcsr_mp_mynode (mp_obj)
@@ -1961,50 +1984,69 @@ END SUBROUTINE make_full_all_ortho
     DO k = 1,n
        ! 
        !v(k,1:n)=A(k,1:n);
-       CALL dbcsr_copy_vec(mat_v, mat_t, 'row', k, error=error)
+       CALL dbcsr_copy_vec(mat_v, mat_t, 'row', k, error=error)!PARA local copy
        !
        !v(k,k)=v(k,k)-s;
-       CALL dbcsr_get_block(mat_v, blk, k, k, found, error=error)
+       ! WE COULD AVOID MANY COPIES (bcsr <-> vector), BY PASSING 
+       ! THE BLK POINTER AND DOING THE OPERATION DIRECTLY ON DATA(BLK)
+       CALL dbcsr_get_block(mat_v, blk, k, k, found, error=error)!PARA local get
        CALL block_add_on_diag(row_blk_size(k), blk, -s)
-       CALL dbcsr_put_block(mat_v, blk, k, k, error=error)
+       CALL dbcsr_put_block(mat_v, blk, k, k, error=error)!PARA local put
        !
        !u(k,k)=1;
        CALL block_set(row_blk_size(k), row_blk_size(k), blk, 1.0_dp, 0.0_dp)
-       CALL dbcsr_put_block(mat_li, blk, k, k, error=error)
+       CALL dbcsr_put_block(mat_li, blk, k, k, error=error)!PARA local put
        !
        ! compute u(1:k-1,1:n) * A(1:n,k);
        ! SHOULD DO ONLY THE 1:K-1 ROWS
-       CALL dbcsr_multiply_vec(mat_li, mat_t, k, pkd_v_fac, error=error)
+       CALL dbcsr_multiply_vec(mat_li, mat_t, k, pkd_v_fac, error=error)!PARA pkd_v_fac is hold by 
+       !                                                                !PARA the same procs as A(1:n,k)
+       !
+       ! bcast pkd_v_fac
+       !CALL packed_vec_bcast(pkd_v_fac, source, 'colounwise', mp_obj, error=error) !PARA replicate columnwise
        !
        ! compute inv(d(i,i)) * uAk(i,k) / s , i=1,k-1
-       CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_v_fac, k, row_blk_size, 'left', error=error)
+       CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_v_fac, k, row_blk_size, 'left', error=error)!PARA local
+       !
+       ! pack u(:,k)
+       CALL dbcsr_pack_vec(mat_v, k, pkd_u_fac, 'column', error=error)
+       !
+       ! bcast pkd_u_fac
+       !CALL packed_vec_bcast(pkd_u_fac, source, 'colounwise', mp_obj, error=error) !PARA replicate columnwise
        !
        ! compute inv(d(i,i)) * v(i,k) / s , i=1,k-1
-       CALL dbcsr_pack_vec(mat_v, k, pkd_u_fac, 'column', error=error)
-       CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_u_fac, k, row_blk_size, 'left', error=error)
+       CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_u_fac, k, row_blk_size, 'left', error=error)!PARA local
        !
        ! pack u(k,:) and v(k,:)
-       CALL dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)
-       CALL dbcsr_pack_vec(mat_li, k, pkd_u, 'row', error=error)
+       CALL dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
+       CALL dbcsr_pack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
+       !
+       ! bcast the u and v
+       !CALL packed_vec_bcast(pkd_v, source, 'colounwise', mp_obj, error=error) !PARA replicate columnwise
+       !CALL packed_vec_bcast(pkd_u, source, 'columnwise', mp_obj, error=error) !PARA replicate columnwise
        !
        ! the core
        !v(k,1:n) = v(k,1:n) - uAk(i,k)' * inv(d(i,i)) * v(i,1:n) / s; i = 1,k-1
        !u(k,1:n) = u(k,1:n) -   v(i,k)' * inv(d(i,i)) * u(i,1:n) / s; i = 1,k-1
-       CALL packed_vec_bif_tech(mat_v, mat_li, pkd_v_fac, pkd_u_fac, k, pkd_v, pkd_u, error=error)
+       CALL packed_vec_bif_tech(mat_v, mat_li, pkd_v_fac, pkd_u_fac, k, pkd_v, pkd_u, error=error)!PARA local
+       !
+       ! reduce the u and v
+       !CALL packed_vec_reduce(pkd_v, to, 'columnwise', vec_blk_size, n, mp_obj, error=error)
+       !CALL packed_vec_reduce(pkd_u, to, 'columnwise', vec_blk_size, n, mp_obj, error=error)
        !
        ! unpack u(k,:) and v(k,:)
-       CALL dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', error=error)
-       CALL dbcsr_unpack_vec(mat_li, k, pkd_u, 'row', error=error)
+       CALL dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
+       CALL dbcsr_unpack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
        !
-       ! d(k,k) = v(k,k) / s + eye(kM-km+1);
-       CALL dbcsr_get_block(mat_v,blk, k, k, found, error=error)
-       CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)
-       CALL block_add_on_diag(row_blk_size(k), blk, 1.0_dp)
-       CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_d(d_offset), 1)
+       ! d(k,k) = v(k,k) / s + eye(k);
+       CALL dbcsr_get_block(mat_v,blk, k, k, found, error=error) !PARA local
+       CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)          !PARA local
+       CALL block_add_on_diag(row_blk_size(k), blk, 1.0_dp)      !PARA local
+       CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_d(d_offset), 1)!PARA local
        !
        ! inv(d(k,k))
-       CALL block_chol_inv(row_blk_size(k), blk)
-       CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_inv_d(d_offset), 1)
+       CALL block_chol_inv(row_blk_size(k), blk)                     !PARA local
+       CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_inv_d(d_offset), 1)!PARA local
        !
        ! update the block pointer
        d_offset = d_offset + row_blk_size(k)**2
@@ -2036,7 +2078,9 @@ END SUBROUTINE make_full_all_ortho
     WRITE(*,*) 'trace(Li^t*A*Li*D)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
     !
     ! cleanup
-    DEALLOCATE(pkd_u, pkd_v, pkd_v_fac, pkd_u_fac, pkd_d, pkd_inv_d, blk)
+    DEALLOCATE(pkd_u, pkd_v, pkd_v_fac, pkd_u_fac, pkd_d, pkd_inv_d, blk, STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     CALL dbcsr_destroy(mat_t, error)
     CALL dbcsr_destroy(mat_s, error)
     CALL dbcsr_destroy(mat_v, error)
@@ -2049,6 +2093,8 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_fm_release(fm_work2,error=error)
 
     ENDIF no_parallel_for_now
+
+    CALL timestop(handle)
 
   END SUBROUTINE make_sparse_inverse_bif
 

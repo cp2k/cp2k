@@ -3887,7 +3887,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ENDDO
     ENDDO ! row
     !
-    !u(k,:) (pkd) = u(k,:) (pkd) - (inv(d(i,i)) * v(i,k)  )' / s (pkd) * u(i,:) (bcsr) i = 1,ivec-1
+    !u(k,:) (pkd) = u(k,:) (pkd) - (inv(d(i,i)) * v(i,k))' / s (pkd) * u(i,:) (bcsr) i = 1,ivec-1
     u_offset_last = INT(pkd_u(mat_u%nblkrows_total+1))
     DO row = 1, mat_u%nblkrows_total
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
