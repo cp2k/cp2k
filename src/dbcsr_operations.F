@@ -55,7 +55,8 @@ MODULE dbcsr_operations
        dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block, dbcsr_copy_vec,&
        dbcsr_put_block, dbcsr_multiply_vec, dbcsr_pack_vec, dbcsr_unpack_vec,&
        dbcsr_btriu, dbcsr_add_on_diag, packed_vec_scale, packed_vec_bif_tech,&
-       block_add_on_diag, block_set, block_chol_inv
+       block_add_on_diag, block_set, block_chol_inv, packed_vec_build_u, &
+       packed_vec_bif_tech2
 
   PRIVATE
 
@@ -1327,6 +1328,7 @@ CONTAINS
     !IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
     !     product%nblkcols_total)
     lflop = 0
+    tstart = 0.0_dp ; tstop = 0.0_dp ;
     num_symmetries = 1
     left_row_blk_size => array_data (left%row_blk_size)
     left_col_blk_size => array_data (left%col_blk_size)
@@ -3117,8 +3119,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     INTEGER :: a_blk, a_frst_blk, a_last_blk, a_row_size, b_blk, b_col, &
       b_col_size, b_row_size, nze, row, timing_handle
-    INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
-                                                a_row_blk_size, &
+    INTEGER, DIMENSION(:), POINTER           :: a_row_blk_size, &
                                                 b_col_blk_size, b_row_blk_size
     LOGICAL                                  :: found
     REAL(dp)                                 :: my_alpha_scalar, &
@@ -3129,7 +3130,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timeset(routineN, timing_handle)
     
     a_row_blk_size => array_data (matrix_a%row_blk_size)
-    a_col_blk_size => array_data (matrix_a%col_blk_size)
     b_row_blk_size => array_data (matrix_b%row_blk_size)
     b_col_blk_size => array_data (matrix_b%col_blk_size)
     
@@ -3194,7 +3194,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     INTEGER                                  :: blk, frst_blk, i, last_blk, &
                                                 nze, offset, row, row_size, &
                                                 timing_handle
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: found
     REAL(dp), DIMENSION(:), POINTER          :: DATA
 
@@ -3203,7 +3203,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timeset(routineN, timing_handle)
     
     row_blk_size => array_data (matrix%row_blk_size)
-    col_blk_size => array_data (matrix%col_blk_size)
     
     DO row = 1, matrix%nblkrows_total
        row_size = row_blk_size(row)
@@ -3246,7 +3245,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nze, timing_handle
+    INTEGER                                  :: timing_handle
 
 !   ---------------------------------------------------------------------------
 
@@ -3495,9 +3494,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[out] pkd       the result in a packed format
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_multiply_vec(matrix_a, matrix_b, b_col, pkd, error)
+  SUBROUTINE dbcsr_multiply_vec(matrix_a, matrix_b, a_row_beg, a_row_end, b_col, pkd, error)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix_a, matrix_b
-    INTEGER, INTENT(in)                      :: b_col
+    INTEGER, INTENT(in)                      :: a_row_beg, a_row_end, b_col
     REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -3518,7 +3517,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     !CALL packed_vec_bcast(pkd_b, source, , mp_obj, error)
     !
     ! local multiply
-    CALL dbcsr_mult_pack_vec(matrix_a, pkd_b, b_col, pkd, error)
+    CALL dbcsr_mult_pack_vec(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd, error)
     !
     ! redistribute the result
     !CALL ...
@@ -3538,10 +3537,10 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[out] pkd_c       packed vector c
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mult_pack_vec(matrix_a, pkd_b, b_col, pkd_c, error)
+  SUBROUTINE dbcsr_mult_pack_vec(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd_c, error)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix_a
     REAL(dp), DIMENSION(:), INTENT(in)       :: pkd_b
-    INTEGER, INTENT(in)                      :: b_col
+    INTEGER, INTENT(in)                      :: a_row_beg, a_row_end, b_col
     REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd_c
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -3566,7 +3565,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     b_col_size = a_col_blk_size(b_col)
 
 
-    DO a_row = 1, matrix_a%nblkrows_total
+    DO a_row = a_row_beg,a_row_end
        a_row_size = a_row_blk_size(a_row)
        new_c = .FALSE.
        DO a_blk = matrix_a%row_p(a_row)+1,matrix_a%row_p(a_row+1)
@@ -3770,15 +3769,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
 ! *****************************************************************************
 !> \brief Does one of the operations:
-!>      left)  pkd_ji = alpha * block_jj (block) * pkd_ji for j = 1,..., ivec - 1
-!>      right) pkd_ij = alpha * pkd_ij * block_jj (block) for j = 1,..., ivec - 1
+!>      left)  pkd_ji = alpha * block_jj (block) * pkd_ji for j = 1,..., nvec
+!>      right) pkd_ij = alpha * pkd_ij * block_jj (block) for j = 1,..., nvec
 !>
 ! *****************************************************************************
-  SUBROUTINE packed_vec_scale(alpha, block, pkd, ivec, vec_blk_size, side, error)
+  SUBROUTINE packed_vec_scale(alpha, block, pkd, nvec, ivec, vec_blk_size, side, error)
     REAL(dp), INTENT(IN)                     :: alpha
     REAL(dp), DIMENSION(:), INTENT(in)       :: block
     REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd
-    INTEGER, INTENT(in)                      :: ivec
+    INTEGER, INTENT(in)                      :: nvec, ivec
     INTEGER, DIMENSION(:), INTENT(in)        :: vec_blk_size
     CHARACTER(LEN=*), INTENT(IN)             :: side
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -3796,7 +3795,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     SELECT CASE(side)
     CASE('left')
        iblk = 1
-       DO i = 1,ivec-1
+       DO i = 1,nvec
           offset = INT(pkd(i))
           IF(offset.GT.0) THEN
              m = vec_blk_size(i)
@@ -3809,7 +3808,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ENDDO
     CASE('right')
        iblk = 1
-       DO i = 1,ivec-1
+       DO i = 1,nvec
           offset = INT(pkd(i))
           IF(offset.GT.0) THEN
              m = vec_blk_size(ivec)
@@ -3865,7 +3864,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DO row = 1, mat_v%nblkrows_total
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
        row_size = row_blk_size(row)
-       ufac_offset = INT(pkd_u_fac(row))
+       ufac_offset = INT(pkd_v_fac(row))
        IF(ufac_offset.LE.0) CYCLE
        DO blk = mat_v%row_p(row)+1,mat_v%row_p(row+1)
           col = mat_v%col_i(blk)
@@ -3881,7 +3880,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           !
           ! let's multiply and add
           CALL dgemm('T', 'N', k_row_size, col_size, row_size,&
-               &    -1.0_dp, pkd_u_fac(ufac_offset), row_size,&
+               &    -1.0_dp, pkd_v_fac(ufac_offset), row_size,&
                &             mat_v%data(offset), row_size,&
                   &     1.0_dp, pkd_v(v_offset), k_row_size)
        ENDDO
@@ -3892,7 +3891,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DO row = 1, mat_u%nblkrows_total
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
        row_size = row_blk_size(row)
-       vfac_offset = INT(pkd_v_fac(row))
+       vfac_offset = INT(pkd_u_fac(row))
        IF(vfac_offset.LE.0) CYCLE
        DO blk = mat_u%row_p(row)+1,mat_u%row_p(row+1)
           col = mat_u%col_i(blk)
@@ -3908,7 +3907,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           !
           ! let's multiply and add
           CALL dgemm('T', 'N', k_row_size, col_size, row_size,&
-               &    -1.0_dp, pkd_v_fac(vfac_offset), row_size,&
+               &    -1.0_dp, pkd_u_fac(vfac_offset), row_size,&
                &             mat_u%data(offset), row_size,&
                &     1.0_dp, pkd_u(u_offset), k_row_size)
        ENDDO
@@ -3920,6 +3919,112 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
 
   END SUBROUTINE packed_vec_bif_tech
+
+
+  SUBROUTINE packed_vec_build_u(pkd_u, pkd_v, k, n, s, vec_blk_size, error)
+    REAL(dp), DIMENSION(:), INTENT(OUT)      :: pkd_u
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v
+    INTEGER, INTENT(IN)                      :: k, n
+    REAL(dp), INTENT(IN)                     :: s
+    INTEGER, DIMENSION(:), INTENT(IN)        :: vec_blk_size
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_build_u', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, i_blk_size, k_blk_size, &
+                                                u_offset, v_offset
+
+    pkd_u(1:n+1) = 0.0_dp
+    u_offset = n+2
+    !
+    ! u(k,:) = [ v(k,1:k-1)/s -1 0 ... 0]
+    k_blk_size = vec_blk_size(k)
+    DO i = 1,k-1
+       v_offset = INT(pkd_v(i))
+       IF(v_offset.GT.0) THEN
+          i_blk_size = vec_blk_size(i)
+          CALL dcopy(k_blk_size*i_blk_size, pkd_v(v_offset),1,pkd_u(u_offset),1)
+          CALL dscal(k_blk_size*i_blk_size, -1.0_dp/s, pkd_u(u_offset),1)
+          pkd_u(i) = u_offset
+          u_offset = u_offset + k_blk_size*i_blk_size
+       ENDIF
+    ENDDO
+    !
+    CALL block_set(k_blk_size, k_blk_size, pkd_u(u_offset:u_offset+ k_blk_size**2-1), &
+         &         1.0_dp, 0.0_dp)
+    pkd_u(k) = u_offset
+    u_offset = u_offset + k_blk_size**2
+    pkd_u(n+1) = u_offset
+
+  END SUBROUTINE packed_vec_build_u
+
+! *****************************************************************************
+!> \brief Does the operations:
+!>      v(k,:) = v(k,:) - uAk(i,k)' * inv(d(i,i)) * v(i,:) / s
+!>
+! *****************************************************************************
+  SUBROUTINE packed_vec_bif_tech2(mat_v, pkd_v_fac, ivec, pkd_v, error)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: mat_v
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v_fac
+    INTEGER, INTENT(IN)                      :: ivec
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_v
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'packed_vec_bif_tech2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: blk, col, col_size, k_row, k_row_size, offset, row, row_size, &
+      timing_handle, ufac_offset, v_offset, v_offset_last
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    row_blk_size => array_data (mat_v%row_blk_size)
+    col_blk_size => array_data (mat_v%col_blk_size)
+
+    IF(pkd_v(mat_v%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
+
+    !
+    !v(k,:) (pkd) = v(k,:) (pkd) - (inv(d(i,i)) * uAk(i,k))' / s (pkd) * v(i,:) (bcsr) i = 1,ivec-1
+    k_row = ivec
+    k_row_size = row_blk_size(k_row)
+    v_offset_last = INT(pkd_v(mat_v%nblkrows_total+1))
+    DO row = 1, mat_v%nblkrows_total
+       IF(row.GE.k_row) EXIT !i = 1,ivec-1
+       row_size = row_blk_size(row)
+       ufac_offset = INT(pkd_v_fac(row))
+       IF(ufac_offset.LE.0) CYCLE
+       DO blk = mat_v%row_p(row)+1,mat_v%row_p(row+1)
+          col = mat_v%col_i(blk)
+          col_size = col_blk_size(col)
+          offset = ABS(mat_v%blk_p(blk))
+          v_offset = INT(pkd_v(col))
+          IF(v_offset.LE.0) THEN
+             v_offset = v_offset_last
+             v_offset_last = v_offset_last + k_row_size * col_size
+             pkd_v(v_offset:v_offset+k_row_size * col_size-1) = 0.0_dp
+             pkd_v(mat_v%nblkrows_total+1) = REAL(v_offset_last,dp)
+          ENDIF
+          !
+          ! let's multiply and add
+          CALL dgemm('T', 'N', k_row_size, col_size, row_size,&
+               &    -1.0_dp, pkd_v_fac(ufac_offset), row_size,&
+               &             mat_v%data(offset), row_size,&
+                  &     1.0_dp, pkd_v(v_offset), k_row_size)
+       ENDDO
+    ENDDO ! row
+    !
+
+    IF(pkd_v(mat_v%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE packed_vec_bif_tech2
+
+
 
   SUBROUTINE packed_vec_bcast(pkd_vec, source, scope, mp_obj, error)
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec

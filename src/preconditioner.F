@@ -1880,7 +1880,7 @@ END SUBROUTINE make_full_all_ortho
                                                 row_blk_size_array
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: fm_work1, fm_work2
-    TYPE(dbcsr_distribution_obj)             :: dist, dist_main
+    TYPE(dbcsr_distribution_obj)             :: dist_main
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_type)                         :: mat_li, mat_li_scaled, &
                                                 mat_lt, mat_s, mat_t, &
@@ -1945,7 +1945,7 @@ END SUBROUTINE make_full_all_ortho
     max_row_blk_size = MAXVAL(row_blk_size)
     max_blk_size = max_row_blk_size**2
     nblkrows_local = mat_s%nblkrows_local
-    max_vec_size = nblkrows_local*max_blk_size
+    max_vec_size = nblkrows_local*max_blk_size+n+1
 
     WRITE(*,*) 'max_blk_size',max_blk_size
     WRITE(*,*) 'max_vec_size',max_vec_size
@@ -1982,7 +1982,9 @@ END SUBROUTINE make_full_all_ortho
     !
     ! let's bif !
     DO k = 1,n
-       ! 
+       !------------------------------------------------------------------------
+       ! set v and u 
+       !
        !v(k,1:n)=A(k,1:n);
        CALL dbcsr_copy_vec(mat_v, mat_t, 'row', k, error=error)!PARA local copy
        !
@@ -1994,41 +1996,51 @@ END SUBROUTINE make_full_all_ortho
        CALL dbcsr_put_block(mat_v, blk, k, k, error=error)!PARA local put
        !
        !u(k,k)=1;
-       CALL block_set(row_blk_size(k), row_blk_size(k), blk, 1.0_dp, 0.0_dp)
-       CALL dbcsr_put_block(mat_li, blk, k, k, error=error)!PARA local put
+       !old CALL block_set(row_blk_size(k), row_blk_size(k), blk, 1.0_dp, 0.0_dp)
+       !old CALL dbcsr_put_block(mat_li, blk, k, k, error=error)!PARA local put
        !
+       !------------------------------------------------------------------------
+       ! build the factor inv(d)*u*A
+       ! 
        ! compute u(1:k-1,1:n) * A(1:n,k);
-       ! SHOULD DO ONLY THE 1:K-1 ROWS
-       CALL dbcsr_multiply_vec(mat_li, mat_t, k, pkd_v_fac, error=error)!PARA pkd_v_fac is hold by 
-       !                                                                !PARA the same procs as A(1:n,k)
+       CALL dbcsr_multiply_vec(mat_li, mat_t, 1, k-1, k, pkd_v_fac, error=error)!PARA pkd_v_fac is hold by 
+       !                                                                        !PARA the same procs as A(1:n,k)
        !
        ! bcast pkd_v_fac
        !CALL packed_vec_bcast(pkd_v_fac, source, 'colounwise', mp_obj, error=error) !PARA replicate columnwise
        !
        ! compute inv(d(i,i)) * uAk(i,k) / s , i=1,k-1
-       CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_v_fac, k, row_blk_size, 'left', error=error)!PARA local
-       !
-       ! pack u(:,k)
-       CALL dbcsr_pack_vec(mat_v, k, pkd_u_fac, 'column', error=error)
+       CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_v_fac, k-1, k, row_blk_size, 'left', error=error)!PARA local
+       !------------------------------------------------------------------------
+       ! build the factor inv(d)*v
+       ! 
+       ! pack v(:,k)
+       !old CALL dbcsr_pack_vec(mat_v, k, pkd_u_fac, 'column', error=error)
        !
        ! bcast pkd_u_fac
        !CALL packed_vec_bcast(pkd_u_fac, source, 'colounwise', mp_obj, error=error) !PARA replicate columnwise
        !
        ! compute inv(d(i,i)) * v(i,k) / s , i=1,k-1
-       CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_u_fac, k, row_blk_size, 'left', error=error)!PARA local
+       !old CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_u_fac, k-1, k, row_blk_size, 'left', error=error)!PARA local
+       !------------------------------------------------------------------------
+       ! update v and u
        !
        ! pack u(k,:) and v(k,:)
        CALL dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
-       CALL dbcsr_pack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
+       !old CALL dbcsr_pack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
        !
        ! bcast the u and v
-       !CALL packed_vec_bcast(pkd_v, source, 'colounwise', mp_obj, error=error) !PARA replicate columnwise
-       !CALL packed_vec_bcast(pkd_u, source, 'columnwise', mp_obj, error=error) !PARA replicate columnwise
+       !CALL packed_vec_bcast(pkd_v, source, 'colounwise', mp_obj, error=error)
+       !CALL packed_vec_bcast(pkd_u, source, 'columnwise', mp_obj, error=error)
        !
        ! the core
        !v(k,1:n) = v(k,1:n) - uAk(i,k)' * inv(d(i,i)) * v(i,1:n) / s; i = 1,k-1
        !u(k,1:n) = u(k,1:n) -   v(i,k)' * inv(d(i,i)) * u(i,1:n) / s; i = 1,k-1
-       CALL packed_vec_bif_tech(mat_v, mat_li, pkd_v_fac, pkd_u_fac, k, pkd_v, pkd_u, error=error)!PARA local
+       !old CALL packed_vec_bif_tech(mat_v, mat_li, pkd_v_fac, pkd_u_fac, k, pkd_v, pkd_u, error=error)!PARA local
+       CALL packed_vec_bif_tech2(mat_v, pkd_v_fac, k, pkd_v, error=error)!PARA local
+       !
+       ! build u(k,:) = [-v(k,1:k-1)/s 1 0 ... 0]
+       CALL packed_vec_build_u(pkd_u, pkd_v, k, n, s, row_blk_size, error=error)
        !
        ! reduce the u and v
        !CALL packed_vec_reduce(pkd_v, to, 'columnwise', vec_blk_size, n, mp_obj, error=error)
@@ -2037,6 +2049,8 @@ END SUBROUTINE make_full_all_ortho
        ! unpack u(k,:) and v(k,:)
        CALL dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
        CALL dbcsr_unpack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
+       !------------------------------------------------------------------------
+       ! build d and inv(d)
        !
        ! d(k,k) = v(k,k) / s + eye(k);
        CALL dbcsr_get_block(mat_v,blk, k, k, found, error=error) !PARA local
@@ -2050,6 +2064,7 @@ END SUBROUTINE make_full_all_ortho
        !
        ! update the block pointer
        d_offset = d_offset + row_blk_size(k)**2
+       !------------------------------------------------------------------------
     ENDDO
     !
     ! D=d;
