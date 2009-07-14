@@ -36,8 +36,7 @@ MODULE qs_linres_module
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_linres_current,               ONLY: current_build_chi,&
-                                             current_build_current,&
-                                             current_set_gauge
+                                             current_build_current
   USE qs_linres_current_utils,         ONLY: current_env_cleanup,&
                                              current_env_init,&
                                              current_response
@@ -210,7 +209,7 @@ CONTAINS
           ENDIF
           !
           ! Build the rs_gauge if needed
-          CALL current_set_gauge(current_env,qs_env,error=error)
+          !CALL current_set_gauge(current_env,qs_env,error=error)
           !
           ! Loop over field direction
           DO iB = 1,3

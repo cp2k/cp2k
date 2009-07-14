@@ -98,7 +98,7 @@ MODULE qs_linres_types
 
   TYPE current_env_type
      LOGICAL                                     :: full,simple_done(6),simple_converged(6),do_qmmm
-     LOGICAL                                     :: use_old_gauge_atom,chi_pbc,do_selected_states
+     LOGICAL                                     :: use_old_gauge_atom,chi_pbc,do_selected_states,gauge_init
      LOGICAL, DIMENSION(:,:), POINTER            :: full_done
      INTEGER                                     :: ref_count,nao,nstates(2),gauge,orb_center,nbr_center(2)
      INTEGER, DIMENSION(:    ), POINTER          :: list_cubes,selected_states_on_atom_list
@@ -324,6 +324,7 @@ CONTAINS
        current_env%use_old_gauge_atom = .TRUE.
        current_env%chi_pbc = .FALSE.
        current_env%do_selected_states = .FALSE.
+       current_env%gauge_init = .FALSE.
        NULLIFY(current_env%full_done)
        NULLIFY(current_env%list_cubes)
        NULLIFY(current_env%statetrueindex)

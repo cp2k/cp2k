@@ -134,7 +134,7 @@ MODULE qs_linres_current
      INTEGER :: n
      REAL(dp), POINTER, DIMENSION(:,:) :: r
   END TYPE box_type
-  REAL(dp), DIMENSION(3, 3, 3),PARAMETER  :: Levi_Civita = RESHAPE((/&
+ REAL(dp), DIMENSION(3, 3, 3),PARAMETER  :: Levi_Civita = RESHAPE((/&
        0.0_dp, 0.0_dp,0.0_dp,0.0_dp,0.0_dp,-1.0_dp, 0.0_dp,1.0_dp,0.0_dp,&
        0.0_dp, 0.0_dp,1.0_dp,0.0_dp,0.0_dp, 0.0_dp,-1.0_dp,0.0_dp,0.0_dp,&
        0.0_dp,-1.0_dp,0.0_dp,1.0_dp,0.0_dp, 0.0_dp, 0.0_dp,0.0_dp,0.0_dp/),(/3,3,3/))
@@ -579,6 +579,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, distributed_rs_grids, do_igaim, failure, &
       map_consistent, my_minimum_image, my_soft
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_current, my_gauge, my_rho
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
                                                 Lxo2, Lyo2, Lzo2, rab2, &
@@ -695,11 +696,11 @@ CONTAINS
     ALLOCATE(rs_current(gridlevel_info%ngrid_levels), rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
-       CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
+       !CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+       !CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
        CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       IF(.NOT.ALL(rs_current(igrid_level)%rs_grid%desc%perd == 1)) THEN
+       IF(.NOT.ALL(rs_rho(igrid_level)%rs_grid%desc%perd == 1)) THEN
           distributed_rs_grids = .TRUE.
        ENDIF
     ENDDO
@@ -726,7 +727,7 @@ CONTAINS
     ntasks = 0
     IF ( nthread > 1 ) THEN
        DO igrid_level = 1,gridlevel_info%ngrid_levels
-          ntasks = MAX(ntasks,rs_current(igrid_level)%rs_grid%ngpts_local)
+          ntasks = MAX(ntasks,rs_rho(igrid_level)%rs_grid%ngpts_local)
        END DO
        ntasks = ntasks*nthread
        CALL reallocate(lgrid%r,1,ntasks)
@@ -979,6 +980,61 @@ CONTAINS
     CALL distribute_tasks ( rs_rho, ntasks, natom,&
             maxset, maxpgf, tasks, dist_ab, atom_pair_send, atom_pair_recv,&
             .FALSE. , error)
+    !-------------------------------------------------------------
+    !
+    ! we dont trust previous call anymore, bug introduiced the 2009-05-07 20:33 src/task_list_methods.F !
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+       CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc,&
+            &              error=error)
+       CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
+    ENDDO
+    !
+    ! we need to build the gauge here
+    IF(.NOT.current_env%gauge_init) THEN
+       CALL current_set_gauge(current_env, qs_env, error=error)
+       current_env%gauge_init = .TRUE.
+    ENDIF
+    !
+    ! for any case double check the bounds !
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       my_rho=>rs_rho(igrid_level)%rs_grid%r
+       my_current=>rs_current(igrid_level)%rs_grid%r
+       IF(LBOUND( my_rho, 3 ).NE.LBOUND( my_current, 3 ).OR.&
+          LBOUND( my_rho, 2 ).NE.LBOUND( my_current, 2 ).OR.&
+          LBOUND( my_rho, 1 ).NE.LBOUND( my_current, 1 ).OR.&
+          UBOUND( my_rho, 3 ).NE.UBOUND( my_current, 3 ).OR.&
+          UBOUND( my_rho, 2 ).NE.UBOUND( my_current, 2 ).OR.&
+          UBOUND( my_rho, 1 ).NE.UBOUND( my_current, 1 ) )THEN
+          WRITE(*,*) 'LBOUND(my_rho,3),LBOUND(my_current,3)',LBOUND(my_rho,3),LBOUND(my_current,3)
+          WRITE(*,*) 'LBOUND(my_rho,2),LBOUND(my_current,2)',LBOUND(my_rho,2),LBOUND(my_current,2)
+          WRITE(*,*) 'LBOUND(my_rho,1),LBOUND(my_current,1)',LBOUND(my_rho,1),LBOUND(my_current,1)
+          WRITE(*,*) 'UBOUND(my_rho,3),UBOUND(my_current,3)',UBOUND(my_rho,3),UBOUND(my_current,3)
+          WRITE(*,*) 'UBOUND(my_rho,2),UBOUND(my_current,2)',UBOUND(my_rho,2),UBOUND(my_current,2)
+          WRITE(*,*) 'UBOUND(my_rho,1),UBOUND(my_current,1)',UBOUND(my_rho,1),UBOUND(my_current,1)
+          CALL stop_program(routineP,"bug")
+       ENDIF
+
+       IF(do_igaim) THEN
+          my_gauge=>rs_gauge(1)%rs(igrid_level)%rs_grid%r
+          IF(LBOUND( my_rho, 3 ).NE.LBOUND( my_gauge, 3 ).OR.&
+             LBOUND( my_rho, 2 ).NE.LBOUND( my_gauge, 2 ).OR.&
+             LBOUND( my_rho, 1 ).NE.LBOUND( my_gauge, 1 ).OR.&
+             UBOUND( my_rho, 3 ).NE.UBOUND( my_gauge, 3 ).OR.&
+             UBOUND( my_rho, 2 ).NE.UBOUND( my_gauge, 2 ).OR.&
+             UBOUND( my_rho, 1 ).NE.UBOUND( my_gauge, 1 )) THEN
+             WRITE(*,*) 'LBOUND(my_rho,3),LBOUND(my_gauge,3)',LBOUND(my_rho,3),LBOUND(my_gauge,3)
+             WRITE(*,*) 'LBOUND(my_rho,2),LBOUND(my_gauge,2)',LBOUND(my_rho,2),LBOUND(my_gauge,2)
+             WRITE(*,*) 'LBOUND(my_rho,1),LBOUND(my_gauge,1)',LBOUND(my_rho,1),LBOUND(my_gauge,1)
+             WRITE(*,*) 'UBOUND(my_rho,3),UbOUND(my_gauge,3)',UBOUND(my_rho,3),UBOUND(my_gauge,3)
+             WRITE(*,*) 'UBOUND(my_rho,2),UBOUND(my_gauge,2)',UBOUND(my_rho,2),UBOUND(my_gauge,2)
+             WRITE(*,*) 'UBOUND(my_rho,1),UBOUND(my_gauge,1)',UBOUND(my_rho,1),UBOUND(my_gauge,1)
+             CALL stop_program(routineP,"bug")
+          ENDIF
+       ENDIF
+    ENDDO
+    !
+    !-------------------------------------------------------------
 
     IF (distributed_rs_grids) THEN
         CALL distribute_matrix (rs_current, deltajp_a, atom_pair_send, atom_pair_recv, &
@@ -1344,6 +1400,7 @@ CONTAINS
        ALLOCATE (rs_gauge(3)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO igrid_level = pw_env%gridlevel_info%ngrid_levels,1,-1
+
           CALL rs_grid_create(rs_gauge(1)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
           CALL rs_grid_create(rs_gauge(2)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
           CALL rs_grid_create(rs_gauge(3)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
