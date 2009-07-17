@@ -1402,7 +1402,8 @@ END SUBROUTINE qs_scf_print_summary
                         scf_control%diagonalization%ot_settings%precond_solver_type, &
                         matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
                         qs_env%kinetic(1)%matrix, &
-                        mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,error=error)
+                        mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,&
+                        error=error)
            ENDDO
          CASE DEFAULT
            ! constuct the preconditioner based on the first spin set.
@@ -1413,7 +1414,8 @@ END SUBROUTINE qs_scf_print_summary
                      scf_control%diagonalization%ot_settings%precond_solver_type, &
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,&
                      qs_env%kinetic(1)%matrix, &
-                     mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,error=error)
+                     mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,&
+                     error=error)
        END SELECT
 
     CASE (ot_method_nr)
@@ -1559,7 +1561,8 @@ CPSourceFileRef)
                           scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                           matrix_h=matrix_ks(ispin)%matrix, &
                           mo_coeff=mo_coeff, &
-                          energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                          energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
+                          error=error)
                    ELSE
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
@@ -1568,7 +1571,8 @@ CPSourceFileRef)
                           matrix_s=matrix_s(1)%matrix, &
                           matrix_t=matrix_s(1)%matrix, &
                           mo_coeff=mo_coeff,&
-                          energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                          energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
+                          error=error)
                    END IF
                 ENDDO
                 IF ( scp_nddo ) THEN
@@ -1666,7 +1670,9 @@ CPSourceFileRef)
                         scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                         matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
                         qs_env%kinetic(1)%matrix, &
-                        mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                        mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap, &
+                        scf_env%qs_ot_env(1)%settings%mixed_precision, &
+                        error=error)
                 ENDDO
                 ! **** SCP
                 IF ( scp_dft ) THEN
@@ -1693,7 +1699,9 @@ CPSourceFileRef)
                      scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,&
                      qs_env%kinetic(1)%matrix, &
-                     mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                     mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap, &
+                     scf_env%qs_ot_env(1)%settings%mixed_precision, &
+                     error=error)
                 ! **** SCP
                 IF ( scp_dft ) THEN
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )

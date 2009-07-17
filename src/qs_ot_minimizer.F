@@ -111,6 +111,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
            END SELECT
         END IF
         ! and also the gradient along the direction
+
         IF (qs_ot_env(1)%use_dx) THEN
            IF ( do_ks ) THEN
              CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp,error=error)
@@ -164,7 +165,6 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
         ENDIF
       ENDDO
    ENDIF
-
    SELECT CASE(qs_ot_env(1)%settings%OT_METHOD)
    CASE ("CG")
         IF (current_point_is_fine(qs_ot_env)) THEN
@@ -1014,7 +1014,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
       ENDDO
    END IF 
 ! *** SCP
-
    IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
        qs_ot_env(1)%gnorm=0.0_dp
        IF ( do_ks ) THEN
@@ -1107,7 +1106,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          ENDDO
        END IF
    ENDIF
-
    k    = 0
    nscp = 0
    n    = 0
@@ -1142,7 +1140,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
    END IF
 
    ! make the diis matrix and solve it
-
    DO i=1,diis_bound
       ! I think there are two possible options, with and without preconditioner
       ! as a metric
@@ -1227,7 +1224,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
    qs_ot_env(1)%lss_diis=qs_ot_env(1)%ls_diis
    CALL DGESV(diis_bound+1, 1, qs_ot_env(1)%lss_diis,diis_m+1,qs_ot_env(1)%ipivot,&
                  qs_ot_env(1)%c_diis, diis_m+1, info)
-
    IF (info.ne.0) CALL stop_program("ot diis","singular diis matrix")
 
    IF ( do_ks ) THEN
@@ -1293,7 +1289,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
      ENDDO
    END IF
    qs_ot_env(1)%diis_iter=qs_ot_env(1)%diis_iter+1
-
    IF (qs_ot_env(1)%settings%safer_diis) THEN
       ! now, final check, is the step in fact in the direction of the -gradient ?
       ! if not we're walking towards a sadle point, and should avoid that
@@ -1385,7 +1380,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          END IF
       ENDIF
    ENDIF
-
 END SUBROUTINE ot_diis_step
 
 END MODULE qs_ot_minimizer

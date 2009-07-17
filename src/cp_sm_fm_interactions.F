@@ -23,7 +23,8 @@ MODULE cp_sm_fm_interactions
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             sp
   USE mathlib,                         ONLY: lcm
   USE message_passing,                 ONLY: mp_alltoall,&
                                              mp_bcast,&
@@ -275,6 +276,7 @@ CONTAINS
 
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row, last_col, last_row
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: fm_block, real_matrix_block
+    REAL(KIND = sp), DIMENSION(:,:), POINTER :: fm_block_sp
     TYPE(cp_blacs_env_type), POINTER  :: context
 
     INTEGER :: i,j,k
@@ -567,7 +569,11 @@ CONTAINS
     ! write(6,*) "OUT",mype,data_recv
 
     ! Finally, unpack the data filling in the fm%local_data
-    fm%local_data=0.0_dp
+    IF(fm%use_sp) THEN
+       fm%local_data_sp=0.0_sp
+    ELSE
+       fm%local_data=0.0_dp
+    ENDIF
     k=0
     DO iblock=1,total_recv_blocks
        smblock_row=block_recv((iblock-1)*2+1)
@@ -579,7 +585,11 @@ CONTAINS
        DO j=1,block_info_col(2,smblock_col)-block_info_col(1,smblock_col)+1
           DO i=1,block_info_row(2,smblock_row)-block_info_row(1,smblock_row)+1
              k=k+1
-             fm%local_data(sb_offset_i+i,sb_offset_j+j)=data_recv(k)
+             IF(fm%use_sp) THEN
+                fm%local_data_sp(sb_offset_i+i,sb_offset_j+j)=REAL(data_recv(k),sp)
+             ELSE
+                fm%local_data(sb_offset_i+i,sb_offset_j+j)=data_recv(k)
+             ENDIF
           ENDDO
        ENDDO
     ENDDO
@@ -593,8 +603,13 @@ CONTAINS
 #else
 
     fm_block => fm%local_data
+    fm_block_sp => fm%local_data_sp
 
-    fm_block(:,:) = 0.0_dp
+    IF(fm%use_sp) THEN
+       fm_block_sp(:,:) = 0.0_sp
+    ELSE
+       fm_block(:,:) = 0.0_dp
+    ENDIF
 
     DO iblock_row=1,nblock_row
 
@@ -615,7 +630,11 @@ CONTAINS
 
              DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
-                fm_block(irow_global,icol_global) = real_matrix_block(irow,icol)
+                IF(fm%use_sp) THEN
+                   fm_block_sp(irow_global,icol_global) = REAL(real_matrix_block(irow,icol),sp)
+                ELSE
+                   fm_block(irow_global,icol_global) = real_matrix_block(irow,icol)
+                ENDIF
 
                 irow = irow + 1
 

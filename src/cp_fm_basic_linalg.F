@@ -17,9 +17,11 @@ MODULE cp_fm_basic_linalg
        cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             sp
   USE mathlib,                         ONLY: invert_matrix
   USE message_passing,                 ONLY: mp_sum
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -70,6 +72,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_beta
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp, b_sp
 
     CALL timeset(routineN,handle)
 
@@ -103,10 +106,21 @@ CPSourceFileRef, &
     END IF
 
     a => matrix_a%local_data
-    size_a = SIZE(a,1)*SIZE(a,2)
+    a_sp => matrix_a%local_data_sp
 
-    IF (alpha /= 1.0_dp) CALL dscal ( size_a, alpha, a, 1)
+    IF(matrix_a%use_sp) THEN
+       size_a = SIZE(a_sp,1)*SIZE(a_sp,2)
+    ELSE
+       size_a = SIZE(a,1)*SIZE(a,2)
+    ENDIF
 
+    IF (alpha /= 1.0_dp) THEN
+       IF(matrix_a%use_sp) THEN
+          CALL sscal ( size_a, REAL(alpha,sp), a_sp, 1)
+       ELSE
+          CALL dscal ( size_a, alpha, a, 1)
+       ENDIF
+    ENDIF
     IF (my_beta.NE.0.0_dp) THEN
        CALL cp_assert(matrix_a%matrix_struct%context%group==&
             matrix_b%matrix_struct%context%group,cp_failure_level,&
@@ -119,8 +133,17 @@ CPSourceFileRef,&
             matrix_b%matrix_struct,error=error)) THEN
 
           b => matrix_b%local_data
+          b_sp => matrix_b%local_data_sp
 
-          CALL daxpy ( size_a, my_beta, b, 1, a, 1 )
+          IF(matrix_a%use_sp.AND.matrix_b%use_sp) THEN
+             CALL saxpy ( size_a, REAL(my_beta,sp), b_sp, 1, a_sp, 1 )
+          ELSEIF(matrix_a%use_sp.AND..NOT.matrix_b%use_sp) THEN
+             CALL saxpy ( size_a, REAL(my_beta,sp), REAL(b,sp), 1, a_sp, 1 )
+          ELSEIF(.NOT.matrix_a%use_sp.AND.matrix_b%use_sp) THEN
+             CALL daxpy ( size_a, my_beta, REAL(b_sp,dp), 1, a, 1 )
+          ELSE
+             CALL daxpy ( size_a, my_beta, b, 1, a, 1 )
+          ENDIF
 
        ELSE
 #ifdef __SCALAPACK
@@ -244,12 +267,17 @@ CPSourceFileRef,&
                                                 j_c, lda, ldb, ldc
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp, b_sp, c_sp
 
     CALL timeset(routineN,handle)
 
     a => matrix_a%local_data
     b => matrix_b%local_data
     c => matrix_c%local_data
+
+    a_sp => matrix_a%local_data_sp
+    b_sp => matrix_b%local_data_sp
+    c_sp => matrix_c%local_data_sp
 
     IF (PRESENT(a_first_row)) THEN
       i_a = a_first_row
@@ -284,15 +312,41 @@ CPSourceFileRef,&
     descb(:) = matrix_b%matrix_struct%descriptor(:)
     descc(:) = matrix_c%matrix_struct%descriptor(:)
 
-    CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),i_a,1,desca,b(1,1),i_b,j_b,&
-                descb,beta,c(1,1),i_c,j_c,descc)
+    IF(matrix_a%use_sp.AND.matrix_b%use_sp.AND.matrix_c%use_sp) THEN
+
+       CALL psgemm(transa,transb,m,n,k,REAL(alpha,sp),a_sp(1,1),i_a,1,desca,b_sp(1,1),i_b,j_b,&
+                   descb,REAL(beta,sp),c_sp(1,1),i_c,j_c,descc)
+
+    ELSEIF((.NOT.matrix_a%use_sp).AND.(.NOT.matrix_b%use_sp).AND.(.NOT.matrix_c%use_sp)) THEN
+
+       CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),i_a,1,desca,b(1,1),i_b,j_b,&
+                   descb,beta,c(1,1),i_c,j_c,descc)
+
+    ELSE
+       CALL stop_program(routineN,"mixed precision gemm NYI")
+    ENDIF
 #else
 
-    lda = SIZE(a,1)
-    ldb = SIZE(b,1)
-    ldc = SIZE(c,1)
+    IF(matrix_a%use_sp.AND.matrix_b%use_sp.AND.matrix_c%use_sp) THEN
 
-    CALL dgemm(transa,transb,m,n,k,alpha,a(i_a,1),lda,b(i_b,j_b),ldb,beta,c(i_c,j_c),ldc)
+       lda = SIZE(a_sp,1)
+       ldb = SIZE(b_sp,1)
+       ldc = SIZE(c_sp,1)
+
+       CALL sgemm(transa,transb,m,n,k,REAL(alpha,sp),a_sp(i_a,1),lda,b_sp(i_b,j_b),ldb,&
+            &     REAL(beta,sp),c_sp(i_c,j_c),ldc)
+
+    ELSEIF((.NOT.matrix_a%use_sp).AND.(.NOT.matrix_b%use_sp).AND.(.NOT.matrix_c%use_sp)) THEN
+
+       lda = SIZE(a,1)
+       ldb = SIZE(b,1)
+       ldc = SIZE(c,1)
+
+       CALL dgemm(transa,transb,m,n,k,alpha,a(i_a,1),lda,b(i_b,j_b),ldb,beta,c(i_c,j_c),ldc)
+
+    ELSE
+       CALL stop_program(routineN,"mixed precision gemm NYI")
+    ENDIF
 
 #endif
     CALL timestop(handle)
@@ -600,6 +654,7 @@ CPSourceFileRef,&
                                                 myprow, ncol_local, npcol, &
                                                 nprow, nrow_local
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp, b_sp
     TYPE(cp_blacs_env_type), POINTER         :: context
 
     CALL timeset(routineN,handle)
@@ -615,12 +670,26 @@ CPSourceFileRef,&
     a => matrix_a%local_data
     b => matrix_b%local_data
 
+    a_sp => matrix_a%local_data_sp
+    b_sp => matrix_b%local_data_sp
+
     nrow_local = MIN(matrix_a%matrix_struct%nrow_locals(myprow),matrix_b%matrix_struct%nrow_locals(myprow))
     ncol_local = MIN(matrix_a%matrix_struct%ncol_locals(mypcol),matrix_b%matrix_struct%ncol_locals(mypcol))
 
     ! cries for an accurate_dot_product
-    trace = accurate_sum(a(1:nrow_local,1:ncol_local) * &
-                         b(1:nrow_local,1:ncol_local) )
+    IF(matrix_a%use_sp.AND.matrix_b%use_sp) THEN
+       trace = accurate_sum(REAL(a_sp(1:nrow_local,1:ncol_local) * &
+            &                    b_sp(1:nrow_local,1:ncol_local), dp) )
+    ELSEIF(matrix_a%use_sp.AND..NOT.matrix_b%use_sp) THEN
+       trace = accurate_sum(REAL(a_sp(1:nrow_local,1:ncol_local), dp) * &
+            &                       b(1:nrow_local,1:ncol_local) )
+    ELSEIF(.NOT.matrix_a%use_sp.AND.matrix_b%use_sp) THEN
+       trace = accurate_sum(        a(1:nrow_local,1:ncol_local) * &
+            &               REAL(b_sp(1:nrow_local,1:ncol_local), dp) )
+    ELSE
+       trace = accurate_sum(a(1:nrow_local,1:ncol_local) * &
+                            b(1:nrow_local,1:ncol_local) )
+    ENDIF
 
     CALL mp_sum(trace,group)
 
@@ -863,6 +932,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER, DIMENSION(9) :: desca,descc
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,c
+    REAL(KIND = sp), DIMENSION(:,:), POINTER :: a_sp,c_sp
     TYPE(cp_blacs_env_type), POINTER :: context
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_upper_to_full',&
          routineP=moduleN//':'//routineN 
@@ -883,6 +953,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     nrow_global = work%matrix_struct%nrow_global
     ncol_global = work%matrix_struct%ncol_global
     CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,error,failure)
+    CPPrecondition(matrix%use_sp.EQV.work%use_sp,cp_failure_level,routineP,error,failure)
     IF (failure) RETURN
 
     CALL timeset(routineN,handle)
@@ -902,8 +973,10 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
 
     a => work%local_data
+    a_sp => work%local_data_sp
     desca(:) = work%matrix_struct%descriptor(:)
     c => matrix%local_data
+    c_sp => matrix%local_data_sp
     descc(:) = matrix%matrix_struct%descriptor(:)
 
     DO icol_local=1,ncol_local
@@ -913,28 +986,49 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
         irow_global = indxl2g(irow_local,nrow_block,myprow,&
              matrix%matrix_struct%first_p_pos(1),nprow)
         IF (irow_global > icol_global) THEN
-          c(irow_local,icol_local) = 0.0_dp
+           IF(matrix%use_sp) THEN
+              c_sp(irow_local,icol_local) = 0.0_sp
+           ELSE
+              c(irow_local,icol_local) = 0.0_dp
+           ENDIF
         ELSE IF (irow_global == icol_global) THEN
-          c(irow_local,icol_local) = 0.5_dp*c(irow_local,icol_local)
+           IF(matrix%use_sp) THEN
+              c_sp(irow_local,icol_local) = 0.5_sp*c_sp(irow_local,icol_local)
+           ELSE
+              c(irow_local,icol_local) = 0.5_dp*c(irow_local,icol_local)
+           ENDIF
         END IF
       END DO
     END DO
      
     DO icol_local=1,ncol_local
     DO irow_local=1,nrow_local
-       a(irow_local,icol_local) = c(irow_local,icol_local)
+       IF(matrix%use_sp) THEN
+          a_sp(irow_local,icol_local) = c_sp(irow_local,icol_local)
+       ELSE
+          a(irow_local,icol_local) = c(irow_local,icol_local)
+       ENDIF
     ENDDO
     ENDDO
 
-    CALL pdtran(nrow_global,ncol_global,1.0_dp,a(1,1),1,1,desca,1.0_dp,c(1,1),1,1,descc)
+    IF(matrix%use_sp) THEN
+       CALL pstran(nrow_global,ncol_global,1.0_sp,a_sp(1,1),1,1,desca,1.0_sp,c_sp(1,1),1,1,descc)
+    ELSE
+       CALL pdtran(nrow_global,ncol_global,1.0_dp,a(1,1),1,1,desca,1.0_dp,c(1,1),1,1,descc)
+    ENDIF
 
 #else
 
     a => matrix%local_data
+    a_sp => matrix%local_data_sp
     DO irow_global=1,nrow_global
-     DO icol_global=irow_global+1,ncol_global
-      a(icol_global,irow_global)=a(irow_global,icol_global)
-     ENDDO
+       DO icol_global=irow_global+1,ncol_global
+          IF(matrix%use_sp) THEN
+             a_sp(icol_global,irow_global)=a_sp(irow_global,icol_global)
+          ELSE
+             a(icol_global,irow_global)=a(irow_global,icol_global)
+          ENDIF
+       ENDDO
     ENDDO
 
 #endif
@@ -958,6 +1052,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER :: i, icol_global, icol_local, ipcol, iprow, irow_local, k, &
       mypcol, myprow, n, ncol_global, npcol, nprow
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
 
     myprow=matrixa%matrix_struct%context%mepos(1)
     mypcol=matrixa%matrix_struct%context%mepos(2)
@@ -967,7 +1062,12 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     ncol_global =matrixa%matrix_struct%ncol_global
 
     a => matrixa%local_data
-    n =  SIZE(a,1)
+    a_sp => matrixa%local_data_sp
+    IF(matrixa%use_sp) THEN
+       n =  SIZE(a_sp,1)
+    ELSE
+       n =  SIZE(a,1)
+    ENDIF
     k =  MIN(SIZE(scaling),ncol_global)
 
 #if defined(__SCALAPACK)
@@ -977,12 +1077,20 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
             nprow,npcol,myprow,mypcol,&
             irow_local,icol_local,iprow,ipcol)
        IF ((ipcol == mypcol)) THEN
-           CALL DSCAL(n,scaling(icol_global),a(1,icol_local),1)
+          IF(matrixa%use_sp) THEN
+             CALL SSCAL(n,REAL(scaling(icol_global),sp),a_sp(1,icol_local),1)
+          ELSE
+             CALL DSCAL(n,scaling(icol_global),a(1,icol_local),1)
+          ENDIF
        END IF
     ENDDO
 #else
     DO i=1,k
-      CALL DSCAL(n,scaling(i),a(1,i),1)
+       IF(matrixa%use_sp) THEN
+          CALL SSCAL(n,REAL(scaling(i),sp),a_sp(1,i),1)
+       ELSE
+          CALL DSCAL(n,scaling(i),a(1,i),1)
+       ENDIF
     ENDDO
 #endif
   END SUBROUTINE cp_fm_column_scale

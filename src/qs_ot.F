@@ -97,7 +97,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat, ncoef
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, mixed_precision
 
     failure = .FALSE.
 
@@ -107,9 +107,12 @@ CONTAINS
        CALL cp_fm_create(qs_ot_env%matrix_psc0,qs_ot_env%matrix_sc0%matrix_struct,"matrix_psc0",error=error)
     ENDIF
 
+    mixed_precision = qs_ot_env%settings%mixed_precision
+
     IF (.NOT. qs_ot_env%use_dx) THEN
        qs_ot_env%use_dx=.TRUE.
-       CALL cp_fm_create(qs_ot_env%matrix_dx,qs_ot_env%matrix_gx%matrix_struct,"matrix_dx",error=error)
+       CALL cp_fm_create(qs_ot_env%matrix_dx,qs_ot_env%matrix_gx%matrix_struct,"matrix_dx",&
+                         use_sp=mixed_precision,error=error)
        IF (qs_ot_env%settings%do_rotation) THEN
           CALL cp_fm_create(qs_ot_env%rot_mat_dx,qs_ot_env%rot_mat_gx%matrix_struct,"rot_mat_dx",error=error)
        ENDIF
@@ -640,23 +643,37 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n
-    TYPE(cp_fm_type), POINTER                :: C, CHC, G, HC, SC
+    LOGICAL                                  :: mixed_precision
+    TYPE(cp_fm_type), POINTER                :: C, CHC, G, G_dp, HC, SC
 
     CALL timeset(routineN,handle)
-    NULLIFY(C,SC,HC,CHC,G)
+    NULLIFY(C,SC,HC,CHC,G,G_dp)
+
+    mixed_precision = qs_ot_env%settings%mixed_precision
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
     !
-    C   => matrix_x           ! NBsf*NOcc
-    SC  => matrix_sx          ! NBsf*NOcc need to be up2date
-    HC  => matrix_hc          ! NBsf*NOcc
-    G   => matrix_gx          ! NBsf*NOcc
-    CHC => qs_ot_env%matrix_p ! buffer
-    ! C'*(H*C)
-    CALL cp_fm_gemm('T','N',k,k,n,rone,C,HC,rzero,CHC,error=error)
-    ! (S*C)*(C'*H*C)
-    CALL cp_fm_gemm('N','N',n,k,k,rone,SC,CHC,rzero,G,error=error)
-    ! G = 2*(1-S*C*C')*H*C
-    CALL cp_fm_scale_and_add(-rone,G,rone,HC,error=error)
+    C   => matrix_x              ! NBsf*NOcc
+    SC  => matrix_sx             ! NBsf*NOcc need to be up2date
+    HC  => matrix_hc             ! NBsf*NOcc
+    G   => matrix_gx             ! NBsf*NOcc
+    G_dp=> qs_ot_env%matrix_gx_dp! NBsf*NOcc
+    CHC => qs_ot_env%matrix_p    ! buffer
+    IF(mixed_precision) THEN
+       ! C'*(H*C)
+       CALL cp_fm_gemm('T','N',k,k,n,rone,C,HC,rzero,CHC,error=error)
+       ! (S*C)*(C'*H*C)
+       CALL cp_fm_gemm('N','N',n,k,k,rone,SC,CHC,rzero,G_dp,error=error)
+       ! G = 2*(1-S*C*C')*H*C
+       CALL cp_fm_scale_and_add(-rone,G_dp,rone,HC,error=error)
+       CALL cp_fm_to_fm(G_dp,G,error=error)
+    ELSE
+       ! C'*(H*C)
+       CALL cp_fm_gemm('T','N',k,k,n,rone,C,HC,rzero,CHC,error=error)
+       ! (S*C)*(C'*H*C)
+       CALL cp_fm_gemm('N','N',n,k,k,rone,SC,CHC,rzero,G,error=error)
+       ! G = 2*(1-S*C*C')*H*C
+       CALL cp_fm_scale_and_add(-rone,G,rone,HC,error=error)
+    ENDIF
     !
     CALL timestop(handle)
   END SUBROUTINE qs_ot_get_derivative_ref

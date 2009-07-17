@@ -318,7 +318,7 @@ CONTAINS
                        homo=homo)
        CALL cp_fm_create(single_mo_coeff(ispin)%matrix, &
                          mo_coeff%matrix_struct, &
-                         "orbital density matrix", error)
+                         "orbital density matrix", error=error)
 
        CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
             nrow_global=nrow(ispin), ncol_global=ncol(ispin),error=error)
@@ -611,7 +611,7 @@ CONTAINS
                        homo=homo(ispin))
        CALL cp_fm_create(single_mo_coeff(ispin)%matrix, &
                          mo_coeff(ispin)%matrix%matrix_struct, &
-                         "orbital density matrix", error)
+                         "orbital density matrix", error=error)
        CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
                            nrow_global=nrow(ispin), ncol_global=ncol(ispin),error=error)
        NULLIFY(orbital_density_matrix(ispin)%matrix)

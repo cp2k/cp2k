@@ -105,7 +105,7 @@ CONTAINS
 
 ! *****************************************************************************
 SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
-                                      matrix_t,mo_coeff, energy_gap ,error)
+                                      matrix_t,mo_coeff, energy_gap, mixed_precision, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     INTEGER, INTENT(IN)                      :: precon_type, solver_type
@@ -114,6 +114,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
       POINTER                                :: matrix_s, matrix_t
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     REAL(KIND=dp)                            :: energy_gap
+    LOGICAL, INTENT(IN), OPTIONAL            :: mixed_precision
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_single', &
@@ -121,7 +122,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
 
     INTEGER                                  :: handle, istat, k, &
                                                 my_solver_type
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_mixed_precision
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
 
@@ -135,6 +136,17 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
 
   ALLOCATE(eigenvalues_ot(k),STAT=istat)
   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  my_mixed_precision = .FALSE.
+  IF(PRESENT(mixed_precision)) my_mixed_precision = mixed_precision
+  IF(my_mixed_precision) THEN
+     SELECT CASE(precon_type)
+     CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse)
+        !supported
+     CASE DEFAULT
+        CALL stop_program(routineN,"This precond with mixed precision is not supported yet")
+     END SELECT
+  ENDIF
 
   ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
   !                  the case of non-equivalent MOs but also for the derivate
@@ -210,7 +222,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      IF ( PRESENT(matrix_s) .AND. PRESENT(matrix_t) ) THEN
         CALL make_full_kinetic(preconditioner_env, preconditioner_env%fm,&
              &                 matrix_t, matrix_s, energy_homo, energy_gap, &
-             &                 error=error)
+             &                 my_mixed_precision, error=error)
      ELSE
         CALL stop_program("make preconditioner","Type for S=1 not implemented")
      ENDIF
@@ -219,7 +231,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
      IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_single_inverse(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
-                                      eigenvalues_ot, energy_gap,error=error)
+                                      eigenvalues_ot, energy_gap, my_mixed_precision, &
+                                      error=error)
      ELSE
         CALL make_full_single_inverse_ortho(preconditioner_env,mo_coeff,matrix_h, &
                                             eigenvalues_ot, energy_gap,error=error)
@@ -256,7 +269,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      ! compute the full inverse
      preconditioner_env%solver=ot_precond_solver_inv_chol
      CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
-          &                          error=error)
+          &                          my_mixed_precision, error=error)
   CASE (ot_precond_solver_sainv)
      !
      preconditioner_env%solver=ot_precond_solver_sainv
@@ -265,7 +278,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      ! FOR THE MOMENT WE DO IT THE OLD WAY !
      preconditioner_env%solver=ot_precond_solver_inv_chol
      CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
-          &                          error=error)
+          &                          my_mixed_precision, error=error)
   CASE (ot_precond_solver_direct)
      !
      ! prepare for the direct solver
@@ -684,6 +697,7 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
   CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
   CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
                   matrix_in,0.0_dp,matrix_out,error=error)
+
 END SUBROUTINE apply_full_single
 
 SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out,error)
@@ -696,7 +710,8 @@ SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out,error)
     TYPE(cp_fm_type), POINTER                :: work
 
   CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
-  CALL cp_fm_create(work,matrix_in%matrix_struct,name="apply_full_single",error=error)
+  CALL cp_fm_create(work,matrix_in%matrix_struct,name="apply_full_single",&
+                    use_sp=matrix_in%use_sp,error=error)
   CALL cp_fm_cholesky_restore(matrix_in,k,preconditioner_env%fm,work,&
        &                      "SOLVE",transa="T",error=error)
   CALL cp_fm_cholesky_restore(work,k,preconditioner_env%fm,matrix_out,&
@@ -714,13 +729,15 @@ END SUBROUTINE apply_full_direct
 !>      03.2006 created [Joost VandeVondele]
 !>      10.2006 made more robust [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_evals, energy_gap,error)
+SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_evals, &
+                                    energy_gap, mixed_precision, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_c0
     TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_evals
     REAL(KIND=dp)                            :: energy_gap
+    LOGICAL, INTENT(IN)                      :: mixed_precision
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: eval_shift = 5.0_dp , &
@@ -731,9 +748,9 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
                                                 preconditioner_shift
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift, diag, evals
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: matrix_hc0, matrix_s1, &
-                                                matrix_sc0, matrix_shc0, &
-                                                matrix_tmp, matrix_tmp2
+    TYPE(cp_fm_type), POINTER :: matrix_hc0, matrix_hc0_sp, matrix_ptr, &
+      matrix_s1, matrix_sc0, matrix_sc0_sp, matrix_shc0, matrix_tmp, &
+      matrix_tmp2
 
 ! arbitrary upshift of the occupied evals
 ! fudge factor for taking the error estimate into account
@@ -744,8 +761,10 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=n,ncol_global=n, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env,error=error)
-    CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp,name="preconditioner_env%fm",error=error)
-    CALL cp_fm_create(matrix_tmp,fm_struct_tmp, name="preconditioner matrix_tmp",error=error)
+    CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp,name="preconditioner_env%fm",&
+                      use_sp=mixed_precision,error=error)
+    CALL cp_fm_create(matrix_tmp,fm_struct_tmp, name="preconditioner matrix_tmp",&
+                      use_sp=mixed_precision,error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
     ! first try to get a ritz error estimate
@@ -759,13 +778,27 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     CALL cp_sm_fm_multiply(matrix_s,matrix_c0,matrix_sc0,k,error=error)
     CALL cp_fm_create(matrix_hc0,matrix_c0%matrix_struct,name="hc0",error=error)
     CALL cp_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
+    
+    IF(mixed_precision) THEN
+       CALL cp_fm_create(matrix_sc0_sp,matrix_c0%matrix_struct,name="sc0_sp",&
+                         use_sp=mixed_precision,error=error)
+       CALL cp_fm_create(matrix_hc0_sp,matrix_c0%matrix_struct,name="hc0_sp",&
+                         use_sp=mixed_precision,error=error)
+       CALL cp_fm_to_fm(matrix_sc0,matrix_sc0_sp,error=error)
+       CALL cp_fm_to_fm(matrix_hc0,matrix_hc0_sp,error=error)
+       matrix_ptr => matrix_sc0; matrix_sc0 => matrix_sc0_sp; matrix_sc0_sp => matrix_ptr
+       CALL cp_fm_release(matrix_sc0_sp,error=error)       
+       matrix_ptr => matrix_hc0; matrix_hc0 => matrix_hc0_sp; matrix_hc0_sp => matrix_ptr
+       CALL cp_fm_release(matrix_hc0_sp,error=error)
+    ENDIF
 
-    CALL cp_fm_create(matrix_shc0,matrix_c0%matrix_struct,name="shc0",error=error)
+    CALL cp_fm_create(matrix_shc0,matrix_c0%matrix_struct,name="shc0",&
+                      use_sp=mixed_precision,error=error)
     CALL cp_fm_cholesky_restore(matrix_hc0,k,matrix_tmp,matrix_shc0,"SOLVE",transa="T",error=error)
     CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=k, &
                                 context=preconditioner_env%ctxt, &
                                 para_env=preconditioner_env%para_env,error=error)
-    CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",error=error)
+    CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",use_sp=mixed_precision,error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     ! since we only use diagonal elements this is a bit of a waste
     CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_shc0,matrix_shc0,0.0_dp,matrix_s1,error=error)
@@ -1089,12 +1122,13 @@ END SUBROUTINE make_full_s_inverse
 
 ! *****************************************************************************
 SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
-                               energy_homo, energy_gap, error)
+                               energy_homo, energy_gap, mixed_precision, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(real_matrix_type), POINTER          :: matrix_t, matrix_s
     REAL(KIND=dp)                            :: energy_homo, energy_gap
+    LOGICAL, INTENT(IN)                      :: mixed_precision
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic', &
@@ -1122,7 +1156,7 @@ SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
   CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env,error=error)
-  CALL cp_fm_create(fm,fm_struct_tmp, name="preconditioner",error=error)
+  CALL cp_fm_create(fm,fm_struct_tmp, name="preconditioner", use_sp=mixed_precision, error=error)
   CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
   shift=MAX(-energy_homo,energy_gap)
@@ -1131,12 +1165,13 @@ SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
 
 END SUBROUTINE make_full_kinetic
 
-  SUBROUTINE make_full_inverse_cholesky(preconditioner_env, fm, matrix_s, error)
+  SUBROUTINE make_full_inverse_cholesky(preconditioner_env, fm, matrix_s, mixed_precision, error)
     
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: matrix_s
+    LOGICAL, INTENT(IN)                      :: mixed_precision
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky', &
@@ -1155,11 +1190,13 @@ END SUBROUTINE make_full_kinetic
 
     NULLIFY(fm_work)
 
-    CALL cp_fm_create(fm_work,fm%matrix_struct,name="fm_work",error=error)
+    CALL cp_fm_create(fm_work,fm%matrix_struct,name="fm_work",use_sp=mixed_precision,error=error)
     !
     ! compute the inverse of SPD matrix fm using the Cholesky factorization
     CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
+
     CALL cp_fm_cholesky_decompose(fm,error=sub_error)
+
     failure = .FALSE.
     CALL cp_error_check(sub_error,failure)
     CALL cp_error_dealloc_ref(sub_error)
@@ -1176,6 +1213,7 @@ END SUBROUTINE make_full_kinetic
        ENDIF
     ENDIF
     CALL cp_fm_cholesky_invert(fm,error=error)
+
     CALL cp_fm_upper_to_full(fm,fm_work,error=error)
     CALL cp_fm_release(fm_work,error=error)
 

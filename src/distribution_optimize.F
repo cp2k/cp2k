@@ -24,7 +24,8 @@ MODULE distribution_optimize
                                              opt_target_minimum
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE parallel_rng_types,              ONLY: UNIFORM,&
@@ -114,10 +115,9 @@ CONTAINS
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
-
     ! the best possible cost is a perfectly equal load for each cpu 
-    cost_optimal=(SUM(cost_ele_pair)+P*Q-1)/(P*Q)
-
+    ! POTENTIAL OVERFLOW HERE !
+    cost_optimal=(SUM(INT(cost_ele_pair,int_8))+INT(P*Q-1,int_8))/INT(P*Q,int_8)
     
     IF (iw>0) THEN
        WRITE(iw,'(T2,A)') ""

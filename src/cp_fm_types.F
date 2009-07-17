@@ -26,7 +26,8 @@ MODULE cp_fm_types
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: default_path_length,&
-                                             dp
+                                             dp,&
+                                             sp
   USE message_passing,                 ONLY: cp2k_is_parallel,&
                                              mp_bcast,&
                                              mp_max,&
@@ -92,8 +93,10 @@ MODULE cp_fm_types
 !    PRIVATE
      CHARACTER(LEN=60) :: name
      INTEGER :: id_nr, ref_count, print_count
+     LOGICAL :: use_sp
      TYPE(cp_fm_struct_type), POINTER :: matrix_struct
      REAL(KIND = dp), DIMENSION(:,:), POINTER :: local_data
+     REAL(KIND = sp), DIMENSION(:,:), POINTER :: local_data_sp
   END TYPE cp_fm_type
 
 ! *****************************************************************************
@@ -121,10 +124,11 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_fm_create(matrix,matrix_struct,name,error)
+  SUBROUTINE cp_fm_create(matrix,matrix_struct,name,use_sp,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
+    LOGICAL, INTENT(in), OPTIONAL            :: use_sp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_create', &
@@ -158,20 +162,33 @@ CPSourceFileRef,&
        matrix%ref_count=1
        matrix%print_count=0
 
+       matrix%use_sp = .FALSE.
+       IF(PRESENT(use_sp)) matrix%use_sp = use_sp
+
        nprow=context%num_pe(1)
        npcol=context%num_pe(2)
        NULLIFY(matrix%local_data)
+       NULLIFY(matrix%local_data_sp)
 
        ! OK, we allocate here at least a 1 x 1 matrix
        ! this must (and is) compatible with the descinit call
        ! in cp_fm_struct
        nrow_local=matrix_struct%local_leading_dimension
        ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
-       ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF(matrix%use_sp) THEN
+          ALLOCATE(matrix%local_data_sp(nrow_local,ncol_local),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
 
        ! JVDV we should remove this, as it is up to the user to zero afterwards
-       CALL dcopy(nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
+       IF(matrix%use_sp) THEN
+          CALL scopy(nrow_local*ncol_local,0.0_sp,0,matrix%local_data_sp,1)
+       ELSE
+          CALL dcopy(nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
+       ENDIF
 
        IF (PRESENT(name)) THEN
           matrix%name=name
@@ -238,6 +255,10 @@ CPSourceFileRef,&
              DEALLOCATE(matrix%local_data,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
+          IF (ASSOCIATED(matrix%local_data_sp)) THEN
+             DEALLOCATE(matrix%local_data_sp,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
           matrix%name=""
           CALL cp_fm_struct_release(matrix%matrix_struct,error=error)
           DEALLOCATE(matrix,stat=stat)
@@ -272,6 +293,8 @@ CPSourceFileRef,&
     LOGICAL, SAVE                            :: FIRST = .TRUE.
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: buff
 
+    failure = .FALSE.
+
     CALL timeset(routineN,handle)
     IF (FIRST) THEN
        ISEED(1)=4
@@ -280,6 +303,8 @@ CPSourceFileRef,&
        ISEED(4)=1 ! last one has to be odd
        FIRST=.FALSE.
     ENDIF
+
+    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure)
 
     my_start_col = 1
     IF (PRESENT(start_col)) my_start_col=start_col
@@ -321,15 +346,26 @@ CPSourceFileRef,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: beta
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_all', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, matrix_size, n
+    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
 
-    matrix_size = SIZE(matrix%local_data,1)*SIZE(matrix%local_data,2)
+    failure = .FALSE.
 
-    CALL dcopy (matrix_size, alpha, 0, matrix%local_data, 1)
+    IF(matrix%use_sp) THEN
+       matrix_size = SIZE(matrix%local_data_sp,1)*SIZE(matrix%local_data_sp,2)
+       CALL scopy (matrix_size, REAL(alpha,sp), 0, matrix%local_data_sp, 1)
+    ELSE
+       matrix_size = SIZE(matrix%local_data,1)*SIZE(matrix%local_data,2)
+       CALL dcopy (matrix_size, alpha, 0, matrix%local_data, 1)
+    ENDIF
 
     IF (PRESENT(beta)) THEN
+       CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure)
       n = MIN(matrix%matrix_struct%nrow_global,matrix%matrix_struct%ncol_global)
       DO i=1,n
          CALL cp_fm_set_element(matrix,i,i,beta,error=error)
@@ -350,8 +386,12 @@ CPSourceFileRef,&
     REAL(KIND = dp), DIMENSION(:), INTENT(OUT) :: diag    
     TYPE(cp_error_type), INTENT(inout)         :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_diag', &
+      routineP = moduleN//':'//routineN
+
     ! locals
     INTEGER :: i,nrow_global
+    LOGICAL :: failure
 
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desca
@@ -359,9 +399,13 @@ CPSourceFileRef,&
     INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
                nprow
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
+    REAL(KIND = sp), DIMENSION(:,:), POINTER :: a_sp
 #endif
+    
+    failure = .FALSE.
 
     CALL cp_fm_get_info(matrix,nrow_global=nrow_global,error=error)
+
 #if defined(__SCALAPACK)
     diag=0.0_dp
     context => matrix%matrix_struct%context
@@ -371,18 +415,27 @@ CPSourceFileRef,&
     npcol=context%num_pe(2)
 
     a => matrix%local_data
+    a_sp => matrix%local_data_sp
     desca(:) = matrix%matrix_struct%descriptor(:)
- 
+
     DO i=1,nrow_global
        CALL infog2l(i,i,desca,nprow,npcol,myprow,mypcol,&
                     irow_local,icol_local,iprow,ipcol)
        IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
-         diag(i) = a(irow_local,icol_local)
+          IF(matrix%use_sp) THEN
+             diag(i) = REAL(a_sp(irow_local,icol_local),dp)
+          ELSE
+             diag(i) = a(irow_local,icol_local)
+          ENDIF
        ENDIF
     END DO
 #else
     DO i=1, nrow_global
-       diag(i)=matrix%local_data(i,i)
+       IF(matrix%use_sp) THEN
+          diag(i)=REAL(matrix%local_data_sp(i,i),dp)
+       ELSE
+          diag(i)=matrix%local_data(i,i)
+       ENDIF
     ENDDO
 #endif
     CALL mp_sum(diag,matrix%matrix_struct%para_env%group)
@@ -401,9 +454,12 @@ CPSourceFileRef,&
     REAL(KIND = dp), DIMENSION(:), INTENT(IN) :: diag
     TYPE(cp_error_type), INTENT(inout)         :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_diag', &
+      routineP = moduleN//':'//routineN
+
     ! locals
     INTEGER :: i,nrow_global
-
+    LOGICAL :: failure
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desca
     TYPE(cp_blacs_env_type), POINTER :: context
@@ -412,7 +468,12 @@ CPSourceFileRef,&
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
 #endif
 
+    failure = .FALSE.
+
     CALL cp_fm_get_info(matrix,nrow_global=nrow_global,error=error)
+
+    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure)
+
 #if defined(__SCALAPACK)
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -468,6 +529,7 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
     LOGICAL, INTENT(OUT), OPTIONAL            :: local
+    LOGICAL :: failure
 
     ! locals
 #if defined(__SCALAPACK)
@@ -477,6 +539,8 @@ CPSourceFileRef,&
                nprow
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
 #endif
+
+    failure = .FALSE.
 
 #if defined(__SCALAPACK)
     context => matrix%matrix_struct%context
@@ -519,18 +583,26 @@ CPSourceFileRef,&
     REAL(KIND=dp), INTENT(IN)                :: alpha
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_element', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: icol_local, ipcol, iprow, &
                                                 irow_local, mypcol, myprow, &
                                                 npcol, nprow
     INTEGER, DIMENSION(9)                    :: desca
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_blacs_env_type), POINTER         :: context
+
+    failure = .FALSE.
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
+
+    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure) 
 
 #if defined(__SCALAPACK)
 
@@ -610,6 +682,9 @@ CPSourceFileRef,&
     IF (.not.failure) THEN
        CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
+
+    CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,error,failure) 
+
     IF (.not.failure) THEN
        IF (PRESENT(alpha)) al=alpha
        IF (PRESENT(beta)) be=beta
@@ -753,6 +828,9 @@ CPSourceFileRef,&
     IF (.not.failure) THEN
        CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
+
+    CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,error,failure) 
+
     IF (.not.failure) THEN
        IF (PRESENT(start_row)) i0=start_row
        IF (PRESENT(start_col)) j0=start_col
@@ -856,7 +934,6 @@ CPSourceFileRef,&
     INTEGER , EXTERNAL :: indxl2g
 #endif
 
-    failure=.FALSE.
     IF (PRESENT(name)) name = matrix%name
     IF (PRESENT(context)) context => matrix%matrix_struct%context
     IF (PRESENT(matrix_struct)) matrix_struct => matrix%matrix_struct
@@ -908,15 +985,22 @@ CPSourceFileRef,&
     REAL(dp)                                 :: my_max
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: a_max_vec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: my_block_sp
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
     my_block => matrix%local_data
+    my_block_sp => matrix%local_data_sp
 
     CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,&
                         row_indices=row_indices,col_indices=col_indices,error=error)
-    a_max = MAXVAL(ABS(my_block(1:nrow_local,1:ncol_local)))
+
+    IF(matrix%use_sp) THEN
+       a_max = REAL(MAXVAL(ABS(my_block_sp(1:nrow_local,1:ncol_local))),dp)
+    ELSE
+       a_max = MAXVAL(ABS(my_block(1:nrow_local,1:ncol_local)))
+    ENDIF
 
     IF(PRESENT(ir_max)) THEN
       num_pe = matrix%matrix_struct%para_env%num_pe
@@ -935,10 +1019,18 @@ CPSourceFileRef,&
       IF((ncol_local > 0) .AND. (nrow_local > 0)) THEN
         DO i = 1,ncol_local
           DO j = 1,nrow_local
-            IF( ABS(my_block(j,i)) > my_max) THEN
-              my_max =  my_block(j,i)
-              ir_max_local = j
-              ic_max_local = i
+             IF(matrix%use_sp) THEN
+                IF( ABS(my_block_sp(j,i)) > my_max) THEN
+                   my_max = REAL(my_block_sp(j,i),dp)
+                   ir_max_local = j
+                   ic_max_local = i
+                ENDIF
+             ELSE
+                IF( ABS(my_block(j,i)) > my_max) THEN
+                   my_max =  my_block(j,i)
+                   ir_max_local = j
+                   ic_max_local = i
+                ENDIF
             END IF
           END DO
         END DO
@@ -994,12 +1086,16 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, j, ncol_local, &
                                                 nrow_global, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: row_indices
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: values
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
 
     CALL timeset(routineN,handle)
 
     my_block => matrix%local_data
+
+    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure)
+
     CALL cp_fm_get_info(matrix, row_indices=row_indices, nrow_global=nrow_global, &
                                 nrow_local=nrow_local, ncol_local=ncol_local,error=error)
 
@@ -1032,11 +1128,17 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, j, ncol_global, &
                                                 ncol_local, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
+
+    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
     my_block => matrix%local_data
+
+    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure)
+
     CALL cp_fm_get_info(matrix, col_indices=col_indices, ncol_global=ncol_global, &
                                 nrow_local=nrow_local, ncol_local=ncol_local, error=error)
 
@@ -1196,16 +1298,49 @@ CPSourceFileRef,&
     IF ((.NOT. cp2k_is_parallel).OR.&
          cp_fm_struct_equivalent(source%matrix_struct,&
          destination%matrix_struct,error=error)) THEN
-      CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
-         SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
-         cp_assertion_failed, routineP,&
-         "Cannot copy full matrix <"//TRIM(source%name)//&
-         "> to full matrix <"//TRIM(destination%name)//&
-         ">. The local_data blocks have different sizes."//&
+       IF(source%use_sp.AND.destination%use_sp) THEN
+          CALL cp_assert(SIZE(source%local_data_sp,1)==SIZE(destination%local_data_sp,1).AND.&
+               SIZE(source%local_data_sp,2)==SIZE(destination%local_data_sp,2),cp_failure_level,&
+               cp_assertion_failed, routineP,&
+               "Cannot copy full matrix <"//TRIM(source%name)//&
+               "> to full matrix <"//TRIM(destination%name)//&
+               ">. The local_data blocks have different sizes."//&
 CPSourceFileRef,&
-         error=error)
-      CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
-           source%local_data(1,1),1,destination%local_data(1,1),1)
+               error=error)
+          CALL scopy(SIZE(source%local_data_sp,1)*SIZE(source%local_data_sp,2),&
+               source%local_data_sp(1,1),1,destination%local_data_sp(1,1),1)
+       ELSEIF(source%use_sp.AND..NOT.destination%use_sp) THEN
+          CALL cp_assert(SIZE(source%local_data_sp,1)==SIZE(destination%local_data,1).AND.&
+               SIZE(source%local_data_sp,2)==SIZE(destination%local_data,2),cp_failure_level,&
+               cp_assertion_failed, routineP,&
+               "Cannot copy full matrix <"//TRIM(source%name)//&
+               "> to full matrix <"//TRIM(destination%name)//&
+               ">. The local_data blocks have different sizes."//&
+CPSourceFileRef,&
+               error=error)
+          destination%local_data=REAL(source%local_data_sp,dp)
+       ELSEIF(.NOT.source%use_sp.AND.destination%use_sp) THEN
+          CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data_sp,1).AND.&
+               SIZE(source%local_data,2)==SIZE(destination%local_data_sp,2),cp_failure_level,&
+               cp_assertion_failed, routineP,&
+               "Cannot copy full matrix <"//TRIM(source%name)//&
+               "> to full matrix <"//TRIM(destination%name)//&
+               ">. The local_data blocks have different sizes."//&
+CPSourceFileRef,&
+               error=error)
+          destination%local_data_sp=REAL(source%local_data,sp)
+       ELSE
+          CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
+               SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
+               cp_assertion_failed, routineP,&
+               "Cannot copy full matrix <"//TRIM(source%name)//&
+               "> to full matrix <"//TRIM(destination%name)//&
+               ">. The local_data blocks have different sizes."//&
+CPSourceFileRef,&
+               error=error)
+          CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
+               source%local_data(1,1),1,destination%local_data(1,1),1)
+       ENDIF
     ELSE
       CALL cp_assert(source%matrix_struct%nrow_global==&
            destination%matrix_struct%nrow_global,&
@@ -1222,10 +1357,30 @@ CPSourceFileRef,&
 CPSourceFileRef,&
            error=error)
 #ifdef __SCALAPACK
-      CALL pdcopy(source%matrix_struct%nrow_global*&
-           source%matrix_struct%ncol_global,&
-           source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
-           destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
+
+      IF(source%use_sp.AND.destination%use_sp) THEN
+         CALL pscopy(source%matrix_struct%nrow_global*&
+              source%matrix_struct%ncol_global,&
+              source%local_data_sp(1,1),1,1,source%matrix_struct%descriptor,1,&
+              destination%local_data_sp(1,1),1,1,destination%matrix_struct%descriptor,1)
+      ELSEIF(source%use_sp.AND..NOT.destination%use_sp) THEN
+         CALL pdcopy(source%matrix_struct%nrow_global*&
+              source%matrix_struct%ncol_global,&
+              REAL(source%local_data_sp,dp),1,1,source%matrix_struct%descriptor,1,&
+              destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
+      ELSEIF(.NOT.source%use_sp.AND.destination%use_sp) THEN
+         CALL pscopy(source%matrix_struct%nrow_global*&
+              source%matrix_struct%ncol_global,&
+              REAL(source%local_data,sp),1,1,source%matrix_struct%descriptor,1,&
+              destination%local_data_sp(1,1),1,1,destination%matrix_struct%descriptor,1)
+      ELSE
+         CALL pdcopy(source%matrix_struct%nrow_global*&
+              source%matrix_struct%ncol_global,&
+              source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
+              destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
+      ENDIF
+
+
 #else
       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif

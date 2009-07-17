@@ -100,6 +100,7 @@ MODULE qs_ot_types
      REAL(KIND = dp)   :: eps_irac_switch
      LOGICAL           :: on_the_fly_loc
      CHARACTER(LEN=4)  :: ortho_irac
+     LOGICAL           :: mixed_precision
      LOGICAL           :: occupation_preconditioner, add_nondiag_energy
      REAL(KIND = dp)   :: nondiag_energy_strength
   END TYPE qs_ot_settings_type
@@ -146,7 +147,7 @@ MODULE qs_ot_types
 
      ! only here for the ease of programming. These will have to be supplied
      ! explicitly at all times
-     TYPE(cp_fm_type), POINTER :: matrix_x,matrix_sx, matrix_gx
+     TYPE(cp_fm_type), POINTER :: matrix_x,matrix_sx, matrix_gx, matrix_gx_dp
      TYPE(cp_fm_type), POINTER :: matrix_dx, matrix_gx_old
 
      LOGICAL :: use_gx_old, use_dx
@@ -246,6 +247,7 @@ CONTAINS
     settings%gold_target=0.01_dp
     settings%do_rotation=.FALSE.
     settings%do_ener=.FALSE.
+    settings%mixed_precision=.FALSE.
     settings%irac_degree=4
     settings%max_irac=50
     settings%eps_irac=1.0E-10_dp
@@ -279,6 +281,9 @@ CONTAINS
     qs_ot_env%os_valid=.FALSE.
 
     CALL cp_fm_set_all(qs_ot_env%matrix_gx,0.0_dp,error=error)
+    IF(qs_ot_env%settings%mixed_precision)&
+         CALL cp_fm_set_all(qs_ot_env%matrix_gx_dp,0.0_dp,error=error)
+
     IF (qs_ot_env%use_dx) &
          CALL cp_fm_set_all(qs_ot_env%matrix_dx,0.0_dp,error=error)
     IF (qs_ot_env%use_gx_old) &
@@ -337,7 +342,7 @@ CONTAINS
     INTEGER                                  :: i, ii, ikind, istat, k, &
                                                 m_diis, my_ortho_k, n, ncoef, &
                                                 ncoef_of_kind, nkind
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, mixed_precision
     TYPE(aux_coeff_type), POINTER            :: local_coeff
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_o, &
@@ -365,6 +370,7 @@ CONTAINS
     ENDIF
 
     m_diis =qs_ot_env%settings%diis_m
+    mixed_precision =qs_ot_env%settings%mixed_precision
 
     qs_ot_env%use_gx_old=.FALSE.
     qs_ot_env%use_dx=.FALSE.
@@ -419,18 +425,25 @@ CONTAINS
     CALL cp_fm_create(qs_ot_env%matrix_sc0,fm_struct_n_o,name="matrix_sc0",error=error)
     CALL cp_fm_create(qs_ot_env%matrix_x,fm_struct_ref,name="matrix_x",error=error)
     CALL cp_fm_create(qs_ot_env%matrix_sx,fm_struct_ref,name="matrix_sx",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_gx,fm_struct_ref,name="matrix_gx",error=error)
+    CALL cp_fm_create(qs_ot_env%matrix_gx,fm_struct_ref,name="matrix_gx",&
+                      use_sp=mixed_precision,error=error)
+    IF(mixed_precision) &
+         CALL cp_fm_create(qs_ot_env%matrix_gx_dp,fm_struct_ref,name="matrix_gx_dp",error=error)
 
     IF (qs_ot_env%use_gx_old) &
-         CALL cp_fm_create(qs_ot_env%matrix_gx_old,fm_struct_ref,name="matrix_gx_old",error=error)
+         CALL cp_fm_create(qs_ot_env%matrix_gx_old,fm_struct_ref,name="matrix_gx_old",&
+                           use_sp=mixed_precision,error=error)
 
     IF (qs_ot_env%use_dx) &
-         CALL cp_fm_create(qs_ot_env%matrix_dx,fm_struct_ref,name="matrix_dx",error=error)
+         CALL cp_fm_create(qs_ot_env%matrix_dx,fm_struct_ref,name="matrix_dx",&
+                           use_sp=mixed_precision,error=error)
 
     IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
        DO i=1,m_diis
-          CALL cp_fm_create(qs_ot_env%matrix_h_x(i)%matrix,fm_struct_ref,name="matrix_h_x",error=error)
-          CALL cp_fm_create(qs_ot_env%matrix_h_e(i)%matrix,fm_struct_ref,name="matrix_h_e",error=error)
+          CALL cp_fm_create(qs_ot_env%matrix_h_x(i)%matrix,fm_struct_ref,name="matrix_h_x",&
+                            use_sp=mixed_precision,error=error)
+          CALL cp_fm_create(qs_ot_env%matrix_h_e(i)%matrix,fm_struct_ref,name="matrix_h_e",&
+                            use_sp=mixed_precision,error=error)
        ENDDO
     ENDIF
 
@@ -621,6 +634,9 @@ CONTAINS
     CALL cp_fm_release(qs_ot_env%matrix_x,error=error)
     CALL cp_fm_release(qs_ot_env%matrix_gx,error=error)
     CALL cp_fm_release(qs_ot_env%matrix_sx,error=error)
+    
+    IF (qs_ot_env%settings%mixed_precision)&
+         CALL cp_fm_release(qs_ot_env%matrix_gx_dp,error=error)
 
     IF (ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
        CALL cp_fm_release(qs_ot_env%matrix_psc0,error=error)
@@ -786,6 +802,11 @@ CONTAINS
        CALL stop_program("READ OT EPS_IRAC_SWITCH","VALUE MUST BE GREATER THAN ZERO")
     ENDIF
 
+    CALL section_vals_val_get(ot_section,"MIXED_PRECISION",l_val=settings%mixed_precision,error=error)
+    IF(settings%mixed_precision.AND.ot_algorithm.NE.ot_algo_irac) THEN
+       CALL stop_program(routineN,"MIXED_PRECISION implemented only for IRAC so far")
+    ENDIF
+
     CALL section_vals_val_get(ot_section,"ORTHO_IRAC",i_val=ot_ortho_irac,error=error)
     SELECT CASE(ot_ortho_irac)
     CASE(ot_chol_irac)
@@ -949,9 +970,11 @@ CONTAINS
        ENDIF
        WRITE(output_unit,'(A,F14.8)') "  stepsize       :",settings%ds_min
        WRITE(output_unit,'(A,F14.8)') "  energy_gap     :",settings%energy_gap
-       WRITE(output_unit,'(A,E14.5)') "  eps_taylor     :",settings%eps_taylor
-       WRITE(output_unit,'(A,I14)')   "  max_taylor     :",settings%max_taylor
        WRITE(output_unit,'(A)') ""
+       IF(settings%ot_algorithm.EQ.'TOD') THEN
+          WRITE(output_unit,'(A,E14.5)') "  eps_taylor     :",settings%eps_taylor
+          WRITE(output_unit,'(A,I14)')   "  max_taylor     :",settings%max_taylor
+       ENDIF
        IF(settings%ot_algorithm.EQ.'REF') THEN
           WRITE(output_unit,'(A,1X,A)') "  ortho_irac         :", settings%ortho_irac
           WRITE(output_unit,'(A,I14)')  "  irac_degree        :", settings%irac_degree
@@ -960,8 +983,10 @@ CONTAINS
           WRITE(output_unit,'(A,E14.5)')"  eps_irac_switch    :", settings%eps_irac_switch
           WRITE(output_unit,'(A,E14.5)')"  eps_irac_quick_exit:", settings%eps_irac_quick_exit
           WRITE(output_unit,'(A,L2)')   "  on_the_fly_loc     :", settings%on_the_fly_loc
-          WRITE(output_unit,'(A)') ""
        END IF
+       WRITE(output_unit,'(A)') ""
+       WRITE(output_unit,'(A,L2)')   "  mixed_precision    :", settings%mixed_precision
+       WRITE(output_unit,'(A)') ""
        WRITE(output_unit,'(A)') "  ----------------------------------- OT ---------------------------------------"
        WRITE (UNIT=output_unit,&
               FMT="(/,T3,A,T12,A,T31,A,T39,A,T59,A,T75,A,/,T3,A)")&

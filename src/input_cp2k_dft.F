@@ -5405,7 +5405,7 @@ CONTAINS
             enum_c_vals=s2a( "STRICT", "IRAC" ),&
             enum_desc=s2a("Strict orthogonality: Taylor or diagonalization based algorithm.",&
                           "Orbital Transformation based Iterative Refinement "//&
-                          "of the Approximative Congruence transformation (OT/IRAC)."),&
+                          "of the Approximative Congruence transformation (OT/IR)."),&
             enum_i_vals=(/ot_algo_taylor_or_diag,ot_algo_irac/),& 
             citations=(/VandeVondele2003,VandeVondele2005a,Weber2008/),&
             error=error)
@@ -5423,6 +5423,16 @@ CONTAINS
             description="Maximum allowed refinement iteration.",&
             usage="MAX_IRAC 5",&
             default_i_val=50,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MIXED_PRECISION",&
+            description="Uses a mixed precision algorithm." //&
+            "With a well behaved basis set (i.e. condition number less than 1/eps_sp)"//&
+            "it provides double precision accuracy results and up to a 2 fold speedup for building and "//&
+            "applying the preconditioner.",&
+            usage="MIXED_PRECISION T",&
+            default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

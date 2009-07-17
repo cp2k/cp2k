@@ -12,7 +12,8 @@
 MODULE cp_fm_cholesky
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             sp
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -54,6 +55,7 @@ CONTAINS
     INTEGER, DIMENSION(9)                    :: desca
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
 
     CALL timeset(routineN,handle)
 
@@ -64,16 +66,26 @@ CONTAINS
        CPPrecondition(n<=my_n,cp_failure_level,routineP,error,failure)
        my_n=n
     END IF
-    
+
     a => matrix%local_data
+    a_sp => matrix%local_data_sp
 
 #if defined(__SCALAPACK)
     desca(:) = matrix%matrix_struct%descriptor(:)
-    CALL pdpotrf('U',my_n,a(1,1),1,1,desca,info)
+
+    IF(matrix%use_sp) THEN
+       CALL pspotrf('U',my_n,a_sp(1,1),1,1,desca,info)
+    ELSE
+       CALL pdpotrf('U',my_n,a(1,1),1,1,desca,info)
+    ENDIF
 
 #else
 
-    CALL dpotrf('U',my_n,a(1,1),SIZE(a,1),info)
+    IF(matrix%use_sp) THEN
+       CALL spotrf('U',my_n,a_sp(1,1),SIZE(a_sp,1),info)
+    ELSE
+       CALL dpotrf('U',my_n,a(1,1),SIZE(a,1),info)
+    ENDIF
 
 #endif
 
@@ -100,7 +112,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_invert',&
          routineP=moduleN//':'//routineN
-    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a
+    REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a
+    REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp
     INTEGER                                   :: info,handle
     INTEGER                                   :: my_n
     INTEGER, DIMENSION(9)                     :: desca
@@ -117,15 +130,25 @@ CONTAINS
     END IF
 
     a => matrix%local_data
+    a_sp => matrix%local_data_sp
 
 #if defined(__SCALAPACK)
 
     desca(:) = matrix%matrix_struct%descriptor(:)
-    CALL pdpotri('U',my_n,a(1,1),1,1,desca,info)
+
+    IF(matrix%use_sp) THEN
+       CALL pspotri('U',my_n,a_sp(1,1),1,1,desca,info)
+    ELSE
+       CALL pdpotri('U',my_n,a(1,1),1,1,desca,info)
+    ENDIF
 
 #else
 
-    CALL dpotri('U',my_n,a(1,1),SIZE(a,1),info)
+    IF(matrix%use_sp) THEN
+       CALL spotri('U',my_n,a_sp(1,1),SIZE(a_sp,1),info)
+    ELSE
+       CALL dpotri('U',my_n,a(1,1),SIZE(a,1),info)
+    ENDIF
 
 #endif
 
@@ -217,6 +240,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_restore',&
          routineP=moduleN//':'//routineN
     REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a,b,out
+    REAL(KIND = sp), DIMENSION(:,:), POINTER         :: a_sp,b_sp,out_sp
     INTEGER                                   :: info,itype,handle
     INTEGER                                   :: n
     LOGICAL                                   :: ionode, failure
@@ -260,10 +284,20 @@ CPSourceFileRef,&
     chol_transa='N'
     IF (PRESENT(transa)) chol_transa=transa
 
+    CALL cp_assert((matrix%use_sp.EQV.matrixb%use_sp).AND.(matrix%use_sp.EQV.matrixout%use_sp), &
+         cp_failure_level,cp_assertion_failed,&
+         routineP,&
+         "not the same precision"//&
+CPSourceFileRef,&
+         error,failure)
+
     ! notice b is the cholesky guy
     a => matrix%local_data
     b => matrixb%local_data
     out => matrixout%local_data
+    a_sp => matrix%local_data_sp
+    b_sp => matrixb%local_data_sp
+    out_sp => matrixout%local_data_sp
 
 #if defined(__SCALAPACK)
 
@@ -272,21 +306,47 @@ CPSourceFileRef,&
     descout(:) = matrixout%matrix_struct%descriptor(:)
     alpha=1.0_dp
     DO i=1,neig
-      CALL pdcopy(n,a(1,1),1,i,desca,1,out(1,1),1,i,descout,1)
+       IF(matrix%use_sp) THEN
+          CALL pscopy(n,a_sp(1,1),1,i,desca,1,out_sp(1,1),1,i,descout,1)
+       ELSE
+          CALL pdcopy(n,a(1,1),1,i,desca,1,out(1,1),1,i,descout,1)
+       ENDIF
     ENDDO
     IF (op.EQ."SOLVE") THEN
-      CALL pdtrsm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+       IF(matrix%use_sp) THEN
+          CALL pstrsm(chol_pos,'U',chol_transa,'N',n,neig,REAL(alpha,sp),b_sp(1,1),1,1,descb,&
+                      out_sp(1,1),1,1,descout)
+       ELSE
+          CALL pdtrsm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+       ENDIF
     ELSE
-      CALL pdtrmm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+       IF(matrix%use_sp) THEN
+          CALL pstrmm(chol_pos,'U',chol_transa,'N',n,neig,REAL(alpha,sp),b_sp(1,1),1,1,descb,&
+                      out_sp(1,1),1,1,descout)
+       ELSE
+          CALL pdtrmm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+       ENDIF
     ENDIF
 #else
 
     alpha=1.0_dp
-    CALL dcopy(neig*n,a(1,1),1,out(1,1),1)
-    IF (op.EQ."SOLVE") THEN
-      CALL dtrsm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),SIZE(b,1),out(1,1),n)
+    IF(matrix%use_sp) THEN
+       CALL scopy(neig*n,a_sp(1,1),1,out_sp(1,1),1)
     ELSE
-      CALL dtrmm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),n,out(1,1),n)
+       CALL dcopy(neig*n,a(1,1),1,out(1,1),1)
+    ENDIF
+    IF (op.EQ."SOLVE") THEN
+       IF(matrix%use_sp) THEN
+          CALL strsm(chol_pos,'U',chol_transa,'N',n,neig,REAL(alpha,sp),b_sp(1,1),SIZE(b_sp,1),out_sp(1,1),n)
+       ELSE
+          CALL dtrsm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),SIZE(b,1),out(1,1),n)
+       ENDIF
+    ELSE
+       IF(matrix%use_sp) THEN
+          CALL strmm(chol_pos,'U',chol_transa,'N',n,neig,REAL(alpha,sp),b_sp(1,1),n,out_sp(1,1),n)
+       ELSE
+          CALL dtrmm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),n,out(1,1),n)
+       ENDIF
     ENDIF
 
 #endif

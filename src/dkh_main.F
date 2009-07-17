@@ -1648,7 +1648,7 @@ MODULE dkh_main
 !-----------------------------------------------------------------------
 
       CALL cp_fm_to_fm(matrix_s,matrix_sinv,error)
-      CALL cp_fm_cholesky_decompose(matrix_sinv,n,error)
+      CALL cp_fm_cholesky_decompose(matrix_sinv,n,error=error)
 
 !-----------------------------------------------------------------------
 !     Calculate matrix representation from nonrelativistic T matrix

@@ -352,7 +352,7 @@ CONTAINS
     CALL timeset(routineN//'std', handle)
 
     CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
-    CALL cp_fm_create(fmout, matrix_x%matrix_struct, "FMout", error)
+    CALL cp_fm_create(fmout, matrix_x%matrix_struct, "FMout", error=error)
     walltime1 = m_walltime()
     CALL cp_sm_fm_multiply(matrix_s, matrix_x, fmout, k, error=error)
     walltime2 = m_walltime()
