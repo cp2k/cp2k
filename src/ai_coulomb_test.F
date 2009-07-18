@@ -16,7 +16,8 @@ MODULE ai_coulomb_test
                                              os
   USE ai_geminals,                     ONLY: g2gemint,&
                                              g4int,&
-                                             gemint2
+                                             gemint2,&
+                                             gemint2_derivative
   USE ai_geminals_debug,               ONLY: grs,&
                                              init_grs
   USE hfx_energy_potential,            ONLY: coulomb4
@@ -79,7 +80,9 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: pint
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :, :)               :: iab, iabc
+      DIMENSION(:, :, :, :, :)               :: iab
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :, :, :)            :: iabc
     REAL(KIND=dp), DIMENSION(3)              :: ab, cd, ra, rb, rc, rd
     REAL(KIND=dp), DIMENSION(6)              :: a, b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgf, zeta, zetb, zetc, zetd
@@ -127,7 +130,7 @@ CONTAINS
     npgfa = 4
     npgfb = 2
     npgfc = 4
-    npgfd = 2
+    npgfd = 1
     n = MAX(npgfa,npgfb,npgfc,npgfd)
 
     ALLOCATE(zeta(npgfa),zetb(npgfb),zetc(npgfc),zetd(npgfd),rpgf(n),STAT=istat)
@@ -311,11 +314,11 @@ CONTAINS
        DO l=0,lmax/2
          tstart = m_walltime ( )
          ll = ncoset(l)
-         ALLOCATE(iabc(npgfa*npgfc*nb,ll,ll,ll,ll),STAT=istat)
+         ALLOCATE(iabc(npgfa*npgfc*nb,ll,ll,ll,ll,1),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          ii = MAX(100/(l+1)**4,1)
          DO i=1,ii
-           CALL g2gemint(iabc,l/2,npgfa,zeta,0,ra,l/2,npgfc,zetc,0,rc,l,l,zb,b,error)
+           CALL g2gemint(iabc,l/2,npgfa,zeta,0,ra,l/2,npgfc,zetc,0,rc,l,l,zb,b,0,error)
          END DO
          tend = m_walltime ( )
          t = tend - tstart + threshold
@@ -334,6 +337,10 @@ CONTAINS
     CALL geminal_test1 (iw, error)
 
     CALL geminal_test2 (iw, error)
+
+    CALL geminal_test3 (iw, error)
+
+    CALL geminal_test4 (iw, error)
 
     CALL deallocate_orbital_pointers()
 
@@ -392,8 +399,8 @@ CONTAINS
     CALL init_grs(za(:,:,1),zb(:,:,1),ra,rb)
 
     la = 2
-    lb = 2
-    lc = 1
+    lb = 1
+    lc = 0
     ld = 1
 
     lla = la+lc
@@ -500,7 +507,7 @@ CONTAINS
     la = 2
     lb = 2
     lc = 1
-    ld = 1
+    ld = 0
 
     ALLOCATE(iabcd(1,ncoset(la),ncoset(lc),ncoset(lb),ncoset(ld)),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -556,6 +563,324 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE geminal_test2
+
+! *****************************************************************************
+
+  SUBROUTINE geminal_test3 (iw,error)
+
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'geminal_test3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ia1, ia2, ia3, ia4, ia5, ia6, iax, iay, ib1, ib2, ib3, ib4, &
+      ib5, ib6, ibx, iby, istat, k, la, lb, lc, ld, lla, llb, lmax, ma, mb
+    INTEGER, DIMENSION(6)                    :: an, bn
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: d1, delta, dmax, intab, intm, &
+                                                intp, xa, xb, xc, xd
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :, :)               :: iab
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :, :, :)            :: iabd
+    REAL(KIND=dp), DIMENSION(2, 2, 1)        :: za, zb
+    REAL(KIND=dp), DIMENSION(3)              :: a, b, c, d
+    REAL(KIND=dp), DIMENSION(6)              :: ra, rb
+
+    IF ( iw>0 ) WRITE(iw,'(//,A)') " Test of Geminal Repulsion Integral Derivatives (GRI) "
+
+    delta = 0.00001_dp
+
+    xa = 0.783300000000   
+    xb = 1.239648746700  
+    xc = 0.548370000000 
+    xd = 0.111100000000
+
+    a = (/0.329309000000,0.28408240000,0.28408240000/) * bohr
+    b = (/0.983983000000,0.00453720000,0.00432740000/) * bohr
+    c = (/0.032380000000,1.23470000000,0.11137400000/) * bohr
+    d = (/0.000392438010,0.03491028400,0.87875300000/) * bohr
+
+    za(1,1,1) = xa + xc
+    za(1,2,1) = xa - xc
+    za(2,1,1) = xa - xc
+    za(2,2,1) = xa + xc
+    zb(1,1,1) = xb + xd
+    zb(1,2,1) = xb - xd
+    zb(2,1,1) = xb - xd
+    zb(2,2,1) = xb + xd
+    ra(1:3) = 0.5_dp*(a+c)
+    ra(4:6) = 0.5_dp*(a-c)
+    rb(1:3) = 0.5_dp*(b+d)
+    rb(4:6) = 0.5_dp*(b-d)
+
+    la = 2
+    lb = 1
+    lc = 0
+    ld = 1
+
+    lla = la+lc
+    llb = lb+ld
+
+    lmax=lla+llb+1
+    CALL init_orbital_pointers(lmax)
+
+    ALLOCATE(iab(1,ncoset(lla+1),ncoset(lla+1),ncoset(llb),ncoset(llb)),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iabd(1,ncoset(lla),ncoset(lla),ncoset(llb),ncoset(llb),7),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL gemint2(iab,za,1,lla+1,lla+1,ra,zb,1,llb,llb,rb,error)
+    CALL gemint2_derivative(iab,iabd,za,1,lla,lla,zb,1,llb,llb,1,.FALSE.,error)
+
+    dmax = 0._dp
+    DO ma=0,la+lc
+      DO mb=0,lb+ld
+
+        DO ia1=0,ma
+          DO ia2=0,ma-ia1
+            DO ia3=0,ma-ia1-ia2
+              DO ia4=0,ma-ia1-ia2-ia3
+                DO ia5=0,ma-ia1-ia2-ia3-ia4
+                  ia6=ma-ia1-ia2-ia3-ia4-ia5
+                  an(1)=ia1
+                  an(2)=ia2
+                  an(3)=ia3
+                  an(4)=ia4
+                  an(5)=ia5
+                  an(6)=ia6
+                  iax=coset(ia1,ia2,ia3)
+                  iay=coset(ia4,ia5,ia6)
+                  DO ib1=0,mb
+                    DO ib2=0,mb-ib1
+                      DO ib3=0,mb-ib1-ib2
+                        DO ib4=0,mb-ib1-ib2-ib3
+                          DO ib5=0,mb-ib1-ib2-ib3-ib4
+                            ib6=mb-ib1-ib2-ib3-ib4-ib5
+                            bn(1)=ib1
+                            bn(2)=ib2
+                            bn(3)=ib3
+                            bn(4)=ib4
+                            bn(5)=ib5
+                            bn(6)=ib6
+                            ibx=coset(ib1,ib2,ib3)
+                            iby=coset(ib4,ib5,ib6)
+                            CALL init_grs(za(:,:,1),zb(:,:,1),ra,rb)
+                            intab = grs(an,bn)
+                            d1 = ABS(iabd(1,iax,iay,ibx,iby,1)-intab)
+                            dmax=MAX(d1,dmax)
+                            IF(iw>0 .AND. d1 > 1.e-10) THEN
+                              WRITE(6,"('I    ',4I4,3F20.12)") iax,iay,ibx,iby,iabd(1,iax,iay,ibx,iby,1),intab,d1
+                            END IF
+                            DO k=1,6
+                              ra(k) = ra(k) + 0.5_dp*delta
+                              CALL init_grs(za(:,:,1),zb(:,:,1),ra,rb)
+                              intp = grs(an,bn)
+                              ra(k) = ra(k) - delta
+                              CALL init_grs(za(:,:,1),zb(:,:,1),ra,rb)
+                              intm = grs(an,bn)
+                              ra(k) = ra(k) + 0.5_dp*delta
+                              intab = (intp-intm)/delta
+                              d1 = ABS(iabd(1,iax,iay,ibx,iby,k+1)-intab)
+                              dmax=MAX(d1,dmax)
+                              IF(iw>0 .AND. d1 > 1.e-7) THEN
+                                WRITE(6,"('dI/dR',I1,4x,4I4,3F18.10)") k,iax,iay,ibx,iby,&
+                                      iabd(1,iax,iay,ibx,iby,k+1),intab,d1
+                              END IF
+                            END DO
+                          END DO
+                        END DO
+                      END DO
+                    END DO
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END DO
+      END DO
+    END DO
+
+    IF ( iw>0 ) WRITE(iw,'(/,A,T61,F20.12)') " Max. Error detected ",dmax
+
+    DEALLOCATE(iab,iabd,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE geminal_test3
+
+! *****************************************************************************
+
+  SUBROUTINE geminal_test4 (iw,error)
+
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'geminal_test4', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ia, iax, iay, iaz, ic, icx, &
+                                                icy, icz, ir, irx, iry, irz, &
+                                                is, istat, isx, isy, isz, k, &
+                                                la, lb, lc, ld, lla, llb, &
+                                                lmax, ma, mb, mc
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: d1, da, db, dc, delta, dmax, &
+                                                xa, xb, xc, xd, xr, xs
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :, :, :)            :: iabc1m, iabc1p, iabc2m, &
+                                                iabc2p, iabc3m, iabc3p, iabcd
+    REAL(KIND=dp), DIMENSION(2, 2, 1)        :: za, zb
+    REAL(KIND=dp), DIMENSION(3)              :: a, b, c, d
+    REAL(KIND=dp), DIMENSION(6)              :: ra, rb
+
+    IF ( iw>0 ) WRITE(iw,'(//,A)') " Test of Geminal/Gaussian Repulsion Integral Derivatives (GRI) "
+
+    delta = 0.00001_dp
+
+    xa = 0.783300000000   
+    xb = 1.239648746700  
+    xc = 0.548370000000 
+    xd = 0.111100000000
+
+    a = (/0.329309000000,0.28408240000,0.28408240000/) * bohr
+    b = (/0.983983000000,0.00453720000,0.00432740000/) * bohr
+    c = (/0.032380000000,1.23470000000,0.11137400000/) * bohr
+    d = (/0.000392438010,0.03491028400,0.87875300000/) * bohr
+
+    za(1,1,1) = xa + xc
+    za(1,2,1) = xa - xc
+    za(2,1,1) = xa - xc
+    za(2,2,1) = xa + xc
+    zb(1,1,1) = xb + xd
+    zb(1,2,1) = xb - xd
+    zb(2,1,1) = xb - xd
+    zb(2,2,1) = xb + xd
+    ra(1:3) = 0.5_dp*(a+c)
+    ra(4:6) = 0.5_dp*(a-c)
+    rb(1:3) = 0.5_dp*(b+d)
+    rb(4:6) = 0.5_dp*(b-d)
+
+    la = 2
+    lb = 2
+    lc = 1
+    ld = 1
+
+    lla = la+lc
+    llb = lb+ld
+
+    lmax=lla+llb+1
+    CALL init_orbital_pointers(lmax)
+
+    ALLOCATE(iabcd(1,ncoset(la),ncoset(lc),ncoset(llb),ncoset(llb),7),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL g2gemint(iabcd,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,zb,rb,1,error)
+
+    ALLOCATE(iabc1p(1,ncoset(la),ncoset(lc),ncoset(llb),ncoset(llb),1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iabc1m(1,ncoset(la),ncoset(lc),ncoset(llb),ncoset(llb),1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iabc2p(1,ncoset(la),ncoset(lc),ncoset(llb),ncoset(llb),1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iabc2m(1,ncoset(la),ncoset(lc),ncoset(llb),ncoset(llb),1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iabc3p(1,ncoset(la),ncoset(lc),ncoset(llb),ncoset(llb),1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iabc3m(1,ncoset(la),ncoset(lc),ncoset(llb),ncoset(llb),1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DO k=1,3
+      
+      a(k) = a(k) + 0.5_dp*delta
+      CALL g2gemint(iabc1p,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,zb,rb,0,error)
+      a(k) = a(k) - delta
+      CALL g2gemint(iabc1m,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,zb,rb,0,error)
+      a(k) = a(k) + 0.5_dp*delta
+      iabc1p = (iabc1p-iabc1m)/delta
+
+      c(k) = c(k) + 0.5_dp*delta
+      CALL g2gemint(iabc2p,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,zb,rb,0,error)
+      c(k) = c(k) - delta
+      CALL g2gemint(iabc2m,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,zb,rb,0,error)
+      c(k) = c(k) + 0.5_dp*delta
+      iabc2p = (iabc2p-iabc2m)/delta
+
+      rb(k) = rb(k) + 0.5_dp*delta
+      CALL g2gemint(iabc3p,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,zb,rb,0,error)
+      rb(k) = rb(k) - delta
+      CALL g2gemint(iabc3m,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,zb,rb,0,error)
+      rb(k) = rb(k) + 0.5_dp*delta
+      iabc3p = (iabc3p-iabc3m)/delta
+
+      DO ma=0,la
+        DO mc=0,lc
+
+          DO iax=0,ma
+            DO iay=0,ma-iax
+              iaz=ma-iax-iay
+              ia=coset(iax,iay,iaz)
+              DO icx=0,mc
+                DO icy=0,mc-icx
+                  icz=mc-icx-icy
+                  ic=coset(icx,icy,icz)
+
+                  DO mb=0,llb
+
+                    DO irx=0,mb
+                      DO iry=0,mb-irx
+                        irz=mb-irx-iry
+                        ir=coset(irx,iry,irz)
+                        DO isx=0,mb
+                          DO isy=0,mb-isx
+                            isz=mb-isx-isy
+                            is=coset(isx,isy,isz)
+
+                            xr = iabcd(1,ia,ic,ir,is,k+1)
+                            xs = iabcd(1,ia,ic,ir,is,k+4)
+
+                            da = iabc1p(1,ia,ic,ir,is,1)
+                            db = iabc3p(1,ia,ic,ir,is,1)
+                            dc = iabc2p(1,ia,ic,ir,is,1)
+
+                            d1 = ABS(da-0.5_dp*(xr+xs))
+                            dmax=MAX(d1,dmax)
+                            IF(iw>0 .AND. d1 > 1.e-7) THEN
+                              WRITE(6,"('dI/da',I1,4x,4I4,3F18.10)") k,ia,ic,ir,is,0.5_dp*(xr+xs),da,d1
+                            END IF
+                            d1 = ABS(dc-0.5_dp*(xr-xs))
+                            dmax=MAX(d1,dmax)
+                            IF(iw>0 .AND. d1 > 1.e-7) THEN
+                              WRITE(6,"('dI/dc',I1,4x,4I4,3F18.10)") k,ia,ic,ir,is,0.5_dp*(xr-xs),dc,d1
+                            END IF
+                            d1 = ABS(db-(-xr))
+                            dmax=MAX(d1,dmax)
+                            IF(iw>0 .AND. d1 > 1.e-7) THEN
+                              WRITE(6,"('dI/db',I1,4x,4I4,3F18.10)") k,ia,ic,ir,is,-xr,db,d1
+                            END IF
+
+                          END DO
+                        END DO
+                      END DO
+                    END DO
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END DO
+      END DO
+
+    END DO
+
+    IF ( iw>0 ) WRITE(iw,'(/,A,T61,F20.12)') " Max. Error detected ",dmax
+
+    DEALLOCATE(iabcd,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(iabc1p,iabc1m,iabc2p,iabc2m,iabc3p,iabc3m,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE geminal_test4
 
 ! *****************************************************************************
 

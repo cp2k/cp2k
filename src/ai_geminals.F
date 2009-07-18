@@ -27,7 +27,7 @@ MODULE ai_geminals
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_geminals'
   PRIVATE
 
-  PUBLIC :: gemint2, g2gemint, g4int
+  PUBLIC :: gemint2, g2gemint, g4int, gemint2_derivative
 
   CONTAINS
 
@@ -77,11 +77,132 @@ MODULE ai_geminals
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE gemint2
+
 ! *****************************************************************************
-  SUBROUTINE g2gemint(intabc,la_max,npgfa,zeta,la_min,a,lb_max,npgfb,zetb,lb_min,b,&
-                      lr_max,ls_max,zetc,c,error)
+
+  SUBROUTINE gemint2_derivative(iab,iabd,zeta,na,lra,lsa,zetb,nb,lrb,lsb,nder,r_only,error)
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), &
+      INTENT(INOUT)                          :: iab
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :, :), &
+      INTENT(INOUT)                          :: iabd
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: zeta
+    INTEGER, INTENT(IN)                      :: na, lra, lsa
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: zetb
+    INTEGER, INTENT(IN)                      :: nb, lrb, lsb, nder
+    LOGICAL, INTENT(IN)                      :: r_only
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gemint2_derivative', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: i, ij, ira, iram, irap, irax, iray, iraz, irb, irbx, irby, &
+      irbz, isa, isam, isap, isax, isay, isaz, isb, isbx, isby, isbz, k, mra, &
+      mrb, msa, msb
+    INTEGER, DIMENSION(6)                    :: ii, jj
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: ari, asi, za11, za12, za22
+
+    CPPrecondition(nder>=0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(nder<=1,cp_failure_level,routineP,error,failure)
+
+    DO mrb=0,lrb
+      DO msb=0,lsb
+        DO irbx=0,mrb
+          DO irby=0,mrb-irbx
+            irbz=mrb-irbx-irby
+            irb=coset(irbx,irby,irbz)
+            ii(1)=irbx; ii(2)=irby; ii(3)=irbz
+            DO isbx=0,msb
+              DO isby=0,msb-isbx
+                isbz=msb-isbx-isby
+                isb=coset(isbx,isby,isbz)
+                ii(4)=isbx; ii(5)=isby; ii(6)=isbz
+
+                DO mra=0,lra
+                  DO msa=0,lsa
+                    DO irax=0,mra
+                      DO iray=0,mra-irax
+                        iraz=mra-irax-iray
+                        ira=coset(irax,iray,iraz)
+                        jj(1)=irax; jj(2)=iray; jj(3)=iraz
+                        DO isax=0,msa
+                          DO isay=0,msa-isax
+                            isaz=msa-isax-isay
+                            isa=coset(isax,isay,isaz)
+                            jj(4)=isax; jj(5)=isay; jj(6)=isaz
+
+                            DO i=1,na*nb
+                              iabd(i,ira,isa,irb,isb,1) = iab(i,ira,isa,irb,isb)
+                            END DO
+                            IF (nder > 0) THEN
+                              DO k=1,3
+                                jj(k)=jj(k)-1
+                                iram=coset(jj(1),jj(2),jj(3))
+                                jj(1)=irax; jj(2)=iray; jj(3)=iraz
+                                jj(k)=jj(k)+1
+                                irap=coset(jj(1),jj(2),jj(3))
+                                jj(k+3)=jj(k+3)+1
+                                isap=coset(jj(4),jj(5),jj(6))
+                                jj(1)=irax; jj(2)=iray; jj(3)=iraz
+                                jj(4)=isax; jj(5)=isay; jj(6)=isaz
+                                ari = -REAL(jj(k),dp)
+                                DO i=1,na*nb
+                                  ij=MOD(i-1,na)+1
+                                  za11=2._dp*zeta(1,1,ij)
+                                  za12=2._dp*zeta(1,2,ij)
+                                  iabd(i,ira,isa,irb,isb,k+1) = ari*iab(i,iram,isa,irb,isb) +&
+                                    za11*iab(i,irap,isa,irb,isb) + za12*iab(i,ira,isap,irb,isb)
+                                END DO
+                              END DO
+                              IF (.NOT. r_only) THEN
+                                DO k=1,3
+                                  jj(k+3)=jj(k+3)-1
+                                  isam=coset(jj(4),jj(5),jj(6))
+                                  jj(4)=isax; jj(5)=isay; jj(6)=isaz
+                                  jj(k+3)=jj(k+3)+1
+                                  isap=coset(jj(4),jj(5),jj(6))
+                                  jj(4)=isax; jj(5)=isay; jj(6)=isaz
+                                  jj(k)=jj(k)+1
+                                  irap=coset(jj(1),jj(2),jj(3))
+                                  jj(1)=irax; jj(2)=iray; jj(3)=iraz
+                                  asi = -REAL(jj(k+3),dp)
+                                  DO i=1,na*nb
+                                    ij=MOD(i-1,na)+1
+                                    za22=2._dp*zeta(2,2,ij)
+                                    za12=2._dp*zeta(1,2,ij)
+                                    iabd(i,ira,isa,irb,isb,k+4) = asi*iab(i,ira,isam,irb,isb) +&
+                                      za22*iab(i,ira,isap,irb,isb) + za12*iab(i,irap,isa,irb,isb)
+                                  END DO
+                                END DO
+                              END IF
+                            END IF
+
+                          END DO
+                        END DO
+                      END DO
+                    END DO
+                  END DO
+                END DO
+
+              END DO
+            END DO
+          END DO
+        END DO
+      END DO
+    END DO
+
+
+  END SUBROUTINE gemint2_derivative
+
+! *****************************************************************************
+  SUBROUTINE g2gemint(intabc,la_max,npgfa,zeta,la_min,a,lb_max,npgfb,zetb,lb_min,b,&
+                      lr_max,ls_max,zetc,c,nderivative,error)
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :, :), &
       INTENT(INOUT)                          :: intabc
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta
@@ -95,6 +216,7 @@ MODULE ai_geminals
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: zetc
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: c
+    INTEGER, INTENT(IN)                      :: nderivative
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'g2gemint', &
@@ -108,7 +230,12 @@ MODULE ai_geminals
       DIMENSION(:, :, :)                     :: zab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: iabc
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :, :, :)            :: iabcd
     REAL(KIND=dp), DIMENSION(6)              :: ab
+
+    CPPrecondition(nderivative>=0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(nderivative<=1,cp_failure_level,routineP,error,failure)
 
     na = SIZE(zeta,1)
     nb = SIZE(zetb,1)
@@ -134,17 +261,51 @@ MODULE ai_geminals
     lrab = la_max + lb_max
     lsab = la_max + lb_max
 
-    nrab = ncoset(lrab)
-    nsab = ncoset(lsab)
-    nrc = ncoset(lr_max)
-    nsc = ncoset(ls_max)
+    IF (nderivative==0) THEN
 
-    ALLOCATE (iabc(nc*na*nb,nrab,nsab,nrc,nsc),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      nrab = ncoset(lrab)
+      nsab = ncoset(lsab)
+      nrc = ncoset(lr_max)
+      nsc = ncoset(ls_max)
 
-    CALL gemint2(iabc,zab,nab,lrab,lsab,ab,zetc,nc,lr_max,ls_max,c,error)
+      ALLOCATE (iabc(nc*na*nb,nrab,nsab,nrc,nsc),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL gg_trans1(iabc,intabc,la_max,lb_max,error)
+      CALL gemint2(iabc,zab,nab,lrab,lsab,ab,zetc,nc,lr_max,ls_max,c,error)
+
+      CALL gg_trans1(iabc,intabc(:,:,:,:,:,1),la_max,lb_max,error)
+
+    ELSEIF (nderivative==1) THEN
+
+      nrab = ncoset(lrab+1)
+      nsab = ncoset(lsab+1)
+      nrc = ncoset(lr_max)
+      nsc = ncoset(ls_max)
+
+      ALLOCATE (iabc(nc*na*nb,nrab,nsab,nrc,nsc),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+      CALL gemint2(iabc,zab,nab,lrab+1,lsab+1,ab,zetc,nc,lr_max,ls_max,c,error)
+
+      nrab = ncoset(lrab)
+      nsab = ncoset(lsab)
+      ALLOCATE (iabcd(nc*na*nb,nrab,nsab,nrc,nsc,7),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+      CALL gemint2_derivative(iabc,iabcd,zab,nab,lrab,lsab,zetc,nc,lr_max,ls_max,nderivative,.FALSE.,error)
+
+      DO k=1,7
+        CALL gg_trans1(iabcd(:,:,:,:,:,k),intabc(:,:,:,:,:,k),la_max,lb_max,error)
+      END DO
+
+      DEALLOCATE (iabcd,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ELSE
+
+      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+
+    END IF
 
     DEALLOCATE (zab,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

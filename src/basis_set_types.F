@@ -1893,11 +1893,22 @@ CONTAINS
   END SUBROUTINE deallocate_geminal_basis_set
 
 ! *****************************************************************************
-  SUBROUTINE get_geminal_basis_set(geminal_basis_set,name)
+  SUBROUTINE get_geminal_basis_set(geminal_basis_set,name,cgf_symbol,ngeminals,nset,&
+    lmax,lmin,ls,npgf,nshell,l,first_cgf,last_cgf,zet,gcc)
 
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
+    CHARACTER(LEN=12), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: cgf_symbol
+    INTEGER, INTENT(OUT), OPTIONAL           :: ngeminals, nset
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: lmax, lmin, ls, npgf, nshell
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: l, first_cgf, last_cgf
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      OPTIONAL, POINTER                      :: zet
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: gcc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_geminal_basis_set', &
       routineP = moduleN//':'//routineN
@@ -1906,6 +1917,23 @@ CONTAINS
 
     IF (ASSOCIATED(geminal_basis_set)) THEN
        IF (PRESENT(name)) name = geminal_basis_set%name
+       IF (PRESENT(cgf_symbol)) cgf_symbol => geminal_basis_set%cgf_symbol
+
+       IF (PRESENT(ngeminals)) ngeminals = geminal_basis_set%ngeminals
+       IF (PRESENT(nset)) nset = geminal_basis_set%nset
+       IF (PRESENT(npgf)) npgf => geminal_basis_set%npgf
+       IF (PRESENT(nshell)) nshell => geminal_basis_set%nshell
+
+       IF (PRESENT(lmax)) lmax => geminal_basis_set%lmax
+       IF (PRESENT(lmin)) lmin => geminal_basis_set%lmin
+       IF (PRESENT(ls)) ls => geminal_basis_set%ls
+
+       IF (PRESENT(first_cgf)) first_cgf => geminal_basis_set%first_cgf
+       IF (PRESENT(last_cgf)) last_cgf => geminal_basis_set%last_cgf
+       IF (PRESENT(l)) l => geminal_basis_set%l
+
+       IF (PRESENT(zet)) zet => geminal_basis_set%zet
+       IF (PRESENT(gcc)) gcc => geminal_basis_set%gcc
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer geminal_basis_set is not associated")
