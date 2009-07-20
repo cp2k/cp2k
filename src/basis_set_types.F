@@ -119,7 +119,7 @@ MODULE basis_set_types
      INTEGER, DIMENSION(:), POINTER             :: ngem_set,nshell
      INTEGER, DIMENSION(:,:), POINTER           :: l
      REAL(KIND = dp), DIMENSION(:,:,:,:), &
-                                        POINTER :: zet
+                                        POINTER :: zet, zeth
      INTEGER, DIMENSION(:,:), POINTER           :: first_cgf,last_cgf
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
   END TYPE geminal_basis_set_type
@@ -1834,6 +1834,7 @@ CONTAINS
     NULLIFY (geminal_basis_set%nshell)
     NULLIFY (geminal_basis_set%l)
     NULLIFY (geminal_basis_set%zet)
+    NULLIFY (geminal_basis_set%zeth)
     NULLIFY (geminal_basis_set%first_cgf)
     NULLIFY (geminal_basis_set%last_cgf)
     NULLIFY (geminal_basis_set%gcc)
@@ -1880,6 +1881,8 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (geminal_basis_set%zet,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (geminal_basis_set%zeth,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (geminal_basis_set%gcc,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (geminal_basis_set%first_cgf,STAT=stat)
@@ -1894,7 +1897,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE get_geminal_basis_set(geminal_basis_set,name,cgf_symbol,ngeminals,nset,&
-    lmax,lmin,ls,npgf,nshell,l,first_cgf,last_cgf,zet,gcc)
+    lmax,lmin,ls,npgf,nshell,l,first_cgf,last_cgf,zet,zeth,gcc)
 
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     CHARACTER(LEN=default_string_length), &
@@ -1906,7 +1909,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: l, first_cgf, last_cgf
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      OPTIONAL, POINTER                      :: zet
+      OPTIONAL, POINTER                      :: zet, zeth
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: gcc
 
@@ -1933,6 +1936,7 @@ CONTAINS
        IF (PRESENT(l)) l => geminal_basis_set%l
 
        IF (PRESENT(zet)) zet => geminal_basis_set%zet
+       IF (PRESENT(zeth)) zeth => geminal_basis_set%zeth
        IF (PRESENT(gcc)) gcc => geminal_basis_set%gcc
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -2195,6 +2199,7 @@ CONTAINS
                CALL reallocate(geminal_basis_set%ngem_set,1,nset)
                CALL reallocate(geminal_basis_set%l,1,maxshell,1,nset)
                CALL reallocate(geminal_basis_set%zet,1,2,1,2,1,maxpgf,1,nset)
+               CALL reallocate(geminal_basis_set%zeth,1,2,1,2,1,maxpgf,1,nset)
                CALL reallocate(geminal_basis_set%gcc,1,maxpgf,1,maxshell,1,nset)
 
                ! Copy the basis set information into the data structure
@@ -2213,6 +2218,10 @@ CONTAINS
                   END DO
                   DO ipgf=1,npgf(iset)
                      geminal_basis_set%zet(1:2,1:2,ipgf,iset) = zet(1:2,1:2,ipgf,iset)
+                     geminal_basis_set%zeth(1,1,ipgf,iset) = zet(1,1,ipgf,iset)
+                     geminal_basis_set%zeth(2,2,ipgf,iset) = zet(2,2,ipgf,iset)
+                     geminal_basis_set%zeth(1,2,ipgf,iset) = -zet(1,2,ipgf,iset)
+                     geminal_basis_set%zeth(2,1,ipgf,iset) = -zet(2,1,ipgf,iset)
                   END DO
                END DO
 
@@ -2348,6 +2357,5 @@ CONTAINS
 
   END SUBROUTINE write_geminal_basis_set
 ! *****************************************************************************
- ! *****************************************************************************
 
 END MODULE basis_set_types

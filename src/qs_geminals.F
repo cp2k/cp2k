@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE qs_geminals
   
-  USE ai_geminals,                     ONLY: gemint2,&
+  USE ai_geminals,                     ONLY: g2gemint,&
+                                             gemint2,&
                                              gemint2_derivative
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -27,6 +28,7 @@ MODULE qs_geminals
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
                                              next_block_node,&
@@ -159,10 +161,11 @@ MODULE qs_geminals
     INTEGER                                  :: handle, iatom, ikind, istat, &
                                                 jatom, jkind, ka, katom, &
                                                 kkind, na, natom, nb, ngem, &
-                                                nkind
+                                                nkind, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list, atom_of_kind, &
                                                 kind_of
     LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: fij
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: intabc
     REAL(KIND=dp), DIMENSION(3)              :: ri, rj, rk
@@ -176,9 +179,10 @@ MODULE qs_geminals
                                                 orb_basis_set_b
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+      POINTER                                :: matrix_p
 
     CALL timeset(routineN,handle)
 
@@ -186,8 +190,10 @@ MODULE qs_geminals
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
                     local_particles=local_particles,&
-                    matrix_ks=ks_matrix,&
+                    rho=rho,&
                     error=error)
+    matrix_p => rho%rho_ao
+    nspins = SIZE(matrix_p)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -201,11 +207,14 @@ MODULE qs_geminals
 
     DO iatom=1,natom
        NULLIFY(block_node)
-       block_node => first_block_node(ks_matrix(1)%matrix,iatom)
+       block_node => first_block_node(matrix_p(1)%matrix,iatom)
        DO WHILE (ASSOCIATED(block_node))
-          CALL get_block_node(matrix=ks_matrix(1)%matrix,block_row=iatom,block_col=jatom)
+          CALL get_block_node(matrix=matrix_p(1)%matrix,block_row=iatom,block_col=jatom)
           ikind  = kind_of(iatom)
           jkind  = kind_of(jatom)
+
+          fij = 2._dp
+          IF ( iatom==jatom ) fij=1._dp
 
           atomic_kind_a => atomic_kind_set(ikind)
           NULLIFY(orb_basis_set_a)
@@ -294,7 +303,7 @@ MODULE qs_geminals
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcca, gccb
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: zeta, zetb
+      POINTER                                :: zeta, zetb, zetbh
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set_a, &
                                                 geminal_basis_set_b
 
@@ -306,7 +315,7 @@ MODULE qs_geminals
          l=la,first_cgf=firsta,ngeminals=ngema,gcc=gcca,zet=zeta)
     CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set_b,&
          nset=nsetb,lmax=lrmaxb,lmin=lrminb,ls=lsb,nshell=nshellb,&
-         l=lb,first_cgf=firstb,ngeminals=ngemb,gcc=gccb,zet=zetb)
+         l=lb,first_cgf=firstb,ngeminals=ngemb,gcc=gccb,zet=zetb,zeth=zetbh)
 
     CPPrecondition(nderivative>=0,cp_failure_level,routineP,error,failure)
     CPPrecondition(nderivative<=1,cp_failure_level,routineP,error,failure)
@@ -334,9 +343,13 @@ MODULE qs_geminals
           nsb = ncoset(lsb(jset))
           ALLOCATE (iab(nn,nra,nsa,nrb,nsb),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          iab = 0._dp
 
           CALL gemint2(iab,zeta(:,:,:,iset),npgfa(iset),lrmap,lsap,rra,&
                        zetb(:,:,:,jset),npgfb(jset),lrmaxb(jset),lsb(jset),rrb,error)
+
+          CALL gemint2(iab,zeta(:,:,:,iset),npgfa(iset),lrmap,lsap,rra,&
+                       zetbh(:,:,:,jset),npgfb(jset),lrmaxb(jset),lsb(jset),rrb,error)
 
           ! derivatives
           IF ( nderivative > 0 ) THEN
@@ -453,7 +466,7 @@ MODULE qs_geminals
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gccc
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: zetc
+      POINTER                                :: zetc, zetch
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set_c
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set_a, &
                                                 orb_basis_set_b
@@ -473,7 +486,7 @@ MODULE qs_geminals
          nsgf_set=nsgfa,lmax=lb_max,lmin=lb_min,sphi=sphia,first_sgf=first_sgfb,zet=zetb)
     CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set_c,npgf=npgfc,&
          nset=nsetc,lmax=lrmaxc,lmin=lrminc,ls=lsc,nshell=nshellc,&
-         l=lc,first_cgf=firstc,ngeminals=ngemc,gcc=gccc,zet=zetc)
+         l=lc,first_cgf=firstc,ngeminals=ngemc,gcc=gccc,zet=zetc,zeth=zetch)
 
     rrc(1:3) = rc(1:3)
     rrc(4:6) = 0._dp
@@ -491,9 +504,14 @@ MODULE qs_geminals
           nsc = ncoset(lsc(kset))
           ALLOCATE (iabc(nn,nna,nnb,nrc,nsc,nder),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          iabc = 0._dp
 
-          CALL g2gemint(iabc,la_max,npgfa,zeta,la_min,ra,lb_max,npgfb,zetb,lb_min,rb,&
-                        lrmaxc,lsc,zetc,rrc,nderivative,error)
+          CALL g2gemint(iabc,la_max(iset),npgfa(iset),zeta(:,iset),la_min(iset),ra,&
+                        lb_max(jset),npgfb(jset),zetb(:,jset),lb_min(jset),rb,&
+                        lrmaxc(kset),lsc(kset),zetc(:,:,:,kset),rrc,nderivative,error)
+          CALL g2gemint(iabc,la_max(iset),npgfa(iset),zeta(:,iset),la_min(iset),ra,&
+                        lb_max(jset),npgfb(jset),zetb(:,jset),lb_min(jset),rb,&
+                        lrmaxc(kset),lsc(kset),zetch(:,:,:,kset),rrc,nderivative,error)
 
           ! contraction of geminal and reordering of integrals
           ncoa=nna*npgfa(iset)

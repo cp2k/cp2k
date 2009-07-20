@@ -283,6 +283,7 @@ CONTAINS
          ll = ncoset(l)
          ALLOCATE(iab(na*nb,ll,ll,ll,ll),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         iab=0._dp
          ii = MAX(100/(l+1)**4,1)
          tstart = m_walltime ( )
          DO i=1,ii
@@ -407,6 +408,7 @@ CONTAINS
     llb = lb+ld
     ALLOCATE(iab(1,ncoset(lla),ncoset(lla),ncoset(llb),ncoset(llb)),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    iab = 0._dp
 
     CALL gemint2(iab,za,1,lla,lla,ra,zb,1,llb,llb,rb,error)
 
@@ -511,6 +513,7 @@ CONTAINS
 
     ALLOCATE(iabcd(1,ncoset(la),ncoset(lc),ncoset(lb),ncoset(ld)),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    iabcd = 0._dp
 
     CALL g4int(iabcd,la,1,(/xa/),0,a,lc,1,(/xc/),0,c,lb,1,(/xb/),0,b,ld,1,(/xd/),0,d,error)
 
@@ -630,6 +633,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iabd(1,ncoset(lla),ncoset(lla),ncoset(llb),ncoset(llb),7),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    iab=0._dp
 
     CALL gemint2(iab,za,1,lla+1,lla+1,ra,zb,1,llb,llb,rb,error)
     CALL gemint2_derivative(iab,iabd,za,1,lla,lla,zb,1,llb,llb,1,.FALSE.,error)
@@ -774,6 +778,7 @@ CONTAINS
 
     ALLOCATE(iabcd(1,ncoset(la),ncoset(lc),ncoset(llb),ncoset(llb),7),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    iabcd = 0._dp
 
     CALL g2gemint(iabcd,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,zb,rb,1,error)
 
@@ -792,6 +797,13 @@ CONTAINS
 
     DO k=1,3
       
+      iabc1p =0._dp
+      iabc1m =0._dp
+      iabc2p =0._dp
+      iabc2m =0._dp
+      iabc3p =0._dp
+      iabc3m =0._dp
+
       a(k) = a(k) + 0.5_dp*delta
       CALL g2gemint(iabc1p,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,zb,rb,0,error)
       a(k) = a(k) - delta

@@ -270,6 +270,7 @@ MODULE ai_geminals
 
       ALLOCATE (iabc(nc*na*nb,nrab,nsab,nrc,nsc),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      iabc = 0._dp
 
       CALL gemint2(iabc,zab,nab,lrab,lsab,ab,zetc,nc,lr_max,ls_max,c,error)
 
@@ -284,6 +285,7 @@ MODULE ai_geminals
 
       ALLOCATE (iabc(nc*na*nb,nrab,nsab,nrc,nsc),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      iabc = 0._dp
 
       CALL gemint2(iabc,zab,nab,lrab+1,lsab+1,ab,zetc,nc,lr_max,ls_max,c,error)
 
@@ -398,6 +400,7 @@ MODULE ai_geminals
 
     ALLOCATE (iab(na*nb*nc*nd,nrab,nsab,nrcd,nscd),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    iab = 0._dp
 
     CALL gemint2(iab,zab,nab,lrab,lsab,ab,zcd,ncd,lrcd,lscd,cd,error)
 
@@ -407,6 +410,7 @@ MODULE ai_geminals
     mb = ncoset(lb_max)
     ALLOCATE (gab(na*nb*nc*nd,ma,mb,nrcd,nscd),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    gab = 0._dp
 
     CALL gg_trans1(iab,gab,la_max,lb_max,error)
 
@@ -755,7 +759,8 @@ MODULE ai_geminals
       END DO
     END DO
 
-    INT(1:n,1:nra,1:nsa,1:nrb,1:nsb) = iab(1:n,1:nra,1:nsa,1:nrb,1:nsb)
+    INT(1:n,1:nra,1:nsa,1:nrb,1:nsb) = INT(1:n,1:nra,1:nsa,1:nrb,1:nsb) +&
+                                       iab(1:n,1:nra,1:nsa,1:nrb,1:nsb)
 
     DEALLOCATE (iab,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -793,7 +798,6 @@ MODULE ai_geminals
     mr = SIZE(in,4)
     ms = SIZE(in,5)
 
-    iout=0._dp
     DO l1=0,la
       DO l2=0,lb
 
@@ -866,7 +870,6 @@ MODULE ai_geminals
     mr = SIZE(in,2)
     ms = SIZE(in,3)
 
-    iout=0._dp
     DO l1=0,la
       DO l2=0,lb
 
