@@ -207,7 +207,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    CHARACTER(LEN=default_string_length)     :: my_mittle
+    CHARACTER(LEN=default_string_length)     :: my_middle
     INTEGER                                  :: handle, output_unit, rst_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -235,13 +235,13 @@ CONTAINS
        
        ! Open file
        rst_unit = -1
-       my_mittle= 'at'//TRIM(ADJUSTL(cp_to_string(iatom)))
+       my_middle= 'at'//TRIM(ADJUSTL(cp_to_string(iatom)))
        rst_unit = cp_print_key_unit_nr(logger,xas_section,"PRINT%RESTART",&
                   extension=".rst", file_status="REPLACE", file_action="WRITE",&
-                  file_form="UNFORMATTED",middle_name=TRIM(my_mittle), error=error)
+                  file_form="UNFORMATTED",middle_name=TRIM(my_middle), error=error)
 
        filename = cp_print_key_generate_filename(logger,print_key,&
-                  middle_name=TRIM(my_mittle),extension=".rst",&
+                  middle_name=TRIM(my_middle),extension=".rst",&
                   my_local=.FALSE.,error=error)
 
        IF(output_unit>0) THEN
