@@ -28,14 +28,10 @@ MODULE qs_mo_types
                                              open_file
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                              fm_pool_create_fm
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_get_submatrix,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_set_submatrix,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
+       cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
+       cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -126,7 +122,7 @@ MODULE qs_mo_types
             write_mo_set_low,&
             mo_set_restrict,&
             write_rt_mos_to_restart,&
-            read_rt_mos_from_restart
+            read_rt_mos_from_restart, duplicate_mo_set
 
   INTERFACE read_mo_set
     MODULE PROCEDURE read_mo_set_from_restart
@@ -137,6 +133,53 @@ MODULE qs_mo_types
   END INTERFACE
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief allocate a new mo_set, and copy the old data
+!> \par History
+!> \author Joost VandeVondele
+!> \date 2009-7-19
+! *****************************************************************************
+  SUBROUTINE duplicate_mo_set(mo_set_new,mo_set_old,error) 
+    TYPE(mo_set_type), POINTER               :: mo_set_new, mo_set_old
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'duplicate_mo_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat, nmo
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    ALLOCATE (mo_set_new,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    mo_set_new%maxocc = mo_set_old%maxocc
+    mo_set_new%nelectron = mo_set_old%nelectron
+    mo_set_new%nao = mo_set_old%nao
+    mo_set_new%nmo = mo_set_old%nmo
+    mo_set_new%homo = mo_set_old%homo
+    mo_set_new%lfomo = mo_set_old%lfomo
+    mo_set_new%uniform_occupation = mo_set_old%uniform_occupation
+    mo_set_new%kTS = mo_set_old%kTS
+    mo_set_new%mu = mo_set_old%mu
+
+    nmo = mo_set_new%nmo
+
+    NULLIFY(mo_set_new%mo_coeff)
+    CALL cp_fm_create(mo_set_new%mo_coeff,mo_set_old%mo_coeff%matrix_struct,error=error)
+    CALL cp_fm_to_fm(mo_set_old%mo_coeff,mo_set_new%mo_coeff,error=error)
+
+    ALLOCATE (mo_set_new%eigenvalues(nmo),STAT=istat)
+    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+    mo_set_new%eigenvalues = mo_set_old%eigenvalues
+
+    ALLOCATE (mo_set_new%occupation_numbers(nmo),STAT=istat)
+    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+    mo_set_new%occupation_numbers = mo_set_old%occupation_numbers
+
+  END SUBROUTINE duplicate_mo_set
 
 ! *****************************************************************************
 !> \brief allocate a mo set and partially initializes it (nao,nmo,nelectron

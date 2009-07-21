@@ -43,6 +43,7 @@ MODULE input_cp2k_dft
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
                                              lchar_t,&
+                                             logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -1147,79 +1148,13 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"MO_CUBES",&
-            description="Controls the printing of cubes of the molecular orbitals.", &
-            print_level=high_print_level,filename="",&
-            error=error)
-       CALL keyword_create(keyword, name="stride",&
-            description="The stride (X,Y,Z) used to write the cube file "//&
-            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
-            " 1 number valid for all components.",&
-            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="write_cube",&
-            description="If the MO cube file should be written. If false, the eigenvalues are still computed."//&
-                        " Can also be useful in combination with STM calculations",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="nlumo",&
-            description="If the printkey is activated controls the number of lumos"//&
-                        "that are printed and dumped as a cube (-1=all)",&
-            default_i_val=5, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="nhomo",&
-            description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"//&
-                        " eigenvalues are always all dumped",&
-            default_i_val=1, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="STM",&
-            description="do stm",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="APPEND",&
-            description="append the cube files when they already exist",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="STM_BIAS",&
-            description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
-                        "Orbital densities are summed according to the bias energy."//&
-                        "For negative values, states in the range ]HOMO+bias,HOMO] are summed,"//&
-                        "While positive values sum states in the range [LUMO,LUMO+bias[."//&
-                        "Notice that the bias is not with respect to the Fermi energy, and zero biases are skipped."//&
-                        "If postive biases are used, sufficiently many LUMOs (see NLUMO) should be computed.",&
-            n_var=-1,type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV', error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="TH_TORB",&
-            description="Tip orbital symmetry in Tersoff-Hamann approximation to compute STM images",&
-            required=.FALSE.,&
-            repeats=.TRUE.,&
-!            n_var=-1,&
-!            type_of_var=integer_t,&
-            default_i_val=orb_s,&
-            usage="TH_TORB s dz2",&
-            enum_c_vals=s2a("S","PX","PY","PZ","DXY","DYZ","DZX","DX2","DY2","DZ2"),&
-            enum_i_vals=(/orb_s,orb_px,orb_py,orb_pz,orb_dxy,orb_dyz,orb_dzx,orb_dx2,orb_dy2,orb_dz2/),&
-            enum_desc=s2a("s orbital","px orbital","py orbital","pz orbital",&
-            "dxy orbital","dyz orbital","dzx orbital","x^2 orbital","y^2 orbital","z^2 orbital"),&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
-
+       CALL create_mo_cubes_section(print_key,error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL create_wfn_mix_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
        CALL section_create(subsection,name="GAPW",&
             description="Controls the printing of some gapw related information (debug).",&
@@ -1341,7 +1276,6 @@ CONTAINS
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-
 
        CALL cp_print_key_section_create(print_key,"PDOS",&
             description="Print out the DOS projected per kind and per angular momentum  ",&
@@ -1536,6 +1470,177 @@ CONTAINS
        CALL section_release(print_key,error=error)
     END IF
   END SUBROUTINE create_print_dft_section
+
+! *****************************************************************************
+!> \brief creates the input section for dealing with homo lumos, including dumping cubes
+! *****************************************************************************
+  SUBROUTINE create_mo_cubes_section(print_key,error)
+    TYPE(section_type), POINTER              :: print_key
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mo_cubes_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+
+    NULLIFY(keyword)
+
+    CALL cp_print_key_section_create(print_key,"MO_CUBES",&
+         description="Controls the printing of cubes of the molecular orbitals.", &
+         print_level=high_print_level,filename="",&
+         error=error)
+    CALL keyword_create(keyword, name="stride",&
+         description="The stride (X,Y,Z) used to write the cube file "//&
+         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+         " 1 number valid for all components.",&
+         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="write_cube",&
+         description="If the MO cube file should be written. If false, the eigenvalues are still computed."//&
+                     " Can also be useful in combination with STM calculations",&
+         default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="nlumo",&
+         description="If the printkey is activated controls the number of lumos"//&
+                     "that are printed and dumped as a cube (-1=all)",&
+         default_i_val=5, error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="nhomo",&
+         description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"//&
+                     " eigenvalues are always all dumped",&
+         default_i_val=1, error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="STM",&
+         description="do stm",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="APPEND",&
+         description="append the cube files when they already exist",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="STM_BIAS",&
+         description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
+                     "Orbital densities are summed according to the bias energy."//&
+                     "For negative values, states in the range ]HOMO+bias,HOMO] are summed,"//&
+                     "While positive values sum states in the range [LUMO,LUMO+bias[."//&
+                     "Notice that the bias is not with respect to the Fermi energy, and zero biases are skipped."//&
+                     "If postive biases are used, sufficiently many LUMOs (see NLUMO) should be computed.",&
+         n_var=-1,type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV', error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="TH_TORB",&
+         description="Tip orbital symmetry in Tersoff-Hamann approximation to compute STM images",&
+         required=.FALSE.,&
+         repeats=.TRUE.,&
+         default_i_val=orb_s,&
+         usage="TH_TORB s dz2",&
+         enum_c_vals=s2a("S","PX","PY","PZ","DXY","DYZ","DZX","DX2","DY2","DZ2"),&
+         enum_i_vals=(/orb_s,orb_px,orb_py,orb_pz,orb_dxy,orb_dyz,orb_dzx,orb_dx2,orb_dy2,orb_dz2/),&
+         enum_desc=s2a("s orbital","px orbital","py orbital","pz orbital",&
+         "dxy orbital","dyz orbital","dzx orbital","x^2 orbital","y^2 orbital","z^2 orbital"),&
+         error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error) 
+
+  END SUBROUTINE create_mo_cubes_section
+
+  SUBROUTINE create_wfn_mix_section(section, error)
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_wfn_mix_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    NULLIFY(subsection)
+    NULLIFY(keyword)
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="WFN_MIX",&
+            description="A section that allows manipulation of the MO coeffs,"//&
+                        " e.g. for changing a ground state into an excited state."//&
+                        "Starting from a copy of the original MOs, changes can be made"//&
+                        "by adding linear combinations of HOMO/LUMO of the original MOs to the result MOs",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE., error=error)
+
+       CALL section_create(subsection,name="UPDATE",&
+            description="update a result MO with with a linear combination of of original MOs."//&
+                        " This section can be repeated to build arbitrary linear combinations using repeatedly y=a*y+b*x.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE., error=error)
+
+       CALL keyword_create(keyword, name="RESULT_MO_INDEX",&
+            description="Index of the MO (y) to be modified. Counting down in energy with HOMO=1",&
+            usage="RESULT_MO_INDEX 1", type_of_var=integer_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESULT_SPIN_INDEX",&
+            description="Spin of the MO (y) to be modified.",&
+            enum_c_vals=s2a("Alpha","Beta"),&
+            enum_i_vals=(/ 1, 2/),&  ! direct index in array
+            default_i_val=1,&
+            enum_desc=s2a("Majority spin","Minority spin"), error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESULT_SCALE",&
+            description="Scaling factor of the result variable (a).",&
+            usage="RESULT_SCALE 0.0", type_of_var=real_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ORIG_MO_INDEX",&
+            description="Index of the original MO (x). "//&
+                        "Counting down in energy with HOMO=1 or up from LUMO=1, depending on ORIG_IS_VIRTUAL.",&
+            usage="ORIG_MO_INDEX 1", type_of_var=integer_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ORIG_SPIN_INDEX",&
+            description="Spin of the MO (x) to be modified.",&
+            enum_c_vals=s2a("Alpha","Beta"),&
+            enum_i_vals=(/ 1, 2/),&  ! direct index in array
+            default_i_val=1,&
+            enum_desc=s2a("Majority spin","Minority spin"), error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ORIG_SCALE",&
+            description="Scaling factor of the result variable (b).",&
+            usage="ORIG_SCALE 0.0", type_of_var=real_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ORIG_IS_VIRTUAL",&
+            description="The original MO (x) is a LUMO.",&
+            usage="ORIG_IS_VIRTUAL", type_of_var=logical_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_wfn_mix_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the molecular states
@@ -7763,4 +7868,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_ramp_env_section
+
+
 END MODULE input_cp2k_dft

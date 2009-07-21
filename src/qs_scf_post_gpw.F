@@ -19,6 +19,7 @@ MODULE qs_scf_post_gpw
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
   USE cp_ddapc_util,                   ONLY: get_ddapc
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -109,8 +110,11 @@ MODULE qs_scf_post_gpw
                                              qs_loc_env_destroy,&
                                              qs_loc_env_new_type
   USE qs_loc_utils,                    ONLY: qs_loc_env_init
-  USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
-  USE qs_mo_types,                     ONLY: get_mo_set,&
+  USE qs_mo_methods,                   ONLY: calculate_orthonormality,&
+                                             calculate_subspace_eigenvalues
+  USE qs_mo_types,                     ONLY: deallocate_mo_set,&
+                                             duplicate_mo_set,&
+                                             get_mo_set,&
                                              mo_set_p_type,&
                                              set_mo_occupation,&
                                              write_mo_set
@@ -121,7 +125,8 @@ MODULE qs_scf_post_gpw
   USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
-                                             qs_scf_env_type
+                                             qs_scf_env_type,&
+                                             special_diag_method_nr
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
@@ -185,6 +190,8 @@ CONTAINS
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2), maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -200,6 +207,8 @@ CONTAINS
       POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(preconditioner_type), POINTER       :: local_preconditioner
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: wf_g, wf_r
@@ -245,7 +254,7 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
             input=input, subsys=subsys, tddfpt_control=tddfpt_control, pw_env=pw_env,&
-            error=error)
+            particle_set=particle_set, atomic_kind_set=atomic_kind_set, error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
        !    **** the kinetic energy
@@ -561,6 +570,10 @@ CPSourceFileRef,&
                          unoccupied_evals, error)
        END IF
 
+       ! generate a2 mix of wfns, and write to a restart
+       CALL wfn_mix(mos, particle_set, dft_section, atomic_kind_set, &
+                    unoccupied_orbs, scf_env, matrix_s, ionode, output_unit, error)
+
        ! Compute the optical conductivity (needs homos and lumos)
        CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
             unoccupied_orbs, unoccupied_evals, ionode, output_unit, error)
@@ -601,6 +614,138 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE scf_post_calculation_gpw
+! *****************************************************************************
+!> \brief writes a new 'mixed' set of mos to restart file, without touching the current MOs
+! *****************************************************************************
+  SUBROUTINE wfn_mix(mos, particle_set, dft_section, atomic_kind_set, &
+                    unoccupied_orbs, scf_env, matrix_s, ionode, output_unit, error)
+
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_orbs
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    LOGICAL                                  :: ionode
+    INTEGER                                  :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i_rep, ispin, n_rep, orig_mo_index, orig_spin_index, &
+      result_mo_index, result_spin_index
+    LOGICAL                                  :: explicit, failure, &
+                                                orig_is_virtual
+    REAL(KIND=dp)                            :: orig_scale, orthonormality, &
+                                                result_scale
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_vector
+    TYPE(cp_fm_type), POINTER                :: matrix_x, matrix_y
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos_new
+    TYPE(section_vals_type), POINTER         :: update_section, &
+                                                wfn_mix_section
+
+    failure=.FALSE.
+    CALL timeset(routineN,handle)
+    wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX",error=error)
+    CALL section_vals_get(wfn_mix_section,explicit=explicit, error=error)
+
+    ! only perform action if explicitly required
+    IF (explicit) THEN
+
+       IF (ionode) THEN
+          WRITE(output_unit,'()') 
+          WRITE(output_unit,'(T2,A)') "Performing wfn mixing"
+          WRITE(output_unit,'(T2,A)') "====================="
+       ENDIF
+
+       ALLOCATE(mos_new(SIZE(mos)))
+       DO ispin=1,SIZE(mos)
+          CALL duplicate_mo_set(mos_new(ispin)%mo_set,mos(ispin)%mo_set,error)
+       ENDDO
+
+       ! a single vector matrix structure
+       NULLIFY(fm_struct_vector)
+       CALL cp_fm_struct_create(fm_struct_vector,template_fmstruct=mos(1)%mo_set%mo_coeff%matrix_struct, &
+                                ncol_global=1, error=error)
+       CALL cp_fm_create(matrix_x,fm_struct_vector,name="x",error=error)
+       CALL cp_fm_create(matrix_y,fm_struct_vector,name="y",error=error)
+       CALL cp_fm_struct_release(fm_struct_vector,error)
+
+       update_section=>section_vals_get_subs_vals(wfn_mix_section,"UPDATE",error=error)
+       CALL section_vals_get(update_section,n_repetition=n_rep,error=error)
+       CALL section_vals_get(update_section,explicit=explicit, error=error)
+       IF (.NOT. explicit) n_rep=0
+
+       DO i_rep=1,n_rep
+
+          CALL section_vals_val_get(update_section,"RESULT_MO_INDEX",i_rep_section=i_rep,i_val=result_mo_index,error=error)
+          CALL section_vals_val_get(update_section,"RESULT_SPIN_INDEX",i_rep_section=i_rep,i_val=result_spin_index,error=error)
+          CALL section_vals_val_get(update_section,"RESULT_SCALE",i_rep_section=i_rep,r_val=result_scale,error=error)
+
+          CALL section_vals_val_get(update_section,"ORIG_MO_INDEX",i_rep_section=i_rep,i_val=orig_mo_index,error=error)
+          CALL section_vals_val_get(update_section,"ORIG_SPIN_INDEX",i_rep_section=i_rep,i_val=orig_spin_index,error=error)
+          CALL section_vals_val_get(update_section,"ORIG_SCALE",i_rep_section=i_rep,r_val=orig_scale,error=error)
+          CALL section_vals_val_get(update_section,"ORIG_IS_VIRTUAL",i_rep_section=i_rep,l_val=orig_is_virtual,error=error)
+          
+
+          ! first get a copy of the proper orig
+          IF (.NOT. ORIG_IS_VIRTUAL) THEN
+             CALL cp_fm_to_fm(mos(orig_spin_index)%mo_set%mo_coeff,matrix_x,1,mos(orig_spin_index)%mo_set%nmo-orig_mo_index+1,1)
+          ELSE
+             CALL cp_fm_to_fm(unoccupied_orbs(orig_spin_index)%matrix,matrix_x,1,orig_mo_index,1)
+          ENDIF
+
+          ! now get a copy of the target
+          CALL cp_fm_to_fm(mos_new(result_spin_index)%mo_set%mo_coeff,matrix_y, &
+                           1,mos_new(result_spin_index)%mo_set%nmo-result_mo_index+1,1)
+
+          ! properly mix 
+          CALL cp_fm_scale_and_add(result_scale,matrix_y,orig_scale,matrix_x,error)
+
+          ! and copy back in the result mos
+          CALL cp_fm_to_fm(matrix_y,mos_new(result_spin_index)%mo_set%mo_coeff, &
+                           1,1,mos_new(result_spin_index)%mo_set%nmo-result_mo_index+1)
+
+       ENDDO
+
+       CALL cp_fm_release(matrix_x,error)
+       CALL cp_fm_release(matrix_y,error)
+
+       IF(scf_env%method==special_diag_method_nr) THEN
+         CALL calculate_orthonormality(orthonormality,mos,error=error)
+       ELSE
+         CALL calculate_orthonormality(orthonormality,mos,matrix_s(1)%matrix,error=error)
+       END IF
+
+       IF (ionode) THEN
+          WRITE(output_unit,'()') 
+          WRITE(output_unit,'(T2,A,T61,E20.4)')  &
+                 "Maximum deviation from MO S-orthonormality",orthonormality
+          WRITE(output_unit,'(T2,A)') "Writing new MOs to file"
+       ENDIF
+   
+       ! *** Write WaveFunction restart file ***
+       CALL write_mo_set(mos_new,particle_set,dft_section=dft_section,scp=.FALSE., &
+                         atomic_kind_set=atomic_kind_set,error=error)
+
+       DO ispin=1,SIZE(mos_new)
+          CALL deallocate_mo_set(mos_new(1)%mo_set,error)
+       ENDDO
+       DEALLOCATE(mos_new)
+   
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE wfn_mix
 
 ! *****************************************************************************
 !> \brief Computes and Prints Atomic Charges with several methods
