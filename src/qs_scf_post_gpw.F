@@ -737,7 +737,7 @@ CPSourceFileRef,&
                          atomic_kind_set=atomic_kind_set,error=error)
 
        DO ispin=1,SIZE(mos_new)
-          CALL deallocate_mo_set(mos_new(1)%mo_set,error)
+          CALL deallocate_mo_set(mos_new(ispin)%mo_set,error)
        ENDDO
        DEALLOCATE(mos_new)
    

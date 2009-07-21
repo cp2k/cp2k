@@ -1,0 +1,81 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../BASIS_SET
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    LSD
+    &MGRID
+      CUTOFF 280
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 3.0E-7
+      MAX_SCF 50
+      &DIAGONALIZATION
+         ALGORITHM STANDARD
+      &END DIAGONALIZATION
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+      &MO_CUBES
+          NHOMO 4
+          NLUMO 4
+          WRITE_CUBE .FALSE.
+      &END
+      &WFN_MIX
+       ! replace HOMO with an orthonormal linear combination of lumo and lumo+1
+       &UPDATE
+           RESULT_MO_INDEX 1
+           RESULT_SPIN_INDEX ALPHA
+           RESULT_SCALE 0.0
+
+           ORIG_MO_INDEX 1
+           ORIG_SPIN_INDEX BETA
+           ORIG_SCALE .70710678118654752440
+
+           ORIG_IS_VIRTUAL .TRUE.
+       &END
+       &UPDATE
+           RESULT_MO_INDEX 1
+           RESULT_SPIN_INDEX ALPHA
+           RESULT_SCALE 1.0
+
+           ORIG_MO_INDEX 2
+           ORIG_SPIN_INDEX BETA
+           ORIG_SCALE .70710678118654752440
+
+           ORIG_IS_VIRTUAL .TRUE.
+       &END
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
