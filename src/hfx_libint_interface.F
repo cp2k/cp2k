@@ -592,18 +592,13 @@ MODULE hfx_libint_interface
 
     SELECT CASE(potential_parameter%potential_type)
       CASE(do_hfx_potential_truncated)
-        R = potential_parameter%cutoff_radius * SQRT(rho)
-!        IF (PRESENT(R11)) THEN
-          R1 = R11
-          R2 = R22
-!        ELSE
-!          R1 = 1.0_dp/SQRT(Zeta) * mul_fact(np) * eps_cutoff
-!          R2 = 1.0_dp/SQRT(Eta)  * mul_fact(nq) * eps_cutoff
-!        END IF
+        R1 = R11
+        R2 = R22
         IF( PQ2 > (R1+R2+potential_parameter%cutoff_radius)**2 ) THEN
           do_it = .FALSE.
           RETURN
         END IF
+        R = potential_parameter%cutoff_radius * SQRT(rho)
         CALL t_c_g0_n(prim%F,use_gamma,R,T,m_max)
         IF( use_gamma ) CALL fgamma(m_max, T, prim%F)
         factor = 2.0_dp * Pi * RhoInv
