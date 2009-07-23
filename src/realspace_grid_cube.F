@@ -35,8 +35,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
-    TYPE(particle_list_type), OPTIONAL, &
-      POINTER                                :: particles
+    TYPE(particle_list_type), POINTER        :: particles
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: stride
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -83,7 +82,8 @@ CPSourceFileRef,&
 
       np=0
       NULLIFY(my_particles)
-      IF (PRESENT(particles)) my_particles=>particles
+      ! IF (PRESENT(particles)) my_particles=>particles
+      my_particles=>particles
       IF (ASSOCIATED(my_particles)) np=my_particles%n_els
 
       WRITE(iunit,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube

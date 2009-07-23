@@ -89,7 +89,7 @@ CONTAINS
 
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER :: handle, i, imol, iproc, isos, j, k, ncol_global, nproc, &
+    INTEGER :: handle, i, imol, iproc, isos, k, ncol_global, nproc, &
       nrow_global, ns, output_unit, unit_nr, unit_report
     INTEGER, DIMENSION(:), POINTER           :: ind
     INTEGER, POINTER                         :: nstates(:), states(:)
@@ -257,8 +257,6 @@ CONTAINS
             "MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
 
           DO i=1,ns
-             j=ind(i)
-
              CALL get_qs_env(qs_env=qs_env,&
                   atomic_kind_set=atomic_kind_set,&
                   cell=cell,&

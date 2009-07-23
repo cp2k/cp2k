@@ -17,6 +17,8 @@ MODULE qmmm_gpw_energy
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
   USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
@@ -33,6 +35,7 @@ MODULE qmmm_gpw_energy
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -97,6 +100,8 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -114,7 +119,10 @@ CONTAINS
                        para_env=para_env,&
                        input=input_section,&
                        ks_qmmm_env=ks_qmmm_env_loc,&
+                       subsys=subsys,&
                        error=error)
+       CALL cp_subsys_get(subsys,particles=particles,error=error)
+
 
        CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)
        print_section => section_vals_get_subs_vals(input_section,"QMMM%PRINT",error=error)
@@ -187,7 +195,8 @@ CONTAINS
              iw2 = cp_print_key_unit_nr(logger,print_section,"POTENTIAL",&
                   extension=".qmmmLog",error=error)
              CALL pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw2,iw2>0,&
-                  "QM/MM: MM ELECTROSTATIC POTENTIAL ", error=error)
+                  particles=particles,&
+                  title="QM/MM: MM ELECTROSTATIC POTENTIAL ", error=error)
              CALL cp_print_key_finished_output(iw2,logger,print_section,&
                   "POTENTIAL", error=error)
           END IF

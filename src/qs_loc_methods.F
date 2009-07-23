@@ -45,6 +45,8 @@ MODULE qs_loc_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -65,6 +67,7 @@ MODULE qs_loc_methods
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE motion_utils,                    ONLY: get_output_format
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              deallocate_particle_set,&
                                              get_particle_set,&
@@ -888,7 +891,9 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -900,7 +905,11 @@ CONTAINS
     NULLIFY(auxbas_pw_pool, pw_env, logger)
     logger => cp_error_get_logger(error)
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,subsys=subsys,error=error)
+    CALL cp_subsys_get(subsys,particles=particles,error=error)
+
+
+
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
 
     CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
@@ -956,13 +965,14 @@ CONTAINS
        unit_out_c = cp_print_key_unit_nr(logger,print_key,"",middle_name=filename,&
             extension=".cube",file_position=my_pos,log_filename=.FALSE.,error=error)
        IF(SIZE(centers,1)==6) THEN
-          WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",my_ispin," ",&
+          WRITE(title,'(A7,I5.5,A1,I1.1,A1,6F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom
        ELSE
-          WRITE(title,'(A7,I5.5,A1,I1.1,A1,3G10.4)') "WFN ",ivector,"_s",my_ispin," ",&
+          WRITE(title,'(A7,I5.5,A1,I1.1,A1,3F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom
        END IF
        CALL pw_to_cube(wf_r%pw,unit_out_c,unit_out_c>0,title,&
+            particles=particles,&
             stride=section_get_ivals(print_key,"STRIDE",error=error),error=error)
        CALL cp_print_key_finished_output(unit_out_c,logger,print_key,"",error=error)
     END DO

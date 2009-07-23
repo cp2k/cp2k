@@ -42,6 +42,8 @@ MODULE qs_linres_current
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
@@ -56,6 +58,7 @@ MODULE qs_linres_current
   USE memory_utilities,                ONLY: reallocate
   USE message_passing
   USE orbital_pointers,                ONLY: ncoset
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -195,9 +198,11 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, psi_a_iB, psi_buf
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -248,7 +253,9 @@ CONTAINS
          &          para_env=para_env,&
          &          particle_set=particle_set,&
          &          matrix_s=matrix_s,&
+         &          subsys=subsys,&
          &          error=error)
+    CALL cp_subsys_get(subsys,particles=particles,error=error)
 
     gapw  = dft_control%qs_control%gapw
     nspins = dft_control%nspins
@@ -481,6 +488,7 @@ CONTAINS
                   &                       error=error)
              
              CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
+                  &          particles=particles,&
                   &          stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
                   &          error=error),error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,current_section,&

@@ -18,6 +18,7 @@ MODULE qs_kpp1_env_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: default_path_length
+  USE particle_list_types,             ONLY: particle_list_type
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release
   USE realspace_grid_cube,             ONLY: pw_to_cube
@@ -201,9 +202,10 @@ CONTAINS
 !>      12.2002 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE kpp1_write(kpp1_env, unit_nr, long_description, local,&
+  SUBROUTINE kpp1_write(kpp1_env, particles, unit_nr, long_description, local,&
        error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(particle_list_type), POINTER        :: particles
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -262,6 +264,7 @@ CONTAINS
                    CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                         iunit=file_unit,&
                         ionode=logger%para_env%mepos==logger%para_env%source,&
+                        particles=particles,&
                         title="v_rspace",error=error)
                    CALL close_file(file_unit)
                 END DO
@@ -310,6 +313,7 @@ CONTAINS
                            file_action="WRITE",unit_number=file_unit)
                       CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                            iunit=file_unit,&
+                           particles=particles,&
                            ionode=logger%para_env%mepos==logger%para_env%source,&
                            title="drho_r",error=error)
                       CALL close_file(file_unit)

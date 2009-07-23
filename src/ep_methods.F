@@ -51,6 +51,8 @@ MODULE ep_methods
                                              sm_pool_create_matrix,&
                                              sm_pool_give_back_matrix,&
                                              sm_pools_create_matrix_vect
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE distribution_2d_types,           ONLY: distribution_2d_get
   USE ep_qs_methods,                   ONLY: ep_qs_create
   USE ep_qs_types,                     ONLY: ep_qs_release,&
@@ -93,6 +95,7 @@ MODULE ep_methods
                                              mp_bcast,&
                                              mp_max,&
                                              mp_sum
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              make_preconditioner
@@ -1512,11 +1515,13 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: orbitals
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
@@ -1560,6 +1565,9 @@ CONTAINS
          ks_env=ks_env,&
          input=qs_env_input,&
          energy=energy,error=error)
+    CALL get_qs_env(qs_env=qs_env,subsys=subsys,error=error)
+    CALL cp_subsys_get(subsys,particles=particles,error=error)
+
 
     ! ensure storage of electronic kinetic energy
     CALL section_vals_val_get(qs_env_input,"DFT%PRINT%AO_MATRICES%__CONTROL_VAL",&
@@ -1857,6 +1865,7 @@ CONTAINS
                 CALL pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, iunit=unit_nr,&
                      ionode=logger%para_env%mepos==logger%para_env%source,&
                      title="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                     particles=particles,&
                      stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
                      error=suberror)
                 CALL cp_error_reset(suberror)
@@ -1876,6 +1885,7 @@ CONTAINS
           CALL pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=unit_nr,&
                ionode=logger%para_env%mepos==logger%para_env%source,&
                title="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+               particles=particles,&
                stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
                error=suberror)
           CALL cp_error_reset(suberror)
