@@ -48,6 +48,8 @@ MODULE molecular_states
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -82,12 +84,13 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'construct_molecular_states', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: i, imol, iproc, isos, j, k, &
-                                                ncol_global, nproc, &
-                                                nrow_global, ns, output_unit, &
-                                                unit_nr, unit_report
+    INTEGER :: handle, i, imol, iproc, isos, j, k, ncol_global, nproc, &
+      nrow_global, ns, output_unit, unit_nr, unit_report
     INTEGER, DIMENSION(:), POINTER           :: ind
     INTEGER, POINTER                         :: nstates(:), states(:)
     LOGICAL                                  :: failure
@@ -107,6 +110,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
 
     CALL cite_reference(Hunt2003)
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -294,6 +299,9 @@ CONTAINS
     CALL cp_print_key_finished_output(unit_report,logger,localization_section,&
          "MOLECULAR_STATES",error=error)
     !------------------------------------------------------------------------------
+
+    CALL timestop(handle)
+
   END SUBROUTINE construct_molecular_states
 
 !------------------------------------------------------------------------------
