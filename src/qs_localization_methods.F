@@ -39,14 +39,18 @@ MODULE qs_localization_methods
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: &
-       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_maxabsval, &
-       cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_maxabsrownorm, &
+       cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
+       cp_fm_to_fm, cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
+  USE rt_matrix_exp,                   ONLY: exp_pade_real,&
+                                             get_nsquare_norder
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -275,7 +279,8 @@ CONTAINS
 
     COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
     INTEGER                                  :: dim2, handle, idim, istat, &
-                                                istate, jstate, nstate
+                                                istate, jstate, nstate, &
+                                                unit_nr
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ct, st, theta, tolerance
     TYPE(cp_cfm_p_type), DIMENSION(:), &
@@ -310,9 +315,11 @@ CONTAINS
     CALL cp_fm_get_info ( rmat , nrow_global = nstate, error = error )
     tolerance = 1.0e10_dp
     sweeps = 0
+    unit_nr = -1 
     IF (rmat%matrix_struct%para_env%mepos .EQ. rmat%matrix_struct%para_env%source ) THEN
-      WRITE(cp_logger_get_default_unit_nr(),'(T10,A )') "Localization by iterative Jacobi rotation"
-      WRITE(cp_logger_get_default_unit_nr(),'(T20,A12,T40,A12 )') "Iteration", "Tolerance"
+      unit_nr = cp_logger_get_default_unit_nr()
+      WRITE(unit_nr,'(T10,A )') "Localization by iterative Jacobi rotation"
+      WRITE(unit_nr,'(T20,A12,T40,A12 )') "Iteration", "Tolerance"
     END IF
 ! do jacobi sweeps until converged
     DO WHILE ( tolerance >= eps_localization .AND. sweeps < max_iter )
@@ -332,11 +339,8 @@ CONTAINS
         END DO
       END DO
       CALL check_tolerance ( c_zij, weights, tolerance )
-      IF (rmat%matrix_struct%para_env%mepos .EQ. rmat%matrix_struct%para_env%source ) THEN
-          IF(MODULO(sweeps,out_each)==0) THEN
-            WRITE(cp_logger_get_default_unit_nr(),'(T20,I12,T40,E12.4)') &
-                 sweeps,tolerance
-          END IF
+      IF (unit_nr>0 .AND. MODULO(sweeps,out_each)==0) THEN
+         WRITE(unit_nr,'(T20,I12,T40,E12.4)') sweeps,tolerance
       ENDIF
     END DO
 
@@ -460,8 +464,14 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     REAL(KIND=dp), INTENT(OUT)               :: tolerance
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_tolerance', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
     TYPE(cp_fm_type), POINTER                :: force
+
+    CALL timeset(routineN,handle)
 
 ! compute gradient at t=0
 
@@ -471,6 +481,9 @@ CONTAINS
     CALL grad_at_0 ( zij, weights, force )
     CALL cp_fm_maxabsval ( force, tolerance, error = error )
     CALL cp_fm_release ( force ,error=error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE check_tolerance
 ! *****************************************************************************
   SUBROUTINE rotate_orbitals ( rmat, vectors )
@@ -621,11 +634,15 @@ CONTAINS
 ! yet another crazy try, computes the angles needed to rotate the orbitals first
 ! and rotates them all at the same time (hoping for the best of course)
 ! *****************************************************************************
-  SUBROUTINE crazy_rotations( weights, zij, vectors,max_iter,eps_localization, iterations, converged, error )
+  SUBROUTINE crazy_rotations( weights, zij, vectors,max_iter, max_crazy_angle, crazy_scale, crazy_use_diag, &
+                              eps_localization, iterations, converged, error )
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     TYPE(cp_fm_type), POINTER                :: vectors
     INTEGER, INTENT(IN)                      :: max_iter
+    REAL(KIND=dp), INTENT(IN)                :: max_crazy_angle
+    REAL(KIND=dp)                            :: crazy_scale
+    LOGICAL                                  :: crazy_use_diag
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: iterations
     LOGICAL, INTENT(out), OPTIONAL           :: converged
@@ -640,17 +657,16 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: diag_z
     COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
-    INTEGER                                  :: dim2, handle, i, icol, idim, &
-                                                irow, istat, ncol_global, &
-                                                ncol_local, nrow_global, &
-                                                nrow_local
+    INTEGER :: dim2, handle, i, icol, idim, irow, istat, method, ncol_global, &
+      ncol_local, norder, nrow_global, nrow_local, nsquare, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: maxeval, ra, rb, theta, &
+    LOGICAL                                  :: do_emd, failure
+    REAL(KIND=dp)                            :: eps_exp, limit_crazy_angle, &
+                                                maxeval, norm, ra, rb, theta, &
                                                 tolerance, value
     REAL(KIND=dp), DIMENSION(:), POINTER     :: evals
     TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_R, cmat_t1
-    TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_U
+    TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_theta, mat_U
 
     failure=.FALSE.
 
@@ -662,6 +678,8 @@ CONTAINS
                         ncol_global=ncol_global, &
                         row_indices=row_indices, col_indices=col_indices, &
                         nrow_local=nrow_local, ncol_local=ncol_local,error=error)
+
+    limit_crazy_angle=max_crazy_angle
 
     NULLIFY(diag_z,evals,evals_exp,mii,mij,mjj)
     dim2 = SIZE(zij,2)
@@ -679,6 +697,9 @@ CONTAINS
     CALL cp_fm_create ( mat_U, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
     CALL cp_fm_create ( mat_t, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
     CALL cp_fm_create ( mat_R, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
+
+    NULLIFY(mat_theta)
+    CALL cp_fm_create ( mat_theta, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
 
     CALL cp_fm_set_all( mat_R,0.0_dp,1.0_dp ,error=error)
     CALL cp_fm_set_all( mat_t, 0.0_dp,error=error)
@@ -700,8 +721,16 @@ CONTAINS
     CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t,error=error)
     CALL cp_fm_to_fm(mat_t,mat_R,error=error)
 
+    unit_nr=-1
+    IF (cmat_A%matrix_struct%para_env%mepos .EQ. cmat_A%matrix_struct%para_env%source ) THEN
+        unit_nr=cp_logger_get_default_unit_nr()
+        WRITE(unit_nr,'(T2,A7,A6,1X,A20,A12,A12,A12)') &
+               "CRAZY| ","Iter","value    ","gradient","Max. eval","limit"
+    ENDIF
+
     iterations=0
     tolerance=1.0_dp
+
     DO
       iterations=iterations+1
       DO idim=1,dim2
@@ -722,25 +751,44 @@ CONTAINS
             ENDDO
             IF (row_indices(irow).NE.col_indices(icol)) THEN
               CALL get_angle ( mii, mjj, mij, weights, theta )
-              IF (theta.gt.0.2_dp)  theta=0.2_dp
-              IF (theta.lt.-0.2_dp) theta=-0.2_dp
-              cmat_A % local_data(irow,icol) = -CMPLX(0.0_dp, theta, dp )
+              theta=crazy_scale*theta
+              IF (theta.gt.limit_crazy_angle)  theta=limit_crazy_angle
+              IF (theta.lt.-limit_crazy_angle) theta=-limit_crazy_angle
+              IF (crazy_use_diag) THEN
+               cmat_A % local_data(irow,icol) = -CMPLX(0.0_dp, theta, dp )
+              ELSE
+               mat_theta % local_data(irow,icol) = - theta
+              ENDIF
             ELSE
-              cmat_A % local_data(irow,icol) = czero
+              IF (crazy_use_diag) THEN
+               cmat_A % local_data(irow,icol) = czero
+              ELSE
+               mat_theta % local_data(irow,icol) = 0.0_dp
+              ENDIF
             ENDIF
          ENDDO
       ENDDO
 
       ! construct rotation matrix U based on A using diagonalization
       ! alternatively, exp based on repeated squaring could be faster
-      CALL cp_cfm_heevd(cmat_A,cmat_R,evals,error=error)
-      maxeval=MAXVAL(ABS(evals))
-      evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * evals(:) )
-      CALL cp_cfm_to_cfm(cmat_R,cmat_t1,error=error)
-      CALL cp_cfm_column_scale(cmat_t1,evals_exp)
-      CALL cp_cfm_gemm('N','C',nrow_global,nrow_global,nrow_global,cone,&
-           cmat_t1,cmat_R,czero,cmat_A,error=error)
-      mat_U%local_data=REAL(cmat_A%local_data) ! U is a real matrix
+      IF (crazy_use_diag) THEN
+         CALL cp_cfm_heevd(cmat_A,cmat_R,evals,error=error)
+         maxeval=MAXVAL(ABS(evals))
+         evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * evals(:) )
+         CALL cp_cfm_to_cfm(cmat_R,cmat_t1,error=error)
+         CALL cp_cfm_column_scale(cmat_t1,evals_exp)
+         CALL cp_cfm_gemm('N','C',nrow_global,nrow_global,nrow_global,cone,&
+              cmat_t1,cmat_R,czero,cmat_A,error=error)
+         mat_U%local_data=REAL(cmat_A%local_data,KIND=dp) ! U is a real matrix
+      ELSE
+         do_emd=.FALSE.
+         method=2
+         eps_exp=1.0_dp*EPSILON(eps_exp)
+         CALL cp_fm_maxabsrownorm(mat_theta,norm,error)
+         maxeval=norm ! an upper bound
+         CALL get_nsquare_norder(norm,nsquare,norder,eps_exp,method,do_emd,error)
+         CALL exp_pade_real(mat_U,mat_theta,nsquare,norder,error)
+      ENDIF
 
       DO idim=1,dim2
          ! rotate z's
@@ -755,9 +803,10 @@ CONTAINS
 
       CALL check_tolerance_new ( weights, zij, tolerance, value ,error=error)
 
-      IF (cmat_A%matrix_struct%para_env%mepos .EQ. cmat_A%matrix_struct%para_env%source ) THEN
-          WRITE(cp_logger_get_default_unit_nr(),'(I6,1X,G20.15,E12.4,E12.4)') &
-                 iterations,value,tolerance,maxeval
+      IF (unit_nr>0) THEN
+          WRITE(unit_nr,'(T2,A7,I6,1X,G20.15,E12.4,E12.4,E12.4)') &
+                 "CRAZY| ",iterations,value,tolerance,maxeval,limit_crazy_angle
+          CALL m_flush(unit_nr)
       ENDIF
       IF (tolerance .LT. eps_localization .OR. iterations.ge.max_iter) EXIT
     ENDDO
@@ -770,6 +819,7 @@ CONTAINS
 
     CALL cp_fm_release(mat_U,error=error)
     CALL cp_fm_release(mat_T,error=error)
+    CALL cp_fm_release(mat_theta,error=error)
 
     CALL rotate_orbitals(mat_R,vectors)
 

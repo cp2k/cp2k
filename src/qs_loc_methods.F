@@ -164,8 +164,10 @@ CONTAINS
     INTEGER                                  :: handle, i, j, max_iter, nao, &
                                                 nmoloc, out_each, &
                                                 output_unit, sweeps
-    LOGICAL                                  :: converged
-    REAL(dp)                                 :: eps_localization
+    LOGICAL                                  :: converged, crazy_use_diag
+    REAL(dp)                                 :: crazy_scale, &
+                                                eps_localization, &
+                                                max_crazy_angle
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -191,6 +193,9 @@ CONTAINS
     ENDDO
 
     max_iter = qs_loc_env%localized_wfn_control%max_iter
+    max_crazy_angle = qs_loc_env%localized_wfn_control%max_crazy_angle
+    crazy_use_diag = qs_loc_env%localized_wfn_control%crazy_use_diag
+    crazy_scale = qs_loc_env%localized_wfn_control%crazy_scale
     eps_localization = qs_loc_env%localized_wfn_control%eps_localization
     out_each = qs_loc_env%localized_wfn_control%out_each
 
@@ -200,7 +205,8 @@ CONTAINS
             eps_localization=eps_localization, sweeps=sweeps, &
             out_each=out_each, error=error )
     CASE ( do_loc_crazy )
-       CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=max_iter, &
+       CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=max_iter, max_crazy_angle = max_crazy_angle, &
+            crazy_scale=crazy_scale, crazy_use_diag=crazy_use_diag, &
             eps_localization=eps_localization, iterations= sweeps ,converged=converged,&
             error=error)
        ! Possibly fallback to jacobi if the crazy rotation fails
@@ -783,8 +789,6 @@ CONTAINS
                 END IF
              END DO
              IF (ncubes>0) list_cubes_setup =.TRUE.
-          ELSE
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
 
           ! Full list of Mos
@@ -799,7 +803,6 @@ CONTAINS
                 list_cubes(i) = i
              END DO
           END IF
-          CPPostcondition(list_cubes_setup,cp_failure_level,routineP,error,failure)
 
           ncubes = SIZE(list_cubes)
           ncubes = MIN(ncubes,nmo)

@@ -241,14 +241,16 @@ CONTAINS
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
        CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &
             rot_e_vectors,smo,0.0_dp,D_igk,error=error)
-       DO i=1,ns
-          DO k=1,ncol_global
-             CALL cp_fm_get_element(D_igk,i,k,tmp)
-             IF (unit_report>0) THEN
-                WRITE(unit_report,*) tmp**2
-             ENDIF
-          ENDDO
-       ENDDO
+       IF (.FALSE.) THEN ! this is too much data for large systems
+          DO i=1,ns
+             DO k=1,ncol_global
+                CALL cp_fm_get_element(D_igk,i,k,tmp)
+                IF (unit_report>0) THEN
+                   WRITE(unit_report,*) tmp**2
+                ENDIF
+             ENDDO
+          ENDDO 
+       ENDIF
        CALL cp_fm_release(D_igk,error=error)
 
        IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&

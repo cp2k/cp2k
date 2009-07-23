@@ -647,6 +647,24 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MAX_CRAZY_ANGLE",&
+            description="Largest allowed angle for the crazy rotations algorithm (smaller is slower but more stable).",&
+            usage="MAX_CRAZY_ANGLE 0.1", unit_str="rad", default_r_val=0.2_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CRAZY_SCALE",&
+            description="scale angles",&
+            usage="CRAZY_SCALE 0.9", default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CRAZY_USE_DIAG",&
+            description="Use diagonalization (slow) or pade based calculation of matrix exponentials.",&
+            usage="CRAZY_USE_DIAG ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="OUT_ITER_EACH",&
             description="Every how many iterations of the localization algorithm"//&
             "(Jacobi) the tolerance value is printed out",&
