@@ -741,6 +741,7 @@ CONTAINS
     IF ( iw>0 ) WRITE(iw,'(//,A)') " Test of Geminal/Gaussian Repulsion Integral Derivatives (GRI) "
 
     delta = 0.00001_dp
+    dmax  = 0.0_dp
 
     xa = 0.783300000000   
     xb = 1.239648746700  
