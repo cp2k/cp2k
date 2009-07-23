@@ -797,6 +797,7 @@ MODULE ai_geminals
     mk = SIZE(in,1)
     mr = SIZE(in,4)
     ms = SIZE(in,5)
+    iout = 0.0_dp
 
     DO l1=0,la
       DO l2=0,lb
@@ -869,6 +870,7 @@ MODULE ai_geminals
     mk = SIZE(in,1)
     mr = SIZE(in,2)
     ms = SIZE(in,3)
+    iout = 0.0_dp
 
     DO l1=0,la
       DO l2=0,lb
