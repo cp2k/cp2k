@@ -32,7 +32,8 @@ MODULE molecular_states
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
   USE input_section_types,             ONLY: section_get_ivals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast,&
@@ -93,9 +94,10 @@ CONTAINS
       nrow_global, ns, output_unit, unit_nr, unit_report
     INTEGER, DIMENSION(:), POINTER           :: ind
     INTEGER, POINTER                         :: nstates(:), states(:)
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), ALLOCATABLE               :: evals( : )
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eval_range
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -123,6 +125,16 @@ CONTAINS
     nproc = para_env%num_pe
     output_unit = -1
     IF (para_env%ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%CUBE_EVAL_RANGE",&
+               explicit=explicit,error=error)
+    IF (explicit) THEN
+       CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%CUBE_EVAL_RANGE",&
+                  r_vals=eval_range,error=error)
+    ELSE
+       ALLOCATE(eval_range(2)) 
+       eval_range(1)=-HUGE(0.0_dp)
+       eval_range(2)=+HUGE(0.0_dp)
+    ENDIF
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -256,13 +268,15 @@ CONTAINS
        IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
             "MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
 
+          CALL get_qs_env(qs_env=qs_env,&
+               atomic_kind_set=atomic_kind_set,&
+               cell=cell,&
+               dft_control=dft_control,&
+               particle_set=particle_set,&
+               pw_env=pw_env,error=error)
+
           DO i=1,ns
-             CALL get_qs_env(qs_env=qs_env,&
-                  atomic_kind_set=atomic_kind_set,&
-                  cell=cell,&
-                  dft_control=dft_control,&
-                  particle_set=particle_set,&
-                  pw_env=pw_env,error=error)
+             IF (evals(i)<eval_range(1) .OR. evals(i)>eval_range(2)) CYCLE
 
              CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
                   wf_g, atomic_kind_set,cell,dft_control,particle_set, &
@@ -299,6 +313,10 @@ CONTAINS
     CALL cp_print_key_finished_output(unit_report,logger,localization_section,&
          "MOLECULAR_STATES",error=error)
     !------------------------------------------------------------------------------
+
+    IF (.NOT.explicit) THEN
+      DEALLOCATE(eval_range)
+    END IF
 
     CALL timestop(handle)
 

@@ -1682,13 +1682,20 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       NULLIFY(print_key2, keyword)
        CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
             description="Controls printing of molecular states ",&
             print_level=high_print_level,filename=" ",citations=(/Hunt2003/), error=error)
 
-       NULLIFY(print_key2, keyword)
+       CALL keyword_create(keyword, name="CUBE_EVAL_RANGE",&
+            description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "//&
+                        "Default is all states.",&
+                        usage="CUBE_EVAL_RANGE -1.0 1.0",unit_str="hartree",n_var=2,type_of_var=real_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL cp_print_key_section_create(print_key2,"cubes",&
-            description="Controls the printing of cube files in localization", &
+            description="Controls the printing of cube files", &
             print_level=high_print_level,filename="",error=error)
        CALL keyword_create(keyword, name="stride",&
             description="The stride (X,Y,Z) used to write the cube file "//&
