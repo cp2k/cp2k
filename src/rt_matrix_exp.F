@@ -22,7 +22,8 @@ MODULE rt_matrix_exp
                                              cp_cfm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
-                                             cp_fm_scale_and_add
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_solve
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_double,&
                                              cp_fm_struct_release,&
@@ -72,12 +73,16 @@ CONTAINS
     INTEGER                                  :: nsquare, ntaylor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'taylor_only_imaginary', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: i, ndim, nloop
+    INTEGER                                  :: handle, i, ndim, nloop
     REAL(KIND=dp)                            :: square_fac, Tfac, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im
     TYPE(cp_fm_type), POINTER                :: T1, T2, T3, Tres_im, Tres_re
+
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(im_matrix,local_data=local_data_im,error=error)
     ndim=im_matrix%matrix_struct%nrow_global   
@@ -151,6 +156,7 @@ CONTAINS
     CALL cp_fm_release(Tres_re,error)
     CALL cp_fm_release(Tres_im,error)
 
+    CALL timestop(handle)
 
  
   END SUBROUTINE taylor_only_imaginary
@@ -170,15 +176,18 @@ CONTAINS
     INTEGER                                  :: nsquare, ntaylor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex', &
+      routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: Tfac
-    INTEGER                                  :: i, ndim
+    INTEGER                                  :: handle, i, ndim
     REAL(KIND=dp)                            :: square_fac, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im, local_data_re
     TYPE(cp_cfm_type), POINTER               :: T1, T2, T3, Tres
 
+    CALL timeset(routineN,handle)
     CALL cp_fm_get_info(re_part,local_data=local_data_re,error=error)
     CALL cp_fm_get_info(im_part,local_data=local_data_im,error=error)
     ndim=re_part%matrix_struct%nrow_global
@@ -233,7 +242,8 @@ CONTAINS
     CALL cp_cfm_release(T2,error)
     CALL cp_cfm_release(T3,error)
     CALL cp_cfm_release(Tres,error)
- 
+    CALL timestop(handle)
+
   END SUBROUTINE taylor_full_complex
 
 
@@ -354,13 +364,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: ndim, stat
+    INTEGER                                  :: handle, ndim, stat
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigval_H
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: exp_eig_val
     TYPE(cp_fm_type), POINTER                :: eigvec_H, S_half, &
                                                 S_minus_half, tmp_mat
 
+    CALL timeset(routineN,handle)
     CALL get_rtp(rtp=rtp,S_half=S_half,S_minus_half=S_minus_half,error=error)
 
     CALL cp_fm_create(eigvec_H,&
@@ -413,7 +424,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(exp_eig_val,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+    CALL timestop(handle)
 
   END SUBROUTINE exp_diag
 
@@ -423,13 +434,16 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: eigenvec, matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'backtransform_matrix', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: i, j, l, ncol_local, ndim, &
-                                                nrow_local
+    INTEGER                                  :: handle, i, j, l, ncol_local, &
+                                                ndim, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     TYPE(cp_fm_type), POINTER                :: tmp
 
+    CALL timeset(routineN,handle)
     CALL cp_fm_create(tmp,&
          matrix_struct=matrix%matrix_struct,&
          name="TMP_BT",&
@@ -450,6 +464,7 @@ CONTAINS
          matrix ,error)
 
     CALL cp_fm_release(tmp,error)
+    CALL timestop(handle)
 
   END SUBROUTINE backtransform_matrix
 
@@ -465,11 +480,13 @@ CONTAINS
     INTEGER                                  :: nsquare, npade, istep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_full_complex', &
+      routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
-    INTEGER                                  :: i, ldim, ndim, p, q
+    INTEGER                                  :: handle, i, ldim, ndim, p, q
     REAL(KIND=dp)                            :: square_fac, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im, local_data_re
     TYPE(cp_cfm_p_type), DIMENSION(:), &
@@ -478,7 +495,8 @@ CONTAINS
 
     p=npade
     q=npade
-    
+
+    CALL timeset(routineN,handle)
     CALL cp_fm_get_info(re_part,local_data=local_data_re,ncol_local=ldim,&
          nrow_global=ndim,error=error)
     CALL cp_fm_get_info(im_part,local_data=local_data_im,error=error)
@@ -559,6 +577,8 @@ CONTAINS
     CALL cp_cfm_release(T2,error)
     CALL cp_cfm_release(Tres,error)
     DEALLOCATE(mult_p)
+    CALL timestop(handle)
+
   END SUBROUTINE exp_pade_full_complex
 
 ! *****************************************************************************
@@ -573,13 +593,16 @@ CONTAINS
     INTEGER                                  :: nsquare, npade
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_only_imaginary', &
+      routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
     REAL(KIND=dp), PARAMETER                 :: rone = (1.0_dp,0.0_dp) , &
                                                 rzero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
-    INTEGER                                  :: i, j, k, ldim, ndim, p, q
+    INTEGER                                  :: handle, i, j, k, ldim, ndim, &
+                                                p, q
     REAL(KIND=dp)                            :: my_fac, square_fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im
     TYPE(cp_cfm_p_type), DIMENSION(:), &
@@ -587,6 +610,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: Dpq, fin_p, Npq, T1
     TYPE(cp_fm_type), POINTER                :: T2, Tres
 
+    CALL timeset(routineN,handle)
     p=npade
     q=npade
     
@@ -688,8 +712,127 @@ CONTAINS
     CALL cp_fm_release(T2,error)
     CALL cp_fm_release(Tres,error)
     DEALLOCATE(cmult_p)
+    CALL timestop(handle)
   END SUBROUTINE exp_pade_only_imaginary
-  
+
+ ! *****************************************************************************
+!> \brief exponential of a real matrix,
+!>        calculated using pade approximation together with scaling and squaring
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE exp_pade_real(exp_H,matrix,nsquare,npade,error)
+    TYPE(cp_fm_type)                         :: exp_H
+    TYPE(cp_fm_type), POINTER                :: matrix
+    INTEGER                                  :: nsquare, npade
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_real', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    COMPLEX(KIND=dp)                         :: scaleD, scaleN
+    INTEGER                                  :: handle, i, j, k, ldim, ndim, &
+                                                p, q
+    REAL(KIND=dp)                            :: my_fac, square_fac
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mult_p
+    TYPE(cp_fm_type), POINTER                :: Dpq, fin_p, Npq, T1, T2, Tres
+
+    CALL timeset(routineN,handle)
+    p=npade
+    q=npade
+    
+    CALL cp_fm_get_info(matrix,local_data=local_data,ncol_local=ldim,nrow_global=ndim,error=error)
+    square_fac=2.0_dp**REAL(nsquare,dp)
+    ALLOCATE(mult_p(2))
+
+    CALL cp_fm_create(Dpq,&
+                       matrix_struct=matrix%matrix_struct,&
+                       name="T1",&
+                       error=error)
+   
+    CALL cp_fm_create(Npq,&
+                      matrix_struct=Dpq%matrix_struct,&
+                      name="Npq",&
+                      error=error)    
+
+    CALL cp_fm_create(T1,&
+                      matrix_struct=Dpq%matrix_struct,&
+                      name="T1",&
+                      error=error)
+
+    CALL cp_fm_create(T2,&
+                      matrix_struct=T1%matrix_struct,&
+                      name="T2",&
+                      error=error)
+
+    CALL cp_fm_create(Tres,&
+                      matrix_struct=T1%matrix_struct,&
+                      name="Tres",&
+                      error=error)
+
+    DO i=1,ldim
+       local_data(:,i)=local_data(:,i)/square_fac
+    END DO
+
+    CALL cp_fm_to_fm(matrix,T2,error)
+    CALL cp_fm_to_fm(matrix,T1,error)
+    CALL cp_fm_set_all(Npq,zero,one,error)
+    CALL cp_fm_set_all(Dpq,zero,one,error)
+
+    DO i=1,ldim
+       Npq%local_data(:,i)= Npq%local_data(:,i)+0.5_dp*local_data(:,i)
+       Dpq%local_data(:,i)= Dpq%local_data(:,i)-0.5_dp*local_data(:,i)
+    END DO
+
+    mult_p(2)%matrix=>T2
+    mult_p(1)%matrix=>T1
+    
+    IF(npade.GT.2)THEN
+       DO j=1,npade
+          my_fac=(-1.0_dp)**j
+          scaleN=fac(p +q -j )*fac(p )/(fac(p +q )*fac(j )*fac(p -j ))
+          scaleD=my_fac* fac(p +q -j )*fac(q)/(fac(p +q )*fac(j )*fac(q -j))
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,mult_p(MOD(j,2)+1)%matrix,mult_p(MOD(j,2)+1)%matrix,&
+          zero,mult_p(MOD(j+1,2)+1)%matrix,error)
+          
+          DO k=1,ldim
+             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN* mult_p(MOD(j+1,2)+1)%matrix%local_data(:,k)
+             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD* mult_p(MOD(j+1,2)+1)%matrix%local_data(:,k)
+          END DO
+       END DO
+    END IF
+
+    CALL cp_fm_solve(Dpq,Npq,error)
+
+    mult_p(2)%matrix=>Npq
+    mult_p(1)%matrix=>T1
+    IF(nsquare.GT.0)THEN
+       DO i=1,nsquare
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,mult_p(MOD(i,2)+1)%matrix,mult_p(MOD(i,2)+1)%matrix,zero,&
+               mult_p(MOD(i+1,2)+1)%matrix,error)
+          fin_p=> mult_p(MOD(i+1,2)+1)%matrix
+       END DO
+    ELSE
+       fin_p=>Npq
+    END IF
+
+    DO k=1,ldim
+       exp_H%local_data(:,k)=fin_p%local_data(:,k)
+    END DO
+
+    CALL cp_fm_release(Npq,error)
+    CALL cp_fm_release(Dpq,error)
+    CALL cp_fm_release(T1,error)
+    CALL cp_fm_release(T2,error)
+    CALL cp_fm_release(Tres,error)
+    DEALLOCATE(mult_p)
+    CALL timestop(handle)
+
+  END SUBROUTINE exp_pade_real
+
 ! *****************************************************************************
 !> \brief exponential of a complex matrix,
 !>        calculated using arnoldi subspace method (directly apllies to the MOs

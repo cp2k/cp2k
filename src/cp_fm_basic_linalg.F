@@ -47,8 +47,9 @@ MODULE cp_fm_basic_linalg
             cp_fm_invert,&                 ! computes the inverse and determinant 
             cp_fm_frobenius_norm,&         ! frobenius norm
             cp_fm_ger, &                   ! rank 1 operation
-            cp_fm_triangular_invert,&        ! compute the reciprocal of a tirangular matrix
-            cp_fm_qr_factorization         ! compute the QR factorization of a rectangular matrix
+            cp_fm_triangular_invert,&      ! compute the reciprocal of a tirangular matrix
+            cp_fm_qr_factorization,&       ! compute the QR factorization of a rectangular matrix
+            cp_fm_solve                    ! solves the equation  A*B=C A and C are input
 
 CONTAINS
 
@@ -1327,6 +1328,51 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END SUBROUTINE cp_fm_qr_factorization
 
+! *****************************************************************************
+!> \brief computs the the solution to A*b=A_general using lu decomposition
+!>        pay attention, both matrices are overwritten, a_general contais the result    
+!> \author Florian Schiffmann
+! *****************************************************************************  
+  SUBROUTINE cp_fm_solve(matrix_a,general_a,error)
+    TYPE(cp_fm_type), POINTER                :: matrix_a, general_a
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_solve', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+
+    INTEGER                                  :: handle, info, lda, ldb, n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
+    INTEGER, DIMENSION(9)                    :: desca, descb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, a_general
+
+! *** locals ***
+
+    CALL timeset(routineN,handle)
+
+    a => matrix_a%local_data
+    a_general => general_a%local_data
+    n = matrix_a%matrix_struct%nrow_global
+    ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
+
+#if defined(__SCALAPACK)
+    desca(:) = matrix_a%matrix_struct%descriptor(:)
+    descb(:) = general_a%matrix_struct%descriptor(:)
+    CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
+    CALL pdgetrs("N" , n , n , a(1,1), 1, 1, desca ,ipivot, a_general(1,1) ,&
+                 1, 1, descb, info )
+
+#else
+    lda=SIZE(a,1)
+    ldb=SIZE(a_general,1)
+    CALL dgetrf(n,n,a(1,1),lda,ipivot,info)
+    CALL dgetrs("N",n,n,a(1,1),lda,ipivot,a_general,ldb,info)
+
+#endif
+    ! info is allowed to be zero
+    ! this does just signal a zero diagonal element
+    DEALLOCATE(ipivot)
+    CALL timestop(handle)
+  END SUBROUTINE
 
 END MODULE cp_fm_basic_linalg
