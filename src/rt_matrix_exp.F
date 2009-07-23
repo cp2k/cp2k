@@ -774,11 +774,10 @@ CONTAINS
                       error=error)
 
     DO i=1,ldim
-       local_data(:,i)=local_data(:,i)/square_fac
+       T2%local_data(:,i)=local_data(:,i)/square_fac
     END DO
 
-    CALL cp_fm_to_fm(matrix,T2,error)
-    CALL cp_fm_to_fm(matrix,T1,error)
+    CALL cp_fm_to_fm(T2,T1,error)
     CALL cp_fm_set_all(Npq,zero,one,error)
     CALL cp_fm_set_all(Dpq,zero,one,error)
 
@@ -787,15 +786,15 @@ CONTAINS
        Dpq%local_data(:,i)= Dpq%local_data(:,i)-0.5_dp*local_data(:,i)
     END DO
 
-    mult_p(2)%matrix=>T2
-    mult_p(1)%matrix=>T1
+    mult_p(1)%matrix=>T2
+    mult_p(2)%matrix=>Tres
     
-    IF(npade.GT.2)THEN
-       DO j=1,npade
+    IF(npade.GE.2)THEN
+       DO j=2,npade
           my_fac=(-1.0_dp)**j
           scaleN=fac(p +q -j )*fac(p )/(fac(p +q )*fac(j )*fac(p -j ))
           scaleD=my_fac* fac(p +q -j )*fac(q)/(fac(p +q )*fac(j )*fac(q -j))
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,mult_p(MOD(j,2)+1)%matrix,mult_p(MOD(j,2)+1)%matrix,&
+          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,mult_p(MOD(j,2)+1)%matrix,T1,&
           zero,mult_p(MOD(j+1,2)+1)%matrix,error)
           
           DO k=1,ldim
