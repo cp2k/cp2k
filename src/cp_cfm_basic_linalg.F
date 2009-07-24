@@ -13,6 +13,7 @@
 ! *****************************************************************************
 MODULE cp_cfm_basic_linalg
   USE cp_cfm_types,                    ONLY: cp_cfm_get_element,&
+                                             cp_cfm_get_info,&
                                              cp_cfm_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
   USE kinds,                           ONLY: dp
@@ -27,7 +28,7 @@ MODULE cp_cfm_basic_linalg
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
   PUBLIC :: cp_cfm_add, cp_cfm_gemm, cp_cfm_lu_decompose, cp_cfm_column_scale, cp_cfm_schur_product,&
-             cp_cfm_schur_product_cc,cp_cfm_solve
+             cp_cfm_schur_product_cc,cp_cfm_solve,cp_cfm_cholesky_decompose,cp_cfm_triangular_multiply
 CONTAINS
 
 ! *****************************************************************************
@@ -224,7 +225,7 @@ CPSourceFileRef,&
 
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
-    ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
+    ALLOCATE(ipivot(n))
 
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -381,7 +382,7 @@ CPSourceFileRef,&
     a => matrix_a%local_data
     a_general => general_a%local_data
     n = matrix_a%matrix_struct%nrow_global
-    ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
+    ALLOCATE(ipivot(n))
 
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -402,5 +403,179 @@ CPSourceFileRef,&
     DEALLOCATE(ipivot)
     CALL timestop(handle)
   END SUBROUTINE
+! *****************************************************************************
+!> \brief used to replace a symmetric positive def. matrix M with its cholesky
+!>      decomposition U: M = U^T * U, with U upper triangular
+!> \param matrix the matrix to replace with its cholesky decomposition
+!> \param n the number of row (and columns) of the matrix &
+!>        (defaults to the min(size(matrix)))
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2002 created [JVdV]
+!>      12.2002 updated, added n optional parm [fawzi]
+!> \author Joost
+! *****************************************************************************
+  SUBROUTINE cp_cfm_cholesky_decompose(matrix,n,error)
+    TYPE(cp_cfm_type), POINTER               :: matrix
+    INTEGER, INTENT(in), OPTIONAL            :: n
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_decompose', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    INTEGER                                  :: handle, info, my_n
+    INTEGER, DIMENSION(9)                    :: desca
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    my_n = MIN(matrix%matrix_struct%nrow_global,&
+         matrix%matrix_struct%ncol_global)
+    IF (PRESENT(n)) THEN
+       CPPrecondition(n<=my_n,cp_failure_level,routineP,error,failure)
+       my_n=n
+    END IF
+
+    a => matrix%local_data
+
+#if defined(__SCALAPACK)
+    desca(:) = matrix%matrix_struct%descriptor(:)
+    CALL pzpotrf('U',my_n,a(1,1),1,1,desca,info)
+
+#else
+
+    CALL zpotrf('U',my_n,a(1,1),SIZE(a,1),info)
+
+#endif
+
+    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END  SUBROUTINE cp_cfm_cholesky_decompose
+
+! *****************************************************************************
+!> \brief multiplies in place by a triangular matrix:
+!>       matrix_b = alpha op(triangular_matrix) matrix_b
+!>      or (if side='R')
+!>       matrix_b = alpha matrix_b op(triangular_matrix)
+!>      op(triangular_matrix) is:
+!>       triangular_matrix (if transpose_tr=.false. and invert_tr=.false.)
+!>       triangular_matrix^T (if transpose_tr=.true. and invert_tr=.false.)
+!>       triangular_matrix^(-1) (if transpose_tr=.false. and invert_tr=.true.)
+!>       triangular_matrix^(-T) (if transpose_tr=.true. and invert_tr=.true.)
+!> \param triangular_matrix the triangular matrix that multiplies the other
+!> \param matrix_b the matrix that gets multiplied and stores the result
+!> \param side on which side of matrix_b stays op(triangular_matrix)
+!>        (defaults to 'L')
+!> \param transpose_tr if the triangular matrix should be transposed
+!>        (defaults to false)
+!> \param invert_tr if the triangular matrix should be inverted
+!>        (defaults to false)
+!> \param uplo_tr if triangular_matrix is stored in the upper ('U') or
+!>        lower ('L') triangle (defaults to 'U')
+!> \param unit_diag_tr if the diagonal elements of triangular_matrix should
+!>        be assumed to be 1 (defaults to false)
+!> \param n_rows the number of rows of the result (defaults to
+!>        size(matrix_b,1))
+!> \param n_cols the number of columns of the result (defaults to
+!>        size(matrix_b,2))
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      needs an mpi env
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
+SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
+     transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
+     alpha,error)
+    TYPE(cp_cfm_type), POINTER                :: triangular_matrix, matrix_b
+    CHARACTER, INTENT(in), OPTIONAL          :: side
+    LOGICAL, INTENT(in), OPTIONAL            :: transpose_tr, invert_tr
+    CHARACTER, INTENT(in), OPTIONAL          :: uplo_tr
+    LOGICAL, INTENT(in), OPTIONAL            :: unit_diag_tr
+    INTEGER, INTENT(in), OPTIONAL            :: n_rows, n_cols
+    COMPLEX(KIND=dp), INTENT(in), OPTIONAL      :: alpha
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_triangular_multiply', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: side_char, transa, unit_diag, &
+                                                uplo
+    INTEGER                                  :: handle, m, n
+    LOGICAL                                  :: failure, invert
+    COMPLEX(KIND=dp)                            :: al
+
+  failure=.FALSE.
+
+  CALL timeset(routineN,handle)
+  side_char='L'
+  unit_diag='N'
+  uplo='U'
+  transa='N'
+  invert=.FALSE.
+  al=CMPLX(1.0_dp,0.0_dp,dp)
+  CALL cp_cfm_get_info(matrix_b, nrow_global=m, ncol_global=n, error=error)
+  IF (PRESENT(side)) side_char=side
+  IF (PRESENT(invert_tr)) invert=invert_tr
+  IF (PRESENT(uplo_tr)) uplo=uplo_tr
+  IF (PRESENT(unit_diag_tr)) THEN
+     IF (unit_diag_tr) THEN
+        unit_diag='U'
+     ELSE
+        unit_diag='N'
+     END IF
+  END IF
+  IF (PRESENT(transpose_tr)) THEN
+     IF (transpose_tr) THEN
+        transa='T'
+     ELSE
+        transa='N'
+     END IF
+  END IF
+  IF (PRESENT(alpha)) al=alpha
+  IF (PRESENT(n_rows)) m=n_rows
+  IF (PRESENT(n_cols)) n=n_cols
+
+  IF (invert) THEN
+
+#if defined(__SCALAPACK)
+     CALL pztrsm(side_char,uplo,transa,unit_diag,m,n,al,&
+          triangular_matrix%local_data(1,1),1,1,&
+          triangular_matrix%matrix_struct%descriptor,&
+          matrix_b%local_data(1,1),1,1,&
+          matrix_b%matrix_struct%descriptor(1))
+#else
+     CALL ztrsm(side_char,uplo,transa,unit_diag,m,n,al,&
+          triangular_matrix%local_data(1,1),&
+          SIZE(triangular_matrix%local_data,1),&
+          matrix_b%local_data(1,1),SIZE(matrix_b%local_data,1))
+#endif
+
+  ELSE
+
+#if defined(__SCALAPACK)
+     CALL pztrmm(side_char,uplo,transa,unit_diag,m,n,al,&
+          triangular_matrix%local_data(1,1),1,1,&
+          triangular_matrix%matrix_struct%descriptor,&
+          matrix_b%local_data(1,1),1,1,&
+          matrix_b%matrix_struct%descriptor(1))
+#else
+     CALL ztrmm(side_char,uplo,transa,unit_diag,m,n,al,&
+          triangular_matrix%local_data(1,1),&
+          SIZE(triangular_matrix%local_data,1),&
+          matrix_b%local_data(1,1),SIZE(matrix_b%local_data,1))
+#endif
+
+  END IF
+
+  CALL timestop(handle)
+  END SUBROUTINE cp_cfm_triangular_multiply
 END MODULE cp_cfm_basic_linalg

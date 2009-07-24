@@ -10,6 +10,12 @@
 MODULE rt_propagation_methods
   USE bibliography,                    ONLY: Kolafa2004,&
                                              cite_reference
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
+                                             cp_cfm_gemm,&
+                                             cp_cfm_triangular_multiply
+  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                             cp_cfm_release,&
+                                             cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -17,6 +23,10 @@ MODULE rt_propagation_methods
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_double,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -25,8 +35,10 @@ MODULE rt_propagation_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
+                                             cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
+                                             sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_arnoldi,&
@@ -66,6 +78,7 @@ MODULE rt_propagation_methods
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE sparse_matrix_types,             ONLY: add_matrices,&
+                                             copy_matrix,&
                                              deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -105,7 +118,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i
+    INTEGER                                  :: aspc_order, handle, i
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, exp_H_new
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -130,6 +143,10 @@ CONTAINS
 
     CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,error=error)
 
+    IF(rtp%istep.GT.0.AND.rtp%iter==1.AND.rtp%history%mos_or_H==2)THEN
+       aspc_order=qs_env%dft_control%rtp_control%aspc_order
+       CALL aspc_extrapolate(qs_env,rtp,aspc_order,error)
+    END IF
     ALLOCATE(delta_mos(2*SIZE(mos)))
     DO i=1,2*SIZE(mos)
        CALL cp_fm_create(delta_mos(i)%matrix,&
@@ -138,7 +155,15 @@ CONTAINS
             error=error)
        CALL cp_fm_to_fm(rtp%mos_new(i)%matrix,delta_mos(i)%matrix,error)
     END DO
-    
+
+    IF(rtp%istep.GT.1.AND.rtp%iter==1.AND.rtp%history%mos_or_H==1)THEN
+       aspc_order=qs_env%dft_control%rtp_control%aspc_order
+       CALL aspc_extrapolate(qs_env,rtp,aspc_order,error)
+       CALL calc_update_rho(qs_env,error)
+       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+            error=error)
+    END IF
+
     SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
     CASE( do_diag, do_pade, do_taylor)
        
@@ -153,8 +178,10 @@ CONTAINS
           CALL propagate_etrs(qs_env,error)
        END SELECT
     CASE(do_arnoldi)
-       IF(rtp%iter.NE.1)&
+       IF(rtp%iter.EQ.1.AND.rtp%istep.EQ.1)THEN
+       ELSE
             CALL calc_SinvH(exp_H_new,qs_env,error)
+       ENDIF
        CALL propagate_arnoldi(qs_env,error)
        CALL calc_update_rho(qs_env,error)
     END SELECT
@@ -602,54 +629,215 @@ CONTAINS
     CALL timestop(handle)
   
   END SUBROUTINE update_core_and_matrices
-
-  SUBROUTINE aspc_extrapolate(rtp,aspc_order,error)
+  SUBROUTINE aspc_extrapolate(qs_env,rtp,aspc_order,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
     INTEGER                                  :: aspc_order
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'aspc_extrapolate', &
       routineP = moduleN//':'//routineN
+    COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp) , &
+                                                czero = (0.0_dp,0.0_dp)
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: iaspc, ihist, imat, naspc, &
-                                                nmat
+    INTEGER                                  :: handle, i, iaspc, icol_local, &
+                                                ihist, imat, k, kdbl, n, &
+                                                naspc, ncol_local, nmat
     REAL(KIND=dp)                            :: alpha
+    TYPE(cp_cfm_type), POINTER               :: cfm_tmp, cfm_tmp1, csc
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H_new
+      POINTER                                :: exp_H_new, mos_new
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: exp_hist
+      POINTER                                :: exp_hist, mo_hist
+    TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
+                                                matrix_struct_new
+    TYPE(cp_fm_type), POINTER                :: fm_tmp, fm_tmp1, fm_tmp2
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, s_hist
 
+    CALL timeset(routineN,handle)
     NULLIFY(exp_hist)
-    CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,error=error)
+    CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,mos_new=mos_new,error=error)
     nmat=SIZE(rtp%exp_H_new)
-    exp_hist=>rtp%history%exp_history
+    CALL get_qs_env(qs_env,&
+         matrix_s=matrix_s,&
+         error=error)
 
     naspc=MIN(rtp%istep,aspc_order)
     CALL cite_reference(Kolafa2004)
-
-    IF(naspc.GT.1)THEN
-       DO imat=1,nmat
-          DO iaspc=1,naspc
-             IF(iaspc==1)alpha = REAL(4*naspc - 2,KIND=dp)/REAL(naspc + 1,KIND=dp)
-             IF(iaspc.GT.1) alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
-                  binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
-             
-             ihist=MOD(rtp%istep-iaspc,aspc_order)+1
-             IF(iaspc==1)THEN
-                CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
-             ELSE
-                CALL cp_fm_scale_and_add(one,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
-             END IF
+    IF(rtp%history%mos_or_H==2)THEN
+       exp_hist=>rtp%history%exp_history    
+       IF(naspc.GT.1)THEN
+          DO imat=1,nmat
+             DO iaspc=1,naspc
+                IF(iaspc==1)alpha = REAL(4*naspc - 2,KIND=dp)/REAL(naspc + 1,KIND=dp)
+                IF(iaspc.GT.1) alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
+                     binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
+                
+                ihist=MOD(rtp%istep-iaspc,aspc_order)+1
+                IF(iaspc==1)THEN
+                   CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
+                ELSE
+                   CALL cp_fm_scale_and_add(one,exp_H_new(imat)%matrix,alpha,exp_hist(imat,ihist)%matrix,error)
+                END IF
+             END DO
           END DO
-       END DO
-    ELSE IF(naspc==1)THEN
-       DO imat=1,nmat
-          CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,one,exp_hist(imat,1)%matrix,error)
-       END DO
+       ELSE IF(naspc==1)THEN
+          DO imat=1,nmat
+             CALL cp_fm_scale_and_add(zero,exp_H_new(imat)%matrix,one,exp_hist(imat,1)%matrix,error)
+          END DO
+       END IF
     END IF
+
+    IF(rtp%history%mos_or_H==1.AND.naspc.GT.1)THEN
+       mo_hist=>rtp%history%mo_history
+       IF(naspc.GT.1)THEN
+          DO imat=1,nmat
+             DO iaspc=1,naspc
+                IF(iaspc==1)alpha = REAL(4*naspc - 2,KIND=dp)/REAL(naspc + 1,KIND=dp)
+                IF(iaspc.GT.1) alpha=(-1.0_dp)**(iaspc + 1)*REAL(iaspc,KIND=dp)*&
+                     binomial(2*naspc,naspc - iaspc)/binomial(2*naspc - 2,naspc -1)
+                ihist=MOD(rtp%istep-iaspc,aspc_order)+1
+                IF(iaspc==1)THEN
+                   CALL cp_fm_scale_and_add(zero,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
+                ELSE
+                   CALL cp_fm_scale_and_add(one,mos_new(imat)%matrix,alpha,mo_hist(imat,ihist)%matrix,error)
+                END IF
+             END DO
+          END DO
+       ELSE IF(naspc==1)THEN
+          DO imat=1,nmat
+             CALL cp_fm_scale_and_add(zero,mos_new(imat)%matrix,one,mo_hist(imat,1)%matrix,error)
+          END DO
+       END IF
+
+ 
+       mo_hist=>rtp%history%mo_history
+       s_hist=>rtp%history%s_history
+       DO i=1,SIZE(mos_new)/2
+          NULLIFY (matrix_struct,matrix_struct_new,csc,fm_tmp,fm_tmp1,fm_tmp2,cfm_tmp,cfm_tmp1)
+
+
+          CALL cp_fm_struct_double(matrix_struct,&
+                                mos_new(2*i)%matrix%matrix_struct,&
+                                mos_new(2*i)%matrix%matrix_struct%context,&
+                                .TRUE.,.FALSE.,error)
+
+          CALL cp_fm_create(fm_tmp,matrix_struct,error=error)
+          CALL cp_fm_create(fm_tmp1,matrix_struct,error=error)
+          CALL cp_fm_create(fm_tmp2,mos_new(2*i)%matrix%matrix_struct,error=error)
+          CALL cp_cfm_create(cfm_tmp,mos_new(2*i)%matrix%matrix_struct,error=error)
+          CALL cp_cfm_create(cfm_tmp1,mos_new(2*i)%matrix%matrix_struct,error=error)
+
+          CALL cp_fm_get_info(fm_tmp,&
+                              ncol_global=kdbl,&
+                              error=error)
+
+          CALL cp_fm_get_info(mos_new(2*i)%matrix,&
+                              nrow_global=n,&
+                              ncol_global=k,&
+                              ncol_local=ncol_local,&
+                              error=error)
+
+          CALL cp_fm_struct_create(matrix_struct_new,&
+                                   template_fmstruct=matrix_struct,&
+                                   nrow_global=k,&
+                                   ncol_global=k,error=error)
+          CALL cp_cfm_create(csc,matrix_struct_new,error=error)
+          
+
+          CALL cp_fm_struct_release(matrix_struct_new,error=error)
+          CALL cp_fm_struct_release(matrix_struct,error=error)
+
+          ! first the most recent
+
+
+! reorthogonalize vectors
+             
+             DO icol_local=1,ncol_local
+                fm_tmp%local_data(:,icol_local)=mos_new(2*i-1)%matrix%local_data(:,icol_local)
+                fm_tmp%local_data(:,icol_local+ncol_local)=mos_new(2*i)%matrix%local_data(:,icol_local)
+             END DO
+             
+             CALL cp_sm_fm_multiply(matrix_s(1)%matrix,fm_tmp,fm_tmp1,kdbl,error=error)
+
+             DO icol_local=1,ncol_local
+                cfm_tmp%local_data(:,icol_local)=CMPLX(fm_tmp1%local_data(:,icol_local),&
+                     fm_tmp1%local_data(:,icol_local+ncol_local),dp)
+                cfm_tmp1%local_data(:,icol_local)=CMPLX(mos_new(2*i-1)%matrix%local_data(:,icol_local),&
+                     mos_new(2*i)%matrix%local_data(:,icol_local),dp)               
+             END DO
+             CALL cp_cfm_gemm('C','N',k,k,n,cone,cfm_tmp1,cfm_tmp,czero,csc,error=error)
+             CALL cp_cfm_cholesky_decompose(csc,error=error)
+             CALL cp_cfm_triangular_multiply(csc,cfm_tmp1,n_cols=k,side='R',invert_tr=.TRUE.,error=error)
+             DO icol_local=1,ncol_local
+                mos_new(2*i-1)%matrix%local_data(:,icol_local)=REAL(cfm_tmp1%local_data(:,icol_local),dp)
+                mos_new(2*i)%matrix%local_data(:,icol_local)=AIMAG(cfm_tmp1%local_data(:,icol_local))
+             END DO
+
+! deallocate work matrices
+             CALL cp_cfm_release(csc,error=error)
+             CALL cp_fm_release(fm_tmp,error=error)
+             CALL cp_fm_release(fm_tmp,error)
+             CALL cp_fm_release(fm_tmp1,error)
+             CALL cp_fm_release(fm_tmp2,error)
+             CALL cp_cfm_release(cfm_tmp,error)
+             CALL cp_cfm_release(cfm_tmp1,error)  
+          END DO
+         
+       END IF
+    CALL timestop(handle)
 
   END SUBROUTINE aspc_extrapolate
 
 
+
+  SUBROUTINE put_data_to_history(qs_env,mos,exp_H,s_mat,ihist,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: mos, exp_H
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: s_mat
+    INTEGER                                  :: ihist
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'put_data_to_history', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: S_sm_pools
+    TYPE(rt_prop_type), POINTER              :: rtp
+
+    CALL get_qs_env(qs_env,&
+         rtp=rtp,&
+         error=error)
+    CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools, error=error)
+
+
+    IF(PRESENT(exp_H))THEN
+       DO i=1,SIZE(exp_H)
+          CALL cp_fm_to_fm(exp_H(i)%matrix,rtp%history%exp_history(i,ihist)%matrix,error)
+       END DO
+    END IF
+    
+   IF(PRESENT(mos))THEN
+      DO i=1,SIZE(mos)
+         CALL cp_fm_to_fm(mos(i)%matrix,rtp%history%mo_history(i,ihist)%matrix,error)
+      END DO
+   END IF
+   
+   IF(PRESENT(s_mat))THEN
+      CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools, error=error)
+       IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
+          ! (future struct:check)
+          CALL deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
+       END IF
+       CALL sm_pool_create_matrix(S_sm_pools(1)%pool,&
+            rtp%history%s_history(ihist)%matrix,"hist%overlap",error=error)
+       CALL copy_matrix(s_mat(1)%matrix,rtp%history%s_history(ihist)%matrix)
+    END IF
+
+  END SUBROUTINE put_data_to_history
 END MODULE rt_propagation_methods

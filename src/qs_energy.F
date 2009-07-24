@@ -48,9 +48,9 @@ MODULE qs_energy
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
-  USE rt_propagation_methods,          ONLY: aspc_extrapolate,&
-                                             calc_update_rho,&
+  USE rt_propagation_methods,          ONLY: calc_update_rho,&
                                              propagation_step,&
+                                             put_data_to_history,&
                                              s_matrices_create,&
                                              update_core_and_matrices
   USE rt_propagation_output,           ONLY: rt_prop_output
@@ -338,10 +338,6 @@ CONTAINS
        
        eps_ener=qs_env%dft_control%rtp_control%eps_ener
        
-       IF(rtp%istep.GT.0.AND.rtp%iter==1)THEN
-          CALL aspc_extrapolate(rtp,aspc_order,error)
-       END IF
-
        CALL propagation_step(qs_env,delta_iter, error)
        rtp%energy_new=qs_env%energy%total
        rtp%converged=(delta_iter.LT.eps_ener)
@@ -351,8 +347,11 @@ CONTAINS
           DO i=1,SIZE(mos_new)
              CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
              CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
-             CALL cp_fm_to_fm(exp_H_new(i)%matrix,rtp%history%exp_history(i,ihist)%matrix,error)
           END DO
+          IF(rtp%history%mos_or_H==2)&
+               CALL  put_data_to_history(qs_env,exp_H=exp_H_new,ihist=ihist,error=error)
+          IF(rtp%history%mos_or_H==1)&
+               CALL  put_data_to_history(qs_env,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
        END IF
        CALL rt_prop_output(qs_env,ehrenfest,delta_iter,error)
        rtp%energy_old=rtp%energy_new       

@@ -838,12 +838,14 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE arnoldi(mos_old,mos_new,eps_exp,Hre,Him,error)
+  SUBROUTINE arnoldi(mos_old,mos_new,eps_exp,Hre,Him,mos_next,error)
 
     TYPE(cp_fm_p_type), DIMENSION(2)         :: mos_old, mos_new
     REAL(KIND=dp)                            :: eps_exp
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: Hre
     TYPE(cp_fm_type), POINTER                :: Him
+    TYPE(cp_fm_p_type), DIMENSION(2), &
+      OPTIONAL                               :: mos_next
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'arnoldi', &
@@ -1126,6 +1128,34 @@ CONTAINS
              mos_new(1)%matrix%local_data(:,icol_local)=REAL(mymos%local_data(:,icol_local),KIND=dp)
              mos_new(2)%matrix%local_data(:,icol_local)=AIMAG(mymos%local_data(:,icol_local))
           END DO
+          IF(PRESENT(mos_next))THEN
+            DO icol_local=1,ncol_local
+              DO idim=1,mydim
+                 DO j=1,mydim
+                    N(idim,j)=H_approx(idim,j,icol_local)
+                 END DO
+              END DO
+              CALL dgemm("N",'N',mydim,mydim,mydim,one,N(1,1),mydim,N(1,1),mydim,zero,mat1(1,1),mydim)
+              DO idim=1,mydim
+                DO j=1,mydim
+                  H_approx(idim,j,icol_local)=mat1(idim,j)
+                END DO
+              END DO
+            END DO
+            mymos%local_data=zero
+            DO icol_local=1,ncol_local
+               DO idim=1,mydim
+                  mymos%local_data(:,icol_local)=mymos%local_data(:,icol_local)+&
+                       V_mats(idim)%matrix%local_data(:,icol_local)*H_approx(idim,1,icol_local)
+               END DO
+               icol_global=col_indices(icol_local)
+               mymos%local_data(:,icol_local)= mymos%local_data(:,icol_local)*norm1(icol_global)
+            END DO
+            DO icol_local=1,ncol_local
+               mos_next(1)%matrix%local_data(:,icol_local)=REAL(mymos%local_data(:,icol_local),KIND=dp)
+               mos_next(2)%matrix%local_data(:,icol_local)=AIMAG(mymos%local_data(:,icol_local))
+            END DO
+          END IF
           IF(conv_norm.LT.eps_exp)convergence=.TRUE.
        END IF
 

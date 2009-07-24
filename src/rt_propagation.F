@@ -31,7 +31,8 @@ MODULE rt_propagation
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_arnoldi, do_cn, do_diag, do_em, do_etrs, do_pade, do_taylor, &
-       real_time_propagation, use_restart_wfn, use_rt_restart, use_scf_wfn
+       extr_s_ks, real_time_propagation, use_restart_wfn, use_rt_restart, &
+       use_scf_wfn
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -45,10 +46,10 @@ MODULE rt_propagation
                                              mo_set_p_type
   USE rt_make_propagators,             ONLY: make_etrs_exp
   USE rt_matrix_exp,                   ONLY: get_nsquare_norder
-  USE rt_propagation_methods,          ONLY: aspc_extrapolate,&
-                                             calc_SinvH,&
+  USE rt_propagation_methods,          ONLY: calc_SinvH,&
                                              calc_update_rho,&
                                              propagation_step,&
+                                             put_data_to_history,&
                                              s_matrices_create,&
                                              update_core_and_matrices
   USE rt_propagation_output,           ONLY: rt_prop_output
@@ -92,7 +93,7 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, homo, i, ispin, &
                                                 stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: extrapolate_H, failure
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -130,7 +131,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,error)
        aspc_order=rtp_control%aspc_order
-       CALL rtp_history_create(qs_env%rtp,.TRUE.,aspc_order,error)
+       extrapolate_H=(rtp_control%extrapolation==extr_s_ks)
+       CALL rtp_history_create(qs_env%rtp,extrapolate_H,aspc_order,error)
 
     CASE(use_restart_wfn,use_rt_restart)
        CALL update_core_and_matrices(qs_env,globenv,error)       
@@ -149,7 +151,8 @@ CONTAINS
        
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,error)
        aspc_order=rtp_control%aspc_order
-       CALL rtp_history_create(qs_env%rtp,.TRUE.,aspc_order,error)
+       extrapolate_H=(rtp_control%extrapolation==extr_s_ks)
+       CALL rtp_history_create(qs_env%rtp,extrapolate_H,aspc_order,error)
        
        CALL get_restart_wfn(qs_env,error)
        rtp_control%calc_restart=.TRUE.
@@ -329,19 +332,18 @@ CONTAINS
 
        qs_env%sim_time=REAL(i_step,dp)*rtp%dt
        qs_env%sim_step=i_step
+       rtp%istep=i_step
        CALL calculate_ecore_efield(qs_env,.FALSE.,error)
        CALL cp_iterate(logger%iter_info,last=(i_step==max_steps),iter_nr=i_step,error=error)
        rtp%converged=.FALSE.
-       IF(rtp%istep.GT.0) CALL aspc_extrapolate(rtp,aspc_order,error)
        DO i_iter=1,max_iter
           rtp%iter=i_iter
           CALL propagation_step(qs_env,delta_iter, error)
           rtp%energy_new=energy%total
           rtp%converged=(delta_iter.LT.eps_ener)
 
-          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,error)
-
           IF(rtp%converged)EXIT
+          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,error)
           
        END DO
 
@@ -350,13 +352,15 @@ CONTAINS
           DO i=1,SIZE(mos_new)
              CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
              CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
-             CALL cp_fm_to_fm(exp_H_new(i)%matrix,rtp%history%exp_history(i,ihist)%matrix,error)
           END DO
+          IF(rtp%history%mos_or_H==2)&
+             CALL  put_data_to_history(qs_env,exp_H=exp_H_new,ihist=ihist,error=error)
+          IF(rtp%history%mos_or_H==1)&
+             CALL put_data_to_history(qs_env,mos=mos_new,ihist=ihist,error=error)
           CALL external_control(should_stop,"MD",globenv,error=error)
-          IF (should_stop) THEN
-             CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=i_step,error=error)
-             EXIT
-          END IF
+          IF (should_stop)CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=i_step,error=error)
+          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,error)
+          IF (should_stop)EXIT
        ELSE
           EXIT
        END IF
@@ -416,7 +420,6 @@ CONTAINS
           CALL calc_SinvH(exp_H_old,qs_env,error)
           DO i=1,SIZE(exp_H_old)
              CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%exp_H_new(i)%matrix,error)
-             CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%history%exp_history(i,1)%matrix,error)
           END DO
           
        CASE (do_etrs)
@@ -427,7 +430,6 @@ CONTAINS
           CALL make_etrs_exp(exp_H_old,qs_env,error)
           DO i=1,SIZE(exp_H_old)
              CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%exp_H_new(i)%matrix,error)
-             CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%history%exp_history(i,1)%matrix,error)
           END DO
        END SELECT
     CASE(do_arnoldi)
@@ -436,9 +438,15 @@ CONTAINS
        CALL calc_SinvH(exp_H_old,qs_env,error)
        DO i=1,SIZE(exp_H_old)
           CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%exp_H_new(i)%matrix,error)
-          CALL cp_fm_to_fm(exp_H_old(i)%matrix,rtp%history%exp_history(i,1)%matrix,error)
        END DO
     END SELECT
+
+    IF(rtp%history%mos_or_H==2)&
+         CALL put_data_to_history(qs_env,exp_H=exp_H_old,ihist=1,error=error)
+    IF(rtp%history%mos_or_H==1)&
+         CALL put_data_to_history(qs_env,mos=mos_old,s_mat=s_mat,ihist=1,error=error)
+
+
   END SUBROUTINE init_propagators
 
   SUBROUTINE get_maxabs_eigval(rtp,qs_env,error)

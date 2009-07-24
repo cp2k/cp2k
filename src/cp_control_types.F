@@ -57,6 +57,7 @@ MODULE cp_control_types
      REAL(dp)                             :: eps_exp
      LOGICAL                              :: calc_restart
      INTEGER                              :: aspc_order
+     INTEGER                              :: extrapolation
   END TYPE rtp_control_type
 ! *****************************************************************************
 ! \brief Control parameters for DFTB calculations
