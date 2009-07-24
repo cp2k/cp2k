@@ -106,7 +106,7 @@ MODULE hfx_compression_methods
 
     INTEGER                                  :: end_idx, increment_counter, &
                                                 start_idx, stat, &
-                                                tmp_elements, tmp_nints, unit
+                                                tmp_elements, tmp_nints
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -196,7 +196,7 @@ MODULE hfx_compression_methods
 
     INTEGER                                  :: end_idx, increment_counter, &
                                                 start_idx, stat, &
-                                                tmp_elements, tmp_nints, unit
+                                                tmp_elements, tmp_nints
 
     start_idx = container%element_counter
     increment_counter = (nbits*CACHE_SIZE + 63)/64
@@ -296,8 +296,6 @@ MODULE hfx_compression_methods
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: use_disk_storage
     TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: unit
 
     CALL hfx_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage, &
                             error=error)

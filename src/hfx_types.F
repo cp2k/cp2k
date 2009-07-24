@@ -373,13 +373,12 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: error_msg
-    CHARACTER(LEN=default_path_length)       :: char_val, filename
+    CHARACTER(LEN=default_path_length)       :: char_val
     INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, &
       max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
       pbc_shells, stat, storage_id
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
-    LOGICAL                                  :: do_periodic, exist, failure, &
-                                                logic_val
+    LOGICAL                                  :: exist, failure, logic_val
     REAL(dp)                                 :: omega, real_val
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a

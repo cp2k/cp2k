@@ -462,7 +462,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calpar_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: z
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(6)              :: amn
 

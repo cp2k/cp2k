@@ -9,7 +9,6 @@
 ! *****************************************************************************
 MODULE cp_ddapc_methods
   USE cell_types,                      ONLY: cell_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
   USE f77_blas
   USE input_constants,                 ONLY: weight_type_mass,&
@@ -735,7 +734,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos, R0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cost, LocP
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure = .FALSE.
     fixed_center = .FALSE.

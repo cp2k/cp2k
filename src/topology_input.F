@@ -120,8 +120,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER :: freeze_mm, freeze_qm, icolvar, ig, isize, isize_old, itype, &
-      jg, msize, msize_old, n_rep, ncons, nrep, stat
+    INTEGER                                  :: icolvar, ig, isize, &
+                                                isize_old, itype, jg, msize, &
+                                                msize_old, n_rep, ncons, &
+                                                nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist

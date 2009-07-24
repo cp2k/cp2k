@@ -4,8 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
-                      n, m, isign, scale )
+SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign, scale )
 
   USE mltfftsg_tools
 
@@ -28,10 +27,10 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
   LOGICAL :: tscal
   COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: z
   INTEGER :: length, isig, ic, lot, itr, nfft, i, inzee, j, ierr
-! needed for OpenMP parallelization
-  INTEGER :: id, num_threads, istart, iend, chunk, iterations, omp_get_num_threads,omp_get_thread_num
+  INTEGER :: id, num_threads, istart, iend, chunk, iterations
 
-!-----------------------------------------------------------------------------!
+! needed for OpenMP parallelization
+!$ INTEGER :: omp_get_num_threads,omp_get_thread_num
 
   ncache = get_cache_size ( )
   LENGTH = 2 * ( NCACHE / 4 + 1 )

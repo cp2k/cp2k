@@ -273,7 +273,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i1, i1L, i2, Imm, &
                                                 Imp, IndMM, Ipot, j1, j1L
-    REAL(KIND=dp)                            :: enuc, r, rt1, rt2, rt3, &
+    REAL(KIND=dp)                            :: enuc, rt1, rt2, rt3, &
                                                 sph_chrg_factor
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc, rij
     REAL(KIND=dp), DIMENSION(45)             :: e1b

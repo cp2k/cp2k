@@ -313,7 +313,7 @@ CONTAINS
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: gmax_read
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dummy, precs
+    REAL(KIND=dp)                            :: dummy
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword

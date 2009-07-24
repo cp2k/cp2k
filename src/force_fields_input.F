@@ -844,7 +844,6 @@ CPSourceFileRef,&
     INTEGER                                  :: isec, n_items, n_rep
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rcut
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: values
 
     failure = .FALSE.
     CALL section_vals_get(section,n_repetition=n_items,error=error)

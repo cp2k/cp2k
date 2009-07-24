@@ -169,7 +169,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_read_line', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: icol, iline, istat
+    INTEGER                                  :: iline, istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.

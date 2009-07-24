@@ -543,9 +543,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ig, nt
-    REAL(dp) :: a, aab, alpi, alpj, apdg, ax, dai, daj, dbi, dbj, pai, paj, &
-      pbi, pbj, qcorr, rij, rija, scale, ssss, ssss_sr, tmp, xab, zaf, zbf, zz
-    REAL(dp), DIMENSION(3)                   :: z
+    REAL(dp) :: aab, alpi, alpj, apdg, ax, dai, daj, dbi, dbj, pai, paj, pbi, &
+      pbj, qcorr, rij, rija, scale, ssss, ssss_sr, tmp, xab, zaf, zbf, zz
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
     TYPE(se_int_control_type)                :: se_int_control_off

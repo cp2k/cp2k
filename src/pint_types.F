@@ -2085,7 +2085,7 @@ SUBROUTINE pint_write_ener(pint_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, iter, unit_nr
+    INTEGER                                  :: handle, ierr, unit_nr
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: cons, t, temp, used_time
     TYPE(cp_error_type)                      :: new_error

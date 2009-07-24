@@ -341,7 +341,7 @@ CONTAINS
                                                 index_c, index_d
     REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq, &
                                                 imass1, imass2, imass3, &
-                                                imass4, mass, sigma
+                                                imass4, sigma
     REAL(KIND=dp), DIMENSION(3) :: fc1, fc2, fc3, fc4, r0_12, r0_13, r0_14, &
       r0_23, r0_24, r0_34, r1, r12, r13, r14, r2, r23, r24, r3, r34, r4, v1, &
       v2, v3, v4, vec
@@ -598,7 +598,7 @@ CONTAINS
                                                 index_c, index_d
     REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq, &
                                                 imass1, imass2, imass3, &
-                                                imass4, mass, sigma
+                                                imass4, sigma
     REAL(KIND=dp), DIMENSION(3) :: f_roll1, f_roll2, f_roll3, f_roll4, &
       f_roll5, f_roll6, fc1, fc2, fc3, fc4, r0_12, r0_13, r0_14, r0_23, &
       r0_24, r0_34, r1, r12, r13, r14, r2, r23, r24, r3, r34, r4, v1, v2, v3, &

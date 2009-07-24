@@ -975,7 +975,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: ortho, s_block, work
-    REAL(KIND=dp)                            :: eps_eigval
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block

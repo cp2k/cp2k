@@ -103,7 +103,7 @@ CONTAINS
                                                 rpgfa, sphi_a, vprj_ppnl, zeta
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: achint, acint, bchint, bcint
-    TYPE(alist_type), POINTER                :: alist, alist_ac, alist_bc
+    TYPE(alist_type), POINTER                :: alist_ac, alist_bc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(clist_type), POINTER                :: clist
     TYPE(gth_potential_type), POINTER        :: gth_potential

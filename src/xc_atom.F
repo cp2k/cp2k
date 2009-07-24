@@ -331,7 +331,6 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: failure, lsd
     REAL(dp)                                 :: drho_cutoff
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: deriv_data
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_pw
     TYPE(pw_pool_type), POINTER              :: pw_pool

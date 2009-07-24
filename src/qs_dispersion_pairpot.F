@@ -320,8 +320,8 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
       istat, jatom, jkind, natom, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure, ghost_a, &
-                                                ghost_b, use_virial
+    LOGICAL                                  :: failure, ghost_a, ghost_b, &
+                                                use_virial
     REAL(KIND=dp)                            :: c6, c6a, c6b, dd, devdw, &
                                                 dfdmp, dr, er, evdw, fac, &
                                                 fdmp, rc, rc_a, rc_b, s6, xp

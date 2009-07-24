@@ -1307,7 +1307,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: i, ik, irk, Nlist, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_c

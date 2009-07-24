@@ -497,8 +497,8 @@ MODULE qs_rho_atom_methods
     REAL(KIND=dp), DIMENSION(3)              :: rab
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_coeff_hh_a, C_coeff_hh_b, &
                                                 C_coeff_ss_a, C_coeff_ss_b, &
-                                                r_coef, r_coef_h, r_coef_s
-    TYPE(alist_type), POINTER                :: alist, alist_ac, alist_bc
+                                                r_coef_h, r_coef_s
+    TYPE(alist_type), POINTER                :: alist_ac, alist_bc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

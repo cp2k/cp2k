@@ -269,9 +269,9 @@ CONTAINS
     INTEGER :: ic, icgf, icgfmax, icgfmin, ico, icomax, icomin, il, info, ip, &
       ipgf, ipp, iprj, iprjfirst, iprjs, is, iset, isgf, isgfmax, isgfmin, &
       ishell, iso, iso_pgf, iso_set, isomin, jp, k, kp, lshell, lwork, lx, &
-      ly, lz, m, maxco, maxl, maxnprj, maxpgf, maxso, mp, ms, n, ncgauprj, &
-      ncgf, nisop, notprj, np, npgfg, ns, nset, nsgauprj, nsgf, nsox, &
-      output_unit, stat
+      ly, lz, maxco, maxl, maxnprj, maxpgf, maxso, mp, ms, n, ncgauprj, ncgf, &
+      nisop, notprj, np, npgfg, ns, nset, nsgauprj, nsgf, nsox, output_unit, &
+      stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_cgf, first_sgf, l, &

@@ -7,26 +7,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
-    integer, INTENT(IN)     :: lp
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+    INTEGER, INTENT(IN)     :: lp
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -104,26 +104,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=0
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=0
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -184,26 +184,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=1
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=1
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -275,26 +275,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=2
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=2
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -383,26 +383,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=3
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=3
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -493,26 +493,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=4
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=4
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -649,26 +649,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=5
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=5
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -791,26 +791,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=6
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=6
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -1079,26 +1079,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=7
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=7
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -1559,26 +1559,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=8
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=8
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 
@@ -2169,26 +2169,26 @@
 #else
   INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
 #endif
- integer, PARAMETER :: lp=9
-    integer, INTENT(IN)     :: cmax
-    integer, INTENT(IN)     :: gridbounds(2,3)
-    integer, INTENT(IN)     :: sphere_bounds(*)
-    integer, INTENT(IN)     :: map(-cmax:cmax,1:3)
-    real(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
-    real(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
-    real(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
-    real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
+ INTEGER, PARAMETER :: lp=9
+    INTEGER, INTENT(IN)     :: cmax
+    INTEGER, INTENT(IN)     :: gridbounds(2,3)
+    INTEGER, INTENT(IN)     :: sphere_bounds(*)
+    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)
+    REAL(wp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)
+    REAL(wp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)
+    REAL(wp), INTENT(IN)    :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), & 
                                     gridbounds(1,2):gridbounds(2,2), &
                                     gridbounds(1,3):gridbounds(2,3))
 
-    real(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
-    real(wp) ::  coef_x(4,0:lp)
+    REAL(wp) ::  coef_xy(2,(lp+1)*(lp+2)/2)
+    REAL(wp) ::  coef_x(4,0:lp)
 
-    integer kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
-    integer sci,lxp,lyp,lzp
-    real(wp) s01,s02,s03,s04,s(4)
-    integer lxyz,lxy,lx
+    INTEGER kg,k,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
+    INTEGER sci,lxp,lyp,lzp
+    REAL(wp) s01,s02,s03,s04,s(4)
+    INTEGER lxyz,lxy,lx
 
     sci=1
 

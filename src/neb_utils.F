@@ -728,7 +728,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_neb_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: j, k, my_tag, nsize_wrk, stat
+    INTEGER                                  :: j, my_tag, nsize_wrk, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: distance1, distance2, fac, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dtmp1, wrk

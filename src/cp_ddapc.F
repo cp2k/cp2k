@@ -14,8 +14,7 @@ MODULE cp_ddapc
   USE bibliography,                    ONLY: Blochl1995,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
-  USE cp_control_types,                ONLY: ddapc_restraint_type,&
-                                             dft_control_type
+  USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                              reset_ch_pulay,&
                                              restraint_functional_force,&
@@ -98,13 +97,9 @@ CONTAINS
     INTEGER                                  :: ddapc_size, handle, i, my_id, &
                                                 stat
     LOGICAL                                  :: et_coupling_calc, failure
-    REAL(KIND=dp)                            :: ddapc_order_p
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type)                          :: v_spin_ddapc_rest_g
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rest_mat
 
     CALL timeset(routineN,handle)
     CALL cite_reference(Blochl1995)

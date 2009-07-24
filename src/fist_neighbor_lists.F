@@ -109,7 +109,6 @@ CONTAINS
                                                 print_subcell_grid
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
     LOGICAL, DIMENSION(:, :), POINTER        :: my_pot_type
-    REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(local_atoms_type), ALLOCATABLE, &
@@ -289,8 +288,8 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
     REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
                                                 rab_max
-    REAL(dp), DIMENSION(3)                   :: abc, cell_v, cv_b, r, rab, &
-                                                rb, sab_max
+    REAL(dp), DIMENSION(3)                   :: abc, cell_v, cv_b, rab, rb, &
+                                                sab_max
     REAL(KIND=dp)                            :: ic(3), icx(3), radius, vv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord

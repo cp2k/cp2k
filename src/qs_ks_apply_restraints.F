@@ -56,10 +56,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_becke_restraint', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: et_coupling_calc
     REAL(KIND=dp)                            :: inv_vol
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rest_mat
 
     IF(qs_env%dft_control%qs_control%becke_restraint)THEN
     !***** Check if becke potential is needed to constrain charges *****
@@ -156,7 +153,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_s2_restraint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nspins
     LOGICAL                                  :: failure
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs

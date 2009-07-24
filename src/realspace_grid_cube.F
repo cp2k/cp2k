@@ -82,7 +82,6 @@ CPSourceFileRef,&
 
       np=0
       NULLIFY(my_particles)
-      ! IF (PRESENT(particles)) my_particles=>particles
       my_particles=>particles
       IF (ASSOCIATED(my_particles)) np=my_particles%n_els
 

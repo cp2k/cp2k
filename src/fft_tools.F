@@ -3185,8 +3185,7 @@ SUBROUTINE release_fft_scratch(fft_scratch,error)
 
     INTEGER                                  :: scratch_id
     LOGICAL                                  :: failure
-    TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
-                                                fft_scratch_next
+    TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current
 
   FAILURE = .FALSE.
 

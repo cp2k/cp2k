@@ -276,8 +276,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i1, i1L, i2, Imm, &
                                                 Imp, IndMM, Ipot, j1, j1L
-    REAL(KIND=dp)                            :: r, rt1, rt2, rt3, &
-                                                sph_chrg_factor
+    REAL(KIND=dp)                            :: rt1, rt2, rt3, sph_chrg_factor
     REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, r_pbc, rij
     REAL(KIND=dp), DIMENSION(3, 45)          :: de1b
     TYPE(qmmm_pot_type), POINTER             :: Pot

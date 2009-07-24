@@ -125,7 +125,6 @@ MODULE ep_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_type,&
                                              set_mo_set
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_p_env_methods,                ONLY: p_env_create,&
@@ -1520,7 +1519,6 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

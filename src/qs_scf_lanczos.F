@@ -185,7 +185,7 @@ CONTAINS
                                                 rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER :: handle, ib, ik, imo, imo_low, imo_up, istat, it, jt, nblock, &
-      ndim, nmo, nmo_conv, nmo_converged, nmo_nc, nmob, num_blocks
+      ndim, nmo, nmo_converged, nmo_nc, nmob, num_blocks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itaken
     LOGICAL                                  :: failure, my_check_moconv_only
     REAL(dp)                                 :: max_norm, min_norm, vmax

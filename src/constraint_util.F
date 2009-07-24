@@ -284,8 +284,7 @@ CONTAINS
     INTEGER                                  :: iconst, index_a, index_b, &
                                                 index_c, index_d
     REAL(KIND=dp)                            :: fc1( 3 ), fc2( 3 ), fc3( 3 ), &
-                                                fc4( 3 ), lambda, &
-                                                lambda_3x3( 3 ), &
+                                                fc4( 3 ), lambda_3x3( 3 ), &
                                                 lambda_4x6( 6 )
 
     IF (ASSOCIATED(colv_list)) THEN

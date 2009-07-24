@@ -528,8 +528,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ic, ncolvar, &
                                                 ng_points, stat
     LOGICAL                                  :: failure, test_passed
-    REAL(KIND=dp)                            :: eps_conv, max_error_avg, &
-                                                max_error_std
+    REAL(KIND=dp)                            :: max_error_avg, max_error_std
     REAL(KIND=dp), DIMENSION(:), POINTER     :: avg_std, avgmx
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cov_std, covmx
 

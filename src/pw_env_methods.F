@@ -55,8 +55,7 @@ MODULE pw_env_methods
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_poisson_methods,              ONLY: pw_poisson_set
-  USE pw_poisson_types,                ONLY: pw_poisson_create,&
-                                             pw_poisson_type
+  USE pw_poisson_types,                ONLY: pw_poisson_create
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pool_release,&
@@ -69,9 +68,9 @@ MODULE pw_env_methods
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: &
        init_input_type, realspace_grid_desc_p_type, &
-       realspace_grid_input_type, realspace_grid_p_type, realspace_grid_type, &
-       rs_grid_create, rs_grid_create_descriptor, rs_grid_print, &
-       rs_grid_release, rs_grid_release_descriptor
+       realspace_grid_input_type, realspace_grid_p_type, rs_grid_create, &
+       rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
+       rs_grid_release_descriptor
   USE scp_environment_types,           ONLY: scp_environment_type
   USE scp_rspw_methods,                ONLY: maxradius_scp_init
   USE timings,                         ONLY: timeset,&
@@ -178,7 +177,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                                                 old_pw_grid, pw_grid, &
                                                 super_ref_grid, &
                                                 xc_super_ref_grid
-    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(realspace_grid_desc_p_type), &
@@ -186,7 +184,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
-    TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER :: efg_section, input, linres_section, &

@@ -86,7 +86,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_create', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=1)                         :: datacode, geocode
+    CHARACTER(LEN=1)                         :: datacode
     INTEGER                                  :: handle, iproc, itype_scf, &
                                                 my_per, nproc, nx, ny, nz, &
                                                 stat

@@ -1459,8 +1459,7 @@ CONTAINS
       orb_basis_set_name, potential_name, potential_type
     INTEGER                                  :: handle, i, i_rep, ipos, &
                                                 k_rep, n_rep, naux, ngauss, &
-                                                ngrid_ang, ngrid_rad, norb, &
-                                                stat, z
+                                                norb, stat, z
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: check, explicit_basis, &
                                                 explicit_geminal, &

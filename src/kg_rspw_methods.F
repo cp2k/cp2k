@@ -51,9 +51,9 @@ MODULE kg_rspw_methods
   USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: &
        init_input_type, realspace_grid_desc_p_type, &
-       realspace_grid_input_type, realspace_grid_p_type, realspace_grid_type, &
-       rs_grid_create, rs_grid_create_descriptor, rs_grid_print, &
-       rs_grid_release, rs_grid_release_descriptor
+       realspace_grid_input_type, realspace_grid_p_type, rs_grid_create, &
+       rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
+       rs_grid_release_descriptor
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -143,7 +143,6 @@ END SUBROUTINE kg_rspw_create
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
-    TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(section_vals_type), POINTER         :: poisson_section, &
                                                 print_section, rs_grid_section
 

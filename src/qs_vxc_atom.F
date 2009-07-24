@@ -1116,7 +1116,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dcg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: rad, urad
+    REAL(dp)                                 :: urad
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgg, gg, gVXCg_h, gVXCg_s, &
                                                 matso_h, matso_s

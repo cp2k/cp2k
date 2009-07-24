@@ -72,8 +72,8 @@ CONTAINS
       inter_ubs, intra_bends, intra_bonds, intra_imprs, intra_torsions, &
       intra_ubs, inum, ionfo, ires, istart_mol, istart_typ, itorsion, ityp, &
       iub, iw, j, j1, j2, j3, j4, jind, last, min_index, natom, nbond, &
-      nelectron, nimpr, nmol, nonfo, nsgf, nub, nval_tot1, nval_tot2, nvar1, &
-      nvar2, output_unit, stat
+      nelectron, nimpr, nonfo, nsgf, nub, nval_tot1, nval_tot2, nvar1, nvar2, &
+      output_unit, stat
     INTEGER, DIMENSION(:), POINTER :: c_var_a, c_var_b, c_var_c, c_var_d, &
       c_var_type, first_list, last_list, map_atom_mol, map_atom_type, &
       map_cvar_mol, map_cvars, map_var_mol, map_vars, molecule_list

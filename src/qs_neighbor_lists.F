@@ -2635,9 +2635,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: local_list
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rac2, rac2_max, rac_max
-    REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, s_max, s_min, &
-                                                sac_max, sc, sc_max, sc_min, &
-                                                sc_pbc
+    REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, sac_max, sc, &
+                                                sc_max, sc_min, sc_pbc
     TYPE(neighbor_list_p_type), &
       DIMENSION(maxatom_local)               :: kind_a
     TYPE(neighbor_list_set_type), POINTER    :: ap_neighbor_list_set

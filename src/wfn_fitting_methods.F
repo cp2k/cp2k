@@ -231,7 +231,6 @@ MODULE wfn_fitting_methods
     INTEGER                                  :: handle, i, j, nao_aux_fit, &
                                                 nao_orb, nmo
     REAL(dp)                                 :: eig_diff, pole
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigvals_lambda
 
     CALL timeset(routineN,handle)
 

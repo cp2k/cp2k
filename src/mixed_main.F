@@ -71,8 +71,9 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: c_val, input_file_path, &
                                                 output_file_path
-    INTEGER :: group_size_wish, handle, i, lp, n_rep_val, new_group, &
-      ngroup_wish, ngroups, output_unit, stat, unit_nr
+    INTEGER                                  :: group_size_wish, handle, i, &
+                                                lp, n_rep_val, ngroup_wish, &
+                                                output_unit, stat, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: group_partition, i_vals
     LOGICAL                                  :: failure, group_size_wish_set, &
                                                 ngroup_wish_set
