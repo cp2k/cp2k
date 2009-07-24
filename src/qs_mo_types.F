@@ -1222,7 +1222,7 @@ CPSourceFileRef,&
          ! this case needs fixing of homo/lfomo/nelec/occupations ...
          IF (nspin_read > nspin) THEN
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 "To change nsin is not possible. "//&
+                 "Reducing nspin is not possible. "//&
                  CPSourceFileRef,&
                  only_ionode=.TRUE.)
          ENDIF
