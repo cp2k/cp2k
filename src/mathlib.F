@@ -33,6 +33,7 @@ MODULE mathlib
   PUBLIC :: build_rotmat,&
             jacobi,&
             diamat_all,&
+            invmat,&
             invert_matrix,&
             power_matrix,&
             set_diag,&
@@ -417,6 +418,37 @@ CONTAINS
     a_inv(3,3) = (a(1,1)*a(2,2) - a(2,1)*a(1,2))*det_a
 
   END FUNCTION inv_3x3
+
+! *****************************************************************************
+!> \brief returns inverse of matrix using the lapack routines DGETRF and DGETRI
+! *****************************************************************************
+  SUBROUTINE invmat(a,info,error)
+    REAL(KIND=dp), INTENT(INOUT)             :: a(:,:)
+    INTEGER, INTENT(OUT)                     :: info
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'invmat', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: lwork, n
+    INTEGER, ALLOCATABLE                     :: ipiv(:)
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp), ALLOCATABLE               :: work(:)
+
+    n = SIZE(a,1)
+    lwork = 20*n
+    ALLOCATE (ipiv(n),STAT=info)
+    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (work(lwork),STAT=info)
+    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+    info = 0
+    CALL dgetrf(n,n,a,n,ipiv,info)
+    IF (info==0) THEN
+       CALL dgetri(n,a,n,ipiv,work,lwork,info)
+    END IF
+    DEALLOCATE (ipiv,work,STAT=info)
+    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+  END SUBROUTINE invmat
 
 ! *****************************************************************************
 !> \brief  Compute the inverse of the n by n real matrix a using the LAPACK
