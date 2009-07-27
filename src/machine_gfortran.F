@@ -178,7 +178,7 @@ END SUBROUTINE m_datum
   CONTAINS
         INTEGER(int_8) FUNCTION get_field_value_in_bytes(field)
            CHARACTER(LEN=*) :: field
-           INTEGER :: start,fieldlen
+           INTEGER :: start
            INTEGER(KIND=8) :: value
            get_field_value_in_bytes=0
            start=INDEX(meminfo,field)
