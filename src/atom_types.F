@@ -1865,7 +1865,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: pseudo_fn, pseudo_name
-    LOGICAL                                  :: confinement, failure
+    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: convals
     TYPE(section_vals_type), POINTER         :: gth_potential_section
 

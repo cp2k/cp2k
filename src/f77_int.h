@@ -60,12 +60,11 @@ END SUBROUTINE cp_get_energy
 
 RECURSIVE SUBROUTINE cp_calc_energy_force(env_id,calc_force,ierr)
   INTEGER :: calc_force, env_id, ierr
-  LOGICAL :: cf
 END SUBROUTINE cp_calc_energy_force
 
 RECURSIVE SUBROUTINE cp_calc_energy(env_id,pos,n_el,e_pot,ierr)
   use kinds, only: dp
-  INTEGER :: calc_force, env_id, ierr, n_el
+  INTEGER :: env_id, ierr, n_el
   REAL(dp) :: e_pot
   REAL(dp), DIMENSION(1:n_el) :: pos
 END SUBROUTINE cp_calc_energy

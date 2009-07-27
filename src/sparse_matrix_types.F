@@ -942,13 +942,16 @@ END SUBROUTINE cp_sm_scale_and_add
     CHARACTER(len=*), PARAMETER :: routineN = 'sparse_times_local', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iblock_col, iblock_row, ithread, nthread, &
-      omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
+    INTEGER                                  :: handle, iblock_col, &
+                                                iblock_row, ithread, nthread, &
+                                                sbncol, sbnrow
     LOGICAL                                  :: antisymmetric, owner, &
                                                 symmetric
     REAL(KIND=dp)                            :: alpha_l, alpha_l_ji
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
+
+!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
 
     IF (PRESENT(alpha)) THEN
         alpha_l=alpha
@@ -1070,11 +1073,15 @@ END SUBROUTINE cp_sm_scale_and_add
     CHARACTER(len=*), PARAMETER :: routineN = 'sparse_plus_loc_loct', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iblock_col, iblock_row, icol, irow, ithread, nthread, &
-      omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
+    INTEGER                                  :: handle, iblock_col, &
+                                                iblock_row, icol, irow, &
+                                                ithread, nthread, sbncol, &
+                                                sbnrow
     REAL(KIND=dp)                            :: prefactor
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
+
+!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
 
 !   *** Check the association status of the input matrix ***
 

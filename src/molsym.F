@@ -1750,7 +1750,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iatom, natom
-    REAL(KIND=dp)                            :: mass
 
     IF (iw>0) THEN
 

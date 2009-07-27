@@ -1300,8 +1300,8 @@ CONTAINS
     CHARACTER                                :: a_type, b_type
     INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
       a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
-      b_col_size, b_nze, b_row, b_row_size, c_blk, c_blk_p, c_col, c_nze, &
-      c_row, lda, ldb, ldc, num_symmetries, stat, symmetry, timing_handle
+      b_col_size, b_nze, b_row, b_row_size, c_blk_p, c_col, c_nze, c_row, &
+      lda, ldb, num_symmetries, stat, symmetry, timing_handle
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate, lflop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps
@@ -1309,7 +1309,7 @@ CONTAINS
                                                 left_row_blk_size, &
                                                 right_col_blk_size, &
                                                 right_row_blk_size
-    LOGICAL                                  :: block_exists, tr_a, tr_b
+    LOGICAL                                  :: block_exists, tr_a
     REAL(KIND=dp)                            :: beta, tstart, tstop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data, b_data, c_data
     TYPE(dbcsr_work_type)                    :: wm
@@ -1554,8 +1554,7 @@ CONTAINS
       nblks, npcols, nprows, numnodes, nze, right_data_rr, right_data_sr, &
       right_dst_p, right_dst_prow, right_index_rr, right_index_sr, &
       right_mypcol, right_myprow, right_npcols, right_nprows, right_p_recv, &
-      right_p_send, right_prow_i, right_src_p, right_src_prow, tag, &
-      timing_handle
+      right_p_send, right_prow_i, right_src_p, right_src_prow, timing_handle
     INTEGER(KIND=int_8)                      :: flop_single, flop_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: left_data_rr, left_data_sr, &
                                                 left_index_rr, left_index_sr
@@ -2013,7 +2012,7 @@ CONTAINS
       use_a_col_size_logical, use_a_offset, use_a_row_size_logical, &
       use_b_col_size, use_b_offset, use_c_offset, use_lda, use_ldb
     INTEGER(KIND=int_4)                      :: offset
-    INTEGER(KIND=int_8)                      :: coordinate, lflop
+    INTEGER(KIND=int_8)                      :: lflop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_nnew_blk, c_blk_ps, &
                                                 c_blk_ps_p
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mt_row_processing

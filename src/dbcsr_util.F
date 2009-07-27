@@ -905,12 +905,11 @@ CONTAINS
     INTEGER, PARAMETER                       :: data_exchange_info_cnt = 3, &
                                                 metalen = 2
 
-    INTEGER :: absrow, blk, blk_l, blk_p, block_col, col, dst_p, mp_group, &
-      mynod, mypcol, myprow, nblkcols_local, nblkcols_total, nblkrows_local, &
-      nblkrows_total, nblks, newpcol, newprow, nfullcols_local, &
-      nfullcols_total, nfullrows_local, nfullrows_total, npcols, nprows, &
-      numproc, nze, p, row, row_l, src_p, stat, stored_col, stored_row, &
-      timing_handle
+    INTEGER :: absrow, blk, blk_l, blk_p, block_col, dst_p, mp_group, mynod, &
+      mypcol, myprow, nblkcols_local, nblkcols_total, nblkrows_local, &
+      nblkrows_total, newpcol, newprow, nfullcols_local, nfullcols_total, &
+      nfullrows_local, nfullrows_total, npcols, nprows, numproc, nze, row_l, &
+      src_p, stat, stored_col, stored_row, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -3530,7 +3529,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
-    INTEGER :: blk, blk_l, blk_p, col, col_images, col_img, data_p, dst_p, i, &
+    INTEGER :: blk, blk_l, blk_p, col, col_images, col_img, data_p, dst_p, &
       ithread, mp_group, nsymmetries, nthreads, numproc, nze, pcol, &
       prev_blk_p, prev_dst_p, prow, row, row_l, sd_pos, sm_pos, src_p, &
       stored_col, stored_row, symmetry_i, timing_handle
@@ -5165,8 +5164,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_image_dist_left', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: image, nimages, nprows_left, &
-                                                nprows_right, nrows, row
+    INTEGER                                  :: nimages, nprows_left, &
+                                                nprows_right, nrows
     INTEGER, DIMENSION(:), POINTER           :: rd, row_dist_data, &
                                                 row_img_data
     INTEGER, DIMENSION(:, :), POINTER        :: right_pgrid
@@ -5261,7 +5260,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_col_image_dist', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col, debug_level, new_ncols, &
+    INTEGER                                  :: debug_level, new_ncols, &
                                                 npcols, nprows
     INTEGER, DIMENSION(:), POINTER           :: new_col_dist_data, &
                                                 new_col_img_data, rd

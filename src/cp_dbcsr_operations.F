@@ -106,7 +106,7 @@ CONTAINS
 
     INTEGER                                  :: i, timing_handle
     INTEGER(KIND=int_8)                      :: my_flop
-    REAL(KIND=dp)                            :: checksum, flops
+    REAL(KIND=dp)                            :: flops
     TYPE(dbcsr_array_type)                   :: ms_left
     TYPE(dbcsr_imagedistribution_type)       :: rdist_left
     TYPE(dbcsr_type)                         :: matrix_d

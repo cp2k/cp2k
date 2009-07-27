@@ -113,7 +113,7 @@ CONTAINS
     INTEGER                                  :: i, iunit, n_rep_val, &
                                                 num_slaves, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: dependencies, i_vals
-    LOGICAL                                  :: failure, found, has_dep
+    LOGICAL                                  :: failure, has_dep
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: farming_section, jobs_section
 
