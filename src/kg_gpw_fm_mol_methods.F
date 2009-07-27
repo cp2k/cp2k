@@ -449,7 +449,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, imo, info, &
                                                 istat, itype, lfomo, mo_ncol, &
-                                                nao, nelectron, nmo, p, q
+                                                nao, nelectron, p, q
     LOGICAL                                  :: failure, mo_uocc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: vec_tmp
     REAL(dp), DIMENSION(:), POINTER          :: mo_eigenvalues, mo_occupation
@@ -715,8 +715,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mol_make_basis', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, info, istat, lda, ldb, &
-                                                ldc, nrow
+    INTEGER                                  :: info, istat, lda, ldb, ldc, &
+                                                nrow
     LOGICAL                                  :: failure, found_type, &
                                                 use_cholesky, use_pmatrix, &
                                                 use_simple, use_sv

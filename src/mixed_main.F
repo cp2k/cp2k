@@ -4,8 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief perform biased molecular dynamics (H= k H1 + (1-k) H2)
-!> \author fschiff 11.06 
+!> \brief perform biased molecular dynamics (H= k H1 + (1-k) H2 [linear or general mixing)
+!> \author fschiff 11.06
 ! *****************************************************************************
 MODULE mixed_main
   USE cp_files,                        ONLY: open_file
@@ -18,8 +18,7 @@ MODULE mixed_main
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp
+  USE kinds,                           ONLY: default_path_length
   USE message_passing,                 ONLY: mp_comm_split
   USE mixed_environment,               ONLY: mixed_init
   USE mixed_environment_types,         ONLY: mixed_env_create,&
@@ -35,21 +34,14 @@ MODULE mixed_main
   PRIVATE
 
 ! *** Global parameters ***
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_main'
 
 ! *** Global variables ***
-
   TYPE(mixed_environment_type), POINTER :: mixed_env
 
   PUBLIC :: mixed_create_force_env
 
-!!-----------------------------------------------------------------------------!
-
 CONTAINS
-
-!-----------------------------------------------------------------------------!
-
 ! *****************************************************************************
 !> \brief Controls program flow for mixed calculations
 !> \author fschiff
@@ -77,7 +69,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: group_partition, i_vals
     LOGICAL                                  :: failure, group_size_wish_set, &
                                                 ngroup_wish_set
-    REAL(KIND=dp)                            :: t2
     TYPE(cp_logger_type), POINTER            :: loc_logger, logger
     TYPE(mixed_environment_type), POINTER    :: mixed_env
 

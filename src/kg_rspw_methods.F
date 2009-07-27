@@ -114,8 +114,7 @@ END SUBROUTINE kg_rspw_create
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2
 
     INTEGER :: grid_span, handle, i, igrid_level, ikind, iounit, ipgf, iset, &
-      ishell, la, lgrid_level, ncommensurate, ngrid_level, nkind, nseta, &
-      nsmax, stat
+      ishell, la, lgrid_level, ncommensurate, ngrid_level, nkind, nseta, stat
     INTEGER, DIMENSION(3)                    :: higher_grid_layout
     INTEGER, DIMENSION(:), POINTER           :: npgfa, nshella
     INTEGER, DIMENSION(:, :), POINTER        :: lshella

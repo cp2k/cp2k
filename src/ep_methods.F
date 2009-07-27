@@ -671,7 +671,7 @@ CONTAINS
 
     INTEGER :: blocksize, blocksize2, full_nmo, handle, i, icol, ierr, ispin, &
       isub, local_idx, my_start_col_full, my_start_col_min, ncol_min, nmo, &
-      nrow_min, nspins, start_col, stat, sub_nmo, unit_nr
+      nrow_min, nspins, stat, sub_nmo, unit_nr
     LOGICAL                                  :: failure, print_matrixes
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sub_mo_matrix, tmp_full

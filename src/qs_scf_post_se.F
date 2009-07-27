@@ -647,7 +647,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, first_time
-    REAL(KIND=dp), DIMENSION(3)              :: dipole
 
     failure = .FALSE.
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&

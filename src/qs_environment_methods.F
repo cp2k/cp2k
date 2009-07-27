@@ -106,8 +106,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n_ao_aux_fit, &
-                                                nhistory, nsgf, nvariables, &
-                                                stat
+                                                nhistory, nvariables, stat
     LOGICAL                                  :: failure, scp_dft, scp_nddo
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
     TYPE(atomic_kind_type), DIMENSION(:), &

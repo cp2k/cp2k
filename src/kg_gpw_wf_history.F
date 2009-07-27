@@ -377,7 +377,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_gpw_prev_wf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: imol, imolecule_kind, ispin, istat, n_ao, nat_mol, natom, nmo, &
+    INTEGER :: imol, imolecule_kind, ispin, istat, n_ao, nat_mol, nmo, &
       nmo_kind(2), nmo_max, nmol_local, nmolecule_kind, nspins
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: mo_coeff, s_mo
@@ -388,9 +388,6 @@ CONTAINS
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
-
-!
-!
 
     failure = .FALSE.
     nmolecule_kind = SIZE(kg_fm_mol_set)

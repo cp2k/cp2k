@@ -83,7 +83,7 @@ CONTAINS
       ALLOCATABLE, DIMENSION(:, :)           :: sk_files
     CHARACTER(LEN=default_string_length)     :: iname, jname, name_a, name_b, &
                                                 skfn
-    INTEGER :: ikind, isp, istat, j, jkind, k, l, l1, l2, llm, lmax, lmax_a, &
+    INTEGER :: ikind, isp, istat, jkind, k, l, l1, l2, llm, lmax, lmax_a, &
       lmax_b, lp, m, n_urpoly, ngrd, nkind, output_unit, runit, spdim, z
     LOGICAL                                  :: at_end, failure, found, ldum, &
                                                 search, sklist

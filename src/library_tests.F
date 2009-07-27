@@ -1780,7 +1780,7 @@ CONTAINS
       ncol_block_actual, ncol_global, nrow_block, nrow_block_actual, &
       nrow_global
     LOGICAL                                  :: transa_p, transb_p
-    REAL(KIND=dp)                            :: gflops, t1, t2
+    REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct_a, fmstruct_b, &
                                                 fmstruct_c

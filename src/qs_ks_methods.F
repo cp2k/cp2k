@@ -308,9 +308,8 @@ CONTAINS
       do_ep, do_hfx, do_ppl, explicit_potential, failure, gapw, gapw_xc, &
       hfx_treat_lsd_in_core, ionode, my_kg_gpw, scp_dft, uniform_occupation, &
       use_virial
-    REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
-      adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
-      scale_dEx2, total_energy_xc
+    REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_dDFA, scale_ddW0, &
+      scale_dEx1, scale_dEx2, total_energy_xc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     REAL(KIND=dp)                            :: ddapc_order_p, ecore_ppl, &
                                                 mulliken_order_p, s2_order_p

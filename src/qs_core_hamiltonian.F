@@ -172,7 +172,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, first_col, handle, i, iab, iat, iatom, ico, &
       icol, ikind, ilist, inode, irow, iset, ithread, j, jatom, jco, jkind, &
       jset, last_jatom, ldai, ldsab, maxblock, maxco, maxdco, maxder, maxl, &
-      maxlgto, maxlppl, maxsgf, n, nat, natom, ncoa, ncob, ncol, nder, &
+      maxlgto, maxlppl, maxsgf, nat, natom, ncoa, ncob, nder, &
       neighbor_list_id, nkind, nlist, nnode, nrow, nseta, nsetb, nsgf, &
       nthread, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf, &

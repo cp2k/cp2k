@@ -76,7 +76,7 @@ CONTAINS
       last_jatom, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, &
       maxnset, maxsgf, natom, ncoa, ncob, nkind, nlist, nneighbor, nnode, &
       nseta, nsetb, sgfa, sgfb, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb

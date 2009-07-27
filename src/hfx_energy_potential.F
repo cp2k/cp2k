@@ -128,40 +128,63 @@ MODULE hfx_energy_potential
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bin, buffer_left, buffer_size, buffer_start, cache_size, &
-      current_counter, handle, handle_bin, handle_dist_ks, handle_getP, &
-      handle_load, handle_main, i, i_thread, iatom, ikind, iset, iw, jatom, &
-      jkind, jset, katom, kkind, kset, latom, lkind, lset, max_am, max_set, &
-      maxsgf, mb, my_bin_size, n_threads, natom, nbits, nco_max, ncoa, ncob, &
-      ncoc, ncod, nints, nseta, nsetb, nsetc, nsetd, nsgf_max, nsgfa_total, &
-      nsgfb_total, nsgfc_total, nsgfd_total, nspins, pa1, pb1, pc1, pd1, &
-      sgfa, sgfb, sgfc, sgfd, stat
-    INTEGER(int_8) :: estimate_to_store_int, mem_compression_counter, &
-      mem_compression_counter_disk, mem_eris, mem_eris_disk, mem_max_val, &
-      mem_maxvals, my_current_counter, my_istart, my_original_cpu_id, &
-      n_processes, ncpu, neris_disk, neris_incore, neris_onthefly, &
-      neris_total, stor_count_int_disk, stor_count_max_val, &
-      storage_counter_integrals
+    CHARACTER(LEN=512)                       :: error_msg
+    INTEGER :: act_atomic_block_offset, act_set_offset, atomic_offset_ac, &
+      atomic_offset_ad, atomic_offset_bc, atomic_offset_bd, bin, block_size, &
+      buffer_left, buffer_size, buffer_start, cache_size, current_counter, &
+      handle, handle_bin, handle_dist_ks, handle_getP, handle_load, &
+      handle_main, i, i_list_ij, i_list_kl, i_set_list_ij, &
+      i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl, &
+      i_set_list_kl_start, i_set_list_kl_stop, i_thread, iatom, iatom_block, &
+      ikind, iset, iw, j, jatom, jatom_block, jkind, jset, katom, &
+      katom_block, kind_kind_idx, kkind, kset, l_max, latom, latom_block, &
+      lkind, lset, ma, max_am, max_pgf
+    INTEGER :: max_set, maxsgf, mb, my_bin_size, n_threads, natom, nbits, &
+      nco_max, ncoa, ncob, ncoc, ncod, ncol, nints, nkind, nrow, nseta, &
+      nsetb, nsetc, nsetd, nsgf_max, nsgfa_total, nsgfb_total, nsgfc_total, &
+      nsgfd_total, nspins, pa, pa1, pb1, pc1, pd1, sgfa, sgfb, sgfc, sgfd, &
+      stat, swap_id, unit_id
+    INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, &
+      max_val_memory, mb_size_buffers, mb_size_f, mb_size_p, &
+      mem_compression_counter, mem_compression_counter_disk, mem_eris, &
+      mem_eris_disk, mem_max_val, mem_maxvals, memsize_after, memsize_before, &
+      my_current_counter, my_istart, my_original_cpu_id, n_processes, &
+      nblocks, ncpu, neris_disk, neris_incore, neris_onthefly, neris_tmp, &
+      neris_total, nprim_ints, shm_neris_disk, shm_neris_incore, &
+      shm_neris_onthefly, shm_neris_total, shm_nprim_ints, &
+      shm_stor_count_int_disk, shm_stor_count_max_val, &
+      shm_storage_counter_integrals, stor_count_int_disk, stor_count_max_val
+    INTEGER(int_8) :: storage_counter_integrals, subtr_size_mb, tmp_block, &
+      tmp_i8(8)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
-      nsgfc, nsgfd
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
-                                                first_sgfc, first_sgfd
-    LOGICAL                                  :: buffer_overflow, &
-                                                do_p_screening, do_periodic, &
-                                                failure
-    REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, &
-      compression_factor, compression_factor_disk, ene_x_aa, ene_x_bb, &
-      eps_schwarz, eps_storage, fac, hf_fraction, max_contraction_val, &
-      max_val1, max_val2, pmax_entry, ra(3), rb(3), rc(3), rd(3), &
-      spherical_estimate, symm_fac
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
-    REAL(dp), DIMENSION(:, :), POINTER       :: max_contraction, sphi_a, &
-                                                sphi_b, sphi_c, sphi_d, zeta, &
-                                                zetb, zetc, zetd
+      nsgfc, nsgfd, shm_block_offset
+    INTEGER, DIMENSION(:, :), POINTER :: first_sgfa, first_sgfb, first_sgfc, &
+      first_sgfd, offset_ac_set, offset_ad_set, offset_bc_set, offset_bd_set, &
+      shm_atomic_block_offset
+    INTEGER, DIMENSION(:, :), POINTER, SAVE  :: shm_is_assoc_atomic_block
+    INTEGER, DIMENSION(:, :, :, :), POINTER  :: shm_set_offset
+    INTEGER, SAVE                            :: shm_number_of_p_entries
+    LOGICAL :: buffer_overflow, do_disk_storage, do_p_screening, do_periodic, &
+      failure, ks_fully_occ, treat_lsd_in_core, use_disk_storage
+    REAL(dp) :: B11(3), bintime_start, bintime_stop, cartesian_estimate, &
+      compression_factor, compression_factor_disk, D11(3), ene_x_aa, &
+      ene_x_aa_diag, ene_x_bb, ene_x_bb_diag, eps_schwarz, eps_storage, fac, &
+      hf_fraction, ln_10, log10_eps_schwarz, log10_pmax, max_contraction_val, &
+      max_val1, max_val2, max_val2_set, pmax_entry, ra(3), rab2, rb(3), &
+      rc(3), rcd2, rd(3), spherical_estimate, symm_fac
+    REAL(dp), ALLOCATABLE, DIMENSION(:) :: kac_buf, kad_buf, kbc_buf, &
+      kbd_buf, pac_buf, pad_buf, pbc_buf, pbd_buf, primitive_integrals, T1
+    REAL(dp), DIMENSION(:), POINTER          :: full_density, &
+                                                full_density_beta, full_ks, &
+                                                full_ks_beta
+    REAL(dp), DIMENSION(:, :), POINTER :: max_contraction, ptr_p_1, ptr_p_2, &
+      ptr_p_3, ptr_p_4, sphi_a, sphi_b, sphi_c, sphi_d, zeta, zetb, zetc, zetd
+    REAL(KIND=dp)                            :: coeffs_kind_max0
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
@@ -179,76 +202,26 @@ MODULE hfx_energy_potential
     TYPE(hfx_general_type)                   :: general_parameter
     TYPE(hfx_load_balance_type)              :: load_balance_parameter
     TYPE(hfx_memory_type), POINTER           :: memory_parameter
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
     TYPE(hfx_potential_type)                 :: potential_parameter
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: screen_coeffs_kind, tmp_R_1, &
+                                                tmp_R_2, tmp_screen_pgf1, &
+                                                tmp_screen_pgf2
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :), POINTER         :: screen_coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :, :, :), POINTER   :: radii_pgf, screen_coeffs_pgf
     TYPE(hfx_screening_type)                 :: screening_parameter
     TYPE(hfx_type), POINTER                  :: actual_x_data
+    TYPE(lib_int)                            :: private_lib
+    TYPE(pair_list_type)                     :: list_ij, list_kl
+    TYPE(pair_set_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: set_list_ij, set_list_kl
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
-    INTEGER, SAVE                            :: shm_number_of_p_entries
-    INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
-    INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
-                                                shm_storage_counter_integrals, shm_neris_incore, &
-                                                shm_neris_disk, shm_stor_count_int_disk, shm_stor_count_max_val
-    LOGICAL                                  :: do_disk_storage, use_disk_storage
-    INTEGER(int_8)                           :: counter, neris_tmp, nprim_ints, shm_nprim_ints,&
-                                                mb_size_p, mb_size_f, mb_size_s, mb_size_buffers
-    INTEGER                                  :: nkind, l_max, istat
-    REAL(dp)                                 :: ks_occ
-    TYPE(cell_type), POINTER                 :: cell
-    LOGICAL                                  :: exist
-    CHARACTER(LEN=512)                       :: error_msg
-    INTEGER                                  :: unit_id
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:,:,:,:,:), POINTER        :: screen_coeffs_pgf, radii_pgf
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:,:,:), POINTER            :: screen_coeffs_set
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:), POINTER                :: screen_coeffs_kind
-    REAL(dp)                                 :: rab, rab2, rcd, rcd2, max_val1_from_funct,&
-                                                max_val2_from_funct, log10_eps_schwarz, &
-                                                B11(3), pbc_B(3), D11(3), pbc_D(3), log10_pmax, oops,&
-                                                diag1, diag2, diag(3), min_diag(3), R_diag,ln_10
-    INTEGER(int_8)                           :: subtr_size_mb, hash_idx
-
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:), POINTER                :: tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
-
-    INTEGER                                  :: max_pgf
-    INTEGER(int_8)                           :: nanotime, time_1, time_2,memsize_before,memsize_after,&
-                                                max_val_memory, max_val_memory_tmp, tmp_i8(8)
-    REAL(dp)                                 :: BD2, AC2, min_PQ2, max_val2_set
-    TYPE(lib_int)                            :: private_lib
-    INTEGER                                  :: nrow, ncol, pa, pd
-    REAL(dp), DIMENSION(:), POINTER          :: full_density, full_density_beta, full_ks,&
-                                                full_ks_beta
-    REAL(dp), DIMENSION(:), ALLOCATABLE      :: pbd_buf, pbc_buf, pad_buf, pac_buf,&
-                                                kbd_buf, kbc_buf, kad_buf, kac_buf
-    LOGICAL                                  :: treat_lsd_in_core, ks_fully_occ
-    INTEGER                                  :: iatom_block, jatom_block, katom_block, latom_block, &
-                                                block_size
-    INTEGER(int_8)                           :: atom_block, tmp_block, nblocks
-    INTEGER                                  :: i_list_ij,i_list_kl, &
-                                                i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop,&
-                                                i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop
-    TYPE(pair_list_type)                     :: list_ij, list_kl
-    REAL(KIND=dp)                            :: coeffs_kind_max0
-    TYPE(pair_set_list_type), DIMENSION(:), ALLOCATABLE :: set_list_ij, set_list_kl
-    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
-    INTEGER                                  :: kind_kind_idx, swap_id
-    REAL(dp)                                 :: pmax_1, pmax_2, pmax_3, pmax_4
-    REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4
-    INTEGER, DIMENSION(:), POINTER           :: shm_block_offset
-    INTEGER, DIMENSION(:,:), POINTER         :: shm_atomic_block_offset
-    INTEGER, DIMENSION(:,:,:,:), POINTER     :: shm_set_offset
-    INTEGER                                  :: offset_bd, offset_bc, offset_ad, offset_ac, &
-                                                atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, &
-                                                atomic_offset_ac
-    INTEGER                                  :: act_atomic_block_offset, act_set_offset, ma, j
-    INTEGER, DIMENSION(:,:), POINTER         :: offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set
-    REAL(dp)                                 :: ene_x_aa_diag, ene_x_bb_diag
-
 
     CALL timeset(routineN,handle)
 

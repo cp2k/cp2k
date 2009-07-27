@@ -27,8 +27,7 @@ MODULE qs_mo_methods
                                              cp_fm_retain,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE f77_blas
@@ -79,7 +78,6 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, n, ncol_global
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv, svmatrix
 
@@ -129,7 +127,6 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, n, ncol_global
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv
 
@@ -181,7 +178,6 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, n, ncol_global
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv
 
@@ -233,7 +229,6 @@ CONTAINS
 
     INTEGER                                  :: handle, n, ncol_global, ndep
     REAL(dp)                                 :: threshold
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: csc, sc, work
 
@@ -286,7 +281,6 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, n, ncol_global
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv
 

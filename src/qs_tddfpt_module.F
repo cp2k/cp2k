@@ -64,7 +64,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_calculation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: excitations, handle, iw
+    INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_p_env_type), POINTER             :: p_env

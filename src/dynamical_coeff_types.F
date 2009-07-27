@@ -40,8 +40,7 @@ MODULE dynamical_coeff_types
                                              mp_max,&
                                              mp_sum
   USE parallel_rng_types,              ONLY: next_random_number
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE util,                            ONLY: locate
 #include "cp_common_uses.h"
 
@@ -409,7 +408,8 @@ CONTAINS
     INTEGER :: group, i, iatom, icoef, iel, ikind, n_els, ncoef_atom, &
       ncoef_atom_max, ncoef_of_kind, ncoef_tot, nel_tot, nkind, source, stat
     INTEGER, DIMENSION(:), POINTER           :: ibuffer
-    LOGICAL                                  :: explicit, my_skipvel, restart
+    LOGICAL                                  :: explicit, failure, &
+                                                my_skipvel, restart
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: mbuffer
     REAL(kind=dp)                            :: kg_coeff_target_temp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
@@ -419,6 +419,7 @@ CONTAINS
     group=para_env%group
     source=para_env%source
     restart = .FALSE.
+    failure = .FALSE.
     my_skipvel = .FALSE.
     IF (PRESENT(skipvel)) my_skipvel = skipvel
     NULLIFY(work_section2, buffer,ibuffer)
@@ -447,7 +448,7 @@ CONTAINS
        IF(dyn_coeff_set%mass_storage/=dyn_coeff_mass_global) THEN
           IF(.NOT.ASSOCIATED(coeffs%masses)) THEN
              ALLOCATE(coeffs%masses(n_els,ncoef_atom),STAT=stat)
-             IF(stat/=0) CALL stop_memory('routineP','masses',n_els*ncoef_atom)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              coeffs%masses(:,:)=0.0_dp
           END IF
        END IF
@@ -464,7 +465,7 @@ CONTAINS
     dyn_coeff_set%ncoef_atom_max=ncoef_atom_max
 
     ALLOCATE(mbuffer(nel_tot,ncoef_atom_max),stat=stat)
-    IF(stat/=0) CALL stop_memory('routineP','mbuffer',nel_tot*ncoef_atom_max)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     mbuffer(:,:)=0.0_dp
     CALL dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,para_env,error)
 
@@ -514,7 +515,7 @@ CONTAINS
     END IF
 
     DEALLOCATE(mbuffer,stat=stat)
-    IF(stat/=0) CALL stop_memory('routineP','mbuffer')
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE dyn_coeff_set_initialize
 
@@ -536,16 +537,18 @@ CONTAINS
                                                 ioff, istart, nkind, source, &
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index
+    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ckind, nel_kind
     TYPE(dyn_coeff_type), POINTER            :: coeffs
 
+    failure = .FALSE.
     group=para_env%group
     source=para_env%source
     nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
 
     IF (dyn_coeff_set%mass_storage /= dyn_coeff_mass_global) THEN
        ALLOCATE (INDEX(dyn_coeff_set%nel_tot),STAT=stat)
-       IF (stat /= 0) CALL stop_memory(routineP,"index")
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        INDEX(:)=0
 
        IF (para_env%ionode) THEN
@@ -559,11 +562,11 @@ CONTAINS
        CASE (dyn_coeff_mass_kind)
           IF(.NOT.ALLOCATED(ckind)) THEN
              ALLOCATE(ckind(nkind),stat=stat)
-             IF(stat/=0) CALL stop_memory('routineP','ckind',nkind)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           IF(.NOT.ALLOCATED(nel_kind)) THEN
              ALLOCATE(nel_kind(nkind),stat=stat)
-             IF(stat/=0) CALL stop_memory('routineP','nel_kind',nkind)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           IF (para_env%ionode) THEN
              READ (cmass_unit,*) ckind(1:nkind)
@@ -589,9 +592,9 @@ CONTAINS
           END IF
           CALL mp_bcast(mbuffer,source,group)
           DEALLOCATE(ckind,STAT=stat)
-          IF (stat /= 0) CALL stop_memory(routineP,"ckind")
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(nel_kind,STAT=stat)
-          IF (stat /= 0) CALL stop_memory(routineP,"nel_kind")
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CASE (dyn_coeff_mass_atom)
           IF (para_env%ionode) THEN
              DO i=1,dyn_coeff_set%nel_tot
@@ -638,7 +641,7 @@ CONTAINS
           CALL close_file(unit_number=cmass_unit)
        END IF
        DEALLOCATE (index,STAT=stat)
-       IF (stat /= 0) CALL stop_memory(routineP,"index")
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE dyn_coeff_set_init_masses
   ! *****************************************************************************
@@ -658,10 +661,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, iatom, icoef, iel, &
-                                                ikind, ioff, istat, nkind, &
-                                                offset, output_unit, stat
+                                                ikind, ioff, nkind, offset, &
+                                                output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: n_els_of_kind
-    LOGICAL                                  :: gmass
+    LOGICAL                                  :: failure, gmass
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vbuffer
     REAL(KIND=dp)                            :: denom, ekin, scale, &
                                                 temp_coefs, tmp_r1, vcom
@@ -669,6 +672,7 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
 
     NULLIFY (coeffs)
+    failure = .FALSE.
     gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
     group = para_env%group
 
@@ -676,12 +680,12 @@ CONTAINS
     vcom=0._dp
     denom=0._dp
 
-    ALLOCATE (vbuffer(dyn_coeff_set%nel_tot,dyn_coeff_set%ncoef_atom_max),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"vbuffer")
+    ALLOCATE (vbuffer(dyn_coeff_set%nel_tot,dyn_coeff_set%ncoef_atom_max),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     vbuffer(:,:)=0._dp
 
-    ALLOCATE (n_els_of_kind(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"n_els_of_kind")
+    ALLOCATE (n_els_of_kind(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     n_els_of_kind(:)=0
 
     ! calculate com velocities
@@ -763,10 +767,10 @@ CONTAINS
        END IF
     END DO
 
-    DEALLOCATE(vbuffer,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"vbuffer")
-    DEALLOCATE(n_els_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"n_els_of_kind")
+    DEALLOCATE(vbuffer,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(n_els_of_kind,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     logger => cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger, md_section,"PRINT%PROGRAM_RUN_INFO",&

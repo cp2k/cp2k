@@ -798,16 +798,14 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    CHARACTER(LEN=*), OPTIONAL :: wdir
+    CHARACTER(LEN=*), OPTIONAL               :: wdir
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_finalize', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=26)                        :: datx
-    CHARACTER(LEN=default_path_length)       :: cwd
-    CHARACTER(LEN=default_string_length)     :: dev_flag, host_name, user_name
-    INTEGER                                  :: iw, l, pid, unit_exit
+    CHARACTER(LEN=default_string_length)     :: dev_flag
+    INTEGER                                  :: iw, unit_exit
     LOGICAL                                  :: delete_it, failure
     REAL(KIND=dp)                            :: r_timings
     TYPE(cp_logger_type), POINTER            :: logger
@@ -815,9 +813,9 @@ CONTAINS
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
+! look if we inherited a failure, more care is needed if so
+! i.e. the input is most likely not available
 
-    ! look if we inherited a failure, more care is needed if so
-    ! i.e. the input is most likely not available
     failure=.FALSE.
     CALL cp_error_check(error,failure)
 

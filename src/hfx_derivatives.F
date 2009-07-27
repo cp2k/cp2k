@@ -64,8 +64,6 @@ MODULE hfx_derivatives
 
   INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
-!***
-  
   CONTAINS
 
 ! *****************************************************************************
@@ -104,95 +102,76 @@ MODULE hfx_derivatives
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bin, coord, forces_map(4,2), handle, handle_getP, handle_load, &
-      handle_main, i, i_atom, i_thread, iatom, ikind, iset, j_atom, jatom, &
-      jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, lkind, lset, &
-      max_am, max_set, maxsgf, my_bin_size, n_threads, natom, nco_max, ncoa, &
-      ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, &
-      nsgfc_total, nsgfd_total, nspins, pa1, pb1, pc1, pd1, sgfa, sgfb, sgfc, &
-      sgfd, stat
-    INTEGER(int_8)                           :: my_current_counter, &
-                                                my_istart, &
-                                                my_original_cpu_id, &
-                                                n_processes, ncpu
+    INTEGER :: atomic_offset_ac, atomic_offset_ad, atomic_offset_bc, &
+      atomic_offset_bd, bin, block_size, coord, forces_map(4,2), handle, &
+      handle_getP, handle_load, handle_main, i, i_atom, i_list_ij, i_list_kl, &
+      i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl, &
+      i_set_list_kl_start, i_set_list_kl_stop, i_thread, iatom, iatom_block, &
+      ikind, iset, j_atom, jatom, jatom_block, jkind, jset, k_atom, katom, &
+      katom_block, kind_kind_idx, kkind, kset, l_atom, l_max, latom, &
+      latom_block, lkind, lset, max_am, max_set, maxsgf, my_bin_size, &
+      n_threads, natom, nco_max, ncoa, ncob, ncoc, ncod, nkind, nseta, nsetb
+    INTEGER :: nsetc, nsetd, nsgf_max, nsgfa_total, nsgfb_total, nsgfc_total, &
+      nsgfd_total, nspins, pa1, pb1, pc1, pd1, sgfa, sgfb, sgfc, sgfd, stat, &
+      swap_id, unit_id
+    INTEGER(int_8) :: atom_block, my_current_counter, my_istart, &
+      my_original_cpu_id, n_processes, nblocks, ncpu, tmp_block
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
-      nsgfc, nsgfd
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
-                                                first_sgfc, first_sgfd
+      nsgfc, nsgfd, shm_block_offset
+    INTEGER, DIMENSION(:, :), POINTER :: first_sgfa, first_sgfb, first_sgfc, &
+      first_sgfd, offset_ac_set, offset_ad_set, offset_bc_set, offset_bd_set, &
+      shm_atomic_block_offset
+    INTEGER, DIMENSION(:, :), POINTER, SAVE  :: shm_is_assoc_atomic_block
+    INTEGER, DIMENSION(:, :, :, :), POINTER  :: shm_set_offset
+    INTEGER, SAVE                            :: shm_number_of_p_entries
     LOGICAL                                  :: do_periodic, failure, &
                                                 screen_pmat_forces
-    REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, eps_schwarz, &
-      fac, hf_fraction, max_contraction_val, max_val1, max_val2, &
-      my_adiabatic_rescale_factor, omega2Inv, pmax_entry, ra(3), rb(3), &
-      rc(3), rd(3), symm_fac
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
+    REAL(dp) :: B11(3), bintime_start, bintime_stop, cartesian_estimate, &
+      D11(3), eps_schwarz, fac, hf_fraction, ln_10, log10_eps_schwarz, &
+      log10_pmax, log_2, max_contraction_val, max_val1, max_val2, &
+      max_val2_set, my_adiabatic_rescale_factor, omega2Inv, pmax_entry, &
+      pmax_tmp, ra(3), rab2, rb(3), rc(3), rcd2, rd(3), symm_fac
+    REAL(dp), ALLOCATABLE, DIMENSION(:) :: pac_buf, pac_buf_beta, pad_buf, &
+      pad_buf_beta, pbc_buf, pbc_buf_beta, pbd_buf, pbd_buf_beta, work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
     REAL(dp), DIMENSION(:), POINTER          :: full_density, &
                                                 full_density_beta, T1, T2
-    REAL(dp), DIMENSION(:, :), POINTER       :: max_contraction, sphi_a, &
-                                                sphi_b, sphi_c, sphi_d, zeta, &
-                                                zetb, zetc, zetd
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
+    REAL(dp), DIMENSION(:, :), POINTER :: max_contraction, ptr_p_1, ptr_p_2, &
+      ptr_p_3, ptr_p_4, sphi_a, sphi_b, sphi_c, sphi_d, zeta, zetb, zetc, zetd
+    REAL(KIND=dp)                            :: coeffs_kind_max0
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_general_type)                   :: general_parameter
     TYPE(hfx_load_balance_type)              :: load_balance_parameter
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
     TYPE(hfx_potential_type)                 :: potential_parameter
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: screen_coeffs_kind, tmp_R_1, &
+                                                tmp_R_2, tmp_screen_pgf1, &
+                                                tmp_screen_pgf2
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :), POINTER         :: screen_coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :, :, :), POINTER   :: radii_pgf, screen_coeffs_pgf
     TYPE(hfx_screening_type)                 :: screening_parameter
     TYPE(hfx_type), POINTER                  :: actual_x_data
+    TYPE(pair_list_type)                     :: list_ij, list_kl
+    TYPE(pair_set_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: set_list_ij, set_list_kl
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
-    INTEGER, SAVE                            :: shm_number_of_p_entries
-    INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
-    INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
-                                                shm_storage_counter_integrals, shm_neris_incore
-    INTEGER                                  :: nkind, l_max
-    TYPE(cell_type), POINTER                 :: cell
-    INTEGER                                  :: unit_id
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:,:,:,:,:), POINTER        :: screen_coeffs_pgf, radii_pgf
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:,:,:), POINTER            :: screen_coeffs_set
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:), POINTER                :: screen_coeffs_kind, tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
-    REAL(dp)                                 :: ln_10, B11(3), rab2, D11(3), rcd2, log10_eps_schwarz,&
-                                                log10_pmax, max_val2_set, pbc_B(3), pbc_D(3), log_2
-    INTEGER                                  :: nsgf_max
-    REAL(dp), DIMENSION(:), ALLOCATABLE      :: pbd_buf, pbc_buf, pad_buf, pac_buf, &
-                                                pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta
-    INTEGER(int_8)                           :: atom_block, tmp_block, nblocks
-    INTEGER                                  :: iatom_block, jatom_block, katom_block, latom_block, block_size
-    INTEGER                                  :: i_list_ij,i_list_kl, &
-                                                i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop,&
-                                                i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop
-    TYPE(pair_list_type)                     :: list_ij, list_kl
-    REAL(KIND=dp)                            :: coeffs_kind_max0
-    TYPE(pair_set_list_type), DIMENSION(:), ALLOCATABLE :: set_list_ij, set_list_kl
-    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
-    REAL(dp)                                 :: pmax_tmp
-    INTEGER                                  :: kind_kind_idx, swap_id
-    REAL(dp)                                 :: pmax_1, pmax_2, pmax_3, pmax_4
-    REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4
-    INTEGER, DIMENSION(:), POINTER           :: shm_block_offset
-    INTEGER, DIMENSION(:,:), POINTER         :: shm_atomic_block_offset
-    INTEGER, DIMENSION(:,:,:,:), POINTER     :: shm_set_offset
-    INTEGER                                  :: offset_bd, offset_bc, offset_ad, offset_ac, &
-                                                atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, &
-                                                atomic_offset_ac
-    INTEGER, DIMENSION(:,:), POINTER         :: offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set
-
-
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
                     cell=cell, error=error)
@@ -255,13 +234,8 @@ MODULE hfx_derivatives
 !$OMP                                  full_density,&
 !$OMP                                  full_density_beta,&
 !$OMP                                  shm_initial_p,&
-!$OMP                                  pmax_set,&
 !$OMP                                  shm_is_assoc_atomic_block,&
 !$OMP                                  shm_number_of_p_entries,&
-!$OMP                                  shm_neris_total,&
-!$OMP                                  shm_neris_onthefly,&
-!$OMP                                  shm_storage_counter_integrals,&
-!$OMP                                  shm_neris_incore,&
 !$OMP                                  force,&
 !$OMP                                  my_adiabatic_rescale_factor,&
 !$OMP                                  cell,&

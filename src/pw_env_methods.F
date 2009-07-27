@@ -148,7 +148,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     INTEGER :: blocked_id, blocked_id_input, grid_span, handle, i, &
       ibasis_set_type, igrid_level, igrid_zet0_s, ikind, iounit, ipgf, iset, &
       ishell, jkind, jpgf, jset, jshell, la, lb, lgrid_level, ncommensurate, &
-      ngrid_level, nkind, nseta, nsetb, nsmax, stat, xc_deriv_method_id, &
+      ngrid_level, nkind, nseta, nsetb, stat, xc_deriv_method_id, &
       xc_smooth_method_id
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: higher_grid_layout

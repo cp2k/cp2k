@@ -257,9 +257,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, icol, im_part, &
-                                                ispin, j, lcol, lrow, n, nao, &
-                                                ncol_local, newdim, nmo, &
-                                                nspin, re_part
+                                                ispin, j, lcol, lrow, nao, &
+                                                newdim, nmo, nspin, re_part
     LOGICAL                                  :: double_col, double_row
     REAL(KIND=dp)                            :: alpha, max_alpha
     TYPE(cp_fm_struct_type), POINTER         :: newstruct, newstruct1, &

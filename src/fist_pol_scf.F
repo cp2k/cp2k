@@ -228,7 +228,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_pol_ewald', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)

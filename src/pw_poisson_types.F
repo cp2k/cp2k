@@ -140,9 +140,8 @@ CONTAINS
                                                 my_per, my_val, n, nz, stat
     INTEGER, DIMENSION(3)                    :: perd
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, g2, g3d, gg, gxy, j0g, &
-                                                j1g, k0g, k1g, rlength, &
-                                                zlength
+    REAL(KIND=dp)                            :: g2, g3d, gg, gxy, j0g, j1g, &
+                                                k0g, k1g, rlength, zlength
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: gf

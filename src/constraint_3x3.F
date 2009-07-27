@@ -337,8 +337,7 @@ CONTAINS
     INTEGER                                  :: iconst, index_a, index_b, &
                                                 index_c
     REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq, &
-                                                imass1, imass2, imass3, mass, &
-                                                sigma
+                                                imass1, imass2, imass3, sigma
     REAL(KIND=dp), DIMENSION(3)              :: fc1, fc2, fc3, r0_12, r0_13, &
                                                 r0_23, r1, r12, r13, r2, r23, &
                                                 r3, v1, v2, v3, vec
@@ -488,8 +487,7 @@ CONTAINS
     INTEGER                                  :: iconst, index_a, index_b, &
                                                 index_c
     REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq, &
-                                                imass1, imass2, imass3, mass, &
-                                                sigma
+                                                imass1, imass2, imass3, sigma
     REAL(KIND=dp), DIMENSION(3)              :: f_roll1, f_roll2, f_roll3, &
                                                 fc1, fc2, fc3, r0_12, r0_13, &
                                                 r0_23, r1, r12, r13, r2, r23, &

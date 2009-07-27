@@ -576,7 +576,7 @@ CONTAINS
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: k, n
+    INTEGER                                  :: k
     REAL(dp)                                 :: r
     TYPE(cp_fm_type), POINTER                :: P2, T
 

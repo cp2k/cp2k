@@ -150,8 +150,8 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, oce_present, orb_present, ppl_present, ppnl_present, &
       Qlm_present, semi_present
-    REAL(dp)                                 :: alpha, r_skin, rcprj, &
-                                                subcells, unit_conv
+    REAL(dp)                                 :: alpha, r_skin, subcells, &
+                                                unit_conv
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, &
       c_radius, oce_radius, orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, &
       short_aux_fit_radius, short_orb_radius, V0hmv0s_radius

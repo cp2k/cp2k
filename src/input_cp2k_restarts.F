@@ -1068,7 +1068,6 @@ CONTAINS
     CHARACTER(LEN=rng_record_length)         :: rng_record
     INTEGER                                  :: i, my_index, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: dwork
-    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ascii
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work

@@ -80,7 +80,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ndim, nloop
     REAL(KIND=dp)                            :: square_fac, Tfac, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_im
-    TYPE(cp_fm_type), POINTER                :: T1, T2, T3, Tres_im, Tres_re
+    TYPE(cp_fm_type), POINTER                :: T1, T2, Tres_im, Tres_re
 
     CALL timeset(routineN,handle)
 

@@ -55,8 +55,7 @@ MODULE qs_integrate_potential
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
-                                             int_8,&
-                                             int_size
+                                             int_8
   USE mathconstants,                   ONLY: fac
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,&
@@ -133,8 +132,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, dir, handle, iatom, &
-                                                ierr, ikind, j, lppl, n, &
-                                                natom_of_kind, ni, npme, tp(3)
+                                                ikind, j, lppl, n, &
+                                                natom_of_kind, ni, npme, &
+                                                stat, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure, use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -196,8 +196,8 @@ CONTAINS
        IF ( lppl <= 0 ) CYCLE
 
        ni = ncoset(2*lppl-2)
-       ALLOCATE(hab(ni,1),pab(ni,1),STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        pab = 0._dp
 
        CALL reallocate ( cores, 1, natom_of_kind )
@@ -308,15 +308,15 @@ CONTAINS
          END IF
        END DO
 
-       DEALLOCATE(hab,pab,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(hab,pab,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     END DO
 
     CALL rs_grid_release(rs_v, error=error)
 
-    DEALLOCATE(cores,STAT=ierr)
-    CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(cores,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
@@ -335,8 +335,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, dir, handle, iatom, &
-                                                ierr, ikind, j, &
-                                                natom_of_kind, npme, tp(3)
+                                                ikind, j, natom_of_kind, &
+                                                npme, stat, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: paw_atom, skip_fcore, &
                                                 use_virial
@@ -370,8 +370,8 @@ CONTAINS
       
     IF(.NOT. skip_fcore) THEN 
         NULLIFY(pw_env,auxbas_rs_desc,hab,pab,cores)
-        ALLOCATE(hab(1,1),pab(1,1),STAT=ierr)
-        IF(ierr/=0) CALL stop_memory("integrate_v_core_rspace","hab,pab",1)
+        ALLOCATE(hab(1,1),pab(1,1),STAT=stat)
+        IF(stat/=0) CALL stop_memory("integrate_v_core_rspace","hab,pab",1)
      
         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
         CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc,error=error)
@@ -467,8 +467,8 @@ CONTAINS
      
         CALL rs_grid_release(rs_v, error=error)
      
-        DEALLOCATE(hab,pab,cores,STAT=ierr)
-        IF(ierr /= 0) CALL stop_memory("integrate_v_core_rspace",&
+        DEALLOCATE(hab,pab,cores,STAT=stat)
+        IF(stat /= 0) CALL stop_memory("integrate_v_core_rspace",&
                       "hab,pab,cores")
     END IF
     CALL timestop(handle)
@@ -511,11 +511,11 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, iatom_new, &
       iatom_old, idir, igrid_level, ikind, ikind_old, ilevel, ipgf, ipgf_new, &
-      iset, iset_new, iset_old, istat, itask, ithread, jatom, jatom_new, &
-      jatom_old, jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, &
-      maxco, maxpgf, maxset, maxsgf_set, my_basis_set_id, n, na1, na2, natom, &
-      nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, &
-      sgfa, sgfb, stat
+      iset, iset_new, iset_old, itask, ithread, jatom, jatom_new, jatom_old, &
+      jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, maxco, &
+      maxpgf, maxset, maxsgf_set, my_basis_set_id, na1, na2, natom, nb1, nb2, &
+      ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, sgfa, sgfb, &
+      stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -635,8 +635,8 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_descs=rs_descs,error=error)
-    ALLOCATE (rs_v(SIZE(rs_descs)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+    ALLOCATE (rs_v(SIZE(rs_descs)),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1,SIZE(rs_v)
       CALL rs_grid_create(rs_v(i)%rs_grid, rs_descs(i)%rs_desc, error=error)
     END DO
@@ -655,8 +655,8 @@ CONTAINS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     IF (calculate_forces) THEN
-       ALLOCATE (atom_of_kind(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
+       ALLOCATE (atom_of_kind(natom),STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             atom_of_kind=atom_of_kind)
     END IF
@@ -1202,25 +1202,25 @@ CONTAINS
 
     !   *** Release work storage ***
 
-    DEALLOCATE (habt,workt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"habt,workt")
+    DEALLOCATE (habt,workt,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF ( pab_required ) THEN
-       DEALLOCATE (pabt,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"pabt")
+       DEALLOCATE (pabt,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF (ASSOCIATED(rs_v)) THEN
       DO i=1,SIZE(rs_v)
         CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
       END DO
-      DEALLOCATE (rs_v,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+      DEALLOCATE (rs_v,STAT=stat)
+      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF (calculate_forces) THEN
-       DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
+       DEALLOCATE (atom_of_kind,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL timestop(handle)

@@ -757,7 +757,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_readwrite_input', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ls_method, &
                                                 ot_algorithm, ot_method, &
                                                 ot_ortho_irac

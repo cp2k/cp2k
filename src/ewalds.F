@@ -34,7 +34,6 @@ MODULE ewalds
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
-  USE pw_types,                        ONLY: pw_type
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type
   USE structure_factor_types,          ONLY: structure_factor_type
@@ -91,7 +90,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     REAL(KIND=dp)                            :: alpha, denom, e_igdotr, &
                                                 factor, four_alpha_sq, gauss, &
-                                                gsq, pref, q
+                                                pref, q
     REAL(KIND=dp), DIMENSION(3)              :: vec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -101,7 +100,6 @@ CONTAINS
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_type), POINTER                   :: pw
     TYPE(structure_factor_type)              :: exp_igr
 
     CALL timeset(routineN,handle)

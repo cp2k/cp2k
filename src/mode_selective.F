@@ -98,8 +98,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
-    INTEGER                                  :: handle, i, ip1, j, n_rep, &
-                                                natoms, ncoord, stat
+    INTEGER                                  :: handle, i, ip1, j, natoms, &
+                                                ncoord, stat
     LOGICAL                                  :: converged, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass, pos0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp_deriv

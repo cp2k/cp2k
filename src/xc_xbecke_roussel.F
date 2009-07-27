@@ -101,7 +101,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: R
 
     failure=.FALSE.
 

@@ -62,8 +62,7 @@ CONTAINS
       iset, ishell, istat, j, jkind, jpgf, jset, jshell, nkind, npart, &
       nparticle_local, nseta, nsetb, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    INTEGER, DIMENSION(:), POINTER           :: list, npgfa, npgfb, nshella, &
-                                                nshellb
+    INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     LOGICAL                                  :: ionode
     REAL(KIND=dp) :: alpha_i, alpha_j, ann, dij, eee, ene, enn, fee, fne, &
       fnn, fscalar, gnorm, idij, prefac, q_i, q_j, qnn, qnuc_i, qnuc_j, &

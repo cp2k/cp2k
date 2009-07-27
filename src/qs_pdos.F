@@ -107,11 +107,11 @@ CONTAINS
       DIMENSION(:, :, :)                     :: tmp_str
     CHARACTER(LEN=default_string_length)     :: kind_name, my_act, my_mittle, &
                                                 my_pos, spin(2)
-    INTEGER :: handle, homo, i, i_rep_val, iatom, il, im, imo, ir, irow, &
-      iset, isgf, ishell, iso, iterstep, iw, j, kind_number, lcomponent, &
-      lshell, maxl, maxl_list, maxlgto, my_spin, n_dependent, n_rep, nao, &
-      natom, ncol_global, nkind, nlist, nlumo, nmo, nrow_global, nset, nsgf, &
-      nvirt, stat
+    INTEGER :: handle, homo, i, iatom, il, im, imo, ir, irow, iset, isgf, &
+      ishell, iso, iterstep, iw, j, kind_number, lcomponent, lshell, maxl, &
+      maxl_list, maxlgto, my_spin, n_dependent, n_rep, nao, natom, &
+      ncol_global, nkind, nlist, nlumo, nmo, nrow_global, nset, nsgf, nvirt, &
+      stat
     INTEGER, DIMENSION(:), POINTER           :: index_list, list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
     LOGICAL :: add_to_list, append, do_list, do_virt, failure, ionode, &

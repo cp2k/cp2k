@@ -75,10 +75,10 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, atom_c, handle, iab, iac, iatom, icol, ikind, &
       ilist, inode, irow, iset, jatom, jkind, jset, katom, kkind, kneighbor, &
-      last_jatom, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxnset, maxsgf, &
-      na_plus, natom, nb_plus, ncoa, ncob, nij, nkind, nlist, nneighbor, &
-      nnode, nseta, nsetb, sgfa, sgfb, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf
+      last_jatom, ldai, ldsab, maxco, maxder, maxl, maxnset, maxsgf, na_plus, &
+      natom, nb_plus, ncoa, ncob, nij, nkind, nlist, nneighbor, nnode, nseta, &
+      nsetb, sgfa, sgfb, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb

@@ -58,8 +58,7 @@ MODULE force_fields_util
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
-  USE splines_types,                   ONLY: spline_data_type,&
-                                             spline_env_release,&
+  USE splines_types,                   ONLY: spline_env_release,&
                                              spline_environment_type
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_program
@@ -125,7 +124,6 @@ CONTAINS
     TYPE(gromos_info_type), POINTER          :: gro_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(pair_potential_pp_type), POINTER    :: potparm_bond, potparm_nonbond
-    TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(spline_environment_type), POINTER :: spline_bond_env, &
       spline_c_coul_env, spline_cs_coul_env, spline_nonbond_env, &
       spline_sc_coul_env

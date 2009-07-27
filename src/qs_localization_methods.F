@@ -402,7 +402,6 @@ CONTAINS
 ! Locals
     TYPE ( cp_error_type ) :: error
     INTEGER :: nstate
-    TYPE ( cp_cfm_type ), POINTER :: rmat_cmplx
     COMPLEX ( KIND = dp ) :: st_cmplx
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desc

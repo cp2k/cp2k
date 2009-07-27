@@ -92,7 +92,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER :: aint_precond, handle, i, iat, iatom, ij, ikind, istat, j, m, &
+    INTEGER :: aint_precond, handle, i, iat, iatom, ij, ikind, istat, j, &
       max_iter, natom, natomkind, nkind, nspins, precond_kind, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: efg_debug, efg_interpolation, &

@@ -170,9 +170,9 @@ CONTAINS
 
     INTEGER                                  :: i, stat, temp_tol_steps
     LOGICAL                                  :: explicit, failure
-    REAL(KIND=dp)                            :: ext_temp, f_annealing, &
-                                                factor, scale, temp_tol, &
-                                                temploc, tmp_r1, tmp_r2
+    REAL(KIND=dp)                            :: ext_temp, f_annealing, scale, &
+                                                temp_tol, temploc, tmp_r1, &
+                                                tmp_r2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temperatures
 
     failure = .FALSE.

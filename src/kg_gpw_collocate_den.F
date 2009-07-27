@@ -118,8 +118,7 @@ CONTAINS
       ga_gb_function, handle, i, iat, iatom, igrid_level, ikind, ikind_old, &
       ipgf, iset, istat, itask, ithread, j, jat, jatom, jkind, jkind_old, &
       jpgf, jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, nat_mol, nb1, &
-      nb2, ncoa, ncob, npme, nseta, nsetb, nthread, num_tasks, &
-      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, tp
+      nb2, ncoa, ncob, npme, nseta, nsetb, nthread, num_tasks, sgfa, sgfb, tp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub
@@ -155,8 +154,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
 
-    failure=.FALSE.
+!$  INTEGER                                  :: omp_get_max_threads, omp_get_thread_num
 
+    failure=.FALSE.
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referencing to rho are actually tau
     IF (PRESENT(compute_tau)) THEN
@@ -630,7 +630,7 @@ CONTAINS
       ijsets, ikind, ikind_old, ipgf, iset, istat, itask, ithread, jat, &
       jatom, jkind, jkind_old, jpgf, jset, maxco, maxsgf, maxsgf_set, n, na1, &
       na2, nat_mol, nb1, nb2, ncoa, ncob, npme, nset_pairs, nseta, nsetb, &
-      nthread, num_tasks, omp_get_max_threads, omp_get_thread_num, sgfa, sgfb
+      nthread, num_tasks, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks
@@ -640,8 +640,7 @@ CONTAINS
     LOGICAL                                  :: calculate_forces, failure, &
                                                 map_consistent, my_compute_tau
     REAL(dp)                                 :: dab, eps_gvg_rspace, &
-                                                kind_radius_b, rab2, scale, &
-                                                zetp
+                                                kind_radius_b, rab2, zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, hab, p_block, pab, &
@@ -663,6 +662,8 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
+
+!$  INTEGER                                  :: omp_get_max_threads, omp_get_thread_num
 
     failure=.FALSE.
 

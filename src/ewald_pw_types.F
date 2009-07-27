@@ -189,8 +189,7 @@ CONTAINS
 
     INTEGER                                  :: bo(2,3), ewald_type, gmax(3), &
                                                 handle, npts_s( 3 ), ns_max, &
-                                                nsmax, o_spline, output_unit, &
-                                                stat
+                                                o_spline, output_unit, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, alphasq, &
                                                 cutoff_radius, epsilon, norm

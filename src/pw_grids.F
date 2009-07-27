@@ -569,7 +569,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n(3)
-    REAL(KIND=dp)                            :: cutoff, rv(3,3)
+    REAL(KIND=dp)                            :: rv(3,3)
 
 !------------------------------------------------------------------------------
 !

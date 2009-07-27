@@ -263,8 +263,7 @@ CONTAINS
     INTEGER                                  :: dir, handle, i, j, k, l, &
                                                 lb( 2 ), n_slices(3), &
                                                 n_slices_tmp(3), &
-                                                neighbours(3), nmin, nsmax, &
-                                                stat
+                                                neighbours(3), nmin, stat
     LOGICAL                                  :: failure, overlap
     REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
                                                 volume_dist
@@ -969,9 +968,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=200)                       :: error_string
-    INTEGER :: completed, dest_down, dest_up, group, i, idir, j, k, &
-      my_pw_rank, my_rs_rank, n_shifts, nn, position, source_down, source_up, &
-      stat, x, y, z
+    INTEGER :: completed, dest_down, dest_up, i, idir, j, k, my_pw_rank, &
+      my_rs_rank, n_shifts, nn, position, source_down, source_up, stat, x, y, &
+      z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, recv_disps, &
                                                 recv_sizes, send_disps, &
                                                 send_sizes, ushifts

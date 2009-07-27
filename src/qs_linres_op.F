@@ -681,8 +681,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_operators', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                   :: icol_global, icol_local, irow_local, &
-         mypcol, myprow, n, ncol_global, npcol, nprow, nrow_global, irow_global, &
+    INTEGER                                   :: icol_local, irow_local, &
+         mypcol, myprow, n, ncol_global, npcol, nprow, nrow_global, &
          nrow_local, ncol_local, nrow_block, ncol_block, m, handle
     REAL(KIND=dp)                             :: rra(3),rrc(3),dist(3)
     REAL(KIND=dp), DIMENSION(:, :), POINTER   :: a

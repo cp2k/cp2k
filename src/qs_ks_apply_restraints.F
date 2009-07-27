@@ -156,8 +156,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
 
     IF (dft_control%qs_control%s2_restraint) THEN
     ! adds s2_restraint energy and orbital derivatives

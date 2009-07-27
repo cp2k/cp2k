@@ -86,8 +86,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
-      iset, istat, maxco, maxsgf_set, na1, na2, ncoa, nkind, nparticle_local, &
-      nseta, sgfa, stat
+      iset, maxco, maxsgf_set, na1, na2, ncoa, nkind, nparticle_local, nseta, &
+      sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure
@@ -147,8 +147,8 @@ CONTAINS
                               in_space = RECIPROCALSPACE, error=error)
 
     ! *** set up the rs multi-grids
-    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
@@ -162,10 +162,10 @@ CONTAINS
                              maxco=maxco,&
                              maxsgf_set=maxsgf_set)
 
-    ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*1*dp_size)
-    ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*1*dp_size)
+    ALLOCATE (pab(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab",maxco*1*dp_size)
+    ALLOCATE (work(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"work",maxco*1*dp_size)
 
     DO ikind=1,nkind
 
@@ -235,17 +235,17 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab")
+    DEALLOCATE (pab,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab")
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work")
+    DEALLOCATE (work,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
        CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-       DEALLOCATE (rs_rho,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+       DEALLOCATE (rs_rho,STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
        CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
           CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
@@ -256,8 +256,8 @@ CONTAINS
                mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
           CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
        ENDDO
-       DEALLOCATE (rs_rho,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+       DEALLOCATE (rs_rho,STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
        CALL pw_zero(rho_gspace%pw,error=error)
@@ -293,8 +293,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iatom, ikind, &
-                                                iparticle_local, istat, &
-                                                nparticle_local
+                                                iparticle_local, &
+                                                nparticle_local, stat
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace, scale
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
@@ -320,8 +320,8 @@ CONTAINS
             auxbas_rs_desc, auxbas_pw_pool,&
             pab,particle_set)
 
-    ALLOCATE(pab(1,1),stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab")
+    ALLOCATE(pab(1,1),stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab")
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -365,8 +365,8 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE(pab,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab")
+    DEALLOCATE(pab,stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab")
 
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE,error=error)
@@ -397,8 +397,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
-      iset, istat, maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, &
-      nparticle_local, nseta, offset, sgfa, stat
+      iset, maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, nparticle_local, &
+      nseta, offset, sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure
@@ -462,8 +462,8 @@ CONTAINS
                               in_space = RECIPROCALSPACE, error=error)
 
     ! *** set up the rs multi-grids
-    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
@@ -481,10 +481,10 @@ CONTAINS
                              natom=natom,&
                              maxsgf_set=maxsgf_set)
 
-    ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*1*dp_size)
-    ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*1*dp_size)
+    ALLOCATE (pab(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab",maxco*1*dp_size)
+    ALLOCATE (work(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"work",maxco*1*dp_size)
 
     DO ikind=1,nkind
 
@@ -559,17 +559,17 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab")
+    DEALLOCATE (pab,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab")
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work")
+    DEALLOCATE (work,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
        CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-       DEALLOCATE (rs_rho,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+       DEALLOCATE (rs_rho,STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
        CALL pw_transfer(rho%pw,rho_gspace%pw,error=error)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
           CALL pw_transfer(rho_gspace%pw,rho%pw,error=error)
@@ -580,8 +580,8 @@ CONTAINS
                mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
           CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
        ENDDO
-       DEALLOCATE (rs_rho,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+       DEALLOCATE (rs_rho,STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
 
        ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
        CALL pw_zero(rho_gspace%pw,error=error)
@@ -616,8 +616,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
-                                                iparticle_local, istat, &
-                                                natom, nkind, nparticle_local
+                                                iparticle_local, natom, &
+                                                nkind, nparticle_local, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
@@ -643,8 +643,8 @@ CONTAINS
             local_particles,particle_set,rspw,auxbas_rs_desc)
     NULLIFY(hab,pab)
 
-    ALLOCATE(hab(1,1),pab(1,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"hab,pab",1*int_size)
+    ALLOCATE(hab(1,1),pab(1,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"hab,pab",1*int_size)
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -664,8 +664,8 @@ CONTAINS
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-    ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
+    ALLOCATE (atom_of_kind(natom),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
@@ -708,8 +708,8 @@ CONTAINS
 
     CALL rs_grid_release(rs_v, error=error)
 
-    DEALLOCATE(pab,hab,atom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"hab,pab,atom_of_kind")
+    DEALLOCATE(pab,hab,atom_of_kind,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"hab,pab,atom_of_kind")
 
     CALL timestop(handle)
 
@@ -730,8 +730,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, auxbas_grid, handle, i, iatom, igrid_level, ikind, &
-      iparticle_local, ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, &
-      ncoa, nkind, nparticle_local, nseta, sgfa, stat
+      iparticle_local, ipgf, iset, maxco, maxsgf_set, na1, na2, natom, ncoa, &
+      nkind, nparticle_local, nseta, sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
@@ -827,8 +827,8 @@ CONTAINS
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
 
     CALL kg_rspw_get(rspw, rs_descs=rs_descs,error=error)
-    ALLOCATE (rs_v(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+    ALLOCATE (rs_v(gridlevel_info%ngrid_levels),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"rs_v")
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_create(rs_v(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
@@ -847,22 +847,22 @@ CONTAINS
 
 !   *** Allocate work storage ***
 
-    ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
+    ALLOCATE (atom_of_kind(natom),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              maxco=maxco,&
                              maxsgf_set=maxsgf_set)
 
-    ALLOCATE (hab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"hab",maxco*dp_size)
+    ALLOCATE (hab(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"hab",maxco*dp_size)
 
-    ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*dp_size)
+    ALLOCATE (pab(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab",maxco*dp_size)
 
-    ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*dp_size)
+    ALLOCATE (work(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"work",maxco*dp_size)
 
     DO ikind=1,nkind
 
@@ -958,23 +958,23 @@ CONTAINS
       DO igrid_level=1,gridlevel_info%ngrid_levels
         CALL rs_grid_release(rs_v(igrid_level)%rs_grid, error=error)
       END DO
-      DEALLOCATE (rs_v,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+      DEALLOCATE (rs_v,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineP,"rs_v")
     END IF
 
 !   *** Release work storage ***
 
-    DEALLOCATE (hab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"hab")
+    DEALLOCATE (hab,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"hab")
 
-    DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab")
+    DEALLOCATE (pab,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab")
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work")
+    DEALLOCATE (work,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"work")
 
-    DEALLOCATE (atom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
+    DEALLOCATE (atom_of_kind,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"atom_of_kind")
 
     CALL timestop(handle)
 
@@ -996,7 +996,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, auxbas_grid, handle, i, iatom, igrid_level, ikind, &
-      iparticle_local, ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, &
+      iparticle_local, ipgf, iset, maxco, maxsgf_set, na1, na2, natom, &
       natom_of_kind, ncoa, nkind, nparticle_local, nseta, offset, sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
@@ -1102,8 +1102,8 @@ CONTAINS
 
     CALL kg_rspw_get(rspw, rs_descs=rs_descs,error=error)
 
-    ALLOCATE (rs_v(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+    ALLOCATE (rs_v(gridlevel_info%ngrid_levels),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"rs_v")
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_create(rs_v(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
@@ -1125,22 +1125,22 @@ CONTAINS
 
 !   *** Allocate work storage ***
 
-    ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
+    ALLOCATE (atom_of_kind(natom),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              maxco=maxco,&
                              maxsgf_set=maxsgf_set)
 
-    ALLOCATE (hab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"hab",maxco*dp_size)
+    ALLOCATE (hab(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"hab",maxco*dp_size)
 
-    ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*dp_size)
+    ALLOCATE (pab(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab",maxco*dp_size)
 
-    ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*dp_size)
+    ALLOCATE (work(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"work",maxco*dp_size)
 
     offset = 0
 
@@ -1256,20 +1256,20 @@ CONTAINS
       DO igrid_level=1,gridlevel_info%ngrid_levels
         CALL rs_grid_release(rs_v(igrid_level)%rs_grid, error=error)
       END DO
-      DEALLOCATE (rs_v,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"rs_v")
+      DEALLOCATE (rs_v,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineP,"rs_v")
     END IF
 
 !   *** Release work storage ***
 
-    DEALLOCATE (hab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"hab")
+    DEALLOCATE (hab,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"hab")
 
-    DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pab")
+    DEALLOCATE (pab,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pab")
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work")
+    DEALLOCATE (work,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"work")
 
     CALL timestop(handle)
 

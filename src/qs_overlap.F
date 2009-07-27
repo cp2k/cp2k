@@ -143,8 +143,7 @@ CONTAINS
       DIMENSION(:)                           :: sint
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node

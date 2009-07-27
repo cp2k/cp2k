@@ -885,7 +885,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: title
     INTEGER                                  :: handle, ia, ie, istate, &
                                                 ivector, my_ispin, my_state0, &
-                                                stride, unit_out_c
+                                                unit_out_c
     LOGICAL                                  :: add_idir, add_spin, failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

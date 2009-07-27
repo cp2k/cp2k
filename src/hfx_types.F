@@ -379,7 +379,7 @@ MODULE hfx_types
       pbc_shells, stat, storage_id
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
     LOGICAL                                  :: exist, failure, logic_val
-    REAL(dp)                                 :: omega, real_val
+    REAL(dp)                                 :: real_val
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
     TYPE(hfx_type), POINTER                  :: actual_x_data

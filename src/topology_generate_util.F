@@ -899,7 +899,7 @@ CONTAINS
                                                 mol_natom, natom, nsize, stat
     INTEGER, DIMENSION(:), POINTER           :: mol_map, mol_map_o, wrk
     INTEGER, DIMENSION(:, :), POINTER        :: mol_info
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:), POINTER           :: icheck
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list

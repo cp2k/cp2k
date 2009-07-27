@@ -694,11 +694,11 @@ CONTAINS
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, &
-      igrid_level, ikind, ikind_old, ipgf, iset, iset_old, istat, itask, &
-      ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, &
-      maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, &
-      my_der_type, n, na1, na2, natoms, nb1, nb2, ncoa, ncob, nkind, nseta, &
-      nsetb, ntasks, nthread, sgfa, sgfb, stat
+      igrid_level, ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, &
+      jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, &
+      maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, my_der_type, na1, &
+      na2, natoms, nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, &
+      nthread, sgfa, sgfb, stat
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -866,8 +866,8 @@ CONTAINS
     CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
     ! *** set up the rs multi-grids
     distributed_rs_grids=.FALSE.
-    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
@@ -1084,8 +1084,8 @@ CONTAINS
       CALL deallocate_matrix ( deltap ,error=error)
     ENDIF
 
-    DEALLOCATE (pabt,workt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pabt,workt")
+    DEALLOCATE (pabt,workt,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pabt,workt")
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
@@ -1117,9 +1117,9 @@ CONTAINS
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: bcol, brow, handle, i, iatom, iatom_old, idir, igrid_level, &
-      ikind, ikind_old, ipgf, iset, iset_old, istat, itask, ithread, jatom, &
+      ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, jatom, &
       jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, &
-      maxset, maxsgf, maxsgf_set, my_basis_set_id, n, na1, na2, natoms, nb1, &
+      maxset, maxsgf, maxsgf_set, my_basis_set_id, na1, na2, natoms, nb1, &
       nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
@@ -1268,8 +1268,8 @@ CONTAINS
     ! *** set up the rs multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
-    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"rs_rho") 
+    ALLOCATE (rs_rho(gridlevel_info%ngrid_levels),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"rs_rho") 
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
       distributed_rs_grids=rs_rho(igrid_level)%rs_grid%desc%distributed
@@ -1495,15 +1495,15 @@ CONTAINS
       DO i=1, SIZE(rs_rho)
         CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
       END DO
-      DEALLOCATE (rs_rho,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+      DEALLOCATE (rs_rho,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
     END IF
     IF (distributed_rs_grids) THEN
       CALL deallocate_matrix ( deltap ,error=error)
     ENDIF
 
-    DEALLOCATE (pabt,workt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"pabt,workt")
+    DEALLOCATE (pabt,workt,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"pabt,workt")
 
     CALL timestop(handle)
 
@@ -1543,8 +1543,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: dir, group, group_size, handle, i, iatom, igrid_level, ipgf, &
-      iset, istat, maxco, maxsgf_set, my_basis_set_id, my_pos, na1, na2, nao, &
-      natom, ncoa, ncol_global, nseta, offset, sgfa, stat
+      iset, maxco, maxsgf_set, my_basis_set_id, my_pos, na1, na2, nao, natom, &
+      ncoa, ncol_global, nseta, offset, sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: where_is_the_point
     INTEGER, DIMENSION(3)                    :: lb, location, tp, ub
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
@@ -1585,8 +1585,8 @@ CONTAINS
          sphi_a, zeta, first_sgfa,&
          rs_rho,rs_descs,pw_pools,mgrid_rspace,mgrid_gspace)
 
-    ALLOCATE(eigenvector(nao), stat=istat)
-    IF (istat.NE.0) CALL stop_program("calculate_wavefunction","eigenvector")
+    ALLOCATE(eigenvector(nao), stat=stat)
+    IF (stat.NE.0) CALL stop_program("calculate_wavefunction","eigenvector")
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
@@ -1601,8 +1601,8 @@ CONTAINS
                 in_space = REALSPACE, error=error)
 
     ! *** set up rs multi-grids
-    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels), stat=istat)
-    IF (istat.NE.0) CALL stop_program(routineP,"rs_rho")
+    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels), stat=stat)
+    IF (stat.NE.0) CALL stop_program(routineP,"rs_rho")
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
@@ -1620,10 +1620,10 @@ CONTAINS
                              maxsgf_set=maxsgf_set,&
                              basis_set_id=my_basis_set_id)
 
-    ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,"pab",maxco*1*dp_size)
-    ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,"work",maxco*1*dp_size)
+    ALLOCATE (pab(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,"pab",maxco*1*dp_size)
+    ALLOCATE (work(maxco,1),STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,"work",maxco*1*dp_size)
 
     offset=0
     group=mgrid_rspace(1)%pw%pw_grid%para%group
@@ -1724,8 +1724,8 @@ CONTAINS
             mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
        CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
     ENDDO
-    DEALLOCATE (rs_rho,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"rs_rho")
+    DEALLOCATE (rs_rho,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
 
     CALL pw_zero(rho_gspace%pw,error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -1740,11 +1740,11 @@ CONTAINS
 !   *** Release work storage ***
     DEALLOCATE(eigenvector)
 
-    DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,"pab")
+    DEALLOCATE (pab,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,"pab")
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,"work")
+    DEALLOCATE (work,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,"work")
 
     ! *** give back the pw multi-grids
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
@@ -2854,8 +2854,8 @@ CONTAINS
     COMPLEX(dp), DIMENSION(:), POINTER       :: rag, rbg
     COMPLEX(dp), DIMENSION(:, :, :, :), &
       POINTER                                :: cubeaxis
-    INTEGER :: ax, ay, az, bx, by, bz, handle, i, ico, ig, ig2, istat, jco, &
-      jg, kg, la, lb, lb_cube_min, lb_grid, ub_cube_max, ub_grid
+    INTEGER :: ax, ay, az, bx, by, bz, handle, i, ico, ig, ig2, jco, jg, kg, &
+      la, lb, lb_cube_min, lb_grid, stat, ub_cube_max, ub_grid
     INTEGER, DIMENSION(3)                    :: lb_cube, ub_cube
     REAL(dp)                                 :: f, fa, fb, pij, prefactor, &
                                                 rzetp, twozetp, zetp
@@ -3014,8 +3014,8 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE (cubeaxis,g,rag,rbg,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,"cubeaxis,g,rag,rbg")
+    DEALLOCATE (cubeaxis,g,rag,rbg,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineN,"cubeaxis,g,rag,rbg")
 
     CALL timestop(handle)
 

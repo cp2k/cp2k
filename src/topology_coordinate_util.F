@@ -97,9 +97,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: element
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: work(:)
-    INTEGER :: counter, dim0, dim1, dim2, dim3, first, first_atom, handle, &
-      handle2, i, iatom, ikind, iw, j, k, last, last_atom, method_name_id, n, &
-      natom, position, stat
+    INTEGER :: counter, dim0, dim1, dim2, dim3, first, handle, handle2, i, &
+      iatom, ikind, iw, j, k, last, method_name_id, n, natom, position, stat
     INTEGER, DIMENSION(:), POINTER           :: iatomlist, kind_of, list, &
                                                 list2, molecule_list, &
                                                 natom_of_kind, wlist

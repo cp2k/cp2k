@@ -273,7 +273,7 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(:), POINTER           :: ngrids
     LOGICAL :: analyt, decoupling, do_qmmm_periodic, do_restraint, &
-      do_restraintB, do_solvation, explicit, failure, ionode
+      do_restraintB, do_solvation, failure, ionode
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
     TYPE(cell_type), POINTER                 :: dummy_cell, mm_cell
