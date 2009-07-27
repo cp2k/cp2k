@@ -672,20 +672,21 @@ CONTAINS
 !> \author vw
 ! *****************************************************************************
   SUBROUTINE fm_scale_by_pbc_AC(matrix,ra,rc,cell,ixyz,error)
-    TYPE(cp_fm_type), POINTER                 :: matrix
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(in) :: ra,rc
-    INTEGER, INTENT(IN)                       :: ixyz
-    TYPE(cell_type), POINTER                  :: cell
-    TYPE(cp_error_type), INTENT(INOUT)        :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(in)                             :: ra, rc
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: ixyz
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_operators', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_scale_by_pbc_AC', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                   :: icol_local, irow_local, &
-         mypcol, myprow, n, ncol_global, npcol, nprow, nrow_global, &
-         nrow_local, ncol_local, nrow_block, ncol_block, m, handle
-    REAL(KIND=dp)                             :: rra(3),rrc(3),dist(3)
-    REAL(KIND=dp), DIMENSION(:, :), POINTER   :: a
+    INTEGER :: handle, icol_global, icol_local, irow_global, irow_local, m, &
+      mypcol, myprow, n, ncol_block, ncol_global, ncol_local, npcol, nprow, &
+      nrow_block, nrow_global, nrow_local
+    REAL(KIND=dp)                            :: dist(3), rra(3), rrc(3)
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL                          :: indxl2g
 #endif
