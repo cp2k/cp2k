@@ -49,10 +49,11 @@ MODULE cp_sm_fm_interactions
   PRIVATE
 
   PUBLIC :: copy_fm_to_sm, &
-       copy_sm_to_fm, &
-       cp_sm_fm_multiply, &
-       cp_sm_fm_multiply_general,&
-       cp_sm_plus_fm_fm_t
+            copy_sm_to_fm, &
+            cp_sm_fm_multiply, &
+            cp_sm_fm_multiply_general,&
+            cp_sm_plus_fm_fm_t,&
+            copy_sm_to_fm_full
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_sm_fm_interactions'
 
@@ -2566,5 +2567,384 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE junk2fm
+
+! *****************************************************************************
+!> \brief Copy a real_matrix to a fm. It assumes that a block is at most
+!>        present once in the real_matrix. 
+!>        Rewrite of the original routines for improved efficiency 
+!>        (Joost VandeVondele, 2003-08) imported from qs_blacs
+! *****************************************************************************
+  SUBROUTINE copy_sm_to_fm_full(real_matrix,fm,error)
+
+    TYPE(real_matrix_type), POINTER          :: real_matrix
+    TYPE(cp_fm_type), POINTER                :: fm
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+         routine = "SUBROUTINE copy_sm_to_fm (MODULE cp_sm_fm_interactions)", &
+         routineN = 'copy_sm_to_fm_full'
+
+    INTEGER :: boundary_full, boundary_sparse, group, handle, i, iblock, &
+         iblock_col, iblock_row, icol, icol_global, ipe, irow, irow_global, &
+         isblock, istat, j, jblock, k, mypcol, mype, myprow, nblock_col, &
+         nblock_row, ncol_block, ncol_global, npcol, npe, nprow, nrow_block, &
+         nrow_global, sb_offset_i, sb_offset_j, smblock_col, smblock_row, &
+         total_number_of_blocks_col, total_number_of_blocks_row, &
+         total_recv_blocks, total_recv_data, total_send_blocks, total_send_data
+    INTEGER, DIMENSION(:), POINTER :: block_offset, block_recv, block_send, &
+         cum_num_of_blocks_col, cum_num_of_blocks_row, data_offset, first_col, &
+         first_row, last_col, last_row, number_of_blocks_col, &
+         number_of_blocks_row, recv_count, recv_offset, send_count, send_offset
+    INTEGER, DIMENSION(:, :), POINTER        :: block_info_col, &
+         block_info_row, &
+         number_of_blocks, &
+         total_size_of_blocks
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_recv, data_send
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm_block, real_matrix_block
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(real_block_node_type), POINTER      :: block_node
+
+#if defined(__SCALAPACK)
+    INTEGER, EXTERNAL :: indxg2l,indxg2p
+#endif
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(real_matrix),cp_failure_level,routine,error,failure)
+    IF (failure) RETURN
+
+
+    CALL timeset("copy_sm_to_fm",handle)
+
+
+    ! info about the full matrix
+    group = fm%matrix_struct%para_env%group
+    context => fm%matrix_struct%context
+    mype=context%my_pid
+    npe=context%n_pid
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+    nrow_block = fm%matrix_struct%nrow_block
+    ncol_block = fm%matrix_struct%ncol_block
+    nrow_global = fm%matrix_struct%nrow_global
+    ncol_global = fm%matrix_struct%ncol_global
+
+    ! info about the real matrix
+    CALL get_matrix_info(matrix=real_matrix,&
+         nblock_row=nblock_row,&
+         nblock_col=nblock_col,&
+         first_row=first_row,&
+         first_col=first_col,&
+         last_row=last_row,&
+         last_col=last_col)
+
+
+#if defined(__SCALAPACK)
+    NULLIFY(number_of_blocks_row, cum_num_of_blocks_row,block_info_row,number_of_blocks_col,cum_num_of_blocks_col, &
+         block_info_col,number_of_blocks,total_size_of_blocks,block_send,block_recv,data_send,data_recv,block_offset, &
+         data_offset,send_offset,send_count,recv_offset,recv_count)
+
+    ! find the blocks that are commensurate with both sparse_matrix and cp_fm blocks 
+    ! (i.e. they fully live on just one cpu in both the layouts)
+
+    ! rows
+    ! first the counting
+    ALLOCATE(number_of_blocks_row(nblock_row),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"number_of_blocks_row",nblock_row)
+    ALLOCATE(cum_num_of_blocks_row(nblock_row),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"cum_num_of_blocks_row",nblock_row)
+    number_of_blocks_row=0
+    iblock=1
+    boundary_sparse=last_row(iblock)
+    boundary_full=nrow_block
+    DO
+       IF (boundary_full .EQ. boundary_sparse) boundary_full=boundary_full+nrow_block
+       number_of_blocks_row(iblock)=number_of_blocks_row(iblock)+1
+       IF (boundary_sparse .LT. boundary_full) THEN
+          iblock=iblock+1
+       ELSE
+          boundary_full=boundary_full+nrow_block
+       ENDIF
+       IF (iblock.gt.nblock_row) EXIT
+       boundary_sparse=last_row(iblock)
+    ENDDO
+    total_number_of_blocks_row=SUM(number_of_blocks_row)
+    cum_num_of_blocks_row(1)=0
+    DO iblock=2,nblock_row
+       cum_num_of_blocks_row(iblock)=cum_num_of_blocks_row(iblock-1)+number_of_blocks_row(iblock-1) 
+    ENDDO
+
+    ! collect properties
+    ALLOCATE(block_info_row(3,total_number_of_blocks_row),STAT=istat) !start,end,blacs_pe 
+    IF (istat /= 0) CALL stop_memory(routine,"block_info_row",3*total_number_of_blocks_row)
+    iblock=1
+    isblock=0
+    boundary_sparse=last_row(iblock)
+    boundary_full=nrow_block
+    DO
+       isblock=isblock+1
+       IF (boundary_full .EQ. boundary_sparse) boundary_full=boundary_full+nrow_block
+       IF (boundary_sparse .LT. boundary_full) THEN
+          block_info_row(2,isblock)=boundary_sparse
+          iblock=iblock+1
+       ELSE
+          block_info_row(2,isblock)=boundary_full
+          boundary_full=boundary_full+nrow_block
+       ENDIF
+       block_info_row(3,isblock)= indxg2p(block_info_row(2,isblock),nrow_block,myprow,&
+            fm%matrix_struct%first_p_pos(1),nprow)
+       IF (iblock.gt.nblock_row) EXIT
+       boundary_sparse=last_row(iblock)
+    ENDDO
+    block_info_row(1,1)=1
+    DO iblock=2,total_number_of_blocks_row
+       block_info_row(1,iblock)=block_info_row(2,iblock-1)+1 
+    ENDDO
+
+    ! cols
+    ! first the counting
+    ALLOCATE(number_of_blocks_col(nblock_col),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"number_of_blocks_col",nblock_col)
+    ALLOCATE(cum_num_of_blocks_col(nblock_col),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"cum_num_of_blocks_col",nblock_col)
+    number_of_blocks_col=0
+    iblock=1
+    boundary_sparse=last_col(iblock)
+    boundary_full=ncol_block
+    DO
+       IF (boundary_full .EQ. boundary_sparse) boundary_full=boundary_full+ncol_block
+       number_of_blocks_col(iblock)=number_of_blocks_col(iblock)+1
+       IF (boundary_sparse .LT. boundary_full) THEN
+          iblock=iblock+1
+       ELSE
+          boundary_full=boundary_full+ncol_block
+       ENDIF
+       IF (iblock.gt.nblock_col) EXIT
+       boundary_sparse=last_col(iblock)
+    ENDDO
+    total_number_of_blocks_col=SUM(number_of_blocks_col)
+    cum_num_of_blocks_col(1)=0
+    DO iblock=2,nblock_col
+       cum_num_of_blocks_col(iblock)=cum_num_of_blocks_col(iblock-1)+number_of_blocks_col(iblock-1) 
+    ENDDO
+
+    ! collect properties
+    ALLOCATE(block_info_col(3,total_number_of_blocks_col),STAT=istat) !start,end,blacs_pe 
+    IF (istat /= 0) CALL stop_memory(routine,"block_info_col",3*total_number_of_blocks_col)
+    iblock=1
+    isblock=0
+    boundary_sparse=last_col(iblock)
+    boundary_full=ncol_block
+    DO
+       isblock=isblock+1
+       IF (boundary_full .EQ. boundary_sparse) boundary_full=boundary_full+ncol_block
+       IF (boundary_sparse .LT. boundary_full) THEN
+          block_info_col(2,isblock)=boundary_sparse
+          iblock=iblock+1
+       ELSE
+          block_info_col(2,isblock)=boundary_full
+          boundary_full=boundary_full+ncol_block
+       ENDIF
+       block_info_col(3,isblock)= indxg2p(block_info_col(2,isblock),ncol_block,mypcol,&
+            fm%matrix_struct%first_p_pos(2),npcol)
+       IF (iblock.gt.nblock_col) EXIT
+       boundary_sparse=last_col(iblock)
+    ENDDO
+    block_info_col(1,1)=1
+    DO iblock=2,total_number_of_blocks_col
+       block_info_col(1,iblock)=block_info_col(2,iblock-1)+1 
+    ENDDO
+
+    ! now count how much / what data has to go to what cpu
+    ALLOCATE(number_of_blocks(0:npe-1,0:npe-1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"number_of_blocks",npe*npe)
+    ALLOCATE(total_size_of_blocks(0:npe-1,0:npe-1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"total_size_of_blocks",npe*npe)
+
+    number_of_blocks=0
+    total_size_of_blocks=0
+    DO iblock_row=1,nblock_row
+       block_node => first_block_node(matrix=real_matrix, block_row=iblock_row)
+       DO WHILE (ASSOCIATED(block_node))
+          CALL get_block_node(block_node=block_node,block_col=iblock_col)
+          DO jblock=1,number_of_blocks_col(iblock_col)
+             DO iblock=1,number_of_blocks_row(iblock_row)
+                smblock_row=iblock+cum_num_of_blocks_row(iblock_row)
+                smblock_col=jblock+cum_num_of_blocks_col(iblock_col)
+                ! ipe is the target processor for this block
+                ipe = cp_blacs_pnum(context%group,block_info_row(3,smblock_row), &
+                     block_info_col(3,smblock_col))
+                number_of_blocks(ipe,mype)=number_of_blocks(ipe,mype)+1
+                total_size_of_blocks(ipe,mype)=total_size_of_blocks(ipe,mype)+ &
+                     (block_info_row(2,smblock_row)-block_info_row(1,smblock_row)+1)* &
+                     (block_info_col(2,smblock_col)-block_info_col(1,smblock_col)+1)
+             ENDDO
+          ENDDO
+          block_node => next_block_node(block_node)
+       END DO
+    END DO
+
+    ! get all info everywhere using the usual ugly sum trick
+    CALL mp_sum(number_of_blocks,group)
+    CALL mp_sum(total_size_of_blocks,group)
+
+    ! packing data
+    total_send_blocks = SUM(number_of_blocks(:,mype))
+    total_recv_blocks = SUM(number_of_blocks(mype,:))
+    total_send_data = SUM(total_size_of_blocks(:,mype))
+    total_recv_data = SUM(total_size_of_blocks(mype,:))
+
+
+    ALLOCATE(block_send(2*total_send_blocks),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"block_send",2*total_send_blocks)
+    ALLOCATE(block_recv(2*total_recv_blocks),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"block_send",2*total_recv_blocks)
+    ALLOCATE(data_send(total_send_data),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"data_send",total_send_data)
+    ALLOCATE(data_recv(total_recv_data),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"data_recv",total_recv_data)
+
+    ALLOCATE(block_offset(0:npe-1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"block_offset",npe)
+    ALLOCATE(data_offset(0:npe-1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"data_offset",npe)
+    block_offset(0)=0
+    data_offset(0)=0
+    DO ipe=1,npe-1
+       block_offset(ipe)=block_offset(ipe-1)+2*number_of_blocks(ipe-1,mype)
+       data_offset(ipe) =data_offset(ipe-1) +total_size_of_blocks(ipe-1,mype)
+    ENDDO
+    data_send=-1
+    data_recv=-2
+    DO iblock_row=1,nblock_row
+       block_node => first_block_node(matrix=real_matrix, block_row=iblock_row)
+       DO WHILE (ASSOCIATED(block_node))
+          CALL get_block_node(block_node=block_node,block_col=iblock_col,BLOCK=real_matrix_block)
+          DO jblock=1,number_of_blocks_col(iblock_col)
+             DO iblock=1,number_of_blocks_row(iblock_row)
+                smblock_row=iblock+cum_num_of_blocks_row(iblock_row)
+                smblock_col=jblock+cum_num_of_blocks_col(iblock_col)
+                ! ipe is the target processor for this block
+                ipe = cp_blacs_pnum(context%group,block_info_row(3,smblock_row), &
+                     block_info_col(3,smblock_col))
+                block_send(block_offset(ipe)+1)=smblock_row
+                block_send(block_offset(ipe)+2)=smblock_col
+                block_offset(ipe)=block_offset(ipe)+2
+                sb_offset_i = block_info_row(1,smblock_row) - first_row(iblock_row)
+                sb_offset_j = block_info_col(1,smblock_col) - first_col(iblock_col)
+                DO j=1,block_info_col(2,smblock_col)-block_info_col(1,smblock_col)+1
+                   DO i=1,block_info_row(2,smblock_row)-block_info_row(1,smblock_row)+1
+                      data_offset(ipe)=data_offset(ipe)+1 
+                      data_send(data_offset(ipe))=real_matrix_block(sb_offset_i+i,sb_offset_j+j)
+                   ENDDO
+                ENDDO
+             ENDDO
+          ENDDO
+          block_node => next_block_node(block_node)
+       END DO
+    END DO
+
+    ! send around the data
+    ALLOCATE(send_offset(0:npe-1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"send_offset",npe)
+    ALLOCATE(recv_offset(0:npe-1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"recv_offset",npe)
+    ALLOCATE(send_count(0:npe-1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"send_count",npe)
+    ALLOCATE(recv_count(0:npe-1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"recv_count",npe)
+
+    send_count(:)=2*number_of_blocks(:,mype)
+    recv_count(:)=2*number_of_blocks(mype,:)
+    send_offset(0)=0
+    recv_offset(0)=0
+    DO ipe=1,npe-1
+       send_offset(ipe)=send_offset(ipe-1)+send_count(ipe-1)
+       recv_offset(ipe)=recv_offset(ipe-1)+recv_count(ipe-1)
+    ENDDO
+    CALL mp_alltoall(block_send,send_count,send_offset,block_recv,recv_count,recv_offset,group)
+
+    send_count(:)=total_size_of_blocks(:,mype)
+    recv_count(:)=total_size_of_blocks(mype,:)
+    send_offset(0)=0
+    recv_offset(0)=0
+    DO ipe=1,npe-1
+       send_offset(ipe)=send_offset(ipe-1)+send_count(ipe-1)
+       recv_offset(ipe)=recv_offset(ipe-1)+recv_count(ipe-1)
+    ENDDO
+    CALL mp_alltoall(data_send,send_count,send_offset,data_recv,recv_count,recv_offset,group)
+
+    ! Finally, unpack the data filling in the fm%local_data
+    fm%local_data=0.0_dp
+    k=0
+    DO iblock=1,total_recv_blocks
+       smblock_row=block_recv((iblock-1)*2+1)
+       smblock_col=block_recv((iblock-1)*2+2)
+       sb_offset_i = indxg2l(block_info_row(1,smblock_row),nrow_block,myprow,&
+            fm%matrix_struct%first_p_pos(1),nprow)-1
+       sb_offset_j = indxg2l(block_info_col(1,smblock_col),ncol_block,mypcol,&
+            fm%matrix_struct%first_p_pos(2),npcol)-1
+       DO j=1,block_info_col(2,smblock_col)-block_info_col(1,smblock_col)+1
+          DO i=1,block_info_row(2,smblock_row)-block_info_row(1,smblock_row)+1
+             k=k+1
+             fm%local_data(sb_offset_i+i,sb_offset_j+j)=data_recv(k)
+          ENDDO
+       ENDDO
+    ENDDO
+
+    ! clean up all allocations
+    DEALLOCATE(number_of_blocks_row, cum_num_of_blocks_row,block_info_row,number_of_blocks_col,cum_num_of_blocks_col, &
+         block_info_col,number_of_blocks,total_size_of_blocks,block_send,block_recv,data_send,data_recv,block_offset, &
+         data_offset,send_offset,send_count,recv_offset,recv_count,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"deallocate",0)
+
+#else
+
+    fm_block => fm%local_data
+
+    fm_block(:,:) = 0.0_dp
+
+    DO iblock_row=1,nblock_row
+
+       block_node => first_block_node(matrix=real_matrix,&
+            block_row=iblock_row)
+
+       DO WHILE (ASSOCIATED(block_node))
+
+          CALL get_block_node(block_node=block_node,&
+               block_col=iblock_col,&
+               BLOCK=real_matrix_block)
+
+          icol = 1
+
+          DO icol_global=first_col(iblock_col),last_col(iblock_col)
+
+             irow = 1
+
+             DO irow_global=first_row(iblock_row),last_row(iblock_row)
+
+                fm_block(irow_global,icol_global) = real_matrix_block(irow,icol)
+                fm_block(icol_global,irow_global) = real_matrix_block(irow,icol)
+                irow = irow + 1
+
+             END DO
+
+             icol = icol + 1
+
+          END DO
+
+          block_node => next_block_node(block_node)
+
+       END DO
+
+    END DO
+
+#endif
+    CALL timestop(handle)
+  END SUBROUTINE copy_sm_to_fm_full
 
 END MODULE cp_sm_fm_interactions
