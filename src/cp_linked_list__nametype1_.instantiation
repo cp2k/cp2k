@@ -5,7 +5,7 @@
  'type1in':'integer, intent(in)',
  'type1out':'integer, intent(out)',
  'USE':
-"""USE kinds, only: dp """,
+""" """,
  'defines':
 """#define CP_SLL_I_LESS_Q(el1,el2,error) ( el1 < el2 )
 #define CP_SLL_I_EQUAL_Q(el1,el2,error) ( el1 == el2 )

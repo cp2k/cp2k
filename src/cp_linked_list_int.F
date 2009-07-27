@@ -45,7 +45,6 @@
 ! *****************************************************************************
 MODULE cp_linked_list_int
   USE f77_blas
-  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -989,7 +988,7 @@ SUBROUTINE cp_sll_int_insert_ordered2(sll,el,compare_function,&
   INTERFACE
 ! *****************************************************************************
      FUNCTION compare_function(el1,el2)
-       USE kinds, ONLY: dp 
+        
        INTEGER :: compare_function
        INTEGER, INTENT(in) :: el1,el2
      END FUNCTION compare_function
@@ -1126,7 +1125,7 @@ FUNCTION cp_sll_int_contains2(sll,el,compare_function,ordered,error)&
   INTERFACE
 ! *****************************************************************************
      FUNCTION compare_function(el1,el2)
-       USE kinds, ONLY: dp 
+        
        INTEGER :: compare_function
        INTEGER, INTENT(in) :: el1,el2
      END FUNCTION compare_function
@@ -1171,7 +1170,7 @@ END FUNCTION cp_sll_int_contains2
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "="
-!  USE = "USE kinds, only: dp "
+!  USE = " "
 !  array= = "="
 !  arrayEl = ""
 !  defines = 
