@@ -2186,7 +2186,7 @@ CONTAINS
 
                ! Maximum angular momentum quantum number of the atomic kind
 
-               CALL init_orbital_pointers(maxl)
+               CALL init_orbital_pointers(2*maxl)
 
                ! Allocate the global variables
 

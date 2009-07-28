@@ -44,6 +44,7 @@ MODULE qs_force_types
                                          other,&
                                          ch_pulay,&
                                          fock_4c,&
+                                         hfx_ri,&
                                          ehrenfest,&
                                          efield,&
                                          total
@@ -175,6 +176,10 @@ CONTAINS
       ALLOCATE (qs_force(ikind)%fock_4c(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineP,"qs_force(ikind)%fock_4c",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%hfx_ri(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineP,"qs_force(ikind)%hfx_ri",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%total(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -349,6 +354,13 @@ CONTAINS
         END IF
       END IF
 
+      IF (ASSOCIATED(qs_force(ikind)%hfx_ri)) THEN
+        DEALLOCATE (qs_force(ikind)%hfx_ri,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineP,"qs_force%hfx_ri")
+        END IF
+      END IF
+
       IF (ASSOCIATED(qs_force(ikind)%ehrenfest)) THEN
         DEALLOCATE (qs_force(ikind)%ehrenfest,STAT=istat)
         IF (istat /= 0) THEN
@@ -409,6 +421,7 @@ CONTAINS
       qs_force(ikind)%dispersion(:,:) = 0.0_dp
       qs_force(ikind)%other(:,:) = 0.0_dp
       qs_force(ikind)%fock_4c(:,:) = 0.0_dp
+      qs_force(ikind)%hfx_ri(:,:) = 0.0_dp
       qs_force(ikind)%ehrenfest(:,:) = 0.0_dp
       qs_force(ikind)%efield(:,:) = 0.0_dp
       qs_force(ikind)%total(:,:) = 0.0_dp
@@ -483,6 +496,7 @@ CONTAINS
            qs_force_input(ikind)%dispersion(:,:)
         qs_force_output(ikind)%other(:,:) = qs_force_input(ikind)%other(:,:)
         qs_force_output(ikind)%fock_4c(:,:) = qs_force_input(ikind)%fock_4c(:,:)
+        qs_force_output(ikind)%hfx_ri(:,:) = qs_force_input(ikind)%hfx_ri(:,:)
         qs_force_output(ikind)%ehrenfest(:,:) = qs_force_input(ikind)%ehrenfest(:,:)
         qs_force_output(ikind)%efield(:,:) = qs_force_input(ikind)%efield(:,:)
         qs_force_output(ikind)%total(:,:) = qs_force_input(ikind)%total(:,:)

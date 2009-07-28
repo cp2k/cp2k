@@ -91,6 +91,7 @@ MODULE qs_environment
   USE header,                          ONLY: dftb_header,&
                                              qs_header,&
                                              se_header
+  USE hfx_ri_methods,                  ONLY: hfx_ri_env_create
   USE hfx_types,                       ONLY: hfx_create
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
@@ -208,9 +209,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: method_id, natom
-    LOGICAL                                  :: do_et, do_hfx, harris_flag, &
-                                                my_qmmm, my_qmmm_periodic, &
-                                                use_ref_cell
+    LOGICAL                                  :: do_et, do_hfx, do_hfx_ri, &
+                                                harris_flag, my_qmmm, &
+                                                my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -228,7 +229,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
-      et_coupling_section, harris_section, hfx_section, kind_section
+      et_coupling_section, harris_section, hfx_ri_section, hfx_section, &
+      kind_section
 
     NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -335,6 +337,11 @@ CONTAINS
       natom=SIZE(particle_set)
       CALL hfx_create(qs_env%x_data, para_env, hfx_section, natom, atomic_kind_set,&
                       qs_env%dft_control, qs_env%cell, error=error)
+      hfx_ri_section => section_vals_get_subs_vals(hfx_section,"HFX_RI",error=error)
+      CALL section_vals_get(hfx_ri_section,explicit=do_hfx_ri,error=error)
+      IF (do_hfx_ri) THEN
+        CALL hfx_ri_env_create(qs_env,error)
+      END IF
     END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                            "PROPERTIES%ET_COUPLING",error=error)

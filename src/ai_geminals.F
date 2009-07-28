@@ -200,7 +200,7 @@ MODULE ai_geminals
 
 ! *****************************************************************************
   SUBROUTINE g2gemint(intabc,la_max,npgfa,zeta,la_min,a,lb_max,npgfb,zetb,lb_min,b,&
-                      lr_max,ls_max,zetc,c,nderivative,error)
+                      lr_max,ls_max,ngemc,zetc,c,nderivative,error)
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :, :), &
       INTENT(INOUT)                          :: intabc
@@ -212,7 +212,7 @@ MODULE ai_geminals
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
-    INTEGER, INTENT(IN)                      :: lr_max, ls_max
+    INTEGER, INTENT(IN)                      :: lr_max, ls_max, ngemc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: zetc
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: c
@@ -237,8 +237,8 @@ MODULE ai_geminals
     CPPrecondition(nderivative>=0,cp_failure_level,routineP,error,failure)
     CPPrecondition(nderivative<=1,cp_failure_level,routineP,error,failure)
 
-    na = SIZE(zeta,1)
-    nb = SIZE(zetb,1)
+    na = npgfa
+    nb = npgfb
     nab = na*nb
 
     ALLOCATE (zab(2,2,nab),STAT=istat)
@@ -257,7 +257,7 @@ MODULE ai_geminals
     ab(1:3) = 0.5_dp*(a(1:3)+b(1:3))
     ab(4:6) = 0.5_dp*(a(1:3)-b(1:3))
 
-    nc = SIZE(zetc,3)
+    nc = ngemc
     lrab = la_max + lb_max
     lsab = la_max + lb_max
 
@@ -354,11 +354,11 @@ MODULE ai_geminals
       DIMENSION(:, :, :, :, :)               :: gab, iab
     REAL(KIND=dp), DIMENSION(6)              :: ab, cd
 
-    na = SIZE(zeta,1)
-    nb = SIZE(zetb,1)
+    na = npgfa
+    nb = npgfb
     nab = na*nb
-    nc = SIZE(zetc,1)
-    nd = SIZE(zetd,1)
+    nc = npgfc
+    nd = npgfd
     ncd = nc*nd
 
     ALLOCATE (zab(2,2,nab),zcd(2,2,ncd),STAT=istat)
@@ -771,7 +771,7 @@ MODULE ai_geminals
     REAL(dp), DIMENSION(:, :, :, :, :), &
       INTENT(IN)                             :: in
     REAL(dp), DIMENSION(:, :, :, :, :), &
-      INTENT(OUT)                            :: iout
+      INTENT(INOUT)                          :: iout
     INTEGER, INTENT(IN)                      :: la, lb
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -797,7 +797,9 @@ MODULE ai_geminals
     mk = SIZE(in,1)
     mr = SIZE(in,4)
     ms = SIZE(in,5)
-    iout = 0.0_dp
+    CPPrecondition(mk<=SIZE(iout,1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(mr<=SIZE(iout,4),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ms<=SIZE(iout,5),cp_failure_level,routineP,error,failure)
 
     DO l1=0,la
       DO l2=0,lb
@@ -844,7 +846,7 @@ MODULE ai_geminals
     REAL(dp), DIMENSION(:, :, :, :, :), &
       INTENT(IN)                             :: in
     REAL(dp), DIMENSION(:, :, :, :, :), &
-      INTENT(OUT)                            :: iout
+      INTENT(INOUT)                          :: iout
     INTEGER, INTENT(IN)                      :: la, lb
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -870,7 +872,6 @@ MODULE ai_geminals
     mk = SIZE(in,1)
     mr = SIZE(in,2)
     ms = SIZE(in,3)
-    iout = 0.0_dp
 
     DO l1=0,la
       DO l2=0,lb

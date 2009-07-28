@@ -125,6 +125,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_hf_ri_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
  
   END SUBROUTINE create_hfx_section
@@ -558,5 +562,46 @@ CONTAINS
     END IF
  
   END SUBROUTINE create_hf_memory_section
+
+! *****************************************************************************
+!> \brief creates the input section for the hfx RI method
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author JGH
+! *****************************************************************************
+  SUBROUTINE create_hf_ri_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_ri_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"HFX_RI",&
+            description="All parameters needed in a HFX RI calculation",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="DUMMY",&
+            description="Dummy keyword",&
+            usage="DUMMY 1.0E-2",&
+            default_r_val=1.0E0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_hf_ri_section
 
 END MODULE input_cp2k_hfx

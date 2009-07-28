@@ -148,6 +148,8 @@ MODULE qs_environment_types
   USE rel_control_types,               ONLY: rel_c_release,&
                                              rel_c_retain,&
                                              rel_control_type
+  USE ri_environment_types,            ONLY: ri_env_release,&
+                                             ri_environment_type
   USE rt_propagation_types,            ONLY: rt_prop_release,&
                                              rt_prop_type
   USE scf_control_types,               ONLY: scf_c_release,&
@@ -372,6 +374,8 @@ MODULE qs_environment_types
     TYPE(task_list_type), POINTER                         :: task_list_aux_fit
     TYPE(task_list_type), POINTER                         :: task_list_soft
     TYPE(wfn_fitting_type), POINTER                       :: wfn_fitting_env
+    ! HFX RI
+    TYPE(ri_environment_type), POINTER                    :: hfx_ri_env
     TYPE(qs_dispersion_type), POINTER                     :: dispersion_env
     ! Semi-empirical and DFTB types
     TYPE(ewald_environment_type),POINTER                  :: ewald_env
@@ -417,7 +421,7 @@ CONTAINS
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, wfn_fitting_env, &
-       dispersion_env, error)
+       hfx_ri_env,dispersion_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -542,6 +546,8 @@ CONTAINS
       POINTER                                :: se_nonbond_env
     TYPE(wfn_fitting_type), OPTIONAL, &
       POINTER                                :: wfn_fitting_env
+    TYPE(ri_environment_type), OPTIONAL, &
+      POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -637,6 +643,7 @@ CONTAINS
     IF (PRESENT(se_nddo_mpole)) se_nddo_mpole => qs_env%se_nddo_mpole
     IF (PRESENT(se_nonbond_env)) se_nonbond_env => qs_env%se_nonbond_env
     IF (PRESENT(wfn_fitting_env)) wfn_fitting_env => qs_env%wfn_fitting_env
+    IF (PRESENT(hfx_ri_env)) hfx_ri_env => qs_env%hfx_ri_env
     IF (PRESENT(dispersion_env)) dispersion_env => qs_env%dispersion_env
     IF (PRESENT(run_rtp)) run_rtp=qs_env%run_rtp
     IF (PRESENT(rtp)) rtp=>qs_env%rtp
@@ -790,6 +797,7 @@ CONTAINS
     NULLIFY (qs_env%se_nddo_mpole)
     NULLIFY (qs_env%se_nonbond_env)
     NULLIFY (qs_env%wfn_fitting_env)
+    NULLIFY (qs_env%hfx_ri_env)
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
     qs_env%outer_scf_ihistory=0
@@ -839,7 +847,7 @@ CONTAINS
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,wfn_fitting_env,&
-       dispersion_env,error)
+       hfx_ri_env,dispersion_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -939,6 +947,8 @@ CONTAINS
       POINTER                                :: se_nonbond_env
     TYPE(wfn_fitting_type), OPTIONAL, &
       POINTER                                :: wfn_fitting_env
+    TYPE(ri_environment_type), OPTIONAL, &
+      POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1197,6 +1207,7 @@ CONTAINS
        qs_env%se_nonbond_env => se_nonbond_env
     END IF
     IF( PRESENT(wfn_fitting_env) ) qs_env%wfn_fitting_env => wfn_fitting_env
+    IF( PRESENT(hfx_ri_env) ) qs_env%hfx_ri_env => hfx_ri_env
     IF( PRESENT(dispersion_env) ) qs_env%dispersion_env => dispersion_env
   END SUBROUTINE set_qs_env
 
@@ -1576,6 +1587,9 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%wfn_fitting_env)) THEN
             CALL wfn_fitting_env_release(qs_env%wfn_fitting_env, error)
+          END IF
+          IF (ASSOCIATED(qs_env%hfx_ri_env)) THEN
+            CALL ri_env_release(qs_env%hfx_ri_env, error)
           END IF
           IF (ASSOCIATED(qs_env%dispersion_env)) THEN
             DEALLOCATE(qs_env%dispersion_env, stat=stat)

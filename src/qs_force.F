@@ -388,6 +388,7 @@ CONTAINS
           CALL mp_sum(force(ikind)%hartree_2c,para_env%group)
           CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
           CALL mp_sum(force(ikind)%fock_4c,para_env%group)
+          CALL mp_sum(force(ikind)%hfx_ri,para_env%group)
           CALL mp_sum(force(ikind)%repulsive,para_env%group)
           CALL mp_sum(force(ikind)%dispersion,para_env%group)
           CALL mp_sum(force(ikind)%ehrenfest,para_env%group)
@@ -407,6 +408,7 @@ CONTAINS
                force(ikind)%hartree_2c(:,:) +&
                force(ikind)%hartree_3c(:,:) +&
                force(ikind)%fock_4c(:,:) +&
+               force(ikind)%hfx_ri(:,:) +&
                force(ikind)%repulsive(:,:)  +&
                force(ikind)%dispersion(:,:) +& 
                force(ikind)%ehrenfest(:,:) +& 
@@ -598,6 +600,7 @@ CONTAINS
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
                   iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
+                  iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
                   iatom,ikind,"     ehrenfest",qs_force(ikind)%ehrenfest(1:3,i),&
                   iatom,ikind,"     efield",qs_force(ikind)%efield(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
@@ -624,6 +627,7 @@ CONTAINS
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
+                  iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -653,6 +657,7 @@ CONTAINS
                   iatom,ikind,"kg_gpw_ekin_mol",qs_force(ikind)%kg_gpw_ekin_mol(1:3,i),&
                   iatom,ikind,"       ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"        fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
+                  iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
                   iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO

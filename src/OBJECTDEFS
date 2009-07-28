@@ -253,6 +253,7 @@ OBJECTS_GENERIC =\
  hfx_libint_interface.o\
  hfx_libint_wrapper.o\
  hfx_load_balance_methods.o\
+ hfx_ri_methods.o\
  hfx_screening_methods.o\
  hfx_types.o\
  header.o\
@@ -559,6 +560,7 @@ OBJECTS_GENERIC =\
  replica_types.o\
  restraint.o\
  rmsd.o\
+ ri_environment_types.o\
  rt_make_propagators.o\
  rt_matrix_exp.o\
  rt_propagation.o\
