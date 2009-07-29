@@ -389,16 +389,17 @@ MODULE qs_geminals
                 DO i=1,ngem
                    kdvec(i,1) = SUM(intabc(1:na,1:nb,i,1)*p_block1(1:na,1:nb))
                 END DO
-                ri_rhs%vector(kkind)%vmat(1:ngem,atom_c) = ri_rhs%vector(kkind)%vmat(1:ngem,atom_c) + kdvec(1:ngem,1)
+                ri_rhs%vector(kkind)%vmat(1:ngem,atom_c) = ri_rhs%vector(kkind)%vmat(1:ngem,atom_c) &
+                                                           + fij*kdvec(1:ngem,1)
 
                 kcoeff => ri_coeff%vector(kkind)%vmat(:,atom_c)
                 IF ( calculate_energy ) THEN
-                  ehfx2 = ehfx2 + DOT_PRODUCT(kdvec(1:ngem,1),kcoeff(1:ngem))
+                  ehfx2 = ehfx2 + fij*DOT_PRODUCT(kdvec(1:ngem,1),kcoeff(1:ngem))
                 END IF
                 IF ( calculate_force .OR. calculate_virial ) THEN
                    DO k=2,7
                       DO i=1,ngem
-                         kdvec(i,k) = SUM(intabc(1:na,1:nb,i,k)*p_block1(1:na,1:nb))
+                         kdvec(i,k) = fij*SUM(intabc(1:na,1:nb,i,k)*p_block1(1:na,1:nb))
                       END DO
                    END DO
                    force_c(1) = -DOT_PRODUCT(kdvec(1:ngem,2),kcoeff(1:ngem))
