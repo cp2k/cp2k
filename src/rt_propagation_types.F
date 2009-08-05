@@ -16,6 +16,8 @@
 
 MODULE rt_propagation_types
 
+  USE bibliography,                    ONLY: Kunert2003,&
+                                             cite_reference
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -61,7 +63,7 @@ MODULE rt_propagation_types
     REAL(KIND=dp)                               :: energy_new
     REAL(KIND=dp)                               :: dt
     INTEGER,DIMENSION(:,:),ALLOCATABLE          :: orders
-    INTEGER                                     :: nsteps,istep
+    INTEGER                                     :: nsteps,istep,i_start
     INTEGER                                     :: iter
     LOGICAL                                     :: converged
     TYPE(rtp_history_type),POINTER              :: history 
@@ -110,6 +112,7 @@ CONTAINS
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
     failure=.FALSE.
+    CALL cite_reference(Kunert2003)
 
     NULLIFY(rtp_control)
 

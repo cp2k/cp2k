@@ -37,6 +37,7 @@ MODULE rt_propagation
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_walltime
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -162,7 +163,9 @@ CONTAINS
 
     motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
     md_section     => section_vals_get_subs_vals(motion_section,"MD",error=error)
+    
     CALL section_vals_val_get(md_section,"TIMESTEP",r_val=qs_env%rtp%dt,error=error)      
+    CALL section_vals_val_get(md_section,"STEP_START_VAL",i_val=qs_env%rtp%i_start,error=error)
 
     IF(rtp_control%fixed_ions)THEN
        
@@ -296,9 +299,10 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, handle, i, &
                                                 i_iter, i_step, ihist, &
-                                                max_iter, max_steps
+                                                max_iter, max_steps,i_start
     LOGICAL                                  :: failure, should_stop
-    REAL(Kind=dp)                            :: delta_iter, eps_ener
+    REAL(Kind=dp)                            :: delta_iter, eps_ener, time_iter_start,&
+                                                time_iter_stop, used_time
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 mos_new, mos_old
@@ -313,7 +317,8 @@ CONTAINS
     max_steps=qs_env%rtp%nsteps
     max_iter=qs_env%dft_control%rtp_control%max_iter
     eps_ener=qs_env%dft_control%rtp_control%eps_ener
-    
+   
+ 
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,energy=energy,error=error)
     aspc_order=qs_env%dft_control%rtp_control%aspc_order
 
@@ -325,9 +330,10 @@ CONTAINS
                  error=error)
                  
     rtp%energy_old=energy%total
+    time_iter_start=m_walltime()
     CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
     CALL cp_iterate(logger%iter_info,iter_nr=0,error=error)
-    DO i_step=1,max_steps
+    DO i_step=rtp%i_start+1,max_steps
        qs_env%energy%efield_core=0.0_dp
 
        qs_env%sim_time=REAL(i_step,dp)*rtp%dt
@@ -343,7 +349,7 @@ CONTAINS
           rtp%converged=(delta_iter.LT.eps_ener)
 
           IF(rtp%converged)EXIT
-          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,error)
+          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,error=error)
           
        END DO
 
@@ -359,7 +365,10 @@ CONTAINS
              CALL put_data_to_history(qs_env,mos=mos_new,ihist=ihist,error=error)
           CALL external_control(should_stop,"MD",globenv,error=error)
           IF (should_stop)CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=i_step,error=error)
-          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,error)
+          time_iter_stop=m_walltime()
+          used_time= time_iter_stop - time_iter_start
+          time_iter_start=time_iter_stop
+          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,used_time,error=error)
           IF (should_stop)EXIT
        ELSE
           EXIT

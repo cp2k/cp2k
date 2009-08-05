@@ -19,7 +19,7 @@ MODULE input_cp2k_dft
        Rocha2006, Schenter2008, Seifert1996, Stewart1982, Stewart1989, &
        Stewart2007, Tao2003, Thiel1992, VandeVondele2003, VandeVondele2005a, &
        VandeVondele2005b, VandeVondele2006, Vosko1980, Weber2008, Zhang1998, &
-       Zhechkov2005
+       Zhechkov2005,Kunert2003
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -7625,6 +7625,7 @@ CONTAINS
             description="Parameters needed to set up the real time propagation"//&
             " for the electron dynamics",&
             n_keywords=4, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+            citations=(/Kunert2003/),&
             error=error)
 
        CALL keyword_create(keyword, name="MAX_ITER",&

@@ -54,7 +54,7 @@ MODULE bibliography
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
-             VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007
+             VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003
 
 CONTAINS
 
@@ -1721,6 +1721,24 @@ CONTAINS
          "UT ISI:000244117400046",&
          "ER"),&
          DOI="10.1103/PhysRevLett.98.066401")
+
+    CALL add_reference(key=Kunert2003, ISI_record=s2a(&
+         "AU Kunert, T",&
+         "   Schmidt, R",&
+         "TI Non-adiabatic quantum molecular dynamics: General formalism and case",&
+         "   study H-2(+) in strong laser fields",&
+         "SO EUROPEAN PHYSICAL JOURNAL D",&
+         "SN 1434-6060",&
+         "J9 EUR PHYS J D",&
+         "JI Eur. Phys. J. D",&
+         "PD JUL",&
+         "PY 2003",&
+         "VL 25",&
+         "IS 1",&
+         "PG 10",&
+         "UT ISI:000184771500002",&
+         "ER"),&
+         DOI="10.1140/epjd/e2003-00086-8")
 
   END SUBROUTINE add_all_references
 
