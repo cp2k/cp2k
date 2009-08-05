@@ -249,6 +249,8 @@ CPSourceFileRef,&
          r_val=dft_control%rtp_control%eps_ener,error=error)
        CALL section_vals_val_get(tmp_section,"INITIAL_WFN",&
          i_val=dft_control%rtp_control%initial_wfn,error=error)
+       CALL section_vals_val_get(tmp_section,"HFX_BALANCE_IN_CORE",&
+         l_val=dft_control%rtp_control%hfx_redistribute,error=error)
     END IF
 
 !   *** Read the input section ***

@@ -1727,8 +1727,12 @@ MODULE hfx_load_balance_methods
         IF(binned_dist(ibin)%number_of_atom_quartets == 0 ) THEN
           binned_dist(ibin)%cost = 0
         ELSE
-          binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_first_scf + &
-                                   binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
+          IF(.NOT. load_balance_parameter%rtp_redistribute)THEN
+             binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_first_scf + &
+                                      binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
+          ELSE
+             binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
+          END IF
         END IF
       END DO
 !$OMP BARRIER

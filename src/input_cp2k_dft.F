@@ -7717,6 +7717,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="HFX_BALANCE_IN_CORE",&
+         description="If HFX is used, this keyword forces a redistribution/recalculation"//&
+         " of the integrals, balanced with respect to the in core steps.",&
+         usage="HFX_BALANCE_IN_CORE",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
        NULLIFY(print_section)
        CALL section_create(print_section,name="PRINT",&
             description="Section of possible print options for an RTP runs",&

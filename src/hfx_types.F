@@ -137,6 +137,7 @@ MODULE hfx_types
   TYPE hfx_load_balance_type
     INTEGER                                  :: nbins                   
     INTEGER                                  :: block_size
+    LOGICAL                                  :: rtp_redistribute
   END TYPE
 
 ! *****************************************************************************
@@ -478,6 +479,10 @@ MODULE hfx_types
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
         actual_x_data%load_balance_parameter%nbins = MAX(1,int_val)
+
+        actual_x_data%load_balance_parameter%rtp_redistribute=.FALSE.
+        IF(ASSOCIATED(dft_control%rtp_control))&
+            actual_x_data%load_balance_parameter%rtp_redistribute=dft_control%rtp_control%hfx_redistribute
 
         CALL section_vals_val_get(hf_sub_section, "BLOCK_SIZE", i_val=int_val, error=error)
         ! negative values ask for a computed default

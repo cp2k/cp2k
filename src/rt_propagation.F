@@ -43,7 +43,8 @@ MODULE rt_propagation
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+                                             qs_ks_update_qs_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type
@@ -347,6 +348,8 @@ CONTAINS
        CALL cp_iterate(logger%iter_info,last=(i_step==max_steps),iter_nr=i_step,error=error)
        rtp%converged=.FALSE.
        DO i_iter=1,max_iter
+          IF(i_step==rtp%i_start+1.AND.i_iter==2.AND.qs_env%dft_control%rtp_control%hfx_redistribute)&
+              CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE., error=error)
           rtp%iter=i_iter
           CALL propagation_step(qs_env,delta_iter, error)
           rtp%energy_new=energy%total

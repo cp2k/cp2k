@@ -56,6 +56,7 @@ MODULE cp_control_types
      INTEGER                              :: initial_wfn
      REAL(dp)                             :: eps_exp
      LOGICAL                              :: calc_restart
+     LOGICAL                              :: hfx_redistribute
      INTEGER                              :: aspc_order
      INTEGER                              :: extrapolation
   END TYPE rtp_control_type
