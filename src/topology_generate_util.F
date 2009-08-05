@@ -897,6 +897,7 @@ CONTAINS
     CHARACTER(LEN=10)                        :: ctmp1, ctmp2, ctmp3
     INTEGER                                  :: handle, i, idim, itype, j, &
                                                 mol_natom, natom, nsize, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mol_info_tmp
     INTEGER, DIMENSION(:), POINTER           :: mol_map, mol_map_o, wrk
     INTEGER, DIMENSION(:, :), POINTER        :: mol_info
     LOGICAL                                  :: failure
@@ -923,10 +924,12 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(wrk(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
        DO i = 1, natom
           mol_map(i) = str2id(s2s(TRIM(atom_info%label_molname(i))))
        END DO
        mol_map_o = mol_map
+
        CALL sort(mol_map,natom,wrk)
        !
        ! mol(i,1) : stores id of the molecule
@@ -940,25 +943,33 @@ CONTAINS
        ! If not, very probably, a bond is missing increase bondparm by 10% and let's
        ! check if the newest connectivity is bug free..
        !
-       ALLOCATE(mol_info(1,4),stat=stat)
+
+       ALLOCATE(mol_info_tmp(natom,2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
        itype = mol_map(1)
+       nsize = 1
        idim  = 1
-       mol_info(1,1) = itype
+       mol_info_tmp(1,1) = itype
        DO i = 2, natom
           IF (mol_map(i)/=itype) THEN
-             nsize = SIZE(mol_info,1)+1
+             nsize = nsize+1
              itype = mol_map(i)
-             CALL reallocate(mol_info,1,nsize,1,SIZE(mol_info,2))
-             mol_info(nsize,  1) = itype
-             mol_info(nsize-1,2) = idim
+             mol_info_tmp(nsize,  1) = itype
+             mol_info_tmp(nsize-1,2) = idim
              idim  = 1             
           ELSE
              idim  = idim + 1
           END IF
        END DO
-       nsize = SIZE(mol_info,1)
-       mol_info(nsize,2) = idim
+       mol_info_tmp(nsize,2) = idim
+
+       ALLOCATE(mol_info(nsize,4),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       mol_info(1:nsize,1:2) = mol_info_tmp(1:nsize,1:2)
+       DEALLOCATE(mol_info_tmp,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
        DO i =1, nsize
           mol_info(i,3) = 0
           mol_info(i,4) = 0
@@ -1004,6 +1015,7 @@ CONTAINS
              EXIT
           END IF
        END DO
+
        DEALLOCATE(icheck,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(mol_info,stat=stat)
