@@ -16,7 +16,9 @@ MODULE dbcsr_types
   USE array_types,                     ONLY: array_i1d_obj
   USE btree_I8_k_I4_v,                 ONLY: btree_I8_I4 => btree
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             real_4,&
+                                             real_8
   USE message_passing,                 ONLY: mp_window_type
 #include "cp_common_uses.h"
 
@@ -26,7 +28,8 @@ MODULE dbcsr_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_types'
 
   PUBLIC :: dbcsr_type,&
-            dbcsr_data,&
+            dbcsr_data_obj,&
+            dbcsr_data_type,&
             dbcsr_work_type,&
             dbcsr_array_type,&
             dbcsr_mp_obj, dbcsr_mp_type,&
@@ -52,11 +55,13 @@ MODULE dbcsr_types
 !> \var mp_group              message-passing group ID
 !> \var pgrid                 processor grid
 !> \var refcount              reference counter
+!> \var numthreads, mythread  number of threads
 ! *****************************************************************************
   TYPE dbcsr_mp_type
      INTEGER                            :: mynode, numnodes, myprow, mypcol
      INTEGER                            :: mp_group
      INTEGER, DIMENSION(:,:), POINTER   :: pgrid
+     INTEGER                            :: numthreads
      INTEGER                            :: refcount
   END TYPE dbcsr_mp_type
 
@@ -80,6 +85,7 @@ MODULE dbcsr_types
 !> \var local_rows            list of rows local to the processor grid row
 !> \var local_cols            list of columns local to the processor grid
 !>                            column
+!> \var thread_dist           thread distribution (of the rows)
 !> \var mp_env                mulitprocessor environment on which the
 !>                            distribution is based
 !> \var refcount              reference counter
@@ -88,6 +94,7 @@ MODULE dbcsr_types
   TYPE dbcsr_distribution_type
      TYPE(array_i1d_obj)               :: row_dist, col_dist
      TYPE(array_i1d_obj)               :: local_rows, local_cols
+     TYPE(array_i1d_obj)               :: thread_dist
      TYPE(dbcsr_mp_obj)                :: mp_env
      INTEGER                           :: refcount
   END TYPE dbcsr_distribution_type
@@ -122,24 +129,33 @@ MODULE dbcsr_types
 
 ! *****************************************************************************
 !> \brief Stores actual data
-!> \var rl          stores real values
-!> \var cm          stores complex values
+!> \var r_sp        stores real values in single precision
+!> \var r_dp        stores real values in double precision
+!> \var c_sp        stores complex values in single precision
+!> \var c_dp        stores complex values in double precision
+!> \var refcount    reference counter for current structure
+!> \var special     these data are specially-allocated
+!> \var data_type   which of the data types is actually used
 ! *****************************************************************************
-  TYPE dbcsr_data
-     REAL(KIND=dp), DIMENSION(:), POINTER    :: r
-     COMPLEX(KIND=dp), DIMENSION(:), POINTER :: c
-  END TYPE dbcsr_data
+  TYPE dbcsr_data_type
+     REAL(KIND=real_4), DIMENSION(:), POINTER    :: r_sp
+     REAL(KIND=real_8), DIMENSION(:), POINTER    :: r_dp
+     COMPLEX(KIND=real_4), DIMENSION(:), POINTER :: c_sp
+     COMPLEX(KIND=real_8), DIMENSION(:), POINTER :: c_dp
+     INTEGER                                  :: refcount
+     LOGICAL                                  :: special
+     CHARACTER                                :: data_type
+  END TYPE dbcsr_data_type
+
+  TYPE dbcsr_data_obj
+     TYPE(dbcsr_data_type), POINTER           :: d
+  END TYPE dbcsr_data_obj
 
 
 ! *****************************************************************************
 !> \brief Used for assembling a real matrix.
 !> \var m           the final bcsr matrix
-!> \var data        holds actual values.
-!> \var datas       array of data-containing structures
-!> \var blk_d       the data arrays where blocks are stored
-!> \var lastblks    number of blocks associated with the data areas
-!> \var datasizes   sizes of data stored in datas
-!> \var shared_data data is shared with the final matrix
+!> \var data_area   holds actual values.
 !> \var row_i       the row index of all of the blocks.
 !> \var col_i       the column index of all of the blocks.
 !> \var blk_p       the pointer into the data array of this block.
@@ -150,10 +166,10 @@ MODULE dbcsr_types
 !>                  col_i, and blk_p indices when index is scattered).
 ! *****************************************************************************
   TYPE dbcsr_work_type
-     REAL(KIND=dp), DIMENSION(:), POINTER    :: DATA
-     TYPE(dbcsr_data), DIMENSION(:), POINTER :: datas
-     INTEGER, DIMENSION(:), POINTER          :: blk_d, lastblks, datasizes
-     LOGICAL                                 :: shared_data
+     !REAL(KIND=dp), DIMENSION(:), POINTER    :: DATA
+!     TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: datas
+     TYPE(dbcsr_data_obj)                    :: data_area
+!     INTEGER, DIMENSION(:), POINTER          :: blk_d, lastblks, datasizes
      INTEGER, DIMENSION(:), POINTER          :: row_i,&
           &                                     col_i,&
           &                                     blk_p
@@ -168,7 +184,6 @@ MODULE dbcsr_types
 !>                  garbage from memory)
 !> \var valid       whether the matrix is valid (consistent)
 !> \var name        name of the matrix
-!> \var data(:)     actual matrix elements.
 !> \var index(:)    agglomeration of the indices and offsets
 !>                            of pointers into this array.
 !> \par the pointers row_p, col_i, blk_p point into the index array.
@@ -194,12 +209,15 @@ MODULE dbcsr_types
 !>                  rows and full columns
 !> \var matrix_type           'N' for normal, 'T' for transposed, 'S' for
 !>                            symmetric, and 'A' for antisymmetric
+!> \var data_type             'r'/'R' for single/double precision real or
+!>                            'c'/'C' for single/double precision complex data
 !> \var special_memory        uses special (MPI-allocated) memory
 ! *****************************************************************************
   TYPE dbcsr_type
-     LOGICAL        :: valid, initialized
-     CHARACTER(LEN=40)        :: name
-     REAL(kind=dp), DIMENSION(:), POINTER    :: DATA
+     LOGICAL                            :: valid, initialized
+     CHARACTER(LEN=40)                  :: name
+     !REAL(kind=dp), DIMENSION(:), POINTER :: DATA
+     TYPE(dbcsr_data_obj)               :: data_area
      INTEGER, DIMENSION(:), POINTER     :: index
      INTEGER, DIMENSION(:), POINTER     :: row_p,&
           &                                col_i,&
@@ -212,9 +230,10 @@ MODULE dbcsr_types
      INTEGER                 :: nfullrows_total, nfullcols_total
      INTEGER                 :: nblkrows_local, nblkcols_local
      INTEGER                 :: nfullrows_local, nfullcols_local
-     CHARACTER               :: matrix_type
+     CHARACTER               :: matrix_type, data_type
      LOGICAL                 :: special_memory
-     TYPE(dbcsr_work_type)   :: w
+     !TYPE(dbcsr_work_type)   :: w
+     TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
      TYPE(dbcsr_distribution_obj)       :: dist
   END TYPE dbcsr_type
 

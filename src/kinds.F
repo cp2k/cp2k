@@ -25,6 +25,7 @@ MODULE kinds
   
   PRIVATE
   PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size, int_8, int_4
+  PUBLIC :: real_4, real_8
   PUBLIC :: default_string_length, default_path_length, max_line_length
 
 #if __SGL 
@@ -42,6 +43,10 @@ MODULE kinds
                         int_size = BIT_SIZE(0)/8,&
                         sp_size  = 4
 #endif
+
+  INTEGER, PARAMETER :: real_4 = SELECTED_REAL_KIND ( 6, 30 )
+  INTEGER, PARAMETER :: real_8 = SELECTED_REAL_KIND ( 14, 200 )
+
 
   ! this int holds more than the normal 4byte ints
   ! on standard machines it ought to be an 8byte int but this is not guaranteed

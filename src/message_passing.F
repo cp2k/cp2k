@@ -27,6 +27,8 @@ MODULE message_passing
                                              dp_size,&
                                              int_8,&
                                              int_size,&
+                                             real_4,&
+                                             real_8,&
                                              sp
   USE machine,                         ONLY: default_output_unit,&
                                              m_abort,&
@@ -48,11 +50,26 @@ MODULE message_passing
 #if defined (__SGL)
   INTEGER     :: MP_STD_REAL = MPI_REAL
   INTEGER     :: MP_STD_COMPLEX = MPI_COMPLEX
+  INTEGER     :: MP_STD_HALF_REAL = MPI_DOUBLE_PRECISION
+  INTEGER     :: MP_STD_HALF_COMPLEX = MPI_DOUBLE_COMPLEX
 #else
   INTEGER     :: MP_STD_REAL = MPI_DOUBLE_PRECISION
   INTEGER     :: MP_STD_COMPLEX = MPI_DOUBLE_COMPLEX
+  INTEGER     :: MP_STD_HALF_REAL = MPI_REAL
+  INTEGER     :: MP_STD_HALF_COMPLEX = MPI_COMPLEX
+! Routines with "_hr" and "_hc" tags are used for "half double" 32-bit
+! single precision real and complex interfaces; if __SGL is defined,
+! they are just the opposite. I can't think of another way to
+! currently do this without turning everything around in this file.
+! Please complain to Urban with ideas.
 #endif
 #endif
+#if defined (__SGL)
+  INTEGER, PARAMETER :: hp = real_8
+#else
+  INTEGER, PARAMETER :: hp = real_4
+#endif
+
 
 #ifdef __parallel
   LOGICAL, PARAMETER :: cp2k_is_parallel=.TRUE.
@@ -133,6 +150,7 @@ MODULE message_passing
   INTERFACE mp_bcast
      MODULE PROCEDURE mp_bcast_i1, mp_bcast_r1, mp_bcast_c1, mp_bcast_z1, &
           mp_bcast_iv, mp_bcast_rv, mp_bcast_cv, mp_bcast_zv, mp_bcast_l, &
+          mp_bcast_hr_v, mp_bcast_hc_v,&
           mp_bcast_lv, mp_bcast_rm, mp_bcast_cm, mp_bcast_im, mp_bcast_rm3
   END INTERFACE
 
@@ -148,6 +166,7 @@ MODULE message_passing
      MODULE PROCEDURE mp_sum_i1, mp_sum_r1, mp_sum_c1, mp_sum_iv, &
           mp_sum_rv, mp_sum_cv, mp_sum_im, mp_sum_rm, mp_sum_cm, &
           mp_sum_im3, mp_sum_rm3, mp_sum_cm3, mp_sum_root_rv, &
+          mp_sum_hr1, mp_sum_hc1,&
           mp_sum_root_rm, mp_sum_root_rm3
   END INTERFACE
 
@@ -239,11 +258,13 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_allocate
-     MODULE PROCEDURE mp_allocate_i, mp_allocate_d
+     MODULE PROCEDURE mp_allocate_i, mp_allocate_d, mp_allocate_s,&
+          mp_allocate_z, mp_allocate_c
   END INTERFACE
 
   INTERFACE mp_deallocate
-     MODULE PROCEDURE mp_deallocate_i, mp_deallocate_d
+     MODULE PROCEDURE mp_deallocate_i, mp_deallocate_d, mp_deallocate_s,&
+          mp_deallocate_z, mp_deallocate_c
   END INTERFACE
 
 
@@ -2076,6 +2097,31 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_bcast_rv
+  SUBROUTINE mp_bcast_hr_v(msg,source,gid)
+    REAL(KIND=hp)                            :: msg( : )
+    INTEGER                                  :: source, gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_hr_v', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MP_STD_HALF_REAL,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_hr_v" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_bcast_hr_v
 ! *****************************************************************************
   SUBROUTINE mp_bcast_rm(msg,source,gid)
     REAL(KIND=dp)                            :: msg( :, : )
@@ -2180,6 +2226,32 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_bcast_cv
+! *****************************************************************************
+  SUBROUTINE mp_bcast_hc_v(msg,source,gid)
+    COMPLEX(KIND=hp)                         :: msg( : )
+    INTEGER                                  :: source, gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_hc_v', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MP_STD_HALF_COMPLEX,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_hc_v" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_bcast_hc_v
 ! *****************************************************************************
   SUBROUTINE mp_bcast_cm(msg,source,gid)
     COMPLEX(KIND=dp)                         :: msg( :, : )
@@ -2616,6 +2688,34 @@ CONTAINS
 #endif
   END SUBROUTINE mp_sum_r1
 ! *****************************************************************************
+  SUBROUTINE mp_sum_hr1(msg,gid)
+    REAL(KIND=hp), INTENT(INOUT)             :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_hr1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(KIND=dp)                            :: res
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_HALF_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_hr1" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_sum_hr1
+! *****************************************************************************
   SUBROUTINE mp_sum_rv(msg,gid)
     REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
     INTEGER, INTENT(IN)                      :: gid
@@ -2869,6 +2969,34 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_sum_c1
+! *****************************************************************************
+  SUBROUTINE mp_sum_hc1(msg,gid)
+    COMPLEX(KIND=hp), INTENT(INOUT)          :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_hc1', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp)                         :: res
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 2
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_HALF_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_hc1" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_sum_hc1
 ! *****************************************************************************
   SUBROUTINE mp_sum_cv(msg,gid)
     COMPLEX(KIND=dp), INTENT(INOUT)          :: msg( : )
@@ -5436,14 +5564,14 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Allocates special parallel memory, double precision version
+!> \brief Allocates special parallel memory, standard real version
 !> \author UB
 !> \param[in]  data      pointer to double precision array to allocate
 !> \param[in]  len       number of doubles to allocate
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_allocate_d(DATA, len, stat)
-    REAL(KIND=dp), DIMENSION(:), POINTER  :: DATA
+    REAL(KIND=real_8), DIMENSION(:), POINTER  :: DATA
     INTEGER, INTENT(IN)                   :: len
     INTEGER, INTENT(OUT), OPTIONAL        :: stat
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_allocate_d', &
@@ -5462,7 +5590,7 @@ CONTAINS
     IF (PRESENT (stat)) THEN
        stat = ierr
     ELSE
-       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alloc_mem @ mp_allocate_d")
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alloc_mem @ "//routineN)
     ENDIF
     !WRITE(*,*)routineN//' Allocated size ',SIZE(data)
     DO ierr = 1, SIZE(DATA)
@@ -5475,13 +5603,159 @@ CONTAINS
     IF (PRESENT (stat)) THEN
        stat = ierr
     ELSE
-       IF (ierr /= 0) CALL mp_stop(ierr, "ALLOCATE @ mp_allocate_d")
+       IF (ierr /= 0) CALL mp_stop(ierr, "ALLOCATE @ "//routineN)
     ENDIF
 #endif
 #if defined(__mp_timeset__)
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_allocate_d
+
+
+! *****************************************************************************
+!> \brief Allocates special parallel memory, standard complex version
+!> \author UB
+!> \param[in]  data      pointer to double precision array to allocate
+!> \param[in]  len       number of doubles to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_allocate_z(DATA, len, stat)
+    COMPLEX(KIND=real_8), DIMENSION(:), POINTER  :: DATA
+    INTEGER, INTENT(IN)                      :: len
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allocate_z', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    NULLIFY(DATA)
+    !WRITE(*,*)routineN//' Allocating size len=',len
+    CALL mp_alloc_mem(DATA, len, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alloc_mem @ "//routineN)
+    ENDIF
+    !WRITE(*,*)routineN//' Allocated size ',SIZE(data)
+    DO ierr = 1, SIZE(DATA)
+       DATA(ierr) = -333
+    ENDDO
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    ALLOCATE(DATA(len), stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "ALLOCATE @ "//routineN)
+    ENDIF
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allocate_z
+
+! *****************************************************************************
+!> \brief Allocates special parallel memory, half real version
+!> \author UB
+!> \param[in]  data      pointer to double precision array to allocate
+!> \param[in]  len       number of doubles to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_allocate_s(DATA, len, stat)
+    REAL(KIND=real_4), DIMENSION(:), POINTER  :: DATA
+    INTEGER, INTENT(IN)                   :: len
+    INTEGER, INTENT(OUT), OPTIONAL        :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allocate_s', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    NULLIFY(DATA)
+    !WRITE(*,*)routineN//' Allocating size len=',len
+    CALL mp_alloc_mem(DATA, len, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alloc_mem @ "//routineN)
+    ENDIF
+    !WRITE(*,*)routineN//' Allocated size ',SIZE(data)
+    DO ierr = 1, SIZE(DATA)
+       DATA(ierr) = -333
+    ENDDO
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    ALLOCATE(DATA(len), stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "ALLOCATE @ "//routineN)
+    ENDIF
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allocate_s
+
+
+! *****************************************************************************
+!> \brief Allocates special parallel memory, complex double precision version
+!> \author UB
+!> \param[in]  data      pointer to double precision array to allocate
+!> \param[in]  len       number of doubles to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_allocate_c(DATA, len, stat)
+    COMPLEX(KIND=real_4), DIMENSION(:), POINTER  :: DATA
+    INTEGER, INTENT(IN)                      :: len
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allocate_c', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    NULLIFY(DATA)
+    !WRITE(*,*)routineN//' Allocating size len=',len
+    CALL mp_alloc_mem(DATA, len, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alloc_mem @ "//routineN)
+    ENDIF
+    !WRITE(*,*)routineN//' Allocated size ',SIZE(data)
+    DO ierr = 1, SIZE(DATA)
+       DATA(ierr) = -333
+    ENDDO
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    ALLOCATE(DATA(len), stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "ALLOCATE @ "//routineN)
+    ENDIF
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allocate_c
 
 
 ! *****************************************************************************
@@ -5528,12 +5802,12 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Deallocates special parallel memory, double version
+!> \brief Deallocates special parallel memory, double real version
 !> \author UB
 !> \param[in] data         pointer to special memory to deallocate
 ! *****************************************************************************
   SUBROUTINE mp_deallocate_d(DATA, stat)
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
+    REAL(KIND=real_8), DIMENSION(:), POINTER     :: DATA
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_deallocate_d', &
          routineP = moduleN//':'//routineN
@@ -5550,7 +5824,7 @@ CONTAINS
     IF (PRESENT (stat)) THEN
        stat = ierr
     ELSE
-       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_free_mem @ mp_deallocate_d")
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_free_mem @ "//routineN)
     ENDIF
     NULLIFY(DATA)
     t_end = m_walltime()
@@ -5560,7 +5834,7 @@ CONTAINS
     IF (PRESENT (stat)) THEN
        stat = ierr
     ELSE
-       IF (ierr /= 0) CALL mp_stop(ierr, "DEALLOCATE @ mp_deallocate_d")
+       IF (ierr /= 0) CALL mp_stop(ierr, "DEALLOCATE @ "//routineN)
     ENDIF
     NULLIFY(DATA)
 #endif
@@ -5569,5 +5843,130 @@ CONTAINS
 #endif
   END SUBROUTINE mp_deallocate_d
 
+! *****************************************************************************
+!> \brief Deallocates special parallel memory, double complex version
+!> \author UB
+!> \param[in] data         pointer to special memory to deallocate
+! *****************************************************************************
+  SUBROUTINE mp_deallocate_z(DATA, stat)
+    COMPLEX(KIND=real_8), DIMENSION(:), POINTER  :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_deallocate_z', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    !WRITE(*,*)routineN//' Deallocating', SIZE(data)
+    CALL mp_free_mem(DATA, ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_free_mem @ "//routineN)
+    ENDIF
+    NULLIFY(DATA)
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    DEALLOCATE(DATA, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "DEALLOCATE @ "//routineN)
+    ENDIF
+    NULLIFY(DATA)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_deallocate_z
+
+! *****************************************************************************
+!> \brief Deallocates special parallel memory, double real version
+!> \author UB
+!> \param[in] data         pointer to special memory to deallocate
+! *****************************************************************************
+  SUBROUTINE mp_deallocate_s(DATA, stat)
+    REAL(KIND=real_4), DIMENSION(:), POINTER     :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_deallocate_s', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    !WRITE(*,*)routineN//' Deallocating', SIZE(data)
+    CALL mp_free_mem(DATA, ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_free_mem @ "//routineN)
+    ENDIF
+    NULLIFY(DATA)
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    DEALLOCATE(DATA, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "DEALLOCATE @ "//routineN)
+    ENDIF
+    NULLIFY(DATA)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_deallocate_s
+
+! *****************************************************************************
+!> \brief Deallocates special parallel memory, double complex version
+!> \author UB
+!> \param[in] data         pointer to special memory to deallocate
+! *****************************************************************************
+  SUBROUTINE mp_deallocate_c(DATA, stat)
+    COMPLEX(KIND=real_4), DIMENSION(:), POINTER  :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_deallocate_c', &
+         routineP = moduleN//':'//routineN
+    INTEGER                   :: ierr, handle
+!   ---------------------------------------------------------------------------
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN, handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime()
+    ierr = 0
+    !WRITE(*,*)routineN//' Deallocating', SIZE(data)
+    CALL mp_free_mem(DATA, ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_free_mem @ "//routineN)
+    ENDIF
+    NULLIFY(DATA)
+    t_end = m_walltime()
+    CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
+#else
+    DEALLOCATE(DATA, stat=ierr)
+    IF (PRESENT (stat)) THEN
+       stat = ierr
+    ELSE
+       IF (ierr /= 0) CALL mp_stop(ierr, "DEALLOCATE @ "//routineN)
+    ENDIF
+    NULLIFY(DATA)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_deallocate_c
 
 END MODULE message_passing

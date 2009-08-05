@@ -34,6 +34,8 @@ MODULE dbcsr_util
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dbcsr_methods,                   ONLY: &
+       dbcsr_col_block_sizes, dbcsr_data_hold, dbcsr_data_init, &
+       dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
        dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
        dbcsr_distribution_init, dbcsr_distribution_local_cols, &
        dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
@@ -41,12 +43,13 @@ MODULE dbcsr_util
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_distribution_processor, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_info, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_new_transposed, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mp_release
+       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, dbcsr_get_info, &
+       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_new, dbcsr_mp_new_transposed, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
+       dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: &
-       dbcsr_array_type, dbcsr_data, dbcsr_distribution_obj, &
+       dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_meta_size, dbcsr_mp_obj, &
        dbcsr_num_slots, dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, &
        dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
@@ -58,7 +61,10 @@ MODULE dbcsr_util
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_4,&
-                                             int_8
+                                             int_8,&
+                                             real_4,&
+                                             real_8,&
+                                             sp
   USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: gcd,&
                                              lcm
@@ -84,21 +90,110 @@ MODULE dbcsr_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_util'
 
-  INTERFACE addto_array
-     MODULE PROCEDURE addto_array_i, addto_array_d
-  END INTERFACE
-
   INTERFACE swap
      MODULE PROCEDURE iswap
   END INTERFACE
 
+!#ifndef __SGL
+  INTERFACE dbcsr_printmat
+     MODULE PROCEDURE printmat_s, printmat_d, printmat_c, printmat_z
+  END INTERFACE
+
+  INTERFACE addto_array
+     MODULE PROCEDURE addto_array_i, addto_array_d, addto_array_ad,&
+          addto_array_as, addto_array_ac, addto_array_az
+  END INTERFACE
+
   INTERFACE ensure_array_size
-     MODULE PROCEDURE ensure_array_size_i, ensure_array_size_d, ensure_array_size_i_2d
+     MODULE PROCEDURE ensure_array_size_i, ensure_array_size_i_2d,&
+          ensure_array_size_s, ensure_array_size_d, ensure_array_size_c,&
+          ensure_array_size_z
   END INTERFACE
 
   INTERFACE dbcsr_block_transpose
-     MODULE PROCEDURE dbcsr_block_transpose_inplace, dbcsr_block_transpose_copy
+     MODULE PROCEDURE block_transpose_inplace,&
+          block_transpose_copy_d, block_transpose_copy_s,&
+          block_transpose_copy_z, block_transpose_copy_c,&
+          dbcsr_block_transpose_aa
   END INTERFACE
+
+  ! Supports copy between two data areas, or to a data area from a
+  ! given explicit array.
+  INTERFACE dbcsr_data_set
+     MODULE PROCEDURE dbcsr_data_copy_aa, dbcsr_data_set_as,&
+          dbcsr_data_set_ad, dbcsr_data_set_ac, dbcsr_data_set_az
+  END INTERFACE
+
+  ! Ugly fortran hack
+  INTERFACE pointer_view
+     MODULE PROCEDURE pointer_view_s, pointer_view_d,&
+          pointer_view_c, pointer_view_z
+  END INTERFACE
+
+  INTERFACE pointer_replace
+     MODULE PROCEDURE pointer_replace_i
+  END INTERFACE
+
+  INTERFACE set_block_diagonal
+     MODULE PROCEDURE set_block_diagonal_s, set_block_diagonal_d,&
+          set_block_diagonal_c, set_block_diagonal_z
+  END INTERFACE
+
+  INTERFACE dbcsr_set_diagonal
+     MODULE PROCEDURE dbcsr_set_diagonal_s, dbcsr_set_diagonal_d,&
+          dbcsr_set_diagonal_z, dbcsr_set_diagonal_c
+  END INTERFACE
+
+!#else
+!  INTERFACE dbcsr_printmat
+!     MODULE PROCEDURE printmat_d, printmat_z
+!  END INTERFACE
+!
+!  INTERFACE addto_array
+!     MODULE PROCEDURE addto_array_i, addto_array_d, addto_array_ad,&
+!          addto_array_az
+!  END INTERFACE
+!  INTERFACE ensure_array_size
+!     MODULE PROCEDURE ensure_array_size_i, ensure_array_size_i_2d,&
+!          ensure_array_size_d,&
+!          ensure_array_size_z
+!  END INTERFACE
+!
+!  INTERFACE dbcsr_block_transpose
+!     MODULE PROCEDURE block_transpose_inplace,&
+!          block_transpose_copy_d,&
+!          block_transpose_copy_z,&
+!          dbcsr_block_transpose_aa
+!  END INTERFACE
+!
+!  ! Supports copy between two data areas, or to a data area from a
+!  ! given explicit array.
+!  INTERFACE dbcsr_data_set
+!     MODULE PROCEDURE dbcsr_data_copy_aa,&
+!          dbcsr_data_set_ad, dbcsr_data_set_az
+!  END INTERFACE
+!
+!  ! Ugly fortran hack
+!  INTERFACE pointer_view
+!     MODULE PROCEDURE pointer_view_d,&
+!          pointer_view_z
+!  END INTERFACE
+!
+!  INTERFACE pointer_replace
+!     MODULE PROCEDURE pointer_replace_i
+!  END INTERFACE
+!
+!  INTERFACE set_block_diagonal
+!     MODULE PROCEDURE set_block_diagonal_d,&
+!          set_block_diagonal_z
+!  END INTERFACE
+!
+!  INTERFACE dbcsr_set_diagonal
+!     MODULE PROCEDURE dbcsr_set_diagonal_d,&
+!          dbcsr_set_diagonal_z
+!  END INTERFACE
+!#endif
+
 
   ! Main
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize,&
@@ -126,14 +221,15 @@ MODULE dbcsr_util
   PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
   ! Utility routines
   PUBLIC :: dbcsr_addto_index_array,&
-       addto_array, swap, ensure_array_size, dbcsr_ensure_data_size,&
+       addto_array, swap, ensure_array_size,&
        dbcsr_set_debug, dbcsr_sleep,&
        checker_tr, bcsr_assert,&
        dbcsr_get_lookup, dbcsr_get_block_info,&
-       dbcsr_order, add_work_coordinate,&
+       add_work_coordinate,&
        dbcsr_copy_block_sizes, dbcsr_block_transpose,&
        dbcsr_pack_meta,&
-       dbcsr_unpack_i8_2i4
+       dbcsr_unpack_i8_2i4,&
+       pointer_view, pointer_replace, dbcsr_data_ensure_size
   ! Some higher-level operations
   PUBLIC :: dbcsr_set_diagonal, dbcsr_extract_column
 
@@ -230,7 +326,6 @@ CONTAINS
     LOGICAL                                  :: found
 
 !   ---------------------------------------------------------------------------
-!CALL timeset("dbcsr_get_block_info", timing_handle)
 
     found = .FALSE.
     blk = matrix%row_p(row)+1
@@ -254,7 +349,6 @@ CONTAINS
           data_offset = 0
        ENDIF
     ENDIF
-    !CALL timestop (timing_handle)
   END SUBROUTINE dbcsr_get_block_info
 
 
@@ -275,10 +369,11 @@ CONTAINS
     matrix%initialized = .TRUE.
     matrix%valid = .FALSE.
     ! Nullifies all pointers.
-    NULLIFY (matrix%DATA, matrix%index, matrix%row_p, matrix%col_i,&
+    NULLIFY (matrix%index, matrix%row_p, matrix%col_i,&
          matrix%blk_p)
+    CALL dbcsr_data_init (matrix%data_area)
     CALL dbcsr_distribution_init (matrix%dist)
-    NULLIFY (matrix%w%DATA, matrix%w%row_i, matrix%w%col_i, matrix%w%blk_p)
+    NULLIFY (matrix%wms)
   END SUBROUTINE dbcsr_init
 
 ! *****************************************************************************
@@ -292,6 +387,8 @@ CONTAINS
 !>                            symmetric, and 'A' for antisymmetric
 !> \param[in] nblks           number of blocks
 !> \param[in] nze             number of elements
+!> \param[in] data_type       type of data from [rRcC] for single/double
+!>                            precision real/complex, default is 'R'
 !> \param[in] special         (optional) allocate indices and data using
 !>                            special memory
 !> \param[in] reuse           (optional) reuses an existing matrix, default
@@ -299,13 +396,14 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_create(matrix, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, special, reuse, error)
+       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse, error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     CHARACTER, INTENT(IN)                    :: matrix_type
     TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
     INTEGER, INTENT(IN)                      :: nblks, nze
+    CHARACTER, INTENT(IN), OPTIONAL          :: data_type
     LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -317,10 +415,8 @@ CONTAINS
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
     LOGICAL                                  :: hijack
 
-    DEBUG_HEADER
 !   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    DBGI 'Allocating matrix', name
+
     hijack = .FALSE.
     IF (PRESENT (reuse)) hijack = reuse
     ! Why would you want to not reuse an existing matrix?
@@ -329,9 +425,35 @@ CONTAINS
          error=error)
     matrix%valid = .TRUE.
     matrix%name = name
+    IF (PRESENT (data_type)) THEN
+       SELECT CASE (data_type)
+       CASE ('r')
+          matrix%data_type = 'r'
+          CALL cp_unimplemented_error (routineN,&
+               "Single precision real matrices not yet tested or fully supported",&
+               error_level=cp_warning_level)
+       CASE ('R')
+          matrix%data_type = 'R'
+       CASE ('c')
+          matrix%data_type = 'c'
+          CALL cp_unimplemented_error (routineN,&
+               "Complex matrices not yet tested or fully supported",&
+               error_level=cp_warning_level)
+       CASE ('C')
+          matrix%data_type = 'C'
+          CALL cp_unimplemented_error (routineN,&
+               "Complex matrices not yet tested or fully supported",&
+               error_level=cp_warning_level)
+       CASE DEFAULT
+         CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+              routineN, "Invalid matrix type", error=error)
+      END SELECT
+    ELSE
+       matrix%data_type = 'R'
+    ENDIF
     IF (.NOT. hijack) THEN
-       NULLIFY(matrix%data)
        NULLIFY(matrix%index)
+       CALL dbcsr_data_init (matrix%data_area)
     ENDIF
     NULLIFY(matrix%row_p, matrix%col_i, matrix%blk_p)
     matrix%row_blk_size = row_blk_size
@@ -342,16 +464,6 @@ CONTAINS
     CALL dbcsr_distribution_hold (matrix%dist)
     CALL meta_from_dist (new_meta, dist, row_blk_size, col_blk_size,&
          error=error)
-!    IF (PRESENT (meta)) THEN
-!       DO stat = 3, 10
-!318       FORMAT ("@",I2,": ",I7," vs. ",I7)
-!          IF (new_meta(stat) .NE. meta(stat)) &
-!               WRITE(*,318)stat, new_meta(stat), meta(stat)
-!          CALL cp_assert (new_meta(stat) .EQ. meta(stat), cp_warning_level,&
-!               cp_wrong_args_error, routineP, "Meta does not match dist2.",&
-!               error=error)
-!       ENDDO
-!    ENDIF
     matrix%nblkrows_total  = new_meta(3)
     matrix%nblkcols_total  = new_meta(4)
     matrix%nfullrows_total = new_meta(5)
@@ -365,18 +477,15 @@ CONTAINS
     matrix%special_memory = .FALSE.
     IF (PRESENT (special)) matrix%special_memory = special
     !
-    DBG 'special allocation',matrix%special_memory
     IF (.NOT. hijack) THEN
+       CALL dbcsr_data_new (matrix%data_area, matrix%data_type, nze,&
+            matrix%special_memory)
        IF (matrix%special_memory) THEN
-          CALL mp_allocate(matrix%data, nze, stat=stat)
-          IF (stat /= 0) CALL stop_memory (routineP, 'matrix%data', nze)
           CALL mp_allocate(matrix%index, dbcsr_num_slots, stat=stat)
-          IF (stat /= 0) CALL stop_memory (routineP, 'matrix%data', nze)
+          IF (stat /= 0) CALL stop_memory (routineP, 'matrix%index', nze)
        ELSE
-          ALLOCATE(matrix%data(nze), stat=stat)
-          IF (stat /= 0) CALL stop_memory (routineP, 'matrix%data', nze)
           ALLOCATE(matrix%index(dbcsr_num_slots), stat=stat)
-          IF (stat /= 0) CALL stop_memory (routineP, 'matrix%data', nze)
+          IF (stat /= 0) CALL stop_memory (routineP, 'matrix%index', nze)
        ENDIF
     ENDIF
     matrix%index(:) = 0
@@ -394,10 +503,6 @@ CONTAINS
             cp_wrong_args_error, routineP, "Invalid matrix type.", error)
     END SELECT
     matrix%matrix_type = mt
-    matrix%w%lastblk = 0
-    matrix%w%datasize = 0
-    DBGV ' data allocated', ASSOCIATED(matrix%data)
-    DBGV ' index allocated', ASSOCIATED(matrix%index)
   END SUBROUTINE dbcsr_create
 
 
@@ -406,51 +511,62 @@ CONTAINS
 !> \param[out] matrix         new matrix
 !> \param[in] nblks_guess     (optional) estimated number of blocks
 !> \param[in] sizedata_guess  (optional) estimated size of data
+!> \param[in] n               (optional) number work matrices to create,
+!>                            default is 1
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, error)
+  SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n,&
+       error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess, n
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nblks, nze, stat
+    INTEGER                                  :: iw, nblks, nw, nze, stat
 
 !   ---------------------------------------------------------------------------
 
-    matrix%w%lastblk = 0
-    matrix%w%datasize = 0
-    IF(PRESENT(nblks_guess)) THEN
-       nblks = nblks_guess
+    IF (PRESENT (n)) THEN
+       nw = n
     ELSE
-       nblks = CEILING (REAL (matrix%nblkrows_local * matrix%nblkcols_local)&
-            / REAL (dbcsr_mp_numnodes (dbcsr_distribution_mp (matrix%dist))))
+       nw = 1
     ENDIF
-    IF(PRESENT(sizedata_guess)) THEN
-       nze = sizedata_guess
-    ELSE
-       nze = CEILING(REAL(matrix%nfullrows_local * matrix%nfullcols_local)&
-            / REAL(dbcsr_mp_numnodes (dbcsr_distribution_mp (&
-            matrix%dist))))
-    ENDIF
-    NULLIFY(matrix%w%data)
-    NULLIFY(matrix%w%datas)
-    NULLIFY(matrix%w%blk_d)
-    NULLIFY(matrix%w%datasizes)
-    NULLIFY(matrix%w%lastblks)
-    ALLOCATE(matrix%w%data(nze), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, 'matrix%w%data', nze)
-    !
-    ALLOCATE(matrix%w%row_i(nblks), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, 'matrix%w%row_i', nblks)
-    !
-    ALLOCATE(matrix%w%col_i(nblks), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, 'matrix%w%col_i', nblks)
-    !
-    ALLOCATE(matrix%w%blk_p(nblks), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, 'matrix%w%blk_p', nblks)
+    ALLOCATE (matrix%wms(nw))
+    DO iw = 1, nw
+       matrix%wms(iw)%lastblk = 0
+       matrix%wms(iw)%datasize = 0
+       IF(PRESENT(nblks_guess)) THEN
+          nblks = nblks_guess
+       ELSE
+          nblks = CEILING (REAL (matrix%nblkrows_local * matrix%nblkcols_local)&
+               / REAL (dbcsr_mp_numnodes (dbcsr_distribution_mp (matrix%dist))))
+       ENDIF
+       IF(PRESENT(sizedata_guess)) THEN
+          nze = sizedata_guess
+       ELSE
+          nze = CEILING(REAL(matrix%nfullrows_local * matrix%nfullcols_local)&
+               / REAL(dbcsr_mp_numnodes (dbcsr_distribution_mp (&
+               matrix%dist))))
+       ENDIF
+       CALL dbcsr_data_init (matrix%wms(iw)%data_area)
+       IF (PRESENT (sizedata_guess)) THEN
+          CALL dbcsr_data_new (matrix%wms(iw)%data_area, matrix%data_type,&
+               data_size=nze)
+       ELSE
+          CALL dbcsr_data_new (matrix%wms(iw)%data_area, matrix%data_type)
+       ENDIF
+       !
+       ALLOCATE(matrix%wms(iw)%row_i(nblks), stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineP, 'matrix%ws(iw)%row_i', nblks)
+       !
+       ALLOCATE(matrix%wms(iw)%col_i(nblks), stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineP, 'matrix%ws(iw)%col_i', nblks)
+       !
+       ALLOCATE(matrix%wms(iw)%blk_p(nblks), stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineP, 'matrix%ws(iw)%blk_p', nblks)
+    END DO
   END SUBROUTINE dbcsr_work_create
 
 
@@ -476,135 +592,85 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_finalize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, blk_p_p, col_i_p, &
-                                                prev_row, row, row_p_p, stat, &
+    INTEGER                                  :: all_nblks, all_nze, i, j, &
                                                 timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: lkeepdata, multidata, shfl, &
-                                                srt
-    TYPE(dbcsr_work_type)                    :: wm
+    LOGICAL                                  :: lkeepdata, multidata, srt
+
+!TYPE(dbcsr_work_type)                    :: wm, newm
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
-    IF (dbg) WRITE(*,*)routineN//' finalizing matrix', matrix%name
-    wm = matrix%w
+    IF (dbg) WRITE(*,'(A,1X,A,2(1X,I9))')routineN//' finalizing matrix ',&
+         matrix%name, matrix%nze, matrix%nblks
+    CALL cp_assert (SIZE (matrix%wms) .GT. 0, cp_fatal_level, cp_caller_error,&
+         routineN, "Can not finalize matrix containing no work matrices.")
+    !CALL cp_assert (matrix%nze .EQ. 0 .AND. matrix%nblks .EQ. 0,&
+    !     cp_warning_level, cp_unimplemented_error_nr, routineN,&
+    !     "Can not finalize matrix already containing some data.")
+    matrix%nblks = 0
+    matrix%nze = 0
     srt = .TRUE.
     lkeepdata = .FALSE.
     IF (PRESENT (keepdata)) lkeepdata = keepdata
-    multidata = ASSOCIATED (matrix%w%blk_d) .AND. ASSOCIATED (matrix%w%datas)
+    multidata = SIZE (matrix%wms) .GT. 1
     IF (PRESENT (resort)) srt = resort
-    IF (srt) THEN
+    ! If there are multiple work matrices, the indices have to be sorted to
+    ! enable merging the index.
+    IF (srt .OR. multidata) THEN
        IF (multidata) THEN
-          CALL dbcsr_sort_indices(wm%lastblk, wm%row_i, wm%col_i, wm%blk_p,&
-               blk_d=matrix%w%blk_d, error=error)
+          CALL dbcsr_sort_many_indices (matrix)
        ELSE
-          CALL dbcsr_sort_indices(wm%lastblk, wm%row_i, wm%col_i, wm%blk_p,&
-               error=error)
+          CALL dbcsr_sort_indices(matrix%wms(1)%lastblk, matrix%wms(1)%row_i,&
+               matrix%wms(1)%col_i, matrix%wms(1)%blk_p)
        ENDIF
-       !CALL dbcsr_wm_merge_blocks(wm, error)
     ENDIF
-    IF(.NOT.ASSOCIATED(matrix%data)) THEN
-       IF (matrix%special_memory) THEN
-          CALL mp_allocate(matrix%data, wm%datasize, stat=stat)
-       ELSE
-          ALLOCATE(matrix%data(wm%datasize), stat=stat)
-       ENDIF
-       IF (stat /= 0) CALL stop_memory(routineP, 'matrix%data', wm%datasize)
-    ENDIF
-    IF (SIZE(matrix%data) .LT. wm%datasize) THEN
-       IF (matrix%special_memory) THEN
-          CALL mp_deallocate(matrix%data, stat=stat)
-          CALL mp_allocate(matrix%data, wm%datasize, stat=stat)
-       ELSE
-          DEALLOCATE(matrix%data, stat=stat)
-          ALLOCATE(matrix%data(wm%datasize), stat=stat)
-       ENDIF
-       IF (stat /= 0) CALL stop_memory(routineP, 'm%data', wm%datasize)
+    ! Count how large the new matrix will have to be.
+    IF (multidata) THEN
+       all_nblks = matrix%nblks
+       all_nze = matrix%nze
+       DO i = 1, SIZE (matrix%wms)
+          all_nblks = all_nblks + matrix%wms(i)%lastblk
+          all_nze = all_nze + matrix%wms(i)%datasize
+       ENDDO
+    ELSE
+       all_nblks = matrix%wms(1)%lastblk
+       all_nze = matrix%wms(1)%datasize
     ENDIF
     IF (dbg) THEN
-       !DO i = LBOUND(wm%data,1), UBOUND(wm%data,1)
-       !   write(*,*)'array data, index',i,'=',wm%data(i)
-       !ENDDO
-       WRITE(*,*)routineP//' non-finalized DP(',LBOUND(wm%data,1),'-',&
-            UBOUND(wm%data,1),') size=',wm%datasize,'=>',&
-            DOT_PRODUCT(wm%data(1:wm%datasize), wm%data(1:wm%datasize))
+       DO i = 1, SIZE (matrix%wms)
+          WRITE(*,'(A,I4)')"Sorted work matrix",i
+          DO j = 1, matrix%wms(i)%lastblk
+             WRITE(*,'(A,I4,":",3(1X,I5))')"Sorted",j,matrix%wms(i)%row_i(j),&
+                  matrix%wms(i)%col_i(j), matrix%wms(i)%blk_p(j)
+          ENDDO
+       ENDDO
     ENDIF
-    IF (dbg) WRITE(*,*)routineP//' copyfinalized DP=',&
-         DOT_PRODUCT(matrix%data(1:wm%datasize), matrix%data(1:wm%datasize))
-    matrix%nblks = wm%lastblk
-    matrix%nze = wm%datasize
+    matrix%nblks = all_nblks
+    matrix%nze = all_nze
     matrix%index(dbcsr_slot_nblks) = matrix%nblks
     matrix%index(dbcsr_slot_nze) = matrix%nze
     DBG routineP//' index',matrix%index(:dbcsr_num_slots)
     DBG routineP//' # blocks=',matrix%nblks
-    !> We first figure out how large the indices should be.
+    DBG routinep//' # nze=',matrix%nze
+    ! We first figure out how large the indices should be and allocate them.
     CALL dbcsr_addto_index_array(matrix, dbcsr_slot_row_p,&
-         reservation=matrix%nblkrows_total+1, extra=wm%lastblk*2, error=error)
+         reservation=matrix%nblkrows_total+1, extra=all_nblks*2, error=error)
     matrix%row_p(1) = 0
     CALL dbcsr_addto_index_array(matrix, dbcsr_slot_col_i,&
-         reservation=wm%lastblk, error=error)
+         reservation=all_nblks, error=error)
     CALL dbcsr_addto_index_array(matrix, dbcsr_slot_blk_p,&
-         reservation=wm%lastblk, error=error)
+         reservation=all_nblks, error=error)
     matrix%row_p(1) = 0
     CALL dbcsr_repoint_index(matrix, error=error)
-    !
-    !> Now go through the indices and copy the data.
-    row_p_p = 1
-    col_i_p = 1
-    blk_p_p = 1
-    matrix%row_p(1) = 0
-    prev_row = 1
-    DO blk = 1, wm%lastblk
-       !> If the current block's row is different (i.e., higher), then
-       !> update the row_p array.
-       row = wm%row_i(blk)
-       IF (dbg.AND.bcsr_verbose) WRITE(*,*)routineP//' blk',blk,'row,col,blk',&
-            wm%row_i(blk), wm%col_i(blk), wm%blk_p(blk)
-       CALL cp_assert(row.GE.prev_row, cp_failure_level,&
-            cp_unimplemented_error_nr, routineP, 'Unordered rows', error)
-       IF (row .NE. prev_row) THEN
-          matrix%row_p(prev_row+1:row) = blk-1
-          prev_row = row
-       ENDIF
-    ENDDO !blk
-    matrix%row_p(prev_row+1:matrix%nblkrows_total+1) = wm%lastblk
-    IF(dbg.AND.bcsr_verbose)&
-         WRITE(*,*)routineP//' row_p=',matrix%row_p,'size=',SIZE(matrix%row_p)
-    IF(dbg.AND.bcsr_verbose)&
-         WRITE(*,*)routineP//' col_i=',wm%col_i
-    matrix%col_i(:) = wm%col_i(1:matrix%nblks)
-    shfl = .FALSE.
-    IF (PRESENT (reshuffle)) shfl = reshuffle
-    IF (multidata) shfl = .TRUE.
-    row_blk_size => array_data (matrix%row_blk_size)
-    col_blk_size => array_data (matrix%col_blk_size)
-    IF (.NOT.shfl) THEN
-       matrix%blk_p(:) = wm%blk_p(1:matrix%nblks)
-       matrix%data(1:wm%datasize) = wm%data(1:wm%datasize)
-    ELSE
-       ALLOCATE (sizes(matrix%nblks), stat=stat)
-       IF (stat /= 0) CALL stop_memory (routineP, "sizes", matrix%nblks)
-       CALL calc_blk_sizes (sizes, matrix%row_p, matrix%col_i,&
-            array_data(matrix%row_blk_size), array_data(matrix%col_blk_size))
-       IF (.NOT. multidata) THEN
-          CALL dbcsr_sort_data(matrix%blk_p, wm%blk_p(1:matrix%nblks),&
-               sizes, matrix%data, wm%data, error=error)
-       ELSE
-          CALL dbcsr_sort_data(matrix%blk_p, wm%blk_p(1:matrix%nblks),&
-               sizes, matrix%data, wm%data, wm%datas, wm%blk_d, error)
-       ENDIF
-       DEALLOCATE(sizes)
-    ENDIF
-
-    wm%datasize = 0
-    wm%lastblk = 0
-    matrix%w = wm
-    CALL dbcsr_work_destroy(matrix%w, keepdata=lkeepdata, keepfinal=.TRUE.,&
-         keepfinaldata=.TRUE., error=error)
+    CALL dbcsr_data_ensure_size (matrix%data_area, all_nze)
+    ! Now merge the index and data.
+    CALL dbcsr_merge_data (matrix)
+    ! Clean up.
+    CALL dbcsr_work_destroy_all(matrix)
     matrix%valid = .TRUE.
+    IF (dbg) CALL dbcsr_verify_matrix (matrix, error)
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_finalize
 
@@ -628,11 +694,12 @@ CONTAINS
     ELSE
        DEALLOCATE(matrix%index)
     ENDIF
-    IF (matrix%special_memory) THEN
-       CALL MP_DEALLOCATE(matrix%data)
-    ELSE
-       DEALLOCATE(matrix%data)
-    ENDIF
+    !IF (matrix%special_memory) THEN
+    !   CALL MP_DEALLOCATE(matrix%data)
+    !ELSE
+    !   DEALLOCATE(matrix%data)
+    !ENDIF
+    CALL dbcsr_data_release (matrix%data_area)
     CALL array_release (matrix%row_blk_size)
     CALL array_release (matrix%col_blk_size)
     CALL dbcsr_distribution_release(matrix%dist)
@@ -643,46 +710,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocates and destroys a work matrix.
 !> \param[in,out] wm          work matrix
-!> \param[in,out] error       cp2k error
-!> \param keepdata    do not deallocate data
-!> \param keepfinal   do not destroy the final, non-work matrix
-!> \param keepfinaldata       do not destroy the data in the final,
-!>                            non-work matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_work_destroy(wm, error, keepdata, keepfinal,&
-       keepfinaldata)
+  SUBROUTINE dbcsr_work_destroy(wm)
     TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    LOGICAL, INTENT(IN), OPTIONAL            :: keepdata, keepfinal, &
-                                                keepfinaldata
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_destroy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-    LOGICAL                                  :: datasharing, dbg, lkeepdata, &
-                                                lkeepfinal, lkeepfinaldata
-
 !   ---------------------------------------------------------------------------
 
-    dbg = .FALSE.
-    CALL dbcsr_set_debug(dbg)
-    lkeepdata = .FALSE.
-    IF (PRESENT (keepdata)) lkeepdata = keepdata
-    lkeepfinal = .TRUE.
-    IF (PRESENT (keepfinal)) lkeepfinal = keepfinal
-    lkeepfinaldata = .FALSE.
-    IF (PRESENT (keepfinaldata)) lkeepfinaldata = keepfinaldata
-    datasharing = .FALSE.
-    !datasharing = ASSOCIATED(wm%data, wm%m%data) .AND. lkeepfinaldata
-    IF (dbg) WRITE(*,*)routineP//' keepdata, keepfinal, keepfinaldata, share',&
-         lkeepdata, lkeepfinal, lkeepfinaldata, datasharing
-    !IF (.NOT. lkeepfinal .AND. ASSOCIATED (wm%m)) &
-    !     CALL dbcsr_destroy(wm%m, error, keepdata=lkeepfinaldata)
-    IF (ASSOCIATED (wm%data).AND..NOT.datasharing.AND..NOT.lkeepdata) THEN
-       DEALLOCATE(wm%data)
-       NULLIFY (wm%data)
-    ENDIF
     IF (ASSOCIATED (wm%row_i)) THEN
        DEALLOCATE(wm%row_i)
        NULLIFY (wm%row_i)
@@ -695,25 +731,38 @@ CONTAINS
        DEALLOCATE(wm%blk_p)
        NULLIFY (wm%blk_p)
     ENDIF
-    IF (ASSOCIATED (wm%datas)) THEN
-       DO i = 1, SIZE(wm%datas)
-          DEALLOCATE (wm%datas(i)%r)
-       ENDDO
-       DEALLOCATE (wm%datas)
-    ENDIF
-    IF (ASSOCIATED (wm%blk_d)) THEN
-       DEALLOCATE (wm%blk_d)
-       NULLIFY (wm%blk_d)
-    ENDIF
-    IF (ASSOCIATED (wm%lastblks)) THEN
-       DEALLOCATE (wm%lastblks)
-       NULLIFY (wm%lastblks)
-    ENDIF
-    IF (ASSOCIATED (wm%datasizes)) THEN
-       DEALLOCATE (wm%datasizes)
-       NULLIFY (wm%datasizes)
-    ENDIF
+    CALL dbcsr_data_release (wm%data_area)
   END SUBROUTINE dbcsr_work_destroy
+
+
+! *****************************************************************************
+!> \brief Deallocates and destroys a work matrix.
+!> \param[in,out] wm          work matrix
+!> \param[in,out] error       cp2k error
+!> \param keepdata    do not deallocate data
+!> \param keepfinal   do not destroy the final, non-work matrix
+!> \param keepfinaldata       do not destroy the data in the final,
+!>                            non-work matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_work_destroy_all(m)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: m
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_destroy_all', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (ASSOCIATED (m%wms), cp_warning_level, cp_caller_error,&
+         routineN, "Want to destroy nonexisting work matrices.")
+    IF (ASSOCIATED (m%wms)) THEN
+       DO i = 1, SIZE (m%wms)
+          CALL dbcsr_work_destroy (m%wms(i))
+       ENDDO
+       DEALLOCATE (m%wms)
+    ENDIF
+  END SUBROUTINE dbcsr_work_destroy_all
 
 
 ! *****************************************************************************
@@ -812,7 +861,7 @@ CONTAINS
     CALL dbcsr_init (matrix, error)
     CALL dbcsr_create(matrix, fm%name, distribution, 'N',&
          row_blk_size, col_blk_size,&
-         0, 0, error=error)
+         0, 0, 'R', error=error)
     ! Somehow assign row & column block sizes.
     CALL dbcsr_work_create(matrix, error=error)
     ALLOCATE(blk_ps(nblkcols_local), stat=stat)
@@ -828,9 +877,9 @@ CONTAINS
     !> the wm matrix and add some data to the data array.
     prev_blkrow = 0
     fullrow = 1
-    matrix%w%lastblk = 0
-    matrix%w%datasize = 0
-    matrix%w%data(:) = 999
+    matrix%wms(1)%lastblk = 0
+    matrix%wms(1)%datasize = 0
+    !matrix%wms(1)%data(:) = 999
     IF(dbg) WRITE(*,*)routineP//' my local blocks',blkrows_local
     DO blkrow = 1, nblkrows_total
        prow = prow_dist(blkrow)
@@ -856,30 +905,34 @@ CONTAINS
           ! The array-adding should be done in one pass
           IF(dbg) WRITE(*,*)routineP//' adding row',blkrow,'sized',m,&
                'for local columns', blkcols_local,'fullrows',fullrow
-          CALL addto_array(matrix%w%row_i, (/ (blkrow, i=1,nblkcols_local) /),&
-               matrix%w%lastblk+1, error=error)
-          CALL addto_array(matrix%w%col_i, blkcols_local,&
-               matrix%w%lastblk+1, error=error)
+          CALL addto_array(matrix%wms(1)%row_i,&
+               (/ (blkrow, i=1,nblkcols_local) /),&
+               matrix%wms(1)%lastblk+1, error=error)
+          CALL addto_array(matrix%wms(1)%col_i, blkcols_local,&
+               matrix%wms(1)%lastblk+1, error=error)
           DO blkcol_l = 1, nblkcols_local
              blkcol = blkcols_local(blkcol_l)
              i = col_blk_begin(blkcol)
              j = i + cbs(blkcol)-1
              n = cbs(blkcol)
-             blk_ps(blkcol_l) = matrix%w%datasize + 1
+             blk_ps(blkcol_l) = matrix%wms(1)%datasize + 1
              IF(dbg) WRITE(*,*)routineP//' adding block at column',blkcol,&
                   'sized',n,'(',i,':',j,')'
              IF(dbg) WRITE(*,*)routineP//' with chksum',&
                   DOT_PRODUCT(RESHAPE(thefmrow(1:m,i:j),(/m*n/)),&
                   &           RESHAPE(thefmrow(1:m,i:j),(/m*n/)))
-             CALL addto_array(matrix%w%data,&
+             CALL addto_array(matrix%wms(1)%data_area,&
                   RESHAPE(thefmrow(1:m,i:j),(/m*n/)),&
-                  offset=blk_ps(blkcol_l), error=error)
-             matrix%w%datasize = matrix%w%datasize + m*n
+                  offset=blk_ps(blkcol_l))
+             !CALL addto_array(matrix%wms(1)%data,&
+             !     RESHAPE(thefmrow(1:m,i:j),(/m*n/)),&
+             !     offset=blk_ps(blkcol_l), error=error)
+             matrix%wms(1)%datasize = matrix%wms(1)%datasize + m*n
           ENDDO
           IF(dbg) WRITE(*,*)routineP//' with blk_ps',blk_ps
-          CALL addto_array(matrix%w%blk_p, blk_ps(1:nblkcols_local),&
-               matrix%w%lastblk+1, error=error)
-          matrix%w%lastblk = matrix%w%lastblk + nblkcols_local
+          CALL addto_array(matrix%wms(1)%blk_p, blk_ps(1:nblkcols_local),&
+               matrix%wms(1)%lastblk+1, error=error)
+          matrix%wms(1)%lastblk = matrix%wms(1)%lastblk + nblkcols_local
        ENDIF ! myprow = prow
     ENDDO !blkrow
     DEALLOCATE(blk_ps, thefmrow)
@@ -923,6 +976,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_p
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d
     TYPE(array_i1d_obj)                      :: cbs_array, rbs_array
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
@@ -1117,7 +1171,7 @@ CONTAINS
     CALL array_new (cbs_array, col_blk_size, gift=.TRUE.)
     CALL dbcsr_init (matrix, error)
     CALL dbcsr_create(matrix, sm%name, dist, sm%symmetry,&
-         rbs_array, cbs_array, nblks=blk, nze=nze, error=error)
+         rbs_array, cbs_array, nblks=blk, nze=nze, data_type='R', error=error)
     CALL array_release (rbs_array)
     CALL array_release (cbs_array)
     CALL dbcsr_work_create(matrix,&
@@ -1129,10 +1183,13 @@ CONTAINS
     !DBG 'recv disps meta',rm_disp
     blk_p = 1
     blk = 1
+    CALL dbcsr_get_data (matrix%wms(1)%data_area, data_p)
     DO src_p = 0, numproc-1
        nze = recv_count(2, src_p)
-       matrix%w%data(blk_p:blk_p+nze-1) =&
+       data_p(blk_p:blk_p+nze-1) =&
             recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
+       !matrix%w%data(blk_p:blk_p+nze-1) =&
+       !     recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
        DBG 'processing from',src_p,'counts',send_count(1, src_p)
        DO blk_l = 1, recv_count(1, src_p)
           stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
@@ -1143,10 +1200,10 @@ CONTAINS
           DBG 'blk: p',blk,src_p,'; row, col',&
                stored_row,stored_col,&
                '; blk_p',blk_p
-          matrix%w%row_i(blk) = stored_row ! It's always positive here
+          matrix%wms(1)%row_i(blk) = stored_row ! It's always positive here
           !matrix%w%row_i(blk) = ABS(stored_row)
-          matrix%w%col_i(blk) = stored_col
-          matrix%w%blk_p(blk) = SIGN(blk_p, stored_row)
+          matrix%wms(1)%col_i(blk) = stored_col
+          matrix%wms(1)%blk_p(blk) = SIGN(blk_p, stored_row)
           !matrix%w%blk_p(blk) = SIGN(blk_p, stored_row)
           nze = row_blk_size(ABS(stored_row))&
                * col_blk_size(stored_col)
@@ -1154,8 +1211,8 @@ CONTAINS
           blk = blk + 1
        ENDDO ! blk_l
     ENDDO ! src_p
-    matrix%w%lastblk = blk - 1
-    matrix%w%datasize = blk_p - 1
+    matrix%wms(1)%lastblk = blk - 1
+    matrix%wms(1)%datasize = blk_p - 1
     !
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
@@ -1236,7 +1293,7 @@ CONTAINS
     new_type = normal%matrix_type
     CALL dbcsr_create (transposed, "transposed "//normal%name, new_dist,&
          new_type, normal%col_blk_size, normal%row_blk_size, normal%nblks,&
-         normal%nze, normal%special_memory, reuse=hijack, error=error)
+         normal%nze, 'R', normal%special_memory, reuse=hijack, error=error)
     ! Reserve the space for the new indices.
     CALL dbcsr_addto_index_array (transposed, dbcsr_slot_row_p,&
          reservation=transposed%nblkrows_total+1, extra=transposed%nblks*2,&
@@ -1246,25 +1303,37 @@ CONTAINS
     CALL dbcsr_addto_index_array (transposed, dbcsr_slot_blk_p,&
          reservation=normal%nblks, error=error)
     CALL dbcsr_repoint_index (transposed, error=error)
-    CALL dbcsr_ensure_data_size (transposed, normal%nze, nocopy=.TRUE.,&
-         error=error)
+    CALL dbcsr_data_ensure_size (transposed%data_area, normal%nze,&
+         nocopy=.TRUE.)
+    !CALL dbcsr_ensure_data_size (transposed, normal%nze, nocopy=.TRUE.,&
+    !     error=error)
     !
     transposed%nblks = normal%nblks
     transposed%nze = normal%nze
     transposed%index(dbcsr_slot_nblks) = normal%nblks
     transposed%index(dbcsr_slot_nze) = normal%nze
     ! Transpose the local index.
+    DBG 'Original size', normal%nblks, normal%nze
     DBG 'meta', transposed%nblkrows_total+1, normal%nblks
     DBG 'size', SIZE (transposed%row_p), SIZE (transposed%col_i)
     ALLOCATE (blk_p (normal%nblks), stat=stat)
     IF (stat /= 0) CALL stop_memory (routineP, "blk_p", normal%nblks)
     CALL transpose_index_local (transposed%row_p, transposed%col_i,&
          normal%row_p, normal%col_i, blk_p, normal%blk_p)
+    IF (dbg) THEN
+       WRITE(*,*)'orig. row_p',normal%row_p
+       WRITE(*,*)'orig. col_i',normal%col_i
+       WRITE(*,*)'orig. blk_p',normal%blk_p
+       WRITE(*,*)'new . row_p',transposed%row_p
+       WRITE(*,*)'new . col_i',transposed%col_i
+       WRITE(*,*)'new . blk_p',transposed%blk_p
+    ENDIF
     ! Copy the data
     CALL dbcsr_copy_sort_data (transposed%blk_p, blk_p, transposed%row_p,&
          transposed%col_i, array_data (transposed%row_blk_size),&
          array_data (transposed%col_blk_size),&
-         transposed%data, normal%data, transpose_blocks=.TRUE., error=error)
+         transposed%data_area, normal%data_area,&
+         transpose_blocks=.TRUE., error=error)
     !
 1315 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
     IF (dbg) THEN
@@ -2500,10 +2569,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_checksum', &
       routineP = moduleN//':'//routineN
 
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     REAL(KIND=dp)                            :: blk_cs, local_cs
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
     TYPE(cp_error_type)                      :: e
 
     DEBUG_HEADER
@@ -2514,6 +2587,16 @@ CONTAINS
     row_blk_size => array_data (matrix%row_blk_size)
     col_blk_size => array_data (matrix%col_blk_size)
     local_cs = 0.0_dp
+    SELECT CASE (matrix%data_type)
+    CASE ('R')
+       CALL dbcsr_get_data (matrix%data_area, r_dp)
+    CASE ('r')
+       CALL dbcsr_get_data (matrix%data_area, r_sp)
+    CASE ('C')
+       CALL dbcsr_get_data (matrix%data_area, c_dp)
+    CASE ('c')
+       CALL dbcsr_get_data (matrix%data_area, c_sp)
+    END SELECT
     DO br = 1, matrix%nblkrows_total
        m = row_blk_size(br)
        DO blk = matrix%row_p(br)+1, matrix%row_p(br+1)
@@ -2522,13 +2605,20 @@ CONTAINS
           mn = m*n
           blk_p = ABS(matrix%blk_p(blk))
           ! Calculate DDOT
-          !blk_cs = bl_dot(mn, matrix%data(blk_p:blk_p+mn-1), 1,&
-          !     &              matrix%data(blk_p:blk_p+mn-1), 1)
-          !write(*,*)matrix%data(blk_p:blk_p+mn-1)
-          blk_cs = DOT_PRODUCT(matrix%data(blk_p:blk_p+mn-1),&
-               &               matrix%data(blk_p:blk_p+mn-1))
-          !IF (dbg .AND. bcsr_verbose)&
-          !     CALL dbcsr_printmat(matrix%data(blk_p:blk_p+mn-1),m,n)
+          SELECT CASE (matrix%data_type)
+          CASE ('R')
+             blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
+                  &               r_dp(blk_p:blk_p+mn-1))
+          CASE ('r')
+             blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
+                  &               r_sp(blk_p:blk_p+mn-1))
+          CASE ('C')
+             blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
+                  &               c_dp(blk_p:blk_p+mn-1))
+          CASE ('c')
+             blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
+                  &               c_sp(blk_p:blk_p+mn-1))
+          END SELECT
           DBGV ' chksum for (',br,',',bc,') at', blk_p,'l',mn,'= ', blk_cs
           local_cs = local_cs + blk_cs
        ENDDO
@@ -2552,18 +2642,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print', &
       routineP = moduleN//':'//routineN
 
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: tr
     REAL(KIND=dp)                            :: blk_cs
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     WRITE(*,*)routineP//' Contents of matrix named ', matrix%name
-    DBG 'index', matrix%index
+    SELECT CASE (matrix%data_type)
+    CASE ('R')
+       CALL dbcsr_get_data (matrix%data_area, r_dp)
+    CASE ('r')
+       CALL dbcsr_get_data (matrix%data_area, r_sp)
+    CASE ('C')
+       CALL dbcsr_get_data (matrix%data_area, r_dp)
+    CASE ('c')
+       CALL dbcsr_get_data (matrix%data_area, r_sp)
+    END SELECT
+    DBGV 'index', matrix%index
     row_blk_size => array_data (matrix%row_blk_size)
     col_blk_size => array_data (matrix%col_blk_size)
     IF (matrix%nblks .GT. 0) THEN
@@ -2575,12 +2679,40 @@ CONTAINS
              mn = m*n
              blk_p = ABS(matrix%blk_p(blk))
              tr = matrix%blk_p(blk) .LT. 0
-             blk_cs = DOT_PRODUCT(matrix%data(blk_p:blk_p+mn-1),&
-                  &               matrix%data(blk_p:blk_p+mn-1))
+             SELECT CASE (matrix%data_type)
+             CASE ('R')
+                blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
+                     &               r_dp(blk_p:blk_p+mn-1))
+                CALL &
+                     dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+             CASE ('r')
+                blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
+                     &               r_sp(blk_p:blk_p+mn-1))
+                CALL &
+                     dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+             CASE ('C')
+                blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
+                     &               c_dp(blk_p:blk_p+mn-1))
+                CALL &
+                     dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+             CASE ('c')
+                blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
+                     &               c_sp(blk_p:blk_p+mn-1))
+                CALL &
+                     dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+             END SELECT
              WRITE(*,*)routineP//' chksum for (',br,',',bc,') at',&
                   blk_p,'l',mn,'= ', blk_cs
-             CALL &
-                  dbcsr_printmat(matrix%data(blk_p:blk_p+mn-1),m,n, tr=tr)
+             SELECT CASE (matrix%data_type)
+             CASE ('R')
+                CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+             CASE ('r')
+                CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+             CASE ('C')
+                CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+             CASE ('c')
+                CALL dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+             END SELECT
           ENDDO
        ENDDO
     ENDIF
@@ -2714,11 +2846,19 @@ CONTAINS
          'Column block size array inconsistent with number of blocked columns')
     !
     IF(dbg.GE.4) THEN
-       IF (ASSOCIATED (m%data))&
-            WRITE(*,'(1X,A,I7,A,I7)')r//' nze=',m%nze,'data size',SIZE(m%data)
+       WRITE(*,'(1X,A,I7,A,I7)')r//' nze=',m%nze,'data size',&
+            dbcsr_get_data_size(m%data_area)
     ENDIF
-    IF (ASSOCIATED (m%data))&
-         CALL bcsr_assert(dbg,SIZE(m%data).GE.m%nze, r, 'Data storage too small')
+    CALL bcsr_assert(dbg,dbcsr_get_data_size(m%data_area).GE.m%nze, r,&
+         'Data storage too small')
+    IF (dbg.GE.5) THEN
+       WRITE (*,'(1X,A,I7,A)') r//' size=',SIZE(m%row_p),' row_p='
+       WRITE (*,2047) m%row_p(1:m%nblkrows_total+1)
+       WRITE (*,'(1X,A)') r//' col_i='
+       WRITE (*,2047) m%col_i(1:m%nblks)
+       WRITE (*,'(1X,A)') r//' blk_p='
+       WRITE (*,2047) m%blk_p(1:m%nblks)
+    ENDIF
     prev_br = 0
     DO br = 1, m%nblkrows_total
        CALL bcsr_assert(dbg,m%row_p(br).GE.0, r, 'row_p less than zero')
@@ -2745,14 +2885,6 @@ CONTAINS
        ENDDO
        prev_br = br
     ENDDO
-    IF (dbg.GE.5) THEN
-       WRITE (*,'(1X,A,I7,A)') r//' size=',SIZE(m%row_p),' row_p='
-       WRITE (*,2047) m%row_p(1:m%nblkrows_total)
-       WRITE (*,'(1X,A)') r//' col_i='
-       WRITE (*,2047) m%col_i(1:m%nblks)
-       WRITE (*,'(1X,A)') r//' blk_p='
-       WRITE (*,2047) m%blk_p(1:m%nblks)
-    ENDIF
     IF (dbg.GE.3) THEN
        CALL mp_sum(n_have_blocks_local, dbcsr_mp_group (dbcsr_distribution_mp (&
             m%dist)))
@@ -2786,71 +2918,71 @@ CONTAINS
   END SUBROUTINE bcsr_assert
 
 
-! *****************************************************************************
-!> \brief Makes a matrix canonical: sorts the indices and makes the data
-!>        sequential.
-!> \param[in,out] matrix      matrix in which to sort the data blocks
-!> \param[in,out] error       cp2k error
-!> \param[in] onlydata        (optional) only sort data
-! *****************************************************************************
-  SUBROUTINE dbcsr_order(matrix, error, onlydata)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    LOGICAL, INTENT(IN), OPTIONAL            :: onlydata
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_order', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, col_size, row, row_size, &
-                                                stat, timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: new_data
-
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
-    ! We should also check that the indices actually exist.
-    CALL cp_assert(ASSOCIATED(matrix%data), cp_failure_level, cp_caller_error,&
-         routineN, "Matrix has no data.", error)
-    row_blk_size => array_data (matrix%row_blk_size)
-    col_blk_size => array_data (matrix%col_blk_size)
-    !
-    IF (PRESENT (onlydata)) THEN
-       IF (onlydata) THEN
-          CALL dbcsr_sort_indices(matrix%nblks, matrix%row_p, matrix%col_i,&
-               matrix%blk_p, error=error)
-       ENDIF
-    ENDIF
-    ALLOCATE(sizes(matrix%nblks), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineN, "sizes", matrix%nblks)
-    !$OMP PARALLEL DO PRIVATE(row, blk, row_size, col_size)
-    DO row = 1, matrix%nblkrows_total
-       row_size = row_blk_size(row)
-       DO blk = matrix%row_p(row)+1, matrix%row_p(row+1)
-          col_size = col_blk_size(matrix%col_i(blk))
-          sizes(blk) = row_size*col_size
-       ENDDO
-    ENDDO
-    !$OMP END PARALLEL DO
-    IF (matrix%special_memory) THEN
-       CALL mp_allocate(new_data, SIZE(matrix%data), stat=stat)
-    ELSE
-       ALLOCATE(new_data(SIZE(matrix%data)), stat=stat)
-    ENDIF
-    IF (stat /= 0) CALL stop_memory(routineN, "new_data", SIZE(matrix%data))
-    CALL dbcsr_sort_data(matrix%blk_p, matrix%blk_p, sizes,&
-         new_data, matrix%data, error=error)
-    IF (matrix%special_memory) THEN
-       CALL mp_deallocate(matrix%data)
-    ELSE
-       DEALLOCATE(matrix%data)
-    ENDIF
-    matrix%data => new_data
-    DEALLOCATE(sizes)
-    CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_order
+!! *****************************************************************************
+!!> \brief Makes a matrix canonical: sorts the indices and makes the data
+!!>        sequential.
+!!> \param[in,out] matrix      matrix in which to sort the data blocks
+!!> \param[in,out] error       cp2k error
+!!> \param[in] onlydata        (optional) only sort data
+!! *****************************************************************************
+!  SUBROUTINE dbcsr_order(matrix, error, onlydata)
+!    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+!    LOGICAL, INTENT(IN), OPTIONAL            :: onlydata
+!
+!    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_order', &
+!      routineP = moduleN//':'//routineN
+!
+!    INTEGER                                  :: blk, col_size, row, row_size, &
+!                                                stat, timing_handle
+!    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes
+!    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+!    REAL(KIND=dp), DIMENSION(:), POINTER     :: new_data
+!
+!    DEBUG_HEADER
+!!   ---------------------------------------------------------------------------
+!    DEBUG_BODY
+!    CALL timeset(routineN, timing_handle)
+!    ! We should also check that the indices actually exist.
+!    CALL cp_assert(ASSOCIATED(matrix%data), cp_failure_level, cp_caller_error,&
+!         routineN, "Matrix has no data.", error)
+!    row_blk_size => array_data (matrix%row_blk_size)
+!    col_blk_size => array_data (matrix%col_blk_size)
+!    !
+!    IF (PRESENT (onlydata)) THEN
+!       IF (onlydata) THEN
+!          CALL dbcsr_sort_indices(matrix%nblks, matrix%row_p, matrix%col_i,&
+!               matrix%blk_p, error=error)
+!       ENDIF
+!    ENDIF
+!    ALLOCATE(sizes(matrix%nblks), stat=stat)
+!    IF (stat /= 0) CALL stop_memory(routineN, "sizes", matrix%nblks)
+!    !$OMP PARALLEL DO PRIVATE(row, blk, row_size, col_size)
+!    DO row = 1, matrix%nblkrows_total
+!       row_size = row_blk_size(row)
+!       DO blk = matrix%row_p(row)+1, matrix%row_p(row+1)
+!          col_size = col_blk_size(matrix%col_i(blk))
+!          sizes(blk) = row_size*col_size
+!       ENDDO
+!    ENDDO
+!    !$OMP END PARALLEL DO
+!    IF (matrix%special_memory) THEN
+!       CALL mp_allocate(new_data, SIZE(matrix%data), stat=stat)
+!    ELSE
+!       ALLOCATE(new_data(SIZE(matrix%data)), stat=stat)
+!    ENDIF
+!    IF (stat /= 0) CALL stop_memory(routineN, "new_data", SIZE(matrix%data))
+!    CALL dbcsr_sort_data(matrix%blk_p, matrix%blk_p, sizes,&
+!         new_data, matrix%data, error=error)
+!    IF (matrix%special_memory) THEN
+!       CALL mp_deallocate(matrix%data)
+!    ELSE
+!       DEALLOCATE(matrix%data)
+!    ENDIF
+!    matrix%data => new_data
+!    DEALLOCATE(sizes)
+!    CALL timestop(timing_handle)
+!  END SUBROUTINE dbcsr_order
 
 
 ! *****************************************************************************
@@ -2863,14 +2995,12 @@ CONTAINS
 !> \param[in,out] col_i       column indices
 !> \param[in,out] blk_p       (optional) block pointers
 !> \param[in,out] blk_d       (optional) data storage
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_sort_indices(n, row_i, col_i, blk_p, blk_d, error)
+  SUBROUTINE dbcsr_sort_indices(n, row_i, col_i, blk_p, blk_d)
     INTEGER, INTENT(IN)                      :: n
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: row_i, col_i
     INTEGER, DIMENSION(:), INTENT(INOUT), &
       OPTIONAL                               :: blk_p, blk_d
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_indices', &
       routineP = moduleN//':'//routineN
@@ -2883,11 +3013,11 @@ CONTAINS
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     CALL cp_assert(SIZE(row_i).GE.n, cp_failure_level,&
-         cp_caller_error, routineP, 'row_i too small', error=error)
+         cp_caller_error, routineP, 'row_i too small')
     CALL cp_assert(SIZE(col_i).GE.n, cp_failure_level,&
-         cp_caller_error, routineP, 'col_i too small', error=error)
+         cp_caller_error, routineP, 'col_i too small')
     IF (PRESENT (blk_p)) CALL cp_assert(SIZE(blk_p).GE.n, cp_failure_level,&
-         cp_caller_error, routineP, 'blk_p too small', error=error)
+         cp_caller_error, routineP, 'blk_p too small')
     IF (PRESENT (blk_p)) THEN
        ALLOCATE(buf(n), stat=stat)
        IF (stat /= 0) CALL stop_memory(routineP, 'buf', n)
@@ -2923,7 +3053,35 @@ CONTAINS
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_sort_indices
 
+! *****************************************************************************
+!> \brief Sorts all work matrices.
+!> \param[in,out] matrix      sort work matrices in this matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_sort_many_indices(matrix)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_many_indices', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, timing_handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    DO i = 1, SIZE (matrix%wms)
+       CALL dbcsr_sort_indices (matrix%wms(i)%lastblk, matrix%wms(i)%row_i,&
+            matrix%wms(i)%col_i, matrix%wms(i)%blk_p)
+    ENDDO
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_sort_many_indices
+
+
+! *****************************************************************************
+!> \brief Calculates explicit sizes for all data blocks.
+!> \param[out] sizes          sizes of all data blocks
+!> \param[in] row_p, col_i    index structure
+!> \param[in] rbs, cbs        row block sizes and column block sizes
+! *****************************************************************************
   SUBROUTINE calc_blk_sizes(sizes, row_p, col_i, rbs, cbs)
     INTEGER, DIMENSION(:), INTENT(OUT)       :: sizes
     INTEGER, DIMENSION(:), INTENT(IN)        :: row_p, col_i, rbs, cbs
@@ -2955,13 +3113,13 @@ CONTAINS
 !> \param[in] blk_d           (optional) mapping from blocks to source areas
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_sort_data(blk_p, old_blk_p, sizes, dst, src,&
+  SUBROUTINE dbcsr_sort_data(blk_p, old_blk_p, sizes, dsts, src,&
        srcs, old_blk_d, error)
     INTEGER, DIMENSION(:), INTENT(OUT)       :: blk_p
     INTEGER, DIMENSION(:), INTENT(IN)        :: old_blk_p, sizes
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: dst
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dsts
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: src
-    TYPE(dbcsr_data), DIMENSION(:), &
+    TYPE(dbcsr_data_obj), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: srcs
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: old_blk_d
@@ -2980,7 +3138,7 @@ CONTAINS
     multidata = PRESENT (srcs) .AND. PRESENT (old_blk_d)
     nblks = SIZE(old_blk_p)
     DBG 'blk sizes', SIZE(blk_p), nblks
-    DBG 'data sizes', SIZE(dst), SIZE(src)
+    DBG 'dst data sizes', dbcsr_get_data_size(dsts)
     CALL cp_assert(SIZE(blk_p).GE.nblks, cp_failure_level,&
          cp_wrong_args_error, routineN, 'Destination blk_p too small.', error)
     ! If the source is deliberately bigger, we don't want any warnings.
@@ -2998,12 +3156,18 @@ CONTAINS
        !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(i)
        DO i = 1, nblks
           IF (.NOT. multidata) THEN
-             dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
-                  src(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
+             CALL dbcsr_data_set (dsts,&
+                  ABS(blk_p(i)), sizes(i),&
+                  src, source_lb=ABS(old_blk_p(i)))
+             !dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
+             !     src(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
           ELSE
-             dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
-                  srcs(old_blk_d(i))&
-                  %r(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
+             CALL dbcsr_data_set (dsts,&
+                  ABS(blk_p(i)), sizes(i),&
+                  srcs(old_blk_d(i)), source_lb=ABS(old_blk_p(i)))
+             !dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
+             !     srcs(old_blk_d(i))%d&
+             !     %r_dp(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
           ENDIF
        ENDDO
        !$OMP END PARALLEL DO
@@ -3054,8 +3218,8 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(OUT)       :: blk_p
     INTEGER, DIMENSION(:), INTENT(IN)        :: old_blk_p, row_p, col_i, rbs, &
                                                 cbs
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: dst
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: src
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: src
     LOGICAL, INTENT(IN), OPTIONAL            :: mark_transposed, &
                                                 transpose_blocks
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -3080,8 +3244,8 @@ CONTAINS
     nrows = SIZE (row_p)-1
     CALL cp_assert(SIZE(blk_p).GE.nblks, cp_failure_level,&
          cp_wrong_args_error, routineN, 'Destination blk_p too small.', error)
-    CALL cp_assert(SIZE(dst).GE.SIZE(src), cp_warning_level,&
-         cp_wrong_args_error, routineN,&
+    CALL cp_assert(dbcsr_get_data_size(dst).GE.dbcsr_get_data_size(src),&
+         cp_warning_level, cp_wrong_args_error, routineN,&
          'Destination data space may be too small.',&
          error)
     IF (nblks .GE. 1) &
@@ -3097,18 +3261,116 @@ CONTAINS
                   mark)
           ENDIF
           IF (.NOT. trb) THEN
-             dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1) =&
-                  src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1)
+             CALL dbcsr_data_set (dst, ABS(blk_p(blk)), nze,&
+                  src, source_lb=ABS(old_blk_p(blk)))
+             !dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1) =&
+             !     src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1)
           ELSE
-             CALL dbcsr_block_transpose (&
-                  dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1),&
-                  src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1),&
-                  row_size, col_size)
+             CALL dbcsr_block_transpose (dst, src, ABS(blk_p(blk)),&
+                  row_size, col_size, ABS(old_blk_p(blk)))
+             !CALL dbcsr_block_transpose (&
+             !     dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1),&
+             !     src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1),&
+             !     row_size, col_size)
           ENDIF
           nze_prev = nze
        ENDDO
     ENDDO
   END SUBROUTINE dbcsr_copy_sort_data
+
+
+! *****************************************************************************
+!> \brief Merge data from sorted work matrices indices into the final matrix.
+!>
+!> \param[in,out] matrix      matrix to work on
+! *****************************************************************************
+  SUBROUTINE dbcsr_merge_data(matrix)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_merge_data', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, blk_p, i, nwms, nze, &
+                                                o_blk_p, prev_row, row, &
+                                                smallest, smallest_col, &
+                                                smallest_row
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: wm_blk_p
+    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: finished
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    rbs => array_data (dbcsr_row_block_sizes (matrix))
+    cbs => array_data (dbcsr_col_block_sizes (matrix))
+    nwms = SIZE (matrix%wms)
+    ALLOCATE (wm_blk_p(nwms), finished(nwms))
+    wm_blk_p(:) = 1
+    FORALL (i = 1:nwms)
+       finished(i) = wm_blk_p(i) .GT. matrix%wms(i)%lastblk
+    END FORALL
+    IF (dbg) THEN
+       DO i = 1, nwms
+          WRITE(*,'(A,1X,I4,1X,A,2(1X,I7))')routineN//" size of wm",i,"is",&
+               matrix%wms(i)%datasize,&
+               dbcsr_get_data_size (matrix%wms(i)%data_area)
+          WRITE(*,'(A)')routineP//'row_i='
+          WRITE(*,'(10(1X,I7))')matrix%wms(i)%row_i(:)
+          WRITE(*,'(A)')routineP//'col_i='
+          WRITE(*,'(10(1X,I7))')matrix%wms(i)%col_i(:)
+          WRITE(*,'(A)')routineP//'blk_p='
+          WRITE(*,'(10(1X,I7))')matrix%wms(i)%blk_p(:)
+       ENDDO
+    ENDIF
+    matrix%row_p(:) = -1
+    matrix%row_p(1) = 0
+    blk_p = 1
+    blk = 1
+    row = 1
+    prev_row = 1
+    DO WHILE (.NOT. ALL (finished))
+       ! Find the (still-valid) source block that has the smallest column in
+       ! the smallest row.
+       smallest = MINLOC (wm_blk_p, 1, .NOT.finished)
+       smallest_row = matrix%wms(smallest)%row_i(wm_blk_p(smallest))
+       smallest_col = matrix%wms(smallest)%col_i(wm_blk_p(smallest))
+       DO i = 2, nwms
+          IF (.NOT. finished(i)) THEN
+             IF (matrix%wms(i)%row_i(wm_blk_p(i)) .LE. smallest_row) THEN
+                IF (matrix%wms(i)%col_i(wm_blk_p(i)) .LT. smallest_col) THEN
+                   smallest = i
+                ENDIF
+             ENDIF
+          ENDIF
+       ENDDO
+       matrix%col_i(blk) = smallest_col
+       o_blk_p = matrix%wms(smallest)%blk_p(wm_blk_p(smallest))
+       IF (dbg) THEN
+          WRITE(*,'(A,"(",I5,",",I5,") at ",I7,1X,A,I5,1X,I7)')&
+               routineN//" Adding",&
+               smallest_row, smallest_col, blk_p, "from",smallest, o_blk_p
+       END IF
+       matrix%blk_p(blk) = SIGN (blk_p, o_blk_p)
+       nze = rbs(smallest_row) * cbs(smallest_col)
+       CALL dbcsr_data_set (matrix%data_area, ABS(blk_p), nze,&
+            matrix%wms(smallest)%data_area, ABS(o_blk_p))
+       IF (smallest_row .GT. prev_row) THEN
+          matrix%row_p(prev_row+1:smallest_row) = blk-1
+          IF (dbg) WRITE(*,'(15(1X,I4))')matrix%row_p(:)
+       ENDIF
+       prev_row = smallest_row
+       blk = blk + 1
+       blk_p = blk_p + nze
+       wm_blk_p(smallest) = wm_blk_p(smallest)+1
+       finished(smallest) = wm_blk_p(smallest) .GT. matrix%wms(smallest)%lastblk
+    ENDDO
+    matrix%row_p(smallest_row+1:matrix%nblkrows_total+1) = blk-1
+    CALL cp_assert (blk_p-1 .EQ. matrix%nze, cp_warning_level,&
+         cp_internal_error, routineN, "Data length mismatch.")
+    IF (dbg) WRITE(*,*)routineP//'row_p=',matrix%row_p(:)
+    IF (dbg) WRITE(*,*)routineP//'col_i=',matrix%col_i(:)
+    IF (dbg) WRITE(*,*)routineP//'blk_p=',matrix%blk_p(:)
+  END SUBROUTINE dbcsr_merge_data
 
 
 
@@ -3177,6 +3439,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER :: blk, blk_l, blk_p, col, dst_p, mp_group, nsymmetries, numproc, &
       nze, pcol, prow, row, row_images, row_img, src_p, stored_col, &
       stored_row, symmetry_i, timing_handle
@@ -3196,6 +3460,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
     TYPE(dbcsr_distribution_obj)             :: target_dist
     TYPE(dbcsr_mp_obj)                       :: mp_obj
 
@@ -3214,6 +3480,19 @@ CONTAINS
           nsymmetries = 2
        ENDIF
     ENDIF
+    SELECT CASE (sm%data_type)
+    CASE ('R')
+       CALL dbcsr_get_data (sm%data_area, r_dp)
+    CASE ('r')
+       CALL dbcsr_get_data (sm%data_area, r_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE ('C')
+       CALL dbcsr_get_data (sm%data_area, c_dp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE ('c')
+       CALL dbcsr_get_data (sm%data_area, c_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    END SELECT
     row_blk_size => array_data (sm%row_blk_size)
     col_blk_size => array_data (sm%col_blk_size)
     target_dist = target_imgdist%main
@@ -3267,7 +3546,7 @@ CONTAINS
        CALL dbcsr_init (ums%mats(row_img), error)
        CALL dbcsr_create(ums%mats(row_img), 'norm '//sm%name, sm%dist,&
             'N', sm%row_blk_size, sm%col_blk_size,&
-            0, 0, error=error, special=.TRUE.)
+            0, 0, 'R', error=error, special=.TRUE.)
     ENDDO
     ! Count initial sizes for sending.
     DBG 'A'
@@ -3369,11 +3648,15 @@ CONTAINS
              DBG stored_row, stored_col, blk_p, tr, nze
              IF (.NOT. tr) THEN
                 send_data(sdp(row_img, dst_p):sdp(row_img, dst_p)+nze-1) =&
-                     sm%data(blk_p:blk_p+nze-1)
+                     r_dp(blk_p:blk_p+nze-1)
+                !send_data(sdp(row_img, dst_p):sdp(row_img, dst_p)+nze-1) =&
+                !     sm%data(blk_p:blk_p+nze-1)                
              ELSE
                 send_meta(smp(row_img, dst_p)) = -stored_row
                 send_data(sdp(row_img, dst_p):sdp(row_img, dst_p)+nze-1) =&
-                     sm%data(blk_p:blk_p+nze-1)
+                     r_dp(blk_p:blk_p+nze-1)
+                !send_data(sdp(row_img, dst_p):sdp(row_img, dst_p)+nze-1) =&
+                !     sm%data(blk_p:blk_p+nze-1)
              ENDIF
              smp(row_img, dst_p) = smp(row_img, dst_p) + metalen
              sdp(row_img, dst_p) = sdp(row_img, dst_p) + nze
@@ -3412,8 +3695,11 @@ CONTAINS
        !               rd_disp(src_p)+recv_count(2,src_p)-1)
        DO row_img = 1, row_images
           nze = recv_count(2, row_img, src_p)
-          ums%mats(row_img)%w%data(blk_ps(row_img):blk_ps(row_img)+nze-1) =&
-               recv_data(rd_disp(row_img, src_p):rd_disp(row_img, src_p)+nze-1)
+          CALL dbcsr_data_set (ums%mats(row_img)%wms(1)%data_area,&
+               blk_ps(row_img), nze,&
+               recv_data, rd_disp(row_img, src_p))
+          !ums%mats(row_img)%wms(1)%data(blk_ps(row_img):blk_ps(row_img)+nze-1) =&
+          !     recv_data(rd_disp(row_img, src_p):rd_disp(row_img, src_p)+nze-1)
           DBG 'processing from',src_p,'counts',send_count(1, :, src_p)
           DO blk_l = 1, recv_count(1, row_img, src_p)
              stored_row = recv_meta(rm_disp(row_img,src_p)+metalen*(blk_l-1))
@@ -3426,9 +3712,9 @@ CONTAINS
                   '; blk_ps',blk_ps,'; row_rep, imgdist',row_img,&
                   row_img_dist (ABS (stored_row))
              !row_rep = row_rep_dist (ABS(stored_row))
-             ums%mats(row_img)%w%row_i(blks(row_img)) = ABS(stored_row)
-             ums%mats(row_img)%w%col_i(blks(row_img)) = stored_col
-             ums%mats(row_img)%w%blk_p(blks(row_img)) =&
+             ums%mats(row_img)%wms(1)%row_i(blks(row_img)) = ABS(stored_row)
+             ums%mats(row_img)%wms(1)%col_i(blks(row_img)) = stored_col
+             ums%mats(row_img)%wms(1)%blk_p(blks(row_img)) =&
                   SIGN(blk_ps(row_img), stored_row)
              nze = row_blk_size(ABS(stored_row))&
                   * col_blk_size(stored_col)
@@ -3441,8 +3727,8 @@ CONTAINS
     ENDDO
     !
     DO row_img = 1, row_images
-       ums%mats(row_img)%w%lastblk = blks(row_img) - 1
-       ums%mats(row_img)%w%datasize = blk_ps(row_img) - 1
+       ums%mats(row_img)%wms(1)%lastblk = blks(row_img) - 1
+       ums%mats(row_img)%wms(1)%datasize = blk_ps(row_img) - 1
        DBG 'Finalizing normalization'
        CALL dbcsr_finalize(ums%mats(row_img),&
             resort=.TRUE., reshuffle=.TRUE.,&
@@ -3529,7 +3815,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
-    INTEGER :: blk, blk_l, blk_p, col, col_images, col_img, data_p, dst_p, &
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: c_sp
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: c_dp
+    INTEGER :: blk, blk_l, blk_p, col, col_images, col_img, data_p, dst_p, i, &
       ithread, mp_group, nsymmetries, nthreads, numproc, nze, pcol, &
       prev_blk_p, prev_dst_p, prow, row, row_l, sd_pos, sm_pos, src_p, &
       stored_col, stored_row, symmetry_i, timing_handle
@@ -3549,8 +3839,10 @@ CONTAINS
     LOGICAL                                  :: same_dst_p, tr
     REAL(KIND=dp)                            :: tstart, tstop
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: recv_data
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
+    TYPE(dbcsr_data_obj)                     :: received_data_area
     TYPE(dbcsr_distribution_obj)             :: target_dist
     TYPE(dbcsr_mp_obj)                       :: mp_obj
 
@@ -3566,6 +3858,19 @@ CONTAINS
           nsymmetries = 2
        ENDIF
     ENDIF
+    SELECT CASE (sm%data_type)
+    CASE ('R')
+       CALL dbcsr_get_data (sm%data_area, r_dp)
+    CASE ('r')
+       CALL dbcsr_get_data (sm%data_area, r_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE ('C')
+       CALL dbcsr_get_data (sm%data_area, c_dp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE ('c')
+       CALL dbcsr_get_data (sm%data_area, c_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    END SELECT
     row_blk_size => array_data (sm%row_blk_size)
     col_blk_size => array_data (sm%col_blk_size)
     target_dist = target_imgdist%main
@@ -3634,7 +3939,8 @@ CONTAINS
     !$OMP                 recv_data, recv_meta, send_data, send_meta,&
     !$OMP                 total_send_count, total_recv_count,&
     !$OMP                 sd_disp, sm_disp, rd_disp, rm_disp, sdp, smp,&
-    !$OMP                 blk_ps, blks, data_p)
+    !$OMP                 blk_ps, blks, data_p, received_data_area,&
+    !$OMP                 r_sp, r_dp, c_sp, c_dp)
     ithread = 0
     !$OMP SINGLE
     nthreads = 1
@@ -3647,7 +3953,7 @@ CONTAINS
        CALL dbcsr_init (ums%mats(col_img), error)
        CALL dbcsr_create(ums%mats(col_img), 'col imaged'//sm%name, sm%dist,&
             'N', sm%row_blk_size, sm%col_blk_size,&
-            0, 0, error=error, special=.TRUE.)
+            0, 0, 'R', error=error, special=.TRUE.)
     ENDDO
     !$OMP END DO NOWAIT
     !$OMP WORKSHARE
@@ -3760,18 +4066,26 @@ CONTAINS
     !$OMP SECTION
     ! Prepares the work matrices used in the last DO loop. Placed
     ! early.
+    CALL cp_assert (sm%data_type .EQ. 'R', cp_fatal_level,&
+         cp_unimplemented_error_nr, routineN, "Only real double support.")
+    CALL dbcsr_data_init (received_data_area)
+    CALL dbcsr_data_new (received_data_area, sm%data_type)
+    ! This is an ugly cuckoo.
+    CALL dbcsr_data_set_pointer (received_data_area, recv_data)
+    !received_data_area%d%r_dp => recv_data
     DO col_img = 1, col_images
        CALL dbcsr_work_create(ums%mats(col_img),&
-            SUM(recv_count(1,col_img,:)),&
-            0, error=error)
-       ! We point to the received data, not copy it.
-       DEALLOCATE (ums%mats(col_img)%w%data)
-       ums%mats(col_img)%w%data => recv_data
+            SUM(recv_count(1,col_img,:)), error=error)
+       CALL dbcsr_data_release (ums%mats(col_img)%wms(1)%data_area)
+       CALL dbcsr_data_hold (received_data_area)
+       ! Since the work matrix data area has no allocations, it can be
+       ! overwritten.
+       ums%mats(col_img)%wms(1)%data_area = received_data_area
     ENDDO
     !$OMP END SECTIONS
     ALLOCATE (lsmp(0:numproc-1), lsdp(0:numproc-1))
     prev_dst_p = -1
-    ! Copies metadata and actual data to be send into the send buffers.
+    ! Copies metadata and actual data to be sent into the send buffers.
     !$OMP DO
     DO row_l = 1, sm%nblkrows_local
        row = stored_local_rows(row_l)
@@ -3805,7 +4119,9 @@ CONTAINS
                 sd_pos = lsdp(dst_p)
                 lsdp(dst_p) = lsdp(dst_p) + nze
                 send_data(sd_pos:sd_pos+nze-1) =&
-                     sm%data(blk_p:blk_p+nze-1)
+                     r_dp(blk_p:blk_p+nze-1)
+                !send_data(sd_pos:sd_pos+nze-1) =&
+                !     sm%data(blk_p:blk_p+nze-1)
                 send_meta(sm_pos+1) = stored_col
              ELSE
                 send_meta(sm_pos+1) = -stored_col
@@ -3843,9 +4159,9 @@ CONTAINS
           ELSE
              blk_p = prev_blk_p
           ENDIF
-          ums%mats(col_img)%w%row_i(blk) = ABS(stored_row)
-          ums%mats(col_img)%w%col_i(blk) = ABS(stored_col)
-          ums%mats(col_img)%w%blk_p(blk) =&
+          ums%mats(col_img)%wms(1)%row_i(blk) = ABS(stored_row)
+          ums%mats(col_img)%wms(1)%col_i(blk) = ABS(stored_col)
+          ums%mats(col_img)%wms(1)%blk_p(blk) =&
                SIGN(rd_disp(src_p) + blk_p, stored_row)
           prev_blk_p = blk_p
        ENDDO
@@ -3854,8 +4170,8 @@ CONTAINS
     ! Finalize the actual imaged matrices from the work matrices.
     !$OMP DO
     DO col_img = 1, col_images
-       ums%mats(col_img)%w%lastblk = blks(col_img) - 1
-       ums%mats(col_img)%w%datasize = blk_ps(col_img) - 1
+       ums%mats(col_img)%wms(1)%lastblk = blks(col_img) - 1
+       ums%mats(col_img)%wms(1)%datasize = blk_ps(col_img) - 1
        CALL dbcsr_finalize(ums%mats(col_img),&
             resort=.TRUE., reshuffle=.TRUE., keepdata=.TRUE.,&
             error=error)
@@ -3872,6 +4188,9 @@ CONTAINS
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
+    ! Get rid of the cuckoo.
+    NULLIFY (received_data_area%d%r_dp)
+    CALL dbcsr_data_release (received_data_area)
     tstop = m_walltime ()
     !WRITE(*,'(1X,A,1X,EN12.4)')'make_column_images time:',tstop-tstart
     DBG 'ums(1) name',ums%mats(1)%name
@@ -3897,6 +4216,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, dst_p, mp_group, &
       nsymmetries, numproc, nze, pcol, prow, row, src_p, stored_col, &
       stored_row, symmetry_i, timing_handle
@@ -3914,6 +4235,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
     TYPE(dbcsr_distribution_obj)             :: target_dist
     TYPE(dbcsr_mp_obj)                       :: mp_obj
 
@@ -3926,6 +4249,19 @@ CONTAINS
     IF (sm%matrix_type .EQ. 'S' .OR. sm%matrix_type .EQ. 'A') THEN
        nsymmetries = 2
     ENDIF
+    SELECT CASE (sm%data_type)
+    CASE ('R')
+       CALL dbcsr_get_data (sm%data_area, r_dp)
+    CASE ('r')
+       CALL dbcsr_get_data (sm%data_area, r_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE ('C')
+       CALL dbcsr_get_data (sm%data_area, c_dp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE ('c')
+       CALL dbcsr_get_data (sm%data_area, c_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    END SELECT
     row_blk_size => array_data (sm%row_blk_size)
     col_blk_size => array_data (sm%col_blk_size)
     target_dist = sm%dist
@@ -3971,7 +4307,7 @@ CONTAINS
     CALL dbcsr_init (desm, error)
     CALL dbcsr_create(desm, 'desym '//sm%name, sm%dist,&
          'N', sm%row_blk_size, sm%col_blk_size,&
-         0, 0, error=error, special=sm%special_memory)
+         0, 0, 'R', error=error, special=sm%special_memory)
     ! Count initial sizes for sending.
     DBG 'A'
     send_count(:,:) = 0
@@ -4064,11 +4400,15 @@ CONTAINS
              DBG stored_row, stored_col, blk_p, tr, nze
              IF (.NOT. tr) THEN
                 send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                     sm%data(blk_p:blk_p+nze-1)
+                     r_dp(blk_p:blk_p+nze-1)
+                !send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+                !     sm%data(blk_p:blk_p+nze-1)
              ELSE
                 send_meta(smp(dst_p)) = -stored_row
                 send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                     sm%data(blk_p:blk_p+nze-1)
+                     r_dp(blk_p:blk_p+nze-1)
+                !send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+                !     sm%data(blk_p:blk_p+nze-1)
              ENDIF
              smp(dst_p) = smp(dst_p) + metalen
              sdp(dst_p) = sdp(dst_p) + nze
@@ -4102,8 +4442,10 @@ CONTAINS
        !     recv_data(rd_disp(src_p) :&
        !               rd_disp(src_p)+recv_count(2,src_p)-1)
        nze = recv_count(2, src_p)
-       desm%w%data(blk_ps:blk_ps+nze-1) =&
-            recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
+       CALL dbcsr_data_set (desm%wms(1)%data_area, blk_ps, nze,&
+            recv_data, rd_disp(src_p))
+       !desm%w%data(blk_ps:blk_ps+nze-1) =&
+       !     recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
        DBG 'processing from',src_p,'counts',send_count(1, src_p)
        DO blk_l = 1, recv_count(1, src_p)
           stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
@@ -4115,9 +4457,9 @@ CONTAINS
                stored_row,stored_col,&
                '; blk_ps',blk_ps
           !row_rep = row_rep_dist (ABS(stored_row))
-          desm%w%row_i(blks) = ABS(stored_row)
-          desm%w%col_i(blks) = stored_col
-          desm%w%blk_p(blks) = SIGN(blk_ps, stored_row)
+          desm%wms(1)%row_i(blks) = ABS(stored_row)
+          desm%wms(1)%col_i(blks) = stored_col
+          desm%wms(1)%blk_p(blks) = SIGN(blk_ps, stored_row)
           nze = row_blk_size(ABS(stored_row))&
                * col_blk_size(stored_col)
           !blk_p = blk_p + nze
@@ -4127,8 +4469,8 @@ CONTAINS
        ENDDO
     ENDDO
     !
-    desm%w%lastblk = blks - 1
-    desm%w%datasize = blk_ps - 1
+    desm%wms(1)%lastblk = blks - 1
+    desm%wms(1)%datasize = blk_ps - 1
     DBG 'Finalizing normalization'
     CALL dbcsr_finalize(desm, resort=.TRUE., reshuffle=.TRUE., error=error)
     tstop = m_walltime ()
@@ -4269,7 +4611,7 @@ CONTAINS
             'to',ub_t
        !CALL reallocate(to, lb_t, ub_t)
        CALL ensure_array_size(to, lb_t, ub_t, factor=1.0, nocopy=.FALSE.,&
-            special=spec, error=error)
+            special=spec)
     ENDIF
     to(start:last) = from(:)
     CALL timestop(timing_handle)
@@ -4293,7 +4635,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ub
     REAL, INTENT(IN), OPTIONAL               :: factor
     LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, special
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_i', &
       routineP = moduleN//':'//routineN
@@ -4323,7 +4666,9 @@ CONTAINS
        !CPPrecondition(.NOT.docopy, cp_warning_level, routineP, error, failure)
        failure = .TRUE.
        IF (spec) THEN
-          CPPostcondition(lb_new.EQ.1, cp_warning_level, routineP, error, failure)
+          CALL cp_assert (lb_new.EQ.1, cp_warning_level,&
+               cp_internal_error,&
+               routineN, "Special memory can only start at 1.")
           CALL mp_allocate(array, ub-lb_new+1, stat=stat)
        ELSE
           ALLOCATE(array(lb_new:ub), stat=stat)
@@ -4364,7 +4709,9 @@ CONTAINS
        ENDIF
     ENDIF
     IF (spec) THEN
-       CPPostcondition(lb.EQ.1, cp_warning_level, routineP, error, failure)
+       CALL cp_assert (lb_new.EQ.1,&
+            cp_warning_level, cp_internal_error,&
+            routineN, "Special memory can only start at 1.")
        CALL mp_allocate(newarray, ub_new-lb_new+1, stat=stat)
     ELSE
        ALLOCATE(newarray(lb_new:ub_new), stat=stat)
@@ -4373,7 +4720,7 @@ CONTAINS
     IF(docopy) THEN
        IF(dbg) CALL cp_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             cp_failure_level, cp_internal_error, routineP,&
-            'Old extent exceeds the new one.', error, failure)
+            "Old extent exceeds the new one.")
        newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
        IF (spec) THEN
           CALL mp_deallocate(array)
@@ -4462,7 +4809,7 @@ CONTAINS
     IF(docopy) THEN
        IF(dbg) CALL cp_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             cp_failure_level, cp_internal_error, routineP,&
-            'Old extent exceeds the new one.', error, failure)
+            "Old extent exceeds the new one.")
        newarray(lb_orig:ub_orig,:) = array(lb_orig:ub_orig,:)
        DEALLOCATE(array)
     END IF
@@ -4517,147 +4864,117 @@ CONTAINS
   END SUBROUTINE add_work_coordinate
 
 
+!! *****************************************************************************
+!!> \brief Ensures that the data array is appropriately large.
+!!> \param[in,out] matrix      ensure data size of this matrix
+!!> \param[in] size            desired data size
+!!> \param[in] factor          (optional) factor by which to exagerrate
+!!>                            enlargements, default is no exagerration
+!!> \param[in] nocopy          (optional) copy array on enlargement; default
+!!>                            is to copy
+!!> \param error     cp2k error
+!! *****************************************************************************
+!  SUBROUTINE dbcsr_ensure_data_size (matrix, size, factor, nocopy, error)
+!    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+!    INTEGER, INTENT(IN)                      :: size
+!    REAL, INTENT(IN), OPTIONAL               :: factor
+!    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy
+!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+!
+!    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ensure_data_size', &
+!      routineP = moduleN//':'//routineN
+!
+!!   ---------------------------------------------------------------------------
+!
+!    CALL ensure_array_size (matrix%data, ub=size, factor=factor, nocopy=nocopy,&
+!         special=matrix%special_memory, error=error)
+!    SELECT CASE (matrix%data_type)
+!    CASE ('R')
+!       CALL ensure_array_size (matrix%data_area%d%r_dp,&
+!            ub=size, factor=factor, nocopy=nocopy,&
+!            special=matrix%data_area%d%special, error=error)
+!    END SELECT
+!  END SUBROUTINE dbcsr_ensure_data_size
+
+
 ! *****************************************************************************
-!> \brief Ensures that the data array is appropriately large.
-!> \param[in,out] matrix      ensure data size of this matrix
-!> \param[in] size            desired data size
-!> \param[in] factor          (optional) factor by which to exagerrate
-!>                            enlargements, default is no exagerration
-!> \param[in] nocopy          (optional) copy array on enlargement; default
-!>                            is to copy
-!> \param error     cp2k error
+!> \brief Ensures a minimum size of a previously-setup data area.
+!>
+!> The data area must have been previously setup with dbcsr_data_new.
+!> \param[inout] area         data area
+!> \param[in] data_size       (optional) allocate this much data
+!> \param[in] nocopy          (optional) do not keep potentially existing data,
+!>                            default is to keep it
 ! *****************************************************************************
-  SUBROUTINE dbcsr_ensure_data_size (matrix, size, factor, nocopy, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    INTEGER, INTENT(IN)                      :: size
-    REAL, INTENT(IN), OPTIONAL               :: factor
+  SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN), OPTIONAL            :: data_size
     LOGICAL, INTENT(IN), OPTIONAL            :: nocopy
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ensure_data_size', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: current_size
+    LOGICAL                                  :: nocp
 
 !   ---------------------------------------------------------------------------
 
-    CALL ensure_array_size (matrix%data, ub=size, factor=factor, nocopy=nocopy,&
-         special=matrix%special_memory, error=error)
-  END SUBROUTINE dbcsr_ensure_data_size
-
-
-! *****************************************************************************
-!> \brief Ensures that an array is appropriately large.
-!> \param[in,out] array       array to verify and possibly resize
-!> \param[in] lb    (optional) desired array lower bound
-!> \param[in] ub    desired array upper bound
-!> \param[in] factor          (optional) factor by which to exagerrate
-!>                            enlargements
-!> \param[in] nocopy          (optional) copy array on enlargement; default
-!>                            is to copy
-!> \param error     cp2k error
-! *****************************************************************************
-  SUBROUTINE ensure_array_size_d(array, lb, ub, factor, nocopy, special, error)
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: array
-    INTEGER, INTENT(IN), OPTIONAL            :: lb
-    INTEGER, INTENT(IN)                      :: ub
-    REAL, INTENT(IN), OPTIONAL               :: factor
-    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, special
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: lb_new, lb_orig, stat, &
-                                                ub_new, ub_orig
-    LOGICAL                                  :: dbg, docopy = .TRUE., &
-                                                failure = .TRUE., info, spec
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: newarray
-
-!   ---------------------------------------------------------------------------
-
-    dbg = .FALSE.
-    info = .FALSE.
-    CALL dbcsr_set_debug(dbg, info=info)
-
-    docopy = .TRUE.
-    IF (PRESENT (nocopy)) docopy = .NOT. nocopy
-    spec = .FALSE.
-    IF (PRESENT (special)) spec = special
-    lb_new = 1
-    IF (PRESENT (lb)) lb_new = lb
-    !> Creates a new array if it doesn't yet exist.
-    IF (.NOT.ASSOCIATED(array)) THEN
-       !CALL timeset(routineN,timing_handle)
-       failure = .FALSE.
-       !CPPrecondition(.NOT.docopy, cp_warning_level, routineP, error, failure)
-       !failure = .TRUE.
-       IF (spec) THEN
-          CPPostcondition(lb_new.EQ.1, cp_warning_level, routineP, error, failure)
-          CALL mp_allocate(array, ub-lb_new+1, stat=stat)
+    CALL cp_assert(ASSOCIATED (area%d), cp_fatal_level, cp_caller_error,&
+         routineN, "Data area must be setup.")
+    current_size = dbcsr_get_data_size (area)
+    IF (current_size .GT. data_size) RETURN
+    nocp = .FALSE.
+    IF (PRESENT (nocopy)) nocp = nocopy
+    SELECT CASE (area%d%data_type)
+    CASE ('R')
+       IF (.NOT. ASSOCIATED (area%d%r_dp)) THEN
+          IF (area%d%special) THEN
+             CALL mp_allocate (area%d%r_dp, data_size)
+          ELSE
+             ALLOCATE (area%d%r_dp(data_size))
+          ENDIF
        ELSE
-          ALLOCATE(array(lb_new:ub), stat=stat)
+          CALL ensure_array_size (area%d%r_dp, ub=data_size,&
+               special=area%d%special, nocopy=nocp)
        ENDIF
-       IF (stat /= 0) CALL stop_memory(routineP, 'array', ub-lb+1)
-       !CALL timestop(timing_handle)
-       RETURN
-    ENDIF
-    lb_orig = LBOUND(array,1)
-    ub_orig = UBOUND(array,1)
-    IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig,&
-         '; special?',spec
-    ! The existing array is big enough.
-    IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
-       RETURN
-    ENDIF
-    ! A reallocation must be performed
-    !CALL timeset(routineN,timing_handle)
-    IF (lb_orig.GT.lb_new) THEN
-       IF (PRESENT(factor)) THEN
-          lb_new = MIN(lb_orig, lb_new - NINT(REAL(lb_orig - lb_new)*factor))
-       ENDIF
-    ENDIF
-    IF (ub_orig.LT.ub) THEN
-       IF (PRESENT(factor)) THEN
-          ub_new = MAX(ub_orig, ub + NINT(REAL(ub-ub_orig)*factor))
+    CASE ('r')
+       IF (.NOT. ASSOCIATED (area%d%r_sp)) THEN
+          IF (area%d%special) THEN
+             CALL mp_allocate (area%d%r_sp, data_size)
+          ELSE
+             ALLOCATE (area%d%r_sp(data_size))
+          ENDIF
        ELSE
-          ub_new = ub
+          CALL ensure_array_size (area%d%r_sp, ub=data_size,&
+               special=area%d%special, nocopy=nocp)
        ENDIF
-    ELSE
-       ub_new = ub
-    ENDIF
-    IF(dbg) WRITE(*,*)routineP//' Resizing to bounds',lb_new,':',ub_new
-    IF(.NOT.docopy) THEN
-       IF (spec) THEN
-          CALL mp_deallocate(array)
+    CASE ('C')
+       IF (.NOT. ASSOCIATED (area%d%c_dp)) THEN
+          IF (area%d%special) THEN
+             CALL mp_allocate (area%d%c_dp, data_size)
+          ELSE
+             ALLOCATE (area%d%c_dp(data_size))
+          ENDIF
        ELSE
-          DEALLOCATE(array)
+          CALL ensure_array_size (area%d%c_dp, ub=data_size,&
+               special=area%d%special, nocopy=nocp)
        ENDIF
-    ENDIF
-    IF (spec) THEN
-       CPPostcondition(lb.EQ.1, cp_warning_level, routineP, error, failure)
-       CALL mp_allocate(newarray, ub_new-lb_new+1, stat=stat)
-    ELSE
-       ALLOCATE(newarray(lb_new:ub_new), stat=stat)
-    ENDIF
-    IF(stat /= 0) CALL stop_memory(routineP, 'newarray', ub_new-lb_new+1)
-    IF(docopy) THEN
-       IF(dbg) CALL cp_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
-            cp_failure_level, cp_internal_error, routineP,&
-            'Old extent exceeds the new one.', error, failure)
-       !IF(dbg) WRITE(*,*)routineP//' Old array',array(lb_orig:ub_orig)
-       newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
-       IF (spec) THEN
-          CALL mp_deallocate(array)
+    CASE ('c')
+       IF (.NOT. ASSOCIATED (area%d%c_sp)) THEN
+          IF (area%d%special) THEN
+             CALL mp_allocate (area%d%c_sp, data_size)
+          ELSE
+             ALLOCATE (area%d%c_sp(data_size))
+          ENDIF
        ELSE
-          DEALLOCATE(array)
+          CALL ensure_array_size (area%d%c_sp, ub=data_size,&
+               special=area%d%special, nocopy=nocp)
        ENDIF
-    END IF
-    array => newarray
-    IF(dbg.AND.bcsr_verbose)&
-         WRITE(*,*)routineP//' New array',array(lb_orig:ub_orig)
-    IF (dbg) WRITE(*,*)routineP//' New array size', SIZE(array)
-    !CALL timestop(timing_handle)
-  END SUBROUTINE ensure_array_size_d
-
+    CASE default
+       CALL cp_unimplemented_error (routineN,&
+            "Currently only double precision reals are supported")
+    END SELECT
+  END SUBROUTINE dbcsr_data_ensure_size
 
 ! *****************************************************************************
 !> \brief Prints the elements of a matrix.
@@ -4666,8 +4983,9 @@ CONTAINS
 !> \param[in] tr    (optional) specifies whether the elements are stored
 !>                  transposed
 ! *****************************************************************************
-  SUBROUTINE dbcsr_printmat(matrix, rows, cols, title, tr)
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: matrix
+  SUBROUTINE printmat_s(matrix, rows, cols, title, tr)
+    REAL(KIND=real_4), DIMENSION(:), &
+      INTENT(IN)                             :: matrix
     INTEGER, INTENT(IN)                      :: rows, cols
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
@@ -4717,7 +5035,73 @@ CONTAINS
           WRITE(*,FMT=f)matrix((r-1)*cols+1:r*cols)
        ENDIF
     ENDDO
-  END SUBROUTINE dbcsr_printmat
+  END SUBROUTINE printmat_s
+
+  SUBROUTINE printmat_d(matrix, rows, cols, title, tr)
+    REAL(KIND=real_8), DIMENSION(:), &
+      INTENT(IN)                             :: matrix
+    INTEGER, INTENT(IN)                      :: rows, cols
+    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+
+    IF (PRESENT (title)) THEN
+       IF (PRESENT (tr)) THEN
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title, tr)
+       ELSE
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title)
+       ENDIF
+    ELSE
+       IF (PRESENT (tr)) THEN
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, tr=tr)
+       ELSE
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols)
+       ENDIF
+    ENDIF
+  END SUBROUTINE printmat_d
+
+  SUBROUTINE printmat_c(matrix, rows, cols, title, tr)
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      INTENT(IN)                             :: matrix
+    INTEGER, INTENT(IN)                      :: rows, cols
+    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+
+    IF (PRESENT (title)) THEN
+       IF (PRESENT (tr)) THEN
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title, tr)
+       ELSE
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title)
+       ENDIF
+    ELSE
+       IF (PRESENT (tr)) THEN
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, tr=tr)
+       ELSE
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols)
+       ENDIF
+    ENDIF
+  END SUBROUTINE printmat_c
+
+  SUBROUTINE printmat_z(matrix, rows, cols, title, tr)
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      INTENT(IN)                             :: matrix
+    INTEGER, INTENT(IN)                      :: rows, cols
+    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+
+    IF (PRESENT (title)) THEN
+       IF (PRESENT (tr)) THEN
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title, tr)
+       ELSE
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, title)
+       ENDIF
+    ELSE
+       IF (PRESENT (tr)) THEN
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols, tr=tr)
+       ELSE
+          CALL printmat_s(REAL(matrix, KIND=sp), rows, cols)
+       ENDIF
+    ENDIF
+  END SUBROUTINE printmat_z
 
 
 ! *****************************************************************************
@@ -4726,7 +5110,7 @@ CONTAINS
 !> the elements are stored transposed
 ! *****************************************************************************
   SUBROUTINE dbcsr_print2dmat(matrix, title, tr)
-    REAL(KIND=dp), DIMENSION(:, :), &
+    REAL(KIND=real_8), DIMENSION(:, :), &
       INTENT(IN)                             :: matrix
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     LOGICAL, INTENT(IN), OPTIONAL            :: tr
@@ -4794,42 +5178,134 @@ CONTAINS
 !> \param[in] rows, columns   Input matrix size
 !> \param error     cp2k error
 ! *****************************************************************************
-  PURE SUBROUTINE dbcsr_block_transpose_inplace(extent, rows, columns)
+  PURE SUBROUTINE block_transpose_inplace(extent, rows, columns)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: extent
     INTEGER, INTENT(IN)                      :: rows, columns
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_block_transpose_inplace', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_inplace', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
     extent = RESHAPE(TRANSPOSE(&
          RESHAPE(extent, (/rows, columns/))), (/rows*columns/))
-  END SUBROUTINE dbcsr_block_transpose_inplace
-! *****************************************************************************
-!> \brief Copy and transpose block
-!> \param[out] extent_out     output matrix in the form of a 1-d array
-!> \param[in] extent_in       input matrix in the form of a 1-d array
-!> \param[in] rows, columns   input matrix size
-!> \param error     cp2k error
-! *****************************************************************************
-  PURE SUBROUTINE dbcsr_block_transpose_copy(extent_out, extent_in,&
-       rows, columns)
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: extent_out
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: extent_in
-    INTEGER, INTENT(IN)                      :: rows, columns
+  END SUBROUTINE block_transpose_inplace
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_copy', &
+! *****************************************************************************
+!> \brief Copy data from one data area to another.
+!>
+!> There are no checks done for correctness!
+!> \param[in] dst        destination data area
+!> \param[in] src        source data area
+!> \param[in] lb         lower bound for destination (and source if
+!>                       not given explicity)
+!> \param[in] data_size  number of elements to copy
+!> \param[in] source_lb  (optional) lower bound of source
+! *****************************************************************************
+  SUBROUTINE dbcsr_block_transpose_aa (dst, src, lb,& 
+       row_size, col_size, source_lb)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: src
+    INTEGER, INTENT(IN)                      :: lb, row_size, col_size
+    INTEGER, INTENT(IN), OPTIONAL            :: source_lb
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_aa', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: data_size, lb_s, ub, ub_s
 
 !   ---------------------------------------------------------------------------
 
-    extent_out = RESHAPE(TRANSPOSE(&
-         RESHAPE(extent_in, (/rows, columns/))), (/rows*columns/))
-  END SUBROUTINE dbcsr_block_transpose_copy
+    IF (bcsr_debug) THEN
+       CALL cp_assert (ASSOCIATED(dst%d) .AND. ASSOCIATED(src%d),&
+            cp_fatal_level, cp_caller_error, routineN,&
+            "Data areas must be setup.")
+       CALL cp_assert (dst%d%data_type .EQ. src%d%data_type, cp_fatal_level,&
+            cp_caller_error, routineN, "Data type must be the same.")
+       CALL cp_assert (dst%d%data_type.EQ.'R'.OR.dst%d%data_type.EQ.'r'&
+            .OR.dst%d%data_type.EQ.'C'.OR.dst%d%data_type.EQ.'c',&
+            cp_warning_level, cp_caller_error, routineN, "Incorrect data type.")
+    ENDIF
+    data_size = row_size*col_size
+    ub = lb + data_size - 1
+    IF (PRESENT (source_lb)) THEN
+       lb_s = source_lb
+       ub_s = source_lb + data_size-1
+    ELSE
+       lb_s = lb
+       ub_s = ub
+    ENDIF
+    SELECT CASE (src%d%data_type)
+    CASE ('R')
+       CALL dbcsr_block_transpose (dst%d%r_dp(lb:ub), src%d%r_dp(lb_s:ub_s),&
+            row_size, col_size)
+    CASE ('r')
+       CALL dbcsr_block_transpose (dst%d%r_sp(lb:ub), src%d%r_sp(lb_s:ub_s),&
+            row_size, col_size)
+    CASE ('C')
+       CALL dbcsr_block_transpose (dst%d%c_dp(lb:ub), src%d%c_dp(lb_s:ub_s),&
+            row_size, col_size)
+    CASE ('c')
+       CALL dbcsr_block_transpose (dst%d%c_sp(lb:ub), src%d%c_sp(lb_s:ub_s),&
+            row_size, col_size)
+    END SELECT
+  END SUBROUTINE dbcsr_block_transpose_aa
 
+
+! *****************************************************************************
+!> \brief Copy data from one data area to another.
+!>
+!> There are no checks done for correctness!
+!> \param[in] dst        destination data area
+!> \param[in] lb         lower bound for destination (and source if
+!>                       not given explicity)
+!> \param[in] data_size  number of elements to copy
+!> \param[in] src        source data area
+!> \param[in] source_lb  (optional) lower bound of source
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_copy_aa (dst, lb, data_size, src, source_lb)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
+    INTEGER, INTENT(IN)                      :: lb, data_size
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: src
+    INTEGER, INTENT(IN), OPTIONAL            :: source_lb
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_aa', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: lb_s, ub, ub_s
+
+!   ---------------------------------------------------------------------------
+
+    IF (bcsr_debug) THEN
+       CALL cp_assert (ASSOCIATED(dst%d) .AND. ASSOCIATED(src%d),&
+            cp_fatal_level, cp_caller_error, routineN,&
+            "Data areas must be setup.")
+       CALL cp_assert (dst%d%data_type .EQ. src%d%data_type, cp_fatal_level,&
+            cp_caller_error, routineN, "Data type must be the same.")
+       CALL cp_assert (dst%d%data_type.EQ.'R'.OR.dst%d%data_type.EQ.'r'&
+            .OR.dst%d%data_type.EQ.'C'.OR.dst%d%data_type.EQ.'c',&
+            cp_warning_level, cp_caller_error, routineN, "Incorrect data type.")
+    ENDIF
+    ub = lb + data_size - 1
+    IF (PRESENT (source_lb)) THEN
+       lb_s = source_lb
+       ub_s = source_lb + data_size-1
+    ELSE
+       lb_s = lb
+       ub_s = ub
+    ENDIF
+    SELECT CASE (src%d%data_type)
+    CASE ('r')
+       dst%d%r_sp(lb:ub) = src%d%r_sp(lb_s:ub_s)
+    CASE ('R')
+       dst%d%r_dp(lb:ub) = src%d%r_dp(lb_s:ub_s)
+    CASE ('c')
+       dst%d%c_sp(lb:ub) = src%d%c_sp(lb_s:ub_s)
+    CASE ('C')
+       dst%d%c_dp(lb:ub) = src%d%c_dp(lb_s:ub_s)
+    END SELECT
+  END SUBROUTINE dbcsr_data_copy_aa
 
 
 ! *****************************************************************************
@@ -4922,6 +5398,10 @@ CONTAINS
   END SUBROUTINE dbcsr_set_debug
 
 
+! *****************************************************************************
+!> \brief Busy-loop sleep.
+!> \param[in] duration        time to sleep/s.
+! *****************************************************************************
   SUBROUTINE dbcsr_sleep(duration)
     REAL(KIND=dp), INTENT(IN)                :: duration
 
@@ -4937,6 +5417,20 @@ CONTAINS
   END SUBROUTINE dbcsr_sleep
 
 
+! *****************************************************************************
+!> \brief Replaces an existing pointer with a new one, freeing memory as
+!>        required.
+!> \param[in,out] original_p  original pointer, to be replaced
+!> \param[in] new_p           replacement pointer
+! *****************************************************************************
+  SUBROUTINE pointer_replace_i (original_p, new_p)
+    INTEGER, DIMENSION(:), POINTER           :: original_p, new_p
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED (original_p)) DEALLOCATE (original_p)
+    original_p => new_p
+  END SUBROUTINE pointer_replace_i
 
 ! *****************************************************************************
 !> \brief Creates a DBCSR distribution from a distribution_2d
@@ -5468,8 +5962,10 @@ CONTAINS
              vector_m%col_i(nblks) = 1
              block_nze = row_blk_size(row) * col_blk_size(col)
              src_blk_p = matrix%blk_p(src_blk)
-             vector_m%data(next_data_p : next_data_p+block_nze-1) =&
-                  matrix%data(src_blk_p : src_blk_p+block_nze-1)
+             CALL dbcsr_data_set(vector_m%data_area,&
+                  next_data_p, block_nze, matrix%data_area, src_blk_p)
+             !vector_m%data(next_data_p : next_data_p+block_nze-1) =&
+             !     matrix%data(src_blk_p : src_blk_p+block_nze-1)
              next_data_p = next_data_p + block_nze
              vector_m%nze = vector_m%nze + block_nze
              WRITE(*,*)'added block',nblks,'in row',row
@@ -5507,97 +6003,29 @@ CONTAINS
   END FUNCTION dbcsr_valid_index
 
 ! *****************************************************************************
-!> \brief Sets the diagonal of a DBCSR matrix.
-!> \param[in] matrix          matrix in which to set the diagonal.
-!> \param[in] value           value of the diagonal elements
-!> \param[in,out] error       cp2k error
+!> \brief Calls the functions that are called in the included files but not
+!>        in thin one. Needed to make prettify think the functions ary really
+!>        used.
+!> \param[in] matrix          data_area
+!> \param[out] temp           pointer to the data
 ! *****************************************************************************
-  SUBROUTINE dbcsr_set_diagonal (matrix, value, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    REAL(KIND=dp), INTENT(IN)                :: value
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+  SUBROUTINE prettify_fooler (data_area, temp)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: data_area
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: temp
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diagonal', &
-      routineP = moduleN//':'//routineN
+    temp => dbcsr_get_data_p (data_area, 0.0_dp)
+  END SUBROUTINE prettify_fooler
 
-    INTEGER                                  :: blk, blk_p, col, local_row, &
-                                                my_pcol, nze, row, row_size
-    INTEGER, DIMENSION(:), POINTER           :: local_rows, pcol_dist, &
-                                                row_blk_size
-    LOGICAL                                  :: in_this_row, valid_index
+!  INCLUDE "dbcsr_util_d_.F"
+!  INCLUDE "dbcsr_util_z_.F"
+#include "dbcsr_util_d_.F"
+#include "dbcsr_util_z_.F"
+!#if !defined (__SGL)
+!  INCLUDE "dbcsr_util_s_.F"
+!  INCLUDE "dbcsr_util_c_.F"
+#include "dbcsr_util_s_.F"
+#include "dbcsr_util_c_.F"
+!#endif
 
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    CALL cp_assert(matrix%nblkrows_total .EQ. matrix%nblkcols_total,&
-         cp_failure_level, cp_caller_error, routineP,&
-         "Can not set diagonal of non-square matrix.", error=error)
-    row_blk_size => array_data (matrix%row_blk_size)
-    CALL dbcsr_get_info (matrix, local_rows = local_rows,&
-         proc_col_dist = pcol_dist,&
-         my_pcol = my_pcol, error=error)
-    valid_index = dbcsr_valid_index (matrix)
-    ! Try to find the column element in each row. If it's not found,
-    ! then add it.
-    DO local_row = 1, matrix%nblkrows_local
-       row = local_rows(local_row)
-       ! Only diagonal elements come into play.
-       IF (pcol_dist(row) .NE. my_pcol) CYCLE
-       in_this_row = .FALSE.
-       row_size = row_blk_size(row)
-       nze = row_size * row_size
-       IF (valid_index) THEN
-          blk_loop: DO blk = matrix%row_p(row)+1, matrix%row_p(row+1)
-             col = matrix%col_i(blk)
-             IF (col .LT. row) CYCLE blk_loop
-             IF (col .GT. row) EXIT
-             IF (col .EQ. row) THEN
-                ! Sets the diagonal in the existing block.
-                blk_p = matrix%blk_p(blk)
-                CALL set_block_diagonal (matrix%data(blk_p:blk_p+nze-1),&
-                     value, row_size)
-                in_this_row = .TRUE.
-                EXIT blk_loop ! Don't bother with the remaining columns
-             ENDIF
-          ENDDO blk_loop
-       ENDIF ! valid_index
-       ! Add the column if it doesn't already exist.
-       IF (.NOT. in_this_row) THEN
-          DBG 'Adding at row',row,'dimen',row_size,'size',nze,'pos',&
-               matrix%w%datasize+1
-          CALL add_work_coordinate (matrix%w, row, row, matrix%w%datasize+1,&
-               error=error)
-          ! add_work_coordinate increments the block counter
-          CALL ensure_array_size (matrix%w%data, ub=matrix%w%datasize+nze,&
-               error=error)
-          CALL set_block_diagonal (&
-               matrix%w%data(matrix%w%datasize+1 : matrix%w%datasize+nze),&
-               value, row_size)
-          matrix%w%datasize = matrix%w%datasize + nze
-       ENDIF
-    ENDDO ! row
-  END SUBROUTINE dbcsr_set_diagonal
-
-! *****************************************************************************
-!> \brief Sets the diagonal of a square data block represented as a 1-D array.
-!>        Non-diagonal elements are set to 0.
-!> \param[out] block_data     sets diagonal in this data block
-!> \param[in] value           value of the diagonal elements
-!> \param[in] d               dimension of the square data block
-! *****************************************************************************
-  PURE SUBROUTINE set_block_diagonal (block_data, value, d)
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: block_data
-    REAL(KIND=dp), INTENT(IN)                :: value
-    INTEGER, INTENT(IN)                      :: d
-
-    INTEGER                                  :: i
-
-!   ---------------------------------------------------------------------------
-
-    block_data(:) = 0
-    FORALL (i = 0 : d-1)
-       block_data(1 + i*d + i) = value
-    END FORALL
-  END SUBROUTINE set_block_diagonal
 
 END MODULE dbcsr_util

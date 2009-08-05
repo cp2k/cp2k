@@ -17,11 +17,21 @@ MODULE dbcsr_methods
                                              array_hold,&
                                              array_i1d_obj,&
                                              array_new,&
+                                             array_nullify,&
                                              array_release,&
                                              array_size
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_type
+  USE f77_blas
+  USE f77_blas_generic,                ONLY: bl_copy
+  USE kinds,                           ONLY: real_4,&
+                                             real_8
+  USE message_passing,                 ONLY: mp_allocate,&
+                                             mp_deallocate
+
+  !$ USE OMP_LIB
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -38,14 +48,20 @@ MODULE dbcsr_methods
             dbcsr_distribution_nrows, dbcsr_distribution_ncols,&
             dbcsr_distribution_row_dist, dbcsr_distribution_col_dist,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nlocal_cols,&
-            dbcsr_distribution_local_rows, dbcsr_distribution_local_cols
+            dbcsr_distribution_local_rows, dbcsr_distribution_local_cols,&
+            dbcsr_distribution_thread_dist,&
+            dbcsr_distribution_make_threads
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
             dbcsr_nblkrows_total, dbcsr_nblkcols_total, dbcsr_nfullrows_total,&
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
             dbcsr_nfullrows_local, dbcsr_nfullcols_local
+  PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
+            dbcsr_data_release, dbcsr_data_copyall, dbcsr_get_data_size,&
+            dbcsr_data_set_pointer
 
-  
+  PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
+            dbcsr_get_data_p_d, dbcsr_get_data_p_z
 
   PRIVATE
 
@@ -56,6 +72,34 @@ MODULE dbcsr_methods
 #define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
 #define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
 
+!#ifndef __SGL
+  INTERFACE dbcsr_get_data
+     MODULE PROCEDURE get_data_s, get_data_d, get_data_c, get_data_z,&
+          get_data_m_s, get_data_m_d, get_data_m_c, get_data_m_z
+  END INTERFACE
+
+  INTERFACE dbcsr_data_set_pointer
+     MODULE PROCEDURE set_data_p_s, set_data_p_d, set_data_p_c, set_data_p_z
+  END INTERFACE
+
+  INTERFACE dbcsr_get_data_p
+     MODULE PROCEDURE dbcsr_get_data_c_s, dbcsr_get_data_c_c,&
+          dbcsr_get_data_c_d, dbcsr_get_data_c_z
+  END INTERFACE
+
+!#else
+!  INTERFACE dbcsr_get_data
+!     MODULE PROCEDURE get_data_d, get_data_z
+!  END INTERFACE
+!
+!  INTERFACE dbcsr_data_set_pointer
+!     MODULE PROCEDURE set_data_p_d, set_data_p_z
+!  END INTERFACE
+!#endif
+  !INTERFACE dbcsr_get_data_p
+  !   MODULE PROCEDURE dbcsr_get_data_p_s, dbcsr_get_data_p_d,&
+  !   dbcsr_get_data_p_c, dbcsr_get_data_p_z
+  !END INTERFACE
 
 CONTAINS
 
@@ -287,6 +331,7 @@ CONTAINS
        ENDDO
        CALL array_new (dist%d%local_cols, ld, gift=.TRUE.)
     ENDIF
+    CALL array_nullify (dist%d%thread_dist)
     !WRITE(*,*)' row_dist', array_data(dist%d%row_dist)
     !WRITE(*,*)' col_dist', array_data(dist%d%col_dist)
     !WRITE(*,*)' loc_rows', array_data(dist%d%local_rows)
@@ -408,6 +453,39 @@ CONTAINS
     processor = dist%d%mp_env%mp%pgrid(dist%d%row_dist%low%data(row),&
          dist%d%col_dist%low%data(col))
   END FUNCTION dbcsr_distribution_processor
+
+  FUNCTION dbcsr_distribution_thread_dist(dist) RESULT (thread_dist)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    TYPE(array_i1d_obj)                      :: thread_dist
+
+!   ---------------------------------------------------------------------------
+
+    thread_dist = dist%d%thread_dist
+  END FUNCTION dbcsr_distribution_thread_dist
+
+  SUBROUTINE dbcsr_distribution_make_threads(dist)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT), VOLATILE                :: dist
+
+    INTEGER                                  :: first, last, nrows, nthreads, &
+                                                rpt, t
+    INTEGER, DIMENSION(:), POINTER           :: td
+
+!   ---------------------------------------------------------------------------
+
+    nthreads = 1
+    !$ nthreads = OMP_GET_NUM_THREADS ()
+    nrows = dbcsr_distribution_nlocal_rows (dist)
+    ALLOCATE (td(nrows))
+    rpt = CEILING (REAL(nrows) / REAL(nthreads))
+    DO t = 0, nthreads-1
+       first = MIN (t*rpt+1, nrows)
+       last = MIN ((t+1)*rpt, nrows)
+       td(first:last) = t
+    END DO
+    CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
+  END SUBROUTINE dbcsr_distribution_make_threads
+    
 
 ! Pertaining to the dbcsr matrix.
 
@@ -552,6 +630,634 @@ CONTAINS
        my_pcol = dbcsr_mp_mypcol (dbcsr_distribution_mp (matrix%dist))
   END SUBROUTINE dbcsr_get_info
 
+
+! *****************************************************************************
+!> \brief Initializes a data area
+!> \param[inout] area         data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_init (area)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+
+    NULLIFY (area%d)
+  END SUBROUTINE dbcsr_data_init
+! *****************************************************************************
+!> \brief Initializes a data area and all the actual data pointers
+!> \param[inout] area         data area
+!> \param[in] data_type       select data type to use
+!> \param[in] data_size       (optional) allocate this much data
+!> \param[in] special_memory  (optional) whether to use specially-allocated
+!>                            memory, default is False
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_new (area, data_type, data_size, special_memory)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: data_size
+    LOGICAL, INTENT(IN), OPTIONAL            :: special_memory
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_new', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT. ASSOCIATED (area%d)) THEN
+       ALLOCATE (area%d)
+    ENDIF
+    NULLIFY (area%d%r_sp)
+    NULLIFY (area%d%r_dp)
+    NULLIFY (area%d%c_sp)
+    NULLIFY (area%d%c_dp)
+    area%d%refcount = 1
+    IF (PRESENT (special_memory)) THEN
+       area%d%special = special_memory
+    ELSE
+       area%d%special = .FALSE.
+    ENDIF
+    IF (PRESENT (data_size)) THEN
+       IF (area%d%special) THEN
+          SELECT CASE (data_type)
+          CASE ('r')
+             CALL mp_allocate (area%d%r_sp, data_size)
+          CASE ('R')
+             CALL mp_allocate (area%d%r_dp, data_size)
+          CASE ('c')
+             CALL mp_allocate (area%d%c_sp, data_size)
+          CASE ('C')
+             CALL mp_allocate (area%d%c_dp, data_size)
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
+                  routineN, "Invalid matrix type.")
+          END SELECT
+       ELSE
+          SELECT CASE (data_type)
+          CASE ('R')
+             ALLOCATE (area%d%r_dp(data_size))
+          CASE ('r')
+             ALLOCATE (area%d%r_sp(data_size))
+          CASE ('C')
+             ALLOCATE (area%d%c_dp(data_size))
+          CASE ('c')
+             ALLOCATE (area%d%c_sp(data_size))
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
+                  routineN, "Invalid matrix type.")
+          END SELECT
+       ENDIF
+    ENDIF
+    area%d%data_type = data_type
+  END SUBROUTINE dbcsr_data_new
+
+
+! *****************************************************************************
+!> \brief Removes a reference and/or clears the data area.
+!> \param[inout] area         data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_release (area)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_release', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (ASSOCIATED (area%d), cp_caller_error, cp_warning_level,&
+         routineN, "Can't release empty data area.")
+    IF (.NOT. ASSOCIATED (area%d)) THEN
+       RETURN
+    ENDIF
+    CALL cp_assert (area%d%refcount .GT. 0, cp_caller_error, cp_warning_level,&
+         routineN, "Can't release unreferenced data area.")
+    IF (area%d%refcount .GT. 0) THEN
+       area%d%refcount = area%d%refcount - 1
+    ELSE
+       RETURN
+    ENDIF
+    ! If we're releasing the last reference, then free the memory.
+    IF (area%d%refcount .EQ. 0) THEN
+       IF (area%d%special) THEN
+          SELECT CASE (area%d%data_type)
+          CASE ('r')
+             CALL mp_deallocate (area%d%r_sp)
+             NULLIFY (area%d%r_sp)
+          CASE ('R')
+             CALL mp_deallocate (area%d%r_dp)
+             NULLIFY (area%d%r_dp)
+          CASE ('c')
+             CALL mp_deallocate (area%d%c_sp)
+             NULLIFY (area%d%c_sp)
+          CASE ('C')
+             CALL mp_deallocate (area%d%c_dp)
+             NULLIFY (area%d%c_dp)
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
+                  routineN, "Invalid data type.")
+          END SELECT
+       ELSE
+          SELECT CASE (area%d%data_type)
+          CASE ('R')
+             IF (ASSOCIATED (area%d%r_dp)) &
+                  DEALLOCATE (area%d%r_dp)
+             NULLIFY (area%d%r_dp)
+          CASE ('r')
+             IF (ASSOCIATED (area%d%r_sp)) &
+                  DEALLOCATE (area%d%r_sp)
+             NULLIFY (area%d%r_sp)
+          CASE ('C')
+             IF (ASSOCIATED (area%d%c_dp)) &
+                  DEALLOCATE (area%d%c_dp)
+             NULLIFY (area%d%c_dp)
+          CASE ('c')
+             IF (ASSOCIATED (area%d%c_sp)) &
+                  DEALLOCATE (area%d%c_sp)
+             NULLIFY (area%d%c_sp)
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
+                  routineN, "Invalid data type.")
+          END SELECT
+       ENDIF
+       DEALLOCATE (area%d)
+       NULLIFY (area%d)
+    ENDIF
+  END SUBROUTINE dbcsr_data_release
+
+
+! *****************************************************************************
+!> \brief Registers another use of the data area
+!> \param[inout] area         data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_hold (area)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_hold', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (ASSOCIATED (area%d), cp_caller_error, cp_warning_level,&
+         routineN, "Can't hold an empty data area.")
+    CALL cp_assert (area%d%refcount .GT. 0, cp_caller_error, cp_warning_level,&
+         routineN, "Should not hold an area with zero references.")
+    IF (.NOT. ASSOCIATED (area%d)) THEN
+       RETURN
+    ENDIF
+    area%d%refcount = area%d%refcount + 1
+  END SUBROUTINE dbcsr_data_hold
+
+
+! *****************************************************************************
+!> \brief Returns the single precision real data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  SUBROUTINE get_data_s (area, DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%r_sp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END SUBROUTINE get_data_s
+! *****************************************************************************
+!> \brief Returns the single precision real data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  SUBROUTINE get_data_m_s (matrix, DATA)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: DATA
+
+    IF (ASSOCIATED (matrix%data_area%d)) THEN
+       DATA => matrix%data_area%d%r_sp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END SUBROUTINE get_data_m_s
+
+! *****************************************************************************
+!> \brief Returns the single precision real data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_p_s (area) RESULT (DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%r_sp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END FUNCTION dbcsr_get_data_p_s
+
+! *****************************************************************************
+!> \brief Returns the double precision real data
+!> \param[in] area       data area
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  SUBROUTINE get_data_d (area, DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%r_dp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END SUBROUTINE get_data_d
+! *****************************************************************************
+!> \brief Returns the double precision real data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  SUBROUTINE get_data_m_d (matrix, DATA)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: DATA
+
+    IF (ASSOCIATED (matrix%data_area%d)) THEN
+       DATA => matrix%data_area%d%r_dp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END SUBROUTINE get_data_m_d
+
+! *****************************************************************************
+!> \brief Returns the double precision real data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_p_d (area) RESULT (DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%r_dp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END FUNCTION dbcsr_get_data_p_d
+
+! *****************************************************************************
+!> \brief Returns the single precision complex data
+!> \param[in] area       data area
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  SUBROUTINE get_data_c (area, DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%c_sp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END SUBROUTINE get_data_c
+! *****************************************************************************
+!> \brief Returns the single precision complex data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  SUBROUTINE get_data_m_c (matrix, DATA)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: DATA
+
+    IF (ASSOCIATED (matrix%data_area%d)) THEN
+       DATA => matrix%data_area%d%c_sp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END SUBROUTINE get_data_m_c
+
+! *****************************************************************************
+!> \brief Returns the single precision complex data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_p_c (area) RESULT (DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%c_sp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END FUNCTION dbcsr_get_data_p_c
+
+! *****************************************************************************
+!> \brief Returns the double precision complex data
+!> \param[in] area       data area
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  SUBROUTINE get_data_z (area, DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%c_dp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END SUBROUTINE get_data_z
+! *****************************************************************************
+!> \brief Returns the double precision complex data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  SUBROUTINE get_data_m_z (matrix, DATA)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: DATA
+
+    IF (ASSOCIATED (matrix%data_area%d)) THEN
+       DATA => matrix%data_area%d%c_dp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END SUBROUTINE get_data_m_z
+
+! *****************************************************************************
+!> \brief Returns the double precision complex data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_p_z (area) RESULT (DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%c_dp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END FUNCTION dbcsr_get_data_p_z
+
+! *****************************************************************************
+!> \brief Returns the single precision real data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_c_s (area, coersion) RESULT (DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    REAL(KIND=real_4), INTENT(IN)            :: coersion
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%r_sp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END FUNCTION dbcsr_get_data_c_s
+
+! *****************************************************************************
+!> \brief Returns the double precision real data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_c_d (area, coersion) RESULT (DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    REAL(KIND=real_8), INTENT(IN)            :: coersion
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%r_dp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END FUNCTION dbcsr_get_data_c_d
+
+! *****************************************************************************
+!> \brief Returns the single precision complex data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_c_c (area, coersion) RESULT (DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    COMPLEX(KIND=real_4), INTENT(IN)         :: coersion
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%c_sp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END FUNCTION dbcsr_get_data_c_c
+
+! *****************************************************************************
+!> \brief Returns the double precision complex data
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_c_z (area, coersion) RESULT (DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    COMPLEX(KIND=real_8), INTENT(IN)         :: coersion
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: DATA
+
+    IF (ASSOCIATED (area%d)) THEN
+       DATA => area%d%c_dp
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END FUNCTION dbcsr_get_data_c_z
+
+
+! *****************************************************************************
+!> \brief Returns the allocated data size
+!> \param[in] area       data area
+!> \param data_size      size of data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_size (area) RESULT (data_size)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER                                  :: data_size
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size', &
+      routineP = moduleN//':'//routineN
+
+    data_size = 0
+    IF (ASSOCIATED (area%d)) THEN
+       SELECT CASE (area%d%data_type)
+          CASE ('R')
+             IF (ASSOCIATED (area%d%r_dp))&
+                  data_size = SIZE (area%d%r_dp)
+          CASE ('r')
+             IF (ASSOCIATED (area%d%r_sp))&
+                  data_size = SIZE (area%d%r_sp)
+          CASE ('C')
+             IF (ASSOCIATED (area%d%c_dp))&
+                  data_size = SIZE (area%d%c_dp)
+          CASE ('c')
+             IF (ASSOCIATED (area%d%c_sp))&
+                  data_size = SIZE (area%d%c_sp)
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
+                  routineN, "Incorrect data type")
+          END SELECT
+    ELSE
+       CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
+            "Uninitialized data area")
+       data_size = 0
+    ENDIF
+  END FUNCTION dbcsr_get_data_size
+
+! *****************************************************************************
+!> \brief Copies a data area, deep by default.
+!> \param[inout] target_area     target data area
+!> \param[in]    source_area     source data area
+!> \param[in]    shallow      shallow copy (default is deep)
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_copyall (target_area, source_area, shallow)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: target_area
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: source_area
+    LOGICAL, INTENT(IN), OPTIONAL            :: shallow
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copyall', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: t_data_c
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: t_data_z
+    LOGICAL                                  :: shallow_copy
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: t_data_r
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: t_data_d
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (ASSOCIATED (source_area%d), cp_warning_level,&
+         cp_caller_error, routineN, "Attempt to copy unassigned data")
+    CALL cp_assert (source_area%d%refcount .GT. 0, cp_warning_level,&
+         cp_caller_error, routineN, "Attempt to copy unheld data")
+    shallow_copy = .FALSE.
+    IF (PRESENT (shallow)) shallow_copy = shallow
+    IF (shallow_copy) THEN
+       target_area = source_area
+       CALL dbcsr_data_hold (target_area)
+    ELSE
+       IF (.NOT. ASSOCIATED (source_area%d)) THEN
+          RETURN
+       ENDIF
+       SELECT CASE (source_area%d%data_type)
+          CASE ('R')
+             CALL dbcsr_get_data (target_area, t_data_d)
+             CALL bl_copy (dbcsr_get_data_size (source_area),&
+                  dbcsr_get_data_p_d (source_area), 1,&
+                  t_data_d, 1)
+          CASE ('r')
+             CALL dbcsr_get_data (target_area, t_data_r)
+             CALL bl_copy (dbcsr_get_data_size (source_area),&
+                  dbcsr_get_data_p_s (source_area), 1,&
+                  t_data_r, 1)
+          CASE ('C')
+             CALL dbcsr_get_data (target_area, t_data_z)
+             CALL bl_copy (dbcsr_get_data_size (source_area),&
+                  dbcsr_get_data_p_z (source_area), 1,&
+                  t_data_z, 1)
+          CASE ('c')
+             CALL dbcsr_get_data (target_area, t_data_c)
+             CALL bl_copy (dbcsr_get_data_size (source_area),&
+                  dbcsr_get_data_p_c (source_area), 1,&
+                  t_data_c, 1)
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
+                  routineN, "Invalid matrix type")
+          END SELECT
+    ENDIF
+    ! If we're releasing the last reference, then free the memory.
+  END SUBROUTINE dbcsr_data_copyall
+
+! *****************************************************************************
+!> \brief Sets a data pointer.
+!>
+!> Assumes that no memory will be lost when repointing the pointer in the data
+!> area and that the area is initialized.
+!> \param[inout] area     target data area
+!> \param[in]    p        source data pointer
+! *****************************************************************************
+  SUBROUTINE set_data_p_s (area, p)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: p
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_s', &
+      routineP = moduleN//':'//routineN
+
+    area%d%r_sp => p
+  END SUBROUTINE set_data_p_s
+
+! *****************************************************************************
+!> \brief Sets a data pointer.
+!>
+!> Assumes that no memory will be lost when repointing the pointer in the data
+!> area and that the area is initialized.
+!> \param[inout] area     target data area
+!> \param[in]    p        source data pointer
+! *****************************************************************************
+  SUBROUTINE set_data_p_d (area, p)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: p
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_d', &
+      routineP = moduleN//':'//routineN
+
+    area%d%r_dp => p
+  END SUBROUTINE set_data_p_d
+
+! *****************************************************************************
+!> \brief Sets a data pointer.
+!>
+!> Assumes that no memory will be lost when repointing the pointer in the data
+!> area and that the area is initialized.
+!> \param[inout] area     target data area
+!> \param[in]    p        source data pointer
+! *****************************************************************************
+  SUBROUTINE set_data_p_c (area, p)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: p
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_c', &
+      routineP = moduleN//':'//routineN
+
+    area%d%c_sp => p
+  END SUBROUTINE set_data_p_c
+
+! *****************************************************************************
+!> \brief Sets a data pointer.
+!>
+!> Assumes that no memory will be lost when repointing the pointer in the data
+!> area and that the area is initialized.
+!> \param[inout] area     target data area
+!> \param[in]    p        source data pointer
+! *****************************************************************************
+  SUBROUTINE set_data_p_z (area, p)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: p
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_z', &
+      routineP = moduleN//':'//routineN
+
+    area%d%c_dp => p
+  END SUBROUTINE set_data_p_z
 
 
 END MODULE dbcsr_methods
