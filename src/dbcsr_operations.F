@@ -3332,7 +3332,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nze, timing_handle
+    INTEGER                                  :: timing_handle
 
 !   ---------------------------------------------------------------------------
 
