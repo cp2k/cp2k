@@ -14,12 +14,12 @@ MODULE input_cp2k_dft
        Avezac2005, Becke1988, Becke1997, BeckeRoussel1989, Dewar1977, &
        Dewar1985, Elstner1998, Goedecker1996, Grimme2006, Heyd2004, Hu2007, &
        Hunt2003, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, &
-       Krack2000, Krack2002, Lee1988, Lippert1997, Lippert1999, Ortiz1994, &
-       Perdew1981, Perdew1996, Porezag1995, Proynov2007, Repasky2002, &
-       Rocha2006, Schenter2008, Seifert1996, Stewart1982, Stewart1989, &
-       Stewart2007, Tao2003, Thiel1992, VandeVondele2003, VandeVondele2005a, &
-       VandeVondele2005b, VandeVondele2006, Vosko1980, Weber2008, Zhang1998, &
-       Zhechkov2005,Kunert2003
+       Krack2000, Krack2002, Kunert2003, Lee1988, Lippert1997, Lippert1999, &
+       Ortiz1994, Perdew1981, Perdew1996, Porezag1995, Proynov2007, &
+       Repasky2002, Rocha2006, Schenter2008, Seifert1996, Stewart1982, &
+       Stewart1989, Stewart2007, Tao2003, Thiel1992, VandeVondele2003, &
+       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Vosko1980, &
+       Weber2008, Zhang1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas

@@ -63,7 +63,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER                                  :: run_type
     REAL(dp)                                 :: delta_iter
-    REAL(dp),OPTIONAL                        :: used_time
+    REAL(dp), OPTIONAL                       :: used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_electrons, output_unit

@@ -299,9 +299,10 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, handle, i, &
                                                 i_iter, i_step, ihist, &
-                                                max_iter, max_steps,i_start
+                                                max_iter, max_steps
     LOGICAL                                  :: failure, should_stop
-    REAL(Kind=dp)                            :: delta_iter, eps_ener, time_iter_start,&
+    REAL(Kind=dp)                            :: delta_iter, eps_ener, &
+                                                time_iter_start, &
                                                 time_iter_stop, used_time
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
