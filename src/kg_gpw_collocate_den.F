@@ -919,7 +919,7 @@ CONTAINS
 !$OMP parallel &
 !$OMP default(none) &
 !$OMP private(ithread,itask,iset,jset,ncoa,ncob,sgfa,sgfb) &
-!$OMP private(work,hab,pab,istat,ipgf,jpgf,na1,na2,nb1,nb2,scale) &
+!$OMP private(work,hab,pab,istat,ipgf,jpgf,na1,na2,nb1,nb2) &
 !$OMP private(force_a,force_b,ijsets) &
 !$OMP shared(iatom,jatom,ra,rb,rab,rab2,brow,bcol,p_block,h_block) &
 !$OMP shared(maxco,maxsgf_set,ival,num_tasks,atasks,calculate_forces) &
