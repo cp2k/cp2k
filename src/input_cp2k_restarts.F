@@ -44,14 +44,10 @@ MODULE input_cp2k_restarts
                                              force_env_type,&
                                              multiple_fe_list,&
                                              use_qmmm
-  USE input_constants,                 ONLY: do_band_collective,&
-                                             do_thermo_csvr,&
-                                             do_thermo_no_communication,&
-                                             do_thermo_nose,&
-                                             ehrenfest,&
-                                             mol_dyn_run,&
-                                             mon_car_run,&
-                                             pint_run
+  USE input_constants,                 ONLY: &
+       do_band_collective, do_thermo_csvr, do_thermo_no_communication, &
+       do_thermo_nose, ehrenfest, mol_dyn_run, mon_car_run, pint_run, &
+       use_rt_restart
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -1491,6 +1487,9 @@ CONTAINS
           END DO
        END IF
     END IF
+
+    IF(myid == ehrenfest)CALL section_vals_val_set(root_section,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%INITIAL_WFN",&
+                                                   i_val=use_rt_restart,error=error)
     DEALLOCATE(i_force_eval)
     
   END SUBROUTINE update_force_eval

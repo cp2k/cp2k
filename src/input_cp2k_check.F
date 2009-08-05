@@ -644,6 +644,16 @@ CONTAINS
                 CALL set_restart_info("USER RESTART: "//TRIM(path),restarted_infos,error)
              END IF
           END DO
+
+          CALL section_vals_val_get(r_section,"RESTART_RTP",l_val=flag,error=error)
+          IF(flag.AND.check_restart(input_file, restart_file, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error)) THEN
+               section => section_vals_get_subs_vals(restart_file,&
+                  "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error=error)
+               CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",&
+                    section,error=error)
+               CALL set_restart_info("REAL TIME PROPAGATION",restarted_infos,error)
+          END IF
+
           CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)
           CALL section_vals_release(restart_file,error=error)
           CALL release_restart_info(restarted_infos, r_file_path, output_unit, error)

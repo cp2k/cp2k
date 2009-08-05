@@ -33,9 +33,11 @@ MODULE rt_propagation
        do_arnoldi, do_cn, do_diag, do_em, do_etrs, do_pade, do_taylor, &
        extr_s_ks, real_time_propagation, use_restart_wfn, use_rt_restart, &
        use_scf_wfn
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -176,7 +178,7 @@ CONTAINS
        END IF
        CALL section_vals_val_get(md_section,"STEPS",i_val=qs_env%rtp%nsteps,error=error)
        CALL init_propagation_run(qs_env,error)
-       CALL run_propagation(qs_env,globenv,error)
+       CALL run_propagation(qs_env,force_env,globenv,error)
     ELSE
        IF(rtp_control%initial_wfn==use_restart_wfn.OR.rtp_control%initial_wfn==use_rt_restart)THEN
           CALL calc_update_rho(qs_env,error)
@@ -289,8 +291,9 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE run_propagation(qs_env,globenv,error)
+  SUBROUTINE run_propagation(qs_env,force_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -370,6 +373,7 @@ CONTAINS
           used_time= time_iter_stop - time_iter_start
           time_iter_start=time_iter_stop
           CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,used_time,error=error)
+          CALL rt_write_input_restart(force_env,rtp,error)
           IF (should_stop)EXIT
        ELSE
           EXIT
@@ -549,6 +553,31 @@ CONTAINS
     CALL cp_fm_release(tmp_mat_H,error)
 
   END SUBROUTINE get_maxabs_eigval
+
+
+
+  SUBROUTINE rt_write_input_restart(force_env,rtp,error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rt_write_input_restart', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(section_vals_type), POINTER         :: motion_section, root_section, &
+                                                rt_section
+
+    root_section => force_env%root_section
+    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
+    rt_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error=error)
+    CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=rtp%istep,error=error) 
+    CALL section_vals_val_set(rt_section,"INITIAL_WFN",i_val=use_rt_restart,error=error) 
+
+    CALL write_restart(root_section=root_section,error=error)
+
+  END SUBROUTINE rt_write_input_restart
+
+    
 
 
 END MODULE rt_propagation
