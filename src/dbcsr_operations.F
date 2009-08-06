@@ -3356,7 +3356,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ! copy index and data
     matrix_b%index(:) = matrix_a%index(:)
     CALL dbcsr_data_copyall (matrix_b%data_area, matrix_a%data_area)
-    !CALL dcopy(SIZE(matrix_a%data),matrix_a%data,1,matrix_b%data,1)
     !
     ! the row_p, col_i and blk_p ...
     CALL dbcsr_repoint_index(matrix_b, error=error)
@@ -3394,6 +3393,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
 
+    CALL dbcsr_copy(matrix_b, matrix_a, name="triu of "//matrix_a%name, error=error)
     SELECT CASE (matrix_a%data_type)
     CASE ('r')
        CALL dbcsr_get_data (matrix_a%data_area, a_data_r)
@@ -3408,7 +3408,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL dbcsr_get_data (matrix_a%data_area, a_data_z)
        CALL dbcsr_get_data (matrix_b%data_area, b_data_z)
     END SELECT
-    CALL dbcsr_copy(matrix_b, matrix_a, name="triu of "//matrix_a%name, error=error)
 
     row_blk_size => array_data (matrix_a%row_blk_size)
     col_blk_size => array_data (matrix_a%col_blk_size)
