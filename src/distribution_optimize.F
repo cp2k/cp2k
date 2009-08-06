@@ -400,19 +400,24 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION deviance_cost_cpu(cost_cpu,P,Q) RESULT(idev)
     INTEGER, INTENT(IN)                      :: P, Q
-    INTEGER, INTENT(OUT)                     :: cost_cpu(P,Q)
+    INTEGER, INTENT(IN)                      :: cost_cpu(P,Q)
     INTEGER                                  :: idev
 
     INTEGER                                  :: i, j
-    REAL                                     :: a, cost(P,Q), dev, mean, rpq
+    REAL(KIND=dp)                            :: a, dev, mean, rpq
 
-    cost=REAL(cost_cpu)
-    rpq=REAL(P*Q)
-    mean=SUM(cost(:,:))/rpq
-    dev=0.0
+    rpq=P*Q
+    mean=0.0_dp
     DO j=1,Q
       DO i=1,P
-        a=cost(i,j)-mean
+         mean=mean+cost_cpu(i,j)
+      ENDDO
+    ENDDO
+    mean=mean/rpq
+    dev=0.0_dp
+    DO j=1,Q
+      DO i=1,P
+        a=cost_cpu(i,j)-mean
         dev=dev+a*a
       END DO
     END DO
