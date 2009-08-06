@@ -22,6 +22,8 @@ MODULE qs_initial_guess
                                              cp_fm_init_random,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
@@ -29,14 +31,9 @@ MODULE qs_initial_guess
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
   USE f77_blas
-  USE input_constants,                 ONLY: atomic_guess,&
-                                             core_guess,&
-                                             densities_guess,&
-                                             history_guess,&
-                                             mopac_guess,&
-                                             no_guess,&
-                                             random_guess,&
-                                             restart_guess
+  USE input_constants,                 ONLY: &
+       atomic_guess, core_guess, densities_guess, history_guess, mopac_guess, &
+       no_guess, random_guess, restart_guess, sparse_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
@@ -74,6 +71,7 @@ MODULE qs_initial_guess
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -113,19 +111,22 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name, filename
     INTEGER :: atom_a, density_guess, group, handle, homo, i, iatom, id_nr, &
       ikind, iset, isgf, isgfa, ishell, ispin, istat, j, la, last_read, maxl, &
-      maxll, nao, natom, ncount, nelectron, nmo, not_read, nset, nsgf, nspin, &
-      nvec, qs_env_id, z, irow, icol
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_of
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
+      maxll, nao, natom, natoms, ncount, nelectron, nmo, not_read, nset, nsgf, nspin, &
+      nvec, qs_env_id, z, irow, icol, size_atomic_kind_set, istart_col, istart_row, &
+      n_cols, n_rows, n, iseed(4), natoms_tmp, nmo_tmp
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, kind_of
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell, &
+                                                sort_kind, nelec_kind
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: exist, failure, id_equal, &
                                                 ortho_basis, scp
     LOGICAL                                  :: ionode
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
-                                                sum, total_rho, trps1, trps2, &
+                                                my_sum, total_rho, trps1, trps2, &
                                                 yy, zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
+    REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: buff
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
     TYPE(atom_matrix_type), DIMENSION(:), &
       POINTER                                :: pmat
@@ -199,11 +200,12 @@ CONTAINS
         (.NOT.((density_guess == random_guess).OR.&
                (density_guess == atomic_guess).OR.&
                (density_guess == mopac_guess).OR.&
+               (density_guess == sparse_guess).OR.&
                (((density_guess == restart_guess).OR.&
                 (density_guess == history_guess)).AND.&
                 (scf_control%level_shift == 0.0_dp))))) THEN
        CALL stop_program("calculate_first_density_matrix",&
-            "OT needs GUESS ATOMIC / RESTART / HISTORY RESTART: other options NYI")
+            "OT needs GUESS ATOMIC / RANDOM / SPARSE / RESTART / HISTORY RESTART: other options NYI")
     END IF
 
     ! if a restart was requested, check that the file exists,
@@ -472,8 +474,10 @@ CPSourceFileRef,&
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                                 mo_coeff=mo_coeff,&
                                 nmo=nmo, nao=nao, homo=homo)
-                mo_coeff%local_data = 0.0_dp
+
+                CALL cp_fm_set_all(mo_coeff,0.0_dp,error=error)
                 CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+
                 CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
                 ! multiply times PS
                 IF (ortho_basis) THEN
@@ -512,6 +516,165 @@ CPSourceFileRef,&
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        
        DEALLOCATE (kind_of,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ELSE IF (density_guess == sparse_guess) THEN
+
+       IF(.NOT.scf_control%use_ot) CALL stop_program(routineN,"OT needed!")
+
+       group = qs_env%para_env%group
+       natoms = SIZE(particle_set)
+       ALLOCATE (kind_of(natoms),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (first_sgf(natoms),last_sgf(natoms),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       
+       CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,&
+            last_sgf=last_sgf,error=error)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
+       
+       ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ikind=1,SIZE(atomic_kind_set)
+          atomic_kind => atomic_kind_set(ikind)
+          NULLIFY(pmat(ikind)%mat)
+          CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,error=error)
+          NULLIFY(atomic_kind)
+       END DO
+
+       scale = 1._dp
+       IF (nspin==2) scale=0.5_dp
+       DO ispin=1,nspin
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                          maxocc=maxocc,&
+                          nelectron=nelectron)
+          DO irow=1,p_rmpv(ispin)%matrix%nblock_row
+            block_node => first_block_node(p_rmpv(ispin)%matrix,irow)
+            DO WHILE (ASSOCIATED(block_node))
+              CALL get_block_node(block_node=block_node,block_col=icol)
+              IF (irow == icol) THEN
+                ikind = kind_of(irow)
+                pmat(ikind)%mat=pmat(ikind)%mat*scale
+                CALL put_block_node(block_node,p_rmpv(ispin)%matrix,irow,icol,pmat(ikind)%mat)
+                pmat(ikind)%mat=pmat(ikind)%mat/scale
+              END IF
+              block_node => next_block_node(block_node)
+            END DO
+          END DO
+          CALL cp_sm_sm_trace(p_rmpv(ispin)%matrix,s_sparse(1)%matrix,trps1,qs_env%para_env,error)
+          scale=REAL(nelectron,dp)/trps1
+          CALL cp_sm_scale_and_add(p_rmpv(ispin)%matrix,alpha=scale,error=error)
+
+          ! The orbital transformation method (OT) requires not only an
+          ! initial density matrix, but also an initial wavefunction (MO set)
+          IF (dft_control%restricted.AND.(ispin == 2)) THEN
+             CALL mo_set_restrict(mo_array,error=error)
+          ELSE
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                             mo_coeff=mo_coeff,&
+                             nmo=nmo, nao=nao, homo=homo)
+             CALL cp_fm_set_all(mo_coeff,0.0_dp,error=error)
+
+             n = MAXVAL(last_sgf-first_sgf)+1
+             size_atomic_kind_set = SIZE(atomic_kind_set)
+
+             ALLOCATE(buff(n,n),sort_kind(size_atomic_kind_set),&
+                      nelec_kind(size_atomic_kind_set),STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             !
+             ! sort kind vs nbr electron
+             DO ikind = 1,size_atomic_kind_set
+                atomic_kind => atomic_kind_set(ikind)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                     natom=natom,&
+                                     atom_list=atom_list,&
+                                     orb_basis_set=orb_basis_set)
+                CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                                     elec_conf=elec_conf, &
+                                     nsgf=nsgf, z=z, zeff=zeff)
+                nelec_kind(ikind) = SUM(elec_conf)
+             ENDDO
+             CALL sort(nelec_kind,size_atomic_kind_set,sort_kind)
+             !
+             ! a -very- naive sparse guess
+             nmo_tmp = nmo
+             natoms_tmp = natoms
+             istart_col = 1
+             iseed(1)=4;iseed(2)=3;iseed(3)=2;iseed(4)=1! set the seed for dlarnv
+             DO i = 1,size_atomic_kind_set
+                ikind = sort_kind(i)
+                atomic_kind => atomic_kind_set(ikind)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                     natom=natom,&
+                                     atom_list=atom_list,&
+                                     orb_basis_set=orb_basis_set)
+                CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                                     elec_conf=elec_conf, &
+                                     nsgf=nsgf, z=z, zeff=zeff)
+
+                DO iatom = 1,natom
+                   !
+                   ! compute the nbr of states for this atom
+                   n_cols = MAX(INT(REAL(nmo_tmp,dp)/REAL(natoms_tmp,dp)),1)
+                   nmo_tmp = nmo_tmp - n_cols
+                   natoms_tmp = natoms_tmp - 1
+                   IF(nmo_tmp.LT.0.OR.natoms_tmp.LT.0) CALL stop_program(routineN,"Wrong1!")
+                   !
+                   atom_a = atom_list(iatom)
+                   istart_row = first_sgf(atom_a)
+                   n_rows = last_sgf(atom_a)-first_sgf(atom_a)+1
+                   DO j = 1,n_cols;CALL dlarnv(1,iseed,n_rows,buff(1,j));ENDDO
+                   CALL cp_fm_set_submatrix(mo_coeff,buff,istart_row,istart_col,&
+                                            n_rows,n_cols,error=error)
+                   istart_col = istart_col + n_cols
+                ENDDO
+             ENDDO
+
+             IF(istart_col.LE.nmo) CALL stop_program(routineN,"Wrong2!")
+
+             DEALLOCATE(buff,nelec_kind,sort_kind,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+             CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+             ! multiply times PS
+             IF (ortho_basis) THEN
+                CALL cp_fm_to_fm(mo_coeff,sv,error=error)
+             ELSE
+                ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
+                CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+             END IF
+             CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
+             CALL cp_fm_release(sv,error=error)
+             ! and ortho the result
+             IF (ortho_basis) THEN
+                CALL make_basis_simple(mo_coeff,nmo,error=error)
+             ELSE
+                CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+             END IF
+          END IF
+
+          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                                 smear=qs_env%scf_control%smear,&
+                                 error=error)
+
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                                        p_rmpv(ispin)%matrix,&
+                                        error=error)
+       END DO
+
+       DO ikind=1,SIZE(atomic_kind_set)
+          IF(ASSOCIATED(pmat(ikind)%mat)) THEN
+            DEALLOCATE (pmat(ikind)%mat,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END IF
+       END DO
+       DEALLOCATE (pmat,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       
+       DEALLOCATE (kind_of,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       DEALLOCATE (first_sgf,last_sgf,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ELSE IF (density_guess == mopac_guess) THEN
@@ -646,22 +809,22 @@ CPSourceFileRef,&
                          pdiag(isgfa+ 7) = (             - yy)*0.5_dp*maxocc
                          pdiag(isgfa+ 8) = (             - yy)*0.5_dp*maxocc
                       ELSE IF (z < 99) THEN
-                         sum = zeff - 9.0_dp*yy
+                         my_sum = zeff - 9.0_dp*yy
                          !   First, put 2 electrons in the 's' shell
-                         pdiag(isgfa   ) = (MAX(0.0_dp, MIN(sum, 2.0_dp)))*0.5_dp*maxocc
-                         sum = sum - 2.0_dp
-                         IF (sum > 0.0_dp) THEN
+                         pdiag(isgfa   ) = (MAX(0.0_dp, MIN(my_sum, 2.0_dp)))*0.5_dp*maxocc
+                         my_sum = my_sum - 2.0_dp
+                         IF (my_sum > 0.0_dp) THEN
                             !   Now put as many electrons as possible into the 'd' shell
-                            pdiag(isgfa+ 4) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            pdiag(isgfa+ 5) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            pdiag(isgfa+ 6) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            pdiag(isgfa+ 7) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            pdiag(isgfa+ 8) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            sum = MAX(0.0_dp, sum-10.0_dp)
+                            pdiag(isgfa+ 4) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                            pdiag(isgfa+ 5) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                            pdiag(isgfa+ 6) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                            pdiag(isgfa+ 7) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                            pdiag(isgfa+ 8) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                            my_sum = MAX(0.0_dp, my_sum-10.0_dp)
                             !   Put the remaining electrons in the 'p' shell
-                            pdiag(isgfa+ 1) = (sum/3.0_dp)*0.5_dp*maxocc
-                            pdiag(isgfa+ 2) = (sum/3.0_dp)*0.5_dp*maxocc
-                            pdiag(isgfa+ 3) = (sum/3.0_dp)*0.5_dp*maxocc
+                            pdiag(isgfa+ 1) = (my_sum/3.0_dp)*0.5_dp*maxocc
+                            pdiag(isgfa+ 2) = (my_sum/3.0_dp)*0.5_dp*maxocc
+                            pdiag(isgfa+ 3) = (my_sum/3.0_dp)*0.5_dp*maxocc
                          END IF
                       END IF
                     CASE DEFAULT

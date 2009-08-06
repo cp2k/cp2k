@@ -177,7 +177,8 @@ MODULE input_constants
                                               densities_guess=5,&
                                               history_guess=6,&
                                               no_guess=7,&
-                                              mopac_guess=8
+                                              mopac_guess=8,&
+                                              sparse_guess=9
 
   INTEGER, PARAMETER, PUBLIC               :: pw_interp=1,&
                                               spline3_nopbc_interp=2,&
