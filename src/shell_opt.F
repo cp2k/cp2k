@@ -70,9 +70,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iat, nshell, stat
-    LOGICAL                                  :: explicit, failure, my_check, &
-                                                optimize
-    REAL(dp), DIMENSION(:), POINTER          :: dvec_sc
+    LOGICAL                                  :: do_update, explicit, failure, &
+                                                my_check, optimize
+    REAL(dp), DIMENSION(:), POINTER          :: dvec_sc, dvec_sc_0
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -90,7 +90,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
 
-    NULLIFY (gopt_param,force_env_section,gopt_env,dvec_sc,root_section,geo_section)
+    NULLIFY (gopt_param,force_env_section,gopt_env,dvec_sc,dvec_sc_0,root_section,geo_section)
     root_section      => force_env%root_section
     force_env_section => force_env%force_env_section
     geo_section       => section_vals_get_subs_vals(root_section,"MOTION%SHELL_OPT",error=error)
@@ -119,11 +119,14 @@ CONTAINS
     nshell = SIZE(shell_particle_set)
     ALLOCATE(dvec_sc(3*nshell), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(dvec_sc_0(3*nshell), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i= 1,nshell
       dvec_sc(1+3*(i-1)) = core_particle_set(i)%r(1)-shell_particle_set(i)%r(1)
       dvec_sc(2+3*(i-1)) = core_particle_set(i)%r(2)-shell_particle_set(i)%r(2)
       dvec_sc(3+3*(i-1)) = core_particle_set(i)%r(3)-shell_particle_set(i)%r(3)
     END DO
+    dvec_sc_0 = dvec_sc
 
 
     CALL gopt_param_read(gopt_param, geo_section, type_id=default_shellcore_method_id, error=error)
@@ -133,12 +136,21 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"SHELL_OPT",error=error)
     gopt_env%eval_opt_geo = .FALSE.
     CALL geoopt_cg  (force_env,gopt_param,globenv,&
-            geo_section, gopt_env, dvec_sc, error=error)
+    geo_section, gopt_env, dvec_sc, do_update=do_update,  error=error)
+    IF(.NOT.do_update) THEN
+      DO i= 1,nshell
+        shell_particle_set(i)%r(1) = -dvec_sc_0(1+3*(i-1)) + core_particle_set(i)%r(1)
+        shell_particle_set(i)%r(2) = -dvec_sc_0(2+3*(i-1)) + core_particle_set(i)%r(2)
+        shell_particle_set(i)%r(3) = -dvec_sc_0(3+3*(i-1)) + core_particle_set(i)%r(3)
+      END DO
+    END IF
     CALL cp_rm_iter_level(logger%iter_info,"SHELL_OPT",error=error)
 
     CALL gopt_f_release(gopt_env, error=error)
     CALL gopt_param_release(gopt_param, error=error)
     DEALLOCATE(dvec_sc, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(dvec_sc_0, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF(PRESENT(tmp)) THEN

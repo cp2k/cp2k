@@ -15,8 +15,7 @@ MODULE fist_intra_force
                                              pbc
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_ff_harmonic,&
-                                             do_ff_quartic
+  USE input_constants,                 ONLY: do_ff_harmonic
   USE kinds,                           ONLY: dp
   USE mol_force,                       ONLY: force_bends,&
                                              force_bonds,&
@@ -85,8 +84,8 @@ CONTAINS
     INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, &
       index_a, index_b, index_c, index_d, ionef, ishell, itorsion, nbends, &
       nbonds, nimptors, nkind, nmol_per_kind, nonefs, nshell, ntorsions, nub
-    REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, drij, energy, fscalar, &
-      id12, id32, is32, ism, isn, r0, rab2, rinv, rinv2, s32, sm, sn, theta
+    REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
+      id32, is32, ism, isn, r0, rab2, rinv, rinv2, s32, sm, sn, theta
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, k1, k2, k3, &
                                                 k4, rij, t12, t32, t34, t43, &
@@ -193,21 +192,6 @@ CONTAINS
              shell_particle_set ( index_b )% f(1) = shell_particle_set ( index_b ) % f(1)  +rij(1) * fscalar
              shell_particle_set ( index_b )% f(2) = shell_particle_set ( index_b ) % f(2)  +rij(2) * fscalar
              shell_particle_set ( index_b )% f(3) = shell_particle_set ( index_b ) % f(3)  +rij(3) * fscalar
-
-             r0 = shell_list(ishell)%shell_kind%max_dist
-             drij = SQRT ( DOT_PRODUCT ( rij, rij ) )
-             IF(r0>0.0_dp .AND. drij>r0) THEN
-                k1 = 0.0_dp
-                k1(3) = shell_list ( ishell ) % shell_kind % k_spring*1000._dp
-                CALL force_bonds(do_ff_quartic, rij, r0, k1, 0.0_dp, energy, fscalar)
-                core_particle_set ( index_b )% f(1) = core_particle_set ( index_b ) % f(1)  -rij(1) * fscalar
-                core_particle_set ( index_b )% f(2) = core_particle_set ( index_b ) % f(2)  -rij(2) * fscalar
-                core_particle_set ( index_b )% f(3) = core_particle_set ( index_b ) % f(3)  -rij(3) * fscalar
-                shell_particle_set ( index_b )% f(1) = shell_particle_set ( index_b ) % f(1)  +rij(1) * fscalar
-                shell_particle_set ( index_b )% f(2) = shell_particle_set ( index_b ) % f(2)  +rij(2) * fscalar
-                shell_particle_set ( index_b )% f(3) = shell_particle_set ( index_b ) % f(3)  +rij(3) * fscalar
-                pot_shell = pot_shell + energy
-             END IF
 
           END DO SHELL
 

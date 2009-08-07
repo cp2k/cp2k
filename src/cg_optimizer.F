@@ -51,21 +51,22 @@ CONTAINS
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv, geo_section, &
-       gopt_env, x0, error)
+  RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,&
+  geo_section, gopt_env, x0, do_update, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: geo_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
+    LOGICAL, INTENT(OUT), OPTIONAL           :: do_update
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_do_update
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -78,9 +79,10 @@ CONTAINS
 
        CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
        CALL  cp_cg_main(force_env, x0, gopt_param,  output_unit, globenv,&
-             gopt_env, error)
+             gopt_env, do_update=my_do_update,  error=error)
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
+       IF(PRESENT(do_update)) do_update=my_do_update
     END IF
     
     CALL timestop(handle)
@@ -95,13 +97,14 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   RECURSIVE SUBROUTINE cp_cg_main(force_env, x0, gopt_param, output_unit, globenv,&
-       gopt_env,  error)
+  gopt_env, do_update,  error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(gopt_param_type), POINTER           :: gopt_param
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(gopt_f_type), POINTER               :: gopt_env
+    LOGICAL, INTENT(OUT), OPTIONAL           :: do_update
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cg_main', &
@@ -196,6 +199,7 @@ CONTAINS
        END IF
 
        ! Write final particle information and restart, if converged
+       IF(PRESENT(do_update)) do_update = conv
        CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
        CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section, &
             gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, error)

@@ -302,13 +302,10 @@ CPSourceFileRef,&
          atomic_kind => particles%els(ip)%atomic_kind
          CALL get_atomic_kind(atomic_kind=atomic_kind,shell_active=is_shell,mass=mass,shell=shell)
          IF(is_shell) THEN 
-           massc = shell%mass_core/mass
-           masss = shell%mass_shell/mass
            shell_index = particles%els(ip)%shell_index
            DO idir=1,3
               idg= 3*(shell_index-1)+idir
-              shell_particles%els(shell_index)%r(idir) = particles%els(ip)%r(idir)-massc*x(idg)
-              core_particles%els(shell_index)%r(idir)  = particles%els(ip)%r(idir)+masss*x(idg)
+              shell_particles%els(shell_index)%r(idir) = core_particles%els(ip)%r(idir)-x(idg)
            END DO
          END IF
        END DO
