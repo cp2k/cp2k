@@ -66,11 +66,20 @@ How to compile CP2K code
      You can now build CP2K using these settings:
      
      > cd cp2k/makefiles
-     > make ARCH=architecture VERSION=version
+     > make -j=N ARCH=architecture VERSION=version
      e.g.
-     > make ARCH=Linux-x86-64-g95 VERSION=sopt
+     > make -j=N ARCH=Linux-x86-64-g95 VERSION=sopt
+     as a short-cut, you can build several version of the code at once
+     > make -j=N ARCH=Linux-x86-64-g95 sopt popt ssmp psmp
 
      An executable should appear in cp2k/exe/*
+
+     all compiled files, libraries, executables, .. of all architectures / versions can be removed with
+     > make distclean
+     to remove objects and mod files only (i.e. keep exe) for a given ARCH/VERSION only use
+     > make ARCH=Linux-x86-64-g95 VERSION=sopt clean
+     to remove all for a given ARCH/VERSION
+     > make ARCH=Linux-x86-64-g95 VERSION=sopt realclean
 
  3b) The following flags should be present (or not) in the arch file:
      -D__parallel -D__BLACS -D__SCALAPACK: parallel runs
@@ -93,6 +102,8 @@ How to compile CP2K code
      -D__SX
      -D__DEC
      -D__XT3
+     with -D__GRID_CORE=X (with X=1..6) specific optimized core routines can be selected.
+     reasonable defaults are provided (see src/lib/collocate_fast.F) but trial-and-error might yield (a small ~10%) speedup.
 
  3c) The `I'm feeling lucky' version of building will try to guess what architecture you're on.
      Just type
