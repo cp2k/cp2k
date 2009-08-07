@@ -14,6 +14,7 @@
       MAX_SCF 2
       &DIAGONALIZATION
          ALGORITHM OT
+         MAX_ITER 50
       &END DIAGONALIZATION
     &END SCF
     &XC

@@ -20,6 +20,7 @@
       &DIAGONALIZATION
          ALGORITHM OT
          EPS_ADAPT 0.01
+         MAX_ITER 50
          &OT
             MINIMIZER DIIS
             PRECONDITIONER FULL_KINETIC
