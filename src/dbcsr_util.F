@@ -36,30 +36,33 @@ MODULE dbcsr_util
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_data_hold, dbcsr_data_init, &
        dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, dbcsr_get_info, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_new, dbcsr_mp_new_transposed, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
-       dbcsr_row_block_sizes
+       dbcsr_data_type, dbcsr_distribution, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_hold, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+       dbcsr_distribution_processor, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
+       dbcsr_get_data_size, dbcsr_get_info, dbcsr_iterator_start, &
+       dbcsr_iterator_stop, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
+       dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_new_transposed, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_mp_release, dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
-       dbcsr_imagedistribution_type, dbcsr_meta_size, dbcsr_mp_obj, &
-       dbcsr_num_slots, dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, &
-       dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
-       dbcsr_work_type
+       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_meta_size, &
+       dbcsr_mp_obj, dbcsr_num_slots, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
+       dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, &
+       dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_normal, &
+       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE f77_blas
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              int_4,&
                                              int_8,&
                                              real_4,&
@@ -78,7 +81,9 @@ MODULE dbcsr_util
                                              get_block_node,&
                                              next_block_node,&
                                              real_block_node_type,&
-                                             real_matrix_type
+                                             real_matrix_type,&
+                                             allocate_matrix, get_block_node,&
+                                             add_block_node
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -128,6 +133,11 @@ MODULE dbcsr_util
   INTERFACE pointer_view
      MODULE PROCEDURE pointer_view_s, pointer_view_d,&
           pointer_view_c, pointer_view_z
+  END INTERFACE
+
+  INTERFACE pointer_set
+     MODULE PROCEDURE pointer_set_r2_from_r1_s, pointer_set_r2_from_r1_d,&
+                      pointer_set_r2_from_r1_c, pointer_set_r2_from_r1_z
   END INTERFACE
 
   INTERFACE pointer_replace
@@ -197,7 +207,8 @@ MODULE dbcsr_util
 
   ! Main
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize,&
-       dbcsr_from_fm, dbcsr_from_sm, &
+       dbcsr_from_fm, dbcsr_from_sm,&
+       sm_from_dbcsr,&
        dbcsr_checksum, dbcsr_verify_matrix,&
        dbcsr_repoint_index,&
        dbcsr_init,&
@@ -1231,6 +1242,348 @@ CONTAINS
     DBG 'time:',tstop-tstart
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_from_sm
+
+
+! *****************************************************************************
+!> \brief Create a DBCSR matrix from a real_matrix_type
+!> \param[out] sm             cp2k sparse matrix
+!> \param[in] matrix          DBCSR matrix
+!> \param[dist] distribution_2d  distribution_2d for the sparse matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE sm_from_dbcsr (sm, matrix, distribution_2d, error)
+    TYPE(real_matrix_type), POINTER          :: sm
+    TYPE(dbcsr_type), INTENT(IN), TARGET     :: matrix
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_from_dbcsr', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: data_exchange_info_cnt = 3, &
+                                                metalen = 2
+
+    CHARACTER                                :: dbcsr_matrix_type
+    CHARACTER(LEN=40)                        :: sm_symmetry
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER :: blk, blk_l, blk_p, block_col, col, dst_p, mp_group, mynode, &
+      mypcol, myprow, nblkcols_total, nblkrows_local, nblkrows_total, ncols, &
+      newpcol, newprow, nfullcols_total, nfullrows_total, npcols, nprows, &
+      nrows, numproc, nze, row, row_l, src_p, stored_col, stored_row, &
+      timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: rd_disp, recv_meta, rm_disp, &
+      sd_disp, sdp, send_meta, sm_disp, sm_first_col, sm_first_row, &
+      sm_last_col, sm_last_row, smp
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count
+    INTEGER, DIMENSION(4)                    :: ver
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, local_rows, &
+                                                pcol_dist, prow_dist, &
+                                                row_blk_size
+    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
+    LOGICAL                                  :: symmetric, tr
+    REAL(KIND=dp)                            :: tstart, tstop
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: block_data_p, data_p
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_mp_obj)                       :: mp
+    TYPE(dbcsr_type), POINTER                :: matrix_p
+    TYPE(distribution_2d_type), POINTER      :: dist2d
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
+    tstart = m_walltime ()
+    ! Sanity checks.
+    CALL cp_assert (dbcsr_valid_index (matrix), cp_warning_level,&
+         cp_caller_error, routineN,&
+         "DBCSR Matrix is declared invalid; expect problems.", error=error)
+    CALL cp_assert (dbcsr_data_type (matrix) .EQ. dbcsr_type_real_8,&
+         cp_failure_level, cp_unimplemented_error_nr, routineN,&
+         "Non double-precision conversions not possible.", error=error)
+    ! Get the dbcsr info and dimensions
+    CALL dbcsr_get_info (matrix, nblkrows_total=nblkrows_total,&
+         nblkcols_total=nblkcols_total, nfullrows_total=nfullrows_total,&
+         nfullcols_total=nfullcols_total, name=name,&
+         matrix_type=dbcsr_matrix_type)
+    ! Handle dist2d
+    IF (PRESENT (distribution_2d)) THEN
+       dist2d => distribution_2d
+    ELSE
+       CALL cp_assert (ASSOCIATED (matrix%dist2d), cp_fatal_level,&
+            cp_caller_error, routineN,&
+            "distribution_2d must be specified or included in DBCSR matrix",&
+            error=error)
+       dist2d => matrix%dist2d
+    ENDIF
+    ! Get info and verify.
+    CALL distribution_2d_get(dist2d, row_distribution=prow_dist,&
+         col_distribution=pcol_dist, error=error, blacs_env=blacs_env,&
+         n_row_distribution=ver(3), n_col_distribution=ver(4))
+    CALL cp_assert (nblkrows_total.EQ.ver(3).AND.nblkcols_total.EQ.ver(4),&
+         cp_warning_level, cp_internal_error, routineN,&
+         "Specified matrix dimensions/distributions seem incompatible.")
+    ! Convert type
+    SELECT CASE (dbcsr_matrix_type)
+    CASE (dbcsr_type_normal)
+       sm_symmetry = "none"
+    CASE (dbcsr_type_symmetric)
+       sm_symmetry = "symmetric"
+    CASE (dbcsr_type_antisymmetric)
+       sm_symmetry = "antisymmetric"
+    CASE default
+       CALL cp_unimplemented_error (routineN,&
+            "Can not convert this matrix type or invalid matrix type")
+    END SELECT
+    ! Get row/column offsets.
+    ALLOCATE (sm_first_row(nblkrows_total), sm_last_row(nblkrows_total),&
+         sm_first_col(nblkcols_total), sm_last_col(nblkcols_total))
+    CALL convert_sizes_to_offsets (array_data (dbcsr_row_block_sizes (matrix)),&
+         sm_first_row, sm_last_row)
+    CALL convert_sizes_to_offsets (array_data (dbcsr_col_block_sizes (matrix)),&
+         sm_first_col, sm_last_col)
+    CALL allocate_matrix(matrix=sm,&
+                         nblock_row=nblkrows_total,&
+                         nblock_col=nblkcols_total,&
+                         nrow=nfullrows_total,&
+                         ncol=nfullcols_total,&
+                         first_row=sm_first_row,&
+                         last_row=sm_last_row,&
+                         first_col=sm_first_col,&
+                         last_col=sm_last_col,&
+                         matrix_name=TRIM(name),&
+                         matrix_symmetry=sm_symmetry,&
+                         sparsity_id=-1,&
+                         distribution_2d=dist2d, error=error)
+    DEALLOCATE (sm_first_row, sm_last_row, sm_first_col, sm_last_col)
+    !
+    CALL distribution_2d_get (dist2d, row_distribution=prow_dist,&
+         col_distribution=pcol_dist, blacs_env=blacs_env, error=error)
+    !
+    dist = dbcsr_distribution (matrix)
+    mp = dbcsr_distribution_mp (dist)
+    mynode = dbcsr_mp_mynode (mp)
+    numproc = dbcsr_mp_numnodes (mp)
+    mp_group = dbcsr_mp_group (mp)
+    row_blk_size => array_data (dbcsr_row_block_sizes (matrix))
+    col_blk_size => array_data (dbcsr_col_block_sizes (matrix))
+    nblkrows_local = dbcsr_distribution_nlocal_rows (dist)
+    local_rows => array_data (dbcsr_distribution_local_rows (dist))
+    ! Assume the DBCSR matrix and the new one have a compatible
+    ! parallel environment (i.e., number of nodes), but the
+    ! distribution can be different (untested).
+    CALL get_blacs_info(blacs_env, para_env=para_env, blacs2mpi=blacs2mpi,&
+         my_process_row=myprow, my_process_column=mypcol,&
+         number_of_process_rows=nprows, number_of_process_columns=npcols)
+    ALLOCATE (send_count(2, 0:numproc-1))
+    ALLOCATE (recv_count(2, 0:numproc-1))
+    ALLOCATE (sdp(0:numproc-1))
+    ALLOCATE (sd_disp(0:numproc-1))
+    ALLOCATE (smp(0:numproc-1))
+    ALLOCATE (sm_disp(0:numproc-1))
+    ALLOCATE (rd_disp(0:numproc-1))
+    ALLOCATE (rm_disp(0:numproc-1))
+    ! Count what to send to others.
+    send_count(:,:) = 0
+    DO row_l = 1, nblkrows_local
+       row = local_rows(row_l)
+       DO blk = matrix%row_p(row)+1, matrix%row_p(row+1)
+          stored_row = row
+          col = matrix%col_i(blk)
+          stored_col = col
+          ! The sm_matrix_type has the same data layout as the DBCSR
+          ! matrices, so we can use the DBCSR one to get the correct
+          ! place.
+          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
+          newprow = prow_dist(stored_row)
+          newpcol = pcol_dist(stored_col)
+          dst_p = blacs2mpi(newprow, newpcol)
+          nze = row_blk_size(row) * col_blk_size(col)
+          send_count(1, dst_p) = send_count(1, dst_p) + 1
+          send_count(2, dst_p) = send_count(2, dst_p) + nze
+       ENDDO
+    ENDDO
+    DBG 'B'
+    ! Exchange data on what to send
+    CALL mp_alltoall(send_count, recv_count, 2, mp_group)
+    DBG 'C'
+    DBG 'send counts',send_count
+    DBG 'recv counts',recv_count
+    ! Allocate data structures needed for data exchange.
+    ALLOCATE (recv_data(SUM(recv_count(2, :))))
+    ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :))))
+    ALLOCATE (send_data(SUM(send_count(2, :))))
+    ALLOCATE (send_meta(metalen*SUM(send_count(1, :))))
+    DBG 'send data len',SIZE (send_data)
+    DBG 'send meta len',SIZE (send_meta)
+    DBG 'recv data len',SIZE (recv_data)
+    DBG 'recv meta len',SIZE (recv_meta)
+    ! Fill in the meta data structures and copy the data.
+    sd_disp = -1 ; sm_disp = -1
+    rd_disp = -1 ; rm_disp = -1
+    sd_disp(0) = 1 ; sm_disp(0) = 1
+    rd_disp(0) = 1 ; rm_disp(0) = 1
+    DO dst_p = 1, numproc-1
+       sm_disp(dst_p) = sm_disp(dst_p-1) + metalen*send_count(1, dst_p-1)
+       sd_disp(dst_p) = sd_disp(dst_p-1) + send_count(2, dst_p-1)
+       rm_disp(dst_p) = rm_disp(dst_p-1) + metalen*recv_count(1, dst_p-1)
+       rd_disp(dst_p) = rd_disp(dst_p-1) + recv_count(2, dst_p-1)
+    ENDDO
+    sdp = sd_disp ; smp = sm_disp
+    DBG 'send disps data',sd_disp
+    DBG 'send disps meta',sm_disp
+    DBG 'recv disps data',rd_disp
+    DBG 'recv disps meta',rm_disp
+    DBG 'D'
+    !> Now exchange information on the upcoming transfers.
+    ! Perform exchanges
+    !
+    CALL dbcsr_get_data (matrix, data_p)
+    DO row_l = 1, nblkrows_local
+       row = local_rows(row_l)
+       DO blk = matrix%row_p(row)+1, matrix%row_p(row+1)
+          col = matrix%col_i(blk)
+          blk_p = matrix%blk_p(blk)
+          stored_row = row
+          stored_col = col
+          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
+          newprow = prow_dist(stored_row)
+          newpcol = pcol_dist(stored_col)
+          dst_p = blacs2mpi(newprow, newpcol)
+          nrows = row_blk_size(row)
+          ncols = row_blk_size(col)
+          nze = nrows*ncols
+          send_meta(smp(dst_p)) = stored_row
+          send_meta(smp(dst_p)+1) = stored_col
+          IF (.NOT. tr) THEN
+             send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+                  data_p(blk_p:blk_p+nze-1)
+          ELSE
+             CALL dbcsr_block_transpose (&
+                  send_data(sdp(dst_p):sdp(dst_p)+nze-1),&
+                  data_p(blk_p:blk_p+nze-1), nrows, ncols)
+             !send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+             !     RESHAPE (TRANSPOSE (blkdata_2d), (/nze/))
+          ENDIF
+          smp(dst_p) = smp(dst_p) + metalen
+          sdp(dst_p) = sdp(dst_p) + nze
+       ENDDO
+    ENDDO
+    !
+    ! Exchange the data and metadata structures.
+    DBG 'E'
+    CALL mp_alltoall(send_data(:), send_count(2,:), sd_disp(:)-1,&
+         recv_data(:), recv_count(2,:), rd_disp(:)-1, mp_group)
+    DBG 'F'
+    DBG 'send_meta',send_meta
+    CALL mp_alltoall(send_meta(:), metalen*send_count(1,:), sm_disp(:)-1,&
+         recv_meta(:), metalen*recv_count(1,:), rm_disp(:)-1, mp_group)
+    DBG 'recv_meta',recv_meta
+    DBG 'G'
+    ! Now fill in the data.
+    blk = SUM(recv_count(1,:))
+    nze = SUM(recv_count(2,:))
+    !DBG 'send disps data',sd_disp
+    !DBG 'send disps meta',sm_disp
+    !DBG 'recv disps data',rd_disp
+    !DBG 'recv disps meta',rm_disp
+    matrix_p => matrix
+    CALL dbcsr_iterator_start (iter, matrix_p)
+    NULLIFY (matrix_p)
+    DO src_p = 0, numproc-1
+       ! A pointer to the received data buffer to make things cleaner
+       ! in the following inner loop.
+       nze = recv_count(2, src_p)
+       data_p => recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
+       blk_p = 1
+       DO blk_l = 1, recv_count(1, src_p)
+          stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
+          stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
+          nrows = row_blk_size(stored_row)
+          ncols = col_blk_size(stored_col)
+          nze = nrows * ncols
+          block_data_p => data_p(blk_p:blk_p+nze-1)
+          CALL pointer_set (blkdata_2d, (/nrows, ncols/),&
+               block_data_p, iter%buffer_r_dp)
+          CALL add_block_node(matrix=sm,&
+               block_row=stored_row, block_col=stored_col,&
+               block=blkdata_2d, error=error)
+          blk_p = blk_p + nze
+       ENDDO
+    ENDDO
+    CALL dbcsr_iterator_stop (iter)
+    !
+    DEALLOCATE(send_count)
+    DEALLOCATE(recv_count)
+    DEALLOCATE(sdp); DEALLOCATE(sd_disp)
+    DEALLOCATE(smp); DEALLOCATE(sm_disp)
+    DEALLOCATE(rd_disp)
+    DEALLOCATE(rm_disp)
+    DEALLOCATE(recv_data)
+    DEALLOCATE(recv_meta)
+    DEALLOCATE(send_data)
+    DEALLOCATE(send_meta)
+    tstop = m_walltime ()
+    DBG 'time:',tstop-tstart
+    CALL timestop(timing_handle)
+  END SUBROUTINE sm_from_dbcsr
+
+! *****************************************************************************
+!> \brief Converts sizes to offsets
+!>
+!> \param[in] sizes           array with sizes
+!> \param[out] offsets_start  offsets of starts
+!> \param[out] offsets_stop   (optional) offsets of ends
+! *****************************************************************************
+
+  PURE SUBROUTINE convert_sizes_to_offsets (sizes,&
+       offsets_start, offsets_stop)
+    INTEGER, DIMENSION(:), INTENT(IN)        :: sizes
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: offsets_start
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: offsets_stop
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'convert_sizes_to_offsets', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, n
+
+!   ---------------------------------------------------------------------------
+
+    n = SIZE (sizes)
+    !IF (bcsr_debug) THEN
+    !   CALL cp_assert (SIZE (offsets_start) .GE. n, cp_failure_level,&
+    !        cp_caller_error, routineN, "Start offset array too small")
+    !   CALL cp_assert (SIZE (offsets_start) .EQ. n, cp_warning_level,&
+    !        cp_caller_error, routineN, "Start offset array too big")
+    !   IF (PRESENT (offsests_stop)) THEN
+    !      CALL cp_assert (SIZE (offsets_stop) .GE. n, cp_failure_level,&
+    !           cp_caller_error, routineN, "Stop offset array too small")
+    !      CALL cp_assert (SIZE (offsets_stop) .EQ. n, cp_warning_level,&
+    !           cp_caller_error, routineN, "Stop offset array too big")
+    !   ENDIF
+    !ENDIF
+    IF (n .GT. 0) THEN
+       offsets_start(1) = 1
+       IF (PRESENT (offsets_stop)) offsets_stop(1) = sizes(1)
+       IF (.NOT. PRESENT (offsets_stop)) THEN
+          DO i = 2, n
+             offsets_start(i) = offsets_start(i-1) + sizes(i-1) + 1
+          ENDDO
+       ELSE
+          DO i = 2, n
+             offsets_start(i) = offsets_start(i-1) + sizes(i-1)
+             offsets_stop(i) = offsets_stop(i-1) + sizes(i)
+          ENDDO
+       ENDIF
+    ENDIF
+  END SUBROUTINE convert_sizes_to_offsets
 
 
 ! *****************************************************************************
@@ -5936,7 +6289,7 @@ CONTAINS
     col_blk_size => array_data (matrix%col_blk_size)
     !> We first ensure there is enough space in the vector matrix,
     !> then we build it up.
-    CALL dbcsr_get_info (matrix, error=error,&
+    CALL dbcsr_get_info (matrix,&
          nblkrows_total = src_nblk_rows_total)
     !> Now go through the rows and find the appropriate column. If it
     !> exists, place the data into the vector matrix and update the

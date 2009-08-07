@@ -362,12 +362,9 @@
     IF(info.NE.0)CALL stop_program(routineN,"error in dpotri")
     !
     ! symmetrize
-    FORALL (i = 1:m, j = 1:m)
-       !DO i=1,m
-       !DO j=i,m
-       blk(j,i) = blk(i,j)
-       !ENDDO
-       !ENDDO
-    END FORALL
+    DO i=1,m
+       DO j=i,m
+          blk(j,i) = blk(i,j)
+       ENDDO
+    ENDDO
   END SUBROUTINE block_chol_inv_c
-

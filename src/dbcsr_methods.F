@@ -20,13 +20,14 @@ MODULE dbcsr_methods
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_mp_obj,&
-                                             dbcsr_type
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
+       dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_real_4, dbcsr_type_real_8
   USE f77_blas
   USE f77_blas_generic,                ONLY: bl_copy
-  USE kinds,                           ONLY: real_4,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             real_4,&
                                              real_8
   USE message_passing,                 ONLY: mp_allocate,&
                                              mp_deallocate
@@ -52,16 +53,20 @@ MODULE dbcsr_methods
             dbcsr_distribution_thread_dist,&
             dbcsr_distribution_make_threads
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
+            dbcsr_matrix_type, dbcsr_data_type,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
             dbcsr_nblkrows_total, dbcsr_nblkcols_total, dbcsr_nfullrows_total,&
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
             dbcsr_nfullrows_local, dbcsr_nfullcols_local
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_copyall, dbcsr_get_data_size,&
-            dbcsr_data_set_pointer
+            dbcsr_data_set_pointer, dbcsr_data_area
 
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
             dbcsr_get_data_p_d, dbcsr_get_data_p_z
+
+  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_stop,&
+            dbcsr_iterator_blocks_left
 
   PRIVATE
 
@@ -72,7 +77,6 @@ MODULE dbcsr_methods
 #define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
 #define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
 
-!#ifndef __SGL
   INTERFACE dbcsr_get_data
      MODULE PROCEDURE get_data_s, get_data_d, get_data_c, get_data_z,&
           get_data_m_s, get_data_m_d, get_data_m_c, get_data_m_z
@@ -87,19 +91,9 @@ MODULE dbcsr_methods
           dbcsr_get_data_c_d, dbcsr_get_data_c_z
   END INTERFACE
 
-!#else
-!  INTERFACE dbcsr_get_data
-!     MODULE PROCEDURE get_data_d, get_data_z
-!  END INTERFACE
-!
-!  INTERFACE dbcsr_data_set_pointer
-!     MODULE PROCEDURE set_data_p_d, set_data_p_z
-!  END INTERFACE
-!#endif
-  !INTERFACE dbcsr_get_data_p
-  !   MODULE PROCEDURE dbcsr_get_data_p_s, dbcsr_get_data_p_d,&
-  !   dbcsr_get_data_p_c, dbcsr_get_data_p_z
-  !END INTERFACE
+  INTERFACE dbcsr_iterator_next_block
+     MODULE PROCEDURE iterator_next_block_d
+  END INTERFACE
 
 CONTAINS
 
@@ -546,6 +540,13 @@ CONTAINS
     distribution = matrix%dist
   END FUNCTION dbcsr_distribution
 
+  FUNCTION dbcsr_name (matrix) RESULT (name)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    CHARACTER(len=default_string_length)     :: name
+
+    name = matrix%name
+  END FUNCTION dbcsr_name
+
   FUNCTION dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     TYPE(array_i1d_obj)                      :: row_blk_sizes
@@ -576,6 +577,11 @@ CONTAINS
 !> \param[out] row_blk_size
 !> \param[out] col_blk_size
 !> \param[out] distribution   the data distribution of the matrix
+!> \param[out] name           matrix name
+!> \param[out] data_area      data_area
+!> \param[out] matrix_type    matrix type (regular, symmetric, see
+!>                            dbcsr_types.F for values)
+!> \param[out] data_type      data type (single/double precision real/complex)
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_info(matrix, nblkrows_total, nblkcols_total,&
@@ -584,8 +590,8 @@ CONTAINS
        nfullrows_local, nfullcols_local,&
        my_prow, my_pcol,&
        local_rows, local_cols, proc_row_dist, proc_col_dist,&
-       row_blk_size, col_blk_size, distribution,&
-       error)
+       row_blk_size, col_blk_size, distribution, name, data_area,&
+       matrix_type, data_type)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, &
       nfullrows_total, nfullcols_total, nblkrows_local, nblkcols_local, &
@@ -596,7 +602,10 @@ CONTAINS
       OPTIONAL                               :: row_blk_size, col_blk_size
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT), OPTIONAL                  :: distribution
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    CHARACTER(len=*), INTENT(OUT), OPTIONAL  :: name
+    TYPE(dbcsr_data_obj), INTENT(OUT), &
+      OPTIONAL                               :: data_area
+    CHARACTER, OPTIONAL                      :: matrix_type, data_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_info', &
       routineP = moduleN//':'//routineN
@@ -604,7 +613,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL cp_assert (matrix%valid, cp_warning_level, cp_caller_error,&
-         routineP,"Invalid matrix", error=error)
+         routineP,"Invalid matrix"             )
     IF (PRESENT (nblkrows_total)) nblkrows_total = matrix%nblkrows_total
     IF (PRESENT (nblkcols_total)) nblkcols_total = matrix%nblkcols_total
     IF (PRESENT (nfullrows_total)) nfullrows_total = matrix%nfullrows_total
@@ -616,6 +625,10 @@ CONTAINS
     IF (PRESENT (row_blk_size)) row_blk_size = matrix%row_blk_size
     IF (PRESENT (col_blk_size)) col_blk_size = matrix%col_blk_size
     IF (PRESENT (distribution)) distribution = matrix%dist
+    IF (PRESENT (name)) name = matrix%name
+    IF (PRESENT (data_area)) data_area = matrix%data_area
+    IF (PRESENT (matrix_type)) matrix_type = matrix%matrix_type
+    IF (PRESENT (data_type)) data_type = matrix%data_type
     IF (PRESENT (local_rows)) &
          local_rows => array_data (dbcsr_distribution_local_rows (matrix%dist))
     IF (PRESENT (local_cols)) &
@@ -1082,6 +1095,44 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Returns the data area
+!> \param matrix     matrix from which to get data
+!> \param area       data area
+! *****************************************************************************
+  FUNCTION dbcsr_data_area (matrix) RESULT (data_area)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_data_obj)                     :: data_area
+
+    data_area = matrix%data_area
+  END FUNCTION dbcsr_data_area
+
+! *****************************************************************************
+!> \brief Returns the matrix type
+!> \param matrix              query this matrix
+!> \param matrix_type         matrix_type (see dbcsr_types.F for possible
+!>                            values)
+! *****************************************************************************
+  FUNCTION dbcsr_matrix_type (matrix) RESULT (matrix_type)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    CHARACTER                                :: matrix_type
+
+    matrix_type = matrix%matrix_type
+  END FUNCTION dbcsr_matrix_type
+
+! *****************************************************************************
+!> \brief Returns the data type stored in the matrix
+!> \param matrix              query this matrix
+!> \param data_type           data_type (see dbcsr_types.F for possible
+!>                            values)
+! *****************************************************************************
+  FUNCTION dbcsr_data_type (matrix) RESULT (data_type)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    CHARACTER                                :: data_type
+
+    data_type = matrix%data_type
+  END FUNCTION dbcsr_data_type
+
+! *****************************************************************************
 !> \brief Returns the allocated data size
 !> \param[in] area       data area
 !> \param data_size      size of data
@@ -1259,5 +1310,168 @@ CONTAINS
     area%d%c_dp => p
   END SUBROUTINE set_data_p_z
 
+
+! *****************************************************************************
+!> \brief Sets up an iterator
+!> \param[out] iterator   the iterator
+!> \param[in] matrix      DBCSR matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_iterator_start (iterator, matrix)
+    TYPE(dbcsr_iterator), INTENT(OUT)        :: iterator
+    TYPE(dbcsr_type), POINTER                :: matrix
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_start', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: max_c_size, max_r_size, &
+                                                maxsize
+
+!   ---------------------------------------------------------------------------
+
+    iterator%matrix => matrix
+    iterator%row = 0
+    iterator%pos = 0
+    iterator%rbs => array_data (matrix%row_blk_size)
+    iterator%cbs => array_data (matrix%col_blk_size)
+    iterator%row_size = 0
+    max_r_size = 0
+    max_c_size = 0
+    IF (matrix%nblks .GE. 1) THEN
+       iterator%row = 1
+       iterator%pos = 1
+       iterator%row_size = iterator%rbs(1)
+       max_r_size = MAXVAL (iterator%rbs)
+       max_c_size = MAXVAL (iterator%cbs)
+    ENDIF
+    NULLIFY (iterator%buffer_r_sp, iterator%buffer_r_dp,&
+         iterator%buffer_c_sp, iterator%buffer_c_dp)
+    maxsize = max_r_size * max_c_size
+    SELECT CASE (matrix%data_area%d%data_type)
+    CASE (dbcsr_type_real_4)
+       ALLOCATE (iterator%buffer_r_sp (max_r_size, max_c_size))
+    CASE (dbcsr_type_real_8)
+       ALLOCATE (iterator%buffer_r_dp (max_r_size, max_c_size))
+    CASE (dbcsr_type_complex_4)
+       ALLOCATE (iterator%buffer_c_sp (max_r_size, max_c_size))
+    CASE (dbcsr_type_complex_8)
+       ALLOCATE (iterator%buffer_c_dp (max_r_size, max_c_size))
+    CASE default
+       CALL cp_assert(.FALSE., cp_warning_level, cp_internal_error,&
+            routineN, "Invalid data type.")
+    END SELECT
+  END SUBROUTINE dbcsr_iterator_start
+
+! *****************************************************************************
+!> \brief Stops up an iterator
+!> \param[out] iterator   the iterator
+!> \param[in] matrix      DBCSR matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_iterator_stop (iterator)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_stop', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    iterator%row = 0
+    iterator%pos = 0
+    SELECT CASE (iterator%matrix%data_area%d%data_type)
+    CASE (dbcsr_type_real_4)
+       CALL cp_assert (ASSOCIATED (iterator%buffer_r_sp), cp_warning_level,&
+            cp_internal_error, routineN, "Array should have been allocated")
+       IF (ASSOCIATED (iterator%buffer_r_sp)) THEN
+          DEALLOCATE (iterator%buffer_r_sp)
+       ENDIF
+    CASE (dbcsr_type_real_8)
+       CALL cp_assert (ASSOCIATED (iterator%buffer_r_dp), cp_warning_level,&
+            cp_internal_error, routineN, "Array should have been allocated")
+       IF (ASSOCIATED (iterator%buffer_r_dp)) THEN
+          DEALLOCATE (iterator%buffer_r_dp)
+       ENDIF
+    CASE (dbcsr_type_complex_4)
+       CALL cp_assert (ASSOCIATED (iterator%buffer_c_sp), cp_warning_level,&
+            cp_internal_error, routineN, "Array should have been allocated")
+       IF (ASSOCIATED (iterator%buffer_c_sp)) THEN
+          DEALLOCATE (iterator%buffer_c_sp)
+       ENDIF
+    CASE (dbcsr_type_complex_8)
+       CALL cp_assert (ASSOCIATED (iterator%buffer_c_dp), cp_warning_level,&
+            cp_internal_error, routineN, "Array should have been allocated")
+       IF (ASSOCIATED (iterator%buffer_c_dp)) THEN
+          DEALLOCATE (iterator%buffer_c_dp)
+       ENDIF
+    CASE default
+       CALL cp_assert(.FALSE., cp_warning_level, cp_internal_error,&
+            routineN, "Invalid data type.")
+    END SELECT
+    NULLIFY (iterator%matrix)
+    NULLIFY (iterator%buffer_r_sp, iterator%buffer_r_dp,&
+         iterator%buffer_c_sp, iterator%buffer_c_dp, iterator%rbs, iterator%cbs)
+  END SUBROUTINE dbcsr_iterator_stop
+
+
+! *****************************************************************************
+!> \brief Gets the next data block, double precision real
+!> \param[in,out] iterator   the iterator
+!> \param[out] block         pointer to the data block
+!> \param[out] row           row of the data block
+!> \param[out] column        column of the data block
+! *****************************************************************************
+  SUBROUTINE iterator_next_block_d (iterator, block, row, column)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+    REAL(KIND=real_8), DIMENSION(:, :), &
+      POINTER                                :: block
+    INTEGER, INTENT(OUT)                     :: row, column
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk_p, csize, nze, rsize
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: rbp
+
+!   ---------------------------------------------------------------------------
+
+    IF (iterator%pos .LE. iterator%matrix%nblks .AND. iterator%pos .NE. 0) THEN
+       row = iterator%row
+       column = iterator%matrix%col_i(iterator%pos)
+       blk_p = iterator%matrix%blk_p(iterator%pos)
+       rsize = iterator%row_size
+       csize = iterator%cbs(column)
+       nze = rsize * csize
+       rbp => dbcsr_get_data_p (iterator%matrix%data_area, 0.0_real_8)
+       iterator%buffer_r_dp = RESHAPE (rbp(blk_p:blk_p+nze-1), (/rsize, csize/))
+       block => iterator%buffer_r_dp(1:rsize, 1:csize)
+       iterator%pos = iterator%pos+1
+       IF (iterator%pos .GT. iterator%matrix%nblks) THEN
+          iterator%pos = 0
+       ELSE
+          DO WHILE (iterator%matrix%row_p(iterator%row+1) .LT. iterator%pos)
+             row = row+1
+             IF (row .GT. iterator%matrix%nblkrows_total) THEN
+                iterator%pos = 0
+                EXIT
+             ENDIF
+          ENDDO
+       ENDIF
+    ELSE
+       row = 0
+       column = 0
+       NULLIFY (block)
+    ENDIF
+    
+  END SUBROUTINE iterator_next_block_d
+
+! *****************************************************************************
+!> \brief Returns whether there any blocks left in the iterator.
+!> \param[in] iterator       the iterator
+!> \param[in]
+! *****************************************************************************
+  FUNCTION dbcsr_iterator_blocks_left (iterator) RESULT (blocks_left)
+    TYPE(dbcsr_iterator), INTENT(IN)         :: iterator
+    LOGICAL                                  :: blocks_left
+
+    blocks_left = iterator%pos .NE. 0
+  END FUNCTION dbcsr_iterator_blocks_left
 
 END MODULE dbcsr_methods

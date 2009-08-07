@@ -33,7 +33,7 @@
     row_blk_size => array_data (matrix%row_blk_size)
     CALL dbcsr_get_info (matrix, local_rows = local_rows,&
          proc_col_dist = pcol_dist,&
-         my_pcol = my_pcol, error=error)
+         my_pcol = my_pcol)
     valid_index = dbcsr_valid_index (matrix)
     ! Try to find the column element in each row. If it's not found,
     ! then add it.
@@ -123,6 +123,23 @@
     view => original(lb:ub)
   END FUNCTION pointer_view_s
 
+! *****************************************************************************
+!> \brief Sets a rank-2 pointer to rank-1 data.
+!> \param[out] r2p       pointer with rank 2
+!> \param[in] d1, d2     dimensions for rank 2 pointer
+!> \param[out] r1p       existing pointer with rank1
+! *****************************************************************************
+  SUBROUTINE pointer_set_r2_from_r1_s (r2p, shp, r1p, r2buff)
+    REAL(kind=real_4), DIMENSION(:,:), POINTER    :: r2p
+    INTEGER, DIMENSION(2), INTENT(IN)   :: shp
+    REAL(kind=real_4), DIMENSION(:), POINTER      :: r1p
+    REAL(kind=real_4), DIMENSION(:,:), POINTER    :: r2buff
+
+    ! This one can be used if the compiler supports pointer rank remapping.
+    !r2p(1:d1, 1:d2) => r1p(1:d1*d2)
+    r2buff(1:shp(1), 1:shp(2)) = RESHAPE (r1p, shp)
+    r2p => r2buff(1:shp(1), 1:shp(2))
+  END SUBROUTINE pointer_set_r2_from_r1_s
 
 ! *****************************************************************************
 !> \brief Copy and transpose block.

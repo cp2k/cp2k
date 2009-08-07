@@ -1963,8 +1963,8 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_get_info (mat_s, row_blk_size=row_blk_size_array,&
          col_blk_size=col_blk_size_array, nblkrows_total=nblkrows_total,&
          nblkcols_total=nblkcols_total, nfullrows_total=nfullrows_total,&
-         distribution=dist_main, error=error)
-    CALL cp_dbcsr_get_dist2d (mat_s, dist2d_main, error)
+         distribution=dist_main)
+    CALL cp_dbcsr_get_dist2d (mat_s, dist2d_main, error=error)
     dist2d_main => matrix_s%distribution_2d
 
     CALL dbcsr_init (mat_t, error)

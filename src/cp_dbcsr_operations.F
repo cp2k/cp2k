@@ -46,7 +46,8 @@ MODULE cp_dbcsr_operations
        dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, dbcsr_destroy, &
        dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_from_fm, &
        dbcsr_from_sm, dbcsr_init, dbcsr_make_col_images, &
-       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix
+       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix, &
+       sm_from_dbcsr
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
@@ -58,6 +59,7 @@ MODULE cp_dbcsr_operations
                                              mp_sum_i8,&
                                              mp_sync
   USE sparse_matrix_types,             ONLY: checksum_matrix,&
+                                             deallocate_matrix,&
                                              real_matrix_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -219,6 +221,8 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist
     TYPE(dbcsr_type)                         :: matrix_a, matrix_a2, &
                                                 matrix_b, matrix_bt, matrix_c
+    TYPE(distribution_2d_type), POINTER      :: dist2d
+    TYPE(real_matrix_type), POINTER          :: matrix_s2
 
     CALL timeset(routineN,handle)
 
@@ -247,6 +251,18 @@ CONTAINS
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR S  checksum", checksum
     ENDIF
+    !
+    ! Convert back to see if we get the same thing.
+    dist2d => matrix_s%distribution_2d
+    NULLIFY (matrix_s2)
+    CALL sm_from_dbcsr (matrix_s2, matrix_a, dist2d, error)
+    checksum = checksum_matrix(matrix_s2,&
+                               matrix_s2%distribution_2d%blacs_env%para_env)
+    !WRITE(*,*)'BCSR S checksum',checksum
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"  SM2 S  checksum", checksum
+    ENDIF
+    CALL deallocate_matrix (matrix_s2, error)
     !
     ! test the scale and trace routines on a square matrix
     CALL dbcsr_scale(matrix_a,alpha_scalar=2.0_dp,error=error)

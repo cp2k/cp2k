@@ -16,7 +16,8 @@ MODULE dbcsr_types
   USE array_types,                     ONLY: array_i1d_obj
   USE btree_I8_k_I4_v,                 ONLY: btree_I8_I4 => btree
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              real_4,&
                                              real_8
   USE message_passing,                 ONLY: mp_window_type
@@ -29,12 +30,13 @@ MODULE dbcsr_types
 
   PUBLIC :: dbcsr_type,&
             dbcsr_data_obj,&
-            dbcsr_data_type,&
+            dbcsr_data_area_type,&
             dbcsr_work_type,&
             dbcsr_array_type,&
             dbcsr_mp_obj, dbcsr_mp_type,&
             dbcsr_distribution_obj, dbcsr_distribution_type,&
-            dbcsr_imagedistribution_type
+            dbcsr_imagedistribution_type,&
+            dbcsr_iterator
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
             dbcsr_slot_row_p,&
@@ -43,6 +45,11 @@ MODULE dbcsr_types
             dbcsr_slot_nblks,&
             dbcsr_slot_nze,&
             dbcsr_num_slots
+  PUBLIC :: dbcsr_type_real_4, dbcsr_type_real_8,&
+            dbcsr_type_complex_4, dbcsr_type_complex_8
+  PUBLIC :: dbcsr_type_normal, dbcsr_type_symmetric,&
+            dbcsr_type_antisymmetric, dbcsr_type_transposed
+
 
   INTEGER, PARAMETER :: dbcsr_meta_size = 13 ! The number of meta fields
 
@@ -137,7 +144,7 @@ MODULE dbcsr_types
 !> \var special     these data are specially-allocated
 !> \var data_type   which of the data types is actually used
 ! *****************************************************************************
-  TYPE dbcsr_data_type
+  TYPE dbcsr_data_area_type
      REAL(KIND=real_4), DIMENSION(:), POINTER    :: r_sp
      REAL(KIND=real_8), DIMENSION(:), POINTER    :: r_dp
      COMPLEX(KIND=real_4), DIMENSION(:), POINTER :: c_sp
@@ -145,12 +152,16 @@ MODULE dbcsr_types
      INTEGER                                  :: refcount
      LOGICAL                                  :: special
      CHARACTER                                :: data_type
-  END TYPE dbcsr_data_type
+  END TYPE dbcsr_data_area_type
 
   TYPE dbcsr_data_obj
-     TYPE(dbcsr_data_type), POINTER           :: d
+     TYPE(dbcsr_data_area_type), POINTER           :: d
   END TYPE dbcsr_data_obj
 
+  CHARACTER, PARAMETER          :: dbcsr_type_real_4 = 'r'
+  CHARACTER, PARAMETER          :: dbcsr_type_real_8 = 'R'
+  CHARACTER, PARAMETER          :: dbcsr_type_complex_4 = 'c'
+  CHARACTER, PARAMETER          :: dbcsr_type_complex_8 = 'C'
 
 ! *****************************************************************************
 !> \brief Used for assembling a real matrix.
@@ -215,7 +226,7 @@ MODULE dbcsr_types
 ! *****************************************************************************
   TYPE dbcsr_type
      LOGICAL                            :: valid, initialized
-     CHARACTER(LEN=40)                  :: name
+     CHARACTER(LEN=default_string_length) :: name
      !REAL(kind=dp), DIMENSION(:), POINTER :: DATA
      TYPE(dbcsr_data_obj)               :: data_area
      INTEGER, DIMENSION(:), POINTER     :: index
@@ -236,6 +247,11 @@ MODULE dbcsr_types
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
      TYPE(dbcsr_distribution_obj)       :: dist
   END TYPE dbcsr_type
+
+  CHARACTER, PARAMETER        :: dbcsr_type_normal = 'N'
+  CHARACTER, PARAMETER        :: dbcsr_type_symmetric = 'S'
+  CHARACTER, PARAMETER        :: dbcsr_type_antisymmetric = 'A'
+  CHARACTER, PARAMETER        :: dbcsr_type_transposed = 'T'
 
 ! *****************************************************************************
 !> These specify which array index in the index array is the start of the
@@ -281,5 +297,27 @@ MODULE dbcsr_types
      TYPE(dbcsr_imagedistribution_type) :: image_dist
   END TYPE dbcsr_array_type
 
+! *****************************************************************************
+!> \brief An iterator over a DBCSR matrix.
+!> \var matrix           the matrix
+!> \var buffer_r_sp      Real single precision buffer
+!> \var buffer_r_dp      Real double precision buffer
+!> \var buffer_c_sp      Complex single precision buffer
+!> \var buffer_c_dp      Complex double precision buffer
+!> \var row              Current row
+!> \var pos              Current position
+!> \var row_size         Size of current row
+!> \var rbs, cbs         Pointer to row and column size array
+! *****************************************************************************
+  TYPE dbcsr_iterator
+     TYPE(dbcsr_type), POINTER                     :: matrix
+     REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: buffer_r_sp
+     REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: buffer_r_dp
+     COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: buffer_c_sp
+     COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: buffer_c_dp
+     INTEGER            :: row, row_size
+     INTEGER            :: pos
+     INTEGER, DIMENSION(:), POINTER :: rbs, cbs
+  END TYPE dbcsr_iterator
 
 END MODULE dbcsr_types
