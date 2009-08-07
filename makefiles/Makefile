@@ -1,5 +1,9 @@
+#
+# make -j 16 sopt popt ssmp psmp
+#
+# will now perform a parallel build of 4 cp2k executables
+#
 .SUFFIXES: .F .dep .o .f90 .cu .c
-
 SHELL = /bin/sh
 #
 # the home dir is taken from the current directory: you must cd to the makefiles
@@ -9,8 +13,6 @@ SHELL = /bin/sh
 #
 CP2KHOME  := $(PWD)/..
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
-SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 4
 LIB1      = cp2k_base_lib
 LIB2      = cp2k_fft_lib
 LIBCP2K   = cp2k_lib
@@ -68,17 +70,17 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 
 ### Master rules ###
 build: dirs deptool
-	$(SMAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
-	$(SMAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) lib.dep
-	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
+	$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
+	$(MAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) lib.dep
+	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
 leap2fist: dirs deptool
-	$(SMAKE) -C $(TOOLSRC)/Fist/topology_converter/ -f $(MAKEFILE) leap2fist.dep
-	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(LEAP2FIST) 
+	$(MAKE) -C $(TOOLSRC)/Fist/topology_converter/ -f $(MAKEFILE) leap2fist.dep
+	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(LEAP2FIST) 
 
 fes: dirs deptool
-	$(SMAKE) -C $(TOOLSRC)/metadyn/  -f $(MAKEFILE) fes.dep
-	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(FES) 
+	$(MAKE) -C $(TOOLSRC)/metadyn/  -f $(MAKEFILE) fes.dep
+	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(FES) 
 
 dirs:
 	@mkdir -p $(EXEDIR)
@@ -90,31 +92,31 @@ dirs:
 realpretty: prettyclean pretty
 
 pretty: dirs
-	$(PMAKE) -C $(SRCDIR) -f $(MAKEFILE) _pretty
+	$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) _pretty
 
 deptool: dirs
-	$(SMAKE) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
+	$(MAKE) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
 
 libs:
-	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_lib build
+	$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_lib build
 all:
-	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_all build
+	$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_all build
 progr:
-	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_progr build
+	$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_progr build
 cpshell:
-	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_cpshell build
+	$(MAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_cpshell build
 
 #
 # on a parallel build only one task should go a build the deptool
 #
 $(VERSION_TARGETS): dirs deptool
-	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
+	$(MAKE) -f $(MAKEFILE) VERSION=$@ build
 
 $(CLEAN_TARGETS):
-	$(SMAKE) -f $(MAKEFILE) VERSION=$(@D) $(@F)
+	$(MAKE) -f $(MAKEFILE) VERSION=$(@D) $(@F)
 
 $(ALL_TARGETS) $(LIB_TARGETS):
-	$(SMAKE) -f $(MAKEFILE) VERSION=$(@D) WHAT=_$(@F) build
+	$(MAKE) -f $(MAKEFILE) VERSION=$(@D) WHAT=_$(@F) build
 #
 # here we try to include all the objects that might need considering
 #
