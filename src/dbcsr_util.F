@@ -2739,7 +2739,7 @@ CONTAINS
     !
     !> Create a default
     NULLIFY(blacs_env_t)
-    CALL cp_blacs_env_create(blacs_env_t, para_env, error)
+    CALL cp_blacs_env_create(blacs_env_t, para_env, error=error)
     DEALLOCATE(blacs_env_t%blacs2mpi, blacs_env_t%mpi2blacs)
     blacs_env_t%num_pe(1:2) = blacs_env_t%num_pe(2:1:-1)
     blacs_env_t%mepos(1:2) = blacs_env_t%mepos(2:1:-1)

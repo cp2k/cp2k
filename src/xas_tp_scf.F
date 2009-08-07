@@ -254,7 +254,7 @@ CONTAINS
     !   *** SCF loop ***
 
     scf_loop: DO
-       CALL timeset(routineN,handle2)
+       CALL timeset(routineN//"_inner_loop",handle2)
 
        exit_loop = .FALSE.
        IF (output_unit > 0) CALL m_flush(output_unit)

@@ -1114,6 +1114,8 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
        IF (dft_control%smear) THEN
          WRITE (UNIT=output_unit,FMT="((T3,A,T56,F25.14))")&
           "Electronic entropic energy:",energy%kTS
+         WRITE (UNIT=output_unit,FMT="((T3,A,T56,F25.14))")&
+          "Fermi energy:",energy%efermi
        END IF
        IF (dft_control%dft_plus_u) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
@@ -1974,6 +1976,7 @@ CPSourceFileRef)
                                                 ao_mo_fm_pools_aux_fit
     TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct, ao_mo_fmstruct
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools, S_sm_pools_aux_fit
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1991,7 +1994,7 @@ CPSourceFileRef)
             dft_control, mos, occupation_numbers, S_sm_pools, ks_env,&
             ao_mo_fm_pools_aux_fit, matrix_ks_aux_fit, S_sm_pools_aux_fit)
     NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control, mo_coeff_aux_fit,&
-            mo_derivs_aux_fit)
+            mo_derivs_aux_fit,para_env)
 
     failure=.FALSE.
 
@@ -2008,7 +2011,8 @@ CPSourceFileRef)
          matrix_ks=matrix_ks,&
          ks_env=ks_env,&
          atomic_kind_set=atomic_kind_set,&
-         matrix_s=matrix_s,error=error)
+         matrix_s=matrix_s,&
+         para_env=para_env,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&

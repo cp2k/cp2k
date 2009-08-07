@@ -539,7 +539,7 @@ CONTAINS
  
         ! Find the highest (fractional) occupied MO which will be now the HOMO
         DO imo=nmo,1,-1
-          IF (mo_set%occupation_numbers(imo) > 0.0_dp) THEN
+          IF (mo_set%occupation_numbers(imo) > smear%eps_fermi_dirac) THEN
             mo_set%homo = imo
             EXIT
           END IF

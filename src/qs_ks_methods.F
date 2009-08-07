@@ -1151,10 +1151,13 @@ CONTAINS
        ! prepare to add electronic entropic contribution is needed
        IF (dft_control%smear) THEN
           energy%kTS = 0.0_dp
+          energy%efermi = 0.0_dp
           CALL get_qs_env(qs_env,mos=mo_array,error=error)
           DO ispin=1,SIZE(mo_array)
              energy%kTS = energy%kTS + mo_array(ispin)%mo_set%kTS
+             energy%efermi = energy%efermi + mo_array(ispin)%mo_set%mu
           ENDDO          
+          energy%efermi = energy%efermi /REAL(SIZE(mo_array))
        ENDIF
 
        ! **** right now we can compute the orbital derivative here, as it depends currently only on the available

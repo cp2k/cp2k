@@ -52,6 +52,7 @@ MODULE qs_energy_types
                        s2_restraint,&
                        dft_plus_u,& ! DFT+U energy contribution
                        ktS,& ! electronic entropic contribution
+                       efermi,& ! Fermi energy 
                        total,&
                        tot_old
     REAL(KIND = dp), DIMENSION(:), POINTER :: ddapc_restraint
@@ -165,6 +166,7 @@ CONTAINS
       qs_energy%s2_restraint = 0.0_dp
       qs_energy%dft_plus_u = 0.0_dp
       qs_energy%kTS = 0.0_dp
+      qs_energy%efermi = 0.0_dp
       qs_energy%total = 0.0_dp
       IF (.NOT.ASSOCIATED(qs_energy%ddapc_restraint)) THEN
         ALLOCATE (qs_energy%ddapc_restraint(1),STAT=istat)
@@ -248,6 +250,7 @@ CONTAINS
       qs_energy_out%s2_restraint    = qs_energy_in%s2_restraint
       qs_energy_out%dft_plus_u      = qs_energy_in%dft_plus_u
       qs_energy_out%ktS             = qs_energy_in%ktS
+      qs_energy_out%efermi          = qs_energy_in%efermi
       qs_energy_out%total           = qs_energy_in%total
       IF (SIZE(qs_energy_in%ddapc_restraint) /= 1) THEN
         DEALLOCATE (qs_energy_out%ddapc_restraint,STAT=istat)

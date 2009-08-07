@@ -384,20 +384,13 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_symm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, lda, ldb, ldc, npcol, &
-                                                nprow
+    INTEGER                                  :: handle, lda, ldb, ldc
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
-    TYPE(cp_blacs_env_type), POINTER         :: context
 
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-
-    context => matrix_a%matrix_struct%context
-
-    nprow = context%num_pe(1)
-    npcol = context%num_pe(2)
 
     a => matrix_a%local_data
     b => matrix_b%local_data
@@ -475,19 +468,13 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ia, incx, incy, ja, &
-                                                lda, m, n, npcol, nprow
+                                                lda, m, n
     INTEGER, DIMENSION(9)                    :: desca, descx, descy
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, x, y
-    TYPE(cp_blacs_env_type), POINTER         :: context
 
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-
-    context => matrix_a%matrix_struct%context
-
-    nprow = context%num_pe(1)
-    npcol = context%num_pe(2)
 
     m = matrix_a%matrix_struct%nrow_global
     n = matrix_a%matrix_struct%ncol_global
@@ -546,19 +533,12 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syrk', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, lda, ldc, mypcol, &
-                                                myprow, n, npcol, nprow
+    INTEGER                                  :: handle, lda, ldc, n
     INTEGER, DIMENSION(9)                    :: desca, descc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
-    TYPE(cp_blacs_env_type), POINTER         :: context
 
     CALL timeset(routineN,handle)
 
-    context => matrix_a%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
     n = matrix_c%matrix_struct%nrow_global
 
     a => matrix_a%local_data
@@ -868,13 +848,11 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_transpose', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, mypcol, myprow, &
-                                                ncol_global, npcol, nprow, &
+    INTEGER                                  :: handle, i, j, ncol_global, &
                                                 nrow_global
     INTEGER, DIMENSION(9)                    :: desca, descc
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
-    TYPE(cp_blacs_env_type), POINTER         :: context
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -886,12 +864,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     IF (failure) RETURN
 
     CALL timeset(routineN,handle)
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
 
     a => matrix%local_data
     c => matrixt%local_data

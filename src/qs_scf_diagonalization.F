@@ -17,7 +17,8 @@ MODULE qs_scf_diagonalization
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
+                                             cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
@@ -44,7 +45,8 @@ MODULE qs_scf_diagonalization
                                              mo_set_p_type,&
                                              set_mo_occupation
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
-  USE qs_scf_lanczos,                  ONLY: lanczos_refinement
+  USE qs_scf_lanczos,                  ONLY: lanczos_refinement,&
+                                             lanczos_refinement_2v
   USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
                                              eigensolver,&
                                              simple_eigensolver
@@ -647,11 +649,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, ispin, iter, nao, &
-                                                nmo, output_unit
+    INTEGER                                  :: handle, homo, ispin, iter, &
+                                                nao, nmo, output_unit, &
+                                                sec_block
     LOGICAL                                  :: converged, failure, ionode, &
-                                                my_check_moconv_only
-    REAL(dp)                                 :: eps_iter, t1, t2
+                                                my_check_moconv_only, &
+                                                use_jacobi
+    REAL(dp)                                 :: eps_iter, t1, t2, threshold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: c0, c1, chc, evec, ks, &
                                                 mo_coeff, ortho, work
@@ -682,7 +686,6 @@ CONTAINS
     ortho => scf_env%ortho
     work  => scf_env%scf_work2
 
-    scf_env%iter_delta = 0.0_dp
     DO ispin=1,SIZE(matrix_ks)
       CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,&
                          scf_env%scf_work1(ispin)%matrix,&
@@ -704,6 +707,7 @@ CONTAINS
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
                       nao=nao,&
                       nmo=nmo,&
+                      homo=homo,&
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
 
@@ -740,10 +744,6 @@ CONTAINS
                " conv. MOS ", " B2MAX ", " B2MIN ", " Time",  REPEAT("-",60)
       END IF
       eps_iter = MAX(scf_env%krylov_space%eps_conv, scf_env%krylov_space%eps_adapt*scf_env%iter_delta)
-!dbg
-!    write(*,*) scf_env%krylov_space%eps_conv, scf_env%krylov_space%eps_adapt,scf_env%iter_delta,  eps_iter
-!    stop
-!dbg
       iter = 0
       converged = .FALSE.
       !Check convergence of MOS
@@ -752,7 +752,8 @@ CONTAINS
          CALL lanczos_refinement(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues,& 
               nao,  eps_iter, check_moconv_only=my_check_moconv_only, error=error)
          t2 = m_walltime()
-         IF(output_unit > 0) WRITE(output_unit,'(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)')  &
+         IF(output_unit > 0)&
+               WRITE(output_unit,'(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)')  &
                ispin,  iter, scf_env%krylov_space%nmo_conv, &
                scf_env%krylov_space%max_res_norm, scf_env%krylov_space%min_res_norm, t2-t1
 
@@ -760,8 +761,8 @@ CONTAINS
       ELSE
          !Block Lanczos refinement
          DO iter = 1,scf_env%krylov_space%max_iter
-            CALL lanczos_refinement(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues,& 
-                 nao, eps_iter,  error=error)
+           CALL lanczos_refinement_2v(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues,& 
+                 nao, homo, eps_iter,  error=error)
             t2 = m_walltime()
             IF (output_unit > 0) THEN
                WRITE(output_unit,'(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)')&
@@ -771,7 +772,8 @@ CONTAINS
             t1=m_walltime()
             IF(scf_env%krylov_space%max_res_norm < eps_iter) THEN
               converged = .TRUE.
-              IF (output_unit > 0) WRITE(output_unit,*) " Reached convergence in ",iter," iterations "
+              IF (output_unit > 0) WRITE(output_unit,*)&
+                   " Reached convergence in ",iter," iterations "
               EXIT
             END IF
          END DO
@@ -786,22 +788,31 @@ CONTAINS
     
          END IF
 
-
+         ! For the moment skip the re-orthogonalization
+         IF(.FALSE.) THEN
            !Re-orthogonalization
            NULLIFY( chc, evec)
            chc => scf_env%krylov_space%chc_mat
            evec => scf_env%krylov_space%c_vec
-
            CALL cp_fm_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,work,error=error)
            CALL cp_fm_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
-!!    
+           use_jacobi=.TRUE.
            !Diagonalize  (C^t)HC 
-           CALL cp_fm_syevd(chc,evec,mo_eigenvalues,error=error)
-
-!           !Rotate the C vectors
+           IF(use_jacobi) THEN
+             threshold = 1.0e-7_dp
+             IF(scf_env%krylov_space%nmo_conv<nmo) THEN
+               sec_block = scf_env%krylov_space%nmo_conv+1
+             ELSE
+               sec_block = scf_env%krylov_space%nmo_conv/2+1
+             END IF
+             CALL cp_fm_block_jacobi(chc,evec,mo_eigenvalues,threshold,2)
+           ELSE
+             CALL cp_fm_syevd(chc,evec,mo_eigenvalues,error=error)
+           END IF
+           !Rotate the C vectors
            CALL cp_fm_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,c1,error=error)
            c0 => scf_env%krylov_space%mo_refine(ispin)%matrix
-            
+         END IF
     
          IF(scf_env%cholesky_method==cholesky_inverse) THEN
            CALL cp_fm_cholesky_restore(c0,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
@@ -809,7 +820,6 @@ CONTAINS
            CALL cp_fm_cholesky_restore(c0,nmo,ortho,mo_coeff,"SOLVE",error=error)
          END IF
     
-
          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
                                 smear=scf_control%smear,&
                                 error=error)
@@ -824,12 +834,10 @@ CONTAINS
           WRITE(output_unit,"(T15,A/)") '<<<<<<<<< END LANCZOS REFINEMENT  <<<<<<<<<<'
     END IF
 
-
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%LANCZOS", error=error)
 
     CALL timestop(handle)
-
 
   END SUBROUTINE do_block_krylov_diag
 

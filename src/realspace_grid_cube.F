@@ -30,13 +30,14 @@ MODULE realspace_grid_cube
 
 CONTAINS
 
-  SUBROUTINE pw_to_cube ( pw, iunit, ionode, title, particles, stride, error )
+  SUBROUTINE pw_to_cube ( pw, iunit, ionode, title, particles, stride, zero_tails, error )
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: stride
+    LOGICAL, INTENT(IN), OPTIONAL            :: zero_tails
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube', &
@@ -45,13 +46,15 @@ CONTAINS
     INTEGER :: dest, gid, handle, i, I1, I2, I3, iat, ionode_rank, ip, L1, &
       L2, L3, my_rank, my_stride(3), np, num_pe, source, stat, tag, U1, U2, &
       U3, z
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_zero_tails
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buf
     TYPE(particle_list_type), POINTER        :: my_particles
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
+    my_zero_tails = .TRUE.
+    IF(PRESENT(zero_tails)) my_zero_tails = zero_tails
     my_stride=1
     IF (PRESENT(stride)) THEN 
        CALL cp_assert(SIZE(stride)==1.OR.SIZE(stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
@@ -158,6 +161,11 @@ CPSourceFileRef,&
        ENDIF
 
        IF (ionode) THEN
+         IF(my_zero_tails) THEN
+           DO I3 = L3,U3
+             IF(ABS(buf(I3))<1.E-8_dp) buf(I3) = 0.0_dp
+           END DO
+         END IF
          WRITE(iunit,'(6E13.5)') (buf(I3),I3=L3,U3,my_stride(3))
        ENDIF
 

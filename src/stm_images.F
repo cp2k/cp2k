@@ -387,7 +387,7 @@ CONTAINS
          WRITE(title,'(A,I0,A,I0,A,F16.8)') "STM cube ",ibias," wfn deriv. ",iorb," at bias ",stm_biases(ibias)
          CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
              stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
-             error=error)
+             zero_tails=.TRUE., error=error)
 
          CALL cp_print_key_finished_output(unit_nr,logger,dft_section,"PRINT%MO_CUBES",error=error)
        END DO

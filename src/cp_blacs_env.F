@@ -86,17 +86,18 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE cp_blacs_env_create(blacs_env,para_env,error)
+SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN), OPTIONAL            :: blacs_grid_layout
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blacs_grid_layout, ipcol, &
-                                                ipe, iprow, npcol, npe, &
-                                                nprow, stat
+    INTEGER                                  :: ipcol, ipe, iprow, &
+                                                my_blacs_grid_layout, npcol, &
+                                                npe, nprow, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -134,9 +135,10 @@ CPSourceFileRef,&
      ! get the layout of this grid
 
      ! hard code for the time being the grid layout
-     blacs_grid_layout=BLACS_GRID_SQUARE
+     my_blacs_grid_layout=BLACS_GRID_SQUARE
+     IF(PRESENT(blacs_grid_layout)) my_blacs_grid_layout=blacs_grid_layout
      ! XXXXXX
-     SELECT CASE (blacs_grid_layout)
+     SELECT CASE (my_blacs_grid_layout)
      CASE (BLACS_GRID_SQUARE)
        IF (nprow*npcol /= npe) THEN
          DO ipe=CEILING(SQRT(REAL(npe,dp))),npe

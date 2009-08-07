@@ -5893,7 +5893,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MAX_ITER",&
             description="Maximum number of iterations in iterative diagonalization",&
             usage="MAX_ITER 20",&
-            default_i_val=50,&
+            default_i_val=2,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5909,7 +5909,7 @@ CONTAINS
        CALL keyword_create(keyword, name="NKRYLOV",&
             description="Dimension of the Krylov space used for the Lanczos refinement",&
             usage="NKRYLOV 20",&
-            default_i_val=20,&
+            default_i_val=4,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5917,7 +5917,7 @@ CONTAINS
        CALL keyword_create(keyword, name="NBLOCK_KRYLOV",&
             description="Size of the block of vectors refined simultaneously by the Lanczos procedure",&
             usage="NBLOCK_KRYLOV 1",&
-            default_i_val=8,&
+            default_i_val=32,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5934,7 +5934,7 @@ CONTAINS
             description="Level of convergence to be reached before starting the Lanczos procedure."//&
             " Above this threshold a standard diagonalization method is used. "//&
             " If negative Lanczos is started at the first iteration",&
-            usage="EPS_KRYLOV 0.001",&
+            usage="EPS_STD_DIAG 0.001",&
             default_r_val=-1.0_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)

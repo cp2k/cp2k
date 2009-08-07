@@ -399,8 +399,7 @@ CONTAINS
 !>      12.2009 P. Manninen
 ! *****************************************************************************
   FUNCTION deviance_cost_cpu(cost_cpu,P,Q) RESULT(idev)
-    INTEGER, INTENT(IN)                      :: P, Q
-    INTEGER, INTENT(IN)                      :: cost_cpu(P,Q)
+    INTEGER, INTENT(IN)                      :: P, Q, cost_cpu(P,Q)
     INTEGER                                  :: idev
 
     INTEGER                                  :: i, j

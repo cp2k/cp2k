@@ -119,7 +119,7 @@ CONTAINS
 ! *****************************************************************************
 SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, &
-     local_leading_dimension, template_fmstruct, square_blocks, error)
+     local_leading_dimension, template_fmstruct, square_blocks, force_block, error)
   TYPE(cp_fm_struct_type), POINTER       :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
   INTEGER, INTENT(in), OPTIONAL                :: nrow_global,ncol_global
@@ -130,6 +130,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   INTEGER,OPTIONAL, DIMENSION(2)               :: first_p_pos
   TYPE(cp_fm_struct_type), POINTER, OPTIONAL   :: template_fmstruct
   LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
+  LOGICAL, OPTIONAL, INTENT(in)                :: force_block
   TYPE(cp_error_type), INTENT(inout) :: error
  
   INTEGER ::  dumblock
@@ -140,7 +141,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
     INTEGER, EXTERNAL :: numroc
 #endif
 
-  LOGICAL :: failure, my_square_blocks
+  LOGICAL :: failure, my_square_blocks, my_force_block
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_create',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat
@@ -179,6 +180,8 @@ CPSourceFileRef,&
      END IF
 
   END IF
+  my_force_block=.FALSE.
+  IF (PRESENT(force_block)) my_force_block=force_block
   IF (.NOT.failure) THEN
      
      IF (PRESENT(context)) THEN
@@ -191,16 +194,24 @@ CPSourceFileRef,&
      
      IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global
      IF (PRESENT(ncol_global)) fmstruct%ncol_global=ncol_global
-     IF (PRESENT(nrow_block)) fmstruct%nrow_block=nrow_block
-     IF (PRESENT(ncol_block)) fmstruct%ncol_block=ncol_block
 
      ! try to avoid small left-over blocks (anyway naive)
-     dumblock = CEILING(REAL(fmstruct%nrow_global,KIND=dp)/ &
+     IF (PRESENT(nrow_block)) THEN
+         fmstruct%nrow_block=nrow_block
+     END IF
+     IF(.NOT. my_force_block) THEN
+       dumblock = CEILING(REAL(fmstruct%nrow_global,KIND=dp)/ &
                 REAL(fmstruct%context%num_pe(1),KIND=dp))
-     fmstruct%nrow_block=MAX(1, MIN(fmstruct%nrow_block, dumblock))
-     dumblock = CEILING(REAL(fmstruct%ncol_global,KIND=dp)/ &
-                REAL(fmstruct%context%num_pe(2),KIND=dp))
-     fmstruct%ncol_block=MAX(1, MIN(fmstruct%ncol_block, dumblock))
+       fmstruct%nrow_block=MAX(1, MIN(fmstruct%nrow_block, dumblock))
+     END IF
+     IF (PRESENT(ncol_block)) THEN 
+       fmstruct%ncol_block=ncol_block
+     END IF
+     IF(.NOT. my_force_block) THEN
+       dumblock = CEILING(REAL(fmstruct%ncol_global,KIND=dp)/ &
+                  REAL(fmstruct%context%num_pe(2),KIND=dp))
+       fmstruct%ncol_block=MAX(1, MIN(fmstruct%ncol_block, dumblock))
+     END IF
 
      ! square matrix -> square blocks (otherwise some op fail)
      my_square_blocks = fmstruct%nrow_global==fmstruct%ncol_global

@@ -1403,11 +1403,9 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_columns', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, mypcol, myprow, n, &
-                                                ss, ts
+    INTEGER                                  :: handle, i, n, ss, ts
     INTEGER, DIMENSION(9)                    :: desca, descb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
-    TYPE(cp_blacs_env_type), POINTER         :: context
 
 ! -------------------------------------------------------------------------
 
@@ -1419,9 +1417,6 @@ CPSourceFileRef,&
     IF (PRESENT(source_start)) ss = source_start
     IF (PRESENT(target_start)) ts = target_start
 
-    context => msource%matrix_struct%context
-    myprow = context%mepos(1)
-    mypcol = context%mepos(2)
     n = msource%matrix_struct%nrow_global
 
     a => msource%local_data
