@@ -17,7 +17,6 @@ MODULE qs_scf_diagonalization
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
                                              cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
                                              cp_fm_to_fm,&
@@ -653,8 +652,7 @@ CONTAINS
                                                 nao, nmo, output_unit, &
                                                 sec_block
     LOGICAL                                  :: converged, failure, ionode, &
-                                                my_check_moconv_only, &
-                                                use_jacobi
+                                                my_check_moconv_only
     REAL(dp)                                 :: eps_iter, t1, t2, threshold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: c0, c1, chc, evec, ks, &
@@ -796,19 +794,8 @@ CONTAINS
            evec => scf_env%krylov_space%c_vec
            CALL cp_fm_gemm('N','N',nao,nmo,nao,rone,ks,c0,rzero,work,error=error)
            CALL cp_fm_gemm('T','N',nmo,nmo,nao,rone,c0,work,rzero,chc,error=error)
-           use_jacobi=.TRUE.
            !Diagonalize  (C^t)HC 
-           IF(use_jacobi) THEN
-             threshold = 1.0e-7_dp
-             IF(scf_env%krylov_space%nmo_conv<nmo) THEN
-               sec_block = scf_env%krylov_space%nmo_conv+1
-             ELSE
-               sec_block = scf_env%krylov_space%nmo_conv/2+1
-             END IF
-             CALL cp_fm_block_jacobi(chc,evec,mo_eigenvalues,threshold,2)
-           ELSE
-             CALL cp_fm_syevd(chc,evec,mo_eigenvalues,error=error)
-           END IF
+           CALL cp_fm_syevd(chc,evec,mo_eigenvalues,error=error)
            !Rotate the C vectors
            CALL cp_fm_gemm('N','N',nao,nmo,nmo,rone,c0,evec,rzero,c1,error=error)
            c0 => scf_env%krylov_space%mo_refine(ispin)%matrix
