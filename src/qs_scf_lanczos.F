@@ -187,8 +187,8 @@ CONTAINS
                                                 rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER :: hand1, hand2, hand3, hand4, hand5, handle, ib, ik, imo, &
-      imo_low, imo_up, istat, it, jt, nblock, ndim, nmo, nmo_conv, &
-      nmo_converged, nmo_nc, nmob, num_blocks
+      imo_low, imo_up, istat, it, jt, nblock, ndim, nmo, nmo_converged, &
+      nmo_nc, nmob, num_blocks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itaken
     LOGICAL                                  :: failure, my_check_moconv_only
     REAL(dp)                                 :: max_norm, min_norm, vmax
@@ -517,7 +517,7 @@ CONTAINS
 
     INTEGER :: hand1, hand2, hand3, hand4, hand5, hand6, handle, i, ia, ib, &
       ik, imo, imo_low, imo_up, info, istat, it, j, jt, liwork, lwork, &
-      nblock, ndim, nmo, nmo_conv, nmo_converged, nmo_nc, nmob, num_blocks
+      nblock, ndim, nmo, nmo_converged, nmo_nc, nmob, num_blocks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itaken
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure, my_check_moconv_only

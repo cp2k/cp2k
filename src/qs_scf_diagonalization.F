@@ -649,11 +649,10 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, homo, ispin, iter, &
-                                                nao, nmo, output_unit, &
-                                                sec_block
+                                                nao, nmo, output_unit
     LOGICAL                                  :: converged, failure, ionode, &
                                                 my_check_moconv_only
-    REAL(dp)                                 :: eps_iter, t1, t2, threshold
+    REAL(dp)                                 :: eps_iter, t1, t2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: c0, c1, chc, evec, ks, &
                                                 mo_coeff, ortho, work
