@@ -104,7 +104,10 @@ progr:
 cpshell:
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_cpshell build
 
-$(VERSION_TARGETS):
+#
+# on a parallel build only one task should go a build the deptool
+#
+$(VERSION_TARGETS): dirs deptool
 	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
 
 $(CLEAN_TARGETS):
@@ -225,6 +228,12 @@ $(LIB2_ARCHIVE): $(LIB2_OBJECTS)
 ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB2_ARCHIVE)
 endif
+
+#
+# a hack to first compile the src/lib/ stuff before files from src/
+# otherwise we have missing dependencies
+#
+$(OBJECTS): $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
 
 $(LIB_CP2K_ARCHIVE): $(OBJECTS)
 	$(AR) $(LIB_CP2K_ARCHIVE) $?
