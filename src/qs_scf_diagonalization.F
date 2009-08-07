@@ -17,7 +17,7 @@ MODULE qs_scf_diagonalization
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-                                             cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
