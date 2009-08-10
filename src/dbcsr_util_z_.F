@@ -5,7 +5,7 @@
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_diagonal_z (matrix, value, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     COMPLEX(kind=real_8), INTENT(IN)                      :: value
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -22,22 +22,24 @@
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL cp_assert(matrix%nblkrows_total .EQ. matrix%nblkcols_total,&
+    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
+         routineN, "Matrix does not exist.")
+    CALL cp_assert(matrix%m%nblkrows_total .EQ. matrix%m%nblkcols_total,&
          cp_failure_level, cp_caller_error, routineP,&
          "Can not set diagonal of non-square matrix.", error=error)
-    CALL cp_assert ('C' .EQ. matrix%data_type, cp_failure_level,&
+    CALL cp_assert ('C' .EQ. matrix%m%data_type, cp_failure_level,&
          cp_caller_error, routineN, "Datatype mismatch.")
-    IF (.NOT. ASSOCIATED (matrix%wms)) THEN
+    IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_work_create (matrix, error=error)
     ENDIF
-    row_blk_size => array_data (matrix%row_blk_size)
+    row_blk_size => array_data (matrix%m%row_blk_size)
     CALL dbcsr_get_info (matrix, local_rows = local_rows,&
          proc_col_dist = pcol_dist,&
          my_pcol = my_pcol)
     valid_index = dbcsr_valid_index (matrix)
     ! Try to find the column element in each row. If it's not found,
     ! then add it.
-    DO local_row = 1, matrix%nblkrows_local
+    DO local_row = 1, matrix%m%nblkrows_local
        row = local_rows(local_row)
        ! Only diagonal elements come into play.
        IF (pcol_dist(row) .NE. my_pcol) CYCLE
@@ -45,19 +47,19 @@
        row_size = row_blk_size(row)
        nze = row_size * row_size
        IF (valid_index) THEN
-          blk_loop: DO blk = matrix%row_p(row)+1, matrix%row_p(row+1)
-             col = matrix%col_i(blk)
+          blk_loop: DO blk = matrix%m%row_p(row)+1, matrix%m%row_p(row+1)
+             col = matrix%m%col_i(blk)
              IF (col .LT. row) CYCLE blk_loop
              IF (col .GT. row) EXIT
              IF (col .EQ. row) THEN
                 ! Sets the diagonal in the existing block.
-                blk_p = matrix%blk_p(blk)
+                blk_p = matrix%m%blk_p(blk)
                 data_p => pointer_view (&
-                        dbcsr_get_data_p (matrix%data_area, CMPLX(0.0, 0.0, real_8)),&
+                        dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_8)),&
                         blk_p, blk_p+nze-1&
                      )
                 CALL set_block_diagonal (data_p, value, row_size)
-                !CALL set_block_diagonal (matrix%data(blk_p:blk_p+nze-1),&
+                !CALL set_block_diagonal (matrix%m%data(blk_p:blk_p+nze-1),&
                 !     value, row_size)
                 in_this_row = .TRUE.
                 EXIT blk_loop ! Don't bother with the remaining columns
@@ -67,23 +69,23 @@
        ! Add the column if it doesn't already exist.
        IF (.NOT. in_this_row) THEN
           DBG 'Adding at row',row,'dimen',row_size,'size',nze,'pos',&
-               matrix%wms(1)%datasize+1
-          CALL add_work_coordinate (matrix%wms(1), row, row,&
-               matrix%wms(1)%datasize+1,&
+               matrix%m%wms(1)%datasize+1
+          CALL add_work_coordinate (matrix%m%wms(1), row, row,&
+               matrix%m%wms(1)%datasize+1,&
                error=error)
           ! add_work_coordinate increments the block counter
-          CALL dbcsr_data_ensure_size (matrix%wms(1)%data_area,&
-               matrix%wms(1)%datasize + nze)
-          !CALL ensure_array_size (matrix%w%data, ub=matrix%w%datasize+nze,&
+          CALL dbcsr_data_ensure_size (matrix%m%wms(1)%data_area,&
+               matrix%m%wms(1)%datasize + nze)
+          !CALL ensure_array_size (matrix%m%w%data, ub=matrix%m%w%datasize+nze,&
           !     error=error)
           data_p => pointer_view (&
-               dbcsr_get_data_p (matrix%wms(1)%data_area, CMPLX(0.0, 0.0, real_8)),&
-               matrix%wms(1)%datasize+1, matrix%wms(1)%datasize+nze)
+               dbcsr_get_data_p (matrix%m%wms(1)%data_area, CMPLX(0.0, 0.0, real_8)),&
+               matrix%m%wms(1)%datasize+1, matrix%m%wms(1)%datasize+nze)
           CALL set_block_diagonal(data_p, value, row_size)
           !CALL set_block_diagonal (&
-          !     matrix%w%data(matrix%w%datasize+1 : matrix%w%datasize+nze),&
+          !     matrix%m%w%data(matrix%m%w%datasize+1 : matrix%m%w%datasize+nze),&
           !     value, row_size)
-          matrix%wms(1)%datasize = matrix%wms(1)%datasize + nze
+          matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + nze
        ENDIF
     ENDDO ! row
   END SUBROUTINE dbcsr_set_diagonal_z

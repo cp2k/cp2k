@@ -42,12 +42,14 @@ MODULE preconditioner
                                              cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
+                                             dbcsr_distribution_nlocal_rows,&
                                              dbcsr_distribution_release,&
                                              dbcsr_get_info,&
                                              dbcsr_row_block_sizes
   USE dbcsr_operations
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_mp_obj,&
+                                             dbcsr_obj,&
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
@@ -1922,7 +1924,7 @@ END SUBROUTINE make_full_all_ortho
     TYPE(cp_fm_type), POINTER                :: fm_work1, fm_work2
     TYPE(dbcsr_distribution_obj)             :: dist_main
     TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_type)                         :: mat_li, mat_li_scaled, &
+    TYPE(dbcsr_obj)                          :: mat_li, mat_li_scaled, &
                                                 mat_lt, mat_s, mat_t, &
                                                 mat_tmp, mat_v
     TYPE(distribution_2d_type), POINTER      :: dist2d_main
@@ -1964,7 +1966,7 @@ END SUBROUTINE make_full_all_ortho
          col_blk_size=col_blk_size_array, nblkrows_total=nblkrows_total,&
          nblkcols_total=nblkcols_total, nfullrows_total=nfullrows_total,&
          distribution=dist_main)
-    CALL cp_dbcsr_get_dist2d (mat_s, dist2d_main, error=error)
+    CALL cp_dbcsr_get_dist2d (mat_s%m, dist2d_main, error=error)
     dist2d_main => matrix_s%distribution_2d
 
     CALL dbcsr_init (mat_t, error)
@@ -1976,15 +1978,16 @@ END SUBROUTINE make_full_all_ortho
     !
     ! some variables
     s = 1.0_dp ! s > 0
-    n = mat_t%nblkrows_total
+    n = dbcsr_distribution_nlocal_rows (dbcsr_distribution (mat_t))
     d_offset = 1
 
-    mp_obj = dbcsr_distribution_mp (mat_s%dist)
+    mp_obj = dbcsr_distribution_mp (dbcsr_distribution (mat_s))
     row_blk_size => array_data(row_blk_size_array)
 
     max_row_blk_size = MAXVAL(row_blk_size)
     max_blk_size = max_row_blk_size**2
-    nblkrows_local = mat_s%nblkrows_local
+    nblkrows_local = dbcsr_distribution_nlocal_rows (&
+         dbcsr_distribution (mat_s))
     max_vec_size = nblkrows_local*max_blk_size+n+1
 
     WRITE(*,*) 'max_blk_size',max_blk_size
@@ -2129,7 +2132,7 @@ END SUBROUTINE make_full_all_ortho
 
     CALL dbcsr_copy(mat_li_scaled, mat_li, error=error)
     CALL dbcsr_scale(mat_li_scaled, alpha_matrix=pkd_inv_d, side='left', error=error)
-    CALL dbcsr_sm_sm_multiply(mat_li_scaled, mat_t, mat_tmp, mat_t%dist, 1, error=error)
+    CALL dbcsr_sm_sm_multiply(mat_li_scaled, mat_t, mat_tmp, dbcsr_distribution (mat_t), 1, error=error)
 
     CALL dbcsr_trace(mat_li, mat_tmp, trace, error=error)
     WRITE(*,*) 'trace(Li^t*A*Li*D)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
@@ -2165,7 +2168,7 @@ END SUBROUTINE make_full_all_ortho
     INTEGER                                  :: k
     TYPE(array_i1d_obj)                      :: col_blk_size
     TYPE(dbcsr_distribution_obj)             :: dist_result
-    TYPE(dbcsr_type)                         :: matrix_result, matrix_right
+    TYPE(dbcsr_obj)                          :: matrix_result, matrix_right
 
 !TYPE(dbcsr_type), INTENT(IN)             :: matrix_in
 !TYPE(dbcsr_type), INTENT(OUT)            :: matrix_out

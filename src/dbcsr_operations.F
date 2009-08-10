@@ -18,16 +18,16 @@ MODULE dbcsr_operations
                                              btree_find,&
                                              btree_verify
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_data_copyall, dbcsr_distribution_local_rows, &
+       dbcsr_data_copyall, dbcsr_distribution, dbcsr_distribution_local_rows, &
        dbcsr_distribution_mp, dbcsr_get_data, dbcsr_get_data_p, &
        dbcsr_get_data_p_d, dbcsr_get_data_size, dbcsr_mp_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_nfullcols_local, dbcsr_nfullrows_local
   USE dbcsr_types,                     ONLY: &
-       dbcsr_array_type, dbcsr_mp_obj, dbcsr_num_slots, dbcsr_slot_blk_p, &
-       dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, &
-       dbcsr_slot_size, dbcsr_type, dbcsr_work_type
+       dbcsr_array_type, dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, &
+       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
+       dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, dbcsr_work_type
   USE dbcsr_util,                      ONLY: &
        add_work_coordinate, addto_array, bcsr_assert, dbcsr_create, &
        dbcsr_data_ensure_size, dbcsr_destroy, dbcsr_destroy_array, &
@@ -149,8 +149,8 @@ CONTAINS
   SUBROUTINE dbcsr_mult_e_ec_m (left_set, right_matrix, product_matrix,&
        error, flop)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
-    TYPE(dbcsr_type), INTENT(IN)             :: right_matrix
-    TYPE(dbcsr_type), INTENT(INOUT), TARGET  :: product_matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: right_matrix
+    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: product_matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -187,9 +187,9 @@ CONTAINS
     TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
     TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
     TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_type), POINTER                :: product_matrix_p, &
+    TYPE(dbcsr_obj), POINTER                 :: product_matrix_p, &
                                                 rbuffer_calc, rbuffer_comm
-    TYPE(dbcsr_type), TARGET                 :: rbuffer_1, rbuffer_2
+    TYPE(dbcsr_obj), TARGET                  :: rbuffer_1, rbuffer_2
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -198,8 +198,8 @@ CONTAINS
     t_all = 0.0_dp
     t_dgemm = 0.0_dp
     IF (dbg) debug_level = 2
-    IF (dbcsr_mp_nprows (dbcsr_distribution_mp (right_matrix%dist)) .NE.&
-         dbcsr_mp_npcols (dbcsr_distribution_mp (right_matrix%dist))) THEN
+    IF (dbcsr_mp_nprows (dbcsr_distribution_mp (right_matrix%m%dist)) .NE.&
+         dbcsr_mp_npcols (dbcsr_distribution_mp (right_matrix%m%dist))) THEN
        CALL dbcsr_mult_e_ec_m_rma (left_set, right_matrix,&
             product_matrix, error, flop=flop_total)
        IF (PRESENT (flop)) flop = flop_total
@@ -230,7 +230,7 @@ CONTAINS
     CALL bcsr_assert (debug_level,&
          SIZE (left_set%mats) .EQ. left_set%image_dist%row_decimation,&
          routineP, "Declared images not equal to present images")
-    mp_obj = dbcsr_distribution_mp (product_matrix%dist)
+    mp_obj = dbcsr_distribution_mp (dbcsr_distribution (product_matrix))
     numnodes = dbcsr_mp_numnodes (mp_obj)
     mynode = dbcsr_mp_mynode (mp_obj)
     myprow = dbcsr_mp_myprow (mp_obj)
@@ -253,17 +253,17 @@ CONTAINS
          left_multiplicity * npcols .EQ. left_nimages*nprows, routineP,&
          "Mulitplicity and image  mismatch with processer grid.")
     DO i = 1, nthreads
-       CALL dbcsr_data_ensure_size(product_matrix%wms(i)%data_area,&
-            MAX(product_matrix%wms(i)%datasize,&
+       CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
+            MAX(product_matrix%m%wms(i)%datasize,&
             dbcsr_nfullrows_local (product_matrix)&
             *dbcsr_nfullcols_local (product_matrix)))
             !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%nfullcols_local))
-       CALL ensure_array_size(product_matrix%wms(i)%row_i,&
-            ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%wms(i)%col_i,&
-            ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%wms(i)%blk_p,&
-            ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
+       CALL ensure_array_size(product_matrix%m%wms(i)%row_i,&
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+       CALL ensure_array_size(product_matrix%m%wms(i)%col_i,&
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+       CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
     ENDDO
     DBG 'pgrid shape', SHAPE (pgrid)
     IF (dbg .AND. mynode .EQ. 0) THEN
@@ -272,11 +272,11 @@ CONTAINS
     ALLOCATE (my_sizes(4, left_nimages))
     my_sizes(:,:) = 0
     DO img = 1, left_nimages
-       my_sizes(1, img) = dbcsr_get_data_size (left_set%mats(img)%data_area)
-       my_sizes(2, img) = SIZE (left_set%mats(img)%index)
+       my_sizes(1, img) = dbcsr_get_data_size (left_set%mats(img)%m%data_area)
+       my_sizes(2, img) = SIZE (left_set%mats(img)%m%index)
     ENDDO
-    my_sizes(3, 1) = dbcsr_get_data_size (right_matrix%data_area)
-    my_sizes(4, 1) = SIZE (right_matrix%index)
+    my_sizes(3, 1) = dbcsr_get_data_size (right_matrix%m%data_area)
+    my_sizes(4, 1) = SIZE (right_matrix%m%index)
     ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numnodes-1))
     DO i = 1, 4
        DBG 'my sizes', my_sizes(i,:)
@@ -293,29 +293,29 @@ CONTAINS
     DO mult = 1, left_multiplicity
        CALL dbcsr_init (lbuffer_1%mats(mult), error)
        CALL dbcsr_create (lbuffer_1%mats(mult),&
-            'lbufferl1'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
-            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
+            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
             nblks, nze, special=.FALSE., error=error)
-       CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%data_area,&
+       CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
-       !CALL ensure_array_size (lbuffer_1%mats(mult)%data,&
+       !CALL ensure_array_size (lbuffer_1%mats(mult)%m%data,&
        !     ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
        !     special=.FALSE., error=error)
-       CALL ensure_array_size (lbuffer_1%mats(mult)%index,&
+       CALL ensure_array_size (lbuffer_1%mats(mult)%m%index,&
             ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
        !
        CALL dbcsr_init (lbuffer_2%mats(mult), error)
        CALL dbcsr_create (lbuffer_2%mats(mult),&
-            'lbuffer2'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
-            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
+            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
             nblks, nze, special=.FALSE., error=error)
-       CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%data_area,&
+       CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
-       !CALL ensure_array_size (lbuffer_2%mats(mult)%data,&
+       !CALL ensure_array_size (lbuffer_2%mats(mult)%m%data,&
        !     ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
        !     special=.FALSE., error=error)
-       CALL ensure_array_size (lbuffer_2%mats(mult)%index,&
+       CALL ensure_array_size (lbuffer_2%mats(mult)%m%index,&
             ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
     ENDDO
@@ -326,33 +326,33 @@ CONTAINS
     nze = MAXVAL (all_sizes(3, 1, :))
     CALL dbcsr_init (rbuffer_1, error)
     CALL dbcsr_create (rbuffer_1,&
-         'rbuffer1'//right_matrix%name, right_matrix%dist,&
+         'rbuffer1'//right_matrix%m%name, right_matrix%m%dist,&
          'N',&
-         right_matrix%row_blk_size,&
-         right_matrix%col_blk_size,&
+         right_matrix%m%row_blk_size,&
+         right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
-    CALL dbcsr_data_ensure_size (rbuffer_1%data_area,&
+    CALL dbcsr_data_ensure_size (rbuffer_1%m%data_area,&
          MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
     !CALL ensure_array_size (rbuffer_1%data,&
     !     ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
     !     error=error)
-    CALL ensure_array_size (rbuffer_1%index,&
+    CALL ensure_array_size (rbuffer_1%m%index,&
          ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
          error=error)
     !
     CALL dbcsr_init (rbuffer_2, error)
     CALL dbcsr_create (rbuffer_2,&
-         'rbuffer2'//right_matrix%name, right_matrix%dist,&
+         'rbuffer2'//right_matrix%m%name, right_matrix%m%dist,&
          'N',&
-         right_matrix%row_blk_size,&
-         right_matrix%col_blk_size,&
+         right_matrix%m%row_blk_size,&
+         right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
-    CALL dbcsr_data_ensure_size (rbuffer_2%data_area,&
+    CALL dbcsr_data_ensure_size (rbuffer_2%m%data_area,&
          MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
     !CALL ensure_array_size (rbuffer_2%data,&
     !     ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
     !     error=error)
-    CALL ensure_array_size (rbuffer_2%index,&
+    CALL ensure_array_size (rbuffer_2%m%index,&
          ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
          error=error)
     rbuffer_calc => rbuffer_1
@@ -420,19 +420,19 @@ CONTAINS
                ' pgrid coor ',right_dst_prow, right_mypcol,&
                all_sizes(3:4, 1, right_dst_p)
           right_data_rp => pointer_view (&
-               dbcsr_get_data_p (rbuffer_comm%data_area, 0.0_dp),&
+               dbcsr_get_data_p (rbuffer_comm%m%data_area, 0.0_dp),&
                1, all_sizes(3,1,right_src_p))
-          right_index_rp => rbuffer_comm%index(1:all_sizes(4,1,right_src_p))
+          right_index_rp => rbuffer_comm%m%index(1:all_sizes(4,1,right_src_p))
           right_data_sp => pointer_view (&
-               dbcsr_get_data_p (rbuffer_calc%data_area, 0.0_dp),&
+               dbcsr_get_data_p (rbuffer_calc%m%data_area, 0.0_dp),&
                1, all_sizes(3,1,right_dst_p))
-          right_index_sp => rbuffer_calc%index(1:all_sizes(4,1,right_dst_p))
+          right_index_sp => rbuffer_calc%m%index(1:all_sizes(4,1,right_dst_p))
           IF (right_prow_i .EQ. 0) THEN
-             CALL mp_isendrecv (dbcsr_get_data_p (right_matrix%data_area, 0.0_dp),&
+             CALL mp_isendrecv (dbcsr_get_data_p (right_matrix%m%data_area, 0.0_dp),&
                   right_dst_p,&
                   right_data_rp, right_src_p, &
                   mp_group, right_data_sr, right_data_rr, tag=3)
-             CALL mp_isendrecv (right_matrix%index, right_dst_p, &
+             CALL mp_isendrecv (right_matrix%m%index, right_dst_p, &
                   right_index_rp,  right_src_p,&
                   mp_group, right_index_sr, right_index_rr, tag=4)
           ELSE
@@ -449,7 +449,7 @@ CONTAINS
           IF (all_sizes(4, 1, right_src_p_calc) .EQ. 0) THEN
              DBG 'ZERO SIZED INDEX'
           ENDIF
-          CALL dbcsr_repoint_index (rbuffer_calc, error=error)
+          CALL dbcsr_repoint_index (rbuffer_calc%m, error=error)
        ENDIF calc_case_right
        !
        ! No waits in first loop iteration.
@@ -515,22 +515,22 @@ CONTAINS
                   ' image',left_dst_image,&
                   ' pgrid coor ',left_dst_prow, left_dst_pcol
              left_data_rp => pointer_view (&
-                     dbcsr_get_data_p (lbuffer_comm%mats(mult)%data_area, 0.0_dp),&
+                     dbcsr_get_data_p (lbuffer_comm%mats(mult)%m%data_area, 0.0_dp),&
                      1, all_sizes(1, left_src_image, left_src_p))
-             left_index_rp => lbuffer_comm%mats(mult)%index(&
+             left_index_rp => lbuffer_comm%mats(mult)%m%index(&
                   1:all_sizes(2, left_src_image, left_src_p))
              left_data_sp => pointer_view (&
-                     dbcsr_get_data_p (lbuffer_calc%mats(mult)%data_area, 0.0_dp),&
+                     dbcsr_get_data_p (lbuffer_calc%mats(mult)%m%data_area, 0.0_dp),&
                      1, all_sizes(1, left_dst_image, left_dst_p))
-             left_index_sp => lbuffer_calc%mats(mult)%index(&
+             left_index_sp => lbuffer_calc%mats(mult)%m%index(&
                   1:all_sizes(2, left_dst_image, left_dst_p))
              IF (right_prow_i .EQ. 0) THEN
                 CALL mp_isendrecv (&
-                     dbcsr_get_data_p (left_set%mats(mult)%data_area, 0.0_dp),&
+                     dbcsr_get_data_p (left_set%mats(mult)%m%data_area, 0.0_dp),&
                      left_dst_p,&
                      left_data_rp, left_src_p, mp_group,&
                      left_data_sr(mult), left_data_rr (mult), tag=1)
-                CALL mp_isendrecv (left_set%mats(mult)%index, left_dst_p,&
+                CALL mp_isendrecv (left_set%mats(mult)%m%index, left_dst_p,&
                      left_index_rp, left_src_p, mp_group,&
                      left_index_sr(mult), left_index_rr (mult), tag=2)
              ELSE
@@ -550,13 +550,13 @@ CONTAINS
           DO myt_mult = 1, left_multiplicity
              !$OMP MASTER
              mult = myt_mult
-             CALL dbcsr_repoint_index (lbuffer_calc%mats(myt_mult), error=error)
+             CALL dbcsr_repoint_index (lbuffer_calc%mats(myt_mult)%m, error=error)
              tstart = m_walltime ()
              !$OMP END MASTER
              !$OMP BARRIER
              !WRITE(*,*)ithread,'running local multiply', right_prow_i, myt_mult, nthreads
-             CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(myt_mult), rbuffer_calc,&
-                  product_matrix_p, flop=flop_single,&
+             CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(myt_mult)%m, rbuffer_calc%m,&
+                  product_matrix_p%m, flop=flop_single,&
                   t_all=t_all, t_dgemm=t_dgemm)
              !$OMP BARRIER
              !$OMP MASTER
@@ -578,7 +578,7 @@ CONTAINS
        !$OMP BARRIER
        !$OMP MASTER
        CALL dbcsr_switch_sets (lbuffer_calc, lbuffer_comm)
-       CALL dbcsr_switch_m_ptrs (rbuffer_calc, rbuffer_comm)
+       CALL dbcsr_switch_m_ptrs (rbuffer_calc%m, rbuffer_comm%m)
        !$OMP END MASTER
        !$BARRIER
     ENDDO k_index
@@ -635,8 +635,8 @@ CONTAINS
   SUBROUTINE dbcsr_mult_e_ec_m_rma (left_set, right_matrix, product_matrix,&
        error, flop)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
-    TYPE(dbcsr_type), INTENT(IN)             :: right_matrix
-    TYPE(dbcsr_type), INTENT(INOUT), TARGET  :: product_matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: right_matrix
+    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: product_matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -664,9 +664,9 @@ CONTAINS
     TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
     TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
     TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_type), POINTER                :: product_matrix_p, &
+    TYPE(dbcsr_obj), POINTER                 :: product_matrix_p, &
                                                 rbuffer_calc, rbuffer_comm
-    TYPE(dbcsr_type), TARGET                 :: rbuffer_1, rbuffer_2
+    TYPE(dbcsr_obj), TARGET                  :: rbuffer_1, rbuffer_2
     TYPE(mp_window_type)                     :: right_data_window, &
                                                 right_index_window
 
@@ -692,7 +692,7 @@ CONTAINS
     CALL bcsr_assert (debug_level,&
          SIZE (left_set%mats) .EQ. left_set%image_dist%row_decimation,&
          routineP, "Declared images not equal to present images")
-    mp_obj = dbcsr_distribution_mp (product_matrix%dist)
+    mp_obj = dbcsr_distribution_mp (product_matrix%m%dist)
     numnodes = dbcsr_mp_numnodes (mp_obj)
     mynode = dbcsr_mp_mynode (mp_obj)
     myprow = dbcsr_mp_myprow (mp_obj)
@@ -720,17 +720,17 @@ CONTAINS
     !!$ nthreads = OMP_GET_NUM_THREADS ()
     CALL dbcsr_work_create(product_matrix, n=nthreads, error=error)
     DO i = 1, nthreads
-       CALL dbcsr_data_ensure_size(product_matrix%wms(i)%data_area,&
-            MAX(product_matrix%wms(i)%datasize,&
+       CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
+            MAX(product_matrix%m%wms(i)%datasize,&
             dbcsr_nfullrows_local (product_matrix)&
             *dbcsr_nfullcols_local (product_matrix)))
-            !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%nfullcols_local))
-       CALL ensure_array_size(product_matrix%wms(i)%row_i,&
-            ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%wms(i)%col_i,&
-            ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%wms(i)%blk_p,&
-            ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
+            !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%m%nfullcols_local))
+       CALL ensure_array_size(product_matrix%m%wms(i)%row_i,&
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+       CALL ensure_array_size(product_matrix%m%wms(i)%col_i,&
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+       CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
     ENDDO
     DBG 'pgrid shape', SHAPE (pgrid)
     DBG 'left images, multiplicity', left_nimages, left_multiplicity
@@ -739,11 +739,11 @@ CONTAINS
     ALLOCATE (my_sizes(4, left_nimages))
     my_sizes(:,:) = 0
     DO img = 1, left_nimages
-       my_sizes(1, img) = dbcsr_get_data_size (left_set%mats(img)%data_area)
-       my_sizes(2, img) = SIZE (left_set%mats(img)%index)
+       my_sizes(1, img) = dbcsr_get_data_size (left_set%mats(img)%m%data_area)
+       my_sizes(2, img) = SIZE (left_set%mats(img)%m%index)
     ENDDO
-    my_sizes(3, 1) = dbcsr_get_data_size (right_matrix%data_area)
-    my_sizes(4, 1) = SIZE (right_matrix%index)
+    my_sizes(3, 1) = dbcsr_get_data_size (right_matrix%m%data_area)
+    my_sizes(4, 1) = SIZE (right_matrix%m%index)
     ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numnodes-1))
     DO i = 1, 4
        DBG 'my sizes', my_sizes(i,:)
@@ -755,38 +755,38 @@ CONTAINS
     ! Setup the buffer matrices
     DO img = 1, left_nimages
        CALL mp_window_create (left_set%data_windows(img),&
-            dbcsr_get_data_p (left_set%mats(img)%data_area, 0.0_dp), gid=mp_group)
+            dbcsr_get_data_p (left_set%mats(img)%m%data_area, 0.0_dp), gid=mp_group)
        CALL mp_window_create (left_set%index_windows(img),&
-            left_set%mats(img)%index, gid=mp_group)
+            left_set%mats(img)%m%index, gid=mp_group)
     ENDDO
     ALLOCATE (lbuffer_1%mats(left_multiplicity))
     ALLOCATE (lbuffer_2%mats(left_multiplicity))
     DO mult = 1, left_multiplicity
        CALL dbcsr_init (lbuffer_1%mats(mult), error)
        CALL dbcsr_create (lbuffer_1%mats(mult),&
-            'lbufferl1'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
-            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
+            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
             nblks, nze, special=.FALSE., error=error)
-       CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%data_area,&
+       CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
-       !CALL ensure_array_size (lbuffer_1%mats(mult)%data,&
+       !CALL ensure_array_size (lbuffer_1%mats(mult)%m%data,&
        !     ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
        !     special=.FALSE., error=error)
-       CALL ensure_array_size (lbuffer_1%mats(mult)%index,&
+       CALL ensure_array_size (lbuffer_1%mats(mult)%m%index,&
             ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
        !
        CALL dbcsr_init (lbuffer_2%mats(mult), error)
        CALL dbcsr_create (lbuffer_2%mats(mult),&
-            'lbuffer2'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
-            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
+            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
             nblks, nze, special=.FALSE., error=error)
-       CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%data_area,&
+       CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
-       !CALL ensure_array_size (lbuffer_2%mats(mult)%data,&
+       !CALL ensure_array_size (lbuffer_2%mats(mult)%m%data,&
        !     ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
        !     special=.FALSE., error=error)
-       CALL ensure_array_size (lbuffer_2%mats(mult)%index,&
+       CALL ensure_array_size (lbuffer_2%mats(mult)%m%index,&
             ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
             special=.FALSE., error=error)
     ENDDO
@@ -797,39 +797,39 @@ CONTAINS
     nze = MAXVAL (all_sizes(3, 1, :))
     CALL dbcsr_init (rbuffer_1, error)
     CALL dbcsr_create (rbuffer_1,&
-         'rbuffer1'//right_matrix%name, right_matrix%dist,&
+         'rbuffer1'//right_matrix%m%name, right_matrix%m%dist,&
          'N',&
-         right_matrix%row_blk_size,&
-         right_matrix%col_blk_size,&
+         right_matrix%m%row_blk_size,&
+         right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
-    CALL dbcsr_data_ensure_size (rbuffer_1%data_area,&
+    CALL dbcsr_data_ensure_size (rbuffer_1%m%data_area,&
          MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
     !CALL ensure_array_size (rbuffer_1%data,&
     !     ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
     !     error=error)
-    CALL ensure_array_size (rbuffer_1%index,&
+    CALL ensure_array_size (rbuffer_1%m%index,&
          ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
          error=error)
     !
     CALL dbcsr_init (rbuffer_2, error)
     CALL dbcsr_create (rbuffer_2,&
-         'rbuffer2'//right_matrix%name, right_matrix%dist,&
+         'rbuffer2'//right_matrix%m%name, right_matrix%m%dist,&
          'N',&
-         right_matrix%row_blk_size,&
-         right_matrix%col_blk_size,&
+         right_matrix%m%row_blk_size,&
+         right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
-    CALL dbcsr_data_ensure_size (rbuffer_2%data_area,&
+    CALL dbcsr_data_ensure_size (rbuffer_2%m%data_area,&
          MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
     !CALL ensure_array_size (rbuffer_2%data,&
     !     ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
     !     error=error)
-    CALL ensure_array_size (rbuffer_2%index,&
+    CALL ensure_array_size (rbuffer_2%m%index,&
          ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
          error=error)
     ! Create windows for the right matrices
     CALL mp_window_create (right_data_window,&
-         dbcsr_get_data_p (right_matrix%data_area, 0.0_dp), gid=mp_group)
-    CALL mp_window_create (right_index_window, right_matrix%index, gid=mp_group)
+         dbcsr_get_data_p (right_matrix%m%data_area, 0.0_dp), gid=mp_group)
+    CALL mp_window_create (right_index_window, right_matrix%m%index, gid=mp_group)
     rbuffer_calc => rbuffer_1
     rbuffer_comm => rbuffer_2
     !
@@ -861,17 +861,17 @@ CONTAINS
                all_sizes(3:4, 1, right_src_p_comm)
           CALL mp_rma_get (right_data_window,&
                right_src_p_comm, 0, all_sizes(3, 1, right_src_p_comm),&
-               dbcsr_get_data_p (rbuffer_comm%data_area, 0.0_dp))
+               dbcsr_get_data_p (rbuffer_comm%m%data_area, 0.0_dp))
           CALL mp_rma_get (right_index_window,&
                right_src_p_comm, 0, all_sizes(4, 1, right_src_p_comm),&
-               rbuffer_comm%index)
+               rbuffer_comm%m%index)
        ENDIF xfer_case_right
        ! No calculations in the first loop
        calc_case_right: IF (right_prow_i .GT. 0) THEN
           IF (all_sizes(4, 1, right_src_p_calc) .EQ. 0) THEN
              DBG 'ZERO SIZED INDEX'
           ENDIF
-          CALL dbcsr_repoint_index (rbuffer_calc, error=error)
+          CALL dbcsr_repoint_index (rbuffer_calc%m, error=error)
        ENDIF calc_case_right
        ! Now we transfer/multiply with the left matrix
        right_src_p_calc = right_src_p_comm
@@ -903,20 +903,20 @@ CONTAINS
              CALL mp_rma_get (left_set%data_windows(left_src_image),&
                   left_src_p_comm, 0,&
                   all_sizes(1, left_src_image, left_src_p_comm),&
-                  dbcsr_get_data_p (lbuffer_comm%mats(mult)%data_area, 0.0_dp))
+                  dbcsr_get_data_p (lbuffer_comm%mats(mult)%m%data_area, 0.0_dp))
              CALL mp_rma_get (left_set%index_windows(left_src_image),&
                   left_src_p_comm, 0,&
                   all_sizes(2, left_src_image, left_src_p_comm),&
-                  lbuffer_comm%mats(mult)%index)
+                  lbuffer_comm%mats(mult)%m%index)
           ENDDO
        ENDIF xfer_case_left
        calc_case_left: IF (right_prow_i .GT. 0) THEN
              !left_src_p_calc == left_pgrid (left_prow, right_prow-1)
           DO mult = 1, left_multiplicity
-             CALL dbcsr_repoint_index (lbuffer_calc%mats(mult), error=error)
+             CALL dbcsr_repoint_index (lbuffer_calc%mats(mult)%m, error=error)
              tstart = m_walltime ()
-             CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult), rbuffer_calc,&
-                  product_matrix_p, flop=flop_single,&
+             CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult)%m, rbuffer_calc%m,&
+                  product_matrix_p%m, flop=flop_single,&
                   t_all=t_all, t_dgemm=t_dgemm)
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
@@ -934,7 +934,7 @@ CONTAINS
        ENDIF calc_case_left
        left_src_p_calc = left_src_p_comm
        CALL dbcsr_switch_sets (lbuffer_calc, lbuffer_comm)
-       CALL dbcsr_switch_m_ptrs (rbuffer_calc, rbuffer_comm)
+       CALL dbcsr_switch_m_ptrs (rbuffer_calc%m, rbuffer_comm%m)
     ENDDO k_index
     trun_t = m_walltime () - trun_t
     IF (trun_t .EQ. 0) trun_t = 0.000001_dp
@@ -1096,8 +1096,8 @@ CONTAINS
 !    DO mult = 1, left_multiplicity
 !       CALL dbcsr_init (lbuffer_1%mats(mult), error)
 !       CALL dbcsr_create (lbuffer_1%mats(mult),&
-!            'lbufferl1'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
-!            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+!            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
+!            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
 !            nblks, nze, special=.FALSE., error=error)
 !       CALL ensure_array_size (lbuffer_1%mats(mult)%data,&
 !            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
@@ -1108,8 +1108,8 @@ CONTAINS
 !       !
 !       CALL dbcsr_init (lbuffer_2%mats(mult), error)
 !       CALL dbcsr_create (lbuffer_2%mats(mult),&
-!            'lbuffer2'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
-!            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+!            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
+!            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
 !            nblks, nze, special=.FALSE., error=error)
 !       CALL ensure_array_size (lbuffer_2%mats(mult)%data,&
 !            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
@@ -1792,8 +1792,8 @@ CONTAINS
 !    DO mult = 1, left_multiplicity
 !       CALL dbcsr_init (lbuffer_1%mats(mult), error)
 !       CALL dbcsr_create (lbuffer_1%mats(mult),&
-!            'lbufferl1'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
-!            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+!            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
+!            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
 !            nblks, nze, special=.FALSE., error=error)
 !       CALL ensure_array_size (lbuffer_1%mats(mult)%data,&
 !            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
@@ -1804,8 +1804,8 @@ CONTAINS
 !       !
 !       CALL dbcsr_init (lbuffer_2%mats(mult), error)
 !       CALL dbcsr_create (lbuffer_2%mats(mult),&
-!            'lbuffer2'//left_set%mats(1)%name, left_set%mats(1)%dist, 'N',&
-!            left_set%mats(1)%row_blk_size, left_set%mats(1)%col_blk_size,&
+!            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
+!            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
 !            nblks, nze, special=.FALSE., error=error)
 !       CALL ensure_array_size (lbuffer_2%mats(mult)%data,&
 !            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
@@ -2490,7 +2490,9 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Merges two arrays
+!> \brief Merges two indices
+!>
+!> Assumes they are both pre-sorted
 !> \param[in,out] new_row_i, new_col_i, new_blk_p      merged result
 !> \param[in] new_size                  size of merged index
 !> \param[in,out] old_row_i, old_col_i, old_blk_p      current index
@@ -2811,7 +2813,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_wm_add(wm, addee, error, flop)
     TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm
-    TYPE(dbcsr_type), INTENT(IN)             :: addee
+    TYPE(dbcsr_obj), INTENT(IN)              :: addee
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER, INTENT(OUT), OPTIONAL           :: flop
 
@@ -2839,20 +2841,20 @@ CONTAINS
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     IF (dbg) tstart = m_walltime ()
-    DBG "Doing WM matrix sum",' += ',addee%name
+    DBG "Doing WM matrix sum",' += ',addee%m%name
     DBG "Pre-mult blk sizes, data", wm%lastblk, wm%datasize
-    DBG "Addee blk sizes, data", addee%nblks, addee%nze
-    addee_row_blk_size => array_data (addee%row_blk_size)
-    addee_col_blk_size => array_data (addee%col_blk_size)
-    SELECT CASE (addee%data_type)
+    DBG "Addee blk sizes, data", addee%m%nblks, addee%m%nze
+    addee_row_blk_size => array_data (addee%m%row_blk_size)
+    addee_col_blk_size => array_data (addee%m%col_blk_size)
+    SELECT CASE (addee%m%data_type)
     CASE ('r')
-       CALL dbcsr_get_data (addee%data_area, addee_data_r)
+       CALL dbcsr_get_data (addee%m%data_area, addee_data_r)
     CASE ('R')
-       CALL dbcsr_get_data (addee%data_area, addee_data_d)
+       CALL dbcsr_get_data (addee%m%data_area, addee_data_d)
     CASE ('c')
-       CALL dbcsr_get_data (addee%data_area, addee_data_c)
+       CALL dbcsr_get_data (addee%m%data_area, addee_data_c)
     CASE ('C')
-       CALL dbcsr_get_data (addee%data_area, addee_data_z)
+       CALL dbcsr_get_data (addee%m%data_area, addee_data_z)
     END SELECT
     !
     ! The algorithm is a follows: go through all of addee's
@@ -2865,28 +2867,28 @@ CONTAINS
     !
     ! c_blk_ps contains the block pointers in the product's current row
     lflop = 0
-    IF (wm%lastblk .GT. 0 .OR. addee%nblks .GT. 0) THEN
-    DO addee_row = 1, addee%nblkrows_total
+    IF (wm%lastblk .GT. 0 .OR. addee%m%nblks .GT. 0) THEN
+    DO addee_row = 1, addee%m%nblkrows_total
        DBG 'Addee row', addee_row,' with #cols=',&
-            addee%row_p(addee_row+1)-addee%row_p(addee_row)
+            addee%m%row_p(addee_row+1)-addee%m%row_p(addee_row)
        ! Find the blocks present in addee_row.
        addee_row_size = addee_row_blk_size(addee_row)
        CALL dbcsr_data_ensure_size(wm%data_area,&
-            wm%datasize+addee_row_size*addee%nfullcols_total &
-            * MAX(1, (addee%nblkrows_total-addee_row)/4))
+            wm%datasize+addee_row_size*addee%m%nfullcols_total &
+            * MAX(1, (addee%m%nblkrows_total-addee_row)/4))
        !CALL ensure_array_size(wm%data,&
-       !     ub=wm%datasize+addee_row_size*addee%nfullcols_total &
-       !     * MAX(1, (addee%nblkrows_total-addee_row)/4), error=error)
-       DO addee_blk = addee%row_p(addee_row)+1, addee%row_p(addee_row+1)
-          addee_col = addee%col_i(addee_blk)
+       !     ub=wm%datasize+addee_row_size*addee%m%nfullcols_total &
+       !     * MAX(1, (addee%m%nblkrows_total-addee_row)/4), error=error)
+       DO addee_blk = addee%m%row_p(addee_row)+1, addee%m%row_p(addee_row+1)
+          addee_col = addee%m%col_i(addee_blk)
           DBG 'Addee col', addee_col
           addee_col_size = addee_col_blk_size(addee_col)
           addee_nze = addee_row_size * addee_col_size
-          addee_data_d => addee_data_d(ABS(addee%blk_p(addee_blk))&
-               :ABS(addee%blk_p(addee_blk))+addee_nze-1)
-          !addee_data => addee%data(ABS(addee%blk_p(addee_blk))&
-          !                   :ABS(addee%blk_p(addee_blk))+addee_nze-1)
-          IF (addee%blk_p(addee_blk) .LT. 0) THEN
+          addee_data_d => addee_data_d(ABS(addee%m%blk_p(addee_blk))&
+               :ABS(addee%m%blk_p(addee_blk))+addee_nze-1)
+          !addee_data => addee%m%data(ABS(addee%m%blk_p(addee_blk))&
+          !                   :ABS(addee%m%blk_p(addee_blk))+addee_nze-1)
+          IF (addee%m%blk_p(addee_blk) .LT. 0) THEN
              addee_type = 'T'; ldaddee = addee_col_size
           ELSE
              addee_type = 'N'; ldaddee = addee_row_size
@@ -2958,7 +2960,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_scale(matrix_a, alpha_scalar, alpha_vector, alpha_matrix, side, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha_scalar
     REAL(dp), DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: alpha_vector, alpha_matrix
@@ -2985,17 +2987,17 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timeset(routineN, timing_handle)
     !
     !
-    row_blk_size => array_data (matrix_a%row_blk_size)
-    col_blk_size => array_data (matrix_a%col_blk_size)
-    SELECT CASE (matrix_a%data_type)
+    row_blk_size => array_data (matrix_a%m%row_blk_size)
+    col_blk_size => array_data (matrix_a%m%col_blk_size)
+    SELECT CASE (matrix_a%m%data_type)
     CASE ('r')
-       CALL dbcsr_get_data (matrix_a%data_area, data_r)
+       CALL dbcsr_get_data (matrix_a%m%data_area, data_r)
     CASE ('R')
-       CALL dbcsr_get_data (matrix_a%data_area, data_d)
+       CALL dbcsr_get_data (matrix_a%m%data_area, data_d)
     CASE ('c')
-       CALL dbcsr_get_data (matrix_a%data_area, data_c)
+       CALL dbcsr_get_data (matrix_a%m%data_area, data_c)
     CASE ('C')
-       CALL dbcsr_get_data (matrix_a%data_area, data_z)
+       CALL dbcsr_get_data (matrix_a%m%data_area, data_z)
     END SELECT
     !
     ! set vars
@@ -3028,16 +3030,16 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     !
     IF(PRESENT(alpha_matrix)) THEN
        ALLOCATE(buff(MAXVAL(row_blk_size)*MAXVAL(col_blk_size)),&
-            &   m_offset(matrix_a%nblkcols_total))
+            &   m_offset(matrix_a%m%nblkcols_total))
        buff = 0.0_dp
        m_offset(1) = 1
        IF(right) THEN
-          DO a_col = 2,matrix_a%nblkcols_total
+          DO a_col = 2,matrix_a%m%nblkcols_total
              a_col_size = col_blk_size(a_col-1)
              m_offset(a_col) = m_offset(a_col-1) + a_col_size**2
           ENDDO
        ELSE
-          DO a_row = 2,matrix_a%nblkrows_total
+          DO a_row = 2,matrix_a%m%nblkrows_total
              a_row_size = row_blk_size(a_row-1)
              m_offset(a_row) = m_offset(a_row-1) + a_row_size**2
           ENDDO          
@@ -3046,18 +3048,18 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     !
     !
     ! let's go
-    DO a_row = 1, matrix_a%nblkrows_total
+    DO a_row = 1, matrix_a%m%nblkrows_total
        a_row_size = row_blk_size(a_row)
-       DO a_blk = matrix_a%row_p(a_row)+1,matrix_a%row_p(a_row+1)
-          a_col = matrix_a%col_i(a_blk)
+       DO a_blk = matrix_a%m%row_p(a_row)+1,matrix_a%m%row_p(a_row+1)
+          a_col = matrix_a%m%col_i(a_blk)
           a_col_size = col_blk_size(a_col)
           a_nze = a_row_size * a_col_size
-          a_offset = ABS(matrix_a%blk_p(a_blk))
+          a_offset = ABS(matrix_a%m%blk_p(a_blk))
           !
           ! let's scale
           IF(PRESENT(alpha_scalar)) THEN
              !a_data = a_data * alpha_scalar
-             SELECT CASE (matrix_a%data_type)
+             SELECT CASE (matrix_a%m%data_type)
              CASE ('R')
                 CALL dscal(a_nze,alpha_scalar,data_d(a_offset),1)
              CASE default
@@ -3082,7 +3084,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           ELSEIF(PRESENT(alpha_matrix)) THEN
              IF(right) THEN
                 !A = A * alpha
-                SELECT CASE (matrix_a%data_type)
+                SELECT CASE (matrix_a%m%data_type)
                 CASE ('R')
                    CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
                         &     1.0_dp,data_d(a_offset),a_row_size,&
@@ -3095,7 +3097,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 END SELECT
              ELSE
                 !A = alpha * A
-                SELECT CASE (matrix_a%data_type)
+                SELECT CASE (matrix_a%m%data_type)
                 CASE ('R')
                    CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
                         &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
@@ -3153,7 +3155,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[in]  block_number   (optional) the block number, if it is known
 ! *****************************************************************************
   SUBROUTINE dbcsr_remove_block(matrix, row, col, block_number)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     INTEGER, INTENT(IN), OPTIONAL            :: block_number
 
@@ -3171,7 +3173,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_get_lookup (matrix, r, c, tr)
     IF (PRESENT (block_number)) THEN
        b = block_number
-       CALL cp_assert (block_number .LE. matrix%nblks, cp_failure_level,&
+       CALL cp_assert (block_number .LE. matrix%m%nblks, cp_failure_level,&
             cp_caller_error, routineN, "Block number too big.")
     ELSE
        CALL dbcsr_get_block_info (matrix, r, c, b)
@@ -3179,8 +3181,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     b = ABS (b)
     IF (b .GT. 0) THEN
        ! Mark the block for deletion.
-       matrix%blk_p(b) = 0
-       matrix%valid = .FALSE.
+       matrix%m%blk_p(b) = 0
+       matrix%m%valid = .FALSE.
     ELSE
        CALL cp_assert (b .NE. 0, cp_warning_level, cp_caller_error, routineN,&
             "Block does not exist or is already deleted.")
@@ -3200,8 +3202,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix_b
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha_scalar, beta_scalar
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -3225,23 +3227,23 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
     
-    a_row_blk_size => array_data (matrix_a%row_blk_size)
-    a_col_blk_size => array_data (matrix_a%col_blk_size)
-    b_row_blk_size => array_data (matrix_b%row_blk_size)
-    b_col_blk_size => array_data (matrix_b%col_blk_size)
-    SELECT CASE (matrix_a%data_type)
+    a_row_blk_size => array_data (matrix_a%m%row_blk_size)
+    a_col_blk_size => array_data (matrix_a%m%col_blk_size)
+    b_row_blk_size => array_data (matrix_b%m%row_blk_size)
+    b_col_blk_size => array_data (matrix_b%m%col_blk_size)
+    SELECT CASE (matrix_a%m%data_type)
     CASE ('r')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_r)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_r)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
     CASE ('R')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_d)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_d)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
     CASE ('c')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_c)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_c)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
     CASE ('C')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_z)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_z)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
     END SELECT
     
     my_alpha_scalar = 1.0_dp
@@ -3250,24 +3252,24 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
     !
     ! let's go
-    IF(matrix_a%nblkrows_total.NE.matrix_b%nblkrows_total) THEN
+    IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total) THEN
        CALL stop_program(routineN,"matrices not consistent")
     ENDIF
 
     CALL dbcsr_scale(matrix_a,alpha_scalar=my_alpha_scalar,error=error)
 
     IF(my_beta_scalar.NE.0.0_dp) THEN
-       DO row = 1, matrix_b%nblkrows_total
+       DO row = 1, matrix_b%m%nblkrows_total
           a_row_size = a_row_blk_size(row)
           b_row_size = b_row_blk_size(row)
           IF(a_row_size.NE.b_row_size) CALL stop_program(routineN,"matrices not consistent")
-          a_blk = matrix_a%row_p(row)+1
-          a_last_blk = matrix_a%row_p(row+1)
-          DO b_blk = matrix_b%row_p(row)+1,matrix_b%row_p(row+1)
-             b_col = matrix_b%col_i(b_blk)
+          a_blk = matrix_a%m%row_p(row)+1
+          a_last_blk = matrix_a%m%row_p(row+1)
+          DO b_blk = matrix_b%m%row_p(row)+1,matrix_b%m%row_p(row+1)
+             b_col = matrix_b%m%col_i(b_blk)
              ! find the a_blk we assume here that the colums are ordered !
              a_frst_blk = a_blk
-             CALL dbcsr_find_column(b_col,a_frst_blk,a_last_blk,matrix_a%col_i,a_blk,found)
+             CALL dbcsr_find_column(b_col,a_frst_blk,a_last_blk,matrix_a%m%col_i,a_blk,found)
              IF(found) THEN
                 !
                 b_col_size = b_col_blk_size(b_col)
@@ -3275,13 +3277,13 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 nze = a_row_size*b_col_size
                 !
                 ! let's scale the block
-                SELECT CASE (matrix_a%data_type)
+                SELECT CASE (matrix_a%m%data_type)
                 CASE ('R')
                    CALL daxpy (nze, my_beta_scalar,&
-                        b_data_d(ABS(matrix_a%blk_p(a_blk))),1,&
-                        a_data_d(ABS(matrix_b%blk_p(b_blk))),1)
-                !CALL daxpy(nze,my_beta_scalar,matrix_b%data(ABS(matrix_a%blk_p(a_blk))),1,&
-                !     &                        matrix_a%data(ABS(matrix_b%blk_p(b_blk))),1)
+                        b_data_d(ABS(matrix_a%m%blk_p(a_blk))),1,&
+                        a_data_d(ABS(matrix_b%m%blk_p(b_blk))),1)
+                !CALL daxpy(nze,my_beta_scalar,matrix_b%m%data(ABS(matrix_a%m%blk_p(a_blk))),1,&
+                !     &                        matrix_a%m%data(ABS(matrix_b%m%blk_p(b_blk))),1)
                 CASE default
                    CALL cp_unimplemented_error (routineN,&
                         "Only real double precision")
@@ -3304,7 +3306,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_add_on_diag(matrix, alpha_scalar, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(dp), INTENT(IN)                     :: alpha_scalar
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -3326,32 +3328,32 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
     
-    row_blk_size => array_data (matrix%row_blk_size)
-    col_blk_size => array_data (matrix%col_blk_size)
-    SELECT CASE (matrix%data_type)
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
+    SELECT CASE (matrix%m%data_type)
     CASE ('r')
-       CALL dbcsr_get_data (matrix%data_area, data_r)
+       CALL dbcsr_get_data (matrix%m%data_area, data_r)
     CASE ('R')
-       CALL dbcsr_get_data (matrix%data_area, data_d)
+       CALL dbcsr_get_data (matrix%m%data_area, data_d)
     CASE ('c')
-       CALL dbcsr_get_data (matrix%data_area, data_c)
+       CALL dbcsr_get_data (matrix%m%data_area, data_c)
     CASE ('C')
-       CALL dbcsr_get_data (matrix%data_area, data_z)
+       CALL dbcsr_get_data (matrix%m%data_area, data_z)
     END SELECT
     
-    DO row = 1, matrix%nblkrows_total
+    DO row = 1, matrix%m%nblkrows_total
        row_size = row_blk_size(row)
-       blk = matrix%row_p(row)+1
-       frst_blk = matrix%row_p(row)+1
-       last_blk = matrix%row_p(row+1)
-       CALL dbcsr_find_column(row,frst_blk,last_blk,matrix%col_i,blk,found)
+       blk = matrix%m%row_p(row)+1
+       frst_blk = matrix%m%row_p(row)+1
+       last_blk = matrix%m%row_p(row+1)
+       CALL dbcsr_find_column(row,frst_blk,last_blk,matrix%m%col_i,blk,found)
        IF(found) THEN
-          offset = ABS(matrix%blk_p(blk))
+          offset = ABS(matrix%m%blk_p(blk))
           nze = row_size**2
-          SELECT CASE (matrix%data_type)
+          SELECT CASE (matrix%m%data_type)
           CASE ('R')
              DATA => data_d(offset:offset+nze-1)
-             !DATA => matrix%data(offset:offset+nze-1)
+             !DATA => matrix%m%data(offset:offset+nze-1)
              !
              ! let's add on diag
              DO i = 1,row_size
@@ -3379,8 +3381,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_b
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -3396,24 +3398,24 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_init(matrix_b, error)
     IF(PRESENT(name)) THEN
        CALL dbcsr_create(matrix_b, name, &
-            matrix_a%dist, matrix_a%matrix_type, matrix_a%row_blk_size,&
-            matrix_a%col_blk_size, matrix_a%nblks, matrix_a%nze,&
-            matrix_a%data_type, matrix_a%special_memory, error=error)
+            matrix_a%m%dist, matrix_a%m%matrix_type, matrix_a%m%row_blk_size,&
+            matrix_a%m%col_blk_size, matrix_a%m%nblks, matrix_a%m%nze,&
+            matrix_a%m%data_type, matrix_a%m%special_memory, error=error)
     ELSE
-       CALL dbcsr_create(matrix_b,'copy of '//matrix_a%name, &
-            matrix_a%dist, matrix_a%matrix_type, matrix_a%row_blk_size,&
-            matrix_a%col_blk_size, matrix_a%nblks, matrix_a%nze,&
-            matrix_a%data_type, matrix_a%special_memory, error=error)
+       CALL dbcsr_create(matrix_b,'copy of '//matrix_a%m%name, &
+            matrix_a%m%dist, matrix_a%m%matrix_type, matrix_a%m%row_blk_size,&
+            matrix_a%m%col_blk_size, matrix_a%m%nblks, matrix_a%m%nze,&
+            matrix_a%m%data_type, matrix_a%m%special_memory, error=error)
     ENDIF
-    CALL ensure_array_size(matrix_b%index, ub=SIZE(matrix_a%index), error=error)
-    CALL dbcsr_data_ensure_size (matrix_b%data_area, matrix_a%nze)
+    CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index), error=error)
+    CALL dbcsr_data_ensure_size (matrix_b%m%data_area, matrix_a%m%nze)
     !
     ! copy index and data
-    matrix_b%index(:) = matrix_a%index(:)
-    CALL dbcsr_data_copyall (matrix_b%data_area, matrix_a%data_area)
+    matrix_b%m%index(:) = matrix_a%m%index(:)
+    CALL dbcsr_data_copyall (matrix_b%m%data_area, matrix_a%m%data_area)
     !
     ! the row_p, col_i and blk_p ...
-    CALL dbcsr_repoint_index(matrix_b, error=error)
+    CALL dbcsr_repoint_index(matrix_b%m, error=error)
 
     CALL timestop(timing_handle)
 
@@ -3428,8 +3430,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 ! *****************************************************************************
   SUBROUTINE dbcsr_btriu(matrix_b, matrix_a, error)
 
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_b
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_btriu', &
@@ -3448,39 +3450,39 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
 
-    CALL dbcsr_copy(matrix_b, matrix_a, name="triu of "//matrix_a%name, error=error)
-    SELECT CASE (matrix_a%data_type)
+    CALL dbcsr_copy(matrix_b, matrix_a, name="triu of "//matrix_a%m%name, error=error)
+    SELECT CASE (matrix_a%m%data_type)
     CASE ('r')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_r)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_r)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
     CASE ('R')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_d)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_d)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
     CASE ('c')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_c)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_c)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
     CASE ('C')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_z)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_z)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
     END SELECT
 
-    row_blk_size => array_data (matrix_a%row_blk_size)
-    col_blk_size => array_data (matrix_a%col_blk_size)
+    row_blk_size => array_data (matrix_a%m%row_blk_size)
+    col_blk_size => array_data (matrix_a%m%col_blk_size)
 
     !
     ! This is not the way to do it !
-    DO row = 1, matrix_b%nblkrows_total
+    DO row = 1, matrix_b%m%nblkrows_total
        row_size = row_blk_size(row)
-       DO blk = matrix_b%row_p(row)+1,matrix_b%row_p(row+1)
-          col = matrix_b%col_i(blk)
+       DO blk = matrix_b%m%row_p(row)+1,matrix_b%m%row_p(row+1)
+          col = matrix_b%m%col_i(blk)
           IF(row.GT.col) THEN
              col_size = col_blk_size(col)
-             offset = ABS(matrix_b%blk_p(blk))
+             offset = ABS(matrix_b%m%blk_p(blk))
              nze = row_size * col_size
-             SELECT CASE (matrix_b%data_type)
+             SELECT CASE (matrix_b%m%data_type)
              CASE ('R')
                 b_data_d(offset:offset+nze-1) = 0.0_dp
-                !matrix_b%data(offset:offset+nze-1) = 0.0_dp
+                !matrix_b%m%data(offset:offset+nze-1) = 0.0_dp
              CASE default
                 CALL cp_unimplemented_error (routineN,&
                      "Only real double precision")
@@ -3502,7 +3504,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 ! *****************************************************************************
   SUBROUTINE dbcsr_filter(matrix, eps, method, error)
 
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(dp), INTENT(IN)                     :: eps
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: method
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -3529,35 +3531,35 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     my_method = 'fro'
     IF(PRESENT(method)) my_method = method
 
-    SELECT CASE (matrix%data_type)
+    SELECT CASE (matrix%m%data_type)
     CASE ('r')
-       CALL dbcsr_get_data (matrix%data_area, data_r)
+       CALL dbcsr_get_data (matrix%m%data_area, data_r)
     CASE ('R')
-       CALL dbcsr_get_data (matrix%data_area, data_d)
+       CALL dbcsr_get_data (matrix%m%data_area, data_d)
     CASE ('c')
-       CALL dbcsr_get_data (matrix%data_area, data_c)
+       CALL dbcsr_get_data (matrix%m%data_area, data_c)
     CASE ('C')
-       CALL dbcsr_get_data (matrix%data_area, data_z)
+       CALL dbcsr_get_data (matrix%m%data_area, data_z)
     END SELECT
 
-    row_blk_size => array_data (matrix%row_blk_size)
-    col_blk_size => array_data (matrix%col_blk_size)
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
 
     CALL RANDOM_SEED()
     CALL RANDOM_NUMBER(rnd)
     rnd = rnd*1.0E+30_dp
 
-    ALLOCATE(new_index(SIZE(matrix%index)))
+    ALLOCATE(new_index(SIZE(matrix%m%index)))
 
     new_index(:) = 0
-    new_index(:dbcsr_num_slots) = matrix%index(:dbcsr_num_slots)
-    new_index(dbcsr_slot_size)  = matrix%index(dbcsr_slot_size)
+    new_index(:dbcsr_num_slots) = matrix%m%index(:dbcsr_num_slots)
+    new_index(dbcsr_slot_size)  = matrix%m%index(dbcsr_slot_size)
     new_index(dbcsr_slot_nblks) = 0
-    new_index(dbcsr_slot_nze)   = matrix%index(dbcsr_slot_nze)! WE DONT TOUCH THAT !
-    new_index(dbcsr_slot_row_p) = matrix%index(dbcsr_slot_row_p)
-    new_index(dbcsr_slot_col_i) = matrix%index(dbcsr_slot_col_i)
-    new_index(dbcsr_slot_blk_p) = matrix%index(dbcsr_slot_blk_p)
-    new_index(dbcsr_slot_row_p+1) = matrix%index(dbcsr_slot_row_p+1)
+    new_index(dbcsr_slot_nze)   = matrix%m%index(dbcsr_slot_nze)! WE DONT TOUCH THAT !
+    new_index(dbcsr_slot_row_p) = matrix%m%index(dbcsr_slot_row_p)
+    new_index(dbcsr_slot_col_i) = matrix%m%index(dbcsr_slot_col_i)
+    new_index(dbcsr_slot_blk_p) = matrix%m%index(dbcsr_slot_blk_p)
+    new_index(dbcsr_slot_row_p+1) = matrix%m%index(dbcsr_slot_row_p+1)
     !
     ! This is not the way to do it !
     idx_row = new_index(dbcsr_slot_row_p)
@@ -3565,16 +3567,16 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     idx_blk = new_index(dbcsr_slot_blk_p)
     nblk_tot = 0
     new_index(idx_row) = 0
-    DO row = 1, matrix%nblkrows_total
+    DO row = 1, matrix%m%nblkrows_total
        row_size = row_blk_size(row)
        nblk = 0
-       DO blk = matrix%row_p(row)+1,matrix%row_p(row+1)
-          col = matrix%col_i(blk)
+       DO blk = matrix%m%row_p(row)+1,matrix%m%row_p(row+1)
+          col = matrix%m%col_i(blk)
           col_size = col_blk_size(col)
-          offset = ABS(matrix%blk_p(blk))
+          offset = ABS(matrix%m%blk_p(blk))
           nze = row_size * col_size
           !
-          SELECT CASE (matrix%data_type)
+          SELECT CASE (matrix%m%data_type)
           CASE ('R')
              !
              SELECT CASE(my_method)
@@ -3585,12 +3587,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                    ! this is useless and should be removed
                    data_d(offset:offset+nze-1) = rnd!HUGE(0.0_dp)
                    !data_d(offset:offset+nze-1) = HUGE(0.0_dp)
-                   matrix%col_i(blk) = HUGE(0)
-                   matrix%blk_p(blk) = HUGE(0)
+                   matrix%m%col_i(blk) = HUGE(0)
+                   matrix%m%blk_p(blk) = HUGE(0)
                 ELSE
                    !
-                   new_index(idx_col) = matrix%col_i(blk)
-                   new_index(idx_blk) = matrix%blk_p(blk)
+                   new_index(idx_col) = matrix%m%col_i(blk)
+                   new_index(idx_blk) = matrix%m%blk_p(blk)
                    !
                    ! update pointers
                    nblk = nblk + 1
@@ -3618,28 +3620,28 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     new_index(dbcsr_slot_blk_p+1) = new_index(dbcsr_slot_blk_p) + nblk_tot - 1
     !
     ! reset the index
-    matrix%index(:) = new_index(:)
+    matrix%m%index(:) = new_index(:)
     !
     ! the row_p, col_i and blk_p ...
-    CALL dbcsr_repoint_index(matrix, error=error)
+    CALL dbcsr_repoint_index(matrix%m, error=error)
 
     DEALLOCATE(new_index)
 
-    IF(matrix%row_p(matrix%nblkrows_total+1).NE.matrix%nblks) &
+    IF(matrix%m%row_p(matrix%m%nblkrows_total+1).NE.matrix%m%nblks) &
          CALL stop_program(routineN,"something wrong")
 
     IF(.TRUE.) THEN
-       DO row = 1, matrix%nblkrows_total
+       DO row = 1, matrix%m%nblkrows_total
           row_size = row_blk_size(row)
-          IF(matrix%row_p(row).LT.0) THEN
-             WRITE(*,*) 'row',row,'matrix%row_p(row)',matrix%row_p(row)
+          IF(matrix%m%row_p(row).LT.0) THEN
+             WRITE(*,*) 'row',row,'matrix%m%row_p(row)',matrix%m%row_p(row)
              CALL stop_program(routineN,"buggus1")
           ENDIF
 
-          DO blk = matrix%row_p(row)+1,matrix%row_p(row+1)
-             col = matrix%col_i(blk)
+          DO blk = matrix%m%row_p(row)+1,matrix%m%row_p(row+1)
+             col = matrix%m%col_i(blk)
              col_size = col_blk_size(col)
-             offset = ABS(matrix%blk_p(blk))
+             offset = ABS(matrix%m%blk_p(blk))
              nze = row_size * col_size
              IF(ANY(data_d(offset:offset+nze-1).EQ.rnd)) THEN
                 WRITE(*,*) 'row',row,'col',col,'blk',blk,'offset',offset

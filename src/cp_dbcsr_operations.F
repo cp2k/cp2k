@@ -23,10 +23,11 @@ MODULE cp_dbcsr_operations
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_col_block_sizes, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, &
+       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
@@ -48,8 +49,8 @@ MODULE cp_dbcsr_operations
        dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, dbcsr_destroy, &
        dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_finalize, &
        dbcsr_from_fm, dbcsr_from_sm, dbcsr_init, dbcsr_make_col_images, &
-       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_valid_index, &
-       dbcsr_verify_matrix, sm_from_dbcsr
+       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix, &
+       sm_from_dbcsr
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
@@ -105,8 +106,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c, distribution, &
        hint, error, flop)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a, matrix_b
-    TYPE(dbcsr_type), INTENT(OUT)            :: matrix_c
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: distribution
     INTEGER, INTENT(IN)                      :: hint
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -121,7 +122,7 @@ CONTAINS
     REAL(KIND=dp)                            :: flops
     TYPE(dbcsr_array_type)                   :: ms_left
     TYPE(dbcsr_imagedistribution_type)       :: rdist_left
-    TYPE(dbcsr_type)                         :: matrix_d
+    TYPE(dbcsr_obj)                          :: matrix_d
 
 !TYPE(dbcsr_distribution_obj)             :: dist_left, dist_right
 
@@ -133,35 +134,35 @@ CONTAINS
     ! Assign new dist2d
     ! Create & initialize the final & working matrix.
     IF (dbg) WRITE(*,*)routineP//'Creating 2-d distribution...'
-    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
     ! We don't recycle yet.
-    IF (dbcsr_valid_index (matrix_c)) THEN
+    IF (ASSOCIATED (matrix_c%m)) THEN
        CALL dbcsr_destroy (matrix_c, error=error)
     ENDIF
     CALL dbcsr_init (matrix_c, error)
     CALL dbcsr_create(matrix_c, "C", distribution, 'N',&
-         matrix_a%row_blk_size, matrix_b%col_blk_size,&
+         matrix_a%m%row_blk_size, matrix_b%m%col_blk_size,&
          0, 0, error=error)
     IF (dbg) WRITE(*,*)routineP//'Updating new matrix...'
-    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
-    !IF (dbg) WRITE(*,*)routineP//' C initial index is', matrix_c%index
+    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
+    !IF (dbg) WRITE(*,*)routineP//' C initial index is', matrix_c%m%index
     IF (dbg) WRITE(*,*)routineP//'Creating work matrix...'
-    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
     i = dbcsr_nfullrows_local(matrix_a) * dbcsr_nfullcols_local(matrix_b)
     !CALL dbcsr_work_create(matrix_c, sizedata_guess=i, error=error)
     IF (dbg) WRITE(*,*)routineP//'Multiplying...'
-    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
     !
     DBG 'Creating left image distribution'
-    !CALL dbcsr_create_image_dist_left(rdist_left, matrix_a%dist, matrix_b%dist)
+    !CALL dbcsr_create_image_dist_left(rdist_left, matrix_a%m%dist, matrix_b%m%dist)
     CALL dbcsr_create_col_image_dist (rdist_left,&
-         dbcsr_distribution_row_dist (matrix_a%dist), matrix_b%dist)
+         dbcsr_distribution_row_dist (matrix_a%m%dist), matrix_b%m%dist)
     !
     DBG 'Making A images'
     CALL dbcsr_make_col_images(matrix_a, ms_left, rdist_left, error)
     !ms_left%image_dist = rdist_left
     matrix_d = ms_left%mats(1)
-    DBG 'master name', ms_left%mats(1)%name
+    DBG 'master name', ms_left%mats(1)%m%name
     DBG "Verifying A images"
     DO i = 1, SIZE (ms_left%mats)
        CALL dbcsr_verify_matrix(ms_left%mats(i), error)
@@ -188,7 +189,7 @@ CONTAINS
     !   checksum = dbcsr_checksum(matrix_c, error)
     !   WRITE(*,*)routineP//' BCSR Sx Matrix checksum is', checksum
     !ENDIF
-    !CALL mp_sum(flop, dbcsr_mp_group (dbcsr_distribution_mp (matrix_a%dist)))
+    !CALL mp_sum(flop, dbcsr_mp_group (dbcsr_distribution_mp (matrix_a%m%dist)))
     !WRITE(*,*)'FLOP=',flop
     !
     !CALL dbcsr_distribution_release (dist_left)
@@ -229,8 +230,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj)                          :: m
-    TYPE(dbcsr_type), TARGET                 :: matrix_a, matrix_a2, &
+    TYPE(dbcsr_obj)                          :: matrix_a, matrix_a2, &
                                                 matrix_b, matrix_bt, matrix_c
     TYPE(distribution_2d_type), POINTER      :: dist2d
     TYPE(real_matrix_type), POINTER          :: matrix_s2
@@ -325,8 +325,7 @@ CONTAINS
     ENDIF
     ! Now delete all the blocks.
     !WRITE(*,*)'Deleting all blocks!'
-    m%m => matrix_a2
-    CALL dbcsr_iterator_start (iter, m)
+    CALL dbcsr_iterator_start (iter, matrix_a2)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col)
        CALL dbcsr_remove_block (matrix_a2, row, col)
@@ -351,15 +350,15 @@ CONTAINS
     CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
     
     IF (MOD(hint,2) .EQ. 0) THEN
-       CALL dbcsr_create_dist_r_unrot (dist_right, matrix_a%dist, k,&
+       CALL dbcsr_create_dist_r_unrot (dist_right, matrix_a%m%dist, k,&
             col_blk_size_right)
     ELSE
-       CALL dbcsr_create_dist_r_rot (dist_right, matrix_a%dist, k,&
+       CALL dbcsr_create_dist_r_rot (dist_right, matrix_a%m%dist, k,&
             col_blk_size_right)
     ENDIF
     CALL dbcsr_init (matrix_b, error)
     CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist_right,&
-         row_blk_size=matrix_a%row_blk_size,&
+         row_blk_size=matrix_a%m%row_blk_size,&
          col_blk_size=col_blk_size_right,&
          error=error)
     CALL dbcsr_verify_matrix(matrix_b, error)
@@ -372,8 +371,7 @@ CONTAINS
     !
     ! Test replacing a block.
     !CALL dbcsr_print (matrix_b, error)
-    m%m => matrix_b
-    CALL dbcsr_iterator_start (iter, m)
+    CALL dbcsr_iterator_start (iter, matrix_b)
     IF (dbcsr_iterator_blocks_left (iter)) THEN
        CALL dbcsr_iterator_next_block (iter, row, col, block2d)
     !write(*,*)'got block',row,col
@@ -440,9 +438,9 @@ CONTAINS
     !CALL dbcsr_destroy (matrix_bt, error)
     !
     CALL dbcsr_distribution_new (product_dist,&
-         dbcsr_distribution_mp (matrix_a%dist),&
-         dbcsr_distribution_row_dist (matrix_a%dist),&
-         dbcsr_distribution_col_dist (matrix_b%dist))
+         dbcsr_distribution_mp (matrix_a%m%dist),&
+         dbcsr_distribution_row_dist (matrix_a%m%dist),&
+         dbcsr_distribution_col_dist (matrix_b%m%dist))
     !
     walltime1 = m_walltime()
     flop = 0
@@ -461,7 +459,8 @@ CONTAINS
     !
     checksum = dbcsr_checksum(matrix_c, error)
     !WRITE(*,*)'BCSR Sx checksum',checksum,'time=',newtime
-    CALL mp_sum_i8 (flop, dbcsr_mp_group(dbcsr_distribution_mp(matrix_c%dist)))
+    CALL mp_sum_i8 (flop, dbcsr_mp_group(dbcsr_distribution_mp(&
+         dbcsr_distribution(matrix_c))))
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4,A,F12.4,";",F12.4,A)')&
             "DBCSR Sx checksum", checksum,&
@@ -497,7 +496,7 @@ CONTAINS
             checksum*checksum, " time ", oldtime
     ENDIF
     CALL dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist_right,&
-         row_blk_size=matrix_a%row_blk_size,&
+         row_blk_size=matrix_a%m%row_blk_size,&
          col_blk_size=col_blk_size_right,&
          error=error)
     CALL array_release (col_blk_size_right)
@@ -568,7 +567,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_vec(matrix_a, matrix_b, a_row_beg, a_row_end, b_col, pkd, error)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a, matrix_b
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
     INTEGER, INTENT(in)                      :: a_row_beg, a_row_end, b_col
     REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -611,7 +610,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_mult_pack_vec(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd_c, error)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
     REAL(dp), DIMENSION(:), INTENT(in)       :: pkd_b
     INTEGER, INTENT(in)                      :: a_row_beg, a_row_end, b_col
     REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd_c
@@ -628,23 +627,23 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
 
-    a_row_blk_size => array_data (matrix_a%row_blk_size)
-    a_col_blk_size => array_data (matrix_a%col_blk_size)
+    a_row_blk_size => array_data (matrix_a%m%row_blk_size)
+    a_col_blk_size => array_data (matrix_a%m%col_blk_size)
 
 
-    IF(pkd_b(matrix_a%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_b(n+1).LE.0")
+    IF(pkd_b(matrix_a%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_b(n+1).LE.0")
 
     pkd_c(:) = 0.0_dp ! if not done
-    c_offset = matrix_a%nblkrows_total + 2
+    c_offset = matrix_a%m%nblkrows_total + 2
     b_col_size = a_col_blk_size(b_col)
 
     CALL dbcsr_get_data (matrix_a, data_p)
     DO a_row = a_row_beg,a_row_end
        a_row_size = a_row_blk_size(a_row)
        new_c = .FALSE.
-       DO a_blk = matrix_a%row_p(a_row)+1,matrix_a%row_p(a_row+1)
-          a_col = matrix_a%col_i(a_blk)
-          a_offset = ABS(matrix_a%blk_p(a_blk))
+       DO a_blk = matrix_a%m%row_p(a_row)+1,matrix_a%m%row_p(a_row+1)
+          a_col = matrix_a%m%col_i(a_blk)
+          a_offset = ABS(matrix_a%m%blk_p(a_blk))
           a_col_size = a_col_blk_size(a_col)
           b_offset = INT(pkd_b(a_col))
           IF(b_offset.LE.0) CYCLE
@@ -658,10 +657,10 @@ CONTAINS
        ENDDO ! a_col
        IF(new_c) c_offset = c_offset + a_row_size*b_col_size
     ENDDO ! a_row
-    pkd_c(matrix_a%nblkrows_total+1) = REAL(c_offset,dp)
+    pkd_c(matrix_a%m%nblkrows_total+1) = REAL(c_offset,dp)
 
-    IF(pkd_b(matrix_a%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_b(n+1).LE.0")
-    IF(pkd_c(matrix_a%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_c(n+1).LE.0")
+    IF(pkd_b(matrix_a%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_b(n+1).LE.0")
+    IF(pkd_c(matrix_a%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_c(n+1).LE.0")
 
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_mult_pack_vec
@@ -675,7 +674,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_pack_vec(matrix, ivec, pkd_vec, what, error)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec
     CHARACTER(LEN=*), INTENT(IN)             :: what
@@ -695,8 +694,8 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     
-    row_blk_size => array_data (matrix%row_blk_size)
-    col_blk_size => array_data (matrix%col_blk_size)
+    row_blk_size => array_data (dbcsr_row_block_sizes (matrix))
+    col_blk_size => array_data (dbcsr_col_block_sizes (matrix))
 
     pkd_vec(:) = 0.0_dp ! should be big enough to hold all the data
     !
@@ -704,42 +703,42 @@ CONTAINS
     CALL dbcsr_get_data (matrix, data_p)
     SELECT CASE(what)
     CASE('column')
-       v_offset = matrix%nblkrows_total+2 ! we need nblkrows_total+1 to store rows 
+       v_offset = matrix%m%nblkrows_total+2 ! we need nblkrows_total+1 to store rows 
        !                                    and 1 extra for adding new data
        col = ivec
        col_size = col_blk_size(col)
-       DO row = 1, matrix%nblkrows_total
+       DO row = 1, matrix%m%nblkrows_total
           row_size = row_blk_size(row)
-          blk = matrix%row_p(row)+1
-          frst_blk = matrix%row_p(row)+1
-          last_blk = matrix%row_p(row+1)
-          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+          blk = matrix%m%row_p(row)+1
+          frst_blk = matrix%m%row_p(row)+1
+          last_blk = matrix%m%row_p(row+1)
+          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
           IF(found) THEN
              nze = row_size*col_size
              !
              ! let's copy the block
              pkd_vec(row) = REAL(v_offset,dp)
-             CALL dcopy(nze,data_p(ABS(matrix%blk_p(blk))),1,pkd_vec(v_offset),1)
+             CALL dcopy(nze,data_p(ABS(matrix%m%blk_p(blk))),1,pkd_vec(v_offset),1)
              v_offset = v_offset + nze
           ENDIF
        ENDDO ! row
-       pkd_vec(matrix%nblkrows_total+1) = REAL(v_offset,dp)
+       pkd_vec(matrix%m%nblkrows_total+1) = REAL(v_offset,dp)
     CASE('row')
-       v_offset = matrix%nblkcols_total+2 ! we need nblkcols_total+1 to store rows 
+       v_offset = matrix%m%nblkcols_total+2 ! we need nblkcols_total+1 to store rows 
        !                                    and 1 extra for the size of the data
        row = ivec
        row_size = row_blk_size(row)
-       DO blk = matrix%row_p(row)+1,matrix%row_p(row+1)
-          col = matrix%col_i(blk)
+       DO blk = matrix%m%row_p(row)+1,matrix%m%row_p(row+1)
+          col = matrix%m%col_i(blk)
           col_size = col_blk_size(col)
           nze = row_size*col_size
           !
           ! let's copy the block
           pkd_vec(col) = REAL(v_offset,dp)
-          CALL dcopy(nze,data_p(ABS(matrix%blk_p(blk))),1,pkd_vec(v_offset),1)
+          CALL dcopy(nze,data_p(ABS(matrix%m%blk_p(blk))),1,pkd_vec(v_offset),1)
           v_offset = v_offset + nze
        ENDDO ! col
-       pkd_vec(matrix%nblkcols_total+1) = REAL(v_offset,dp)
+       pkd_vec(matrix%m%nblkcols_total+1) = REAL(v_offset,dp)
     CASE DEFAULT
        CALL stop_program(routineN,"pack what?")       
     END SELECT
@@ -757,7 +756,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_unpack_vec(matrix, ivec, pkd_vec, what, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_vec
     CHARACTER(LEN=*), INTENT(IN)             :: what
@@ -778,31 +777,31 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     
-    row_blk_size => array_data (matrix%row_blk_size)
-    col_blk_size => array_data (matrix%col_blk_size)
+    row_blk_size => array_data (dbcsr_row_block_sizes (matrix))
+    col_blk_size => array_data (dbcsr_col_block_sizes (matrix))
     CALL dbcsr_get_data (matrix, data_p)
     !
     ! let's go
     SELECT CASE(what)
     CASE('column')
-       IF(pkd_vec(matrix%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_vec(n+1).LE.0")
+       IF(pkd_vec(matrix%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_vec(n+1).LE.0")
        col = ivec
        col_size = col_blk_size(col)
-       DO row = 1, matrix%nblkrows_total
+       DO row = 1, matrix%m%nblkrows_total
           v_offset = INT(pkd_vec(row))
           IF(v_offset.LE.0) CYCLE
           row_size = row_blk_size(row)
-          blk = matrix%row_p(row)+1
-          frst_blk = matrix%row_p(row)+1
-          last_blk = matrix%row_p(row+1)
-          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+          blk = matrix%m%row_p(row)+1
+          frst_blk = matrix%m%row_p(row)+1
+          last_blk = matrix%m%row_p(row+1)
+          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
           IF(found) THEN
              nze = row_size*col_size
              !
              ! let's scale the block
-             offset = ABS(matrix%blk_p(blk))
+             offset = ABS(matrix%m%blk_p(blk))
              ! we just dcopy here, could aslo do a daxpy
-             !CALL dcopy(nze,pkd_vec(v_offset),1,matrix%data(offset),1)
+             !CALL dcopy(nze,pkd_vec(v_offset),1,matrix%m%data(offset),1)
             data_p(offset:offset+nze-1)=pkd_vec(v_offset:v_offset+nze-1)
           ELSE
              !
@@ -812,21 +811,21 @@ CONTAINS
           ENDIF
        ENDDO ! row
     CASE('row')
-       IF(pkd_vec(matrix%nblkcols_total+1).LE.0) CALL stop_program(routineN,"2pkd_vec(n+1).LE.0")
+       IF(pkd_vec(matrix%m%nblkcols_total+1).LE.0) CALL stop_program(routineN,"2pkd_vec(n+1).LE.0")
        row = ivec
        row_size = row_blk_size(row)
-       blk = matrix%row_p(row)+1
-       frst_blk = matrix%row_p(row)+1
-       last_blk = matrix%row_p(row+1)
-       DO col = 1,matrix%nblkcols_total
+       blk = matrix%m%row_p(row)+1
+       frst_blk = matrix%m%row_p(row)+1
+       last_blk = matrix%m%row_p(row+1)
+       DO col = 1,matrix%m%nblkcols_total
           v_offset = INT(pkd_vec(col))
           IF(v_offset.LE.0) CYCLE
           col_size = col_blk_size(col)
           ! we assume that the columns are ordered !
-          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
           IF(found) THEN
              nze = row_size*col_size
-             offset = ABS(matrix%blk_p(blk))
+             offset = ABS(matrix%m%blk_p(blk))
              ! we just dcopy here, could aslo do a daxpy
              CALL dcopy(nze,pkd_vec(v_offset),1,data_p(offset),1)
           ELSE
@@ -910,7 +909,7 @@ CONTAINS
 !>
 ! *****************************************************************************
   SUBROUTINE packed_vec_bif_tech(mat_v, mat_u, pkd_v_fac, pkd_u_fac, ivec, pkd_v, pkd_u, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: mat_v, mat_u
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: mat_v, mat_u
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v_fac, pkd_u_fac
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_v, pkd_u
@@ -929,33 +928,33 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     
-    row_blk_size => array_data (mat_u%row_blk_size)
-    col_blk_size => array_data (mat_u%col_blk_size)
+    row_blk_size => array_data (dbcsr_row_block_sizes (mat_u))
+    col_blk_size => array_data (dbcsr_col_block_sizes (mat_u))
 
-    IF(pkd_u(mat_u%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_u(n+1).LE.0")
-    IF(pkd_v(mat_v%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
+    IF(pkd_u(mat_u%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_u(n+1).LE.0")
+    IF(pkd_v(mat_v%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
     CALL dbcsr_get_data (mat_v, data_v)
     CALL dbcsr_get_data (mat_u, data_u)
     !
     !v(k,:) (pkd) = v(k,:) (pkd) - (inv(d(i,i)) * uAk(i,k))' / s (pkd) * v(i,:) (bcsr) i = 1,ivec-1
     k_row = ivec
     k_row_size = row_blk_size(k_row)
-    v_offset_last = INT(pkd_v(mat_v%nblkrows_total+1))
-    DO row = 1, mat_v%nblkrows_total
+    v_offset_last = INT(pkd_v(mat_v%m%nblkrows_total+1))
+    DO row = 1, mat_v%m%nblkrows_total
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
        row_size = row_blk_size(row)
        ufac_offset = INT(pkd_v_fac(row))
        IF(ufac_offset.LE.0) CYCLE
-       DO blk = mat_v%row_p(row)+1,mat_v%row_p(row+1)
-          col = mat_v%col_i(blk)
+       DO blk = mat_v%m%row_p(row)+1,mat_v%m%row_p(row+1)
+          col = mat_v%m%col_i(blk)
           col_size = col_blk_size(col)
-          offset = ABS(mat_v%blk_p(blk))
+          offset = ABS(mat_v%m%blk_p(blk))
           v_offset = INT(pkd_v(col))
           IF(v_offset.LE.0) THEN
              v_offset = v_offset_last
              v_offset_last = v_offset_last + k_row_size * col_size
              pkd_v(v_offset:v_offset+k_row_size * col_size-1) = 0.0_dp
-             pkd_v(mat_v%nblkrows_total+1) = REAL(v_offset_last,dp)
+             pkd_v(mat_v%m%nblkrows_total+1) = REAL(v_offset_last,dp)
           ENDIF
           !
           ! let's multiply and add
@@ -967,22 +966,22 @@ CONTAINS
     ENDDO ! row
     !
     !u(k,:) (pkd) = u(k,:) (pkd) - (inv(d(i,i)) * v(i,k))' / s (pkd) * u(i,:) (bcsr) i = 1,ivec-1
-    u_offset_last = INT(pkd_u(mat_u%nblkrows_total+1))
-    DO row = 1, mat_u%nblkrows_total
+    u_offset_last = INT(pkd_u(mat_u%m%nblkrows_total+1))
+    DO row = 1, mat_u%m%nblkrows_total
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
        row_size = row_blk_size(row)
        vfac_offset = INT(pkd_u_fac(row))
        IF(vfac_offset.LE.0) CYCLE
-       DO blk = mat_u%row_p(row)+1,mat_u%row_p(row+1)
-          col = mat_u%col_i(blk)
+       DO blk = mat_u%m%row_p(row)+1,mat_u%m%row_p(row+1)
+          col = mat_u%m%col_i(blk)
           col_size = col_blk_size(col)
-          offset = ABS(mat_u%blk_p(blk))
+          offset = ABS(mat_u%m%blk_p(blk))
           u_offset = INT(pkd_u(col))
           IF(u_offset.LE.0) THEN
              u_offset = u_offset_last
              u_offset_last = u_offset_last + k_row_size * col_size
              pkd_u(u_offset:u_offset+k_row_size * col_size-1) = 0.0_dp
-             pkd_u(mat_u%nblkrows_total+1) = REAL(u_offset_last,dp)
+             pkd_u(mat_u%m%nblkrows_total+1) = REAL(u_offset_last,dp)
           ENDIF
           !
           ! let's multiply and add
@@ -993,8 +992,8 @@ CONTAINS
        ENDDO
     ENDDO ! row
 
-    IF(pkd_u(mat_u%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_u(n+1).LE.0")
-    IF(pkd_v(mat_v%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
+    IF(pkd_u(mat_u%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_u(n+1).LE.0")
+    IF(pkd_v(mat_v%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
 
     CALL timestop(timing_handle)
 
@@ -1045,7 +1044,7 @@ CONTAINS
 !>
 ! *****************************************************************************
   SUBROUTINE packed_vec_bif_tech2(mat_v, pkd_v_fac, ivec, pkd_v, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: mat_v
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: mat_v
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v_fac
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_v
@@ -1063,32 +1062,32 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     
-    row_blk_size => array_data (mat_v%row_blk_size)
-    col_blk_size => array_data (mat_v%col_blk_size)
+    row_blk_size => array_data (mat_v%m%row_blk_size)
+    col_blk_size => array_data (mat_v%m%col_blk_size)
 
-    IF(pkd_v(mat_v%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
+    IF(pkd_v(mat_v%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
     CALL dbcsr_get_data (mat_v, data_v)
 
     !
     !v(k,:) (pkd) = v(k,:) (pkd) - (inv(d(i,i)) * uAk(i,k))' / s (pkd) * v(i,:) (bcsr) i = 1,ivec-1
     k_row = ivec
     k_row_size = row_blk_size(k_row)
-    v_offset_last = INT(pkd_v(mat_v%nblkrows_total+1))
-    DO row = 1, mat_v%nblkrows_total
+    v_offset_last = INT(pkd_v(mat_v%m%nblkrows_total+1))
+    DO row = 1, mat_v%m%nblkrows_total
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
        row_size = row_blk_size(row)
        ufac_offset = INT(pkd_v_fac(row))
        IF(ufac_offset.LE.0) CYCLE
-       DO blk = mat_v%row_p(row)+1,mat_v%row_p(row+1)
-          col = mat_v%col_i(blk)
+       DO blk = mat_v%m%row_p(row)+1,mat_v%m%row_p(row+1)
+          col = mat_v%m%col_i(blk)
           col_size = col_blk_size(col)
-          offset = ABS(mat_v%blk_p(blk))
+          offset = ABS(mat_v%m%blk_p(blk))
           v_offset = INT(pkd_v(col))
           IF(v_offset.LE.0) THEN
              v_offset = v_offset_last
              v_offset_last = v_offset_last + k_row_size * col_size
              pkd_v(v_offset:v_offset+k_row_size * col_size-1) = 0.0_dp
-             pkd_v(mat_v%nblkrows_total+1) = REAL(v_offset_last,dp)
+             pkd_v(mat_v%m%nblkrows_total+1) = REAL(v_offset_last,dp)
           ENDIF
           !
           ! let's multiply and add
@@ -1100,7 +1099,7 @@ CONTAINS
     ENDDO ! row
     !
 
-    IF(pkd_v(mat_v%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
+    IF(pkd_v(mat_v%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
 
     CALL timestop(timing_handle)
 
@@ -1293,8 +1292,8 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_copy_vec(matrix_a, matrix_b, what, ivec, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix_b
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
     CHARACTER(len=*), INTENT(in)             :: what
     INTEGER, INTENT(IN)                      :: ivec
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1318,23 +1317,23 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     
-    a_row_blk_size => array_data (matrix_a%row_blk_size)
-    a_col_blk_size => array_data (matrix_a%col_blk_size)
-    b_row_blk_size => array_data (matrix_b%row_blk_size)
-    b_col_blk_size => array_data (matrix_b%col_blk_size)
-    SELECT CASE (matrix_a%data_type)
+    a_row_blk_size => array_data (matrix_a%m%row_blk_size)
+    a_col_blk_size => array_data (matrix_a%m%col_blk_size)
+    b_row_blk_size => array_data (matrix_b%m%row_blk_size)
+    b_col_blk_size => array_data (matrix_b%m%col_blk_size)
+    SELECT CASE (matrix_a%m%data_type)
     CASE ('r')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_r)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_r)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
     CASE ('R')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_d)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_d)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
     CASE ('c')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_c)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_c)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
     CASE ('C')
-       CALL dbcsr_get_data (matrix_a%data_area, a_data_z)
-       CALL dbcsr_get_data (matrix_b%data_area, b_data_z)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
     END SELECT
     !
     ! let's go
@@ -1347,11 +1346,11 @@ CONTAINS
        a_row_size = a_row_blk_size(row)
        b_row_size = b_row_blk_size(row)
        IF(a_row_size.NE.b_row_size) CALL stop_program(routineN, "matrices not consistent")
-       a_frst_blk = matrix_a%row_p(row)+1
-       a_last_blk = matrix_a%row_p(row+1)
-       DO b_blk = matrix_b%row_p(row)+1,matrix_b%row_p(row+1)
-          b_col = matrix_b%col_i(b_blk)
-          CALL dbcsr_find_column(b_col, a_frst_blk, a_last_blk, matrix_a%col_i, a_blk, found)
+       a_frst_blk = matrix_a%m%row_p(row)+1
+       a_last_blk = matrix_a%m%row_p(row+1)
+       DO b_blk = matrix_b%m%row_p(row)+1,matrix_b%m%row_p(row+1)
+          b_col = matrix_b%m%col_i(b_blk)
+          CALL dbcsr_find_column(b_col, a_frst_blk, a_last_blk, matrix_a%m%col_i, a_blk, found)
           IF(found) THEN
              a_col_size = a_col_blk_size(b_col)
              b_col_size = b_col_blk_size(b_col)
@@ -1359,12 +1358,12 @@ CONTAINS
              nze = a_row_size * a_col_size
              !
              ! let's copy the block
-             a_offset = ABS(matrix_a%blk_p(a_blk))
-             b_offset = ABS(matrix_b%blk_p(b_blk))
-             SELECT CASE (matrix_a%data_type)
+             a_offset = ABS(matrix_a%m%blk_p(a_blk))
+             b_offset = ABS(matrix_b%m%blk_p(b_blk))
+             SELECT CASE (matrix_a%m%data_type)
              CASE ('R')
                 CALL dcopy (nze, b_data_d(b_offset), 1, a_data_d(a_offset), 1)
-             !CALL dcopy(nze, matrix_b%data(b_offset), 1, matrix_a%data(a_offset), 1)
+             !CALL dcopy(nze, matrix_b%m%data(b_offset), 1, matrix_a%m%data(a_offset), 1)
              CASE default
                 CALL cp_unimplemented_error (routineN,&
                      "Only real double precision")

@@ -484,81 +484,81 @@ CONTAINS
 ! Pertaining to the dbcsr matrix.
 
   FUNCTION dbcsr_nblkrows_total(matrix) RESULT (nblkrows_total)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nblkrows_total
 
-    nblkrows_total = matrix%nblkrows_total
+    nblkrows_total = matrix%m%nblkrows_total
   END FUNCTION dbcsr_nblkrows_total
 
   FUNCTION dbcsr_nblkcols_total(matrix) RESULT (nblkcols_total)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nblkcols_total
 
-    nblkcols_total = matrix%nblkcols_total
+    nblkcols_total = matrix%m%nblkcols_total
   END FUNCTION dbcsr_nblkcols_total
   FUNCTION dbcsr_nfullrows_total(matrix) RESULT (nfullrows_total)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nfullrows_total
 
-    nfullrows_total = matrix%nfullrows_total
+    nfullrows_total = matrix%m%nfullrows_total
   END FUNCTION dbcsr_nfullrows_total
   FUNCTION dbcsr_nfullcols_total(matrix) RESULT (nfullcols_total)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nfullcols_total
 
-    nfullcols_total = matrix%nfullcols_total
+    nfullcols_total = matrix%m%nfullcols_total
   END FUNCTION dbcsr_nfullcols_total
   FUNCTION dbcsr_nblkrows_local(matrix) RESULT (nblkrows_local)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nblkrows_local
 
-    nblkrows_local = matrix%nblkrows_local
+    nblkrows_local = matrix%m%nblkrows_local
   END FUNCTION dbcsr_nblkrows_local
   FUNCTION dbcsr_nblkcols_local(matrix) RESULT (nblkcols_local)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nblkcols_local
 
-    nblkcols_local = matrix%nblkcols_local
+    nblkcols_local = matrix%m%nblkcols_local
   END FUNCTION dbcsr_nblkcols_local
   FUNCTION dbcsr_nfullrows_local(matrix) RESULT (nfullrows_local)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nfullrows_local
 
-    nfullrows_local = matrix%nfullrows_local
+    nfullrows_local = matrix%m%nfullrows_local
   END FUNCTION dbcsr_nfullrows_local
   FUNCTION dbcsr_nfullcols_local(matrix) RESULT (nfullcols_local)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nfullcols_local
 
-    nfullcols_local = matrix%nfullcols_local
+    nfullcols_local = matrix%m%nfullcols_local
   END FUNCTION dbcsr_nfullcols_local
 
   FUNCTION dbcsr_distribution (matrix) RESULT (distribution)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_distribution_obj)             :: distribution
 
-    distribution = matrix%dist
+    distribution = matrix%m%dist
   END FUNCTION dbcsr_distribution
 
   FUNCTION dbcsr_name (matrix) RESULT (name)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER(len=default_string_length)     :: name
 
-    name = matrix%name
+    name = matrix%m%name
   END FUNCTION dbcsr_name
 
   FUNCTION dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(array_i1d_obj)                      :: row_blk_sizes
 
-    row_blk_sizes = matrix%row_blk_size
+    row_blk_sizes = matrix%m%row_blk_size
   END FUNCTION dbcsr_row_block_sizes
 
   FUNCTION dbcsr_col_block_sizes (matrix) RESULT (col_blk_sizes)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(array_i1d_obj)                      :: col_blk_sizes
 
-    col_blk_sizes = matrix%col_blk_size
+    col_blk_sizes = matrix%m%col_blk_size
   END FUNCTION dbcsr_col_block_sizes
 ! *****************************************************************************
 !> \brief Gets information about a matrix
@@ -592,7 +592,7 @@ CONTAINS
        local_rows, local_cols, proc_row_dist, proc_col_dist,&
        row_blk_size, col_blk_size, distribution, name, data_area,&
        matrix_type, data_type)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, &
       nfullrows_total, nfullcols_total, nblkrows_local, nblkcols_local, &
       nfullrows_local, nfullcols_local, my_prow, my_pcol
@@ -612,35 +612,37 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (matrix%valid, cp_warning_level, cp_caller_error,&
-         routineP,"Invalid matrix"             )
-    IF (PRESENT (nblkrows_total)) nblkrows_total = matrix%nblkrows_total
-    IF (PRESENT (nblkcols_total)) nblkcols_total = matrix%nblkcols_total
-    IF (PRESENT (nfullrows_total)) nfullrows_total = matrix%nfullrows_total
-    IF (PRESENT (nfullcols_total)) nfullcols_total = matrix%nfullcols_total
-    IF (PRESENT (nblkrows_local)) nblkrows_local = matrix%nblkrows_local
-    IF (PRESENT (nblkcols_local)) nblkcols_local = matrix%nblkcols_local
-    IF (PRESENT (nfullrows_local)) nfullrows_local = matrix%nfullrows_local
-    IF (PRESENT (nfullcols_local)) nfullcols_local = matrix%nfullcols_local
-    IF (PRESENT (row_blk_size)) row_blk_size = matrix%row_blk_size
-    IF (PRESENT (col_blk_size)) col_blk_size = matrix%col_blk_size
-    IF (PRESENT (distribution)) distribution = matrix%dist
-    IF (PRESENT (name)) name = matrix%name
-    IF (PRESENT (data_area)) data_area = matrix%data_area
-    IF (PRESENT (matrix_type)) matrix_type = matrix%matrix_type
-    IF (PRESENT (data_type)) data_type = matrix%data_type
+    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
+         routineP,"Nonexisting matrix")
+    CALL cp_assert (matrix%m%valid, cp_warning_level, cp_caller_error,&
+         routineP,"Invalid matrix")
+    IF (PRESENT (nblkrows_total)) nblkrows_total = matrix%m%nblkrows_total
+    IF (PRESENT (nblkcols_total)) nblkcols_total = matrix%m%nblkcols_total
+    IF (PRESENT (nfullrows_total)) nfullrows_total = matrix%m%nfullrows_total
+    IF (PRESENT (nfullcols_total)) nfullcols_total = matrix%m%nfullcols_total
+    IF (PRESENT (nblkrows_local)) nblkrows_local = matrix%m%nblkrows_local
+    IF (PRESENT (nblkcols_local)) nblkcols_local = matrix%m%nblkcols_local
+    IF (PRESENT (nfullrows_local)) nfullrows_local = matrix%m%nfullrows_local
+    IF (PRESENT (nfullcols_local)) nfullcols_local = matrix%m%nfullcols_local
+    IF (PRESENT (row_blk_size)) row_blk_size = matrix%m%row_blk_size
+    IF (PRESENT (col_blk_size)) col_blk_size = matrix%m%col_blk_size
+    IF (PRESENT (distribution)) distribution = matrix%m%dist
+    IF (PRESENT (name)) name = matrix%m%name
+    IF (PRESENT (data_area)) data_area = matrix%m%data_area
+    IF (PRESENT (matrix_type)) matrix_type = matrix%m%matrix_type
+    IF (PRESENT (data_type)) data_type = matrix%m%data_type
     IF (PRESENT (local_rows)) &
-         local_rows => array_data (dbcsr_distribution_local_rows (matrix%dist))
+         local_rows => array_data (dbcsr_distribution_local_rows (matrix%m%dist))
     IF (PRESENT (local_cols)) &
-         local_cols => array_data (dbcsr_distribution_local_cols (matrix%dist))
+         local_cols => array_data (dbcsr_distribution_local_cols (matrix%m%dist))
     IF (PRESENT (proc_row_dist)) &
-         proc_row_dist => array_data (dbcsr_distribution_row_dist (matrix%dist))
+         proc_row_dist => array_data (dbcsr_distribution_row_dist (matrix%m%dist))
     IF (PRESENT (proc_col_dist)) &
-         proc_col_dist => array_data (dbcsr_distribution_col_dist (matrix%dist))
+         proc_col_dist => array_data (dbcsr_distribution_col_dist (matrix%m%dist))
     IF (PRESENT (my_prow)) &
-       my_prow = dbcsr_mp_myprow (dbcsr_distribution_mp (matrix%dist))
+       my_prow = dbcsr_mp_myprow (dbcsr_distribution_mp (matrix%m%dist))
     IF (PRESENT (my_pcol)) &
-       my_pcol = dbcsr_mp_mypcol (dbcsr_distribution_mp (matrix%dist))
+       my_pcol = dbcsr_mp_mypcol (dbcsr_distribution_mp (matrix%m%dist))
   END SUBROUTINE dbcsr_get_info
 
 
@@ -839,11 +841,11 @@ CONTAINS
 !> \param[out] data      pointer to data
 ! *****************************************************************************
   SUBROUTINE get_data_m_s (matrix, DATA)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     REAL(KIND=real_4), DIMENSION(:), POINTER :: DATA
 
-    IF (ASSOCIATED (matrix%data_area%d)) THEN
-       DATA => matrix%data_area%d%r_sp
+    IF (ASSOCIATED (matrix%m%data_area%d)) THEN
+       DATA => matrix%m%data_area%d%r_sp
     ELSE
        NULLIFY (DATA)
     ENDIF
@@ -888,11 +890,11 @@ CONTAINS
 !> \param[out] data      pointer to data
 ! *****************************************************************************
   SUBROUTINE get_data_m_d (matrix, DATA)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     REAL(KIND=real_8), DIMENSION(:), POINTER :: DATA
 
-    IF (ASSOCIATED (matrix%data_area%d)) THEN
-       DATA => matrix%data_area%d%r_dp
+    IF (ASSOCIATED (matrix%m%data_area%d)) THEN
+       DATA => matrix%m%data_area%d%r_dp
     ELSE
        NULLIFY (DATA)
     ENDIF
@@ -938,12 +940,12 @@ CONTAINS
 !> \param[out] data      pointer to data
 ! *****************************************************************************
   SUBROUTINE get_data_m_c (matrix, DATA)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     COMPLEX(KIND=real_4), DIMENSION(:), &
       POINTER                                :: DATA
 
-    IF (ASSOCIATED (matrix%data_area%d)) THEN
-       DATA => matrix%data_area%d%c_sp
+    IF (ASSOCIATED (matrix%m%data_area%d)) THEN
+       DATA => matrix%m%data_area%d%c_sp
     ELSE
        NULLIFY (DATA)
     ENDIF
@@ -990,12 +992,12 @@ CONTAINS
 !> \param[out] data      pointer to data
 ! *****************************************************************************
   SUBROUTINE get_data_m_z (matrix, DATA)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: DATA
 
-    IF (ASSOCIATED (matrix%data_area%d)) THEN
-       DATA => matrix%data_area%d%c_dp
+    IF (ASSOCIATED (matrix%m%data_area%d)) THEN
+       DATA => matrix%m%data_area%d%c_dp
     ELSE
        NULLIFY (DATA)
     ENDIF
@@ -1113,10 +1115,10 @@ CONTAINS
 !>                            values)
 ! *****************************************************************************
   PURE FUNCTION dbcsr_matrix_type (matrix) RESULT (matrix_type)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER                                :: matrix_type
 
-    matrix_type = matrix%matrix_type
+    matrix_type = matrix%m%matrix_type
   END FUNCTION dbcsr_matrix_type
 
 ! *****************************************************************************
@@ -1126,10 +1128,10 @@ CONTAINS
 !>                            values)
 ! *****************************************************************************
   PURE FUNCTION dbcsr_data_type (matrix) RESULT (data_type)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER                                :: data_type
 
-    data_type = matrix%data_type
+    data_type = matrix%m%data_type
   END FUNCTION dbcsr_data_type
 
 ! *****************************************************************************
@@ -1317,10 +1319,10 @@ CONTAINS
 !> \param area       data area
 ! *****************************************************************************
   PURE FUNCTION dbcsr_get_num_blocks (matrix) RESULT (num_blocks)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: num_blocks
 
-    num_blocks = matrix%nblks
+    num_blocks = matrix%m%nblks
   END FUNCTION dbcsr_get_num_blocks
 
 

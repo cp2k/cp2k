@@ -294,7 +294,7 @@ MODULE dbcsr_types
 !> \var image_dist  image distribution
 ! *****************************************************************************
   TYPE dbcsr_array_type
-     TYPE(dbcsr_type), DIMENSION(:), POINTER :: mats
+     TYPE(dbcsr_obj), DIMENSION(:), POINTER :: mats
      TYPE(mp_window_type), DIMENSION(:), POINTER :: data_windows, index_windows
      TYPE(dbcsr_imagedistribution_type) :: image_dist
   END TYPE dbcsr_array_type

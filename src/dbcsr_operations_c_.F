@@ -5,7 +5,7 @@
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_trace_a_c(matrix_a, trace, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     COMPLEX(kind=real_4), INTENT(INOUT)                   :: trace
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -22,23 +22,23 @@
 
     CALL timeset(routineN, timing_handle)
     
-    row_blk_size => array_data (matrix_a%row_blk_size)
-    col_blk_size => array_data (matrix_a%col_blk_size)
-    CALL dbcsr_get_data (matrix_a%data_area, data_p)
+    row_blk_size => array_data (matrix_a%m%row_blk_size)
+    col_blk_size => array_data (matrix_a%m%col_blk_size)
+    CALL dbcsr_get_data (matrix_a%m%data_area, data_p)
     !
     ! let's go
     trace = 0.0_sp
-    DO a_row = 1, matrix_a%nblkrows_total
+    DO a_row = 1, matrix_a%m%nblkrows_total
        a_row_size = row_blk_size(a_row)
-       DO a_blk = matrix_a%row_p(a_row)+1,matrix_a%row_p(a_row+1)
-          a_col = matrix_a%col_i(a_blk)
+       DO a_blk = matrix_a%m%row_p(a_row)+1,matrix_a%m%row_p(a_row+1)
+          a_col = matrix_a%m%col_i(a_blk)
           IF(a_col.ne.a_row) CYCLE
           a_col_size = col_blk_size(a_col)
           IF(a_row_size.NE.a_col_size) CALL stop_program(routineN,"is that a square matrix?")
           a_nze = a_row_size**2
-          a_data => pointer_view (data_p, ABS(matrix_a%blk_p(a_blk)),&
-               ABS(matrix_a%blk_p(a_blk))+a_nze-1)
-          !data_a => matrix_a%data(ABS(matrix_a%blk_p(a_blk)):ABS(matrix_a%blk_p(a_blk))+a_nze-1)
+          a_data => pointer_view (data_p, ABS(matrix_a%m%blk_p(a_blk)),&
+               ABS(matrix_a%m%blk_p(a_blk))+a_nze-1)
+          !data_a => matrix_a%m%data(ABS(matrix_a%m%blk_p(a_blk)):ABS(matrix_a%m%blk_p(a_blk))+a_nze-1)
           !
           ! let's trace the block
           DO i = 1,a_row_size
@@ -48,7 +48,7 @@
     ENDDO ! a_row
     !
     ! summe
-    CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
 
     CALL timestop(timing_handle)
 
@@ -63,7 +63,7 @@
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_trace_ab_c(matrix_a, matrix_b, trace, trans_a, trans_b, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a, matrix_b
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
     COMPLEX(kind=real_4), INTENT(INOUT)                   :: trace
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -87,12 +87,12 @@
 
     CALL timeset(routineN, timing_handle)
     
-    a_row_blk_size => array_data (matrix_a%row_blk_size)
-    a_col_blk_size => array_data (matrix_a%col_blk_size)
-    b_row_blk_size => array_data (matrix_b%row_blk_size)
-    b_col_blk_size => array_data (matrix_b%col_blk_size)
-    CALL dbcsr_get_data (matrix_a%data_area, a_data_p)
-    CALL dbcsr_get_data (matrix_b%data_area, b_data_p)
+    a_row_blk_size => array_data (matrix_a%m%row_blk_size)
+    a_col_blk_size => array_data (matrix_a%m%col_blk_size)
+    b_row_blk_size => array_data (matrix_b%m%row_blk_size)
+    b_col_blk_size => array_data (matrix_b%m%col_blk_size)
+    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_p)
+    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_p)
     
     my_trans_a = 'T'
     IF(PRESENT(trans_a)) my_trans_a = trans_a
@@ -102,22 +102,22 @@
     !
     ! let's go
     trace = 0.0_sp
-    IF(matrix_a%nblkrows_total.NE.matrix_b%nblkrows_total) THEN
+    IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total) THEN
        CALL stop_program(routineN,"matrices not consistent")
     ENDIF
-    DO row = 1, matrix_a%nblkrows_total
+    DO row = 1, matrix_a%m%nblkrows_total
        a_row_size = a_row_blk_size(row)
        b_row_size = b_row_blk_size(row)
        IF(a_row_size.NE.b_row_size) CALL stop_program(routineN,"matrices not consistent")
-       b_blk = matrix_b%row_p(row)+1
-       b_frst_blk = matrix_b%row_p(row)+1
-       b_last_blk = matrix_b%row_p(row+1)
-       DO a_blk = matrix_a%row_p(row)+1,matrix_a%row_p(row+1)
-          a_col = matrix_a%col_i(a_blk)
+       b_blk = matrix_b%m%row_p(row)+1
+       b_frst_blk = matrix_b%m%row_p(row)+1
+       b_last_blk = matrix_b%m%row_p(row+1)
+       DO a_blk = matrix_a%m%row_p(row)+1,matrix_a%m%row_p(row+1)
+          a_col = matrix_a%m%col_i(a_blk)
           a_col_size = a_col_blk_size(a_col)
           !
           ! find the b_blk we assume here that the colums are ordered !
-          CALL dbcsr_find_column(a_col,b_frst_blk,b_last_blk,matrix_b%col_i,b_blk,found)
+          CALL dbcsr_find_column(a_col,b_frst_blk,b_last_blk,matrix_b%m%col_i,b_blk,found)
           IF(found) THEN
              b_col_size = b_col_blk_size(a_col)
              IF(a_col_size.NE.b_col_size) CALL stop_program(routineN,"matrices not consistent")
@@ -127,16 +127,16 @@
              ! let's trace the blocks
              !trace = trace + DOT_PRODUCT(a_data,b_data)
                 trace = trace + CDOTU (nze,&
-                     a_data_p(ABS(matrix_a%blk_p(a_blk))),1,&
-                     b_data_p(ABS(matrix_b%blk_p(b_blk))),1)
-             !trace = trace + ddot(nze,matrix_a%data(ABS(matrix_a%blk_p(a_blk))),1,&
-             !     matrix_b%data(ABS(matrix_b%blk_p(b_blk))),1)
+                     a_data_p(ABS(matrix_a%m%blk_p(a_blk))),1,&
+                     b_data_p(ABS(matrix_b%m%blk_p(b_blk))),1)
+             !trace = trace + ddot(nze,matrix_a%m%data(ABS(matrix_a%m%blk_p(a_blk))),1,&
+             !     matrix_b%m%data(ABS(matrix_b%m%blk_p(b_blk))),1)
           ENDIF
        ENDDO ! a_col
     ENDDO ! a_row
     !
     ! summe
-    CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%dist)))
+    CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
 
     CALL timestop(timing_handle)
 
@@ -152,7 +152,7 @@
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_block_c(matrix,block,row,col,found,error)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     COMPLEX(kind=real_4), DIMENSION(:), INTENT(INOUT) :: block
     INTEGER, INTENT(IN)                      :: row, col
     LOGICAL, INTENT(OUT)                     :: found
@@ -166,28 +166,28 @@
                                                 row_size
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
 
-    row_blk_size => array_data (matrix%row_blk_size)
-    col_blk_size => array_data (matrix%col_blk_size)
-    CALL cp_assert (matrix%data_type .EQ. 'c',&
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
+    CALL cp_assert (matrix%m%data_type .EQ. 'c',&
          cp_fatal_level, cp_caller_error,&
          routineN, "Data type mismatch for requested block.")
 
     row_size = row_blk_size(row)
     col_size = col_blk_size(col)
-    blk = matrix%row_p(row)+1
-    frst_blk = matrix%row_p(row)+1
-    last_blk = matrix%row_p(row+1)
-    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+    blk = matrix%m%row_p(row)+1
+    frst_blk = matrix%m%row_p(row)+1
+    last_blk = matrix%m%row_p(row+1)
+    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
     IF(found) THEN
        nze = row_size*col_size
        !
        ! let's copy the block
-       offset = ABS(matrix%blk_p(blk))
+       offset = ABS(matrix%m%blk_p(blk))
        CALL ccopy(nze,&
             pointer_view (&
-               dbcsr_get_data_p (matrix%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
+               dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
             ), 1, block(1), 1)
-       !CALL dcopy(nze,matrix%data(offset),1,block(1),1)
+       !CALL dcopy(nze,matrix%m%data(offset),1,block(1),1)
     ENDIF
 
   END SUBROUTINE dbcsr_get_block_c
@@ -200,7 +200,7 @@
 !> \param[in]  col            the column
 ! *****************************************************************************
   SUBROUTINE dbcsr_put_block2d_c(matrix, block, row, col)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     COMPLEX(kind=real_4), DIMENSION(:,:), INTENT(IN)      :: block
     INTEGER, INTENT(IN)                      :: row, col
 
@@ -219,7 +219,7 @@
 !> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_put_block_c(matrix, block, row, col, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN)        :: block
     INTEGER, INTENT(IN)                      :: row, col
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
@@ -235,40 +235,40 @@
 
 ! IN PARALLEL WE SHOULD ENSURE THAT THE BLOCK GOES TO THE RIGHT PLACE !
 
-    row_blk_size => array_data (matrix%row_blk_size)
-    col_blk_size => array_data (matrix%col_blk_size)
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
 
     row_size = row_blk_size(row)
     col_size = col_blk_size(col)
-    blk = matrix%row_p(row)+1
-    frst_blk = matrix%row_p(row)+1
-    last_blk = matrix%row_p(row+1)
-    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%col_i,blk,found)
+    blk = matrix%m%row_p(row)+1
+    frst_blk = matrix%m%row_p(row)+1
+    last_blk = matrix%m%row_p(row+1)
+    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
     IF(found) THEN
        nze = row_size*col_size
        !
        ! let's copy the block
-       offset = ABS(matrix%blk_p(blk))
+       offset = ABS(matrix%m%blk_p(blk))
        CALL dcopy (nze, block(1), 1,&
             pointer_view (&
-               dbcsr_get_data_p (matrix%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
+               dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
             ), 1)
-       !CALL dcopy(nze,block(1),1,matrix%data(offset),1)
+       !CALL dcopy(nze,block(1),1,matrix%m%data(offset),1)
     ELSE
        !WRITE(*,*)routineN//" Adding block to matrix"
-       IF (.NOT.ASSOCIATED (matrix%wms)) THEN
+       IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
           !WRITE(*,*)routineN//" Creating new work matrix to hold new data"
           CALL dbcsr_work_create (matrix, nblks_guess=1,&
                sizedata_guess=SIZE(block))
        ENDIF
-       blk_p = matrix%wms(1)%datasize + 1
-       CALL add_work_coordinate (matrix%wms(1), row, col, blk_p)
-       CALL addto_array (matrix%wms(1)%data_area, block, blk_p)
-       matrix%wms(1)%datasize = matrix%wms(1)%datasize + SIZE (block)
-       !matrix%wms(1)%datasize = dbcsr_get_data_size (matrix%wms(1)%data_area)
-       !WRITE(*,*)routineN//" Volume of new data is",matrix%wms(1)%datasize,&
-       !     dbcsr_get_data_size (matrix%wms(1)%data_area)
-       matrix%valid = .FALSE.
+       blk_p = matrix%m%wms(1)%datasize + 1
+       CALL add_work_coordinate (matrix%m%wms(1), row, col, blk_p)
+       CALL addto_array (matrix%m%wms(1)%data_area, block, blk_p)
+       matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + SIZE (block)
+       !matrix%m%wms(1)%datasize = dbcsr_get_data_size (matrix%m%wms(1)%data_area)
+       !WRITE(*,*)routineN//" Volume of new data is",matrix%m%wms(1)%datasize,&
+       !     dbcsr_get_data_size (matrix%m%wms(1)%data_area)
+       matrix%m%valid = .FALSE.
     ENDIF
 
   END SUBROUTINE dbcsr_put_block_c
