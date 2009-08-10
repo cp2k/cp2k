@@ -160,7 +160,7 @@ CONTAINS
     DO i = 1, SIZE (ms_left%mats)
        CALL dbcsr_verify_matrix(ms_left%mats(i), error)
     ENDDO
-    IF (PRESENT (flop)) flop = 0.0
+    IF (PRESENT (flop)) flop = 0
     flops = dbcsr_checksum(matrix_d, error)
     DBG "DBCSR norm. S checksum", flops
     !CALL dbcsr_print(matrix_e, error)
@@ -319,14 +319,17 @@ CONTAINS
     !
     ! test the scale routine on a general matrix
     CALL dbcsr_scale(matrix_b,alpha_scalar=3.0_dp,error=error)
-    checksum = 0.0_dp
     checksum = dbcsr_checksum(matrix_b, error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 3*x  checksum", checksum
     ENDIF
     CALL dbcsr_scale(matrix_b,alpha_scalar=1.0_dp/3.0_dp,error=error)
-
-   !
+    checksum = dbcsr_checksum(matrix_b, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 3*x/3  checksum", checksum
+    ENDIF
+    !
+    !
     CALL dbcsr_new_transposed (matrix_bt, matrix_b, error=error)
     CALL dbcsr_verify_matrix (matrix_bt, error)
     !CALL dbcsr_destroy (matrix_bt, error)
@@ -364,7 +367,7 @@ CONTAINS
     ! check trace(c'*s*c)
     CALL dbcsr_trace(matrix_b, matrix_c, trace, error=error)
     IF (ldbg.AND.ionode) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR trace(C'*S*C)", trace
+       WRITE(output_unit, '(T2,A,F12.4,A,I4)')"DBCSR trace(C'*S*C)", trace," should be equal to ",k
     ENDIF
 
     CALL dbcsr_destroy (matrix_b, error)

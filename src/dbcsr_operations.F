@@ -24,10 +24,10 @@ MODULE dbcsr_operations
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_nfullcols_local, dbcsr_nfullrows_local
-  USE dbcsr_types,                     ONLY: dbcsr_array_type,&
-                                             dbcsr_mp_obj,&
-                                             dbcsr_type,&
-                                             dbcsr_work_type
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_array_type, dbcsr_mp_obj, dbcsr_num_slots, dbcsr_slot_blk_p, &
+       dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, &
+       dbcsr_slot_size, dbcsr_type, dbcsr_work_type
   USE dbcsr_util,                      ONLY: &
        add_work_coordinate, bcsr_assert, dbcsr_create, &
        dbcsr_data_ensure_size, dbcsr_destroy, dbcsr_destroy_array, &
@@ -58,7 +58,7 @@ MODULE dbcsr_operations
 
   PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_trace,&
        dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block,&
-       dbcsr_put_block, dbcsr_find_column,&
+       dbcsr_put_block, dbcsr_filter, dbcsr_find_column,&
        dbcsr_btriu, dbcsr_add_on_diag, block_add_on_diag,&
        block_chol_inv, block_set
   ! Direct access to the variants because array reshaping and
@@ -2384,7 +2384,13 @@ CONTAINS
              end_of_row: IF (b_blk .EQ. right%row_p(b_row+1)) THEN
                 use_accumulated_data = .TRUE.
              ENDIF end_of_row
-             flush_dgemm: IF (use_accumulated_data) THEN
+!
+!vw this doesnt work for right sparse matrix !
+!vw   flush_dgemm: IF (use_accumulated_data) THEN
+!vw reset to true for the moment !
+             flush_dgemm: IF (.TRUE.) THEN
+!vw
+!
                 mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
                 IF (dbg) WRITE(*,&
                      "(1X,A,A1,1X,A1,A,I6,A,F4.1)")&
@@ -3438,6 +3444,166 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
   END SUBROUTINE dbcsr_btriu
 
+! *****************************************************************************
+!> \brief filter a dbcsr matrix
+!> \param[inout] matrix_a  the matrix
+!> \param[in] eps          the threshold
+!> \param[in] method       how the matrix is filtered 
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_filter(matrix, eps, method, error)
+
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    REAL(dp), INTENT(IN)                     :: eps
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: method
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_filter', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=3)                         :: my_method
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: data_z
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: data_c
+    INTEGER :: blk, col, col_size, idx_blk, idx_col, idx_row, nblk, nblk_tot, &
+      nze, offset, row, row_size, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, new_index, &
+                                                row_blk_size
+    REAL(dp)                                 :: nrm, rnd
+    REAL(dp), EXTERNAL                       :: DDOT
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: data_r
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    my_method = 'fro'
+    IF(PRESENT(method)) my_method = method
+
+    SELECT CASE (matrix%data_type)
+    CASE ('r')
+       CALL dbcsr_get_data (matrix%data_area, data_r)
+    CASE ('R')
+       CALL dbcsr_get_data (matrix%data_area, data_d)
+    CASE ('c')
+       CALL dbcsr_get_data (matrix%data_area, data_c)
+    CASE ('C')
+       CALL dbcsr_get_data (matrix%data_area, data_z)
+    END SELECT
+
+    row_blk_size => array_data (matrix%row_blk_size)
+    col_blk_size => array_data (matrix%col_blk_size)
+
+    CALL RANDOM_SEED()
+    CALL RANDOM_NUMBER(rnd)
+    rnd = rnd*1.0E+30_dp
+
+    ALLOCATE(new_index(SIZE(matrix%index)))
+
+    new_index(:) = 0
+    new_index(:dbcsr_num_slots) = matrix%index(:dbcsr_num_slots)
+    new_index(dbcsr_slot_size)  = matrix%index(dbcsr_slot_size)
+    new_index(dbcsr_slot_nblks) = 0
+    new_index(dbcsr_slot_nze)   = matrix%index(dbcsr_slot_nze)! WE DONT TOUCH THAT !
+    new_index(dbcsr_slot_row_p) = matrix%index(dbcsr_slot_row_p)
+    new_index(dbcsr_slot_col_i) = matrix%index(dbcsr_slot_col_i)
+    new_index(dbcsr_slot_blk_p) = matrix%index(dbcsr_slot_blk_p)
+    new_index(dbcsr_slot_row_p+1) = matrix%index(dbcsr_slot_row_p+1)
+    !
+    ! This is not the way to do it !
+    idx_row = new_index(dbcsr_slot_row_p)
+    idx_col = new_index(dbcsr_slot_col_i)
+    idx_blk = new_index(dbcsr_slot_blk_p)
+    nblk_tot = 0
+    new_index(idx_row) = 0
+    DO row = 1, matrix%nblkrows_total
+       row_size = row_blk_size(row)
+       nblk = 0
+       DO blk = matrix%row_p(row)+1,matrix%row_p(row+1)
+          col = matrix%col_i(blk)
+          col_size = col_blk_size(col)
+          offset = ABS(matrix%blk_p(blk))
+          nze = row_size * col_size
+          !
+          SELECT CASE (matrix%data_type)
+          CASE ('R')
+             !
+             SELECT CASE(my_method)
+             CASE('fro')
+                ! Frobenius based
+                nrm = SQRT(DDOT(nze,data_d(offset),1,data_d(offset),1))
+                IF(nrm.LT.eps) THEN
+                   ! this is useless and should be removed
+                   data_d(offset:offset+nze-1) = rnd!HUGE(0.0_dp)
+                   !data_d(offset:offset+nze-1) = HUGE(0.0_dp)
+                   matrix%col_i(blk) = HUGE(0)
+                   matrix%blk_p(blk) = HUGE(0)
+                ELSE
+                   !
+                   new_index(idx_col) = matrix%col_i(blk)
+                   new_index(idx_blk) = matrix%blk_p(blk)
+                   !
+                   ! update pointers
+                   nblk = nblk + 1
+                   idx_col = idx_col + 1
+                   idx_blk = idx_blk + 1
+                ENDIF
+             CASE DEFAULT
+                CALL stop_program(routineN,"wrong method")                
+             END SELECT
+          CASE default
+             CALL cp_unimplemented_error (routineN,&
+                  "Only real double precision")
+          END SELECT
+       ENDDO
+       !
+       new_index(dbcsr_slot_nblks) = new_index(dbcsr_slot_nblks) + nblk
+       new_index(idx_row+1) = new_index(idx_row) + nblk
+       !
+       ! update pointers
+       nblk_tot = nblk_tot + nblk
+       idx_row = idx_row + 1
+    ENDDO
+
+    new_index(dbcsr_slot_col_i+1) = new_index(dbcsr_slot_col_i) + nblk_tot - 1
+    new_index(dbcsr_slot_blk_p+1) = new_index(dbcsr_slot_blk_p) + nblk_tot - 1
+    !
+    ! reset the index
+    matrix%index(:) = new_index(:)
+    !
+    ! the row_p, col_i and blk_p ...
+    CALL dbcsr_repoint_index(matrix, error=error)
+
+    DEALLOCATE(new_index)
+
+    IF(matrix%row_p(matrix%nblkrows_total+1).NE.matrix%nblks) &
+         CALL stop_program(routineN,"something wrong")
+
+    IF(.TRUE.) THEN
+       DO row = 1, matrix%nblkrows_total
+          row_size = row_blk_size(row)
+          IF(matrix%row_p(row).LT.0) THEN
+             WRITE(*,*) 'row',row,'matrix%row_p(row)',matrix%row_p(row)
+             CALL stop_program(routineN,"buggus1")
+          ENDIF
+
+          DO blk = matrix%row_p(row)+1,matrix%row_p(row+1)
+             col = matrix%col_i(blk)
+             col_size = col_blk_size(col)
+             offset = ABS(matrix%blk_p(blk))
+             nze = row_size * col_size
+             IF(ANY(data_d(offset:offset+nze-1).EQ.rnd)) THEN
+                WRITE(*,*) 'row',row,'col',col,'blk',blk,'offset',offset
+                WRITE(*,'(E12.5)') data_d(offset:offset+nze-1)
+                CALL stop_program(routineN,"buggus2")
+             ENDIF
+          ENDDO
+       ENDDO
+    ENDIF
+    
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_filter
 
 ! *****************************************************************************
 !> \brief Calls the functions that are called in the included files but not
