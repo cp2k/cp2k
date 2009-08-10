@@ -1505,12 +1505,14 @@ CONTAINS
 !> \param[out] row           row of the data block
 !> \param[out] column        column of the data block
 !> \param[out] block         pointer to the data block
+!> \param[out] block_number  (optional) block number
 ! *****************************************************************************
-  SUBROUTINE iterator_next_block_d (iterator, row, column, block)
+  SUBROUTINE iterator_next_block_d (iterator, row, column, block, block_number)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     REAL(KIND=real_8), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: block
+    INTEGER, INTENT(OUT), OPTIONAL           :: block_number
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_d', &
       routineP = moduleN//':'//routineN
@@ -1535,6 +1537,7 @@ CONTAINS
                RESHAPE (rbp(blk_p:blk_p+nze-1), (/rsize, csize/))
           block => iterator%buffer_r_dp(1:rsize, 1:csize)
        ENDIF
+       IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        iterator%pos = iterator%pos+1
        CALL find_first_valid_block (iterator%pos, iterator%matrix%m%nblks,&
@@ -1545,8 +1548,10 @@ CONTAINS
        row = 0
        column = 0
        IF (PRESENT (block)) NULLIFY (block)
+       IF (PRESENT (block_number)) block_number = 0
     ENDIF
   END SUBROUTINE iterator_next_block_d
+
 
 ! *****************************************************************************
 !> \brief Gets the index information of the next block, no data.
