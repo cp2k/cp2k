@@ -736,6 +736,7 @@ CPSourceFileRef,&
                                          dbcsr_distribution_col_dist(mo_dbcsr%dist))
              !
              ! S*C
+             CALL dbcsr_init(mo_tmp_dbcsr, error)
              CALL dbcsr_sm_sm_multiply(s_dbcsr, mo_dbcsr, mo_tmp_dbcsr,&
                                        product_dist, 1, error=error)
              CALL dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
@@ -751,6 +752,8 @@ CPSourceFileRef,&
              ! P*SC
              ! the destroy is needed for the moment to avoid memory leaks !
              CALL dbcsr_destroy(mo_dbcsr, error=error)
+             ! This one is not needed because _destroy takes care of zeroing.
+             !CALL dbcsr_init(mo_dbcsr, error=error)
              CALL dbcsr_sm_sm_multiply(p_dbcsr, mo_tmp_dbcsr, mo_dbcsr,&
                                        product_dist, 1, error=error)
              CALL dbcsr_verify_matrix(mo_dbcsr, error=error)

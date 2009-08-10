@@ -854,6 +854,7 @@ CONTAINS
     CALL array_release (matrix%col_blk_size)
     CALL dbcsr_distribution_release(matrix%dist)
     matrix%valid = .FALSE.
+    matrix%initialized = .TRUE.
   END SUBROUTINE dbcsr_destroy
 
 
@@ -3129,6 +3130,7 @@ CONTAINS
        ENDDO
     ENDDO
     DBG 'local chksum=',local_cs
+    checksum = local_cs
     IF (.NOT. nocomm) THEN
        CALL mp_sum(local_cs, dbcsr_mp_group (dbcsr_distribution_mp (matrix%dist)))
        checksum = local_cs
