@@ -193,6 +193,24 @@
   END SUBROUTINE dbcsr_get_block_s
 
 ! *****************************************************************************
+!> \brief Put a 2-D block in a DBCSR matrix
+!> \param[in.out] matrix      DBCSR matrix
+!> \param[in]  block          the block to put
+!> \param[in]  row            the row
+!> \param[in]  col            the column
+! *****************************************************************************
+  SUBROUTINE dbcsr_put_block2d_s(matrix, block, row, col)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    REAL(kind=real_4), DIMENSION(:,:), INTENT(IN)      :: block
+    INTEGER, INTENT(IN)                      :: row, col
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block2d_s', &
+      routineP = moduleN//':'//routineN
+    
+    CALL dbcsr_put_block (matrix, RESHAPE (block, (/SIZE(block)/)), row, col)
+  END SUBROUTINE dbcsr_put_block2d_s
+
+! *****************************************************************************
 !> \brief put a block in a dbcsr matrix
 !> \param[in]  matrix DBCSR matrix
 !> \param[in]  block  the block to put
@@ -204,14 +222,14 @@
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     REAL(kind=real_4), DIMENSION(:), INTENT(IN)        :: block
     INTEGER, INTENT(IN)                      :: row, col
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_s', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col_size, frst_blk, &
                                                 last_blk, nze, offset, &
-                                                row_size
+                                                row_size, blk_p
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: found
 
@@ -237,7 +255,20 @@
             ), 1)
        !CALL dcopy(nze,block(1),1,matrix%data(offset),1)
     ELSE
-       CALL stop_program(routineN,"need ot create the block, NYI")
+       !WRITE(*,*)routineN//" Adding block to matrix"
+       IF (.NOT.ASSOCIATED (matrix%wms)) THEN
+          !WRITE(*,*)routineN//" Creating new work matrix to hold new data"
+          CALL dbcsr_work_create (matrix, nblks_guess=1,&
+               sizedata_guess=SIZE(block))
+       ENDIF
+       blk_p = matrix%wms(1)%datasize + 1
+       CALL add_work_coordinate (matrix%wms(1), row, col, blk_p)
+       CALL addto_array (matrix%wms(1)%data_area, block, blk_p)
+       matrix%wms(1)%datasize = matrix%wms(1)%datasize + SIZE (block)
+       !matrix%wms(1)%datasize = dbcsr_get_data_size (matrix%wms(1)%data_area)
+       !WRITE(*,*)routineN//" Volume of new data is",matrix%wms(1)%datasize,&
+       !     dbcsr_get_data_size (matrix%wms(1)%data_area)
+       matrix%valid = .FALSE.
     ENDIF
 
   END SUBROUTINE dbcsr_put_block_s

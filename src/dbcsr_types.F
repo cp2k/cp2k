@@ -28,7 +28,8 @@ MODULE dbcsr_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_types'
 
-  PUBLIC :: dbcsr_type,&
+  PUBLIC :: dbcsr_obj,&
+            dbcsr_type,&
             dbcsr_data_obj,&
             dbcsr_data_area_type,&
             dbcsr_work_type,&
@@ -223,6 +224,7 @@ MODULE dbcsr_types
 !> \var data_type             'r'/'R' for single/double precision real or
 !>                            'c'/'C' for single/double precision complex data
 !> \var special_memory        uses special (MPI-allocated) memory
+!> \var refcount              reference count
 ! *****************************************************************************
   TYPE dbcsr_type
      LOGICAL                            :: valid, initialized
@@ -246,6 +248,7 @@ MODULE dbcsr_types
      !TYPE(dbcsr_work_type)   :: w
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
      TYPE(dbcsr_distribution_obj)       :: dist
+     INTEGER                 :: refcount
   END TYPE dbcsr_type
 
   CHARACTER, PARAMETER        :: dbcsr_type_normal = 'N'
@@ -268,14 +271,13 @@ MODULE dbcsr_types
   INTEGER, PARAMETER          :: dbcsr_num_slots  = dbcsr_meta_size+7
 
 
-
 ! *****************************************************************************
-!> \brief Pointer to a DBCSR matrix.
-!> \var m           the matrix
+!> \brief The BCSR sparse matrix object.
+!> \var m  The DBCSR array.
 ! *****************************************************************************
-  TYPE dbcsr_type_p
-     TYPE(dbcsr_type), POINTER          :: m
-  END TYPE dbcsr_type_p
+  TYPE dbcsr_obj
+     TYPE(dbcsr_type), POINTER :: m
+  END TYPE dbcsr_obj
 
 ! *****************************************************************************
 !> \brief Pointer to a work matrix.
@@ -310,7 +312,7 @@ MODULE dbcsr_types
 !> \var rbs, cbs         Pointer to row and column size array
 ! *****************************************************************************
   TYPE dbcsr_iterator
-     TYPE(dbcsr_type), POINTER                     :: matrix
+     TYPE(dbcsr_obj)                               :: matrix
      REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: buffer_r_sp
      REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: buffer_r_dp
      COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: buffer_c_sp

@@ -22,7 +22,7 @@ MODULE dbcsr_methods
                                              array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
-       dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_obj, dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_real_4, dbcsr_type_real_8
   USE f77_blas
   USE f77_blas_generic,                ONLY: bl_copy
@@ -61,12 +61,12 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_copyall, dbcsr_get_data_size,&
             dbcsr_data_set_pointer, dbcsr_data_area
-
+  PUBLIC :: dbcsr_get_num_blocks
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
             dbcsr_get_data_p_d, dbcsr_get_data_p_z
 
-  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_stop,&
-            dbcsr_iterator_blocks_left
+  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_next_block,&
+            dbcsr_iterator_stop, dbcsr_iterator_blocks_left
 
   PRIVATE
 
@@ -92,7 +92,7 @@ MODULE dbcsr_methods
   END INTERFACE
 
   INTERFACE dbcsr_iterator_next_block
-     MODULE PROCEDURE iterator_next_block_d
+     MODULE PROCEDURE iterator_next_block_d, iterator_next_block_index
   END INTERFACE
 
 CONTAINS
@@ -1112,7 +1112,7 @@ CONTAINS
 !> \param matrix_type         matrix_type (see dbcsr_types.F for possible
 !>                            values)
 ! *****************************************************************************
-  FUNCTION dbcsr_matrix_type (matrix) RESULT (matrix_type)
+  PURE FUNCTION dbcsr_matrix_type (matrix) RESULT (matrix_type)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     CHARACTER                                :: matrix_type
 
@@ -1125,7 +1125,7 @@ CONTAINS
 !> \param data_type           data_type (see dbcsr_types.F for possible
 !>                            values)
 ! *****************************************************************************
-  FUNCTION dbcsr_data_type (matrix) RESULT (data_type)
+  PURE FUNCTION dbcsr_data_type (matrix) RESULT (data_type)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     CHARACTER                                :: data_type
 
@@ -1312,13 +1312,29 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Returns the number of blocks in the matrix
+!> \param matrix     matrix from which to get data
+!> \param area       data area
+! *****************************************************************************
+  PURE FUNCTION dbcsr_get_num_blocks (matrix) RESULT (num_blocks)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER                                  :: num_blocks
+
+    num_blocks = matrix%nblks
+  END FUNCTION dbcsr_get_num_blocks
+
+
+! Iterator functions
+
+
+! *****************************************************************************
 !> \brief Sets up an iterator
 !> \param[out] iterator   the iterator
 !> \param[in] matrix      DBCSR matrix
 ! *****************************************************************************
   SUBROUTINE dbcsr_iterator_start (iterator, matrix)
     TYPE(dbcsr_iterator), INTENT(OUT)        :: iterator
-    TYPE(dbcsr_type), POINTER                :: matrix
+    TYPE(dbcsr_obj)                          :: matrix
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_start', &
       routineP = moduleN//':'//routineN
@@ -1328,25 +1344,31 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    iterator%matrix => matrix
+    iterator%matrix = matrix
     iterator%row = 0
     iterator%pos = 0
-    iterator%rbs => array_data (matrix%row_blk_size)
-    iterator%cbs => array_data (matrix%col_blk_size)
+    iterator%rbs => array_data (matrix%m%row_blk_size)
+    iterator%cbs => array_data (matrix%m%col_blk_size)
     iterator%row_size = 0
     max_r_size = 0
     max_c_size = 0
-    IF (matrix%nblks .GE. 1) THEN
+    IF (matrix%m%nblks .GE. 1) THEN
        iterator%row = 1
        iterator%pos = 1
-       iterator%row_size = iterator%rbs(1)
-       max_r_size = MAXVAL (iterator%rbs)
-       max_c_size = MAXVAL (iterator%cbs)
+       CALL find_first_valid_block (iterator%pos, matrix%m%nblks,&
+            iterator%matrix%m%blk_p)
+       CALL find_proper_row (iterator%pos, iterator%row,&
+            iterator%matrix%m%nblkrows_total, iterator%matrix%m%row_p)
+       IF (iterator%row .GT. 0) THEN
+          iterator%row_size = iterator%rbs(iterator%row)
+          max_r_size = MAXVAL (iterator%rbs)
+          max_c_size = MAXVAL (iterator%cbs)
+       ENDIF
     ENDIF
     NULLIFY (iterator%buffer_r_sp, iterator%buffer_r_dp,&
          iterator%buffer_c_sp, iterator%buffer_c_dp)
     maxsize = max_r_size * max_c_size
-    SELECT CASE (matrix%data_area%d%data_type)
+    SELECT CASE (matrix%m%data_area%d%data_type)
     CASE (dbcsr_type_real_4)
        ALLOCATE (iterator%buffer_r_sp (max_r_size, max_c_size))
     CASE (dbcsr_type_real_8)
@@ -1376,7 +1398,7 @@ CONTAINS
 
     iterator%row = 0
     iterator%pos = 0
-    SELECT CASE (iterator%matrix%data_area%d%data_type)
+    SELECT CASE (iterator%matrix%m%data_area%d%data_type)
     CASE (dbcsr_type_real_4)
        CALL cp_assert (ASSOCIATED (iterator%buffer_r_sp), cp_warning_level,&
             cp_internal_error, routineN, "Array should have been allocated")
@@ -1405,24 +1427,90 @@ CONTAINS
        CALL cp_assert(.FALSE., cp_warning_level, cp_internal_error,&
             routineN, "Invalid data type.")
     END SELECT
-    NULLIFY (iterator%matrix)
+    !CALL dbcsr_init (iterator%matrix)
     NULLIFY (iterator%buffer_r_sp, iterator%buffer_r_dp,&
          iterator%buffer_c_sp, iterator%buffer_c_dp, iterator%rbs, iterator%cbs)
   END SUBROUTINE dbcsr_iterator_stop
 
 
 ! *****************************************************************************
+!> \brief Finds the first valid block, inclusive from the current position.
+!>
+!> If there is no valid block, pos is set to 0
+!> \param[in,out] pos        input: current position; output: next valid
+!>                           position or 0
+!> \param[in] maxpos         maximal allowed position
+!> \param[in] blk_p          block pointers, used to check validity
+! *****************************************************************************
+  PURE SUBROUTINE find_first_valid_block (pos, maxpos, blk_p)
+    INTEGER, INTENT(INOUT)                   :: pos
+    INTEGER, INTENT(IN)                      :: maxpos
+    INTEGER, DIMENSION(1:maxpos), INTENT(IN) :: blk_p
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'find_first_valid_block', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    DO WHILE (pos .LE. maxpos)
+       IF (blk_p(pos) .EQ. 0) THEN
+          !WRITE(*,*)routineN//" Skipping deleted block."
+          pos = pos+1
+       ELSE
+          EXIT
+       ENDIF
+    ENDDO
+    IF (pos .GT. maxpos) pos = 0
+  END SUBROUTINE find_first_valid_block
+
+! *****************************************************************************
+!> \brief Finds the first valid block, inclusive from the current position.
+!>
+!> If there is no valid block, pos is set to 0
+!> \param[in pos             current position
+!> \param[in,out] row        input: current row; output: the row corresponding
+!>                           to the position
+!> \param[in] maxrows        maxmimum row
+!> \param[in] row_p          row pointers
+! *****************************************************************************
+  PURE SUBROUTINE find_proper_row (pos, row, maxrows, row_p)
+    INTEGER, INTENT(IN)                      :: pos
+    INTEGER, INTENT(INOUT)                   :: row
+    INTEGER, INTENT(IN)                      :: maxrows
+    INTEGER, DIMENSION(1:maxrows+1), &
+      INTENT(IN)                             :: row_p
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'find_proper_row', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    IF (pos .GT. 0) THEN
+       DO WHILE (row_p(row+1) .LT. pos)
+          row = row+1
+          IF (row .GT. maxrows) THEN
+             row = 0
+             EXIT
+          ENDIF
+       ENDDO
+    ELSE
+       row = 0
+    ENDIF
+  END SUBROUTINE find_proper_row
+
+
+! *****************************************************************************
 !> \brief Gets the next data block, double precision real
 !> \param[in,out] iterator   the iterator
-!> \param[out] block         pointer to the data block
 !> \param[out] row           row of the data block
 !> \param[out] column        column of the data block
+!> \param[out] block         pointer to the data block
 ! *****************************************************************************
-  SUBROUTINE iterator_next_block_d (iterator, block, row, column)
+  SUBROUTINE iterator_next_block_d (iterator, row, column, block)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
-    REAL(KIND=real_8), DIMENSION(:, :), &
-      POINTER                                :: block
     INTEGER, INTENT(OUT)                     :: row, column
+    REAL(KIND=real_8), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: block
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_d', &
       routineP = moduleN//':'//routineN
@@ -1431,36 +1519,71 @@ CONTAINS
     REAL(KIND=real_8), DIMENSION(:), POINTER :: rbp
 
 !   ---------------------------------------------------------------------------
+! If we're pointing to a valid block, return that block.
 
-    IF (iterator%pos .LE. iterator%matrix%nblks .AND. iterator%pos .NE. 0) THEN
+    IF (iterator%pos .LE. iterator%matrix%m%nblks&
+         .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
-       column = iterator%matrix%col_i(iterator%pos)
-       blk_p = iterator%matrix%blk_p(iterator%pos)
-       rsize = iterator%row_size
-       csize = iterator%cbs(column)
-       nze = rsize * csize
-       rbp => dbcsr_get_data_p (iterator%matrix%data_area, 0.0_real_8)
-       iterator%buffer_r_dp = RESHAPE (rbp(blk_p:blk_p+nze-1), (/rsize, csize/))
-       block => iterator%buffer_r_dp(1:rsize, 1:csize)
-       iterator%pos = iterator%pos+1
-       IF (iterator%pos .GT. iterator%matrix%nblks) THEN
-          iterator%pos = 0
-       ELSE
-          DO WHILE (iterator%matrix%row_p(iterator%row+1) .LT. iterator%pos)
-             row = row+1
-             IF (row .GT. iterator%matrix%nblkrows_total) THEN
-                iterator%pos = 0
-                EXIT
-             ENDIF
-          ENDDO
+       column = iterator%matrix%m%col_i(iterator%pos)
+       IF (PRESENT (block)) THEN
+          blk_p = iterator%matrix%m%blk_p(iterator%pos)
+          rsize = iterator%row_size
+          csize = iterator%cbs(column)
+          nze = rsize * csize
+          rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
+          iterator%buffer_r_dp =&
+               RESHAPE (rbp(blk_p:blk_p+nze-1), (/rsize, csize/))
+          block => iterator%buffer_r_dp(1:rsize, 1:csize)
        ENDIF
+       ! Move to the next non-deleted position.
+       iterator%pos = iterator%pos+1
+       CALL find_first_valid_block (iterator%pos, iterator%matrix%m%nblks,&
+            iterator%matrix%m%blk_p)
+       CALL find_proper_row (iterator%pos, iterator%row,&
+            iterator%matrix%m%nblkrows_total, iterator%matrix%m%row_p)
     ELSE
        row = 0
        column = 0
-       NULLIFY (block)
+       IF (PRESENT (block)) NULLIFY (block)
+    ENDIF
+  END SUBROUTINE iterator_next_block_d
+
+! *****************************************************************************
+!> \brief Gets the index information of the next block, no data.
+!> \param[in,out] iterator   the iterator
+!> \param[out] row           row of the data block
+!> \param[out] column        column of the data block
+!> \param[out] blk           block number
+!> \param[out] blk_p         (optional) index into block data array
+! *****************************************************************************
+  SUBROUTINE iterator_next_block_index (iterator, row, column, blk, blk_p)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+    INTEGER, INTENT(OUT)                     :: row, column, blk
+    INTEGER, INTENT(OUT), OPTIONAL           :: blk_p
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_index', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    IF (iterator%pos .LE. iterator%matrix%m%nblks&
+         .AND. iterator%pos .NE. 0) THEN
+       row = iterator%row
+       column = iterator%matrix%m%col_i(iterator%pos)
+       blk = iterator%pos
+       IF (PRESENT (blk_p)) blk_p = iterator%matrix%m%blk_p(iterator%pos)
+       iterator%pos = iterator%pos+1
+       CALL find_first_valid_block (iterator%pos, iterator%matrix%m%nblks,&
+            iterator%matrix%m%blk_p)
+       CALL find_proper_row (iterator%pos, iterator%row,&
+            iterator%matrix%m%nblkrows_total, iterator%matrix%m%row_p)
+    ELSE
+       row = 0
+       column = 0
     ENDIF
     
-  END SUBROUTINE iterator_next_block_d
+  END SUBROUTINE iterator_next_block_index
+
 
 ! *****************************************************************************
 !> \brief Returns whether there any blocks left in the iterator.

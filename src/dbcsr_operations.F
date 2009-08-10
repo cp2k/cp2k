@@ -29,11 +29,11 @@ MODULE dbcsr_operations
        dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, &
        dbcsr_slot_size, dbcsr_type, dbcsr_work_type
   USE dbcsr_util,                      ONLY: &
-       add_work_coordinate, bcsr_assert, dbcsr_create, &
+       add_work_coordinate, addto_array, bcsr_assert, dbcsr_create, &
        dbcsr_data_ensure_size, dbcsr_destroy, dbcsr_destroy_array, &
-       dbcsr_finalize, dbcsr_init, dbcsr_repoint_index, dbcsr_set_debug, &
-       dbcsr_work_create, ensure_array_size, pointer_replace, pointer_view, &
-       swap
+       dbcsr_finalize, dbcsr_get_block_info, dbcsr_get_lookup, dbcsr_init, &
+       dbcsr_repoint_index, dbcsr_set_debug, dbcsr_work_create, &
+       ensure_array_size, pointer_replace, pointer_view, swap
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8,&
@@ -60,7 +60,7 @@ MODULE dbcsr_operations
        dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block,&
        dbcsr_put_block, dbcsr_filter, dbcsr_find_column,&
        dbcsr_btriu, dbcsr_add_on_diag, block_add_on_diag,&
-       block_chol_inv, block_set
+       block_chol_inv, block_set, dbcsr_remove_block
   ! Direct access to the variants because array reshaping and
   ! typematching is incompatible.
   PUBLIC :: block_add_on_diag_d, block_add_on_diag_s,&
@@ -90,7 +90,9 @@ MODULE dbcsr_operations
 
   INTERFACE dbcsr_put_block
      MODULE PROCEDURE dbcsr_put_block_d, dbcsr_put_block_s,&
-          dbcsr_put_block_z, dbcsr_put_block_c
+                      dbcsr_put_block_z, dbcsr_put_block_c,&
+                      dbcsr_put_block2d_d, dbcsr_put_block2d_s,&
+                      dbcsr_put_block2d_z, dbcsr_put_block2d_c
   END INTERFACE
 
   INTERFACE block_add_on_diag
@@ -3141,6 +3143,53 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ENDDO
   END SUBROUTINE dbcsr_find_column
 
+
+! *****************************************************************************
+!> \brief Marks a block for removal from a DBCSR matrix. Handles
+!>        symmetric matrices.
+!> \param[in]  matrix         DBCSR matrix
+!> \param[in]  row            row of block to remove
+!> \param[in]  col            column of block to remove
+!> \param[in]  block_number   (optional) the block number, if it is known
+! *****************************************************************************
+  SUBROUTINE dbcsr_remove_block(matrix, row, col, block_number)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    INTEGER, INTENT(IN), OPTIONAL            :: block_number
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_remove_block', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: b, c, r
+    LOGICAL                                  :: tr
+
+!   ---------------------------------------------------------------------------
+
+    r = row
+    c = col
+    ! Figure out where the desired row and col is actually stored.
+    CALL dbcsr_get_lookup (matrix, r, c, tr)
+    IF (PRESENT (block_number)) THEN
+       b = block_number
+       CALL cp_assert (block_number .LE. matrix%nblks, cp_failure_level,&
+            cp_caller_error, routineN, "Block number too big.")
+    ELSE
+       CALL dbcsr_get_block_info (matrix, r, c, b)
+    ENDIF
+    b = ABS (b)
+    IF (b .GT. 0) THEN
+       ! Mark the block for deletion.
+       matrix%blk_p(b) = 0
+       matrix%valid = .FALSE.
+    ELSE
+       CALL cp_assert (b .NE. 0, cp_warning_level, cp_caller_error, routineN,&
+            "Block does not exist or is already deleted.")
+    ENDIF
+  END SUBROUTINE dbcsr_remove_block
+
+
+
+
 ! *****************************************************************************
 !> \brief add and scale matrices 
 !>    A = alpha*A + beta*B or 
@@ -3613,7 +3662,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[out] temp1, temp2   pointers to the data
 ! *****************************************************************************
   SUBROUTINE prettify_fooler (matrix, temp1, temp2)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     REAL(KIND=real_4), DIMENSION(:), POINTER :: temp1
     REAL(KIND=real_8), DIMENSION(:), POINTER :: temp2
 
@@ -3624,6 +3673,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        temp2 => dbcsr_get_data_p (matrix%data_area, 0.0_real_8)
        CALL mp_sum (i, 0)
        CALL mp_bcast (temp1, 0, 0)
+       CALL addto_array (matrix%data_area, temp1)
     ENDIF
   END SUBROUTINE prettify_fooler
 

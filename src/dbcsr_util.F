@@ -34,28 +34,31 @@ MODULE dbcsr_util
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_data_hold, dbcsr_data_init, &
-       dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
-       dbcsr_data_type, dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_hold, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
-       dbcsr_distribution_processor, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
-       dbcsr_get_data_size, dbcsr_get_info, dbcsr_iterator_start, &
-       dbcsr_iterator_stop, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_new_transposed, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mp_release, dbcsr_row_block_sizes
+       dbcsr_col_block_sizes, dbcsr_data_copyall, dbcsr_data_hold, &
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_set_pointer, dbcsr_data_type, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, dbcsr_get_info, &
+       dbcsr_get_num_blocks, dbcsr_iterator_blocks_left, &
+       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
+       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_new, dbcsr_mp_new_transposed, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
+       dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_meta_size, &
-       dbcsr_mp_obj, dbcsr_num_slots, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
-       dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, &
-       dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_normal, &
-       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
+       dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, &
+       dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, &
+       dbcsr_slot_size, dbcsr_type, dbcsr_type_antisymmetric, &
+       dbcsr_type_normal, dbcsr_type_real_8, dbcsr_type_symmetric, &
+       dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
                                              distribution_2d_type,&
@@ -214,7 +217,7 @@ MODULE dbcsr_util
        dbcsr_init,&
        dbcsr_new_transposed,&
        dbcsr_desymmetrize_deep,&
-       dbcsr_destroy, dbcsr_work_destroy, dbcsr_print
+       dbcsr_destroy, dbcsr_work_destroy, dbcsr_print, dbcsr_valid_index
   ! Distributions
   PUBLIC :: dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot,&
        dbcsr_create_dist_l_rot, dbcsr_create_dist_l_unrot,&
@@ -434,7 +437,7 @@ CONTAINS
     CALL cp_assert (hijack .EQV. matrix%valid, cp_warning_level,&
          cp_caller_error, routineP, "Reuse and matrix validity do not match.",&
          error=error)
-    matrix%valid = .TRUE.
+    matrix%valid = .FALSE.
     matrix%name = name
     IF (PRESENT (data_type)) THEN
        SELECT CASE (data_type)
@@ -483,8 +486,10 @@ CONTAINS
     matrix%nblkcols_local  = new_meta(8)
     matrix%nfullrows_local = new_meta(9)
     matrix%nfullcols_local = new_meta(10)
-    matrix%nblks = nblks
-    matrix%nze = nze
+    !matrix%nblks = nblks
+    matrix%nblks = 0
+    !matrix%nze = nze
+    matrix%nze = 0
     matrix%special_memory = .FALSE.
     IF (PRESENT (special)) matrix%special_memory = special
     !
@@ -518,7 +523,52 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Creates a working matrix.
+!> \brief Initializes one work matrix
+!> \param[out] wm             initialized work matrix
+!> \param[in] nblks_guess     (optional) estimated number of blocks
+!> \param[in] sizedata_guess  (optional) estimated size of data
+! *****************************************************************************
+  SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess)
+    TYPE(dbcsr_work_type), INTENT(OUT)       :: wm
+    CHARACTER, INTENT(IN)                    :: data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_wm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nblks, stat
+
+!   ---------------------------------------------------------------------------
+
+    wm%lastblk = 0
+    wm%datasize = 0
+    ! Index
+    IF(PRESENT(nblks_guess)) THEN
+       nblks = nblks_guess
+       ALLOCATE(wm%row_i(nblks), stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineP, 'wm%row_i', nblks)
+       ALLOCATE(wm%col_i(nblks), stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineP, 'wm%col_i', nblks)
+       ALLOCATE(wm%blk_p(nblks), stat=stat)
+       IF (stat /= 0) CALL stop_memory(routineP, 'wm%blk_p', nblks)
+    ELSE
+       NULLIFY (wm%row_i, wm%col_i, wm%blk_p)
+       !nblks = CEILING (REAL (matrix%nblkrows_local * matrix%nblkcols_local)&
+       !     / REAL (dbcsr_mp_numnodes (dbcsr_distribution_mp (matrix%dist))))
+    ENDIF
+    ! Data
+    CALL dbcsr_data_init (wm%data_area)
+    IF(PRESENT(sizedata_guess)) THEN
+       CALL dbcsr_data_new (wm%data_area, data_type,&
+            data_size=sizedata_guess)
+    ELSE
+       CALL dbcsr_data_new (wm%data_area, data_type)
+    ENDIF
+  END SUBROUTINE dbcsr_init_wm
+
+
+! *****************************************************************************
+!> \brief Creates a the working matrix(es) for a DBCSR matrix.
 !> \param[out] matrix         new matrix
 !> \param[in] nblks_guess     (optional) estimated number of blocks
 !> \param[in] sizedata_guess  (optional) estimated size of data
@@ -530,12 +580,13 @@ CONTAINS
        error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess, n
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iw, nblks, nw, nze, stat
+    INTEGER                                  :: iw, nw
 
 !   ---------------------------------------------------------------------------
 
@@ -546,37 +597,21 @@ CONTAINS
     ENDIF
     ALLOCATE (matrix%wms(nw))
     DO iw = 1, nw
-       matrix%wms(iw)%lastblk = 0
-       matrix%wms(iw)%datasize = 0
-       IF(PRESENT(nblks_guess)) THEN
-          nblks = nblks_guess
+       IF (PRESENT (nblks_guess)) THEN
+          IF (PRESENT (sizedata_guess)) THEN
+             CALL dbcsr_init_wm (matrix%wms(iw), matrix%data_type,&
+                  nblks_guess, sizedata_guess)
+          ELSE
+             CALL dbcsr_init_wm (matrix%wms(iw), matrix%data_type, nblks_guess)
+          ENDIF
        ELSE
-          nblks = CEILING (REAL (matrix%nblkrows_local * matrix%nblkcols_local)&
-               / REAL (dbcsr_mp_numnodes (dbcsr_distribution_mp (matrix%dist))))
+          IF (PRESENT (sizedata_guess)) THEN
+             CALL dbcsr_init_wm (matrix%wms(iw), matrix%data_type,&
+                  sizedata_guess)
+          ELSE
+             CALL dbcsr_init_wm (matrix%wms(iw), matrix%data_type)
+          ENDIF
        ENDIF
-       IF(PRESENT(sizedata_guess)) THEN
-          nze = sizedata_guess
-       ELSE
-          nze = CEILING(REAL(matrix%nfullrows_local * matrix%nfullcols_local)&
-               / REAL(dbcsr_mp_numnodes (dbcsr_distribution_mp (&
-               matrix%dist))))
-       ENDIF
-       CALL dbcsr_data_init (matrix%wms(iw)%data_area)
-       IF (PRESENT (sizedata_guess)) THEN
-          CALL dbcsr_data_new (matrix%wms(iw)%data_area, matrix%data_type,&
-               data_size=nze)
-       ELSE
-          CALL dbcsr_data_new (matrix%wms(iw)%data_area, matrix%data_type)
-       ENDIF
-       !
-       ALLOCATE(matrix%wms(iw)%row_i(nblks), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP, 'matrix%ws(iw)%row_i', nblks)
-       !
-       ALLOCATE(matrix%wms(iw)%col_i(nblks), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP, 'matrix%ws(iw)%col_i', nblks)
-       !
-       ALLOCATE(matrix%wms(iw)%blk_p(nblks), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP, 'matrix%ws(iw)%blk_p', nblks)
     END DO
   END SUBROUTINE dbcsr_work_create
 
@@ -612,20 +647,31 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
+    IF (matrix%valid) THEN
+       IF (dbg) WRITE(*,'(2(1X,A))')&
+            "No need to finalize a valid matrix, skipping."
+       RETURN
+    ENDIF
     CALL timeset(routineN, timing_handle)
     IF (dbg) WRITE(*,'(A,1X,A,2(1X,I9))')routineN//' finalizing matrix ',&
          matrix%name, matrix%nze, matrix%nblks
-    CALL cp_assert (SIZE (matrix%wms) .GT. 0, cp_fatal_level, cp_caller_error,&
-         routineN, "Can not finalize matrix containing no work matrices.")
-    !CALL cp_assert (matrix%nze .EQ. 0 .AND. matrix%nblks .EQ. 0,&
-    !     cp_warning_level, cp_unimplemented_error_nr, routineN,&
-    !     "Can not finalize matrix already containing some data.")
-    matrix%nblks = 0
-    matrix%nze = 0
+    CALL cp_assert (matrix%nze.EQ.0 .EQV. matrix%nblks.EQ.0,&
+         cp_warning_level, cp_unimplemented_error_nr, routineN,&
+         "Matrix data size not consistent with number of blocks.")
+    IF (matrix%nze .GT. 0) THEN
+       CALL dbcsr_add_wm_from_matrix (matrix)
+    ENDIF
     srt = .TRUE.
     lkeepdata = .FALSE.
     IF (PRESENT (keepdata)) lkeepdata = keepdata
     multidata = SIZE (matrix%wms) .GT. 1
+    IF (.NOT. multidata) THEN
+       CALL cp_assert (ASSOCIATED (matrix%wms), cp_fatal_level, cp_caller_error,&
+            routineN, "Can not finalize matrix containing no work matrices.")
+       CALL cp_assert (SIZE (matrix%wms) .GT. 0, cp_failure_level,&
+            cp_caller_error, routineN,&
+            "Can not finalize matrix containing no work matrices.")
+    ENDIF
     IF (PRESENT (resort)) srt = resort
     ! If there are multiple work matrices, the indices have to be sorted to
     ! enable merging the index.
@@ -639,11 +685,14 @@ CONTAINS
     ENDIF
     ! Count how large the new matrix will have to be.
     IF (multidata) THEN
-       all_nblks = matrix%nblks
-       all_nze = matrix%nze
+       !all_nblks = matrix%nblks
+       !all_nze = matrix%nze
+       all_nblks = 0
+       all_nze = 0
        DO i = 1, SIZE (matrix%wms)
           all_nblks = all_nblks + matrix%wms(i)%lastblk
           all_nze = all_nze + matrix%wms(i)%datasize
+          !all_nze = all_nze + dbcsr_get_data_size (matrix%wms(i)%data_area)
        ENDDO
     ELSE
        all_nblks = matrix%wms(1)%lastblk
@@ -651,7 +700,9 @@ CONTAINS
     ENDIF
     IF (dbg) THEN
        DO i = 1, SIZE (matrix%wms)
-          WRITE(*,'(A,I4)')"Sorted work matrix",i
+          WRITE(*,'(A,4(1X,I4))')"Sorted work matrix",i, matrix%wms(i)%lastblk,&
+               matrix%wms(i)%datasize,&
+               dbcsr_get_data_size (matrix%wms(i)%data_area)
           DO j = 1, matrix%wms(i)%lastblk
              WRITE(*,'(A,I4,":",3(1X,I5))')"Sorted",j,matrix%wms(i)%row_i(j),&
                   matrix%wms(i)%col_i(j), matrix%wms(i)%blk_p(j)
@@ -663,8 +714,8 @@ CONTAINS
     matrix%index(dbcsr_slot_nblks) = matrix%nblks
     matrix%index(dbcsr_slot_nze) = matrix%nze
     DBG routineP//' index',matrix%index(:dbcsr_num_slots)
-    DBG routineP//' # blocks=',matrix%nblks
-    DBG routinep//' # nze=',matrix%nze
+    DBG routineP//' # blocks=',matrix%nblks, all_nblks
+    DBG routinep//' # nze=',matrix%nze, all_nze
     ! We first figure out how large the indices should be and allocate them.
     CALL dbcsr_addto_index_array(matrix, dbcsr_slot_row_p,&
          reservation=matrix%nblkrows_total+1, extra=all_nblks*2, error=error)
@@ -684,6 +735,94 @@ CONTAINS
     IF (dbg) CALL dbcsr_verify_matrix (matrix, error)
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_finalize
+
+
+! *****************************************************************************
+!> \brief Creates a work matrix from the data present in a finalized matrix.
+!> \param[in,out] matrix      DBCSR matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_add_wm_from_matrix(matrix)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_wm_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n, timing_handle
+    TYPE(dbcsr_work_type), DIMENSION(:), &
+      POINTER                                :: new_wms
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
+    DBG "Adding to an existing matrix, wee!"
+    IF (ASSOCIATED (matrix%wms)) THEN
+       n = SIZE (matrix%wms)
+       IF (n .EQ. 0) DEALLOCATE (matrix%wms)
+    ELSE
+       n = 0
+    ENDIF
+    IF (n .EQ. 0) THEN
+       ! Just create it
+       CALL dbcsr_work_create (matrix, matrix%nblks, matrix%nze)
+       CALL dbcsr_fill_wm_from_matrix (matrix%wms(1), matrix)
+    ELSE
+       ALLOCATE (new_wms (1:n+1))
+       new_wms(1:n) = matrix%wms(1:n)
+       DEALLOCATE (matrix%wms)
+       matrix%wms => new_wms
+       CALL dbcsr_init_wm (matrix%wms(n+1), dbcsr_data_type (matrix),&
+            nblks_guess=dbcsr_get_num_blocks (matrix))
+       CALL dbcsr_fill_wm_from_matrix (matrix%wms(n+1), matrix)
+    ENDIF
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_add_wm_from_matrix
+
+
+! *****************************************************************************
+!> \brief Fills index and data of the work matrix from the
+!>        previously-finalized one.
+!> \param[out] wm             the work matrix to fill
+!> \param[in,out] matrix      DBCSR matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_fill_wm_from_matrix(wm, matrix)
+    TYPE(dbcsr_work_type), INTENT(OUT)       :: wm
+    TYPE(dbcsr_type), INTENT(INOUT), TARGET  :: matrix
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_fill_wm_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, blk_p, col, i, nblks, &
+                                                row, timing_handle
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj)                          :: m
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
+    nblks = dbcsr_get_num_blocks (matrix)
+    m%m => matrix
+    CALL dbcsr_iterator_start (iter, m)
+    IF (dbg) WRITE(*,*)routineN//" There are",nblks,"blocks."
+    i = 1
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       IF (dbg) WRITE(*,*)routineN//" Getting block", i,"/",nblks
+       CALL dbcsr_iterator_next_block (iter, row, col, blk=blk, blk_p=blk_p)
+       IF (dbg) WRITE(*,*)routineN//" With coor", row, col, "at", blk_p
+       CALL add_work_coordinate (wm, row, col, blk_p)
+       i = i+1
+    ENDDO
+    CALL dbcsr_iterator_stop (iter)
+    !wm%data_area = matrix%data_area
+    !CALL dbcsr_data_hold (wm%data_area)
+    CALL dbcsr_data_ensure_size (wm%data_area,&
+         dbcsr_get_data_size (matrix%data_area))
+    CALL dbcsr_data_copyall (wm%data_area, matrix%data_area)
+    wm%datasize = dbcsr_get_data_size (wm%data_area)
+    IF (dbg) WRITE(*,*)routineN//" Size is",wm%datasize
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_fill_wm_from_matrix
 
 
 ! *****************************************************************************
@@ -876,6 +1015,9 @@ CONTAINS
     ! Somehow assign row & column block sizes.
     CALL dbcsr_work_create(matrix, error=error)
     ALLOCATE(blk_ps(nblkcols_local), stat=stat)
+    CALL ensure_array_size (matrix%wms(1)%row_i, ub=1)
+    CALL ensure_array_size (matrix%wms(1)%col_i, ub=1)
+    CALL ensure_array_size (matrix%wms(1)%blk_p, ub=1)
     IF (stat /= 0) CALL stop_memory(routineP, 'blk_ps', nblkcols_local+1)
     ! Figure out the maximum row & column block sizes
     m = MAXVAL(rbs)
@@ -1292,7 +1434,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp
-    TYPE(dbcsr_type), POINTER                :: matrix_p
+    TYPE(dbcsr_obj)                          :: m
     TYPE(distribution_2d_type), POINTER      :: dist2d
 
     DEBUG_HEADER
@@ -1493,9 +1635,8 @@ CONTAINS
     !DBG 'send disps meta',sm_disp
     !DBG 'recv disps data',rd_disp
     !DBG 'recv disps meta',rm_disp
-    matrix_p => matrix
-    CALL dbcsr_iterator_start (iter, matrix_p)
-    NULLIFY (matrix_p)
+    m%m => matrix
+    CALL dbcsr_iterator_start (iter, m)
     DO src_p = 0, numproc-1
        ! A pointer to the received data buffer to make things cleaner
        ! in the following inner loop.
@@ -2821,6 +2962,12 @@ CONTAINS
        matrix%index(slot+1) = matrix%index(slot) + space - 1
        matrix%index(dbcsr_slot_size) = matrix%index(slot+1)
     ENDIF
+    ! Shorten an index entry.
+    IF (space .LT. matrix%index(slot+1) - matrix%index(slot)+1) THEN
+       IF(dbg) WRITE(*,*)routineP//' Shortening index to ubound', ub_new
+       matrix%index(slot+1) = matrix%index(slot) + space -1
+       CALL dbcsr_repoint_index(matrix, slot, error)
+    ENDIF
     ub_new = matrix%index(slot+1) + deplus
     IF(dbg) WRITE(*,*)routineP//' need',space,'at',matrix%index(slot),&
          'to',matrix%index(slot+1),'(',ub_new,')','have',ub
@@ -2913,10 +3060,12 @@ CONTAINS
 !> \param[in] matrix          matrix
 !> \param[out] chksum         calculated checksum
 !> \param[in,out] error       cp2k error
+!> \param[in] local           (optional) no global communication
 ! *****************************************************************************
-  FUNCTION dbcsr_checksum(matrix, error) RESULT(checksum)
+  FUNCTION dbcsr_checksum(matrix, error, local) RESULT(checksum)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     TYPE(cp_error_type), INTENT(IN)          :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: local
     REAL(KIND=dp)                            :: checksum
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_checksum', &
@@ -2927,6 +3076,7 @@ CONTAINS
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: nocomm
     REAL(KIND=dp)                            :: blk_cs, local_cs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
@@ -2936,6 +3086,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
+    nocomm = .FALSE.
+    IF (PRESENT (local)) nocomm = local
     e = error
     row_blk_size => array_data (matrix%row_blk_size)
     col_blk_size => array_data (matrix%col_blk_size)
@@ -2977,9 +3129,11 @@ CONTAINS
        ENDDO
     ENDDO
     DBG 'local chksum=',local_cs
-    CALL mp_sum(local_cs, dbcsr_mp_group (dbcsr_distribution_mp (matrix%dist)))
-    checksum = local_cs
-    DBGI 'local chksum=',local_cs,'global=',checksum
+    IF (.NOT. nocomm) THEN
+       CALL mp_sum(local_cs, dbcsr_mp_group (dbcsr_distribution_mp (matrix%dist)))
+       checksum = local_cs
+       DBGI 'local chksum=',local_cs,'global=',checksum
+    ENDIF
     CALL timestop(timing_handle)
   END FUNCTION dbcsr_checksum
 
@@ -3036,26 +3190,29 @@ CONTAINS
              CASE ('R')
                 blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
                      &               r_dp(blk_p:blk_p+mn-1))
-                CALL &
-                     dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                !CALL &
+                !     dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
              CASE ('r')
                 blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
                      &               r_sp(blk_p:blk_p+mn-1))
-                CALL &
-                     dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                !CALL &
+                !     dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
              CASE ('C')
                 blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
                      &               c_dp(blk_p:blk_p+mn-1))
-                CALL &
-                     dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                !CALL &
+                !     dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
              CASE ('c')
                 blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
                      &               c_sp(blk_p:blk_p+mn-1))
-                CALL &
-                     dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                !CALL &
+                !     dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
              END SELECT
-             WRITE(*,*)routineP//' chksum for (',br,',',bc,') at',&
-                  blk_p,'l',mn,'= ', blk_cs
+             !WRITE(*,*)routineP//' chksum for (',br,',',bc,') at',&
+             !     blk_p,'l',mn,'= ', blk_cs,'size',m,n
+             WRITE(*,'(A,I6,",",I6,A,I7,A,I6,I6,"=",I7,A,E12.3)')&
+                  " Checksum for (",br,bc,") at ",blk_p," size ",m,n,mn,&
+                  " checksum=",blk_cs
              SELECT CASE (matrix%data_type)
              CASE ('R')
                 CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
@@ -3082,11 +3239,13 @@ CONTAINS
 !>                          end if matrix not consistent; 2=also individual
 !>                          errors; 3=always print info about matrix; >3=even
 !>                          more info
+!> \param[in] local         (optional) no global communication
 ! *****************************************************************************
-  SUBROUTINE dbcsr_verify_matrix(m, error, verbosity)
+  SUBROUTINE dbcsr_verify_matrix(m, error, verbosity, local)
     TYPE(dbcsr_type), INTENT(IN)             :: m
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER, INTENT(IN), OPTIONAL            :: verbosity
+    LOGICAL, INTENT(IN), OPTIONAL            :: local
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_verify_matrix', &
       r = moduleN//':'//routineN
@@ -3094,11 +3253,14 @@ CONTAINS
     INTEGER :: bc, blk, blk_p, br, dbg, i, mb, mn, n, n_full_blocks_total, &
       n_have_blocks_local, n_have_blocks_total, prev_br, timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: nocomm
     REAL(KIND=dp)                            :: sparsity_total
 
 !   ---------------------------------------------------------------------------
 
     dbg = 2
+    nocomm = .FALSE.
+    IF (PRESENT (local)) nocomm = local
     IF (PRESENT (verbosity)) dbg = verbosity
     CALL timeset(routineN, timing_handle)
     IF (dbg.GE.3) WRITE(*,'(1X,A,A,A,A)')r//'Matrix name: ', m%name,&
@@ -3158,41 +3320,6 @@ CONTAINS
     CALL bcsr_assert(dbg,SIZE(m%col_i).EQ.m%nblks, r,&
          'Size of blk_p inconsistent with number of blocks')
     !
-!    IF(dbg) WRITE(*,*)r//' row_blk_begin',m%index(dbcsr_slot_row_blk_begin+1),&
-!         m%index(dbcsr_slot_row_blk_begin), SIZE(m%row_blk_begin)
-!    CALL bcsr_assert(dbg,m%index(dbcsr_slot_row_blk_begin+1)-&
-!         m%index(dbcsr_slot_row_blk_begin)+1&
-!         .EQ.m%nblkrows_total, r,&
-!         'Size of row_blk_begin index inconsistent with number of rows')
-!    CALL bcsr_assert(dbg,SIZE(m%row_blk_begin).EQ.m%nblkrows_total, r,&
-!         'Size of row_blk_begin inconsistent with number of rows')
-!    !
-!    IF(dbg) WRITE(*,*)r//' row_blk_end',m%index(dbcsr_slot_row_blk_end+1),&
-!         m%index(dbcsr_slot_row_blk_end), SIZE(m%row_blk_end)
-!    CALL bcsr_assert(dbg,m%index(dbcsr_slot_row_blk_end+1)-&
-!         m%index(dbcsr_slot_row_blk_end)+1&
-!         .EQ.m%nblkrows_total, r,&
-!         'Size of row_blk_end index inconsistent with number of rows')
-!    CALL bcsr_assert(dbg,SIZE(m%row_blk_end).EQ.m%nblkrows_total, r,&
-!         'Size of row_blk_end inconsistent with number of rows')
-!    !
-!    IF(dbg) WRITE(*,*)r//' col_blk_begin',m%index(dbcsr_slot_col_blk_begin+1),&
-!         m%index(dbcsr_slot_col_blk_begin), SIZE(m%col_blk_begin)
-!    CALL bcsr_assert(dbg,m%index(dbcsr_slot_col_blk_begin+1)-&
-!         m%index(dbcsr_slot_col_blk_begin)+1&
-!         .EQ.m%nblkcols_total, r,&
-!         'Size of col_blk_begin index inconsistent with number of rows')
-!    CALL bcsr_assert(dbg,SIZE(m%col_blk_begin).EQ.m%nblkcols_total, r,&
-!         'Size of col_blk_begin inconsistent with number of columns')
-!    !
-!    IF(dbg) WRITE(*,*)r//' col_blk_end',m%index(dbcsr_slot_col_blk_end+1),&
-!         m%index(dbcsr_slot_col_blk_end), SIZE(m%col_blk_end)
-!    CALL bcsr_assert(dbg,m%index(dbcsr_slot_col_blk_end+1)-&
-!         m%index(dbcsr_slot_col_blk_end)+1&
-!         .EQ.m%nblkcols_total, r,&
-!         'Size of col_blk_end index inconsistent with number of columns')
-!    CALL bcsr_assert(dbg,SIZE(m%col_blk_end).EQ.m%nblkcols_total, r,&
-!         'Size of col_blk_end inconsistent with number of columns')
     CALL bcsr_assert(dbg,SIZE(row_blk_size).EQ.m%nblkrows_total, r,&
          'Row block size array inconsistent with number of blocked rows')
     CALL bcsr_assert(dbg,SIZE(col_blk_size).EQ.m%nblkcols_total, r,&
@@ -3238,7 +3365,7 @@ CONTAINS
        ENDDO
        prev_br = br
     ENDDO
-    IF (dbg.GE.3) THEN
+    IF (dbg.GE.3.AND..NOT.nocomm) THEN
        CALL mp_sum(n_have_blocks_local, dbcsr_mp_group (dbcsr_distribution_mp (&
             m%dist)))
        n_have_blocks_total = n_have_blocks_local
@@ -3683,28 +3810,36 @@ CONTAINS
     prev_row = 1
     DO WHILE (.NOT. ALL (finished))
        ! Find the (still-valid) source block that has the smallest column in
-       ! the smallest row.
+       ! the smallest row. Start with any valid source block.
        smallest = MINLOC (wm_blk_p, 1, .NOT.finished)
        smallest_row = matrix%wms(smallest)%row_i(wm_blk_p(smallest))
        smallest_col = matrix%wms(smallest)%col_i(wm_blk_p(smallest))
-       DO i = 2, nwms
+       DO i = 1, nwms
           IF (.NOT. finished(i)) THEN
              IF (matrix%wms(i)%row_i(wm_blk_p(i)) .LE. smallest_row) THEN
-                IF (matrix%wms(i)%col_i(wm_blk_p(i)) .LT. smallest_col) THEN
+                IF (matrix%wms(i)%row_i(wm_blk_p(i)) .LT. smallest_row) THEN
+                   smallest_row = matrix%wms(i)%row_i(wm_blk_p(i))
+                   smallest_col = matrix%wms(i)%col_i(wm_blk_p(i))
                    smallest = i
+                ELSE
+                   IF (matrix%wms(i)%col_i(wm_blk_p(i)) .LT. smallest_col) THEN
+                      smallest_col = matrix%wms(i)%col_i(wm_blk_p(i))
+                      smallest = i
+                   ENDIF
                 ENDIF
              ENDIF
           ENDIF
        ENDDO
        matrix%col_i(blk) = smallest_col
        o_blk_p = matrix%wms(smallest)%blk_p(wm_blk_p(smallest))
+       nze = rbs(smallest_row) * cbs(smallest_col)
        IF (dbg) THEN
-          WRITE(*,'(A,"(",I5,",",I5,") at ",I7,1X,A,I5,1X,I7)')&
+          WRITE(*,'(A,"(",I5,",",I5,") at ",I7,1X,A,I5,1X,I7,1X,A,1X,I7)')&
                routineN//" Adding",&
-               smallest_row, smallest_col, blk_p, "from",smallest, o_blk_p
+               smallest_row, smallest_col, blk_p, "from",smallest, o_blk_p,&
+               "size", nze
        END IF
        matrix%blk_p(blk) = SIGN (blk_p, o_blk_p)
-       nze = rbs(smallest_row) * cbs(smallest_col)
        CALL dbcsr_data_set (matrix%data_area, ABS(blk_p), nze,&
             matrix%wms(smallest)%data_area, ABS(o_blk_p))
        IF (smallest_row .GT. prev_row) THEN
@@ -3718,8 +3853,8 @@ CONTAINS
        finished(smallest) = wm_blk_p(smallest) .GT. matrix%wms(smallest)%lastblk
     ENDDO
     matrix%row_p(smallest_row+1:matrix%nblkrows_total+1) = blk-1
-    CALL cp_assert (blk_p-1 .EQ. matrix%nze, cp_warning_level,&
-         cp_internal_error, routineN, "Data length mismatch.")
+    !CALL cp_assert (blk_p-1 .EQ. matrix%nze, cp_warning_level,&
+    !     cp_internal_error, routineN, "Data length mismatch.")
     IF (dbg) WRITE(*,*)routineP//'row_p=',matrix%row_p(:)
     IF (dbg) WRITE(*,*)routineP//'col_i=',matrix%col_i(:)
     IF (dbg) WRITE(*,*)routineP//'blk_p=',matrix%blk_p(:)
@@ -5186,7 +5321,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: row, col
     INTEGER, INTENT(IN), OPTIONAL            :: blk
     INTEGER, INTENT(OUT), OPTIONAL           :: index
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_work_coordinate', &
       routineP = moduleN//':'//routineN
@@ -5197,12 +5333,12 @@ CONTAINS
     dbg = .FALSE.
     !CALL timeset(routineN, timing_handle)
     matrix%lastblk = matrix%lastblk+1
-    CALL ensure_array_size(matrix%row_i, ub=matrix%lastblk, error=error)
-    CALL ensure_array_size(matrix%col_i, ub=matrix%lastblk, error=error)
+    CALL ensure_array_size(matrix%row_i, ub=matrix%lastblk)
+    CALL ensure_array_size(matrix%col_i, ub=matrix%lastblk)
     matrix%row_i(matrix%lastblk) = row
     matrix%col_i(matrix%lastblk) = col
     IF (PRESENT(blk)) THEN
-       CALL ensure_array_size(matrix%blk_p, ub=matrix%lastblk, error=error)
+       CALL ensure_array_size(matrix%blk_p, ub=matrix%lastblk)
        matrix%blk_p(matrix%lastblk) = blk
     ENDIF
     IF(dbg.AND.PRESENT(blk))&
