@@ -425,7 +425,7 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: error_msg
-    CHARACTER(LEN=default_path_length)       :: char_val, filename
+    CHARACTER(LEN=default_path_length)       :: char_val
     INTEGER :: co_counter, handle, i, i_thread, iatom, ikind, int_val, ipgf, &
       irep, iset, j, jkind, k, la, max_am, max_cart_coeff, max_nsgfl, &
       max_pgf, max_set, max_sph_coeff, n_rep_hf, n_threads, natom_a, natom_b, &
@@ -434,8 +434,7 @@ MODULE hfx_types
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of, la_max, &
                                                 la_min, npgfa, nsgfa, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
-    LOGICAL                                  :: do_periodic, exist, failure, &
-                                                logic_val
+    LOGICAL                                  :: exist, failure, logic_val
     REAL(dp)                                 :: omega, real_val
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
     TYPE(atomic_kind_type), POINTER          :: atom_kind
