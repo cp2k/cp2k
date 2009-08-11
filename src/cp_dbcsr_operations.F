@@ -34,7 +34,7 @@ MODULE cp_dbcsr_operations
        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
        dbcsr_nfullrows_local, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: &
-       block_set_d, dbcsr_add, dbcsr_copy, dbcsr_find_column, &
+       block_set_d, dbcsr_add, dbcsr_copy, dbcsr_filter, dbcsr_find_column, &
        dbcsr_mult_e_ec_m, dbcsr_put_block, dbcsr_remove_block, dbcsr_scale, &
        dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
@@ -50,7 +50,7 @@ MODULE cp_dbcsr_operations
        dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_finalize, &
        dbcsr_from_fm, dbcsr_from_sm, dbcsr_init, dbcsr_make_col_images, &
        dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix, &
-       sm_from_dbcsr, dbcsr_print
+       sm_from_dbcsr
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
@@ -297,6 +297,15 @@ CONTAINS
     checksum = dbcsr_checksum(matrix_a2, error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR copy and add: 2*S-2*S  checksum", checksum
+    ENDIF
+    CALL dbcsr_destroy(matrix_a2,error)
+    !
+    ! filter
+    CALL dbcsr_copy(matrix_a2,matrix_a,error=error)
+    CALL dbcsr_filter(matrix_a2,1.0_dp,error=error)
+    checksum = dbcsr_checksum(matrix_a2, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR filter(S,1.0)  checksum", checksum
     ENDIF
     CALL dbcsr_destroy(matrix_a2,error)
 

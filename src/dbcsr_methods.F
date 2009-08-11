@@ -1672,8 +1672,7 @@ CONTAINS
           csize = iterator%cbs(column)
           nze = rsize * csize
           rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
-          iterator%buffer_r_dp =&
-               RESHAPE (rbp(blk_p:blk_p+nze-1), (/rsize, csize/))
+          iterator%buffer_r_dp(1:rsize,1:csize) = RESHAPE (rbp(blk_p:blk_p+nze-1), (/rsize, csize/))
           block => iterator%buffer_r_dp(1:rsize, 1:csize)
        ENDIF
        IF (PRESENT (block_number)) block_number = iterator%pos
