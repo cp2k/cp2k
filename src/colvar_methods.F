@@ -2363,44 +2363,44 @@ CPSourceFileRef)
              func_ij=num_ij*invden_ij
              dfunc_ij= (- p_a*rdist_ij **(p_a-1) *invden_ij  &
                   + num_ij*(invden_ij)**2 * q_a *rdist_ij **(q_a-1))/(rij*r_0_a)
-             IF(n_atoms_to_b /=0) THEN
-                func_k = 0.0_dp
-                DO kk = 1,n_atoms_to_b
-                   k=colvar%coord_param%i_at_to_b(kk)
-                   CALL get_coordinates(colvar, k, xpk, my_particles)       
-                   ss=MATMUL(cell%h_inv,xpj(:)-xpk(:))
-                   ss=ss-NINT(ss)
-                   xjk=MATMUL(cell%hmat,ss)
-                   rjk=SQRT(xjk(1)**2+xjk(2)**2+xjk(3)**2)
-                   rdist_jk = rjk/r_0_b
-                   IF(ABS(1.0_dp-rdist_jk) > EPSILON(0.0_dp)*1.0E+4_dp) THEN
-                      num_jk=(1.0_dp-rdist_jk**p_b)
-                      invden_jk=1.0_dp/(1.0_dp-rdist_jk**q_b)
-                      func_jk=num_jk*invden_jk
-                      dfunc_jk= (- p_b*rdist_jk **(p_b-1) *invden_jk  &
-                           + num_jk*(invden_jk)**2 * q_b *rdist_jk **(q_b-1))/(rjk*r_0_b)
-                   ELSE
-                      ! Provide the correct limit for function value and derivative
-                      func_jk  = REAL(p_b,KIND=dp)/REAL(q_b,KIND=dp)
-                      dfunc_jk = REAL(p_b,KIND=dp)*REAL((-q_b+p_b),KIND=dp)/(REAL(2*q_b,KIND=dp)*r_0_b)
-                   ENDIF
-                   func_k = func_k + func_jk
-                   ftmp_k = - func_ij * dfunc_jk * xjk
-                   CALL put_derivative(colvar, n_atoms_from+n_atoms_to_a+kk, ftmp_k)
-
-                   ftmp_j = - dfunc_ij * xij * func_jk + func_ij * dfunc_jk * xjk
-                   CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
-                END DO
-             ELSE
-                func_k = 1.0_dp
-                dfunc_jk = 0.0_dp
-                ftmp_j = -dfunc_ij*xij
-                CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
-             END IF
           ELSE
              ! Provide the correct limit for function value and derivative
              func_ij  = REAL(p_a,KIND=dp)/REAL(q_a,KIND=dp)
              dfunc_ij = REAL(p_a,KIND=dp)*REAL((-q_a+p_a),KIND=dp)/(REAL(2*q_a,KIND=dp)*r_0_a)
+          END IF
+          IF(n_atoms_to_b /=0) THEN
+             func_k = 0.0_dp
+             DO kk = 1,n_atoms_to_b
+                k=colvar%coord_param%i_at_to_b(kk)
+                CALL get_coordinates(colvar, k, xpk, my_particles)       
+                ss=MATMUL(cell%h_inv,xpj(:)-xpk(:))
+                ss=ss-NINT(ss)
+                xjk=MATMUL(cell%hmat,ss)
+                rjk=SQRT(xjk(1)**2+xjk(2)**2+xjk(3)**2)
+                rdist_jk = rjk/r_0_b
+                IF(ABS(1.0_dp-rdist_jk) > EPSILON(0.0_dp)*1.0E+4_dp) THEN
+                   num_jk=(1.0_dp-rdist_jk**p_b)
+                   invden_jk=1.0_dp/(1.0_dp-rdist_jk**q_b)
+                   func_jk=num_jk*invden_jk
+                   dfunc_jk= (- p_b*rdist_jk **(p_b-1) *invden_jk  &
+                        + num_jk*(invden_jk)**2 * q_b *rdist_jk **(q_b-1))/(rjk*r_0_b)
+                ELSE
+                   ! Provide the correct limit for function value and derivative
+                   func_jk  = REAL(p_b,KIND=dp)/REAL(q_b,KIND=dp)
+                   dfunc_jk = REAL(p_b,KIND=dp)*REAL((-q_b+p_b),KIND=dp)/(REAL(2*q_b,KIND=dp)*r_0_b)
+                ENDIF
+                func_k = func_k + func_jk
+                ftmp_k = - func_ij * dfunc_jk * xjk
+                CALL put_derivative(colvar, n_atoms_from+n_atoms_to_a+kk, ftmp_k)
+
+                ftmp_j = - dfunc_ij * xij * func_jk + func_ij * dfunc_jk * xjk
+                CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
+             END DO
+          ELSE
+             func_k = 1.0_dp
+             dfunc_jk = 0.0_dp
+             ftmp_j = -dfunc_ij*xij
+             CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
           END IF
           ncoord=ncoord+func_ij*func_k
           ftmp_i = dfunc_ij*xij*func_k
