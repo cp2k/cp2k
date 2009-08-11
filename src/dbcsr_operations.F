@@ -3406,6 +3406,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     !
     ! the row_p, col_i and blk_p ...
     CALL dbcsr_repoint_index(matrix_b%m, error=error)
+    matrix_b%m%nze = matrix_a%m%nze
+    matrix_b%m%nblks = matrix_b%m%nblks
+    matrix_b%m%valid = .TRUE.
 
     CALL timestop(timing_handle)
 
