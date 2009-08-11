@@ -1,0 +1,5 @@
+
+            imax=nsoa*nsob*nsoc
+            jmax=nsod
+            kmax=ncod
+            i = 0

@@ -1,0 +1,5 @@
+
+            buffer2 = 0.0_dp
+            imax=nsoa*ncoc*ncod
+            jmax=nsob
+            kmax=ncob

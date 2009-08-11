@@ -1,0 +1,7 @@
+DO j=1,jmax
+  DO i=1,imax
+    DO k=1,kmax
+      buffer2(i+imax*(j-1)) = buffer2(i+imax*(j-1)) + buffer1(k+(i-1)*kmax) * sphi_b(k,j+s_offset_b1)
+    ENDDO
+  ENDDO
+ENDDO

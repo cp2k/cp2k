@@ -1,0 +1,32 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2009  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief Contains routines for contraction without dgemms. PLEASE DO NOT MODIFY.
+!> \par History
+!>      07.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+MODULE hfx_contraction_methods
+
+!** This defines the default behaviour
+#ifndef __MAX_CONTR
+#define __MAX_CONTR 2
+#endif
+
+  USE kinds,                           ONLY: dp
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+
+  PRIVATE
+  PUBLIC contract
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_contraction_methods'
+
+
+  CONTAINS
+

@@ -1,0 +1,10 @@
+            s_offset_d1 = s_offset_d1 + nsod
+          END DO
+          s_offset_c1 = s_offset_c1 + nsoc
+        END DO
+        s_offset_b1 = s_offset_b1 + nsob
+      END DO
+      s_offset_a1 = s_offset_a1 + nsoa
+    END DO
+
+  END SUBROUTINE contract_generic

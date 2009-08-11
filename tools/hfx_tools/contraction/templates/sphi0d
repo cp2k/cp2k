@@ -1,0 +1,4 @@
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1) =&
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1) &
++ buffer1(1+(i-1)*kmax) * sphi_d(1,1+s_offset_d1)
+

@@ -1,0 +1,15 @@
+DO j=1,jmax
+  i = 0
+  DO i1=1,nsoc
+  DO i2=1,nsob
+  DO i3=1,nsoa
+  i = i + 1
+    DO k=1,kmax
+      primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+j) =&
+      primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+j) &
+      + buffer1(k+(i-1)*kmax) * sphi_d(k,j+s_offset_d1)
+    ENDDO
+  ENDDO
+  ENDDO
+  ENDDO
+ENDDO

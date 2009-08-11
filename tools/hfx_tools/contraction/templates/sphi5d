@@ -1,0 +1,138 @@
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )+ &
+ buffer1(           1 +(i-1)*kmax) * sphi_d(           1 ,           7 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )+ &
+ buffer1(           1 +(i-1)*kmax) * sphi_d(           1 ,           9 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          11 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          11 )+ &
+ buffer1(           1 +(i-1)*kmax) * sphi_d(           1 ,          11 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           1 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           1 )+ &
+ buffer1(           2 +(i-1)*kmax) * sphi_d(           2 ,           1 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )+ &
+ buffer1(           2 +(i-1)*kmax) * sphi_d(           2 ,           3 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )+ &
+ buffer1(           2 +(i-1)*kmax) * sphi_d(           2 ,           5 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )+ &
+ buffer1(           3 +(i-1)*kmax) * sphi_d(           3 ,           6 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           8 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           8 )+ &
+ buffer1(           3 +(i-1)*kmax) * sphi_d(           3 ,           8 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          10 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          10 )+ &
+ buffer1(           3 +(i-1)*kmax) * sphi_d(           3 ,          10 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )+ &
+ buffer1(           4 +(i-1)*kmax) * sphi_d(           4 ,           7 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )+ &
+ buffer1(           4 +(i-1)*kmax) * sphi_d(           4 ,           9 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          11 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          11 )+ &
+ buffer1(           4 +(i-1)*kmax) * sphi_d(           4 ,          11 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           2 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           2 )+ &
+ buffer1(           5 +(i-1)*kmax) * sphi_d(           5 ,           2 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           4 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           4 )+ &
+ buffer1(           5 +(i-1)*kmax) * sphi_d(           5 ,           4 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )+ &
+ buffer1(           6 +(i-1)*kmax) * sphi_d(           6 ,           7 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )+ &
+ buffer1(           6 +(i-1)*kmax) * sphi_d(           6 ,           9 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           1 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           1 )+ &
+ buffer1(           7 +(i-1)*kmax) * sphi_d(           7 ,           1 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )+ &
+ buffer1(           7 +(i-1)*kmax) * sphi_d(           7 ,           3 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )+ &
+ buffer1(           7 +(i-1)*kmax) * sphi_d(           7 ,           5 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )+ &
+ buffer1(           8 +(i-1)*kmax) * sphi_d(           8 ,           6 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          10 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          10 )+ &
+ buffer1(           8 +(i-1)*kmax) * sphi_d(           8 ,          10 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )+ &
+ buffer1(           9 +(i-1)*kmax) * sphi_d(           9 ,           3 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )+ &
+ buffer1(           9 +(i-1)*kmax) * sphi_d(           9 ,           5 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )+ &
+ buffer1(          10 +(i-1)*kmax) * sphi_d(          10 ,           6 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           8 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           8 )+ &
+ buffer1(          10 +(i-1)*kmax) * sphi_d(          10 ,           8 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )+ &
+ buffer1(          11 +(i-1)*kmax) * sphi_d(          11 ,           7 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )+ &
+ buffer1(          11 +(i-1)*kmax) * sphi_d(          11 ,           9 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          11 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          11 )+ &
+ buffer1(          11 +(i-1)*kmax) * sphi_d(          11 ,          11 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           2 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           2 )+ &
+ buffer1(          12 +(i-1)*kmax) * sphi_d(          12 ,           2 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           4 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           4 )+ &
+ buffer1(          12 +(i-1)*kmax) * sphi_d(          12 ,           4 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )+ &
+ buffer1(          13 +(i-1)*kmax) * sphi_d(          13 ,           7 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           9 )+ &
+ buffer1(          13 +(i-1)*kmax) * sphi_d(          13 ,           9 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           4 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           4 )+ &
+ buffer1(          14 +(i-1)*kmax) * sphi_d(          14 ,           4 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           7 )+ &
+ buffer1(          15 +(i-1)*kmax) * sphi_d(          15 ,           7 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           1 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           1 )+ &
+ buffer1(          16 +(i-1)*kmax) * sphi_d(          16 ,           1 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )+ &
+ buffer1(          16 +(i-1)*kmax) * sphi_d(          16 ,           3 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )+ &
+ buffer1(          16 +(i-1)*kmax) * sphi_d(          16 ,           5 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )+ &
+ buffer1(          17 +(i-1)*kmax) * sphi_d(          17 ,           6 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           8 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           8 )+ &
+ buffer1(          17 +(i-1)*kmax) * sphi_d(          17 ,           8 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          10 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+          10 )+ &
+ buffer1(          17 +(i-1)*kmax) * sphi_d(          17 ,          10 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           3 )+ &
+ buffer1(          18 +(i-1)*kmax) * sphi_d(          18 ,           3 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )+ &
+ buffer1(          18 +(i-1)*kmax) * sphi_d(          18 ,           5 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )+ &
+ buffer1(          19 +(i-1)*kmax) * sphi_d(          19 ,           6 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           8 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           8 )+ &
+ buffer1(          19 +(i-1)*kmax) * sphi_d(          19 ,           8 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           5 )+ &
+ buffer1(          20 +(i-1)*kmax) * sphi_d(          20 ,           5 +s_offset_d1)
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )= &
+ primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+           6 )+ &
+ buffer1(          21 +(i-1)*kmax) * sphi_d(          21 ,           6 +s_offset_d1)

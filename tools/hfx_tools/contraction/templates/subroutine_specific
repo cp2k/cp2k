@@ -1,0 +1,76 @@
+if __MAX_CONTR > CURRENT_MAX || __MAX_CONTR == CURRENT_MAX
+  SUBROUTINE  contract_angmom1angmom2angmom3angmom4(work, &
+                            nl_a, nl_b, nl_c, nl_d,&
+                            sphi_a, sphi_b, sphi_c, sphi_d,&
+                            primitives,&
+                            buffer1,buffer2)
+
+    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)), INTENT(IN)   :: work
+    INTEGER                                       :: nl_a, nl_b, nl_c, nl_d
+    REAL(dp), DIMENSION(nco(n_a),nso(n_a)*nl_a), INTENT(IN)   :: sphi_a
+    REAL(dp), DIMENSION(nco(n_b),nso(n_b)*nl_b), INTENT(IN)   :: sphi_b
+    REAL(dp), DIMENSION(nco(n_c),nso(n_c)*nl_c), INTENT(IN)   :: sphi_c
+    REAL(dp), DIMENSION(nco(n_d),nso(n_d)*nl_d), INTENT(IN)   :: sphi_d
+
+    REAL(dp), DIMENSION(nso(n_a)*nl_a, nso(n_b)*nl_b,nso(n_c)*nl_c,nso(n_d)*nl_d) :: primitives
+    REAL(dp), DIMENSION(nco(n_a)* nco(n_b)*nco(n_c)*nco(n_d)) :: buffer1, buffer2
+    INTEGER :: imax,jmax,kmax, ia, ib, ic, id, s_offset_a1, s_offset_b1, s_offset_c1, s_offset_d1,&
+              i1 ,i2, i3, i, j, k
+
+
+    s_offset_a1 = 0
+    DO ia = 1,nl_a
+      s_offset_b1 = 0
+      DO ib = 1,nl_b
+        s_offset_c1 = 0
+        DO ic = 1,nl_c
+          s_offset_d1 = 0
+          DO id = 1,nl_d
+
+            buffer1 = 0.0_dp
+            imax=nco(n_b)*nco(n_c)*nco(n_d)
+            jmax=nso(n_a)
+            kmax=nco(n_a)
+            DO i=1,imax
+#include "INCLUDEA"
+            ENDDO
+
+            buffer2 = 0.0_dp
+            imax=nso(n_a)*nco(n_c)*nco(n_d)
+            jmax=nso(n_b)
+            kmax=nco(n_b)
+            DO i=1,imax
+#include "INCLUDEB"
+            ENDDO
+
+            buffer1 = 0.0_dp
+            imax=nso(n_a)*nso(n_b)*nco(n_d)
+            jmax=nso(n_c)
+            kmax=nco(n_c)
+            DO i=1,imax
+#include "INCLUDEC"
+            ENDDO
+
+            imax=nso(n_a)*nso(n_b)*nso(n_c)
+            jmax=nso(n_d)
+            kmax=nco(n_d)
+            i = 0
+            DO i1=1,nso(n_c)
+            DO i2=1,nso(n_b)
+            DO i3=1,nso(n_a)
+              i = i + 1
+#include "INCLUDED"
+            ENDDO
+            ENDDO
+            ENDDO
+            s_offset_d1 = s_offset_d1 + nso(n_d)
+          END DO
+          s_offset_c1 = s_offset_c1 + nso(n_c)
+        END DO
+        s_offset_b1 = s_offset_b1 + nso(n_b)
+      END DO
+      s_offset_a1 = s_offset_a1 + nso(n_a)
+    END DO
+
+  END SUBROUTINE contract_angmom1angmom2angmom3angmom4
+endif

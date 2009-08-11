@@ -1,0 +1,738 @@
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(1+(i-1)*kmax) * sphi_d(1,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(1+(i-1)*kmax) * sphi_d(1,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(1+(i-1)*kmax) * sphi_d(1,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(1+(i-1)*kmax) * sphi_d(1,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(1+(i-1)*kmax) * sphi_d(1,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)+ &
+buffer1(1+(i-1)*kmax) * sphi_d(1,21+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)+ &
+buffer1(2+(i-1)*kmax) * sphi_d(2,1+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)+ &
+buffer1(2+(i-1)*kmax) * sphi_d(2,3+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(2+(i-1)*kmax) * sphi_d(2,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(2+(i-1)*kmax) * sphi_d(2,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(2+(i-1)*kmax) * sphi_d(2,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(3+(i-1)*kmax) * sphi_d(3,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(3+(i-1)*kmax) * sphi_d(3,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(3+(i-1)*kmax) * sphi_d(3,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)+ &
+buffer1(3+(i-1)*kmax) * sphi_d(3,18+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)+ &
+buffer1(3+(i-1)*kmax) * sphi_d(3,20+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(4+(i-1)*kmax) * sphi_d(4,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(4+(i-1)*kmax) * sphi_d(4,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(4+(i-1)*kmax) * sphi_d(4,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(4+(i-1)*kmax) * sphi_d(4,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(4+(i-1)*kmax) * sphi_d(4,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)+ &
+buffer1(4+(i-1)*kmax) * sphi_d(4,21+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)+ &
+buffer1(5+(i-1)*kmax) * sphi_d(5,2+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)+ &
+buffer1(5+(i-1)*kmax) * sphi_d(5,4+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(5+(i-1)*kmax) * sphi_d(5,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(5+(i-1)*kmax) * sphi_d(5,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(5+(i-1)*kmax) * sphi_d(5,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(6+(i-1)*kmax) * sphi_d(6,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(6+(i-1)*kmax) * sphi_d(6,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(6+(i-1)*kmax) * sphi_d(6,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(6+(i-1)*kmax) * sphi_d(6,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(6+(i-1)*kmax) * sphi_d(6,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)+ &
+buffer1(7+(i-1)*kmax) * sphi_d(7,1+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)+ &
+buffer1(7+(i-1)*kmax) * sphi_d(7,3+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(7+(i-1)*kmax) * sphi_d(7,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(7+(i-1)*kmax) * sphi_d(7,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(7+(i-1)*kmax) * sphi_d(7,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(8+(i-1)*kmax) * sphi_d(8,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(8+(i-1)*kmax) * sphi_d(8,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)+ &
+buffer1(8+(i-1)*kmax) * sphi_d(8,18+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)+ &
+buffer1(8+(i-1)*kmax) * sphi_d(8,20+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)+ &
+buffer1(9+(i-1)*kmax) * sphi_d(9,3+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(9+(i-1)*kmax) * sphi_d(9,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(9+(i-1)*kmax) * sphi_d(9,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(9+(i-1)*kmax) * sphi_d(9,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(10+(i-1)*kmax) * sphi_d(10,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(10+(i-1)*kmax) * sphi_d(10,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(10+(i-1)*kmax) * sphi_d(10,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)+ &
+buffer1(10+(i-1)*kmax) * sphi_d(10,18+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(11+(i-1)*kmax) * sphi_d(11,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(11+(i-1)*kmax) * sphi_d(11,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(11+(i-1)*kmax) * sphi_d(11,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(11+(i-1)*kmax) * sphi_d(11,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(11+(i-1)*kmax) * sphi_d(11,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)+ &
+buffer1(11+(i-1)*kmax) * sphi_d(11,21+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)+ &
+buffer1(12+(i-1)*kmax) * sphi_d(12,2+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)+ &
+buffer1(12+(i-1)*kmax) * sphi_d(12,4+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(12+(i-1)*kmax) * sphi_d(12,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(12+(i-1)*kmax) * sphi_d(12,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(13+(i-1)*kmax) * sphi_d(13,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(13+(i-1)*kmax) * sphi_d(13,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(13+(i-1)*kmax) * sphi_d(13,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(13+(i-1)*kmax) * sphi_d(13,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(13+(i-1)*kmax) * sphi_d(13,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)+ &
+buffer1(14+(i-1)*kmax) * sphi_d(14,4+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(14+(i-1)*kmax) * sphi_d(14,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(14+(i-1)*kmax) * sphi_d(14,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(14+(i-1)*kmax) * sphi_d(14,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(15+(i-1)*kmax) * sphi_d(15,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(15+(i-1)*kmax) * sphi_d(15,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(15+(i-1)*kmax) * sphi_d(15,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(15+(i-1)*kmax) * sphi_d(15,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)+ &
+buffer1(16+(i-1)*kmax) * sphi_d(16,1+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(16+(i-1)*kmax) * sphi_d(16,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(16+(i-1)*kmax) * sphi_d(16,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(17+(i-1)*kmax) * sphi_d(17,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(17+(i-1)*kmax) * sphi_d(17,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(17+(i-1)*kmax) * sphi_d(17,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)+ &
+buffer1(17+(i-1)*kmax) * sphi_d(17,18+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)+ &
+buffer1(17+(i-1)*kmax) * sphi_d(17,20+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)+ &
+buffer1(18+(i-1)*kmax) * sphi_d(18,3+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(18+(i-1)*kmax) * sphi_d(18,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(18+(i-1)*kmax) * sphi_d(18,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(18+(i-1)*kmax) * sphi_d(18,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(19+(i-1)*kmax) * sphi_d(19,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(19+(i-1)*kmax) * sphi_d(19,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(19+(i-1)*kmax) * sphi_d(19,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)+ &
+buffer1(19+(i-1)*kmax) * sphi_d(19,18+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(20+(i-1)*kmax) * sphi_d(20,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(20+(i-1)*kmax) * sphi_d(20,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(20+(i-1)*kmax) * sphi_d(20,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(21+(i-1)*kmax) * sphi_d(21,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(21+(i-1)*kmax) * sphi_d(21,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(21+(i-1)*kmax) * sphi_d(21,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(22+(i-1)*kmax) * sphi_d(22,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(22+(i-1)*kmax) * sphi_d(22,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(22+(i-1)*kmax) * sphi_d(22,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(22+(i-1)*kmax) * sphi_d(22,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(22+(i-1)*kmax) * sphi_d(22,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)+ &
+buffer1(22+(i-1)*kmax) * sphi_d(22,21+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)+ &
+buffer1(23+(i-1)*kmax) * sphi_d(23,2+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)+ &
+buffer1(23+(i-1)*kmax) * sphi_d(23,4+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(23+(i-1)*kmax) * sphi_d(23,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(23+(i-1)*kmax) * sphi_d(23,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(23+(i-1)*kmax) * sphi_d(23,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(24+(i-1)*kmax) * sphi_d(24,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(24+(i-1)*kmax) * sphi_d(24,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(24+(i-1)*kmax) * sphi_d(24,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)+ &
+buffer1(25+(i-1)*kmax) * sphi_d(25,4+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(25+(i-1)*kmax) * sphi_d(25,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(25+(i-1)*kmax) * sphi_d(25,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(25+(i-1)*kmax) * sphi_d(25,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(26+(i-1)*kmax) * sphi_d(26,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(26+(i-1)*kmax) * sphi_d(26,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(26+(i-1)*kmax) * sphi_d(26,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(26+(i-1)*kmax) * sphi_d(26,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(27+(i-1)*kmax) * sphi_d(27,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(27+(i-1)*kmax) * sphi_d(27,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(27+(i-1)*kmax) * sphi_d(27,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(28+(i-1)*kmax) * sphi_d(28,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(28+(i-1)*kmax) * sphi_d(28,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(28+(i-1)*kmax) * sphi_d(28,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)+ &
+buffer1(29+(i-1)*kmax) * sphi_d(29,1+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)+ &
+buffer1(29+(i-1)*kmax) * sphi_d(29,3+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(29+(i-1)*kmax) * sphi_d(29,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(29+(i-1)*kmax) * sphi_d(29,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(29+(i-1)*kmax) * sphi_d(29,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(30+(i-1)*kmax) * sphi_d(30,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(30+(i-1)*kmax) * sphi_d(30,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)+ &
+buffer1(30+(i-1)*kmax) * sphi_d(30,18+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)+ &
+buffer1(30+(i-1)*kmax) * sphi_d(30,20+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)+ &
+buffer1(31+(i-1)*kmax) * sphi_d(31,3+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(31+(i-1)*kmax) * sphi_d(31,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(31+(i-1)*kmax) * sphi_d(31,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(31+(i-1)*kmax) * sphi_d(31,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(32+(i-1)*kmax) * sphi_d(32,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(32+(i-1)*kmax) * sphi_d(32,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(32+(i-1)*kmax) * sphi_d(32,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)+ &
+buffer1(32+(i-1)*kmax) * sphi_d(32,18+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(33+(i-1)*kmax) * sphi_d(33,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(33+(i-1)*kmax) * sphi_d(33,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(34+(i-1)*kmax) * sphi_d(34,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(34+(i-1)*kmax) * sphi_d(34,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(34+(i-1)*kmax) * sphi_d(34,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(35+(i-1)*kmax) * sphi_d(35,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(35+(i-1)*kmax) * sphi_d(35,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(36+(i-1)*kmax) * sphi_d(36,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(36+(i-1)*kmax) * sphi_d(36,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(37+(i-1)*kmax) * sphi_d(37,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(37+(i-1)*kmax) * sphi_d(37,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(37+(i-1)*kmax) * sphi_d(37,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(37+(i-1)*kmax) * sphi_d(37,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(37+(i-1)*kmax) * sphi_d(37,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)+ &
+buffer1(37+(i-1)*kmax) * sphi_d(37,21+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)+ &
+buffer1(38+(i-1)*kmax) * sphi_d(38,2+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)+ &
+buffer1(38+(i-1)*kmax) * sphi_d(38,4+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(38+(i-1)*kmax) * sphi_d(38,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(38+(i-1)*kmax) * sphi_d(38,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(39+(i-1)*kmax) * sphi_d(39,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(39+(i-1)*kmax) * sphi_d(39,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(39+(i-1)*kmax) * sphi_d(39,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(39+(i-1)*kmax) * sphi_d(39,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(39+(i-1)*kmax) * sphi_d(39,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)+ &
+buffer1(40+(i-1)*kmax) * sphi_d(40,4+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(40+(i-1)*kmax) * sphi_d(40,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(40+(i-1)*kmax) * sphi_d(40,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(40+(i-1)*kmax) * sphi_d(40,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(41+(i-1)*kmax) * sphi_d(41,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(41+(i-1)*kmax) * sphi_d(41,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(41+(i-1)*kmax) * sphi_d(41,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(41+(i-1)*kmax) * sphi_d(41,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(42+(i-1)*kmax) * sphi_d(42,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(42+(i-1)*kmax) * sphi_d(42,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(42+(i-1)*kmax) * sphi_d(42,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(43+(i-1)*kmax) * sphi_d(43,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(43+(i-1)*kmax) * sphi_d(43,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(44+(i-1)*kmax) * sphi_d(44,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(44+(i-1)*kmax) * sphi_d(44,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(45+(i-1)*kmax) * sphi_d(45,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(45+(i-1)*kmax) * sphi_d(45,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+1)+ &
+buffer1(46+(i-1)*kmax) * sphi_d(46,1+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)+ &
+buffer1(46+(i-1)*kmax) * sphi_d(46,3+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(46+(i-1)*kmax) * sphi_d(46,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(46+(i-1)*kmax) * sphi_d(46,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(46+(i-1)*kmax) * sphi_d(46,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(47+(i-1)*kmax) * sphi_d(47,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(47+(i-1)*kmax) * sphi_d(47,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(47+(i-1)*kmax) * sphi_d(47,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)+ &
+buffer1(47+(i-1)*kmax) * sphi_d(47,18+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+20)+ &
+buffer1(47+(i-1)*kmax) * sphi_d(47,20+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+3)+ &
+buffer1(48+(i-1)*kmax) * sphi_d(48,3+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(48+(i-1)*kmax) * sphi_d(48,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(48+(i-1)*kmax) * sphi_d(48,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(48+(i-1)*kmax) * sphi_d(48,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(49+(i-1)*kmax) * sphi_d(49,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(49+(i-1)*kmax) * sphi_d(49,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(49+(i-1)*kmax) * sphi_d(49,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+18)+ &
+buffer1(49+(i-1)*kmax) * sphi_d(49,18+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+5)+ &
+buffer1(50+(i-1)*kmax) * sphi_d(50,5+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(50+(i-1)*kmax) * sphi_d(50,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(50+(i-1)*kmax) * sphi_d(50,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(51+(i-1)*kmax) * sphi_d(51,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(51+(i-1)*kmax) * sphi_d(51,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+16)+ &
+buffer1(51+(i-1)*kmax) * sphi_d(51,16+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+7)+ &
+buffer1(52+(i-1)*kmax) * sphi_d(52,7+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(52+(i-1)*kmax) * sphi_d(52,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(53+(i-1)*kmax) * sphi_d(53,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+14)+ &
+buffer1(53+(i-1)*kmax) * sphi_d(53,14+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+9)+ &
+buffer1(54+(i-1)*kmax) * sphi_d(54,9+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+12)+ &
+buffer1(55+(i-1)*kmax) * sphi_d(55,12+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(56+(i-1)*kmax) * sphi_d(56,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(56+(i-1)*kmax) * sphi_d(56,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(56+(i-1)*kmax) * sphi_d(56,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(56+(i-1)*kmax) * sphi_d(56,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(56+(i-1)*kmax) * sphi_d(56,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+21)+ &
+buffer1(56+(i-1)*kmax) * sphi_d(56,21+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+2)+ &
+buffer1(57+(i-1)*kmax) * sphi_d(57,2+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)+ &
+buffer1(57+(i-1)*kmax) * sphi_d(57,4+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(57+(i-1)*kmax) * sphi_d(57,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(57+(i-1)*kmax) * sphi_d(57,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(57+(i-1)*kmax) * sphi_d(57,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(58+(i-1)*kmax) * sphi_d(58,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(58+(i-1)*kmax) * sphi_d(58,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(58+(i-1)*kmax) * sphi_d(58,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(58+(i-1)*kmax) * sphi_d(58,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+19)+ &
+buffer1(58+(i-1)*kmax) * sphi_d(58,19+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+4)+ &
+buffer1(59+(i-1)*kmax) * sphi_d(59,4+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(59+(i-1)*kmax) * sphi_d(59,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(59+(i-1)*kmax) * sphi_d(59,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(59+(i-1)*kmax) * sphi_d(59,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(60+(i-1)*kmax) * sphi_d(60,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(60+(i-1)*kmax) * sphi_d(60,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(60+(i-1)*kmax) * sphi_d(60,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+17)+ &
+buffer1(60+(i-1)*kmax) * sphi_d(60,17+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+6)+ &
+buffer1(61+(i-1)*kmax) * sphi_d(61,6+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(61+(i-1)*kmax) * sphi_d(61,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(61+(i-1)*kmax) * sphi_d(61,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(62+(i-1)*kmax) * sphi_d(62,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(62+(i-1)*kmax) * sphi_d(62,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+15)+ &
+buffer1(62+(i-1)*kmax) * sphi_d(62,15+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+8)+ &
+buffer1(63+(i-1)*kmax) * sphi_d(63,8+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(63+(i-1)*kmax) * sphi_d(63,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(64+(i-1)*kmax) * sphi_d(64,11+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+13)+ &
+buffer1(64+(i-1)*kmax) * sphi_d(64,13+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+10)+ &
+buffer1(65+(i-1)*kmax) * sphi_d(65,10+s_offset_d1)
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)= &
+primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+11)+ &
+buffer1(66+(i-1)*kmax) * sphi_d(66,11+s_offset_d1)

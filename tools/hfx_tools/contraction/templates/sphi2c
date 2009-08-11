@@ -1,0 +1,8 @@
+buffer1(i+imax*(3-1)) = buffer1(i+imax*(3-1)) + buffer2(1+(i-1)*kmax) * sphi_c(1,3+s_offset_c1)
+buffer1(i+imax*(5-1)) = buffer1(i+imax*(5-1)) + buffer2(1+(i-1)*kmax) * sphi_c(1,5+s_offset_c1)
+buffer1(i+imax*(1-1)) = buffer1(i+imax*(1-1)) + buffer2(2+(i-1)*kmax) * sphi_c(2,1+s_offset_c1)
+buffer1(i+imax*(4-1)) = buffer1(i+imax*(4-1)) + buffer2(3+(i-1)*kmax) * sphi_c(3,4+s_offset_c1)
+buffer1(i+imax*(3-1)) = buffer1(i+imax*(3-1)) + buffer2(4+(i-1)*kmax) * sphi_c(4,3+s_offset_c1)
+buffer1(i+imax*(5-1)) = buffer1(i+imax*(5-1)) + buffer2(4+(i-1)*kmax) * sphi_c(4,5+s_offset_c1)
+buffer1(i+imax*(2-1)) = buffer1(i+imax*(2-1)) + buffer2(5+(i-1)*kmax) * sphi_c(5,2+s_offset_c1)
+buffer1(i+imax*(3-1)) = buffer1(i+imax*(3-1)) + buffer2(6+(i-1)*kmax) * sphi_c(6,3+s_offset_c1)

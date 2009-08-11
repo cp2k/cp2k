@@ -1,0 +1,36 @@
+  SUBROUTINE  contract_generic(ncoa, ncob, ncoc, ncod, &
+                               nsoa, nsob, nsoc, nsod, &
+                               work, &
+                               nl_a, nl_b, nl_c, nl_d,&
+                               sphi_a, sphi_b, sphi_c, sphi_d,&
+                               primitives,&
+                               buffer1,buffer2)
+
+    INTEGER, INTENT(IN)                               :: ncoa, ncob, ncoc, ncod, &
+                                                         nsoa, nsob, nsoc, nsod
+    REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod), INTENT(IN)   :: work
+    INTEGER                                       :: nl_a, nl_b, nl_c, nl_d
+    REAL(dp), DIMENSION(ncoa,nsoa*nl_a), INTENT(IN)   :: sphi_a
+    REAL(dp), DIMENSION(ncob,nsob*nl_b), INTENT(IN)   :: sphi_b
+    REAL(dp), DIMENSION(ncoc,nsoc*nl_c), INTENT(IN)   :: sphi_c
+    REAL(dp), DIMENSION(ncod,nsod*nl_d), INTENT(IN)   :: sphi_d
+
+    REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b,nsoc*nl_c,nsod*nl_d) :: primitives
+    REAL(dp), DIMENSION(ncoa* ncob*ncoc*ncod) :: buffer1, buffer2
+    INTEGER :: imax,jmax,kmax, ia, ib, ic, id, s_offset_a1, s_offset_b1, s_offset_c1, s_offset_d1,&
+              i1 ,i2, i3, i, j, k
+
+
+    s_offset_a1 = 0
+    DO ia = 1,nl_a
+      s_offset_b1 = 0
+      DO ib = 1,nl_b
+        s_offset_c1 = 0
+        DO ic = 1,nl_c
+          s_offset_d1 = 0
+          DO id = 1,nl_d
+
+            buffer1 = 0.0_dp
+            imax=ncob*ncoc*ncod
+            jmax=nsoa
+            kmax=ncoa
