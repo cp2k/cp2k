@@ -8,7 +8,7 @@ CPP      =
 FC       = f95
 LD       = f95
 AR       = ar -r
-DFLAGS   = -D__NAG -D__FFTSG -D__FFTW3
+DFLAGS   = -D__NAG -D__FFTSG -D__FFTW3 -D__PTR_RANK_REMAP
 CPPFLAGS = 
 FCFLAGS  = -O3 -mismatch_all -w=all -free -fpp $(DFLAGS) -I$(NAG_INC)
 LDFLAGS  = $(FCFLAGS)
