@@ -49,7 +49,7 @@ How to compile CP2K code
 
  2f) Hartree-Fock exchange (optional) requires the libint package to be installed, and a Fortran compiler that
      supports ISO_C_BINDING and Fortran procedure pointers (g95, xlf90 ?) (use -D__LIBINT). 
-     Additional information can be found in cp2k/libint_tools/README_LIBINT
+     Additional information can be found in cp2k/tools/hfx_tools/libint_tools/README_LIBINT
      Tested against libinit-1.1.2, and currently hardcoded to the default angular momentum LIBINT_MAX_AM 5
      (check your include/libint/libint.h to see if it matches)
      http://www.chem.vt.edu/chem-dept/valeev/software/libint/libint.html
