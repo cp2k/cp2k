@@ -3467,8 +3467,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CHARACTER(LEN=3)                         :: my_method
     INTEGER                                  :: blk, col, row, timing_handle
-    REAL(dp)                                 :: nrm
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    REAL(dp)                                 :: ddot, nrm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -3478,7 +3478,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     my_method = 'fro'
     IF(PRESENT(method)) my_method = method
 
-    CALL dbcsr_iterator_start(iter, matrix)
+    CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_data_type(matrix))
        CASE ('R')
@@ -3487,8 +3487,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CASE('fro')
              !
              ! Frobenius based
-             nrm = SQRT(my_ddot(data_d))
+             !nrm = SQRT(my_ddot(data_d))
              !nrm = SQRT(DDOT(SIZE(data_d), data_d(1,1), 1, data_d(1,1), 1))
+             nrm = SQRT(DDOT(SIZE(data_d), data_d(1), 1, data_d(1), 1))
              IF(nrm.LT.eps) CALL dbcsr_remove_block(matrix, row, col, blk)
           CASE DEFAULT
              CALL cp_unimplemented_error (routineN,&

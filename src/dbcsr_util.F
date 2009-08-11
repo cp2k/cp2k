@@ -93,7 +93,6 @@ MODULE dbcsr_util
                                              timestop
   USE util,                            ONLY: sort
 #include "cp_common_uses.h"
-
   IMPLICIT NONE
   PRIVATE
 

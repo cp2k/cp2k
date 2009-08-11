@@ -125,6 +125,19 @@
     view => original(lb:ub)
   END FUNCTION pointer_view_z
 
+
+#if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+! *****************************************************************************
+!> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
+! *****************************************************************************
+  SUBROUTINE pointer_z_rank_remap2 (r2p, d1, d2, r1p)
+    COMPLEX(kind=real_8), DIMENSION(:,:), POINTER :: r2p
+    INTEGER, INTENT(IN)              :: d1, d2
+    COMPLEX(kind=real_8), DIMENSION(d1,*), TARGET :: r1p
+    r2p => r1p(1:d1, 1:d2)
+  END SUBROUTINE pointer_z_rank_remap2
+#endif
+
 ! *****************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data.
 !> \param[out] r2p       pointer with rank 2
@@ -136,11 +149,18 @@
     INTEGER, DIMENSION(2), INTENT(IN)   :: shp
     COMPLEX(kind=real_8), DIMENSION(:), POINTER      :: r1p
     COMPLEX(kind=real_8), DIMENSION(:,:), POINTER    :: r2buff
+    INTEGER                             :: m, n
 
-    ! This one can be used if the compiler supports pointer rank remapping.
-    !r2p(1:d1, 1:d2) => r1p(1:d1*d2)
-    r2buff(1:shp(1), 1:shp(2)) = RESHAPE (r1p, shp)
-    r2p => r2buff(1:shp(1), 1:shp(2))
+    m = shp(1)
+    n = shp(2)
+#if defined(__PTR_RANK_REMAP)
+    r2p(1:m, 1:n) => r1p(1:m*n)
+#elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+    CALL pointer_z_rank_remap2 (r2p, m, n, r1p)
+#else
+    r2buff(1:m, 1:n) = RESHAPE (r1p, shp)
+    r2p => r2buff(1:m, 1:n)
+#endif
   END SUBROUTINE pointer_set_r2_from_r1_z
 
 ! *****************************************************************************

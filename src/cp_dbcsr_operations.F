@@ -336,8 +336,8 @@ CONTAINS
     !WRITE(*,*)'Deleting all blocks!'
     CALL dbcsr_iterator_start (iter, matrix_a2)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col)
-       CALL dbcsr_remove_block (matrix_a2, row, col)
+       CALL dbcsr_iterator_next_block (iter, row, col, k)
+       CALL dbcsr_remove_block (matrix_a2, row, col, k)
     ENDDO
     !WRITE(*,*)"blk_p=", matrix_a2%blk_p
     CALL dbcsr_finalize (matrix_a2, error=error)

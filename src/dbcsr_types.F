@@ -334,6 +334,8 @@ MODULE dbcsr_types
 !> \var pos              Current position
 !> \var row_size         Size of current row
 !> \var rbs, cbs         Pointer to row and column size array
+!> \var contiguous_pointers   Whether pointers to data should be contiguous
+!>                            in memory.
 ! *****************************************************************************
   TYPE dbcsr_iterator
      TYPE(dbcsr_obj)                               :: matrix
@@ -344,6 +346,7 @@ MODULE dbcsr_types
      INTEGER            :: row, row_size
      INTEGER            :: pos
      INTEGER, DIMENSION(:), POINTER :: rbs, cbs
+     LOGICAL            :: contiguous_pointers
   END TYPE dbcsr_iterator
 
 END MODULE dbcsr_types

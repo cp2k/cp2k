@@ -35,7 +35,6 @@ MODULE dbcsr_methods
 
   !$ USE OMP_LIB
 #include "cp_common_uses.h"
-
   IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
@@ -98,7 +97,8 @@ MODULE dbcsr_methods
   END INTERFACE
 
   INTERFACE dbcsr_iterator_next_block
-     MODULE PROCEDURE iterator_next_block_d, iterator_next_block_index
+     MODULE PROCEDURE iterator_next_block_d, iterator_next_block_index,&
+                      iterator_next_1d_block_d
   END INTERFACE
 
   ! For the sets
@@ -130,7 +130,6 @@ MODULE dbcsr_methods
   INTERFACE dbcsr_set_release
      MODULE PROCEDURE set_release_1d, set_release_2d
   END INTERFACE
-
 
 CONTAINS
 
@@ -1470,10 +1469,17 @@ CONTAINS
 !> \brief Sets up an iterator
 !> \param[out] iterator   the iterator
 !> \param[in] matrix      DBCSR matrix
+!> \param[in] contiguous_pointers  (optional) Whether returned pointers need
+!>                                 to be contiguous; default is FALSE.
+!>
+!> Contiguous pointers may incur reallocation penalties but enable quick
+!> passing of arrays to routines with unspecified interfaces (i.e., direct
+!> calls to BLACS or MPI).
 ! *****************************************************************************
-  SUBROUTINE dbcsr_iterator_start (iterator, matrix)
+  SUBROUTINE dbcsr_iterator_start (iterator, matrix, contiguous_pointers)
     TYPE(dbcsr_iterator), INTENT(OUT)        :: iterator
     TYPE(dbcsr_obj)                          :: matrix
+    LOGICAL, INTENT(IN), OPTIONAL            :: contiguous_pointers
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_start', &
       routineP = moduleN//':'//routineN
@@ -1483,6 +1489,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    IF (PRESENT (contiguous_pointers)) THEN
+       iterator%contiguous_pointers = contiguous_pointers
+    ELSE
+       iterator%contiguous_pointers = .FALSE.
+    ENDIF
     iterator%matrix = matrix
     iterator%row = 0
     iterator%pos = 0
@@ -1650,10 +1661,77 @@ CONTAINS
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     REAL(KIND=real_8), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: block
+      POINTER                                :: block
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk_p, csize, nze, rsize
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: lin_blk_p, rbp
+
+!   ---------------------------------------------------------------------------
+! If we're pointing to a valid block, return that block.
+
+    IF (iterator%pos .LE. iterator%matrix%m%nblks&
+         .AND. iterator%pos .NE. 0) THEN
+       row = iterator%row
+       column = iterator%matrix%m%col_i(iterator%pos)
+       !IF (PRESENT (block)) THEN
+          blk_p = iterator%matrix%m%blk_p(iterator%pos)
+          rsize = iterator%row_size
+          csize = iterator%cbs(column)
+          nze = rsize * csize
+          rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
+#if defined(__PTR_RANK_REMAP)
+          block(1:rsize, 1:csize) => rbp(blk_p:blk_p+nze-1)
+#elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+          lin_blk_p => rbp(blk_p:blk_p+nze-1)
+          CALL pointer_d_rank_remap2 (block, rsize, csize, lin_blk_p)
+#else
+          IF (iterator%contiguous_pointers) THEN
+             IF (SIZE (iterator%buffer_r_dp, 1) .NE. rsize) THEN
+                DEALLOCATE (iterator%buffer_r_dp)
+                ALLOCATE (iterator%buffer_r_dp(&
+                     rsize, iterator%matrix%m%max_cbs))
+             ENDIF
+          ENDIF
+          iterator%buffer_r_dp =&
+               RESHAPE (rbp(blk_p:blk_p+nze-1), (/rsize, csize/))
+          block => iterator%buffer_r_dp(1:rsize, 1:csize)
+#endif /* __PTR_RANK_REMAP || !__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION */
+       !ENDIF
+       IF (PRESENT (block_number)) block_number = iterator%pos
+       ! Move to the next non-deleted position.
+       iterator%pos = iterator%pos+1
+       CALL find_first_valid_block (iterator%pos, iterator%matrix%m%nblks,&
+            iterator%matrix%m%blk_p)
+       CALL find_proper_row (iterator%pos, iterator%row,&
+            iterator%matrix%m%nblkrows_total, iterator%matrix%m%row_p)
+       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
+    ELSE
+       row = 0
+       column = 0
+       !IF (PRESENT (block)) NULLIFY (block)
+       IF (PRESENT (block_number)) block_number = 0
+    ENDIF
+  END SUBROUTINE iterator_next_block_d
+
+! *****************************************************************************
+!> \brief Gets the next data block, double precision real
+!> \param[in,out] iterator   the iterator
+!> \param[out] row           row of the data block
+!> \param[out] column        column of the data block
+!> \param[out] block         pointer to the data block
+!> \param[out] block_number  (optional) block number
+! *****************************************************************************
+  SUBROUTINE iterator_next_1d_block_d (iterator, row, column, block, block_number)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+    INTEGER, INTENT(OUT)                     :: row, column
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: block
+    INTEGER, INTENT(OUT), OPTIONAL           :: block_number
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_p, csize, nze, rsize
@@ -1666,15 +1744,14 @@ CONTAINS
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
        column = iterator%matrix%m%col_i(iterator%pos)
-       IF (PRESENT (block)) THEN
+       !IF (PRESENT (block)) THEN
           blk_p = iterator%matrix%m%blk_p(iterator%pos)
           rsize = iterator%row_size
           csize = iterator%cbs(column)
           nze = rsize * csize
           rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
-          iterator%buffer_r_dp(1:rsize,1:csize) = RESHAPE (rbp(blk_p:blk_p+nze-1), (/rsize, csize/))
-          block => iterator%buffer_r_dp(1:rsize, 1:csize)
-       ENDIF
+          block => rbp(blk_p:blk_p+nze-1)
+       !ENDIF
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        iterator%pos = iterator%pos+1
@@ -1686,10 +1763,10 @@ CONTAINS
     ELSE
        row = 0
        column = 0
-       IF (PRESENT (block)) NULLIFY (block)
+       !IF (PRESENT (block)) NULLIFY (block)
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
-  END SUBROUTINE iterator_next_block_d
+  END SUBROUTINE iterator_next_1d_block_d
 
 
 ! *****************************************************************************
@@ -2073,5 +2150,21 @@ CONTAINS
     ENDIF
   END SUBROUTINE set_release_2d
 
+#if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+! *****************************************************************************
+!> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
+!>
+!> Merge this with the same routine in dbcsr_util* upon refactoring.
+! *****************************************************************************
+  SUBROUTINE pointer_d_rank_remap2 (r2p, d1, d2, r1p)
+    REAL(KIND=real_8), DIMENSION(:, :), &
+      POINTER                                :: r2p
+    INTEGER, INTENT(IN)                      :: d1, d2
+    REAL(KIND=real_8), DIMENSION(d1, *), &
+      TARGET                                 :: r1p
+
+    r2p => r1p(1:d1, 1:d2)
+  END SUBROUTINE pointer_d_rank_remap2
+#endif
 
 END MODULE dbcsr_methods
