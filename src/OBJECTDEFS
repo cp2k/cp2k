@@ -247,12 +247,15 @@ OBJECTS_GENERIC =\
  hfx_communication.o\
  hfx_compression_core_methods.o\
  hfx_compression_methods.o\
+ hfx_contract_block.o\
+ hfx_contraction_methods.o\
  hfx_derivatives.o\
  hfx_energy_potential.o\
  hfx_helpers.o\
  hfx_libint_interface.o\
  hfx_libint_wrapper.o\
  hfx_load_balance_methods.o\
+ hfx_pair_list_methods.o\
  hfx_ri_methods.o\
  hfx_screening_methods.o\
  hfx_types.o\

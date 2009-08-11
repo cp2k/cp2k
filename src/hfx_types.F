@@ -47,6 +47,7 @@ MODULE hfx_types
                                              int_8
   USE machine,                         ONLY: m_chdir,&
                                              m_getcwd
+  USE orbital_pointers
   USE string_utilities,                ONLY: compress
   USE t_c_g0,                          ONLY: free
   USE timings,                         ONLY: timeset,&
@@ -67,13 +68,15 @@ MODULE hfx_types
           hfx_p_type, hfx_init_container,&
           hfx_basis_info_type, hfx_screen_coeff_type,&
           hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
-          pair_set_list_type, hfx_p_kind, hfx_2D_map
+          pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
+          hfx_pgf_per_list, hfx_pgf_image, hfx_pgf_product_list
 
 #define CACHE_SIZE 1024
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_types'
   INTEGER(int_8), PARAMETER, PRIVATE         :: one = 1_int_8 
   INTEGER, PARAMETER, PUBLIC                 :: max_atom_block=32
+  INTEGER, PARAMETER, PUBLIC                 :: max_images=27
   REAL(dp), PARAMETER, PUBLIC                :: log_zero = -1000.0_dp
   REAL(dp), PARAMETER, PUBLIC                :: powell_min_log = -20.0_dp
   REAL(KIND=dp), DIMENSION(0:10), &
@@ -169,7 +172,6 @@ MODULE hfx_types
       INTEGER, DIMENSION(2) :: set_bounds
       INTEGER, DIMENSION(2) :: kind_pair
       REAL(KIND=dp)         :: r1(3),r2(3)
-      REAL(KIND=dp)         :: vec(3)
       REAL(KIND=dp)         :: dist2
   END TYPE
 
@@ -224,6 +226,9 @@ MODULE hfx_types
     INTEGER, DIMENSION(:,:), POINTER         :: first_sgf
     REAL(dp), DIMENSION(:,:), POINTER        :: sphi
     INTEGER                                  :: nsgf_total
+    INTEGER, DIMENSION(:,:), POINTER         :: nl
+    INTEGER, DIMENSION(:,:), POINTER         :: nsgfl
+    INTEGER, DIMENSION(:), POINTER           :: nshell
   END TYPE
 
 ! *****************************************************************************
@@ -248,6 +253,50 @@ MODULE hfx_types
     INTEGER, DIMENSION(:), POINTER           :: iatom_list
     INTEGER, DIMENSION(:), POINTER           :: jatom_list
   END TYPE
+
+! *****************************************************************************
+  TYPE hfx_pgf_list
+    INTEGER                                  :: offset_a1, offset_b1
+    REAL(dp)                                 :: zetapzetb
+    REAL(dp)                                 :: S1234
+    REAL(dp)                                 :: P(3)
+    REAL(dp)                                 :: R
+    REAL(dp)                                 :: ZetaInv
+    REAL(dp)                                 :: pgf_max
+  END TYPE
+
+! *****************************************************************************
+  TYPE hfx_pgf_image
+    REAL(dp)                                 :: ra(3), rb(3)
+    REAL(dp)                                 :: rab2
+    REAL(dp)                                 :: S1234
+    REAL(dp)                                 :: P(3)
+    REAL(dp)                                 :: R
+    REAL(dp)                                 :: pgf_max
+  END TYPE
+
+! *****************************************************************************
+  TYPE hfx_pgf_per_list
+    TYPE(hfx_pgf_image), DIMENSION(:), POINTER &
+                                             :: image_list
+    INTEGER                                  :: nimages
+    INTEGER                                  :: offset_a1, offset_b1
+    REAL(dp)                                 :: zetapzetb
+    REAL(dp)                                 :: ZetaInv
+    REAL(dp)                                 :: zeta, zetb
+    INTEGER                                  :: ipgf, jpgf
+  END TYPE
+
+! *****************************************************************************
+  TYPE hfx_pgf_product_list
+    REAL(dp)                                 :: ra(3), rb(3), rc(3), rd(3)
+    REAL(dp)                                 :: ZetapEtaInv
+    REAL(dp)                                 :: Rho, RhoInv
+    REAL(dp)                                 :: P(3), Q(3), W(3)
+    REAL(dp)                                 :: AB(3), CD(3)
+    REAL(dp)                                 :: Fm(17)
+  END TYPE
+
 
 ! *****************************************************************************
 !> \brief stores some data used in construction of Kohn-Sham matrix
@@ -328,6 +377,8 @@ MODULE hfx_types
      INTEGER, DIMENSION(:,:), POINTER         :: atomic_block_offset
      INTEGER, DIMENSION(:,:,:,:), POINTER     :: set_offset
      INTEGER, DIMENSION(:), POINTER           :: block_offset
+     REAL(dp), DIMENSION(:,:,:,:,:), POINTER &
+                                              :: sphi_ext
   END TYPE hfx_type
 
 ! *****************************************************************************
@@ -374,13 +425,19 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: error_msg
-    CHARACTER(LEN=default_path_length)       :: char_val
-    INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, &
-      max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
-      pbc_shells, stat, storage_id
-    INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
-    LOGICAL                                  :: exist, failure, logic_val
-    REAL(dp)                                 :: real_val
+    CHARACTER(LEN=default_path_length)       :: char_val, filename
+    INTEGER :: co_counter, handle, i, i_thread, iatom, ikind, int_val, ipgf, &
+      irep, iset, j, jkind, k, la, max_am, max_cart_coeff, max_nsgfl, &
+      max_pgf, max_set, max_sph_coeff, n_rep_hf, n_threads, natom_a, natom_b, &
+      ncoa, nkind, nl_count, nset, nseta, nsetb, offset_a, offset_a1, &
+      pbc_shells, s_offset_nl_a, sgfa, so_counter, stat, storage_id
+    INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of, la_max, &
+                                                la_min, npgfa, nsgfa, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
+    LOGICAL                                  :: do_periodic, exist, failure, &
+                                                logic_val
+    REAL(dp)                                 :: omega, real_val
+    REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
     TYPE(hfx_type), POINTER                  :: actual_x_data
@@ -413,11 +470,11 @@ MODULE hfx_types
         CALL section_vals_val_get(hfx_section, "TREAT_LSD_IN_CORE", l_val=logic_val, i_rep_section=irep,error=error)
         actual_x_data%general_parameter%treat_lsd_in_core = logic_val
 
-  
         !! MEMORY section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"MEMORY",i_rep_section=irep, error=error)
         CALL parse_memory_section(actual_x_data%memory_parameter, hf_sub_section, storage_id, i_thread,&
              n_threads, para_env, irep, skip_disk=.FALSE., error=error)
+
 
         !! PERIODIC section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"PERIODIC", i_rep_section=irep, error=error)
@@ -529,15 +586,188 @@ MODULE hfx_types
                                    nsgf_set=actual_x_data%basis_parameter(ikind)%nsgf, &
                                    first_sgf=actual_x_data%basis_parameter(ikind)%first_sgf, &
                                    sphi=actual_x_data%basis_parameter(ikind)%sphi, &
-                                   nsgf=actual_x_data%basis_parameter(ikind)%nsgf_total) 
+                                   nsgf=actual_x_data%basis_parameter(ikind)%nsgf_total,&
+                                   l=actual_x_data%basis_parameter(ikind)%nl,&
+                                   nshell=actual_x_data%basis_parameter(ikind)%nshell)
         END DO
-    
+        DO ikind = 1,nkind
+          ALLOCATE(actual_x_data%basis_parameter(ikind)%nsgfl(0:actual_x_data%basis_info%max_am,max_set))
+          actual_x_data%basis_parameter(ikind)%nsgfl = 0
+          nset = actual_x_data%basis_parameter(ikind)%nset
+          nshell => actual_x_data%basis_parameter(ikind)%nshell
+          DO iset = 1,nset
+            DO i=0,actual_x_data%basis_info%max_am
+              nl_count = 0
+              DO j=1,nshell(iset)
+                IF( actual_x_data%basis_parameter(ikind)%nl(j,iset) == i) nl_count = nl_count + 1
+              END DO
+              actual_x_data%basis_parameter(ikind)%nsgfl(i,iset) = nl_count
+            END DO
+          END DO
+        END DO
+
+        max_am = actual_x_data%basis_info%max_am
+        max_sph_coeff = nso(max_am)
+        max_cart_coeff = nco(max_am)
+        max_nsgfl = 0
+        max_pgf = 0
+        DO ikind = 1,nkind
+          npgfa => actual_x_data%basis_parameter(ikind)%npgf
+          nseta = actual_x_data%basis_parameter(ikind)%nset
+          nl_a => actual_x_data%basis_parameter(ikind)%nsgfl
+          la_max => actual_x_data%basis_parameter(ikind)%lmax
+          la_min => actual_x_data%basis_parameter(ikind)%lmin
+          DO iset = 1,nseta
+            max_pgf = MAX(max_pgf, npgfa(iset))
+            DO la = la_min(iset), la_max(iset)
+              max_nsgfl = MAX(max_nsgfl, nl_a(la,iset))
+            END DO
+          END DO
+        END DO
+
+        ALLOCATE(actual_x_data%sphi_ext(max_cart_coeff*max_sph_coeff*max_nsgfl,0:max_am, max_pgf, max_set, nkind),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        actual_x_data%sphi_ext = 0.0_dp
+
+        DO ikind = 1,nkind
+          sphi_a => actual_x_data%basis_parameter(ikind)%sphi
+          nseta = actual_x_data%basis_parameter(ikind)%nset
+          la_max => actual_x_data%basis_parameter(ikind)%lmax
+          la_min => actual_x_data%basis_parameter(ikind)%lmin
+          npgfa => actual_x_data%basis_parameter(ikind)%npgf
+          first_sgfa => actual_x_data%basis_parameter(ikind)%first_sgf
+          nsgfa => actual_x_data%basis_parameter(ikind)%nsgf
+          nl_a => actual_x_data%basis_parameter(ikind)%nsgfl
+          DO iset = 1,nseta
+            sgfa = first_sgfa(1,iset)
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            DO ipgf = 1,npgfa(iset)
+              offset_a1 = (ipgf-1)*ncoset(la_max(iset))
+              s_offset_nl_a = 0
+              DO la = la_min(iset),la_max(iset)
+                offset_a = offset_a1 + ncoset(la-1)
+                co_counter = 0
+                co_counter = co_counter + 1
+                so_counter = 0
+                DO k = sgfa+s_offset_nl_a,sgfa+s_offset_nl_a+nso(la)*nl_a(la,iset)-1
+                  DO i = offset_a+1,offset_a+nco(la)
+                    so_counter = so_counter + 1
+                    actual_x_data%sphi_ext(so_counter,la,ipgf,iset,ikind) = sphi_a(i,k)        
+                  END DO
+                END DO
+                s_offset_nl_a = s_offset_nl_a + nso(la) * (nl_a(la,iset))
+              END DO
+            END DO
+          END DO
+        END DO
+
+
+!!**************************************************************************************************
+!! **        !! ** This code writes the contraction routines
+!! **        !! ** Very UGLY: BASIS_SET has to be 1 primitive and lmin=lmax=l. For g-functions
+!! **        !! **
+!! **        !! ** 1  4  4  1  1
+!! **        !! **    1.0  1.0
+!! **        !! **
+!! **        k = max_am - 1
+!! **        write(filename,'(A,I0,A)') "sphi",k+1,"a"
+!! **        OPEN(UNIT=31415,FILE=filename)
+!! **        DO i=ncoset(k)+1,SIZE(sphi_a,1)
+!! **          DO j=1,SIZE(sphi_a,2)
+!! **            IF( sphi_a(i,j) /= 0.0_dp) THEN
+!! **              write(31415,'(A,I0,A,I0,A,I0,A,I0,A,I0,A)') "buffer1(i+imax*(",&
+!! **                          j,&
+!! **                          "-1)) = buffer1(i+imax*(",&
+!! **                          j,&
+!! **                          "-1)) + work(",&
+!! **                          i-ncoset(k),&
+!! **                          "+(i-1)*kmax) * sphi_a(",&
+!! **                          i-ncoset(k),&
+!! **                          ",",&
+!! **                          j,&
+!! **                          "+s_offset_a1)"
+!! **            END IF
+!! **          END DO
+!! **        END DO
+!! **        CLOSE(UNIT=31415)
+!! **        write(filename,'(A,I0,A)') "sphi",k+1,"b"
+!! **        OPEN(UNIT=31415,FILE=filename)
+!! **        DO i=ncoset(k)+1,SIZE(sphi_a,1)
+!! **          DO j=1,SIZE(sphi_a,2)
+!! **            IF( sphi_a(i,j) /= 0.0_dp) THEN
+!! **               write(31415,'(A,I0,A,I0,A,I0,A,I0,A,I0,A)') "buffer2(i+imax*(",&
+!! **                          j,&
+!! **                          "-1)) = buffer2(i+imax*(",&
+!! **                          j,&
+!! **                          "-1)) + buffer1(",&
+!! **                          i-ncoset(k),&
+!! **                          "+(i-1)*kmax) * sphi_b(",&
+!! **                          i-ncoset(k),&
+!! **                          ",",&
+!! **                          j,&
+!! **                          "+s_offset_b1)"
+!! **
+!! **            END IF
+!! **          END DO
+!! **        END DO
+!! **        CLOSE(UNIT=31415)
+!! **        write(filename,'(A,I0,A)') "sphi",k+1,"c"
+!! **        OPEN(UNIT=31415,FILE=filename)
+!! **        DO i=ncoset(k)+1,SIZE(sphi_a,1)
+!! **          DO j=1,SIZE(sphi_a,2)
+!! **            IF( sphi_a(i,j) /= 0.0_dp) THEN
+!! **               write(31415,'(A,I0,A,I0,A,I0,A,I0,A,I0,A)') "buffer1(i+imax*(",&
+!! **                          j,&
+!! **                          "-1)) = buffer1(i+imax*(",&
+!! **                          j,&
+!! **                          "-1)) + buffer2(",&
+!! **                          i-ncoset(k),&
+!! **                          "+(i-1)*kmax) * sphi_c(",&
+!! **                          i-ncoset(k),&
+!! **                          ",",&
+!! **                          j,&
+!! **                          "+s_offset_c1)"
+!! **
+!! **            END IF
+!! **          END DO
+!! **        END DO
+!! **        CLOSE(UNIT=31415)
+!! **        write(filename,'(A,I0,A)') "sphi",k+1,"d"
+!! **        OPEN(UNIT=31415,FILE=filename)
+!! **        DO i=ncoset(k)+1,SIZE(sphi_a,1)
+!! **          DO j=1,SIZE(sphi_a,2)
+!! **            IF( sphi_a(i,j) /= 0.0_dp) THEN
+!! **
+!! **
+!! **               write(31415,'(A,I0,A)') "primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+",&
+!! **                           j,")= &"
+!! **               write(31415,'(A,I0,A)') "primitives(s_offset_a1+i3, s_offset_b1+i2, s_offset_c1+i1, s_offset_d1+",&
+!! **                           j,")+ &"
+!! **               write(31415,'(A,I0,A,I0,A,I0,A)') "buffer1(",&
+!! **                          i-ncoset(k),&
+!! **                          "+(i-1)*kmax) * sphi_d(",&
+!! **                          i-ncoset(k),&
+!! **                          ",",&
+!! **                          j,&
+!! **                          "+s_offset_d1)"
+!! **
+!! **
+!! **            END IF
+!! **          END DO
+!! **        END DO
+!! **        CLOSE(UNIT=31415)
+!! **        stop
+!! ****************************************************************************************************
+
         IF(actual_x_data%periodic_parameter%do_periodic) THEN
           hf_pbc_section => section_vals_get_subs_vals(hfx_section,"PERIODIC",i_rep_section=irep, error=error)
           CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
           ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, hfx_section, i_thread, error=error)
+        ELSE
+          ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
      
         !! ** This guy is allocated on the master thread only 
@@ -803,10 +1033,10 @@ MODULE hfx_types
     DO i_thread= 1,n_threads
       DO irep=1,n_rep_hf
         actual_x_data => x_data(irep,i_thread)
-        IF( actual_x_data%periodic_parameter%do_periodic ) THEN
+!        IF( actual_x_data%periodic_parameter%do_periodic ) THEN
           DEALLOCATE(actual_x_data%neighbor_cells,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
+!        END IF
         DEALLOCATE(actual_x_data%distribution_energy,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(actual_x_data%distribution_forces,STAT=stat)
@@ -834,11 +1064,16 @@ MODULE hfx_types
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(actual_x_data%block_offset,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
         END IF
     
         !! BASIS parameter
+        DO i=1,SIZE(actual_x_data%basis_parameter)
+          DEALLOCATE(actual_x_data%basis_parameter(i)%nsgfl,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END DO
         DEALLOCATE(actual_x_data%basis_parameter,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(actual_x_data%sphi_ext,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         !! Deallocate containers
@@ -1415,12 +1650,12 @@ MODULE hfx_types
         END IF
         WRITE (UNIT=iw,FMT="((T3,A,T61,I20))")&
             "HFX_INFO| Number of periodic shells considered:     ", x_data%periodic_parameter%number_of_shells
-        WRITE (UNIT=iw,FMT="((T3,A,T61,I20)),/")&
+        WRITE (UNIT=iw,FMT="((T3,A,T61,I20),/)")&
               "HFX_INFO| Number of periodic cells considered:     ",SIZE(x_data%neighbor_cells)
       ELSE
         WRITE (UNIT=iw,FMT="((T3,A,T77,A))")&
             "HFX_INFO| Number of periodic shells considered:     ", "NONE"
-        WRITE (UNIT=iw,FMT="((T3,A,T77,A)),/")&
+        WRITE (UNIT=iw,FMT="((T3,A,T77,A),/)")&
               "HFX_INFO| Number of periodic cells considered:     ", "NONE"
       END IF
     END IF

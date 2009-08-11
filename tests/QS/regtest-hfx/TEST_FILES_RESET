@@ -224,3 +224,9 @@ CH-hfx-md-2.inp
 CH-hfx-md.inp
 # redefinition of input 
 H2O-geminal-1.inp
+# new HFX code
+CH-hfx-md.inp
+CH-hfx-md-2.inp
+4H2O-disk.inp
+4H2O-mix-disk-ram.inp
+4H2O-mix-disk-ram-on-the-fly.inp

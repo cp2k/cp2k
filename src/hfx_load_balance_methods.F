@@ -10,10 +10,10 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE hfx_load_balance_methods 
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
+  USE hfx_pair_list_methods,           ONLY: build_pair_list
   USE hfx_types,                       ONLY: &
        hfx_basis_type, hfx_distribution, hfx_load_balance_type, hfx_p_kind, &
        hfx_potential_type, hfx_screen_coeff_type, hfx_set_distr_energy, &
@@ -37,96 +37,16 @@ MODULE hfx_load_balance_methods
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC load_balance_energy, load_balance_forces, update_load_balance_energy, update_load_balance_forces, build_pair_list
+  PUBLIC load_balance_energy, &
+         load_balance_forces, &
+         update_load_balance_energy, &
+         update_load_balance_forces
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_load_balance_methods'
 
 !***
   
   CONTAINS
-
-  SUBROUTINE build_pair_list(list,set_list,i_start,i_end,j_start,j_end,kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
-  
-    TYPE(pair_list_type), INTENT(OUT)        :: list
-    TYPE(pair_set_list_type), DIMENSION(*), &
-      INTENT(OUT)                            :: set_list
-    INTEGER, INTENT(IN)                      :: i_start, i_end, j_start, j_end
-    INTEGER                                  :: kind_of(*)
-    TYPE(hfx_basis_type), DIMENSION(:), &
-      POINTER                                :: basis_parameter
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    LOGICAL, INTENT(IN)                      :: do_periodic
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:, :, :, :), POINTER         :: coeffs_set
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:, :), POINTER               :: coeffs_kind
-    REAL(KIND=dp), INTENT(IN)                :: coeffs_kind_max0, &
-                                                log10_eps_schwarz
-    TYPE(cell_type), POINTER                 :: cell
-
-    INTEGER                                  :: iatom, ikind, iset, jatom, &
-                                                jkind, jset, n_element, &
-                                                nset_ij, nseta, nsetb
-    REAL(KIND=dp)                            :: rab2
-    REAL(KIND=dp), DIMENSION(3)              :: B11, pbc_B, ra, rb, temp
-
-     n_element=0
-     nset_ij=0
-  
-     DO iatom=i_start,i_end
-       ikind = kind_of(iatom)
-       nseta =  basis_parameter(ikind)%nset
-       ra=particle_set(iatom)%r(:)
-       DO jatom=j_start,j_end
-         IF(jatom<iatom) CYCLE
-         jkind = kind_of(jatom)
-         nsetb =  basis_parameter(jkind)%nset
-         rb=particle_set(jatom)%r(:)
-
-         IF( do_periodic ) THEN
-           temp = rb -ra
-           pbc_B = pbc(temp,cell)
-           B11 = ra + pbc_B
-           rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
-         ELSE
-           rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
-           B11 = ra - rb
-         END IF
-
-         IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
-              coeffs_kind(jkind,ikind)%x(2) ) + coeffs_kind_max0 < log10_eps_schwarz ) CYCLE
-
-         n_element=n_element+1 
-         list%elements(n_element)%pair(1)=iatom
-         list%elements(n_element)%pair(2)=jatom
-         list%elements(n_element)%kind_pair(1)=ikind
-         list%elements(n_element)%kind_pair(2)=jkind
-         list%elements(n_element)%r1   =ra
-         list%elements(n_element)%r2   =rb
-         list%elements(n_element)%vec  =B11
-         list%elements(n_element)%dist2=rab2
-
-         ! build a list of guaranteed overlapping sets
-         list%elements(n_element)%set_bounds(1)=nset_ij+1
-         DO iset = 1, nseta
-            DO jset = 1,nsetb
-               IF (coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + coeffs_set(jset,iset,jkind,ikind)%x(2) + &
-                   coeffs_kind_max0 < log10_eps_schwarz ) CYCLE
-               nset_ij=nset_ij+1
-               set_list(nset_ij)%pair(1)=iset
-               set_list(nset_ij)%pair(2)=jset
-            ENDDO
-         ENDDO
-         list%elements(n_element)%set_bounds(2)=nset_ij
-
-       ENDDO
-     ENDDO
-  
-     list%n_element=n_element
-  
-  END SUBROUTINE build_pair_list
 
 ! *****************************************************************************
 !> \brief Distributes the computation of eri's to all available processes.
@@ -224,7 +144,8 @@ MODULE hfx_load_balance_methods
     INTEGER(int_8), SAVE                     :: shm_global_quartet_counter, &
                                                 shm_local_quartet_counter
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
-    INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
+    INTEGER, DIMENSION(:), POINTER           :: distribution_vector, npgfa, &
+                                                npgfb, npgfc, npgfd, nsgfa, &
                                                 nsgfb, nsgfc, nsgfd
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
     LOGICAL                                  :: failure, &
@@ -325,6 +246,8 @@ MODULE hfx_load_balance_methods
 
           nsgfa => basis_parameter(ikind)%nsgf
           nsgfb => basis_parameter(jkind)%nsgf
+          npgfa => basis_parameter(ikind)%npgf
+          npgfb => basis_parameter(jkind)%npgf
 
           DO i_list_kl=1,list_kl%n_element
 
@@ -344,6 +267,8 @@ MODULE hfx_load_balance_methods
 
             nsgfc => basis_parameter(kkind)%nsgf
             nsgfd => basis_parameter(lkind)%nsgf
+            npgfc => basis_parameter(kkind)%npgf
+            npgfd => basis_parameter(lkind)%npgf
 
             IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
                  coeffs_kind(jkind,ikind)%x(2) ) + &
@@ -429,7 +354,10 @@ MODULE hfx_load_balance_methods
                 END IF
                 max_val2= max_val2 + pmax_entry
                 IF( max_val2< log10_eps_schwarz) CYCLE
-                total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+                ! total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+                total_integrals = total_integrals + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
+                                                               npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
+                                                               max_val2/log10_eps_schwarz)
               ENDDO ! i_set_list_kl
             ENDDO ! i_set_list_ij
           ENDDO ! i_list_kl
@@ -517,6 +445,8 @@ MODULE hfx_load_balance_methods
 
           nsgfa => basis_parameter(ikind)%nsgf
           nsgfb => basis_parameter(jkind)%nsgf
+          npgfa => basis_parameter(ikind)%npgf
+          npgfb => basis_parameter(jkind)%npgf
 
           DO i_list_kl=1,list_kl%n_element
 
@@ -536,6 +466,8 @@ MODULE hfx_load_balance_methods
 
             nsgfc => basis_parameter(kkind)%nsgf
             nsgfd => basis_parameter(lkind)%nsgf
+            npgfc => basis_parameter(kkind)%npgf
+            npgfd => basis_parameter(lkind)%npgf
 
             IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
                  coeffs_kind(jkind,ikind)%x(2) ) + &
@@ -620,7 +552,10 @@ MODULE hfx_load_balance_methods
                 END IF
                 max_val2 = max_val2 + pmax_entry
                 IF(max_val2<log10_eps_schwarz) CYCLE
-                current_counter = current_counter + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+                ! current_counter = current_counter + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+                current_counter = current_counter + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
+                                                               npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
+                                                               max_val2/log10_eps_schwarz)
               ENDDO ! i_set_list_kl
             ENDDO ! i_set_list_ij
           ENDDO ! i_list_kl
@@ -2234,6 +2169,64 @@ MODULE hfx_load_balance_methods
     END IF
 
   END SUBROUTINE update_load_balance_forces
+
+! *****************************************************************************
+!> \brief estimates the cost of a set quartet with info available at load balance time
+!>        i.e. without primitives
+!> \par History
+!>      08.2009 created Joost VandeVondele
+!> \author Joost VandeVondele
+! *****************************************************************************
+  FUNCTION cost_model(nsa,nsb,nsc,nsd,npgfa,npgfb,npgfc,npgfd,ratio) RESULT(res)
+    IMPLICIT NONE
+    REAL(KIND=dp) :: rmsd,estimate1,estimate2,estimate,ratio,switch,mu,sigma
+    INTEGER(KIND=int_8) :: res
+    REAL(KIND=dp), PARAMETER :: p1(12)= (/ 3.68929441208341923897_dp,         0.48940924954656772616_dp, &
+                                          0.00102707771831506362_dp,         1.29334668762357529737_dp, &
+                                          1.66880505533381828798_dp,        -0.09749697096154402720_dp, &
+                                          2.01199967713937599711_dp,         0.07454267451127583044_dp, &
+                                          7.95519915010950917633_dp,         1.35724416447166351674_dp, &
+                                         -0.36984994682595428994_dp,         0.13596671313848385232_dp/)
+    REAL(KIND=dp), PARAMETER :: p2(12)= (/3.64080653092177541907_dp,         0.26350123725292662336_dp, &
+                                         -0.01482523772559220243_dp,         0.91188319202419487741_dp, &
+                                          1.40426707920750248881_dp,        -0.06281784386298409906_dp, &
+                                         -2.63101986861228942516_dp,        -4.12905535855329208772_dp, &
+                                         11.38869897885007809180_dp,         1.70436080319537230920_dp, &
+                                          1.83286850171357773576_dp,         0.24388862662611737742_dp/)
+    REAL(KIND=dp), PARAMETER :: p3(2) = (/1.40688884221826859822_dp,         1.32587994555282162601_dp/)
+
+
+    INTEGER   :: nsa,nsb,nsc,nsd,npgfa,npgfb,npgfc,npgfd
+    
+    estimate1=estimate_basic(p1)
+    estimate2=estimate_basic(p2)
+    mu=LOG(ABS(1.0E6_dp*p3(1))+1)
+    sigma=p3(2)*0.1_dp*mu
+    switch=1.0_dp/(1.0_dp+EXP((LOG(estimate1)-mu)/sigma))
+    estimate=estimate1*(1.0_dp-switch)+estimate2*switch
+    res = CEILING(estimate*0.001_dp)
+
+  CONTAINS
+     
+    REAL(KIND=dp) FUNCTION estimate_basic(p) RESULT(res)
+      REAL(KIND=dp) :: p(12)
+      REAL(KIND=dp) :: p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12
+       p1=p(1) ; p2=p(2) ; p3=p(3) ; p4=p(4)
+       p5=p(5) ; p6=p(6) ; p7=p(7) ; p8=p(8)
+       p9=p(9) ; p10=p(10) ; p11=p(11) ; p12=p(12)
+       res=poly2(nsa,p1,p2,p3)*poly2(nsb,p1,p2,p3)*poly2(nsc,p1,p2,p3)*poly2(nsd,p1,p2,p3) * &
+           poly2(npgfa,p4,p5,p6)*poly2(npgfb,p4,p5,p6)*poly2(npgfc,p4,p5,p6)*poly2(npgfd,p4,p5,p6)*EXP(-p7*ratio+p8*ratio**2)+&
+           1000.0_dp*p9+poly2(nsa,p10,p11,p12)*poly2(nsb,p10,p11,p12)*poly2(nsc,p10,p11,p12)*poly2(nsd,p10,p11,p12)
+       res=1+ABS(res)
+    END FUNCTION estimate_basic
+    
+    REAL(KIND=dp) FUNCTION poly2(x,a0,a1,a2)
+       INTEGER :: x
+       REAL(KIND=dp) :: a0,a1,a2
+       poly2=a0+a1*x+a2*x*x
+    END FUNCTION poly2
+     
+  END FUNCTION cost_model
 
 ! *****************************************************************************
 !> \brief Minimizes the maximum cost per cpu by shuffling around all bins

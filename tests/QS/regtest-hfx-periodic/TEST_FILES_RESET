@@ -47,3 +47,12 @@ CH3-coul-0.inp
 #gapw + gpw force_tho_core: bug fix
 H2O-trunc-auto-md.inp
 CH3-trunc-auto-md.inp
+#new HFX code
+H2O-trunc-2.inp
+H2O-trunc-auto.inp
+H2O-coul-0.inp
+H2O-trunc-auto-md.inp
+CH3-trunc-auto.inp
+CH3-trunc-1.inp
+CH3-trunc-auto-md.inp
+CH3-coul-0.inp

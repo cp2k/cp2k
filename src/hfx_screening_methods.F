@@ -506,13 +506,11 @@ MODULE hfx_screening_methods
 
             CALL optimize_it(DATA,x,powell_min_log)
             coeffs_set(jset,iset,jkind,ikind)%x = x 
-
           END DO
         END DO
        
       END DO
     END DO
-
     ! ** now kinds
     ALLOCATE(coeffs_kind(nkind,nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

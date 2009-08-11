@@ -20,14 +20,7 @@ MODULE ai_coulomb_test
                                              gemint2_derivative
   USE ai_geminals_debug,               ONLY: grs,&
                                              init_grs
-  USE hfx_energy_potential,            ONLY: coulomb4
-  USE hfx_libint_wrapper,              ONLY: initialize_libint,&
-                                             lib_int
-  USE hfx_types,                       ONLY: hfx_potential_type,&
-                                             hfx_screen_coeff_type
-  USE input_constants,                 ONLY: do_hfx_potential_coulomb
-  USE kinds,                           ONLY: dp,&
-                                             int_8
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE orbital_pointers,                ONLY: coset,&
                                              deallocate_orbital_pointers,&
@@ -64,32 +57,24 @@ CONTAINS
     CHARACTER*5, DIMENSION(0:lmax)           :: i2c
     CHARACTER*7, DIMENSION(0:lmax)           :: i2e
     CHARACTER*9, DIMENSION(0:lmax)           :: i2f
-    INTEGER :: i, ii, istat, l, la_max, la_min, lb_max, lb_min, lc_max, &
-      lc_min, ld_max, ld_min, ll, lmlib, n, na, nb, ncoa, ncob, ncoc, ncod, &
-      npgfa, npgfb, npgfc, npgfd
-    INTEGER(int_8)                           :: neris
+    INTEGER                                  :: i, ii, istat, l, la_max, &
+                                                la_min, lc_max, lc_min, ll, &
+                                                n, na, nb, npgfa, npgfb, &
+                                                npgfc, npgfd
     LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp) :: cartesian_estimate, eps_schwarz, log10_eps_schwarz, &
-      log10_pmax, max_contraction_val, max_val2_set, perf, rab2, rac2, rcd2, &
-      t, tend, tstart
+    REAL(KIND=dp)                            :: perf, rac2, t, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vac
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: v, za, zb
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: pint
-    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: iab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :, :)            :: iabc
-    REAL(KIND=dp), DIMENSION(3)              :: ab, cd, ra, rb, rc, rd
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rb, rc, rd
     REAL(KIND=dp), DIMENSION(6)              :: a, b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgf, zeta, zetb, zetc, zetd
-    TYPE(hfx_potential_type)                 :: potential_parameter
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:, :), POINTER               :: pgf1, pgf2, R1_pgf, R2_pgf
-    TYPE(lib_int)                            :: lib
 
     IF ( iw>0 ) WRITE(iw,'(/,A)') " Test of Electron Repulsion Integrals (ERI) "
 
@@ -176,89 +161,6 @@ CONTAINS
        END DO
 
     END IF
-
-#if defined (__LIBINT)
-    ! Performance test of libint library
-    IF ( iw>0 ) THEN
-
-       WRITE(iw,'(//,A,/)') " Test of 2-Electron-4-Center Integrals (libint) "
-
-       lmlib = MIN(lmax,3)
-       CALL initialize_libint(lib,lmlib,error)
-
-       ALLOCATE(R1_pgf(n,n),R2_pgf(n,n),pgf1(n,n),pgf2(n,n),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-       R1_pgf(:,:)%x(1)=1._dp
-       R1_pgf(:,:)%x(2)=1._dp
-       R2_pgf(:,:)%x(1)=1._dp
-       R2_pgf(:,:)%x(2)=1._dp
-       pgf1(:,:)%x(1)=1._dp
-       pgf1(:,:)%x(2)=1._dp
-       pgf2(:,:)%x(1)=1._dp
-       pgf2(:,:)%x(2)=1._dp
-       potential_parameter%potential_type=do_hfx_potential_coulomb
-       potential_parameter%omega=0._dp
-       potential_parameter%scale_coulomb=1._dp
-       potential_parameter%scale_longrange=1._dp
-       potential_parameter%scale_gaussian=1._dp
-       potential_parameter%cutoff_radius=100._dp
-       potential_parameter%filename=""
-
-       DO l=0,lmlib
-         la_max=l
-         la_min=0
-         lb_max=l
-         lb_min=0
-         lc_max=l
-         lc_min=0
-         ld_max=l
-         ld_min=0
-         ll = ncoset(l)
-         ncoa = npgfa*ll
-         ncob = npgfb*ll
-         ncoc = npgfc*ll
-         ncod = npgfd*ll
-         eps_schwarz=1.e-20_dp
-         max_contraction_val=1._dp
-         cartesian_estimate=1._dp
-         rab2 = SUM((ra-rb)**2)
-         rcd2 = SUM((rc-rd)**2)
-         ab = ra - rb
-         cd = rc - rd
-         max_val2_set=1._dp
-         log10_eps_schwarz=LOG(eps_schwarz)
-         log10_pmax=1._dp
-         ALLOCATE(pint(ncoa,ncob,ncoc,ncod),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         n=MAX(npgfa,npgfb,npgfc,npgfd)
-
-         ii = MAX(200/(l+1)**4,1)
-         tstart = m_walltime ( )
-         DO i=1,ii
-           CALL coulomb4(lib, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd,&
-                      la_min, la_max, lb_min, lb_max,&
-                      lc_min, lc_max, ld_min, ld_max,&
-                      ncoa, ncob, ncoc, ncod,&
-                      zeta, zetb, zetc, zetd,&
-                      pint,&
-                      potential_parameter, eps_schwarz, max_contraction_val, &
-                      cartesian_estimate, neris, rab2, rcd2, max_val2_set,&
-                      log10_eps_schwarz, log10_pmax, R1_pgf, R2_pgf, pgf1, pgf2, ab, cd)
-         END DO
-         tend = m_walltime ( )
-         t = tend - tstart + threshold
-         perf = ii*REAL(ncoa*ncob*ncoc*ncod,dp)/t
-         WRITE(iw,'(A,T40,A,T66,F15.0)') " Performance [integrals/s] ",i2e(l),perf
-         DEALLOCATE(pint,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       END DO
-
-       DEALLOCATE(R1_pgf,R2_pgf,pgf1,pgf2,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    END IF
-#endif
 
     ! Performance test of geminal routines
     IF ( iw > 0 ) THEN
