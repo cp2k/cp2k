@@ -2132,6 +2132,7 @@ END SUBROUTINE make_full_all_ortho
 
     CALL dbcsr_copy(mat_li_scaled, mat_li, error=error)
     CALL dbcsr_scale(mat_li_scaled, alpha_matrix=pkd_inv_d, side='left', error=error)
+    CALL dbcsr_init(mat_tmp, error=error)
     CALL dbcsr_sm_sm_multiply(mat_li_scaled, mat_t, mat_tmp, dbcsr_distribution (mat_t), 1, error=error)
 
     CALL dbcsr_trace(mat_li, mat_tmp, trace, error=error)

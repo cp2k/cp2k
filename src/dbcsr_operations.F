@@ -3427,59 +3427,22 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_btriu', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: a_data_z, b_data_z
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: a_data_c, b_data_c
-    INTEGER                                  :: blk, col, col_size, nze, &
-                                                offset, row, row_size, &
-                                                timing_handle
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data_d, b_data_d
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: a_data_r, b_data_r
+    INTEGER                                  :: blk, col, row, timing_handle
+    TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
 
     CALL dbcsr_copy(matrix_b, matrix_a, name="triu of "//matrix_a%m%name, error=error)
-    SELECT CASE (dbcsr_data_type(matrix_a))
-    CASE ('r')
-       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
-       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
-    CASE ('R')
-       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
-       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
-    CASE ('c')
-       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
-       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
-    CASE ('C')
-       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
-       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
-    END SELECT
 
-    row_blk_size => array_data (matrix_a%m%row_blk_size)
-    col_blk_size => array_data (matrix_a%m%col_blk_size)
-
-    !
-    ! This is not the way to do it !
-    DO row = 1, matrix_b%m%nblkrows_total
-       row_size = row_blk_size(row)
-       DO blk = matrix_b%m%row_p(row)+1,matrix_b%m%row_p(row+1)
-          col = matrix_b%m%col_i(blk)
-          IF(row.GT.col) THEN
-             col_size = col_blk_size(col)
-             offset = ABS(matrix_b%m%blk_p(blk))
-             nze = row_size * col_size
-             SELECT CASE (dbcsr_data_type(matrix_b))
-             CASE ('R')
-                b_data_d(offset:offset+nze-1) = 0.0_dp
-                !matrix_b%m%data(offset:offset+nze-1) = 0.0_dp
-             CASE default
-                CALL cp_unimplemented_error (routineN,&
-                     "Only real double precision")
-             END SELECT
-          ENDIF
-       ENDDO
+    CALL dbcsr_iterator_start(iter, matrix_b)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, blk)
+       IF(row.GT.col) CALL dbcsr_remove_block(matrix_b, row, col, blk)
     ENDDO
+
+    CALL dbcsr_finalize (matrix_b, error=error)
 
     CALL timestop(timing_handle)
 
