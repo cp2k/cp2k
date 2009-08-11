@@ -1,0 +1,324 @@
+#!/bin/bash
+###############################################################################################################
+#                                                                                                             #
+# This script generates the file hfx_contraction_methods.F, that provides routines for the contraction of     #
+# cartesian basis functions into sphericals. The specific routines are highly optimized but produce a lot     #
+# of code which can result in crazy compilation times. The generic routines are less expensive in terms of    #
+# size and compilation time but are not quite as fast.                                                        #
+#                                                                                                             #
+# The important parameters in this script are as follows:                                                     #
+#   lmax_specific: Maximum angular momentum for specific routines                                             #
+#   lmax_generic: Maximum angular momentum for generic routines                                               #
+#                                                                                                             #
+# Furthermore, there is the pre-processor flag __MAX_CONTR which specifies up to which angular momentum       #
+# specific routines should be used. Setting -D__MAX_CONTR=2 at compilation time restricts the compiler to     #
+# use specific code only up to d-functions even though code for higher quantum number is provided in          #
+# hfx_contraction_methods.F.                                                                                  #
+#                                                                                                             #
+# There is a default case that is called, if lmax exceeds the lmax-value of the provided routines.            #
+#                                                                                                             #
+# Created: 08.2009                                                                                            #
+# Author: Manuel Guidon                                                                                       #
+#                                                                                                             #
+###############################################################################################################
+
+
+lmax_specific=4
+lmax_generic=4
+
+
+number[0]="0"
+number[1]="1"
+number[2]="2"
+number[3]="3"
+number[4]="4"
+number[5]="5"
+number[6]="6"
+number[7]="7"
+number[8]="8"
+number[9]="9"
+number[10]="10"
+
+name[0]="s"
+name[1]="p"
+name[2]="d"
+name[3]="f"
+name[4]="g"
+name[5]="h"
+name[6]="i"
+name[7]="j"
+name[8]="k"
+name[9]="l"
+name[10]="m"
+
+#(l+1)*(l+2)/2
+nco[0]=1
+nco[1]=3
+nco[2]=6
+nco[3]=10
+nco[4]=15
+nco[5]=21
+nco[6]=28
+nco[7]=36
+nco[8]=45
+nco[9]=55
+nco[10]=66
+
+#2*l+1
+nso[0]=1
+nso[1]=3
+nso[2]=5
+nso[3]=7
+nso[4]=9
+nso[5]=11
+nso[6]=13
+nso[7]=15
+nso[8]=17
+nso[9]=19
+nso[10]=21
+
+
+lmax=$lmax_specific
+echo "  SUBROUTINE  contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod, &" > select.dat
+echo "                       n_a, n_b, n_c, n_d,nl_a, nl_b, nl_c, nl_d, work,&" >> select.dat
+echo "                       sphi_a, sphi_b, sphi_c, sphi_d,&" >> select.dat
+echo "                       primitives, &" >> select.dat
+echo "                       buffer1, buffer2)" >> select.dat
+echo " " >> select.dat
+echo "    INTEGER, INTENT(IN)         :: ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&" >> select.dat
+echo "                                   n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d" >> select.dat
+echo "    REAL(dp), DIMENSION(ncoa*ncob* ncoc* ncod), INTENT(IN) :: work" >> select.dat
+echo "    REAL(dp), DIMENSION(ncoa,nsoa*nl_a), INTENT(IN)   :: sphi_a" >> select.dat
+echo "    REAL(dp), DIMENSION(ncob,nsob*nl_b), INTENT(IN)   :: sphi_b" >> select.dat
+echo "    REAL(dp), DIMENSION(ncoc,nsoc*nl_c), INTENT(IN)   :: sphi_c" >> select.dat
+echo "    REAL(dp), DIMENSION(ncod,nsod*nl_d), INTENT(IN)   :: sphi_d" >> select.dat
+echo " " >> select.dat
+echo "    REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b,nsoc*nl_c,nsod*nl_d) :: primitives" >> select.dat
+echo "    REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)  :: buffer1, buffer2" >> select.dat
+echo " " >> select.dat
+echo "    SELECT CASE(n_a)"  >> select.dat
+for a in `seq 0 $lmax` 
+do
+  echo "    CASE("${number[$a]}")"  >> select.dat
+  echo "     SELECT CASE(n_b)"  >> select.dat
+  for b in `seq 0 $lmax`
+  do
+    echo "     CASE("${number[$b]}")"  >> select.dat
+    echo "      SELECT CASE(n_c)"  >> select.dat
+    for c in `seq 0 $lmax`
+    do
+      echo "      CASE("${number[$c]}")"  >> select.dat
+      echo "       SELECT CASE(n_d)"  >> select.dat
+      for d in `seq 0 $lmax`
+      do
+        echo "       CASE("${number[$d]}")"  >> select.dat
+        max=$a
+        if [ $b -gt $max ]
+        then
+          max=$b
+        fi
+        if [ $c -gt $max ]
+        then
+          max=$c
+        fi
+        if [ $d -gt $max ]
+        then
+          max=$d
+        fi
+        echo "#if __MAX_CONTR >" $max "|| __MAX_CONTR ==" $max  >> select.dat
+        echo "        CALL contract_"${name[$a]}${name[$b]}${name[$c]}${name[$d]}"(work,&"  >> select.dat
+        echo "                 nl_a, nl_b, nl_c, nl_d, &"  >> select.dat
+        echo "                  sphi_a, sphi_b, sphi_c, sphi_d, &"  >> select.dat
+        echo "                  primitives,&"  >> select.dat
+        echo "                  buffer1,buffer2 )"  >> select.dat
+        echo "#else"  >> select.dat
+        echo "        CALL contract_generic(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&"  >> select.dat
+        echo "                              work, nl_a, nl_b, nl_c, nl_d, &"  >> select.dat
+        echo "                              sphi_a, &"  >> select.dat
+        echo "                              sphi_b, &"  >> select.dat
+        echo "                              sphi_c, &"  >> select.dat
+        echo "                              sphi_d, &"  >> select.dat
+        echo "                              primitives, &"  >> select.dat
+        echo "                              buffer1, buffer2)"  >> select.dat
+        echo "#endif"  >> select.dat
+      done
+      echo "       CASE DEFAULT"  >> select.dat
+      echo "        CALL contract_generic(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&"  >> select.dat
+      echo "                              work, nl_a, nl_b, nl_c, nl_d, &"  >> select.dat
+      echo "                              sphi_a, &"  >> select.dat
+      echo "                              sphi_b, &"  >> select.dat
+      echo "                              sphi_c, &"  >> select.dat
+      echo "                              sphi_d, &"  >> select.dat
+      echo "                              primitives, &"  >> select.dat
+      echo "                              buffer1, buffer2)"  >> select.dat
+      echo "       END SELECT"  >> select.dat
+    done 
+    echo "      CASE DEFAULT"  >> select.dat
+    echo "       CALL contract_generic(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&"  >> select.dat
+    echo "                             work, nl_a, nl_b, nl_c, nl_d, &"  >> select.dat
+    echo "                             sphi_a, &"  >> select.dat
+    echo "                             sphi_b, &"  >> select.dat
+    echo "                             sphi_c, &"  >> select.dat
+    echo "                             sphi_d, &"  >> select.dat
+    echo "                             primitives, &"  >> select.dat
+    echo "                             buffer1, buffer2)"  >> select.dat
+    echo "      END SELECT"  >> select.dat
+  done
+  echo "     CASE DEFAULT"  >> select.dat
+  echo "      CALL contract_generic(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&"  >> select.dat
+  echo "                            work, nl_a, nl_b, nl_c, nl_d, &"  >> select.dat
+  echo "                            sphi_a, &"  >> select.dat
+  echo "                            sphi_b, &"  >> select.dat
+  echo "                            sphi_c, &"  >> select.dat
+  echo "                            sphi_d, &"  >> select.dat
+  echo "                            primitives, &"  >> select.dat
+  echo "                            buffer1, buffer2)"  >> select.dat
+  echo "     END SELECT"  >> select.dat
+done
+echo "    CASE DEFAULT"  >> select.dat
+echo "     CALL contract_generic(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&"  >> select.dat
+echo "                           work, nl_a, nl_b, nl_c, nl_d, &"  >> select.dat
+echo "                           sphi_a, &"  >> select.dat
+echo "                           sphi_b, &"  >> select.dat
+echo "                           sphi_c, &"  >> select.dat
+echo "                           sphi_d, &"  >> select.dat
+echo "                           primitives, &"  >> select.dat
+echo "                           buffer1, buffer2)"  >> select.dat
+echo "    END SELECT"  >> select.dat
+echo "  END SUBROUTINE  contract" >> select.dat
+
+lmax=$lmax_specific
+for a in `seq 0 $lmax`
+do
+  ncoa=${nco[$a]}
+  nsoa=${nso[$a]}
+  for b in `seq 0 $lmax`
+  do
+    ncob=${nco[$b]}
+    nsob=${nso[$b]}
+    for c in `seq 0 $lmax`
+    do
+      ncoc=${nco[$c]}
+      nsoc=${nso[$c]}
+      for d in `seq 0 $lmax`
+       do
+         ncod=${nco[$d]}
+         nsod=${nso[$d]}
+         max=$a
+         if [ $b -gt $max ]
+         then
+           max=$b
+         fi
+         if [ $c -gt $max ]
+         then
+           max=$c
+         fi
+         if [ $d -gt $max ]
+         then
+           max=$d
+         fi
+         sed "s/nco(n_a)/$ncoa/g" templates/subroutine_specific > tmp
+         sed "s/nco(n_b)/$ncob/g" tmp > tmp1
+         sed "s/nco(n_c)/$ncoc/g" tmp1 > tmp
+         sed "s/nco(n_d)/$ncod/g" tmp > tmp1
+         sed "s/nso(n_a)/$nsoa/g" tmp1 > tmp
+         sed "s/nso(n_b)/$nsob/g" tmp > tmp1
+         sed "s/nso(n_c)/$nsoc/g" tmp1 > tmp
+         sed "s/nso(n_d)/$nsod/g" tmp > tmp1
+         sed "s/angmom1/${name[$a]}/g" tmp1 > tmp
+         sed "s/angmom2/${name[$b]}/g" tmp > tmp1
+         sed "s/angmom3/${name[$c]}/g" tmp1 > tmp
+         sed "s/angmom4/${name[$d]}/g" tmp > tmp1
+         sed "s/INCLUDEA/templates\/sphi${a}a/g" tmp1 > tmp
+         sed "s/INCLUDEB/templates\/sphi${b}b/g" tmp > tmp1
+         sed "s/INCLUDEC/templates\/sphi${c}c/g" tmp1 > tmp
+         sed "s/CURRENT_MAX/${max}/g" tmp > tmp1
+         sed "s/INCLUDED/templates\/sphi${d}d/g" tmp1 >> all.dat
+       done
+    done
+  done
+done
+cpp -P all.dat all2.dat
+sed "s/if/#if/g" all2.dat > all.dat
+sed "s/end#if/#endif/g" all.dat > specific.dat
+rm all.dat
+rm all2.dat
+rm tmp
+rm tmp1
+
+lmax=$lmax_generic
+
+echo "#include \"templates/part1\"" > tmp
+echo "  SELECT CASE(kmax)" >> tmp
+for a in `seq 0 $lmax`
+do
+  ncoa=${nco[$a]}
+  nsoa=${nso[$a]}
+  echo "    CASE($ncoa)" >> tmp
+  echo "      DO i = 1,imax" >> tmp
+  echo "#include \"templates/sphi${a}a\"" >> tmp
+  echo "      END DO" >> tmp
+done
+echo "  CASE DEFAULT" >> tmp
+echo "#include \"templates/part1_default\"" >> tmp
+echo "  END SELECT" >> tmp
+echo "#include \"templates/part2\"" >> tmp
+echo "  SELECT CASE(kmax)" >> tmp
+for a in `seq 0 $lmax`
+do
+  ncoa=${nco[$a]}
+  nsoa=${nso[$a]}
+  echo "    CASE($ncoa)" >> tmp
+  echo "      DO i = 1,imax" >> tmp
+  echo "#include \"templates/sphi${a}b\"" >> tmp
+  echo "      END DO" >> tmp
+done
+echo "  CASE DEFAULT" >> tmp
+echo "#include \"templates/part2_default\"" >> tmp
+echo "  END SELECT" >> tmp
+echo "#include \"templates/part3\"" >> tmp
+echo "  SELECT CASE(kmax)" >> tmp
+for a in `seq 0 $lmax`
+do
+  ncoa=${nco[$a]}
+  nsoa=${nso[$a]}
+  echo "    CASE($ncoa)" >> tmp
+  echo "      DO i = 1,imax" >> tmp
+  echo "#include \"templates/sphi${a}c\"" >> tmp
+  echo "      END DO" >> tmp
+done
+echo "  CASE DEFAULT" >> tmp
+echo "#include \"templates/part3_default\"" >> tmp
+echo "  END SELECT" >> tmp
+echo "#include \"templates/part4\"" >> tmp
+echo "  SELECT CASE(kmax)" >> tmp
+for a in `seq 0 $lmax`
+do
+  ncoa=${nco[$a]}
+  nsoa=${nso[$a]}
+  echo "    CASE($ncoa)" >> tmp
+  echo "      DO i1=1,nsoc" >> tmp
+  echo "      DO i2=1,nsob" >> tmp
+  echo "      DO i3=1,nsoa" >> tmp
+  echo "        i = i + 1" >> tmp
+  echo "#include \"templates/sphi${a}d\"" >> tmp
+  echo "      END DO" >> tmp
+  echo "      END DO" >> tmp
+  echo "      END DO" >> tmp
+done
+echo "  CASE DEFAULT" >> tmp
+echo "#include \"templates/part4_default\"" >> tmp
+echo "  END SELECT" >> tmp
+echo "#include \"templates/part5\"" >> tmp
+#echo "END MODULE test" >> tmp
+cpp -P tmp generic.dat
+rm tmp
+
+cat templates/header > hfx_contraction_methods.F
+cat select.dat >> hfx_contraction_methods.F
+cat specific.dat >> hfx_contraction_methods.F
+cat generic.dat >> hfx_contraction_methods.F
+cat templates/footer >> hfx_contraction_methods.F
+rm select.dat
+rm generic.dat
+rm specific.dat
