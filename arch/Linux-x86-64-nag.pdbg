@@ -3,7 +3,7 @@ CPP      =
 FC       = mpif90
 LD       = mpif90
 AR       = ar -r
-DFLAGS   = -D__NAG -D__FFTSG -D__FFTW3 -D__parallel -D__BLACS -D__SCALAPACK
+DFLAGS   = -D__NAG -D__FFTSG -D__FFTW3 -D__parallel -D__BLACS -D__SCALAPACK -D__LIBINT
 CPPFLAGS = 
 FCFLAGS  = -O0 -g -C=all -mismatch_all -nan -gline -free -fpp $(DFLAGS) -I$(NAG_INC)
 LDFLAGS  = $(FCFLAGS)
@@ -13,7 +13,11 @@ LIBS     = $(NAG_LIB)/libscalapack.a \
            $(NAG_LIB)/libacml.a\
            $(NAG_LIB)/libacml_mv.a\
            $(NAG_LIB)/libfftw3.a\
-           -lpthread
+           $(NAG_LIB)/libint_cpp_wrapper.o\
+           /ext/software/64/g95-suite/lib/libderiv.a\
+           /ext/software/64/g95-suite/lib/libint.a\
+           -lstdc++ -lpthread
+
 
 
 OBJECTS_ARCHITECTURE = machine_nag.o

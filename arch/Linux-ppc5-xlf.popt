@@ -15,7 +15,7 @@ LIBS     = -lscalapack\
 	   /apps/scalapack/64/lib/blacs_MPI-ppc64-0.a\
            -L/apps/lapack/3.1.0/64/ -llapack_ppc64 -lessl\
 	   /opt/ibmcmp/xlmass/4.4/lib64/libmass_64.a\
-	   /users/teo/cp2k/libint_tools/libint_cpp_wrapper.o\
+	   /users/teo/cp2k/tools/hfx_tools/libint_tools/libint_cpp_wrapper.o\
 	   /apps/libint-1.1.4/lib/libderiv.a\
 	   /apps/libint-1.1.4/lib/libint.a /opt/ibmcmp/vacpp/9.0/lib64/libibmc++.a
 
