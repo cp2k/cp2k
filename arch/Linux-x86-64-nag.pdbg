@@ -13,7 +13,7 @@ LIBS     = $(NAG_LIB)/libscalapack.a \
            $(NAG_LIB)/libacml.a\
            $(NAG_LIB)/libacml_mv.a\
            $(NAG_LIB)/libfftw3.a\
-           $(NAG_LIB)/libint_cpp_wrapper.o\
+           $(NAG_LIB)/libint_wrapper.o\
            /ext/software/64/g95-suite/lib/libderiv.a\
            /ext/software/64/g95-suite/lib/libint.a\
            -lstdc++ -lpthread

@@ -15,7 +15,7 @@ LDFLAGS  = $(FCFLAGS)
 LIBS     = /users/teo/lib/64/liblapack_nag.a \
            /users/teo/lib/64/libblas_nag.a \
            $(NAG_LIB)/libfftw3.a \
-	   $(NAG_LIB)/libint_cpp_wrapper.o\
+	   $(NAG_LIB)/libint_wrapper.o\
 	   /ext/software/64/g95-suite/lib/libderiv.a\
 	   /ext/software/64/g95-suite/lib/libint.a\
 	   -lstdc++ -lpthread
