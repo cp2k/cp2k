@@ -18,11 +18,11 @@ MODULE dbcsr_operations
                                              btree_find,&
                                              btree_verify
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_data_copyall, dbcsr_distribution, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_get_data, dbcsr_get_data_p, &
-       dbcsr_get_data_p_d, dbcsr_get_data_size, dbcsr_mp_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_data_copyall, dbcsr_destroy, dbcsr_distribution, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_mp, dbcsr_get_data, &
+       dbcsr_get_data_p, dbcsr_get_data_p_d, dbcsr_get_data_size, &
+       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_nfullcols_local, dbcsr_nfullrows_local
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, &
@@ -30,8 +30,8 @@ MODULE dbcsr_operations
        dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, dbcsr_work_type
   USE dbcsr_util,                      ONLY: &
        add_work_coordinate, addto_array, bcsr_assert, dbcsr_create, &
-       dbcsr_data_ensure_size, dbcsr_destroy, dbcsr_destroy_array, &
-       dbcsr_finalize, dbcsr_get_block_info, dbcsr_get_lookup, dbcsr_init, &
+       dbcsr_data_ensure_size, dbcsr_destroy_array, dbcsr_finalize, &
+       dbcsr_get_block_info, dbcsr_get_lookup, dbcsr_init, &
        dbcsr_repoint_index, dbcsr_set_debug, dbcsr_work_create, &
        ensure_array_size, pointer_replace, pointer_view, swap
   USE kinds,                           ONLY: dp,&

@@ -23,7 +23,7 @@ MODULE cp_dbcsr_operations
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, &
+       dbcsr_col_block_sizes, dbcsr_destroy, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_get_data, &
@@ -46,11 +46,11 @@ MODULE cp_dbcsr_operations
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: &
        dbcsr_checksum, dbcsr_create, dbcsr_create_col_image_dist, &
-       dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, dbcsr_destroy, &
+       dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
        dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_finalize, &
        dbcsr_from_fm, dbcsr_from_sm, dbcsr_init, dbcsr_make_col_images, &
        dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix, &
-       sm_from_dbcsr
+       sm_from_dbcsr, dbcsr_print
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
@@ -362,6 +362,7 @@ CONTAINS
          col_blk_size=col_blk_size_right,&
          error=error)
     CALL dbcsr_verify_matrix(matrix_b, error)
+    !CALL dbcsr_print (matrix_b, error)
 
     checksum = dbcsr_checksum(matrix_b, error)
     !WRITE(*,*)'DBCSR x checksum',checksum
@@ -377,6 +378,7 @@ CONTAINS
     !write(*,*)'got block',row,col
        CALL dbcsr_put_block (matrix_b, block2d, row, col)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
+       !CALL dbcsr_print (matrix_b, error)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
        IF (ldbg.AND.ionode) THEN
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum2", checksum
@@ -411,14 +413,14 @@ CONTAINS
        CALL dbcsr_put_block (matrix_b, block2d_2, row, col)
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error=error, local=.TRUE.)
-       checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
-       IF (ldbg.AND.ionode) THEN
-          WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x  checksm4", checksum
-       ENDIF
        !CALL dbcsr_print (matrix_b, error)
        DEALLOCATE (block2d_2)
     ENDIF
     CALL dbcsr_iterator_stop (iter)
+    checksum = dbcsr_checksum(matrix_b, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum4", checksum
+    ENDIF
     !
     ! test the scale routine on a general matrix
     CALL dbcsr_scale(matrix_b,alpha_scalar=3.0_dp,error=error)

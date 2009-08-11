@@ -40,7 +40,8 @@ MODULE preconditioner
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+  USE dbcsr_methods,                   ONLY: dbcsr_destroy,&
+                                             dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
                                              dbcsr_distribution_nlocal_rows,&
                                              dbcsr_distribution_release,&
@@ -53,7 +54,6 @@ MODULE preconditioner
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
-                                             dbcsr_destroy,&
                                              dbcsr_from_fm,&
                                              dbcsr_from_sm,&
                                              dbcsr_init,&

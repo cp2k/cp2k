@@ -36,20 +36,21 @@ MODULE dbcsr_util
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_data_copyall, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
-       dbcsr_data_set_pointer, dbcsr_data_type, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, dbcsr_get_info, &
-       dbcsr_get_num_blocks, dbcsr_iterator_blocks_left, &
-       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_new, dbcsr_mp_new_transposed, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
+       dbcsr_data_set_pointer, dbcsr_data_type, dbcsr_destroy, &
+       dbcsr_distribution, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_hold, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+       dbcsr_distribution_processor, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
+       dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_num_blocks, &
+       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
+       dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
        dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
@@ -118,7 +119,6 @@ MODULE dbcsr_util
      MODULE PROCEDURE iswap
   END INTERFACE
 
-!#ifndef __SGL
   INTERFACE dbcsr_printmat
      MODULE PROCEDURE printmat_s, printmat_d, printmat_c, printmat_z
   END INTERFACE
@@ -173,57 +173,6 @@ MODULE dbcsr_util
           dbcsr_set_diagonal_z, dbcsr_set_diagonal_c
   END INTERFACE
 
-!#else
-!  INTERFACE dbcsr_printmat
-!     MODULE PROCEDURE printmat_d, printmat_z
-!  END INTERFACE
-!
-!  INTERFACE addto_array
-!     MODULE PROCEDURE addto_array_i, addto_array_d, addto_array_ad,&
-!          addto_array_az
-!  END INTERFACE
-!  INTERFACE ensure_array_size
-!     MODULE PROCEDURE ensure_array_size_i, ensure_array_size_i_2d,&
-!          ensure_array_size_d,&
-!          ensure_array_size_z
-!  END INTERFACE
-!
-!  INTERFACE dbcsr_block_transpose
-!     MODULE PROCEDURE block_transpose_inplace,&
-!          block_transpose_copy_d,&
-!          block_transpose_copy_z,&
-!          dbcsr_block_transpose_aa
-!  END INTERFACE
-!
-!  ! Supports copy between two data areas, or to a data area from a
-!  ! given explicit array.
-!  INTERFACE dbcsr_data_set
-!     MODULE PROCEDURE dbcsr_data_copy_aa,&
-!          dbcsr_data_set_ad, dbcsr_data_set_az
-!  END INTERFACE
-!
-!  ! Ugly fortran hack
-!  INTERFACE pointer_view
-!     MODULE PROCEDURE pointer_view_d,&
-!          pointer_view_z
-!  END INTERFACE
-!
-!  INTERFACE pointer_replace
-!     MODULE PROCEDURE pointer_replace_i
-!  END INTERFACE
-!
-!  INTERFACE set_block_diagonal
-!     MODULE PROCEDURE set_block_diagonal_d,&
-!          set_block_diagonal_z
-!  END INTERFACE
-!
-!  INTERFACE dbcsr_set_diagonal
-!     MODULE PROCEDURE dbcsr_set_diagonal_d,&
-!          dbcsr_set_diagonal_z
-!  END INTERFACE
-!#endif
-
-
   ! Main
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize,&
        dbcsr_from_fm, dbcsr_from_sm,&
@@ -233,7 +182,7 @@ MODULE dbcsr_util
        dbcsr_init,&
        dbcsr_new_transposed,&
        dbcsr_desymmetrize_deep,&
-       dbcsr_destroy, dbcsr_work_destroy, dbcsr_print, dbcsr_valid_index
+       dbcsr_work_destroy, dbcsr_print, dbcsr_valid_index
   ! Distributions
   PUBLIC :: dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot,&
        dbcsr_create_dist_l_rot, dbcsr_create_dist_l_unrot,&
@@ -573,8 +522,18 @@ CONTAINS
     NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p)
     matrix%m%row_blk_size = row_blk_size
     CALL array_hold (matrix%m%row_blk_size)
+    IF (array_size (matrix%m%row_blk_size) .GT. 0) THEN
+       matrix%m%max_rbs = MAXVAL (array_data (matrix%m%row_blk_size))
+    ELSE
+       matrix%m%max_rbs = 0
+    ENDIF
     matrix%m%col_blk_size = col_blk_size
     CALL array_hold (matrix%m%col_blk_size)
+    IF (array_size (matrix%m%col_blk_size) .GT. 0) THEN
+       matrix%m%max_cbs = MAXVAL (array_data (matrix%m%col_blk_size))
+    ELSE
+       matrix%m%max_cbs = 0
+    ENDIF
     matrix%m%dist = dist
     CALL dbcsr_distribution_hold (matrix%m%dist)
     CALL meta_from_dist (new_meta, dist, row_blk_size, col_blk_size,&
@@ -721,7 +680,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates the final dbcsr_type matrix from the working matrix.
-!> \par The final matrix is present as the element work_matrix%m.
+!>
+!> If a matrix has a valid index, then nothing is done.
 !> \note The columns and rows must be ordered! We don't support appending
 !>       data to an existing matrix.
 !> \param[in,out] matrix      final matrix
@@ -745,8 +705,6 @@ CONTAINS
                                                 timing_handle
     LOGICAL                                  :: lkeepdata, multidata, srt
 
-!TYPE(dbcsr_work_type)                    :: wm, newm
-
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
@@ -760,23 +718,28 @@ CONTAINS
     CALL timeset(routineN, timing_handle)
     IF (dbg) WRITE(*,'(A,1X,A,2(1X,I9))')routineN//' finalizing matrix ',&
          matrix%m%name, matrix%m%nze, matrix%m%nblks
-    CALL cp_assert (matrix%m%nze.EQ.0 .EQV. matrix%m%nblks.EQ.0,&
-         cp_warning_level, cp_unimplemented_error_nr, routineN,&
-         "Matrix data size not consistent with number of blocks.")
+    !CALL cp_assert (matrix%m%nze.EQ.0 .EQV. matrix%m%nblks.EQ.0,&
+    !     cp_warning_level, cp_unimplemented_error_nr, routineN,&
+    !     "Matrix data size not consistent with number of blocks.")
+    CALL cp_assert (matrix%m%nze .GT. 0 .OR. ASSOCIATED (matrix%m%wms),&
+         cp_warning_level, cp_caller_error, routineN,&
+         "Nothing to be done.")
     IF (matrix%m%nze .GT. 0) THEN
        CALL dbcsr_add_wm_from_matrix (matrix)
     ENDIF
     srt = .TRUE.
     lkeepdata = .FALSE.
     IF (PRESENT (keepdata)) lkeepdata = keepdata
-    multidata = SIZE (matrix%m%wms) .GT. 1
-    IF (.NOT. multidata) THEN
-       CALL cp_assert (ASSOCIATED (matrix%m%wms), cp_fatal_level, cp_caller_error,&
-            routineN, "Can not finalize matrix containing no work matrices.")
-       CALL cp_assert (SIZE (matrix%m%wms) .GT. 0, cp_failure_level,&
-            cp_caller_error, routineN,&
-            "Can not finalize matrix containing no work matrices.")
+    IF (ASSOCIATED (matrix%m%wms)) THEN
+       multidata = SIZE (matrix%m%wms) .GT. 1
+    ELSE
+       multidata = .FALSE.
     ENDIF
+    CALL cp_assert (ASSOCIATED (matrix%m%wms), cp_fatal_level, cp_caller_error,&
+         routineN, "Can not finalize matrix containing no work matrices.")
+    CALL cp_assert (SIZE (matrix%m%wms) .GT. 0, cp_failure_level,&
+         cp_caller_error, routineN,&
+         "Can not finalize matrix containing no work matrices.")
     IF (PRESENT (resort)) srt = resort
     ! If there are multiple work matrices, the indices have to be sorted to
     ! enable merging the index.
@@ -789,20 +752,12 @@ CONTAINS
        ENDIF
     ENDIF
     ! Count how large the new matrix will have to be.
-    IF (multidata) THEN
-       !all_nblks = matrix%m%nblks
-       !all_nze = matrix%m%nze
-       all_nblks = 0
-       all_nze = 0
-       DO i = 1, SIZE (matrix%m%wms)
-          all_nblks = all_nblks + matrix%m%wms(i)%lastblk
-          all_nze = all_nze + matrix%m%wms(i)%datasize
-          !all_nze = all_nze + dbcsr_get_data_size (matrix%m%wms(i)%data_area)
-       ENDDO
-    ELSE
-       all_nblks = matrix%m%wms(1)%lastblk
-       all_nze = matrix%m%wms(1)%datasize
-    ENDIF
+    all_nblks = 0
+    all_nze = 0
+    DO i = 1, SIZE (matrix%m%wms)
+       all_nblks = all_nblks + matrix%m%wms(i)%lastblk
+       all_nze = all_nze + matrix%m%wms(i)%datasize
+    ENDDO
     IF (dbg) THEN
        DO i = 1, SIZE (matrix%m%wms)
           WRITE(*,'(A,4(1X,I4))')"Sorted work matrix",i, matrix%m%wms(i)%lastblk,&
@@ -928,47 +883,6 @@ CONTAINS
     IF (dbg) WRITE(*,*)routineN//" Size is",wm%datasize
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_fill_wm_from_matrix
-
-
-! *****************************************************************************
-!> \brief Deallocates and destroys a matrix.
-!> \param[in,out] matrix      matrix
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_destroy(matrix, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    CALL cp_assert (ASSOCIATED (matrix%m), cp_warning_level, cp_caller_error,&
-         routineN, "Can not destroy nonexisting matrix object.")
-    IF (ASSOCIATED (matrix%m)) THEN
-       matrix%m%refcount = matrix%m%refcount - 1
-       IF (matrix%m%refcount .EQ. 0) THEN
-          IF (matrix%m%special_memory) THEN
-             CALL MP_DEALLOCATE(matrix%m%index)
-          ELSE
-             DEALLOCATE(matrix%m%index)
-          ENDIF
-          !IF (matrix%m%special_memory) THEN
-          !   CALL MP_DEALLOCATE(matrix%m%data)
-          !ELSE
-          !   DEALLOCATE(matrix%m%data)
-          !ENDIF
-          CALL dbcsr_data_release (matrix%m%data_area)
-          CALL array_release (matrix%m%row_blk_size)
-          CALL array_release (matrix%m%col_blk_size)
-          CALL dbcsr_distribution_release(matrix%m%dist)
-          matrix%m%valid = .FALSE.
-          matrix%m%initialized = .TRUE.
-          DEALLOCATE (matrix%m)
-       ENDIF
-    ENDIF
-  END SUBROUTINE dbcsr_destroy
 
 
 ! *****************************************************************************
@@ -3924,7 +3838,8 @@ CONTAINS
     END FORALL
     IF (dbg) THEN
        DO i = 1, nwms
-          WRITE(*,'(A,1X,I4,1X,A,2(1X,I7))')routineN//" size of wm",i,"is",&
+          WRITE(*,'(A,1X,I4,1X,A,3(1X,I7))')routineN//" size of wm",i,"is",&
+               matrix%wms(i)%lastblk,&
                matrix%wms(i)%datasize,&
                dbcsr_get_data_size (matrix%wms(i)%data_area)
           WRITE(*,'(A)')routineP//'row_i='
@@ -3941,6 +3856,7 @@ CONTAINS
     blk = 1
     row = 1
     prev_row = 1
+    smallest_row = 1
     DO WHILE (.NOT. ALL (finished))
        ! Find the (still-valid) source block that has the smallest column in
        ! the smallest row. Start with any valid source block.

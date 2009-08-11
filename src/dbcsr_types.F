@@ -37,7 +37,9 @@ MODULE dbcsr_types
             dbcsr_mp_obj, dbcsr_mp_type,&
             dbcsr_distribution_obj, dbcsr_distribution_type,&
             dbcsr_imagedistribution_type,&
-            dbcsr_iterator
+            dbcsr_iterator,&
+            dbcsr_1d_set_obj,&
+            dbcsr_2d_set_obj
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
             dbcsr_slot_row_p,&
@@ -207,6 +209,7 @@ MODULE dbcsr_types
 !> \var blk_p       the pointer into the data array of this block.
 !> \var row_blk_size          sizes (rows in a block) of blocked rows
 !> \var col_blk_size          sizes (columns in a block) of blocked columns
+!> \var max_rbs, max_cbs      maximal row and column sizes
 !> \var dist2d      distribution_2d used by this matrix
 !> \var dist        distribution used by this matrix
 !> \var nblks       number of blocks locally present
@@ -237,6 +240,7 @@ MODULE dbcsr_types
           &                                blk_p
      TYPE(array_i1d_obj)                   row_blk_size,&
           &                                col_blk_size
+     INTEGER                            :: max_rbs, max_cbs
      TYPE(distribution_2d_type), POINTER :: dist2d
      INTEGER                 :: nblks, nze
      INTEGER                 :: nblkrows_total, nblkcols_total
@@ -286,6 +290,26 @@ MODULE dbcsr_types
   TYPE dbcsr_work_type_p
      TYPE(dbcsr_work_type), POINTER     :: w
   END TYPE dbcsr_work_type_p
+
+! *****************************************************************************
+!> \brief A 1-D set of DBCSR matrices
+!> \var s           the set of matrices
+!> \var refcount    reference counter
+! *****************************************************************************
+  TYPE dbcsr_1d_set_obj
+     TYPE(dbcsr_obj), DIMENSION(:), POINTER :: s
+     INTEGER, POINTER                       :: refcount
+  END TYPE dbcsr_1d_set_obj
+
+! *****************************************************************************
+!> \brief A 2-D set of DBCSR matrices
+!> \var s           the set of matrices
+!> \var refcount    reference counter
+! *****************************************************************************
+  TYPE dbcsr_2d_set_obj
+     TYPE(dbcsr_obj), DIMENSION(:,:), POINTER :: s
+     INTEGER, POINTER                         :: refcount
+  END TYPE dbcsr_2d_set_obj
 
 ! *****************************************************************************
 !> \brief An array of DBCSR matrices

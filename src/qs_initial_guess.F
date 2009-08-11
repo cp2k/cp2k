@@ -27,20 +27,16 @@ MODULE qs_initial_guess
        cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_col_dist,&
-                                             dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_release,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_get_num_blocks,&
-                                             dbcsr_row_block_sizes
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_destroy, dbcsr_distribution, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_get_num_blocks, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: dbcsr_filter
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
-                                             dbcsr_destroy,&
                                              dbcsr_from_fm,&
                                              dbcsr_from_sm,&
                                              dbcsr_init,&
