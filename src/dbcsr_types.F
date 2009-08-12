@@ -280,7 +280,7 @@ MODULE dbcsr_types
 !> \var m  The DBCSR array.
 ! *****************************************************************************
   TYPE dbcsr_obj
-     TYPE(dbcsr_type), POINTER :: m
+     TYPE(dbcsr_type), POINTER :: m => NULL()
   END TYPE dbcsr_obj
 
 ! *****************************************************************************
