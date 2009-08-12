@@ -14,7 +14,10 @@
 ! *****************************************************************************
 MODULE dbcsr_types
   USE array_types,                     ONLY: array_i1d_obj
-  USE btree_I8_k_I4_v,                 ONLY: btree_I8_I4 => btree
+  USE btree_I8_k_CP2D_v,               ONLY: btree_2d_c => btree
+  USE btree_I8_k_DP2D_v,               ONLY: btree_2d_d => btree
+  USE btree_I8_k_SP2D_v,               ONLY: btree_2d_s => btree
+  USE btree_I8_k_ZP2D_v,               ONLY: btree_2d_z => btree
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -39,7 +42,8 @@ MODULE dbcsr_types
             dbcsr_imagedistribution_type,&
             dbcsr_iterator,&
             dbcsr_1d_set_obj,&
-            dbcsr_2d_set_obj
+            dbcsr_2d_set_obj,&
+            dbcsr_mutable_obj, dbcsr_mutable_type
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
             dbcsr_slot_row_p,&
@@ -167,6 +171,28 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER          :: dbcsr_type_complex_8 = 'C'
 
 ! *****************************************************************************
+!> \brief Data area with random acces reads, insertions, and deletions.
+!> \var tree_s, tree_d, tree_c, tree_z  Data types for the various types
+!> \var refcount                        Reference counter
+!> \var data_type                       The data type that is stored
+! *****************************************************************************
+  TYPE dbcsr_mutable_type
+     TYPE(btree_2d_s)          :: btree_s
+     TYPE(btree_2d_d)          :: btree_d
+     TYPE(btree_2d_c)          :: btree_c
+     TYPE(btree_2d_z)          :: btree_z
+     INTEGER                   :: refcount
+     CHARACTER                 :: data_type
+  END TYPE dbcsr_mutable_type
+
+! *****************************************************************************
+!> \brief Object for the mutable data type
+! *****************************************************************************
+  TYPE dbcsr_mutable_obj
+     TYPE(dbcsr_mutable_type), POINTER :: m
+  END TYPE dbcsr_mutable_obj
+
+! *****************************************************************************
 !> \brief Used for assembling a real matrix.
 !> \var m           the final bcsr matrix
 !> \var data_area   holds actual values.
@@ -180,15 +206,13 @@ MODULE dbcsr_types
 !>                  col_i, and blk_p indices when index is scattered).
 ! *****************************************************************************
   TYPE dbcsr_work_type
-     !REAL(KIND=dp), DIMENSION(:), POINTER    :: DATA
-!     TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: datas
      TYPE(dbcsr_data_obj)                    :: data_area
-!     INTEGER, DIMENSION(:), POINTER          :: blk_d, lastblks, datasizes
      INTEGER, DIMENSION(:), POINTER          :: row_i,&
           &                                     col_i,&
           &                                     blk_p
      INTEGER        :: lastblk, datasize
-     TYPE(btree_i8_i4)    :: tree
+     !TYPE(btree_2d_d)        :: tree
+     TYPE(dbcsr_mutable_obj)                 :: mutable
   END TYPE dbcsr_work_type
 
 ! *****************************************************************************

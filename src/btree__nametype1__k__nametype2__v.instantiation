@@ -1,10 +1,73 @@
 [
-{'nametype1':'i8',
-'type1':'INTEGER(KIND=keyt)', 
-'type1setup':'INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)',
-'nametype2':'i4',
-'type2':'INTEGER(KIND=valt)',
-'type2setup':'INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5)',
-'defaultFormatType1':'I12',
-'defaultFormatType2':'I6'}
+    {'nametype1':'i8',
+     'type1':'INTEGER(KIND=keyt)', 
+     'type1setup':'INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)',
+     'nametype2':'i4',
+     'type2':'INTEGER(KIND=valt)',
+     'type2setup':'INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5)',
+     'defaultFormatType1':'I12',
+     'defaultFormatType2':'I6',
+     'accessorType2':''
+     },
+    {'nametype1':'i8',
+     'type1':'INTEGER(KIND=keyt)', 
+     'type1setup':'INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)',
+     'nametype2':'sp2d',
+     'type2':'TYPE(sp2d)',
+     'type2setup':'INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5);\n'\
+         +'  INTEGER, PARAMETER :: sp = KIND(0.0)\n\n'
+     +'  TYPE sp2d\n'
+     +'     REAL(KIND=sp), DIMENSION(:,:), POINTER :: p\n'
+     +'  END TYPE sp2d\n\n'
+     +'  PUBLIC :: sp2d',
+     'defaultFormatType1':'I12',
+     'defaultFormatType2':'F12.3',
+     'accessorType2':'%p'
+     },
+    {'nametype1':'i8',
+     'type1':'INTEGER(KIND=keyt)', 
+     'type1setup':'INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)',
+     'nametype2':'dp2d',
+     'type2':'TYPE(dp2d)',
+     'type2setup':'INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5);\n'\
+         +'  INTEGER, PARAMETER :: dp = KIND(0.0d0)\n\n'
+     +'  TYPE dp2d\n'
+     +'     REAL(KIND=dp), DIMENSION(:,:), POINTER :: p\n'
+     +'  END TYPE dp2d\n\n'
+     +'  PUBLIC :: dp2d',
+     'defaultFormatType1':'I12',
+     'defaultFormatType2':'F12.3',
+     'accessorType2':'%p'
+     }
+,
+    {'nametype1':'i8',
+     'type1':'INTEGER(KIND=keyt)', 
+     'type1setup':'INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)',
+     'nametype2':'cp2d',
+     'type2':'TYPE(cp2d)',
+     'type2setup':'INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5);\n'\
+         +'  INTEGER, PARAMETER :: sp = KIND(0.0)\n\n'
+     +'  TYPE cp2d\n'
+     +'     COMPLEX(KIND=sp), DIMENSION(:,:), POINTER :: p\n'
+     +'  END TYPE cp2d\n\n'
+     +'  PUBLIC :: cp2d',
+     'defaultFormatType1':'I12',
+     'defaultFormatType2':'F12.3',
+     'accessorType2':'%p'
+     },
+    {'nametype1':'i8',
+     'type1':'INTEGER(KIND=keyt)', 
+     'type1setup':'INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)',
+     'nametype2':'zp2d',
+     'type2':'TYPE(zp2d)',
+     'type2setup':'INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5);\n'\
+         +'  INTEGER, PARAMETER :: dp = KIND(0.0d0)\n\n'
+     +'  TYPE zp2d\n'
+     +'     COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: p\n'
+     +'  END TYPE zp2d\n\n'
+     +'  PUBLIC :: zp2d',
+     'defaultFormatType1':'I12',
+     'defaultFormatType2':'F12.3',
+     'accessorType2':'%p'
+     }
 ]

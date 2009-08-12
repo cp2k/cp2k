@@ -20,11 +20,23 @@ MODULE dbcsr_methods
                                              array_nullify,&
                                              array_release,&
                                              array_size
+  USE btree_I8_k_cp2d_v,               ONLY: btree_c => btree,&
+                                             btree_destroy_c => btree_delete,&
+                                             btree_new_c => btree_new
+  USE btree_I8_k_dp2d_v,               ONLY: btree_d => btree,&
+                                             btree_destroy_d => btree_delete,&
+                                             btree_new_d => btree_new
+  USE btree_I8_k_sp2d_v,               ONLY: btree_destroy_s => btree_delete,&
+                                             btree_new_s => btree_new,&
+                                             btree_s => btree
+  USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
+                                             btree_new_z => btree_new,&
+                                             btree_z => btree
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_set_obj, dbcsr_2d_set_obj, dbcsr_data_obj, &
-       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
-       dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
+       dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
   USE f77_blas
   USE f77_blas_generic,                ONLY: bl_copy
   USE kinds,                           ONLY: default_string_length,&
@@ -72,6 +84,10 @@ MODULE dbcsr_methods
 
   PUBLIC :: dbcsr_set_init, dbcsr_set_new, dbcsr_set_put, dbcsr_set_get,&
             dbcsr_set_destroy, dbcsr_set_hold, dbcsr_set_release
+
+  PUBLIC :: dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_destroy,&
+            dbcsr_mutable_release, dbcsr_mutable_hold,&
+            dbcsr_mutable_instantiated
 
   PRIVATE
 
@@ -2166,5 +2182,136 @@ CONTAINS
     r2p => r1p(1:d1, 1:d2)
   END SUBROUTINE pointer_d_rank_remap2
 #endif
+
+
+! *****************************************************************************
+! Mutable data
+! *****************************************************************************
+
+! *****************************************************************************
+!> \brief Initializes a mutable data type
+!> \param[out] mutable        mutable data
+! *****************************************************************************
+  SUBROUTINE dbcsr_mutable_init (mutable)
+    TYPE(dbcsr_mutable_obj), INTENT(OUT)     :: mutable
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_init', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    NULLIFY (mutable%m)
+  END SUBROUTINE dbcsr_mutable_init
+
+! *****************************************************************************
+!> \brief Destroys a mutable data type
+!> \param[in,out] mutable     mutable data
+! *****************************************************************************
+  SUBROUTINE dbcsr_mutable_destroy (mutable)
+    TYPE(dbcsr_mutable_obj), INTENT(INOUT)   :: mutable
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_destroy', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED (mutable%m)) THEN
+       !CALL cp_assert (mutable%m%refcount .EQ. 0, cp_warning_level,&
+       !     cp_caller_error, routineN, "Destroying with non-0 reference count")
+       CALL btree_destroy_s (mutable%m%btree_s)
+       CALL btree_destroy_d (mutable%m%btree_d)
+       CALL btree_destroy_c (mutable%m%btree_c)
+       CALL btree_destroy_z (mutable%m%btree_z)
+       DEALLOCATE (mutable%m)
+    ENDIF
+    NULLIFY (mutable%m)
+  END SUBROUTINE dbcsr_mutable_destroy
+
+
+! *****************************************************************************
+!> \brief Registers another reference to the mutable data type
+!> \param[in,out] mutable     mutable data
+! *****************************************************************************
+  SUBROUTINE dbcsr_mutable_hold (mutable)
+    TYPE(dbcsr_mutable_obj), INTENT(INOUT)   :: mutable
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_hold', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (ASSOCIATED (mutable%m), cp_fatal_level,&
+         cp_caller_error, routineN, "Mutable data area not instantiated")
+    mutable%m%refcount = mutable%m%refcount + 1
+  END SUBROUTINE dbcsr_mutable_hold
+
+! *****************************************************************************
+!> \brief Deregisters a reference to the mutable data type
+!>
+!> The object is destroy when there is no reference to it left.
+!> \param[in,out] mutable     mutable data
+! *****************************************************************************
+  SUBROUTINE dbcsr_mutable_release (mutable)
+    TYPE(dbcsr_mutable_obj), INTENT(INOUT)   :: mutable
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_release', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (ASSOCIATED (mutable%m), cp_fatal_level,&
+         cp_caller_error, routineN, "Mutable data area not instantiated")
+    mutable%m%refcount = mutable%m%refcount - 1
+    IF (mutable%m%refcount .EQ. 0) THEN
+       CALL dbcsr_mutable_destroy (mutable)
+    ENDIF
+  END SUBROUTINE dbcsr_mutable_release
+
+! *****************************************************************************
+!> \brief Creates a new mutable instance.
+!>
+!> \param[in,out] mutable     mutable data
+!> \param[in] data_type       data type to be stored here (see dbcsr_types for
+!>                            possibilities)
+! *****************************************************************************
+  SUBROUTINE dbcsr_mutable_new (mutable, data_type)
+    TYPE(dbcsr_mutable_obj), INTENT(INOUT)   :: mutable
+    CHARACTER, INTENT(IN)                    :: data_type
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_new', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (.NOT.ASSOCIATED (mutable%m), cp_fatal_level,&
+         cp_caller_error, routineN, "Mutable data area already instantiated")
+    CALL cp_assert (data_type.EQ.dbcsr_type_real_4&
+         .OR. data_type.EQ.dbcsr_type_real_8&
+         .OR. data_type.EQ.dbcsr_type_complex_4&
+         .OR. data_type.EQ.dbcsr_type_complex_8, cp_fatal_level,&
+         cp_wrong_args_error, routineN, "Invalid data type")
+    ALLOCATE (mutable%m)
+    mutable%m%data_type = data_type
+    CALL btree_new_s (mutable%m%btree_s)
+    CALL btree_new_d (mutable%m%btree_d)
+    CALL btree_new_c (mutable%m%btree_c)
+    CALL btree_new_z (mutable%m%btree_z)
+  END SUBROUTINE dbcsr_mutable_new
+
+! *****************************************************************************
+!> \brief Deregisters a reference to the mutable data type
+!>
+!> The object is destroy when there is no reference to it left.
+!> \param[in] mutable         mutable data
+!> \param[out] instantiated   whether the object is instantiated
+! *****************************************************************************
+  FUNCTION dbcsr_mutable_instantiated (mutable) RESULT (instantiated)
+    TYPE(dbcsr_mutable_obj), INTENT(IN)      :: mutable
+    LOGICAL                                  :: instantiated
+
+!   ---------------------------------------------------------------------------
+
+    instantiated = ASSOCIATED (mutable%m)
+  END FUNCTION dbcsr_mutable_instantiated
 
 END MODULE dbcsr_methods

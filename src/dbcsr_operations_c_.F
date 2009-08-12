@@ -144,19 +144,64 @@
 
 
 ! *****************************************************************************
-!> \brief get a block in a dbcsr matrix
+!> \brief Gets a 2-d block from a dbcsr matrix
 !> \param[in]  matrix DBCSR matrix
-!> \param[in]  block  the block to get
 !> \param[in]  row    the row
 !> \param[in]  col    the column
-!> 
+!> \param[out] block  the block to get (rank-2 array)
+!> \param[out] found  whether the block exists in the matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_block_c(matrix,block,row,col,found,error)
+  SUBROUTINE dbcsr_get_2d_block_c(matrix,row,col,block,found)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    COMPLEX(kind=real_4), DIMENSION(:), INTENT(INOUT) :: block
     INTEGER, INTENT(IN)                      :: row, col
+    COMPLEX(kind=real_4), DIMENSION(:,:), INTENT(OUT)     :: block
     LOGICAL, INTENT(OUT)                     :: found
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_c', &
+      routineP = moduleN//':'//routineN
+    
+    COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block_1d
+    INTEGER                                  :: row_size, col_size,&
+                                                blk, last_blk, nze, offset,&
+                                                frst_blk
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+
+!   ---------------------------------------------------------------------------
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
+    CALL cp_assert (matrix%m%data_type .EQ. 'c',&
+         cp_fatal_level, cp_caller_error,&
+         routineN, "Data type mismatch for requested block.")
+    row_size = row_blk_size(row)
+    col_size = col_blk_size(col)
+    blk = matrix%m%row_p(row)+1
+    frst_blk = matrix%m%row_p(row)+1
+    last_blk = matrix%m%row_p(row+1)
+    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
+    IF(found) THEN
+       nze = row_size*col_size
+       !
+       ! let's copy the block
+       offset = ABS(matrix%m%blk_p(blk))
+       block_1d = pointer_view ( dbcsr_get_data_p (&
+                     matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset)
+       block(1:row_size, 1:col_size)&
+            = RESHAPE (block_1d, (/row_size, col_size/))
+    ENDIF
+  END SUBROUTINE dbcsr_get_2d_block_c
+
+! *****************************************************************************
+!> \brief Gets a 2-d block from a dbcsr matrix
+!> \param[in]  matrix DBCSR matrix
+!> \param[in]  row    the row
+!> \param[in]  col    the column
+!> \param[out] block  the block to get (rank-1 array)
+!> \param[out] found  whether the block exists in the matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_block_c(matrix,row,col,block,found)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    COMPLEX(kind=real_4), DIMENSION(:), INTENT(OUT)       :: block
+    LOGICAL, INTENT(OUT)                     :: found
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_c', &
       routineP = moduleN//':'//routineN
@@ -165,7 +210,7 @@
                                                 last_blk, nze, offset, &
                                                 row_size
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-
+!   ---------------------------------------------------------------------------
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
     CALL cp_assert (matrix%m%data_type .EQ. 'c',&
@@ -189,40 +234,146 @@
             ), 1, block(1), 1)
        !CALL dcopy(nze,matrix%m%data(offset),1,block(1),1)
     ENDIF
-
   END SUBROUTINE dbcsr_get_block_c
+
+
+! *****************************************************************************
+!> \brief Put a 2-D block in a DBCSR matrix using the btree
+!> \param[in.out] matrix      DBCSR matrix
+!> \param[in]  row            the row
+!> \param[in]  col            the column
+!> \param[in]  block          the block to reserve
+!> \param[out] existed        (optional) block already existed
+! *****************************************************************************
+  SUBROUTINE dbcsr_reserve_block2d_c(matrix, row, col, block, existed)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    COMPLEX(kind=real_4), DIMENSION(:,:), POINTER   :: block
+    LOGICAL, INTENT(OUT), OPTIONAL           :: existed
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_block2d_c', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(btree_2d_data_c)          :: data_block, data_block2
+    INTEGER                                  :: blk, col_size, frst_blk, &
+                                                last_blk, nze, offset, &
+                                                row_size, blk_p
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: found
+
+!   ---------------------------------------------------------------------------
+
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
+
+    row_size = row_blk_size(row)
+    col_size = col_blk_size(col)
+
+    IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
+       !WRITE(*,*)routineN//" Creating new work matrix to hold new data"
+       CALL dbcsr_work_create (matrix)
+       matrix%m%valid = .FALSE.
+       CALL dbcsr_mutable_new (matrix%m%wms(1)%mutable,&
+            dbcsr_data_type (matrix))
+    ENDIF
+
+    NULLIFY (data_block%p)
+    ! This needs to be preallocated, or we should first check whether
+    ! the block exists.
+    ALLOCATE (data_block%p (row_size, col_size))
+    block => data_block%p
+
+    CALL btree_add_c (matrix%m%wms(1)%mutable%m%btree_c,&
+         make_coordinate_tuple(row, col),&
+         data_block, found, data_block2)
+
+    IF (.NOT. found) THEN
+       !WRITE(*,*)routineN//" Added new block", row_size, col_size
+       !block => data_block%p
+    ELSE
+       DEALLOCATE (data_block%p)
+       !WRITE(*,*)routineN//" Block existed   ", SIZE(block)
+       CALL cp_assert (ASSOCIATED (data_block%p), cp_warning_level,&
+            cp_internal_error, routineN,&
+            "Existing block has no associated pointer.")
+       block => data_block2%p
+    ENDIF
+    IF (PRESENT (existed)) existed = found
+    matrix%m%wms(1)%lastblk = matrix%m%wms(1)%lastblk + 1
+    matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + row_size*col_size
+  END SUBROUTINE dbcsr_reserve_block2d_c
+
+! *****************************************************************************
+!> \brief Get a 2D block from the working matrix
+!> \param[in.out] matrix      DBCSR matrix
+!> \param[in]  row            the row
+!> \param[in]  col            the column
+!> \param[in]  block          pointer to data block
+!> \param[out] existed        block was found
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_tmp_block2d_c(matrix, row, col, block, found)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    COMPLEX(kind=real_4), DIMENSION(:,:), POINTER         :: block
+    LOGICAL, INTENT(OUT)                     :: found
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_tmp_block2d_c', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(btree_2d_data_c)          :: data_block
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
+       found = .FALSE.
+       NULLIFY (block)
+    ENDIF
+
+    CALL btree_get_c (matrix%m%wms(1)%mutable%m%btree_c,&
+         make_coordinate_tuple(row, col),&
+         data_block, found)
+
+    IF (.NOT. found) THEN
+       !WRITE(*,*)routineN//" Block did not exist"
+       NULLIFY (block)
+       !block => data_block%p
+    ELSE
+       !WRITE(*,*)routineN//" Found block", ASSOCIATED (data_block%p)
+       block => data_block%p
+    ENDIF
+  END SUBROUTINE dbcsr_get_tmp_block2d_c
+
+
 
 ! *****************************************************************************
 !> \brief Put a 2-D block in a DBCSR matrix
 !> \param[in.out] matrix      DBCSR matrix
-!> \param[in]  block          the block to put
 !> \param[in]  row            the row
 !> \param[in]  col            the column
+!> \param[in]  block          the block to put
 ! *****************************************************************************
-  SUBROUTINE dbcsr_put_block2d_c(matrix, block, row, col)
+  SUBROUTINE dbcsr_put_block2d_c(matrix, row, col, block)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    COMPLEX(kind=real_4), DIMENSION(:,:), INTENT(IN)      :: block
     INTEGER, INTENT(IN)                      :: row, col
+    COMPLEX(kind=real_4), DIMENSION(:,:), INTENT(IN)      :: block
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block2d_c', &
       routineP = moduleN//':'//routineN
     
-    CALL dbcsr_put_block (matrix, RESHAPE (block, (/SIZE(block)/)), row, col)
+    CALL dbcsr_put_block (matrix, row, col, RESHAPE (block, (/SIZE(block)/)))
   END SUBROUTINE dbcsr_put_block2d_c
 
 ! *****************************************************************************
 !> \brief put a block in a dbcsr matrix
 !> \param[in]  matrix DBCSR matrix
-!> \param[in]  block  the block to put
 !> \param[in]  row    the row
 !> \param[in]  col    the column
-!> 
+!> \param[in]  block  the block to put
 ! *****************************************************************************
-  SUBROUTINE dbcsr_put_block_c(matrix, block, row, col, error)
+  SUBROUTINE dbcsr_put_block_c(matrix, row, col, block)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN)        :: block
     INTEGER, INTENT(IN)                      :: row, col
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
+    COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN)        :: block
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_c', &
       routineP = moduleN//':'//routineN

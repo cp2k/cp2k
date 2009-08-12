@@ -214,6 +214,7 @@ CONTAINS
        CALL btree_find_leaf (tree, key, node, ge_pos)
     ENDIF
     CALL btree_add_into (tree, node, key, value, before=ge_pos)
+    IF (PRESENT (exists)) existing_value = value
     tree%b%n = tree%b%n+1
     !$ CALL modify_unlock (tree)
   END SUBROUTINE btree_add
@@ -1074,7 +1075,9 @@ CONTAINS
        IF (ASSOCIATED (node%subtrees(i)%node)) THEN
           CALL btree_print_short_node (node%subtrees(i)%node)
        ENDIF
-       WRITE(*,'([defaultFormatType1],"=>",[defaultFormatType2])')node%keys(i),node%values(i)
+       WRITE(*,'([defaultFormatType1],"=>",[defaultFormatType2])')&
+            node%keys(i),&
+            node%values(i)[accessorType2]
     ENDDO
     IF (ASSOCIATED (node%subtrees(node%filled+1)%node)) THEN
        CALL btree_print_short_node (node%subtrees(node%filled+1)%node)

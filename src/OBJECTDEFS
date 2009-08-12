@@ -45,7 +45,10 @@ OBJECTS_GENERIC =\
  bibliography.o\
  block_p_types.o\
  bsse.o\
- btree_i8_k_i4_v.o\
+ btree_i8_k_sp2d_v.o\
+ btree_i8_k_dp2d_v.o\
+ btree_i8_k_cp2d_v.o\
+ btree_i8_k_zp2d_v.o\
  cell_opt.o\
  cell_opt_types.o\
  cell_opt_utils.o\

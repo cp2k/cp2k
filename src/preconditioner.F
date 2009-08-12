@@ -2034,9 +2034,9 @@ END SUBROUTINE make_full_all_ortho
        !v(k,k)=v(k,k)-s;
        ! WE COULD AVOID MANY COPIES (bcsr <-> vector), BY PASSING 
        ! THE BLK POINTER AND DOING THE OPERATION DIRECTLY ON DATA(BLK)
-       CALL dbcsr_get_block(mat_v, blk, k, k, found, error=error)!PARA local get
+       CALL dbcsr_get_block(mat_v, k, k, blk, found)!PARA local get
        CALL block_add_on_diag_d(row_blk_size(k), blk, -s)
-       CALL dbcsr_put_block(mat_v, blk, k, k, error=error)!PARA local put
+       CALL dbcsr_put_block(mat_v, k, k, blk)!PARA local put
        !
        !u(k,k)=1;
        !CALL block_set_d(row_blk_size(k), row_blk_size(k), blk, 1.0_dp, 0.0_dp)
@@ -2098,7 +2098,7 @@ END SUBROUTINE make_full_all_ortho
        ! build d and inv(d)
        !
        ! d(k,k) = v(k,k) / s + eye(k);
-       CALL dbcsr_get_block(mat_v,blk, k, k, found, error=error) !PARA local
+       CALL dbcsr_get_block(mat_v, k, k, blk, found) !PARA local
        CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)          !PARA local
        CALL block_add_on_diag_d(row_blk_size(k), blk, 1.0_dp)      !PARA local
        CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_d(d_offset), 1)!PARA local

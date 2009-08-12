@@ -14,9 +14,22 @@
 ! *****************************************************************************
 MODULE dbcsr_operations
   USE array_types,                     ONLY: array_data
-  USE btree_I8_k_I4_v,                 ONLY: btree_add,&
-                                             btree_find,&
-                                             btree_verify
+  USE btree_I8_k_cp2d_v,               ONLY: btree_2d_data_c => cp2d,&
+                                             btree_add_c => btree_add,&
+                                             btree_c => btree,&
+                                             btree_get_c => btree_find
+  USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d,&
+                                             btree_add_d => btree_add,&
+                                             btree_d => btree,&
+                                             btree_get_d => btree_find
+  USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d,&
+                                             btree_add_s => btree_add,&
+                                             btree_get_s => btree_find,&
+                                             btree_s => btree
+  USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d,&
+                                             btree_add_z => btree_add,&
+                                             btree_get_z => btree_find,&
+                                             btree_z => btree
   USE dbcsr_methods
   USE dbcsr_types
   USE dbcsr_util
@@ -43,18 +56,20 @@ MODULE dbcsr_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
   PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_trace,&
-       dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block,&
-       dbcsr_put_block, dbcsr_filter,dbcsr_find_column,&
-       dbcsr_btriu, dbcsr_add_on_diag, block_add_on_diag,&
-       block_chol_inv, block_set, dbcsr_remove_block
+            dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block,&
+            dbcsr_put_block, dbcsr_filter,dbcsr_find_column,&
+            dbcsr_btriu, dbcsr_add_on_diag, block_add_on_diag,&
+            block_chol_inv, block_set, dbcsr_remove_block
   ! Direct access to the variants because array reshaping and
   ! typematching is incompatible.
   PUBLIC :: block_add_on_diag_d, block_add_on_diag_s,&
-          block_add_on_diag_z, block_add_on_diag_c
+            block_add_on_diag_z, block_add_on_diag_c
   PUBLIC :: block_chol_inv_d, block_chol_inv_s,&
-          block_chol_inv_z, block_chol_inv_c
+            block_chol_inv_z, block_chol_inv_c
   PUBLIC :: block_set_d, block_set_s,&
-          block_set_z, block_set_c
+            block_set_z, block_set_c
+
+  PUBLIC :: dbcsr_reserve_block2d, dbcsr_get_tmp_block2d
 
   PRIVATE
 
@@ -94,6 +109,16 @@ MODULE dbcsr_operations
   INTERFACE block_set
      MODULE PROCEDURE block_set_d, block_set_s,&
           block_set_z, block_set_c
+  END INTERFACE
+
+  INTERFACE dbcsr_reserve_block2d
+     MODULE PROCEDURE dbcsr_reserve_block2d_s, dbcsr_reserve_block2d_d,&
+                      dbcsr_reserve_block2d_c, dbcsr_reserve_block2d_z
+  END INTERFACE
+
+  INTERFACE dbcsr_get_tmp_block2d
+     MODULE PROCEDURE dbcsr_get_tmp_block2d_s, dbcsr_get_tmp_block2d_d,&
+                      dbcsr_get_tmp_block2d_c, dbcsr_get_tmp_block2d_z
   END INTERFACE
 
 
@@ -1361,270 +1386,270 @@ CONTAINS
   END SUBROUTINE make_tag
 
 
-! *****************************************************************************
-!> \brief Multiplies two DBCSR matrices, using the current local data.
-!> \param[in] left, right     left and right DBCSR matrices
-!> \param[in,out] product     resulting DBCSR product matrix
-!> \param[in,out] wm          DBCSR product working matrix
-!> \param[in,out] error       cp2k error
-!> \param[out] flop           (optional) number of effective double-precision
-!>                            floating point operations performed
-! *****************************************************************************
-  SUBROUTINE dbcsr_nn_mult(left, right, product, error, flop)
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
-    TYPE(dbcsr_type), INTENT(INOUT)          :: product
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER(KIND=int_8), INTENT(OUT), &
-      OPTIONAL                               :: flop
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0_dp, &
-                                                beta_add = 1.0_dp, &
-                                                beta_new = 0.0_dp
-
-    CHARACTER                                :: a_type, b_type
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: left_data_z, right_data_z
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: left_data_c, right_data_c
-    INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
-      a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
-      b_col_size, b_nze, b_row, b_row_size, c_blk, c_blk_p, c_col, c_nze, &
-      c_row, lda, ldb, ldc, num_symmetries, stat, symmetry, timing_handle
-    INTEGER(KIND=int_4)                      :: offset
-    INTEGER(KIND=int_8)                      :: coordinate, lflop
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps
-    INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
-                                                left_row_blk_size, &
-                                                right_col_blk_size, &
-                                                right_row_blk_size
-    LOGICAL                                  :: block_exists, tr_a, tr_b
-    REAL(KIND=dp)                            :: beta, tstart, tstop
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data, b_data, c_data, &
-                                                left_data_d, right_data_d
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: left_data_r, right_data_r
-    TYPE(dbcsr_work_type)                    :: wm
-
-    !$ INTEGER                           :: ithread, nthreads
-    !$ INTEGER(KIND=omp_lock_kind)       :: data_lock, index_lock
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
-    wm = product%wms(1)
-    DBG "Doing NN matrix multiplication",left%name,' x ',right%name
-    DBG "Pre-mult blk sizes, data", wm%lastblk, wm%datasize
-    ! c_blk_ps contains the block pointers in the product's current row
-    !.!ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
-    !IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
-    !     product%nblkcols_total)
-    lflop = 0
-    num_symmetries = 1
-    left_row_blk_size => array_data (left%row_blk_size)
-    left_col_blk_size => array_data (left%col_blk_size)
-    right_row_blk_size => array_data (right%row_blk_size)
-    right_col_blk_size => array_data (right%col_blk_size)
-    SELECT CASE (left%data_type)
-    CASE ('r')
-       CALL dbcsr_get_data (left%data_area, left_data_r)
-       CALL dbcsr_get_data (right%data_area, right_data_r)
-    CASE ('R')
-       CALL dbcsr_get_data (left%data_area, left_data_d)
-       CALL dbcsr_get_data (right%data_area, right_data_d)
-    CASE ('c')
-       CALL dbcsr_get_data (left%data_area, left_data_c)
-       CALL dbcsr_get_data (right%data_area, right_data_c)
-    CASE ('C')
-       CALL dbcsr_get_data (left%data_area, left_data_z)
-       CALL dbcsr_get_data (right%data_area, right_data_z)
-    END SELECT
-    c_blk_p = wm%datasize + 1
-    DBG 'A rows:',left%nblkrows_total
-    IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
-    CALL dbcsr_data_ensure_size(wm%data_area,&
-         MAX(wm%datasize,left%nfullrows_total*right%nfullcols_total))
-    !CALL ensure_array_size(wm%data,&
-    !     ub=MAX(wm%datasize,left%nfullrows_total*right%nfullcols_total), error=error)
-       !CALL ensure_array_size(wm%data,&
-       !     ub=wm%datasize+a_row_size*right%nfullcols_total &
-       !     * MAX(1, (left%nblkrows_total-a_row)/4), error=error)
-    !$OMP PARALLEL DEFAULT (SHARED) PRIVATE(a_row, a_col, a_blk,&
-    !$OMP                                   b_row, b_col, b_blk,&
-    !$OMP                                   c_row, c_col, c_blk,&
-    !$OMP                                   a_row_log, a_col_log,&
-    !$OMP                                   a_row_size_logical,&
-    !$OMP                                   a_col_size_logical,&
-    !$OMP                                   a_row_size, a_col_size, a_nze,&
-    !$OMP                                   b_row_size, b_col_size, b_nze, c_nze,&
-    !$OMP                                   lda, ldb, ldc,&
-    !$OMP                                   tr_a, tr_b,&
-    !$OMP                                   c_blk_ps,&
-    !$OMP                                   a_data, b_data, c_data,&
-    !$OMP                                   beta,&
-    !$OMP                                   a_type, b_type,&
-    !$OMP                                   symmetry,&
-    !$OMP                                   coordinate,&
-    !$OMP                                   offset,&
-    !$OMP                                   block_exists,&
-    !$OMP                                   tstart, tstop,&
-    !$OMP                                   ithread)&
-    !$OMP          REDUCTION (+: lflop)
-    !
-    !$ CALL OMP_INIT_LOCK (index_lock)
-    !$ CALL OMP_INIT_LOCK (data_lock)
-    !$ ithread = OMP_GET_THREAD_NUM ()
-    !!$ WRITE (*,*)"Hello! I'm thread number", ithread
-    !$OMP SINGLE
-    !$ nthreads = OMP_GET_NUM_THREADS ()
-    !!$ WRITE (*,*)'And there are', nthreads, 'threads, from', ithread
-    !$OMP FLUSH (nthreads)
-    !$OMP END SINGLE
-    ! c_blk_ps contains the block pointers in the product's current row
-    ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
-    IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
-         product%nblkcols_total)
-    !
-    !$OMP DO
-    DO a_row = 1, left%nblkrows_total
-       a_row_log = a_row
-       DBG 'A row', a_row,' with #cols=',left%row_p(a_row+1)-left%row_p(a_row)
-       a_row_size = left_row_blk_size(a_row) ! stored
-       c_blk_ps(:) = 0
-       DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
-          DO symmetry = 1, num_symmetries
-             a_col = left%col_i(a_blk)
-             IF (a_col .EQ. a_row .AND. symmetry .GT. 1) CYCLE
-             a_col_size = left_col_blk_size(a_col) !stored
-             a_row_log = a_row
-             a_col_log = a_col
-             a_row_size_logical = a_row_size
-             a_col_size_logical = a_col_size
-             lda = a_row_size
-             ! For regular symmetric matrices
-             IF (symmetry .GT. 1) THEN
-                CALL swap (a_row_log, a_col_log)
-                CALL swap (a_row_size_logical, a_col_size_logical)
-                tr_a = .TRUE.
-                a_type = 'T'
-             ELSE
-                tr_a = .FALSE.
-                a_type = 'N'
-             ENDIF
-             DBG 'A col', a_col, '=>',a_col_log
-             b_row = a_col_log
-             c_row = a_row_log
-             a_nze = a_row_size * a_col_size
-             a_data => left_data_d(ABS(left%blk_p(a_blk))&
-                  :ABS(left%blk_p(a_blk))+a_nze-1)
-             !a_data => left%data(ABS(left%blk_p(a_blk))&
-             !     :ABS(left%blk_p(a_blk))+a_nze-1)
-             b_row_size = a_col_size_logical
-             ! For index-augmented matrices.
-             IF (left%blk_p(a_blk) .LT. 0) THEN
-                lda = a_col_size
-                a_type = 'T'
-             ENDIF
-             DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
-                b_col = right%col_i(b_blk)
-                c_col = b_col
-                DBG 'B col', b_col
-                b_col_size = right_col_blk_size(b_col)
-                b_nze = b_row_size * b_col_size
-                b_data => right_data_d(&
-                     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
-                !b_data => right%data(&
-                !     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
-                IF (right%blk_p(b_blk) .LT. 0) THEN
-                   b_type = 'T'
-                   ldb = b_col_size
-                ELSE
-                   b_type = 'N'
-                   ldb = b_row_size
-                ENDIF
-                c_nze = a_row_size * b_col_size
-                ! If this c column does not yet exist, "allocate" it.
-                coordinate = make_coordinate_tuple (c_row, c_col)
-                IF (c_blk_ps(c_col) .EQ. 0 .AND. .NOT. tr_a) THEN
-                   CALL btree_find (wm%tree, coordinate, offset, block_exists)
-                ELSE
-                   block_exists = .TRUE.
-                   offset = c_blk_ps(c_col)
-                ENDIF
-                IF (.NOT. block_exists) THEN
-                   !.!CALL add_work_coordinate(wm, c_row, c_col, c_blk_p, error=error)
-                   !$ CALL OMP_SET_LOCK (data_lock)
-                   offset = c_blk_p
-                   c_blk_p = c_blk_p + c_nze
-                   wm%datasize = wm%datasize + c_nze
-                   wm%lastblk = wm%lastblk + 1
-                   !$ CALL OMP_UNSET_LOCK (data_lock)
-                   CALL btree_add (wm%tree, coordinate, offset, block_exists,&
-                        existing_value = offset)
-                   !CALL btree_verify (index)
-                   IF (block_exists) THEN
-                      IF (dbg) WRITE(*,*)routineP//' EXISTS'
-                      ! We can not rewind c_blk_p!
-                      !$OMP ATOMIC
-                      wm%datasize = wm%datasize - c_nze
-                      !$OMP ATOMIC
-                      wm%lastblk = wm%lastblk - 1
-                   ENDIF
-                   c_blk_ps(c_col) = offset
-                   beta = beta_new
-                ELSE
-                   beta = beta_add
-                ENDIF
-                !offset = 1 + ithread * 4096
-                !.!c_data => wm%data(c_blk_ps(c_col):c_blk_ps(c_col)+c_nze-1)
-                DBG 'offset:',offset,offset+c_nze-1,'of',wm%datasize,'ex',block_exists
-                !% CALL OMP_SET_LOCK (data_lock)
-                c_data => pointer_view (&
-                     dbcsr_get_data_p (wm%data_area, 0.0_dp),&
-                     offset, offset+c_nze-1)
-                !c_data => wm%data(offset:offset+c_nze-1)
-                !% CALL OMP_UNSET_LOCK (data_lock)
-                IF (dbg) WRITE(*,&
-                     "(1X,A,A1,1X,A1,A,I6,A,F4.1,' (',I3,',',I3,')=(',I3,',',I3,')x(',I3,',',I3,')')")&
-                                !routineN//' DGEMM ',a_type,b_type,' at',c_blk_ps(c_col),' beta=', beta,&
-                     routineN//' DGEMM ',a_type,b_type,' at',offset,' beta=', beta,&
-                     c_row,c_col,a_row,a_col,b_row,b_col
-                CALL DGEMM(a_type, b_type,&
-                     a_row_size_logical, b_col_size, a_col_size_logical,&
-                     alpha,&
-                     a_data, lda,&
-                     b_data, ldb, beta,&
-                     c_data, a_row_size_logical)
-                !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
-                !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
-                lflop = lflop + a_row_size * b_col_size * a_col_size * 2
-             ENDDO ! b
-          ENDDO ! symmetry
-       ENDDO ! a_col
-    ENDDO ! a_row
-
-!    !$OMP END DO
-    !$ CALL OMP_DESTROY_LOCK (index_lock)
-    !$ CALL OMP_DESTROY_LOCK (data_lock)
-    DEALLOCATE (c_blk_ps)
-    !$OMP END PARALLEL
-    ELSE
-       DBG 'One of the matrices is empty!'
-    ENDIF
-    IF (dbg) CALL btree_verify (wm%tree)
-    !DEALLOCATE (c_blk_ps)
-    !WRITE(*,*)'NEW TOTAL TIME', nanotot, REAL(nanotot)/(2.3*REAL(10**6)),'ms'
-    DBG "Post-mult blk sizes, data", wm%lastblk, wm%datasize
-    !dbg = .TRUE.
-    IF (dbg .AND. detailed_timing) THEN
-       tstop = m_walltime ()
-       IF (tstop-tstart .NE. 0) THEN
-          DBG tstop-tstart,'s',&
-               (REAL(lflop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
-       ENDIF
-    ENDIF
-    IF (PRESENT (flop)) flop = lflop
-    product%wms(1) = wm
-    CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_nn_mult
+!! *****************************************************************************
+!!> \brief Multiplies two DBCSR matrices, using the current local data.
+!!> \param[in] left, right     left and right DBCSR matrices
+!!> \param[in,out] product     resulting DBCSR product matrix
+!!> \param[in,out] wm          DBCSR product working matrix
+!!> \param[in,out] error       cp2k error
+!!> \param[out] flop           (optional) number of effective double-precision
+!!>                            floating point operations performed
+!! *****************************************************************************
+!  SUBROUTINE dbcsr_nn_mult(left, right, product, error, flop)
+!    TYPE(dbcsr_type), INTENT(IN)             :: left, right
+!    TYPE(dbcsr_type), INTENT(INOUT)          :: product
+!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+!    INTEGER(KIND=int_8), INTENT(OUT), &
+!      OPTIONAL                               :: flop
+!
+!    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult', &
+!      routineP = moduleN//':'//routineN
+!    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0_dp, &
+!                                                beta_add = 1.0_dp, &
+!                                                beta_new = 0.0_dp
+!
+!    CHARACTER                                :: a_type, b_type
+!    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: left_data_z, right_data_z
+!    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: left_data_c, right_data_c
+!    INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
+!      a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
+!      b_col_size, b_nze, b_row, b_row_size, c_blk, c_blk_p, c_col, c_nze, &
+!      c_row, lda, ldb, ldc, num_symmetries, stat, symmetry, timing_handle
+!    INTEGER(KIND=int_4)                      :: offset
+!    INTEGER(KIND=int_8)                      :: coordinate, lflop
+!    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps
+!    INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
+!                                                left_row_blk_size, &
+!                                                right_col_blk_size, &
+!                                                right_row_blk_size
+!    LOGICAL                                  :: block_exists, tr_a, tr_b
+!    REAL(KIND=dp)                            :: beta, tstart, tstop
+!    REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data, b_data, c_data, &
+!                                                left_data_d, right_data_d
+!    REAL(KIND=sp), DIMENSION(:), POINTER     :: left_data_r, right_data_r
+!    TYPE(dbcsr_work_type)                    :: wm
+!
+!    !$ INTEGER                           :: ithread, nthreads
+!    !$ INTEGER(KIND=omp_lock_kind)       :: data_lock, index_lock
+!    DEBUG_HEADER
+!!   ---------------------------------------------------------------------------
+!    DEBUG_BODY
+!    CALL timeset(routineN, timing_handle)
+!    wm = product%wms(1)
+!    DBG "Doing NN matrix multiplication",left%name,' x ',right%name
+!    DBG "Pre-mult blk sizes, data", wm%lastblk, wm%datasize
+!    ! c_blk_ps contains the block pointers in the product's current row
+!    !.!ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
+!    !IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
+!    !     product%nblkcols_total)
+!    lflop = 0
+!    num_symmetries = 1
+!    left_row_blk_size => array_data (left%row_blk_size)
+!    left_col_blk_size => array_data (left%col_blk_size)
+!    right_row_blk_size => array_data (right%row_blk_size)
+!    right_col_blk_size => array_data (right%col_blk_size)
+!    SELECT CASE (left%data_type)
+!    CASE ('r')
+!       CALL dbcsr_get_data (left%data_area, left_data_r)
+!       CALL dbcsr_get_data (right%data_area, right_data_r)
+!    CASE ('R')
+!       CALL dbcsr_get_data (left%data_area, left_data_d)
+!       CALL dbcsr_get_data (right%data_area, right_data_d)
+!    CASE ('c')
+!       CALL dbcsr_get_data (left%data_area, left_data_c)
+!       CALL dbcsr_get_data (right%data_area, right_data_c)
+!    CASE ('C')
+!       CALL dbcsr_get_data (left%data_area, left_data_z)
+!       CALL dbcsr_get_data (right%data_area, right_data_z)
+!    END SELECT
+!    c_blk_p = wm%datasize + 1
+!    DBG 'A rows:',left%nblkrows_total
+!    IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
+!    CALL dbcsr_data_ensure_size(wm%data_area,&
+!         MAX(wm%datasize,left%nfullrows_total*right%nfullcols_total))
+!    !CALL ensure_array_size(wm%data,&
+!    !     ub=MAX(wm%datasize,left%nfullrows_total*right%nfullcols_total), error=error)
+!       !CALL ensure_array_size(wm%data,&
+!       !     ub=wm%datasize+a_row_size*right%nfullcols_total &
+!       !     * MAX(1, (left%nblkrows_total-a_row)/4), error=error)
+!    !$OMP PARALLEL DEFAULT (SHARED) PRIVATE(a_row, a_col, a_blk,&
+!    !$OMP                                   b_row, b_col, b_blk,&
+!    !$OMP                                   c_row, c_col, c_blk,&
+!    !$OMP                                   a_row_log, a_col_log,&
+!    !$OMP                                   a_row_size_logical,&
+!    !$OMP                                   a_col_size_logical,&
+!    !$OMP                                   a_row_size, a_col_size, a_nze,&
+!    !$OMP                                   b_row_size, b_col_size, b_nze, c_nze,&
+!    !$OMP                                   lda, ldb, ldc,&
+!    !$OMP                                   tr_a, tr_b,&
+!    !$OMP                                   c_blk_ps,&
+!    !$OMP                                   a_data, b_data, c_data,&
+!    !$OMP                                   beta,&
+!    !$OMP                                   a_type, b_type,&
+!    !$OMP                                   symmetry,&
+!    !$OMP                                   coordinate,&
+!    !$OMP                                   offset,&
+!    !$OMP                                   block_exists,&
+!    !$OMP                                   tstart, tstop,&
+!    !$OMP                                   ithread)&
+!    !$OMP          REDUCTION (+: lflop)
+!    !
+!    !$ CALL OMP_INIT_LOCK (index_lock)
+!    !$ CALL OMP_INIT_LOCK (data_lock)
+!    !$ ithread = OMP_GET_THREAD_NUM ()
+!    !!$ WRITE (*,*)"Hello! I'm thread number", ithread
+!    !$OMP SINGLE
+!    !$ nthreads = OMP_GET_NUM_THREADS ()
+!    !!$ WRITE (*,*)'And there are', nthreads, 'threads, from', ithread
+!    !$OMP FLUSH (nthreads)
+!    !$OMP END SINGLE
+!    ! c_blk_ps contains the block pointers in the product's current row
+!    ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
+!    IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
+!         product%nblkcols_total)
+!    !
+!    !$OMP DO
+!    DO a_row = 1, left%nblkrows_total
+!       a_row_log = a_row
+!       DBG 'A row', a_row,' with #cols=',left%row_p(a_row+1)-left%row_p(a_row)
+!       a_row_size = left_row_blk_size(a_row) ! stored
+!       c_blk_ps(:) = 0
+!       DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
+!          DO symmetry = 1, num_symmetries
+!             a_col = left%col_i(a_blk)
+!             IF (a_col .EQ. a_row .AND. symmetry .GT. 1) CYCLE
+!             a_col_size = left_col_blk_size(a_col) !stored
+!             a_row_log = a_row
+!             a_col_log = a_col
+!             a_row_size_logical = a_row_size
+!             a_col_size_logical = a_col_size
+!             lda = a_row_size
+!             ! For regular symmetric matrices
+!             IF (symmetry .GT. 1) THEN
+!                CALL swap (a_row_log, a_col_log)
+!                CALL swap (a_row_size_logical, a_col_size_logical)
+!                tr_a = .TRUE.
+!                a_type = 'T'
+!             ELSE
+!                tr_a = .FALSE.
+!                a_type = 'N'
+!             ENDIF
+!             DBG 'A col', a_col, '=>',a_col_log
+!             b_row = a_col_log
+!             c_row = a_row_log
+!             a_nze = a_row_size * a_col_size
+!             a_data => left_data_d(ABS(left%blk_p(a_blk))&
+!                  :ABS(left%blk_p(a_blk))+a_nze-1)
+!             !a_data => left%data(ABS(left%blk_p(a_blk))&
+!             !     :ABS(left%blk_p(a_blk))+a_nze-1)
+!             b_row_size = a_col_size_logical
+!             ! For index-augmented matrices.
+!             IF (left%blk_p(a_blk) .LT. 0) THEN
+!                lda = a_col_size
+!                a_type = 'T'
+!             ENDIF
+!             DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
+!                b_col = right%col_i(b_blk)
+!                c_col = b_col
+!                DBG 'B col', b_col
+!                b_col_size = right_col_blk_size(b_col)
+!                b_nze = b_row_size * b_col_size
+!                b_data => right_data_d(&
+!                     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
+!                !b_data => right%data(&
+!                !     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
+!                IF (right%blk_p(b_blk) .LT. 0) THEN
+!                   b_type = 'T'
+!                   ldb = b_col_size
+!                ELSE
+!                   b_type = 'N'
+!                   ldb = b_row_size
+!                ENDIF
+!                c_nze = a_row_size * b_col_size
+!                ! If this c column does not yet exist, "allocate" it.
+!                coordinate = make_coordinate_tuple (c_row, c_col)
+!                IF (c_blk_ps(c_col) .EQ. 0 .AND. .NOT. tr_a) THEN
+!                   CALL btree_find (wm%tree, coordinate, offset, block_exists)
+!                ELSE
+!                   block_exists = .TRUE.
+!                   offset = c_blk_ps(c_col)
+!                ENDIF
+!                IF (.NOT. block_exists) THEN
+!                   !.!CALL add_work_coordinate(wm, c_row, c_col, c_blk_p, error=error)
+!                   !$ CALL OMP_SET_LOCK (data_lock)
+!                   offset = c_blk_p
+!                   c_blk_p = c_blk_p + c_nze
+!                   wm%datasize = wm%datasize + c_nze
+!                   wm%lastblk = wm%lastblk + 1
+!                   !$ CALL OMP_UNSET_LOCK (data_lock)
+!                   CALL btree_add (wm%tree, coordinate, offset, block_exists,&
+!                        existing_value = offset)
+!                   !CALL btree_verify (index)
+!                   IF (block_exists) THEN
+!                      IF (dbg) WRITE(*,*)routineP//' EXISTS'
+!                      ! We can not rewind c_blk_p!
+!                      !$OMP ATOMIC
+!                      wm%datasize = wm%datasize - c_nze
+!                      !$OMP ATOMIC
+!                      wm%lastblk = wm%lastblk - 1
+!                   ENDIF
+!                   c_blk_ps(c_col) = offset
+!                   beta = beta_new
+!                ELSE
+!                   beta = beta_add
+!                ENDIF
+!                !offset = 1 + ithread * 4096
+!                !.!c_data => wm%data(c_blk_ps(c_col):c_blk_ps(c_col)+c_nze-1)
+!                DBG 'offset:',offset,offset+c_nze-1,'of',wm%datasize,'ex',block_exists
+!                !% CALL OMP_SET_LOCK (data_lock)
+!                c_data => pointer_view (&
+!                     dbcsr_get_data_p (wm%data_area, 0.0_dp),&
+!                     offset, offset+c_nze-1)
+!                !c_data => wm%data(offset:offset+c_nze-1)
+!                !% CALL OMP_UNSET_LOCK (data_lock)
+!                IF (dbg) WRITE(*,&
+!                     "(1X,A,A1,1X,A1,A,I6,A,F4.1,' (',I3,',',I3,')=(',I3,',',I3,')x(',I3,',',I3,')')")&
+!                                !routineN//' DGEMM ',a_type,b_type,' at',c_blk_ps(c_col),' beta=', beta,&
+!                     routineN//' DGEMM ',a_type,b_type,' at',offset,' beta=', beta,&
+!                     c_row,c_col,a_row,a_col,b_row,b_col
+!                CALL DGEMM(a_type, b_type,&
+!                     a_row_size_logical, b_col_size, a_col_size_logical,&
+!                     alpha,&
+!                     a_data, lda,&
+!                     b_data, ldb, beta,&
+!                     c_data, a_row_size_logical)
+!                !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
+!                !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
+!                lflop = lflop + a_row_size * b_col_size * a_col_size * 2
+!             ENDDO ! b
+!          ENDDO ! symmetry
+!       ENDDO ! a_col
+!    ENDDO ! a_row
+!
+!!    !$OMP END DO
+!    !$ CALL OMP_DESTROY_LOCK (index_lock)
+!    !$ CALL OMP_DESTROY_LOCK (data_lock)
+!    DEALLOCATE (c_blk_ps)
+!    !$OMP END PARALLEL
+!    ELSE
+!       DBG 'One of the matrices is empty!'
+!    ENDIF
+!    IF (dbg) CALL btree_verify (wm%tree)
+!    !DEALLOCATE (c_blk_ps)
+!    !WRITE(*,*)'NEW TOTAL TIME', nanotot, REAL(nanotot)/(2.3*REAL(10**6)),'ms'
+!    DBG "Post-mult blk sizes, data", wm%lastblk, wm%datasize
+!    !dbg = .TRUE.
+!    IF (dbg .AND. detailed_timing) THEN
+!       tstop = m_walltime ()
+!       IF (tstop-tstart .NE. 0) THEN
+!          DBG tstop-tstart,'s',&
+!               (REAL(lflop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
+!       ENDIF
+!    ENDIF
+!    IF (PRESENT (flop)) flop = lflop
+!    product%wms(1) = wm
+!    CALL timestop(timing_handle)
+!  END SUBROUTINE dbcsr_nn_mult
 
 
   ELEMENTAL FUNCTION make_coordinate_tuple (most, least) RESULT (tuple)
@@ -3110,28 +3135,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
   END SUBROUTINE dbcsr_scale
 
 
-  SUBROUTINE dbcsr_find_column(find_col,frst_blk,last_blk,col_i,blk,found)
-    INTEGER, INTENT(IN)                      :: find_col, frst_blk, last_blk
-    INTEGER, DIMENSION(last_blk), INTENT(IN) :: col_i
-    INTEGER, INTENT(OUT)                     :: blk
-    LOGICAL, INTENT(OUT)                     :: found
-
-    INTEGER                                  :: col
-
-    found = .FALSE.
-    blk = frst_blk
-    DO
-       IF(blk.GT.last_blk) EXIT
-       col = col_i(blk)
-       IF(col.EQ.find_col) THEN
-          found = .TRUE.
-          EXIT
-       ENDIF
-       blk = blk+1
-    ENDDO
-  END SUBROUTINE dbcsr_find_column
-
-
 ! *****************************************************************************
 !> \brief Marks a block for removal from a DBCSR matrix. Handles
 !>        symmetric matrices.
@@ -3149,7 +3152,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: b, c, r
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: found, tr
 
 !   ---------------------------------------------------------------------------
 
@@ -3161,11 +3164,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        b = block_number
        CALL cp_assert (block_number .LE. matrix%m%nblks, cp_failure_level,&
             cp_caller_error, routineN, "Block number too big.")
+       found = .TRUE.
     ELSE
-       CALL dbcsr_get_block_info (matrix, r, c, b)
+       CALL dbcsr_get_block_info (matrix, r, c, found, b)
     ENDIF
     b = ABS (b)
-    IF (b .GT. 0) THEN
+    IF (found .AND. b .GT. 0) THEN
        ! Mark the block for deletion.
        matrix%m%blk_p(b) = 0
        matrix%m%valid = .FALSE.
@@ -3503,7 +3507,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                "Only real double precision")
        END SELECT
     ENDDO
-
+    CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_finalize (matrix, error=error)
 
     CALL timestop(timing_handle)
@@ -3534,6 +3538,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     REAL(KIND=real_8), DIMENSION(:), POINTER :: temp2
 
     INTEGER                                  :: i
+    INTEGER(KIND=int_8)                      :: key
+    TYPE(btree_2d_data_c)                    :: bt_dc
+    TYPE(btree_2d_data_d)                    :: bt_dd
+    TYPE(btree_2d_data_s)                    :: bt_ds
+    TYPE(btree_2d_data_z)                    :: bt_dz
+    TYPE(btree_c)                            :: bt_c
+    TYPE(btree_d)                            :: bt_d
+    TYPE(btree_s)                            :: bt_s
+    TYPE(btree_z)                            :: bt_z
 
     IF (.FALSE.) THEN
        temp1 => dbcsr_get_data_p (matrix%data_area, 0.0_real_4)
@@ -3541,6 +3554,14 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL mp_sum (i, 0)
        CALL mp_bcast (temp1, 0, 0)
        CALL addto_array (matrix%data_area, temp1)
+       CALL btree_add_s (bt_s, key, bt_ds)
+       CALL btree_add_d (bt_d, key, bt_dd)
+       CALL btree_add_c (bt_c, key, bt_dc)
+       CALL btree_add_z (bt_z, key, bt_dz)
+       CALL btree_get_s (bt_s, key, bt_ds)
+       CALL btree_get_d (bt_d, key, bt_dd)
+       CALL btree_get_c (bt_c, key, bt_dc)
+       CALL btree_get_z (bt_z, key, bt_dz)
     ENDIF
   END SUBROUTINE prettify_fooler
 

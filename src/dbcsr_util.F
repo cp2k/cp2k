@@ -21,6 +21,10 @@ MODULE dbcsr_util
                                              array_nullify,&
                                              array_release,&
                                              array_size
+  USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d,&
+                                             btree_d => btree,&
+                                             btree_destroy_d => btree_delete,&
+                                             btree_size_d => btree_get_entries
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
@@ -51,7 +55,8 @@ MODULE dbcsr_util
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
        dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
-       dbcsr_row_block_sizes
+       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
+       dbcsr_mutable_release, dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_meta_size, &
@@ -113,6 +118,11 @@ MODULE dbcsr_util
   INTERFACE dbcsr_get_lookup
      MODULE PROCEDURE get_lookup_type, get_lookup_obj
   END INTERFACE
+
+  INTERFACE dbcsr_lookup_block
+     MODULE PROCEDURE lookup_block_type, lookup_block_obj
+  END INTERFACE
+
 
   INTERFACE swap
      MODULE PROCEDURE iswap
@@ -203,6 +213,7 @@ MODULE dbcsr_util
        dbcsr_set_debug, dbcsr_sleep,&
        checker_tr, bcsr_assert,&
        dbcsr_get_lookup, dbcsr_get_block_info,&
+       dbcsr_find_column,&
        add_work_coordinate,&
        dbcsr_copy_block_sizes, dbcsr_block_transpose,&
        dbcsr_pack_meta,&
@@ -308,6 +319,75 @@ CONTAINS
   END SUBROUTINE get_lookup_obj
 
 
+! *****************************************************************************
+!> \brief Looks up a block's index given logical coordinates.
+!> \param[in] matrix          DBCSR matrix
+!> \param[in,out] row         input is logical row, output is lookup row
+!> \param[in,out] column      input is logical column, output is lookup
+!>                            column
+!> \param[out] transpose      whether the data must be transposed
+!> \param[out] found          whether the block was found
+!> \param[out] block_number   returns the block number of the row
+!>                            and column
+!> \param[out] data_offset    (optional) data offset for the block; 0 if
+!>                            nonexistent
+!> \param[out] processor      (optional) returns the processor on which this
+!>                            block resides
+! *****************************************************************************
+  PURE SUBROUTINE lookup_block_type(matrix, row, column, transpose, found,&
+       block_number, data_offset)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER, INTENT(INOUT)                   :: row, column
+    LOGICAL, INTENT(OUT)                     :: transpose, found
+    INTEGER, INTENT(OUT)                     :: block_number
+    INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
+
+!   ---------------------------------------------------------------------------
+
+    CALL get_lookup_type (matrix, row, column, transpose)
+    IF (PRESENT (data_offset)) THEN
+       CALL get_block_info_type(matrix, row, column, found, block_number,&
+            data_offset)
+    ELSE
+       CALL get_block_info_type(matrix, row, column, found, block_number)
+    ENDIF
+  END SUBROUTINE lookup_block_type
+
+! *****************************************************************************
+!> \brief Sets the correct source matrix, row, column and possible data
+!>        transposition for a given matrix and matrix logical row and
+!>        column.
+!> \param[in] matrix          DBCSR matrix
+!> \param[in,out] row         input is logical row, output is lookup row
+!> \param[in,out] column      input is logical column, output is lookup
+!>                            column
+!> \param[out] transpose      whether the data must be transposed
+!> \param[out] found          whether the block was found
+!> \param[out] block_number   returns the block number of the row
+!>                            and column
+!> \param[out] data_offset    (optional) data offset for the block; 0 if
+!>                            nonexistent
+!> \param[out] processor      (optional) returns the processor on which this
+!>                            block resides
+! *****************************************************************************
+  PURE SUBROUTINE lookup_block_obj(matrix, row, column, transpose, found,&
+       block_number, data_offset)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER, INTENT(INOUT)                   :: row, column
+    LOGICAL, INTENT(OUT)                     :: transpose, found
+    INTEGER, INTENT(OUT)                     :: block_number
+    INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT (data_offset)) THEN
+       CALL dbcsr_lookup_block (matrix%m, row, column, transpose, found,&
+            block_number, data_offset=data_offset)
+    ELSE
+       CALL dbcsr_lookup_block (matrix%m, row, column, transpose, found,&
+            block_number)
+    ENDIF
+  END SUBROUTINE lookup_block_obj
 
 ! *****************************************************************************
 !> \brief Returns the index to a queried block, given a real (stored) row and
@@ -316,40 +396,29 @@ CONTAINS
 !> \param[in] row             input is logical row, output is lookup row
 !> \param[in] column          input is logical column, output is lookup
 !>                            column
+!> \param[out] found          whether the block was found
 !> \param[out] block_number   returns the block number of the row
-!>                            and column; 0 if nonexistent
+!>                            and column
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
 ! *****************************************************************************
   PURE SUBROUTINE get_block_info_type(matrix, row, column,&
-       block_number, data_offset)
+       found, block_number, data_offset)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     INTEGER, INTENT(IN)                      :: row, column
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT)                     :: block_number
     INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
 
-    INTEGER                                  :: blk
-    LOGICAL                                  :: found
+    INTEGER                                  :: blk, blk_last
 
 !   ---------------------------------------------------------------------------
 
-    found = .FALSE.
-    blk = matrix%row_p(row)+1
-    DO WHILE (.NOT. found)
-       IF (blk .GT. matrix%row_p(row+1)) THEN
-          blk = 0
-          EXIT
-       ENDIF
-       IF (matrix%col_i(blk) .EQ. column) EXIT
-       IF (matrix%col_i(blk) .GT. column) THEN
-          blk = 0
-          EXIT
-       ENDIF
-       blk = blk + 1
-    ENDDO
-    block_number = blk
+    blk_last = matrix%row_p(row+1)
+    CALL dbcsr_find_column(column, matrix%row_p(row)+1, blk_last,&
+         matrix%col_i(1:blk_last), block_number, found)
     IF (PRESENT (data_offset)) THEN
-       IF (blk .GT. 0) THEN
+       IF (found) THEN
           data_offset = matrix%blk_p(blk)
        ELSE
           data_offset = 0
@@ -357,7 +426,6 @@ CONTAINS
     ENDIF
   END SUBROUTINE get_block_info_type
 
-
 ! *****************************************************************************
 !> \brief Returns the index to a queried block, given a real (stored) row and
 !>        column
@@ -365,28 +433,52 @@ CONTAINS
 !> \param[in] row             input is logical row, output is lookup row
 !> \param[in] column          input is logical column, output is lookup
 !>                            column
+!> \param[out] found          whether the block was found
 !> \param[out] block_number   returns the block number of the row
 !>                            and column; 0 if nonexistent
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
 ! *****************************************************************************
   PURE SUBROUTINE get_block_info_obj(matrix, row, column,&
-       block_number, data_offset)
+       found, block_number, data_offset)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: row, column
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT)                     :: block_number
     INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
 
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT (data_offset)) THEN
-       CALL dbcsr_get_block_info (matrix%m, row, column,&
+       CALL dbcsr_get_block_info (matrix%m, row, column, found,&
             block_number, data_offset)
     ELSE
-       CALL dbcsr_get_block_info (matrix%m, row, column,&
+       CALL dbcsr_get_block_info (matrix%m, row, column, found,&
             block_number)
     ENDIF
   END SUBROUTINE get_block_info_obj
+
+
+  PURE SUBROUTINE dbcsr_find_column(find_col,frst_blk,last_blk,col_i,blk,found)
+    INTEGER, INTENT(IN)                      :: find_col, frst_blk, last_blk
+    INTEGER, DIMENSION(last_blk), INTENT(IN) :: col_i
+    INTEGER, INTENT(OUT)                     :: blk
+    LOGICAL, INTENT(OUT)                     :: found
+
+    INTEGER                                  :: col
+
+    found = .FALSE.
+    blk = frst_blk
+    DO
+       IF(blk.GT.last_blk) EXIT
+       col = col_i(blk)
+       IF(col.EQ.find_col) THEN
+          found = .TRUE.
+          EXIT
+       ENDIF
+       blk = blk+1
+    ENDDO
+  END SUBROUTINE dbcsr_find_column
 
 
 ! *****************************************************************************
@@ -623,6 +715,7 @@ CONTAINS
     ELSE
        CALL dbcsr_data_new (wm%data_area, data_type)
     ENDIF
+    CALL dbcsr_mutable_init (wm%mutable)
   END SUBROUTINE dbcsr_init_wm
 
 
@@ -746,8 +839,11 @@ CONTAINS
        IF (multidata) THEN
           CALL dbcsr_sort_many_indices (matrix%m)
        ELSE
-          CALL dbcsr_sort_indices(matrix%m%wms(1)%lastblk, matrix%m%wms(1)%row_i,&
-               matrix%m%wms(1)%col_i, matrix%m%wms(1)%blk_p)
+          IF (.NOT.dbcsr_mutable_instantiated (matrix%m%wms(1)%mutable)) THEN
+             CALL dbcsr_sort_indices(matrix%m%wms(1)%lastblk,&
+                  matrix%m%wms(1)%row_i,&
+                  matrix%m%wms(1)%col_i, matrix%m%wms(1)%blk_p)
+          ENDIF
        ENDIF
     ENDIF
     ! Count how large the new matrix will have to be.
@@ -762,10 +858,13 @@ CONTAINS
           WRITE(*,'(A,4(1X,I4))')"Sorted work matrix",i, matrix%m%wms(i)%lastblk,&
                matrix%m%wms(i)%datasize,&
                dbcsr_get_data_size (matrix%m%wms(i)%data_area)
-          DO j = 1, matrix%m%wms(i)%lastblk
-             WRITE(*,'(A,I4,":",3(1X,I5))')"Sorted",j,matrix%m%wms(i)%row_i(j),&
-                  matrix%m%wms(i)%col_i(j), matrix%m%wms(i)%blk_p(j)
-          ENDDO
+          IF (.NOT.dbcsr_mutable_instantiated (matrix%m%wms(i)%mutable)) THEN
+             DO j = 1, matrix%m%wms(i)%lastblk
+                WRITE(*,'(A,I4,":",3(1X,I5))')"Sorted",j,&
+                     matrix%m%wms(i)%row_i(j),&
+                     matrix%m%wms(i)%col_i(j), matrix%m%wms(i)%blk_p(j)
+             ENDDO
+          ENDIF
        ENDDO
     ENDIF
     matrix%m%nblks = all_nblks
@@ -909,6 +1008,7 @@ CONTAINS
        NULLIFY (wm%blk_p)
     ENDIF
     CALL dbcsr_data_release (wm%data_area)
+    CALL dbcsr_mutable_destroy (wm%mutable)
   END SUBROUTINE dbcsr_work_destroy
 
 
@@ -3537,6 +3637,7 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
+    IF (SIZE (row_i) .EQ. 0) RETURN
     CALL timeset(routineN, timing_handle)
     CALL cp_assert(SIZE(row_i).GE.n, cp_failure_level,&
          cp_caller_error, routineP, 'row_i too small')
@@ -3595,8 +3696,10 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     DO i = 1, SIZE (matrix%wms)
-       CALL dbcsr_sort_indices (matrix%wms(i)%lastblk, matrix%wms(i)%row_i,&
-            matrix%wms(i)%col_i, matrix%wms(i)%blk_p)
+       IF (.NOT. dbcsr_mutable_instantiated (matrix%wms(i)%mutable)) THEN
+          CALL dbcsr_sort_indices (matrix%wms(i)%lastblk, matrix%wms(i)%row_i,&
+               matrix%wms(i)%col_i, matrix%wms(i)%blk_p)
+       ENDIF
     ENDDO
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_sort_many_indices
@@ -3819,10 +3922,15 @@ CONTAINS
     INTEGER                                  :: blk, blk_p, i, nwms, nze, &
                                                 o_blk_p, prev_row, row, &
                                                 smallest, smallest_col, &
-                                                smallest_row
+                                                smallest_row, treesize
+    INTEGER(KIND=int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: keys
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wm_blk_p
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: finished
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: finished, tree_based
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_2d
+    TYPE(btree_2d_data_d), ALLOCATABLE, &
+      DIMENSION(:)                           :: values_d
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3830,11 +3938,47 @@ CONTAINS
     rbs => array_data (matrix%row_blk_size)
     cbs => array_data (matrix%col_blk_size)
     nwms = SIZE (matrix%wms)
-    ALLOCATE (wm_blk_p(nwms), finished(nwms))
+    ALLOCATE (wm_blk_p(nwms), finished(nwms), tree_based(nwms))
     wm_blk_p(:) = 1
     FORALL (i = 1:nwms)
        finished(i) = wm_blk_p(i) .GT. matrix%wms(i)%lastblk
     END FORALL
+    DO i = 1, nwms
+       tree_based(i) = dbcsr_mutable_instantiated (matrix%wms(i)%mutable)
+       IF (tree_based(i)) THEN
+          treesize = btree_size_d(matrix%wms(i)%mutable%m%btree_d)
+          ALLOCATE (keys(treesize), values_d(treesize))
+          CALL btree_destroy_d (matrix%wms(i)%mutable%m%btree_d, keys, values_d)
+          CALL ensure_array_size (matrix%wms(i)%row_i, ub=treesize)
+          CALL ensure_array_size (matrix%wms(i)%col_i, ub=treesize)
+          CALL dbcsr_unpack_i8_2i4 (keys, matrix%wms(i)%row_i,&
+               matrix%wms(i)%col_i)
+          ! For now we also fill the data, sloooowly, but this should
+          ! be avoided and the data should be copied directly from the
+          ! source in the subroutine's main loop.
+          CALL ensure_array_size (matrix%wms(i)%blk_p, ub=treesize)
+          CALL dbcsr_data_ensure_size (matrix%wms(i)%data_area,&
+               matrix%wms(i)%datasize)
+          blk_p = 1
+          DO blk = 1, treesize
+             block_2d => values_d(blk)%p
+             !write(*,*)"block", blk
+             !write(*,'(10(1X,F5.1))')block_2d
+             matrix%wms(i)%blk_p(blk) = blk_p
+             CALL dbcsr_data_set (matrix%wms(i)%data_area, blk_p,&
+                  SIZE(block_2d),&
+                  RESHAPE (block_2d, (/SIZE(block_2d)/)), source_lb=1)
+             blk_p = blk_p + SIZE(block_2d)
+             DEALLOCATE (block_2d)
+          ENDDO
+          DEALLOCATE (keys, values_d)
+          CALL dbcsr_mutable_release (matrix%wms(i)%mutable)
+          !write(*,*)"final data",dbcsr_get_data_size (matrix%wms(i)%data_area),&
+          !     treesize
+          !write(*,'(10(1X,F5.1))')&
+          !dbcsr_get_data_p (matrix%wms(i)%data_area, 0.0_dp)
+       ENDIF
+    ENDDO
     IF (dbg) THEN
        DO i = 1, nwms
           WRITE(*,'(A,1X,I4,1X,A,3(1X,I7))')routineN//" size of wm",i,"is",&
@@ -6543,6 +6687,7 @@ CONTAINS
        valid_index = SIZE (matrix%row_p) .GT. 0
     ENDIF
   END FUNCTION dbcsr_valid_index_type
+
 
 ! *****************************************************************************
 !> \brief Returns whether the index structure of the matrix is valid.

@@ -35,8 +35,8 @@ MODULE cp_dbcsr_operations
        dbcsr_nfullrows_local, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_copy, dbcsr_filter, dbcsr_find_column, &
-       dbcsr_mult_e_ec_m, dbcsr_put_block, dbcsr_remove_block, dbcsr_scale, &
-       dbcsr_trace
+       dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_put_block, &
+       dbcsr_remove_block, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_array_type,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_imagedistribution_type,&
@@ -221,7 +221,7 @@ CONTAINS
                                                 output_unit, row, rowsize
     INTEGER(KIND=int_8)                      :: flop
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
-    LOGICAL                                  :: failure, ionode, ldbg
+    LOGICAL                                  :: failure, found, ionode, ldbg
     REAL(kind=dp)                            :: checksum, newtime, oldtime, &
                                                 trace, walltime1, walltime2
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block2d, block2d_2
@@ -321,8 +321,8 @@ CONTAINS
        rowsize = rbs (row)
        DO col = 1, dbcsr_nblkcols_total (matrix_a2)
           colsize = cbs (col)
-          CALL dbcsr_put_block (matrix_a2,&
-               block2d(1:rowsize, 1:colsize), row, col)
+          CALL dbcsr_put_block (matrix_a2, row, col,&
+               block2d(1:rowsize, 1:colsize))
        ENDDO
     ENDDO
     DEALLOCATE (block2d)
@@ -348,6 +348,57 @@ CONTAINS
     CALL dbcsr_iterator_stop (iter)
     CALL dbcsr_destroy (matrix_a2, error)
     !
+    ! Deleting all the blocks
+    CALL dbcsr_init (matrix_a2, error)
+    CALL dbcsr_from_sm(matrix_a2, matrix_s, error)
+    !WRITE(*,*)'Deleting all blocks!'
+    CALL dbcsr_iterator_start (iter, matrix_a2)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block (iter, row, col, k)
+       CALL dbcsr_remove_block (matrix_a2, row, col, k)
+    ENDDO
+    CALL dbcsr_finalize (matrix_a2, error=error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum3", checksum
+    ENDIF
+    CALL dbcsr_iterator_stop (iter)
+    !
+    !write(*,*)'zeroing..., second time around'
+    rbs => array_data (dbcsr_row_block_sizes (matrix_a2))
+    cbs => array_data (dbcsr_col_block_sizes (matrix_a2))
+    DO row = 1, dbcsr_nblkrows_total (matrix_a2)
+       rowsize = rbs (row)
+       DO col = 1, dbcsr_nblkcols_total (matrix_a2)
+          colsize = cbs (col)
+          CALL dbcsr_reserve_block2d (matrix_a2, row, col,&
+               block2d)
+          block2d(1:rowsize, 1:colsize) = 1.0_dp
+       ENDDO
+    ENDDO
+    DO row = 1, dbcsr_nblkrows_total (matrix_a2)
+       DO col = 1, dbcsr_nblkcols_total (matrix_a2)
+          CALL dbcsr_get_tmp_block2d (matrix_a2, row, col, block2d_2, found)
+          !write(*,*)'size1:',size(block2d_2), rowsize, colsize
+          !write(*,'(10(1X,F5.1))')block2d_2
+          block2d_2(:,:) = 0.0_dp
+          IF (.NOT. found) WRITE(*,*)"Oops, missing block."
+       ENDDO
+    ENDDO
+    DO row = 1, dbcsr_nblkrows_total (matrix_a2)
+       DO col = 1, dbcsr_nblkcols_total (matrix_a2)
+          CALL dbcsr_get_tmp_block2d (matrix_a2, row, col, block2d, found)
+          !write(*,*)'size3:',size(block2d), rowsize, colsize
+          !write(*,'(10(1X,F5.1))')block2d
+          IF (.NOT. found) WRITE(*,*)"Oops, missing block."
+       ENDDO
+    ENDDO
+    CALL dbcsr_finalize (matrix_a2, error=error)
+    CALL dbcsr_verify_matrix(matrix_a2, error)
+    checksum = dbcsr_checksum(matrix_a2, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum4", checksum
+    ENDIF
+    CALL dbcsr_destroy (matrix_a2, error)
     
 
     checksum = 0.0_dp
@@ -385,7 +436,7 @@ CONTAINS
     IF (dbcsr_iterator_blocks_left (iter)) THEN
        CALL dbcsr_iterator_next_block (iter, row, col, block2d)
     !write(*,*)'got block',row,col
-       CALL dbcsr_put_block (matrix_b, block2d, row, col)
+       CALL dbcsr_put_block (matrix_b, row, col, block2d)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        !CALL dbcsr_print (matrix_b, error)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
@@ -395,7 +446,7 @@ CONTAINS
        ALLOCATE (block2d_2(SIZE(block2d,1),SIZE(block2d,2)))
        block2d_2(:,:) = block2d(:,:)
        block2d(:,:) = 0.0_dp
-       CALL dbcsr_put_block (matrix_b, block2d, row, col)
+       CALL dbcsr_put_block (matrix_b, row, col, block2d)
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
@@ -403,7 +454,7 @@ CONTAINS
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x wrng cksm", checksum
        ENDIF
        !CALL dbcsr_print (matrix_b, error)
-       CALL dbcsr_put_block (matrix_b, block2d_2, row, col)
+       CALL dbcsr_put_block (matrix_b, row, col, block2d_2)
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
@@ -419,7 +470,7 @@ CONTAINS
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x wrng cks4", checksum
        ENDIF
        !CALL dbcsr_print (matrix_b, error)
-       CALL dbcsr_put_block (matrix_b, block2d_2, row, col)
+       CALL dbcsr_put_block (matrix_b, row, col, block2d_2)
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error=error, local=.TRUE.)
        !CALL dbcsr_print (matrix_b, error)

@@ -12,7 +12,7 @@
 !> - Created
 ! *****************************************************************************
 
-MODULE btree_i8_k_i4_v
+MODULE btree_i8_k_sp2d_v
 
   !$ USE OMP_LIB
 
@@ -30,13 +30,20 @@ MODULE btree_i8_k_i4_v
   !INTEGER, PARAMETER :: valt = KIND(ex_int32)
 
   INTEGER, PARAMETER :: keyt = SELECTED_INT_KIND(10)
-  INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5)
+  INTEGER, PARAMETER :: valt = SELECTED_INT_KIND(5);
+  INTEGER, PARAMETER :: sp = KIND(0.0)
+
+  TYPE sp2d
+     REAL(KIND=sp), DIMENSION(:,:), POINTER :: p
+  END TYPE sp2d
+
+  PUBLIC :: sp2d
 
   TYPE btree_node
      INTEGER id
      INTEGER :: filled
      INTEGER(KIND=keyt), DIMENSION(:), POINTER :: keys
-     INTEGER(KIND=valt), DIMENSION(:), POINTER :: values
+     TYPE(sp2d), DIMENSION(:), POINTER :: values
      TYPE(btree_node_p), DIMENSION(:), POINTER :: subtrees
      TYPE(btree_node), POINTER :: parent
   END TYPE btree_node
@@ -144,8 +151,8 @@ CONTAINS
     TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER(KIND=keyt), DIMENSION(:), &
       INTENT(OUT), OPTIONAL                  :: keys
-    INTEGER(KIND=valt), DIMENSION(:), &
-      INTENT(OUT), OPTIONAL                  :: values
+    TYPE(sp2d), DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: values
 
     INTEGER                                  :: pos
 
@@ -173,7 +180,7 @@ CONTAINS
     INTEGER, INTENT(INOUT), OPTIONAL         :: pos
     INTEGER(KIND=keyt), DIMENSION(:), &
       INTENT(INOUT), OPTIONAL                :: keys
-    INTEGER(KIND=valt), DIMENSION(:), &
+    TYPE(sp2d), DIMENSION(:), &
       INTENT(INOUT), OPTIONAL                :: values
 
     INTEGER                                  :: i
@@ -212,10 +219,9 @@ CONTAINS
   SUBROUTINE btree_add (tree, key, value, exists, existing_value)
     TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER(KIND=valt), INTENT(IN)           :: value
+    TYPE(sp2d), INTENT(IN)                   :: value
     LOGICAL, INTENT(OUT), OPTIONAL           :: exists
-    INTEGER(KIND=valt), INTENT(OUT), &
-      OPTIONAL                               :: existing_value
+    TYPE(sp2d), INTENT(OUT), OPTIONAL        :: existing_value
 
     INTEGER                                  :: ge_pos, position
     TYPE(btree_node), POINTER                :: node
@@ -247,16 +253,16 @@ CONTAINS
     TYPE(btree), INTENT(INOUT)               :: tree
     TYPE(btree_node), POINTER                :: node
     INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER(KIND=valt), INTENT(IN)           :: value
+    TYPE(sp2d), INTENT(IN)                   :: value
     INTEGER, INTENT(IN), OPTIONAL            :: before
     TYPE(btree_node), OPTIONAL, POINTER      :: subtree
 
     INTEGER                                  :: ge_pos, split_pos
     INTEGER(KIND=keyt)                       :: median, upgrade_key
-    INTEGER(KIND=valt)                       :: upgrade_value
     LOGICAL                                  :: leaf
     TYPE(btree_node), POINTER                :: new_node
     TYPE(btree_node_p)                       :: one_subtree
+    TYPE(sp2d)                               :: upgrade_value
 
 !
 !
@@ -340,7 +346,7 @@ CONTAINS
   SUBROUTINE btree_simple_insertion (node, key, value, before, subtree)
     TYPE(btree_node), INTENT(INOUT)          :: node
     INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER(KIND=valt), INTENT(IN)           :: value
+    TYPE(sp2d), INTENT(IN)                   :: value
     INTEGER, INTENT(IN)                      :: before
     TYPE(btree_node), OPTIONAL, POINTER      :: subtree
 
@@ -366,7 +372,7 @@ CONTAINS
     TYPE(btree), INTENT(IN)                  :: tree
     TYPE(btree_node), INTENT(INOUT)          :: node, new_node
     INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER(KIND=valt), INTENT(IN)           :: value
+    TYPE(sp2d), INTENT(IN)                   :: value
     INTEGER, INTENT(IN)                      :: before, split_pos
     TYPE(btree_node), OPTIONAL, POINTER      :: subtree
 
@@ -410,7 +416,7 @@ CONTAINS
     TYPE(btree), INTENT(IN)                  :: tree
     TYPE(btree_node), INTENT(INOUT)          :: node, new_node
     INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER(KIND=valt), INTENT(IN)           :: value
+    TYPE(sp2d), INTENT(IN)                   :: value
     INTEGER, INTENT(IN)                      :: before, split_pos
     TYPE(btree_node), OPTIONAL, POINTER      :: subtree
 
@@ -458,8 +464,7 @@ CONTAINS
   SUBROUTINE btree_remove (tree, key, value, exists)
     TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER(KIND=valt), INTENT(OUT), &
-      OPTIONAL                               :: value
+    TYPE(sp2d), INTENT(OUT), OPTIONAL        :: value
     LOGICAL, INTENT(OUT), OPTIONAL           :: exists
 
     INTEGER                                  :: ge_pos, position
@@ -513,8 +518,8 @@ CONTAINS
 
     INTEGER                                  :: ge_pos, parent_pos
     INTEGER(KIND=keyt)                       :: key, raised_key
-    INTEGER(KIND=valt)                       :: raised_value
     TYPE(btree_node), POINTER                :: descend_node, rebalance_node
+    TYPE(sp2d)                               :: raised_value
 
 !
 !
@@ -787,7 +792,7 @@ CONTAINS
   SUBROUTINE btree_new_root (tree, key, value)
     TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER(KIND=valt), INTENT(IN)           :: value
+    TYPE(sp2d), INTENT(IN)                   :: value
 
     TYPE(btree_node), POINTER                :: new_root, old_root
     TYPE(btree_node_structure)               :: b
@@ -844,7 +849,7 @@ CONTAINS
   SUBROUTINE btree_find (tree, key, value, exists)
     TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER(KIND=valt), INTENT(OUT)          :: value
+    TYPE(sp2d), INTENT(OUT)                  :: value
     LOGICAL, INTENT(OUT), OPTIONAL           :: exists
 
     INTEGER                                  :: position
@@ -868,7 +873,7 @@ CONTAINS
   SUBROUTINE btree_pop_smallest (tree, key, value)
     TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER(KIND=keyt), INTENT(OUT)          :: key
-    INTEGER(KIND=valt), INTENT(OUT)          :: value
+    TYPE(sp2d), INTENT(OUT)                  :: value
 
     TYPE(btree_node), POINTER                :: node
 
@@ -892,7 +897,7 @@ CONTAINS
   SUBROUTINE btree_pop_greatest (tree, key, value)
     TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER(KIND=keyt), INTENT(OUT)          :: key
-    INTEGER(KIND=valt), INTENT(OUT)          :: value
+    TYPE(sp2d), INTENT(OUT)                  :: value
 
     INTEGER                                  :: lv
     TYPE(btree_node), POINTER                :: node
@@ -1157,9 +1162,9 @@ CONTAINS
        IF (ASSOCIATED (node%subtrees(i)%node)) THEN
           CALL btree_print_short_node (node%subtrees(i)%node)
        ENDIF
-       WRITE(*,'(I12,"=>",I6)')&
+       WRITE(*,'(I12,"=>",F12.3)')&
             node%keys(i),&
-            node%values(i)
+            node%values(i)%p
     ENDDO
     IF (ASSOCIATED (node%subtrees(node%filled+1)%node)) THEN
        CALL btree_print_short_node (node%subtrees(node%filled+1)%node)
@@ -1388,4 +1393,4 @@ CONTAINS
     ENDIF
   END SUBROUTINE btree_verify_node
 
-END MODULE btree_i8_k_i4_v
+END MODULE btree_i8_k_sp2d_v
