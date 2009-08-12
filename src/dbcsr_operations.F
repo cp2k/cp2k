@@ -3444,7 +3444,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL dbcsr_iterator_next_block(iter, row, col, blk)
        IF(row.GT.col) CALL dbcsr_remove_block(matrix_b, row, col, blk)
     ENDDO
-
+    CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_finalize (matrix_b, error=error)
 
     CALL timestop(timing_handle)
