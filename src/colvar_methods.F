@@ -2308,7 +2308,7 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'coord_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, jj, k, kk, &
+    INTEGER                                  :: i, ii, j, jj, k, kk, &
                                                 n_atoms_from, n_atoms_to_a, &
                                                 n_atoms_to_b, p_a, p_b, q_a, &
                                                 q_b
@@ -2350,8 +2350,10 @@ CPSourceFileRef)
        i=colvar%coord_param%i_at_from(ii)
        CALL get_coordinates(colvar, i, xpi, my_particles)
        DO jj=1,n_atoms_to_a
-          i=colvar%coord_param%i_at_to(jj)
-          CALL get_coordinates(colvar, i, xpj, my_particles)       
+          j=colvar%coord_param%i_at_to(jj)
+          CALL get_coordinates(colvar, j, xpj, my_particles)       
+          ! define coordination of atom A with itself to be 0. also fixes rij==0 for the force calculation
+          IF (i.EQ.j) CYCLE
           ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
           ss=ss-NINT(ss)
           xij=MATMUL(cell%hmat,ss)
@@ -2361,13 +2363,8 @@ CPSourceFileRef)
              num_ij=(1.0_dp-rdist_ij**p_a)
              invden_ij=1.0_dp/(1.0_dp-rdist_ij**q_a)
              func_ij=num_ij*invden_ij
-             IF(rij < 1.0e-8_dp) THEN
-                ! provide the correct limit of the derivative
-                dfunc_ij = 0.0_dp
-             ELSE
-                dfunc_ij= (- p_a*rdist_ij **(p_a-1) *invden_ij  &
-                     + num_ij*(invden_ij)**2 * q_a *rdist_ij **(q_a-1))/(rij*r_0_a)
-             END IF
+             dfunc_ij= (- p_a*rdist_ij **(p_a-1) *invden_ij  &
+                  + num_ij*(invden_ij)**2 * q_a *rdist_ij **(q_a-1))/(rij*r_0_a)
           ELSE
              ! Provide the correct limit for function value and derivative
              func_ij  = REAL(p_a,KIND=dp)/REAL(q_a,KIND=dp)
@@ -2377,6 +2374,7 @@ CPSourceFileRef)
              func_k = 0.0_dp
              DO kk = 1,n_atoms_to_b
                 k=colvar%coord_param%i_at_to_b(kk)
+                IF (k.EQ.j) CYCLE
                 CALL get_coordinates(colvar, k, xpk, my_particles)       
                 ss=MATMUL(cell%h_inv,xpj(:)-xpk(:))
                 ss=ss-NINT(ss)
@@ -2387,13 +2385,8 @@ CPSourceFileRef)
                    num_jk=(1.0_dp-rdist_jk**p_b)
                    invden_jk=1.0_dp/(1.0_dp-rdist_jk**q_b)
                    func_jk=num_jk*invden_jk
-                   IF(rjk < 1.0e-8_dp) THEN
-                      ! provide the correct limit of the derivative
-                      dfunc_jk = 0.0_dp
-                   ELSE
-                      dfunc_jk= (- p_b*rdist_jk **(p_b-1) *invden_jk  &
-                           + num_jk*(invden_jk)**2 * q_b *rdist_jk **(q_b-1))/(rjk*r_0_b)
-                   END IF
+                   dfunc_jk= (- p_b*rdist_jk **(p_b-1) *invden_jk  &
+                        + num_jk*(invden_jk)**2 * q_b *rdist_jk **(q_b-1))/(rjk*r_0_b)
                 ELSE
                    ! Provide the correct limit for function value and derivative
                    func_jk  = REAL(p_b,KIND=dp)/REAL(q_b,KIND=dp)
