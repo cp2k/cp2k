@@ -840,13 +840,13 @@ CONTAINS
     IF (PRESENT (data_size)) THEN
        IF (area%d%special) THEN
           SELECT CASE (data_type)
-          CASE ('r')
+          CASE (dbcsr_type_real_4)
              CALL mp_allocate (area%d%r_sp, data_size)
-          CASE ('R')
+          CASE (dbcsr_type_real_8)
              CALL mp_allocate (area%d%r_dp, data_size)
-          CASE ('c')
+          CASE (dbcsr_type_complex_4)
              CALL mp_allocate (area%d%c_sp, data_size)
-          CASE ('C')
+          CASE (dbcsr_type_complex_8)
              CALL mp_allocate (area%d%c_dp, data_size)
           CASE default
              CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
@@ -854,13 +854,13 @@ CONTAINS
           END SELECT
        ELSE
           SELECT CASE (data_type)
-          CASE ('R')
+          CASE (dbcsr_type_real_8)
              ALLOCATE (area%d%r_dp(data_size))
-          CASE ('r')
+          CASE (dbcsr_type_real_4)
              ALLOCATE (area%d%r_sp(data_size))
-          CASE ('C')
+          CASE (dbcsr_type_complex_8)
              ALLOCATE (area%d%c_dp(data_size))
-          CASE ('c')
+          CASE (dbcsr_type_complex_4)
              ALLOCATE (area%d%c_sp(data_size))
           CASE default
              CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
@@ -900,16 +900,16 @@ CONTAINS
     IF (area%d%refcount .EQ. 0) THEN
        IF (area%d%special) THEN
           SELECT CASE (area%d%data_type)
-          CASE ('r')
+          CASE (dbcsr_type_real_4)
              CALL mp_deallocate (area%d%r_sp)
              NULLIFY (area%d%r_sp)
-          CASE ('R')
+          CASE (dbcsr_type_real_8)
              CALL mp_deallocate (area%d%r_dp)
              NULLIFY (area%d%r_dp)
-          CASE ('c')
+          CASE (dbcsr_type_complex_4)
              CALL mp_deallocate (area%d%c_sp)
              NULLIFY (area%d%c_sp)
-          CASE ('C')
+          CASE (dbcsr_type_complex_8)
              CALL mp_deallocate (area%d%c_dp)
              NULLIFY (area%d%c_dp)
           CASE default
@@ -918,19 +918,19 @@ CONTAINS
           END SELECT
        ELSE
           SELECT CASE (area%d%data_type)
-          CASE ('R')
+          CASE (dbcsr_type_real_8)
              IF (ASSOCIATED (area%d%r_dp)) &
                   DEALLOCATE (area%d%r_dp)
              NULLIFY (area%d%r_dp)
-          CASE ('r')
+          CASE (dbcsr_type_real_4)
              IF (ASSOCIATED (area%d%r_sp)) &
                   DEALLOCATE (area%d%r_sp)
              NULLIFY (area%d%r_sp)
-          CASE ('C')
+          CASE (dbcsr_type_complex_8)
              IF (ASSOCIATED (area%d%c_dp)) &
                   DEALLOCATE (area%d%c_dp)
              NULLIFY (area%d%c_dp)
-          CASE ('c')
+          CASE (dbcsr_type_complex_4)
              IF (ASSOCIATED (area%d%c_sp)) &
                   DEALLOCATE (area%d%c_sp)
              NULLIFY (area%d%c_sp)
@@ -1299,16 +1299,16 @@ CONTAINS
     data_size = 0
     IF (ASSOCIATED (area%d)) THEN
        SELECT CASE (area%d%data_type)
-          CASE ('R')
+          CASE (dbcsr_type_real_8)
              IF (ASSOCIATED (area%d%r_dp))&
                   data_size = SIZE (area%d%r_dp)
-          CASE ('r')
+          CASE (dbcsr_type_real_4)
              IF (ASSOCIATED (area%d%r_sp))&
                   data_size = SIZE (area%d%r_sp)
-          CASE ('C')
+          CASE (dbcsr_type_complex_8)
              IF (ASSOCIATED (area%d%c_dp))&
                   data_size = SIZE (area%d%c_dp)
-          CASE ('c')
+          CASE (dbcsr_type_complex_4)
              IF (ASSOCIATED (area%d%c_sp))&
                   data_size = SIZE (area%d%c_sp)
           CASE default
@@ -1360,22 +1360,22 @@ CONTAINS
           RETURN
        ENDIF
        SELECT CASE (source_area%d%data_type)
-          CASE ('R')
+          CASE (dbcsr_type_real_8)
              CALL dbcsr_get_data (target_area, t_data_d)
              CALL bl_copy (dbcsr_get_data_size (source_area),&
                   dbcsr_get_data_p_d (source_area), 1,&
                   t_data_d, 1)
-          CASE ('r')
+          CASE (dbcsr_type_real_4)
              CALL dbcsr_get_data (target_area, t_data_r)
              CALL bl_copy (dbcsr_get_data_size (source_area),&
                   dbcsr_get_data_p_s (source_area), 1,&
                   t_data_r, 1)
-          CASE ('C')
+          CASE (dbcsr_type_complex_8)
              CALL dbcsr_get_data (target_area, t_data_z)
              CALL bl_copy (dbcsr_get_data_size (source_area),&
                   dbcsr_get_data_p_z (source_area), 1,&
                   t_data_z, 1)
-          CASE ('c')
+          CASE (dbcsr_type_complex_4)
              CALL dbcsr_get_data (target_area, t_data_c)
              CALL bl_copy (dbcsr_get_data_size (source_area),&
                   dbcsr_get_data_p_c (source_area), 1,&

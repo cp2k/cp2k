@@ -32,15 +32,21 @@ MODULE qs_initial_guess
        dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_num_blocks, dbcsr_row_block_sizes
-  USE dbcsr_operations,                ONLY: dbcsr_filter
+  USE dbcsr_operations,                ONLY: dbcsr_filter,&
+                                             dbcsr_put_block,&
+                                             dbcsr_scale,&
+                                             dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_iterator,&
                                              dbcsr_obj
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
+                                             dbcsr_finalize,&
                                              dbcsr_from_fm,&
                                              dbcsr_from_sm,&
                                              dbcsr_init,&
                                              dbcsr_verify_matrix
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
   USE f77_blas
@@ -126,7 +132,7 @@ CONTAINS
       ikind, iset, isgf, isgfa, ishell, ispin, istat, j, la, last_read, maxl, &
       maxll, nao, natom, natoms, ncount, nelectron, nmo, not_read, nset, nsgf, nspin, &
       nvec, qs_env_id, z, irow, icol, size_atomic_kind_set, istart_col, istart_row, &
-      n_cols, n_rows, n, iseed(4), natoms_tmp, nmo_tmp
+      n_cols, n_rows, n, iseed(4), natoms_tmp, nmo_tmp, blk
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, kind_of
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell, &
                                                 sort_kind, nelec_kind
@@ -169,13 +175,18 @@ CONTAINS
     TYPE(dbcsr_obj)                          :: p_dbcsr, s_dbcsr, mo_dbcsr, mo_tmp_dbcsr
     TYPE(array_i1d_obj)                      :: col_blk_size
     TYPE(dbcsr_distribution_obj)             :: dist, product_dist
+    TYPE(dbcsr_iterator)                     :: iter
+    REAL(dp), DIMENSION(:,:), POINTER        :: DATA
+INTEGER::proc
+LOGICAL::transpose
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
 
     logger => cp_error_get_logger(error)
     failure = .FALSE.
     NULLIFY(all_potential,atomic_kind, mo_coeff, sv,&
          gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
          ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
-         dft_control,h_core_sparse)
+         dft_control,h_core_sparse, distribution_2d)
     NULLIFY(dft_section, input)
     NULLIFY(moa,mob)
 
@@ -185,6 +196,7 @@ CONTAINS
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
          matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
+         distribution_2d=distribution_2d,&
          error=error)
 
     nspin=dft_control%nspins
@@ -580,35 +592,58 @@ CPSourceFileRef,&
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                           maxocc=maxocc,&
                           nelectron=nelectron)
-          DO irow=1,p_rmpv(ispin)%matrix%nblock_row
-            block_node => first_block_node(p_rmpv(ispin)%matrix,irow)
-            DO WHILE (ASSOCIATED(block_node))
-              CALL get_block_node(block_node=block_node,block_col=icol)
-              IF (irow == icol) THEN
-                ikind = kind_of(irow)
-                pmat(ikind)%mat=pmat(ikind)%mat*scale
-                CALL put_block_node(block_node,p_rmpv(ispin)%matrix,irow,icol,pmat(ikind)%mat)
-                pmat(ikind)%mat=pmat(ikind)%mat/scale
-              END IF
-              block_node => next_block_node(block_node)
-            END DO
-          END DO
-          CALL cp_sm_sm_trace(p_rmpv(ispin)%matrix,s_sparse(1)%matrix,trps1,qs_env%para_env,error)
-          scale=REAL(nelectron,dp)/trps1
-          CALL cp_sm_scale_and_add(p_rmpv(ispin)%matrix,alpha=scale,error=error)
           !
-          ! We convert sm to dbcsr
           CALL dbcsr_init(p_dbcsr, error=error)
           CALL dbcsr_from_sm(p_dbcsr, p_rmpv(ispin)%matrix, error=error)
+          DO irow = 1,p_dbcsr%m%nblkrows_total
+             ikind = kind_of(irow)
+             DO blk = p_dbcsr%m%row_p(irow)+1,p_dbcsr%m%row_p(irow+1)
+                icol = p_dbcsr%m%col_i(blk)
+                IF(icol.NE.irow) CYCLE
+                pmat(ikind)%mat = pmat(ikind)%mat*scale
+                CALL dbcsr_put_block(p_dbcsr, irow, irow, pmat(ikind)%mat)
+                pmat(ikind)%mat = pmat(ikind)%mat/scale
+             ENDDO
+          ENDDO
+          CALL dbcsr_finalize(p_dbcsr, error=error)
           CALL dbcsr_verify_matrix(p_dbcsr, error=error)
           checksum = dbcsr_checksum(p_dbcsr, error=error)
           i = dbcsr_get_num_blocks (p_dbcsr); CALL mp_sum(i,group)
-          IF(output_unit>0)WRITE(output_unit,*) 'P nblks',i,' checksum',checksum
+          IF(output_unit>0)WRITE(output_unit,*) 'P_init nblks',i,' checksum',checksum
           CALL dbcsr_filter(p_dbcsr, eps, error=error)
           CALL dbcsr_verify_matrix(p_dbcsr, error=error)
           checksum = dbcsr_checksum(p_dbcsr, error=error)
           i = dbcsr_get_num_blocks (p_dbcsr); CALL mp_sum(i,group)
+          IF(output_unit>0)WRITE(output_unit,*) 'P_init nblks',i,' checksum',checksum
+
+          CALL dbcsr_trace(p_dbcsr, s_dbcsr, trps1, error=error)
+          scale=REAL(nelectron,dp)/trps1
+          CALL dbcsr_scale(p_dbcsr, scale, error=error)
+
+          CALL dbcsr_verify_matrix(p_dbcsr, error=error)
+          checksum = dbcsr_checksum(p_dbcsr, error=error)
+          i = dbcsr_get_num_blocks (p_dbcsr); CALL mp_sum(i,group)
           IF(output_unit>0)WRITE(output_unit,*) 'P nblks',i,' checksum',checksum
+
+          !!!!>>>>
+          DO irow=1,p_rmpv(ispin)%matrix%nblock_row
+             block_node => first_block_node(p_rmpv(ispin)%matrix,irow)
+             DO WHILE (ASSOCIATED(block_node))
+                CALL get_block_node(block_node=block_node,block_col=icol)
+                IF (irow == icol) THEN
+                   ikind = kind_of(irow)
+                   pmat(ikind)%mat=pmat(ikind)%mat*scale
+                   CALL put_block_node(block_node,p_rmpv(ispin)%matrix,irow,icol,pmat(ikind)%mat)
+                   pmat(ikind)%mat=pmat(ikind)%mat/scale
+                END IF
+                block_node => next_block_node(block_node)
+             END DO
+          END DO
+          CALL cp_sm_sm_trace(p_rmpv(ispin)%matrix,s_sparse(1)%matrix,trps1,qs_env%para_env,error)
+          scale=REAL(nelectron,dp)/trps1
+          CALL cp_sm_scale_and_add(p_rmpv(ispin)%matrix,alpha=scale,error=error)
+          !!!!<<<<
+
           !
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -764,7 +799,7 @@ CPSourceFileRef,&
              checksum = dbcsr_checksum(mo_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
              IF(output_unit>0)WRITE(output_unit,*) 'P*SC nblks',i,' checksum',checksum
-
+             !
              CALL dbcsr_destroy(mo_dbcsr, error=error)
              CALL dbcsr_destroy(mo_tmp_dbcsr, error=error)
              CALL dbcsr_distribution_release(product_dist)
@@ -772,18 +807,16 @@ CPSourceFileRef,&
              CALL array_release(col_blk_size)
 
              !!!!
+             !
 
              CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
              ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
              CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
              CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
              CALL cp_fm_release(sv,error=error)
+
              ! and ortho the result
-             IF (ortho_basis) THEN
-                CALL make_basis_simple(mo_coeff,nmo,error=error)
-             ELSE
-                CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
-             END IF
+             CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
           END IF
 
           CALL dbcsr_destroy(p_dbcsr, error=error)

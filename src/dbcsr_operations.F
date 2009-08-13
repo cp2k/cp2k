@@ -41,8 +41,9 @@ MODULE dbcsr_operations
                                              sp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: &
-       mp_allgather, mp_bcast, mp_isendrecv, mp_rma_get, mp_sum, mp_wait, &
-       mp_window_create, mp_window_destroy, mp_window_fence, mp_window_type
+       mp_allgather, mp_bcast, mp_isendrecv, mp_max, mp_rma_get, mp_sum, &
+       mp_wait, mp_window_create, mp_window_destroy, mp_window_fence, &
+       mp_window_type
 
   !$ USE OMP_LIB
   USE termination,                     ONLY: stop_memory,&
@@ -59,7 +60,7 @@ MODULE dbcsr_operations
             dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block,&
             dbcsr_put_block, dbcsr_filter,dbcsr_find_column,&
             dbcsr_btriu, dbcsr_add_on_diag, block_add_on_diag,&
-            block_chol_inv, block_set, dbcsr_remove_block
+            block_chol_inv, block_set, dbcsr_remove_block, dbcsr_maxabsval
   ! Direct access to the variants because array reshaping and
   ! typematching is incompatible.
   PUBLIC :: block_add_on_diag_d, block_add_on_diag_s,&
@@ -2187,16 +2188,16 @@ CONTAINS
     !left_thread_dist => array_data (dbcsr_distribution_thread_dist (product%dist))
     left_local_rows => array_data (dbcsr_distribution_local_rows (left%dist))
     SELECT CASE (left%data_type)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (left%data_area, left_data_r)
        CALL dbcsr_get_data (right%data_area, right_data_r)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (left%data_area, left_data_d)
        CALL dbcsr_get_data (right%data_area, right_data_d)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (left%data_area, left_data_c)
        CALL dbcsr_get_data (right%data_area, right_data_c)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (left%data_area, left_data_z)
        CALL dbcsr_get_data (right%data_area, right_data_z)
     END SELECT
@@ -2858,13 +2859,13 @@ CONTAINS
     addee_row_blk_size => array_data (addee%m%row_blk_size)
     addee_col_blk_size => array_data (addee%m%col_blk_size)
     SELECT CASE (addee%m%data_type)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (addee%m%data_area, addee_data_r)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (addee%m%data_area, addee_data_d)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (addee%m%data_area, addee_data_c)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (addee%m%data_area, addee_data_z)
     END SELECT
     !
@@ -3001,13 +3002,13 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     row_blk_size => array_data (matrix_a%m%row_blk_size)
     col_blk_size => array_data (matrix_a%m%col_blk_size)
     SELECT CASE (matrix_a%m%data_type)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix_a%m%data_area, data_r)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (matrix_a%m%data_area, data_d)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix_a%m%data_area, data_c)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (matrix_a%m%data_area, data_z)
     END SELECT
     !
@@ -3070,8 +3071,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           ! let's scale
           IF(PRESENT(alpha_scalar)) THEN
              !a_data = a_data * alpha_scalar
-             SELECT CASE (matrix_a%m%data_type)
-             CASE ('R')
+             SELECT CASE (dbcsr_data_type(matrix_a))
+             CASE (dbcsr_type_real_8)
                 CALL dscal(a_nze,alpha_scalar,data_d(a_offset),1)
              CASE default
                 CALL cp_unimplemented_error (routineN,&
@@ -3090,13 +3091,13 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 !DO row = 1,a_row_size
                 !   !a_data(row,:) = a_data(row,:) * alpha_vector(row_global+row)
                 !   CALL dscal(a_col_size,alpha_vector(row_global+row),a_data(row),a_col_size)
-                   !ENDDO
+                !ENDDO
              ENDIF
           ELSEIF(PRESENT(alpha_matrix)) THEN
              IF(right) THEN
                 !A = A * alpha
-                SELECT CASE (matrix_a%m%data_type)
-                CASE ('R')
+                SELECT CASE (dbcsr_data_type(matrix_a))
+                CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
                         &     1.0_dp,data_d(a_offset),a_row_size,&
                         &            alpha_matrix(m_offset(a_col)),a_col_size,&
@@ -3108,8 +3109,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 END SELECT
              ELSE
                 !A = alpha * A
-                SELECT CASE (matrix_a%m%data_type)
-                CASE ('R')
+                SELECT CASE (dbcsr_data_type(matrix_a))
+                CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
                         &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
                         &            data_d(a_offset),a_row_size,&
@@ -3179,9 +3180,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ENDIF
   END SUBROUTINE dbcsr_remove_block
 
-
-
-
 ! *****************************************************************************
 !> \brief add and scale matrices 
 !>    A = alpha*A + beta*B or 
@@ -3203,7 +3201,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: a_data_z, b_data_z
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: a_data_c, b_data_c
     INTEGER :: a_blk, a_frst_blk, a_last_blk, a_row_size, b_blk, b_col, &
-      b_col_size, b_row_size, nze, row, timing_handle
+      b_col_size, b_row_size, blk, col, nze, row, timing_handle
     INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
                                                 a_row_blk_size, &
                                                 b_col_blk_size, b_row_blk_size
@@ -3211,8 +3209,13 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     REAL(dp)                                 :: my_alpha_scalar, &
                                                 my_beta_scalar
     REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data_d, b_data_d
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     REAL(KIND=sp), DIMENSION(:), POINTER     :: a_data_r, b_data_r
+    TYPE(dbcsr_iterator)                     :: iter
 
+!real(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
+!complex(KIND=sp), DIMENSION(:, :), POINTER  :: data_z
+!complex(KIND=dp), DIMENSION(:, :), POINTER  :: data_c
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
@@ -3226,16 +3229,16 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
          CALL stop_program(routineN,"data types not consistent")
 
     SELECT CASE (dbcsr_data_type(matrix_a))
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
        CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
        CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
        CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
        CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
     END SELECT
@@ -3253,40 +3256,66 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_scale(matrix_a,alpha_scalar=my_alpha_scalar,error=error)
 
     IF(my_beta_scalar.NE.0.0_dp) THEN
-       DO row = 1, matrix_b%m%nblkrows_total
-          a_row_size = a_row_blk_size(row)
-          b_row_size = b_row_blk_size(row)
-          IF(a_row_size.NE.b_row_size) CALL stop_program(routineN,"matrices not consistent")
-          a_blk = matrix_a%m%row_p(row)+1
-          a_last_blk = matrix_a%m%row_p(row+1)
-          DO b_blk = matrix_b%m%row_p(row)+1,matrix_b%m%row_p(row+1)
-             b_col = matrix_b%m%col_i(b_blk)
-             ! find the a_blk we assume here that the colums are ordered !
-             a_frst_blk = a_blk
-             CALL dbcsr_find_column(b_col,a_frst_blk,a_last_blk,matrix_a%m%col_i,a_blk,found)
-             IF(found) THEN
+
+       IF(.FALSE.)THEN
+          CALL dbcsr_iterator_start(iter, matrix_b)
+          DO WHILE (dbcsr_iterator_blocks_left(iter))
+             SELECT CASE (dbcsr_data_type(matrix_a))
+                !CASE (dbcsr_type_real_4)
+                !   CALL dbcsr_iterator_next_block(iter, row, col, data_r, blk)
+                !   CALL dbcsr_put_block(matrix_a, row, col, data_r)
+             CASE (dbcsr_type_real_8)
+                CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
                 !
-                b_col_size = b_col_blk_size(b_col)
-                !
-                nze = a_row_size*b_col_size
-                !
-                ! let's scale the block
-                SELECT CASE (dbcsr_data_type(matrix_a))
-                CASE ('R')
-                   CALL daxpy (nze, my_beta_scalar,&
-                        b_data_d(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        a_data_d(ABS(matrix_b%m%blk_p(b_blk))),1)
-                !CALL daxpy(nze,my_beta_scalar,matrix_b%m%data(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                !     &                        matrix_a%m%data(ABS(matrix_b%m%blk_p(b_blk))),1)
-                CASE default
-                   CALL cp_unimplemented_error (routineN,&
-                        "Only real double precision")
-                END SELECT
-             ELSE
-                CALL stop_program(routineN,"need to add the block")
-             ENDIF
-          ENDDO ! a_col
-       ENDDO ! a_row
+                ! here put should be an accumulate or so !
+                CALL dbcsr_put_block(matrix_a, row, col, data_d)
+                !CASE (dbcsr_type_complex_4)
+                !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
+                !   CALL dbcsr_put_block(matrix_a, row, col, data_c)
+                !CASE (dbcsr_type_complex_8)
+                !   CALL dbcsr_iterator_next_block(iter, row, col, data_z, blk)
+                !   CALL dbcsr_put_block(matrix_a, row, col, data_z)
+             CASE DEFAULT
+                CALL cp_unimplemented_error (routineN,"Only real double precision")
+             END SELECT
+          ENDDO
+          CALL dbcsr_finalize (matrix_a, error=error)
+
+       ELSE
+          DO row = 1, matrix_b%m%nblkrows_total
+             a_row_size = a_row_blk_size(row)
+             b_row_size = b_row_blk_size(row)
+             IF(a_row_size.NE.b_row_size) CALL stop_program(routineN,"matrices not consistent")
+             a_blk = matrix_a%m%row_p(row)+1
+             a_last_blk = matrix_a%m%row_p(row+1)
+             DO b_blk = matrix_b%m%row_p(row)+1,matrix_b%m%row_p(row+1)
+                b_col = matrix_b%m%col_i(b_blk)
+                ! find the a_blk we assume here that the colums are ordered !
+                a_frst_blk = a_blk
+                CALL dbcsr_find_column(b_col,a_frst_blk,a_last_blk,matrix_a%m%col_i,a_blk,found)
+                IF(found) THEN
+                   !
+                   b_col_size = b_col_blk_size(b_col)
+                   !
+                   nze = a_row_size*b_col_size
+                   !
+                   ! let's scale the block
+                   SELECT CASE (dbcsr_data_type(matrix_a))
+                   CASE (dbcsr_type_real_8)
+                      CALL daxpy (nze, my_beta_scalar,&
+                           b_data_d(ABS(matrix_a%m%blk_p(a_blk))),1,&
+                           a_data_d(ABS(matrix_b%m%blk_p(b_blk))),1)
+                   CASE default
+                      CALL cp_unimplemented_error (routineN,&
+                           "Only real double precision")
+                   END SELECT
+                ELSE
+                   CALL stop_program(routineN,"need to add the block")
+                ENDIF
+             ENDDO ! a_col
+          ENDDO ! a_row
+       ENDIF
+
     ENDIF
 
     CALL timestop(timing_handle)
@@ -3324,14 +3353,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
+
     SELECT CASE (dbcsr_data_type(matrix))
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix%m%data_area, data_r)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (matrix%m%data_area, data_d)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix%m%data_area, data_c)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (matrix%m%data_area, data_z)
     END SELECT
     
@@ -3345,9 +3375,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           offset = ABS(matrix%m%blk_p(blk))
           nze = row_size**2
           SELECT CASE (dbcsr_data_type(matrix))
-          CASE ('R')
+          CASE (dbcsr_type_real_8)
              DATA => data_d(offset:offset+nze-1)
-             !DATA => matrix%m%data(offset:offset+nze-1)
              !
              ! let's add on diag
              DO i = 1,row_size
@@ -3488,14 +3517,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_data_type(matrix))
-       CASE ('R')
+       CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
           SELECT CASE(my_method)
           CASE('fro')
              !
              ! Frobenius based
-             !nrm = SQRT(my_ddot(data_d))
-             !nrm = SQRT(DDOT(SIZE(data_d), data_d(1,1), 1, data_d(1,1), 1))
              nrm = SQRT(DDOT(SIZE(data_d), data_d(1), 1, data_d(1), 1))
              IF(nrm.LT.eps) CALL dbcsr_remove_block(matrix, row, col, blk)
           CASE DEFAULT
@@ -3514,16 +3541,49 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
   END SUBROUTINE dbcsr_filter
 
-  REAL(dp) FUNCTION my_ddot(a)
-    REAL(dp), DIMENSION(:,:) :: a
-    INTEGER :: i,j
-    my_ddot = 0.0_dp
-    DO j = 1,SIZE(a,2)
-    DO i = 1,SIZE(a,1)
-       my_ddot = my_ddot + a(i,j)**2
+! *****************************************************************************
+!> \brief max absolute norm of a dbcsr matrix
+!> \param[in] matrix_a  the matrix
+!> \param[out] maxabsval 
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_maxabsval(matrix, maxabsval, error)
+
+    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
+    REAL(dp), INTENT(OUT)                    :: maxabsval
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_maxabsval', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, row, timing_handle
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    maxabsval=0.0_dp
+
+    CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       SELECT CASE (dbcsr_data_type(matrix))
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
+          maxabsval = MAX(maxabsval,MAXVAL(ABS(data_d)))
+       CASE DEFAULT
+          CALL cp_unimplemented_error (routineN,"Only real double precision")
+       END SELECT
     ENDDO
-    ENDDO
-  END FUNCTION my_ddot
+    CALL dbcsr_iterator_stop(iter)
+    !
+    ! maxme
+    CALL mp_max(maxabsval,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_maxabsval
 
 ! *****************************************************************************
 !> \brief Calls the functions that are called in the included files but not

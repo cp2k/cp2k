@@ -63,7 +63,8 @@ MODULE dbcsr_util
        dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, &
        dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, &
        dbcsr_slot_size, dbcsr_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_normal, dbcsr_type_real_8, dbcsr_type_symmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_normal, &
+       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric, &
        dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
@@ -93,7 +94,7 @@ MODULE dbcsr_util
                                              real_matrix_type,&
                                              allocate_matrix, get_block_node,&
                                              add_block_node
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -303,13 +304,18 @@ CONTAINS
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! *****************************************************************************
-  PURE SUBROUTINE get_lookup_obj(matrix, row, column, transpose, processor)
+  SUBROUTINE get_lookup_obj(matrix, row, column, transpose, processor)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(INOUT)                   :: row, column
     LOGICAL, INTENT(OUT)                     :: transpose
     INTEGER, INTENT(OUT), OPTIONAL           :: processor
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_lookup_obj', &
+      routineP = moduleN//':'//routineN
+
 !   ---------------------------------------------------------------------------
+
+    IF(.NOT.ASSOCIATED(matrix%m)) CALL stop_program (routineP, 'matrix%m not associated') 
 
     IF (PRESENT (processor)) THEN
        CALL dbcsr_get_lookup (matrix%m, row, column, transpose, processor)
@@ -582,20 +588,20 @@ CONTAINS
     matrix%m%name = name
     IF (PRESENT (data_type)) THEN
        SELECT CASE (data_type)
-       CASE ('r')
-          matrix%m%data_type = 'r'
+       CASE (dbcsr_type_real_4)
+          matrix%m%data_type = dbcsr_type_real_4
           CALL cp_unimplemented_error (routineN,&
                "Single precision real matrices not yet tested or fully supported",&
                error_level=cp_warning_level)
-       CASE ('R')
-          matrix%m%data_type = 'R'
-       CASE ('c')
-          matrix%m%data_type = 'c'
+       CASE (dbcsr_type_real_8)
+          matrix%m%data_type = dbcsr_type_real_8
+       CASE (dbcsr_type_complex_4)
+          matrix%m%data_type = dbcsr_type_complex_4
           CALL cp_unimplemented_error (routineN,&
                "Complex matrices not yet tested or fully supported",&
                error_level=cp_warning_level)
-       CASE ('C')
-          matrix%m%data_type = 'C'
+       CASE (dbcsr_type_complex_8)
+          matrix%m%data_type = dbcsr_type_complex_8
           CALL cp_unimplemented_error (routineN,&
                "Complex matrices not yet tested or fully supported",&
                error_level=cp_warning_level)
@@ -604,7 +610,7 @@ CONTAINS
               routineN, "Invalid matrix type", error=error)
       END SELECT
     ELSE
-       matrix%m%data_type = 'R'
+       matrix%m%data_type = dbcsr_type_real_8
     ENDIF
     IF (.NOT. hijack) THEN
        NULLIFY(matrix%m%index)
@@ -1138,7 +1144,7 @@ CONTAINS
     CALL dbcsr_init (matrix, error)
     CALL dbcsr_create(matrix, fm%name, distribution, 'N',&
          row_blk_size, col_blk_size,&
-         0, 0, 'R', error=error)
+         0, 0, dbcsr_type_real_8, error=error)
     ! Somehow assign row & column block sizes.
     CALL dbcsr_work_create(matrix, error=error)
     ALLOCATE(blk_ps(nblkcols_local), stat=stat)
@@ -1344,7 +1350,7 @@ CONTAINS
     CALL array_new (cbs_array, col_blk_size, gift=.TRUE.)
     CALL dbcsr_init (matrix, error)
     CALL dbcsr_create(matrix, sm%name, dist, sm%symmetry,&
-         rbs_array, cbs_array, nblks=0, nze=0, data_type='R', error=error)
+         rbs_array, cbs_array, nblks=0, nze=0, data_type=dbcsr_type_real_8, error=error)
     matrix%m%matrix_type = 'S'
     matrix%m%dist2d => dist2d
     ! Count what to send to others.
@@ -1457,7 +1463,7 @@ CONTAINS
     !CALL array_new (cbs_array, col_blk_size, gift=.TRUE.)
     !CALL dbcsr_init (matrix, error)
     !CALL dbcsr_create(matrix, sm%name, dist, sm%symmetry,&
-    !     rbs_array, cbs_array, nblks=blk, nze=nze, data_type='R', error=error)
+    !     rbs_array, cbs_array, nblks=blk, nze=nze, data_type=dbcsr_type_real_8, error=error)
     !matrix%m%matrix_type = 'S'
     !matrix%m%dist2d => dist2d
     CALL array_release (rbs_array)
@@ -1925,7 +1931,7 @@ CONTAINS
     new_type = normal%m%matrix_type
     CALL dbcsr_create (transposed, "transposed "//normal%m%name, new_dist,&
          new_type, normal%m%col_blk_size, normal%m%row_blk_size, normal%m%nblks,&
-         normal%m%nze, 'R', normal%m%special_memory, reuse=hijack, error=error)
+         normal%m%nze, dbcsr_type_real_8, normal%m%special_memory, reuse=hijack, error=error)
     ! Reserve the space for the new indices.
     CALL dbcsr_addto_index_array (transposed%m, dbcsr_slot_row_p,&
          reservation=transposed%m%nblkrows_total+1, extra=transposed%m%nblks*2,&
@@ -3233,13 +3239,13 @@ CONTAINS
     col_blk_size => array_data (matrix%m%col_blk_size)
     local_cs = 0.0_dp
     SELECT CASE (matrix%m%data_type)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (matrix%m%data_area, r_dp)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix%m%data_area, r_sp)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (matrix%m%data_area, c_dp)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix%m%data_area, c_sp)
     END SELECT
     DO br = 1, matrix%m%nblkrows_total
@@ -3251,16 +3257,16 @@ CONTAINS
           blk_p = ABS(matrix%m%blk_p(blk))
           ! Calculate DDOT
           SELECT CASE (matrix%m%data_type)
-          CASE ('R')
+          CASE (dbcsr_type_real_8)
              blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
                   &               r_dp(blk_p:blk_p+mn-1))
-          CASE ('r')
+          CASE (dbcsr_type_real_4)
              blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
                   &               r_sp(blk_p:blk_p+mn-1))
-          CASE ('C')
+          CASE (dbcsr_type_complex_8)
              blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
                   &               c_dp(blk_p:blk_p+mn-1))
-          CASE ('c')
+          CASE (dbcsr_type_complex_4)
              blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
                   &               c_sp(blk_p:blk_p+mn-1))
           END SELECT
@@ -3309,13 +3315,13 @@ CONTAINS
          routineN, "Matrix does not exist.")
     WRITE(*,*)routineP//' Contents of matrix named ', matrix%m%name
     SELECT CASE (matrix%m%data_type)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (matrix%m%data_area, r_dp)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix%m%data_area, r_sp)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (matrix%m%data_area, r_dp)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix%m%data_area, r_sp)
     END SELECT
     DBGV 'index', matrix%m%index
@@ -3331,22 +3337,22 @@ CONTAINS
              blk_p = ABS(matrix%m%blk_p(blk))
              tr = matrix%m%blk_p(blk) .LT. 0
              SELECT CASE (matrix%m%data_type)
-             CASE ('R')
+             CASE (dbcsr_type_real_8)
                 blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
                      &               r_dp(blk_p:blk_p+mn-1))
                 !CALL &
                 !     dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             CASE ('r')
+             CASE (dbcsr_type_real_4)
                 blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
                      &               r_sp(blk_p:blk_p+mn-1))
                 !CALL &
                 !     dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             CASE ('C')
+             CASE (dbcsr_type_complex_8)
                 blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
                      &               c_dp(blk_p:blk_p+mn-1))
                 !CALL &
                 !     dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             CASE ('c')
+             CASE (dbcsr_type_complex_4)
                 blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
                      &               c_sp(blk_p:blk_p+mn-1))
                 !CALL &
@@ -3358,13 +3364,13 @@ CONTAINS
                   " Checksum for (",br,bc,") at ",blk_p," size ",m,n,mn,&
                   " checksum=",blk_cs
              SELECT CASE (matrix%m%data_type)
-             CASE ('R')
+             CASE (dbcsr_type_real_8)
                 CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             CASE ('r')
+             CASE (dbcsr_type_real_4)
                 CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             CASE ('C')
+             CASE (dbcsr_type_complex_8)
                 CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             CASE ('c')
+             CASE (dbcsr_type_complex_4)
                 CALL dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
              END SELECT
           ENDDO
@@ -4163,15 +4169,15 @@ CONTAINS
        ENDIF
     ENDIF
     SELECT CASE (sm%data_type)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (sm%data_area, r_dp)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (sm%data_area, r_sp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (sm%data_area, c_dp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (sm%data_area, c_sp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
     END SELECT
@@ -4228,7 +4234,7 @@ CONTAINS
        CALL dbcsr_init (ums%mats(row_img), error)
        CALL dbcsr_create(ums%mats(row_img), 'norm '//sm%name, sm%dist,&
             'N', sm%row_blk_size, sm%col_blk_size,&
-            0, 0, 'R', error=error, special=.TRUE.)
+            0, 0, dbcsr_type_real_8, error=error, special=.TRUE.)
     ENDDO
     ! Count initial sizes for sending.
     DBG 'A'
@@ -4543,15 +4549,15 @@ CONTAINS
        ENDIF
     ENDIF
     SELECT CASE (sm%data_type)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (sm%data_area, r_dp)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (sm%data_area, r_sp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (sm%data_area, c_dp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (sm%data_area, c_sp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
     END SELECT
@@ -4637,7 +4643,7 @@ CONTAINS
        CALL dbcsr_init (ums%mats(col_img), error)
        CALL dbcsr_create(ums%mats(col_img), 'col imaged'//sm%name, sm%dist,&
             'N', sm%row_blk_size, sm%col_blk_size,&
-            0, 0, 'R', error=error, special=.TRUE.)
+            0, 0, dbcsr_type_real_8, error=error, special=.TRUE.)
     ENDDO
     !$OMP END DO NOWAIT
     !$OMP WORKSHARE
@@ -4750,7 +4756,7 @@ CONTAINS
     !$OMP SECTION
     ! Prepares the work matrices used in the last DO loop. Placed
     ! early.
-    CALL cp_assert (sm%data_type .EQ. 'R', cp_fatal_level,&
+    CALL cp_assert (sm%data_type .EQ. dbcsr_type_real_8, cp_fatal_level,&
          cp_unimplemented_error_nr, routineN, "Only real double support.")
     CALL dbcsr_data_init (received_data_area)
     CALL dbcsr_data_new (received_data_area, sm%data_type)
@@ -4935,15 +4941,15 @@ CONTAINS
        nsymmetries = 2
     ENDIF
     SELECT CASE (sm%m%data_type)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (sm%m%data_area, r_dp)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (sm%m%data_area, r_sp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (sm%m%data_area, c_dp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (sm%m%data_area, c_sp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
     END SELECT
@@ -4992,7 +4998,7 @@ CONTAINS
     CALL dbcsr_init (desm, error)
     CALL dbcsr_create(desm, 'desym '//sm%m%name, sm%m%dist,&
          'N', sm%m%row_blk_size, sm%m%col_blk_size,&
-         0, 0, 'R', error=error, special=sm%m%special_memory)
+         0, 0, dbcsr_type_real_8, error=error, special=sm%m%special_memory)
     ! Count initial sizes for sending.
     DBG 'A'
     send_count(:,:) = 0
@@ -5575,7 +5581,7 @@ CONTAINS
 !    CALL ensure_array_size (matrix%data, ub=size, factor=factor, nocopy=nocopy,&
 !         special=matrix%special_memory, error=error)
 !    SELECT CASE (matrix%data_type)
-!    CASE ('R')
+!    CASE (dbcsr_type_real_8)
 !       CALL ensure_array_size (matrix%data_area%d%r_dp,&
 !            ub=size, factor=factor, nocopy=nocopy,&
 !            special=matrix%data_area%d%special, error=error)
@@ -5612,7 +5618,7 @@ CONTAINS
     nocp = .FALSE.
     IF (PRESENT (nocopy)) nocp = nocopy
     SELECT CASE (area%d%data_type)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        IF (.NOT. ASSOCIATED (area%d%r_dp)) THEN
           IF (area%d%special) THEN
              CALL mp_allocate (area%d%r_dp, data_size)
@@ -5623,7 +5629,7 @@ CONTAINS
           CALL ensure_array_size (area%d%r_dp, ub=data_size,&
                special=area%d%special, nocopy=nocp)
        ENDIF
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        IF (.NOT. ASSOCIATED (area%d%r_sp)) THEN
           IF (area%d%special) THEN
              CALL mp_allocate (area%d%r_sp, data_size)
@@ -5634,7 +5640,7 @@ CONTAINS
           CALL ensure_array_size (area%d%r_sp, ub=data_size,&
                special=area%d%special, nocopy=nocp)
        ENDIF
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        IF (.NOT. ASSOCIATED (area%d%c_dp)) THEN
           IF (area%d%special) THEN
              CALL mp_allocate (area%d%c_dp, data_size)
@@ -5645,7 +5651,7 @@ CONTAINS
           CALL ensure_array_size (area%d%c_dp, ub=data_size,&
                special=area%d%special, nocopy=nocp)
        ENDIF
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        IF (.NOT. ASSOCIATED (area%d%c_sp)) THEN
           IF (area%d%special) THEN
              CALL mp_allocate (area%d%c_sp, data_size)
@@ -5909,8 +5915,8 @@ CONTAINS
             "Data areas must be setup.")
        CALL cp_assert (dst%d%data_type .EQ. src%d%data_type, cp_fatal_level,&
             cp_caller_error, routineN, "Data type must be the same.")
-       CALL cp_assert (dst%d%data_type.EQ.'R'.OR.dst%d%data_type.EQ.'r'&
-            .OR.dst%d%data_type.EQ.'C'.OR.dst%d%data_type.EQ.'c',&
+       CALL cp_assert (dst%d%data_type.EQ.dbcsr_type_real_8.OR.dst%d%data_type.EQ.dbcsr_type_real_4&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8.OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
             cp_warning_level, cp_caller_error, routineN, "Incorrect data type.")
     ENDIF
     data_size = row_size*col_size
@@ -5923,16 +5929,16 @@ CONTAINS
        ub_s = ub
     ENDIF
     SELECT CASE (src%d%data_type)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_block_transpose (dst%d%r_dp(lb:ub), src%d%r_dp(lb_s:ub_s),&
             row_size, col_size)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_block_transpose (dst%d%r_sp(lb:ub), src%d%r_sp(lb_s:ub_s),&
             row_size, col_size)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_block_transpose (dst%d%c_dp(lb:ub), src%d%c_dp(lb_s:ub_s),&
             row_size, col_size)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_block_transpose (dst%d%c_sp(lb:ub), src%d%c_sp(lb_s:ub_s),&
             row_size, col_size)
     END SELECT
@@ -5969,8 +5975,8 @@ CONTAINS
             "Data areas must be setup.")
        CALL cp_assert (dst%d%data_type .EQ. src%d%data_type, cp_fatal_level,&
             cp_caller_error, routineN, "Data type must be the same.")
-       CALL cp_assert (dst%d%data_type.EQ.'R'.OR.dst%d%data_type.EQ.'r'&
-            .OR.dst%d%data_type.EQ.'C'.OR.dst%d%data_type.EQ.'c',&
+       CALL cp_assert (dst%d%data_type.EQ.dbcsr_type_real_8.OR.dst%d%data_type.EQ.dbcsr_type_real_4&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8.OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
             cp_warning_level, cp_caller_error, routineN, "Incorrect data type.")
     ENDIF
     ub = lb + data_size - 1
@@ -5982,13 +5988,13 @@ CONTAINS
        ub_s = ub
     ENDIF
     SELECT CASE (src%d%data_type)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        dst%d%r_sp(lb:ub) = src%d%r_sp(lb_s:ub_s)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        dst%d%r_dp(lb:ub) = src%d%r_dp(lb_s:ub_s)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        dst%d%c_sp(lb:ub) = src%d%c_sp(lb_s:ub_s)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        dst%d%c_dp(lb:ub) = src%d%c_dp(lb_s:ub_s)
     END SELECT
   END SUBROUTINE dbcsr_data_copy_aa

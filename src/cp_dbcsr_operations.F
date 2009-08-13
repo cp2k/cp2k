@@ -35,15 +35,14 @@ MODULE cp_dbcsr_operations
        dbcsr_nfullrows_local, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_copy, dbcsr_filter, dbcsr_find_column, &
-       dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_put_block, &
-       dbcsr_remove_block, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_trace
-  USE dbcsr_types,                     ONLY: dbcsr_array_type,&
-                                             dbcsr_distribution_obj,&
-                                             dbcsr_imagedistribution_type,&
-                                             dbcsr_iterator,&
-                                             dbcsr_mp_obj,&
-                                             dbcsr_obj,&
-                                             dbcsr_type
+       dbcsr_get_tmp_block2d, dbcsr_maxabsval, dbcsr_mult_e_ec_m, &
+       dbcsr_put_block, dbcsr_remove_block, dbcsr_reserve_block2d, &
+       dbcsr_scale, dbcsr_trace
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_array_type, dbcsr_distribution_obj, &
+       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
+       dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_real_4, dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: &
        dbcsr_checksum, dbcsr_create, dbcsr_create_col_image_dist, &
        dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
@@ -308,7 +307,13 @@ CONTAINS
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR filter(S,1.0)  checksum", checksum
     ENDIF
     CALL dbcsr_destroy(matrix_a2,error)
-
+    !
+    ! some norms here
+    CALL dbcsr_maxabsval(matrix_a, checksum, error=error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR maxabsval(S)", checksum
+    ENDIF
+    !
     ! Fill a matrix with all zeros.
     CALL dbcsr_init (matrix_a2, error)
     CALL dbcsr_from_sm(matrix_a2, matrix_s, error)
@@ -1384,16 +1389,16 @@ CONTAINS
     b_row_blk_size => array_data (matrix_b%m%row_blk_size)
     b_col_blk_size => array_data (matrix_b%m%col_blk_size)
     SELECT CASE (matrix_a%m%data_type)
-    CASE ('r')
+    CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
        CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
-    CASE ('R')
+    CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
        CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
-    CASE ('c')
+    CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
        CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
-    CASE ('C')
+    CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
        CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
     END SELECT
@@ -1423,7 +1428,7 @@ CONTAINS
              a_offset = ABS(matrix_a%m%blk_p(a_blk))
              b_offset = ABS(matrix_b%m%blk_p(b_blk))
              SELECT CASE (matrix_a%m%data_type)
-             CASE ('R')
+             CASE (dbcsr_type_real_8)
                 CALL dcopy (nze, b_data_d(b_offset), 1, a_data_d(a_offset), 1)
              !CALL dcopy(nze, matrix_b%m%data(b_offset), 1, matrix_a%m%data(a_offset), 1)
              CASE default

@@ -168,7 +168,7 @@
 !   ---------------------------------------------------------------------------
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
-    CALL cp_assert (matrix%m%data_type .EQ. 'R',&
+    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_real_8,&
          cp_fatal_level, cp_caller_error,&
          routineN, "Data type mismatch for requested block.")
     row_size = row_blk_size(row)
@@ -213,7 +213,7 @@
 !   ---------------------------------------------------------------------------
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
-    CALL cp_assert (matrix%m%data_type .EQ. 'R',&
+    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_real_8,&
          cp_fatal_level, cp_caller_error,&
          routineN, "Data type mismatch for requested block.")
 

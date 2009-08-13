@@ -27,7 +27,7 @@
     CALL cp_assert(matrix%m%nblkrows_total .EQ. matrix%m%nblkcols_total,&
          cp_failure_level, cp_caller_error, routineP,&
          "Can not set diagonal of non-square matrix.", error=error)
-    CALL cp_assert ('C' .EQ. matrix%m%data_type, cp_failure_level,&
+    CALL cp_assert (dbcsr_type_complex_8 .EQ. matrix%m%data_type, cp_failure_level,&
          cp_caller_error, routineN, "Datatype mismatch.")
     IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_work_create (matrix, error=error)
@@ -213,7 +213,7 @@
        CALL cp_assert (SIZE(src) .GE. data_size,&
             cp_fatal_level, cp_caller_error, routineN,&
             "Not enough source data.")
-       CALL cp_assert (dst%d%data_type .EQ. 'C', cp_failure_level,&
+       CALL cp_assert (dst%d%data_type .EQ. dbcsr_type_complex_8, cp_failure_level,&
             cp_caller_error, routineN, "Data type mismatch.")
     ENDIF
     ub = lb + data_size - 1

@@ -2,7 +2,7 @@
 {
         'nametype1': 'd',
         'type1':     'real(kind=real_8)',
-        'uchar1':    'R',
+        'dkind1':    'dbcsr_type_real_8',
 	'base1':     'r',
 	'prec1':     'dp',
         'dotname1':  'DDOT',
@@ -11,7 +11,7 @@
 {
         'nametype1': 's',
         'type1':     'real(kind=real_4)',
-        'uchar1':    'r',
+        'dkind1':    'dbcsr_type_real_4',
 	'base1':     'r',
         'prec1':     'sp',
         'dotname1':  'SDOT',
@@ -20,7 +20,7 @@
 {
         'nametype1': 'z',
         'type1':     'complex(kind=real_8)',
-        'uchar1':    'C',
+        'dkind1':    'dbcsr_type_complex_8',
 	'base1':     'c',
         'prec1':     'dp',
         'dotname1':  'ZDOTU',
@@ -29,7 +29,7 @@
 {
         'nametype1': 'c',
         'type1':     'complex(kind=real_4)',
-        'uchar1':    'c',
+        'dkind1':    'dbcsr_type_complex_4',
 	'base1':     'c',
         'prec1':     'sp',
         'dotname1':  'CDOTU',

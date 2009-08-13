@@ -168,7 +168,7 @@
 !   ---------------------------------------------------------------------------
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
-    CALL cp_assert (matrix%m%data_type .EQ. 'C',&
+    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_complex_8,&
          cp_fatal_level, cp_caller_error,&
          routineN, "Data type mismatch for requested block.")
     row_size = row_blk_size(row)
@@ -213,7 +213,7 @@
 !   ---------------------------------------------------------------------------
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
-    CALL cp_assert (matrix%m%data_type .EQ. 'C',&
+    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_complex_8,&
          cp_fatal_level, cp_caller_error,&
          routineN, "Data type mismatch for requested block.")
 
@@ -400,7 +400,7 @@
        !
        ! let's copy the block
        offset = ABS(matrix%m%blk_p(blk))
-       CALL dcopy (nze, block(1), 1,&
+       CALL zcopy (nze, block(1), 1,&
             pointer_view (&
                dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_8)), offset, offset&
             ), 1)
