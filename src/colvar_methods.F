@@ -2363,8 +2363,13 @@ CPSourceFileRef)
              num_ij=(1.0_dp-rdist_ij**p_a)
              invden_ij=1.0_dp/(1.0_dp-rdist_ij**q_a)
              func_ij=num_ij*invden_ij
-             dfunc_ij= (- p_a*rdist_ij **(p_a-1) *invden_ij  &
-                  + num_ij*(invden_ij)**2 * q_a *rdist_ij **(q_a-1))/(rij*r_0_a)
+             IF (rij < 1.0E-8_dp) THEN
+                ! provide the correct limit of the derivative
+                dfunc_ij = 0.0_dp
+             ELSE
+                dfunc_ij= (- p_a*rdist_ij **(p_a-1) *invden_ij  &
+                     + num_ij*(invden_ij)**2 * q_a *rdist_ij **(q_a-1))/(rij*r_0_a)
+             END IF
           ELSE
              ! Provide the correct limit for function value and derivative
              func_ij  = REAL(p_a,KIND=dp)/REAL(q_a,KIND=dp)
@@ -2385,8 +2390,13 @@ CPSourceFileRef)
                    num_jk=(1.0_dp-rdist_jk**p_b)
                    invden_jk=1.0_dp/(1.0_dp-rdist_jk**q_b)
                    func_jk=num_jk*invden_jk
-                   dfunc_jk= (- p_b*rdist_jk **(p_b-1) *invden_jk  &
-                        + num_jk*(invden_jk)**2 * q_b *rdist_jk **(q_b-1))/(rjk*r_0_b)
+                   IF (rjk < 1.0E-8_dp) THEN
+                      ! provide the correct limit of the derivative
+                      dfunc_jk = 0.0_dp
+                   ELSE
+                      dfunc_jk= (- p_b*rdist_jk **(p_b-1) *invden_jk  &
+                           + num_jk*(invden_jk)**2 * q_b *rdist_jk **(q_b-1))/(rjk*r_0_b)
+                   END IF
                 ELSE
                    ! Provide the correct limit for function value and derivative
                    func_jk  = REAL(p_b,KIND=dp)/REAL(q_b,KIND=dp)
