@@ -714,7 +714,6 @@ CONTAINS
     TYPE(btree_node), INTENT(INOUT)          :: node_right
     INTEGER, INTENT(IN)                      :: left_pos
 
-    INTEGER                                  :: filled
     LOGICAL                                  :: leaf
 
 !
@@ -757,7 +756,6 @@ CONTAINS
     TYPE(btree_node), POINTER                :: node_right
     INTEGER, INTENT(IN)                      :: left_pos
 
-    INTEGER                                  :: filled
     LOGICAL                                  :: leaf
 
 !
@@ -795,7 +793,6 @@ CONTAINS
     TYPE(cp2d), INTENT(IN)                   :: value
 
     TYPE(btree_node), POINTER                :: new_root, old_root
-    TYPE(btree_node_structure)               :: b
 
 !
 

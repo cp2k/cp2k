@@ -20,18 +20,14 @@ MODULE dbcsr_methods
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE btree_I8_k_cp2d_v,               ONLY: btree_c => btree,&
-                                             btree_destroy_c => btree_delete,&
+  USE btree_I8_k_cp2d_v,               ONLY: btree_destroy_c => btree_delete,&
                                              btree_new_c => btree_new
-  USE btree_I8_k_dp2d_v,               ONLY: btree_d => btree,&
-                                             btree_destroy_d => btree_delete,&
+  USE btree_I8_k_dp2d_v,               ONLY: btree_destroy_d => btree_delete,&
                                              btree_new_d => btree_new
   USE btree_I8_k_sp2d_v,               ONLY: btree_destroy_s => btree_delete,&
-                                             btree_new_s => btree_new,&
-                                             btree_s => btree
+                                             btree_new_s => btree_new
   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
-                                             btree_new_z => btree_new,&
-                                             btree_z => btree
+                                             btree_new_z => btree_new
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_set_obj, dbcsr_2d_set_obj, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &

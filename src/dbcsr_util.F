@@ -22,7 +22,6 @@ MODULE dbcsr_util
                                              array_release,&
                                              array_size
   USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d,&
-                                             btree_d => btree,&
                                              btree_destroy_d => btree_delete,&
                                              btree_size_d => btree_get_entries
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
