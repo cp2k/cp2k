@@ -15,6 +15,8 @@
 MODULE cp_dbcsr_operations
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
                                              array_release
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -25,14 +27,16 @@ MODULE cp_dbcsr_operations
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_destroy, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
-       dbcsr_nfullrows_local, dbcsr_row_block_sizes
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_nrows, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_type, &
+       dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
+       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
+       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_mutable_new, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_row_block_sizes, &
+       dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_copy, dbcsr_filter, dbcsr_find_column, &
        dbcsr_get_tmp_block2d, dbcsr_maxabsval, dbcsr_mult_e_ec_m, &
@@ -42,14 +46,15 @@ MODULE cp_dbcsr_operations
        dbcsr_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
        dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default
   USE dbcsr_util,                      ONLY: &
-       dbcsr_checksum, dbcsr_create, dbcsr_create_col_image_dist, &
-       dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
-       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_finalize, &
+       convert_offsets_to_sizes, dbcsr_checksum, dbcsr_create, &
+       dbcsr_create_col_image_dist, dbcsr_create_dist_r_rot, &
+       dbcsr_create_dist_r_unrot, dbcsr_destroy_array, &
+       dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, dbcsr_finalize, &
        dbcsr_from_fm, dbcsr_from_sm, dbcsr_init, dbcsr_make_col_images, &
-       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix, &
-       sm_from_dbcsr
+       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_type_from_sm_symmetry, &
+       dbcsr_verify_matrix, dbcsr_work_create, sm_from_dbcsr
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
@@ -63,7 +68,8 @@ MODULE cp_dbcsr_operations
   USE sparse_matrix_types,             ONLY: checksum_matrix,&
                                              deallocate_matrix,&
                                              real_matrix_type
-  USE termination,                     ONLY: stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -353,21 +359,15 @@ CONTAINS
     CALL dbcsr_iterator_stop (iter)
     CALL dbcsr_destroy (matrix_a2, error)
     !
-    ! Deleting all the blocks
+    ! Tests (undefined) block addition then subsequently setting the
+    ! data area.
     CALL dbcsr_init (matrix_a2, error)
-    CALL dbcsr_from_sm(matrix_a2, matrix_s, error)
-    !WRITE(*,*)'Deleting all blocks!'
-    CALL dbcsr_iterator_start (iter, matrix_a2)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, k)
-       CALL dbcsr_remove_block (matrix_a2, row, col, k)
-    ENDDO
-    CALL dbcsr_finalize (matrix_a2, error=error)
-    IF (ldbg.AND.ionode) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum3", checksum
-    ENDIF
-    CALL dbcsr_iterator_stop (iter)
-    !
+    CALL dbcsr_allocate_matrix (matrix_a2, matrix_s%nrow, matrix_s%ncol,&
+         matrix_s%nblock_row, matrix_s%nblock_col,&
+         matrix_s%first_row, matrix_s%last_row,&
+         matrix_s%first_col, matrix_s%last_col,&
+         matrix_s%name, matrix_s%symmetry,&
+         0, matrix_s%distribution_2d, error)
     !write(*,*)'zeroing..., second time around'
     rbs => array_data (dbcsr_row_block_sizes (matrix_a2))
     cbs => array_data (dbcsr_col_block_sizes (matrix_a2))
@@ -375,8 +375,10 @@ CONTAINS
        rowsize = rbs (row)
        DO col = 1, dbcsr_nblkcols_total (matrix_a2)
           colsize = cbs (col)
-          CALL dbcsr_reserve_block2d (matrix_a2, row, col,&
-               block2d)
+          NULLIFY (block2d)
+          !CALL dbcsr_reserve_block2d (matrix_a2, row, col,&
+          !     block2d)
+          CALL dbcsr_add_block_node (matrix_a2, row, col, block2d, error)
           block2d(1:rowsize, 1:colsize) = 1.0_dp
        ENDDO
     ENDDO
@@ -402,6 +404,18 @@ CONTAINS
     checksum = dbcsr_checksum(matrix_a2, error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum4", checksum
+    ENDIF
+    CALL dbcsr_destroy (matrix_a2, error)
+    !
+    ! Tests matrix structure replication
+    CALL dbcsr_init (matrix_a2, error)
+    CALL dbcsr_replicate_matrix_structure(matrix_a, matrix_a2, "replication",&
+         error=error)
+    CALL dbcsr_finalize (matrix_a2, error=error)
+    CALL dbcsr_verify_matrix(matrix_a2, error)
+    checksum = dbcsr_checksum(matrix_a2, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum5", checksum
     ENDIF
     CALL dbcsr_destroy (matrix_a2, error)
     
@@ -1446,5 +1460,177 @@ CONTAINS
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_copy_vec
+
+
+! *****************************************************************************
+!> \brief Emulation of sparse_matrix_types/add_block_node mapped
+!>        to add_real_matrix_block.
+!>
+!> It adds a block to the dbcsr matrix and returns a rank-2 pointer to the
+!> block. Currently it only and always uses the mutable data.
+!> \param[in,out] matrix      DBCSR matrix
+!> \param[in]  row            the row
+!> \param[in]  col            the column
+!> \param[in]  block          the block to put
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_add_block_node (matrix, row, col, block, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_block_node', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (matrix%m%work_mutable, cp_warning_level, cp_caller_error,&
+         routineN, "Mutable not defined upon DBCSR creation, forcing its use.")
+    IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
+       CALL dbcsr_work_create (matrix)
+       matrix%m%valid = .FALSE.
+       CALL dbcsr_mutable_new (matrix%m%wms(1)%mutable,&
+            dbcsr_get_data_type (matrix))
+    ENDIF
+    CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms(1)%row_i), cp_warning_level,&
+         cp_unimplemented_error_nr, routineN,&
+         "Data loss due to no conversion of appendable to mutable data")
+    CALL dbcsr_reserve_block2d (matrix, row, col, block)
+  END SUBROUTINE dbcsr_add_block_node
+
+
+! *****************************************************************************
+!> \brief Emulation of sparse_matrix_types/allocate_matrix mapped to
+!>        allocate_real_matrix
+!> \param[in,out] matrix      DBCSR matrix
+!> \param[in] nrow            number of full rows
+!> \param[in] ncol            number of full columns
+!> \param[in] nblock_row      number of blocked rows
+!> \param[in] nblock_col      number of blocked columns
+!> \param[in] first_row       starting offsets of blocked rows
+!> \param[in] last_row        ending offsets of blocked rows
+!> \param[in] first_col       starting offsets of blocked columns
+!> \param[in] last_col        ending offsets of blocked columns
+!> \param[in] matrix_name     name of matrix
+!> \param[in] matrix_symmetry matrix symmetry type (mapped do DBCSR symmetries)
+!> \param[in] sparsity_id     sparsity id (not used)
+!> \param[in] distribution_2d use this distribution
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_allocate_matrix (matrix,nrow,ncol,nblock_row,nblock_col,&
+       first_row,last_row,first_col,last_col,matrix_name,matrix_symmetry,&
+       sparsity_id,distribution_2d,error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(IN)                      :: nrow, ncol, nblock_row, &
+                                                nblock_col
+    INTEGER, DIMENSION(nblock_row), &
+      INTENT(IN)                             :: first_row, last_row
+    INTEGER, DIMENSION(nblock_col), &
+      INTENT(IN)                             :: first_col, last_col
+    CHARACTER(LEN=*), INTENT(IN)             :: matrix_name, matrix_symmetry
+    INTEGER, INTENT(IN)                      :: sparsity_id
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_allocate_matrix', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: dbcsr_matrix_type
+    INTEGER                                  :: stat
+    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
+    TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+
+!   ---------------------------------------------------------------------------
+! Setup the distribution
+
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    CALL cp_assert (&
+         dbcsr_distribution_nrows (dbcsr_dist) .EQ. nblock_row,&
+         cp_warning_level, cp_caller_error, routineN,&
+         "Inconsistent number of blocked rows", error=error)
+    CALL cp_assert (&
+         dbcsr_distribution_ncols (dbcsr_dist) .EQ. nblock_row,&
+         cp_warning_level, cp_caller_error, routineN,&
+         "Inconsistent number of blocked columns", error=error)
+    ! Create row and column block sizes arrays.
+    ALLOCATE (rbs(nblock_row), stat=stat)
+    IF (stat /= 0) CALL stop_memory (routineP, "rbs", nblock_row)
+    ALLOCATE (cbs(nblock_col), stat=stat)
+    IF (stat /= 0) CALL stop_memory (routineP, "cbs", nblock_col)
+    CALL convert_offsets_to_sizes (first_row, rbs, last_row)
+    CALL convert_offsets_to_sizes (first_col, cbs, last_col)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_nullify (col_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
+    ! Transform matrix type
+    CALL dbcsr_type_from_sm_symmetry (dbcsr_matrix_type, matrix_symmetry)
+    !SELECT CASE (matrix_symmetry)
+    !CASE ("symmetric")
+    !   dbcsr_matrix_type = dbcsr_type_symmetric
+    !CASE ("anisymmetric")
+    !   dbcsr_matrix_type = dbcsr_type_antisymmetric
+    !CASE ("none", "no symmetry")
+    !   dbcsr_matrix_type = dbcsr_type_normal
+    !CASE default
+    !   CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
+    !        "Unknown matrix type "//"matrix_symmetry", failure=failure,&
+    !        error=error)
+    !END SELECT
+    ! Create the matrix
+    CALL dbcsr_create (matrix, matrix_name, dbcsr_dist, dbcsr_matrix_type,&
+         row_blk_sizes, col_blk_sizes, 0, 0, dbcsr_type_real_default,&
+         mutable_work=.TRUE., error=error)
+    ! Clean up
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
+    CALL array_release (col_blk_sizes)
+  END SUBROUTINE dbcsr_allocate_matrix
+
+
+! *****************************************************************************
+!> \brief Emulation of sparse_matrix_types/replicate_matrix_structure mapped to
+!>        replicate_real_matrix_structure
+!> \note This just sets up the metadata; it does not acutally replicate the
+!>       block structure.
+!> \param[in] matrix          source matrix to replicate
+!> \param[out] nrow           replicated matrix
+!> \param[in] target_name     name of the replicated matrix
+!> \param[in] target_symmetry symmetry of the target matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_replicate_matrix_structure(source,TARGET,target_name,&
+                                             target_symmetry,error)
+    TYPE(dbcsr_obj), INTENT(IN)              :: source
+    TYPE(dbcsr_obj), INTENT(OUT)             :: TARGET
+    CHARACTER(LEN=*), INTENT(IN)             :: target_name
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: target_symmetry
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_replicate_matrix_structure', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: dbcsr_matrix_type
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_init (TARGET, error)
+    IF (PRESENT (target_symmetry)) THEN
+       CALL dbcsr_type_from_sm_symmetry (dbcsr_matrix_type, target_symmetry)
+    ELSE
+       dbcsr_matrix_type = dbcsr_get_matrix_type (source)
+    ENDIF
+    CALL dbcsr_create (TARGET, target_name, dbcsr_distribution (source),&
+         dbcsr_matrix_type,&
+         dbcsr_row_block_sizes (source), dbcsr_col_block_sizes (source),&
+         0, 0, dbcsr_get_data_type (source),&
+         dbcsr_uses_special_memory (source), error=error)
+  END SUBROUTINE dbcsr_replicate_matrix_structure
+
 
 END MODULE cp_dbcsr_operations

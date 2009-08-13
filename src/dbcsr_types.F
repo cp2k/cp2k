@@ -53,7 +53,8 @@ MODULE dbcsr_types
             dbcsr_slot_nze,&
             dbcsr_num_slots
   PUBLIC :: dbcsr_type_real_4, dbcsr_type_real_8,&
-            dbcsr_type_complex_4, dbcsr_type_complex_8
+            dbcsr_type_complex_4, dbcsr_type_complex_8,&
+            dbcsr_type_real_default, dbcsr_type_complex_default
   PUBLIC :: dbcsr_type_normal, dbcsr_type_symmetric,&
             dbcsr_type_antisymmetric, dbcsr_type_transposed
 
@@ -170,6 +171,14 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER          :: dbcsr_type_complex_4 = 'c'
   CHARACTER, PARAMETER          :: dbcsr_type_complex_8 = 'C'
 
+#ifndef __SGL
+  CHARACTER, PARAMETER          :: dbcsr_type_real_default = 'R'
+  CHARACTER, PARAMETER          :: dbcsr_type_complex_default = 'C'
+#else
+  CHARACTER, PARAMETER          :: dbcsr_type_real_default = 'r'
+  CHARACTER, PARAMETER          :: dbcsr_type_complex_default = 'c'
+#endif
+
 ! *****************************************************************************
 !> \brief Data area with random acces reads, insertions, and deletions.
 !> \var tree_s, tree_d, tree_c, tree_z  Data types for the various types
@@ -252,6 +261,8 @@ MODULE dbcsr_types
 !>                            'c'/'C' for single/double precision complex data
 !> \var special_memory        uses special (MPI-allocated) memory
 !> \var refcount              reference count
+!> \var work_mutable          uses the mutable data for working and not the
+!>                            append-only data
 ! *****************************************************************************
   TYPE dbcsr_type
      LOGICAL                            :: valid, initialized
@@ -277,6 +288,7 @@ MODULE dbcsr_types
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
      TYPE(dbcsr_distribution_obj)       :: dist
      INTEGER                 :: refcount
+     LOGICAL                 :: work_mutable
   END TYPE dbcsr_type
 
   CHARACTER, PARAMETER        :: dbcsr_type_normal = 'N'

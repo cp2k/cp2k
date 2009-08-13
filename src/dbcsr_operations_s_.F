@@ -242,13 +242,13 @@
 !> \param[in.out] matrix      DBCSR matrix
 !> \param[in]  row            the row
 !> \param[in]  col            the column
-!> \param[in]  block          the block to reserve
+!> \param[in]  block          the block to reserve; added if not NULL
 !> \param[out] existed        (optional) block already existed
 ! *****************************************************************************
   SUBROUTINE dbcsr_reserve_block2d_s(matrix, row, col, block, existed)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
-    REAL(kind=real_4), DIMENSION(:,:), POINTER   :: block
+    REAL(kind=real_4), DIMENSION(:,:), POINTER         :: block
     LOGICAL, INTENT(OUT), OPTIONAL           :: existed
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_block2d_s', &
@@ -259,10 +259,17 @@
                                                 last_blk, nze, offset, &
                                                 row_size, blk_p
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: found
+    LOGICAL                                  :: found, gift
+    REAL(kind=real_4), DIMENSION(:,:), POINTER         :: original_block
 
 !   ---------------------------------------------------------------------------
 
+    gift = ASSOCIATED (block)
+    IF (gift) THEN
+       original_block => block
+    ELSE
+       NULLIFY (original_block)
+    ENDIF
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
 
@@ -270,37 +277,39 @@
     col_size = col_blk_size(col)
 
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
-       !WRITE(*,*)routineN//" Creating new work matrix to hold new data"
        CALL dbcsr_work_create (matrix)
        matrix%m%valid = .FALSE.
        CALL dbcsr_mutable_new (matrix%m%wms(1)%mutable,&
-            dbcsr_data_type (matrix))
+            dbcsr_get_data_type (matrix))
     ENDIF
 
     NULLIFY (data_block%p)
-    ! This needs to be preallocated, or we should first check whether
-    ! the block exists.
-    ALLOCATE (data_block%p (row_size, col_size))
-    block => data_block%p
+    IF (.NOT. gift) THEN
+       ALLOCATE (data_block%p (row_size, col_size))
+       block => data_block%p
+    ELSE
+       data_block%p => block
+    ENDIF
 
     CALL btree_add_s (matrix%m%wms(1)%mutable%m%btree_s,&
          make_coordinate_tuple(row, col),&
          data_block, found, data_block2)
 
     IF (.NOT. found) THEN
-       !WRITE(*,*)routineN//" Added new block", row_size, col_size
-       !block => data_block%p
+       matrix%m%wms(1)%lastblk = matrix%m%wms(1)%lastblk + 1
+       matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + row_size*col_size
     ELSE
-       DEALLOCATE (data_block%p)
-       !WRITE(*,*)routineN//" Block existed   ", SIZE(block)
+       IF (.NOT. gift) THEN
+          DEALLOCATE (data_block%p)
+       ELSE
+          DEALLOCATE (original_block)
+       ENDIF
        CALL cp_assert (ASSOCIATED (data_block%p), cp_warning_level,&
             cp_internal_error, routineN,&
             "Existing block has no associated pointer.")
        block => data_block2%p
     ENDIF
     IF (PRESENT (existed)) existed = found
-    matrix%m%wms(1)%lastblk = matrix%m%wms(1)%lastblk + 1
-    matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + row_size*col_size
   END SUBROUTINE dbcsr_reserve_block2d_s
 
 ! *****************************************************************************

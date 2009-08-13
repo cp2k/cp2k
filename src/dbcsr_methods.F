@@ -66,12 +66,13 @@ MODULE dbcsr_methods
             dbcsr_distribution_thread_dist,&
             dbcsr_distribution_make_threads
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
-            dbcsr_matrix_type, dbcsr_data_type,&
+            dbcsr_get_matrix_type, dbcsr_get_data_type,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
             dbcsr_nblkrows_total, dbcsr_nblkcols_total, dbcsr_nfullrows_total,&
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
             dbcsr_nfullrows_local, dbcsr_nfullcols_local,&
-            dbcsr_max_row_size, dbcsr_max_col_size
+            dbcsr_max_row_size, dbcsr_max_col_size,&
+            dbcsr_uses_special_memory
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_copyall, dbcsr_get_data_size,&
             dbcsr_data_set_pointer, dbcsr_data_area
@@ -1264,12 +1265,12 @@ CONTAINS
 !> \param matrix_type         matrix_type (see dbcsr_types.F for possible
 !>                            values)
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_matrix_type (matrix) RESULT (matrix_type)
+  PURE FUNCTION dbcsr_get_matrix_type (matrix) RESULT (matrix_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER                                :: matrix_type
 
     matrix_type = matrix%m%matrix_type
-  END FUNCTION dbcsr_matrix_type
+  END FUNCTION dbcsr_get_matrix_type
 
 ! *****************************************************************************
 !> \brief Returns the data type stored in the matrix
@@ -1277,12 +1278,25 @@ CONTAINS
 !> \param data_type           data_type (see dbcsr_types.F for possible
 !>                            values)
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_data_type (matrix) RESULT (data_type)
+  PURE FUNCTION dbcsr_get_data_type (matrix) RESULT (data_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER                                :: data_type
 
     data_type = matrix%m%data_type
-  END FUNCTION dbcsr_data_type
+  END FUNCTION dbcsr_get_data_type
+
+! *****************************************************************************
+!> \brief Returns the matrix uses specially-allocated memory
+!> \param[in] matrix          query this matrix
+!> \param[out] uses_special   whether the matrix uses specially allocated
+!>                            memory
+! *****************************************************************************
+  PURE FUNCTION dbcsr_uses_special_memory (matrix) RESULT (uses_special)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    LOGICAL                                  :: uses_special
+
+    uses_special = matrix%m%special_memory
+  END FUNCTION dbcsr_uses_special_memory
 
 ! *****************************************************************************
 !> \brief Returns the allocated data size
@@ -2305,7 +2319,7 @@ CONTAINS
 !> \param[in] mutable         mutable data
 !> \param[out] instantiated   whether the object is instantiated
 ! *****************************************************************************
-  FUNCTION dbcsr_mutable_instantiated (mutable) RESULT (instantiated)
+  PURE FUNCTION dbcsr_mutable_instantiated (mutable) RESULT (instantiated)
     TYPE(dbcsr_mutable_obj), INTENT(IN)      :: mutable
     LOGICAL                                  :: instantiated
 

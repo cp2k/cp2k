@@ -3071,7 +3071,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           ! let's scale
           IF(PRESENT(alpha_scalar)) THEN
              !a_data = a_data * alpha_scalar
-             SELECT CASE (dbcsr_data_type(matrix_a))
+             SELECT CASE (dbcsr_get_data_type(matrix_a))
              CASE (dbcsr_type_real_8)
                 CALL dscal(a_nze,alpha_scalar,data_d(a_offset),1)
              CASE default
@@ -3096,7 +3096,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           ELSEIF(PRESENT(alpha_matrix)) THEN
              IF(right) THEN
                 !A = A * alpha
-                SELECT CASE (dbcsr_data_type(matrix_a))
+                SELECT CASE (dbcsr_get_data_type(matrix_a))
                 CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
                         &     1.0_dp,data_d(a_offset),a_row_size,&
@@ -3109,7 +3109,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 END SELECT
              ELSE
                 !A = alpha * A
-                SELECT CASE (dbcsr_data_type(matrix_a))
+                SELECT CASE (dbcsr_get_data_type(matrix_a))
                 CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
                         &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
@@ -3225,10 +3225,10 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     b_row_blk_size => array_data (matrix_b%m%row_blk_size)
     b_col_blk_size => array_data (matrix_b%m%col_blk_size)
 
-    IF(dbcsr_data_type(matrix_a).NE.dbcsr_data_type(matrix_b)) &
+    IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b)) &
          CALL stop_program(routineN,"data types not consistent")
 
-    SELECT CASE (dbcsr_data_type(matrix_a))
+    SELECT CASE (dbcsr_get_data_type(matrix_a))
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
        CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
@@ -3260,7 +3260,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        IF(.FALSE.)THEN
           CALL dbcsr_iterator_start(iter, matrix_b)
           DO WHILE (dbcsr_iterator_blocks_left(iter))
-             SELECT CASE (dbcsr_data_type(matrix_a))
+             SELECT CASE (dbcsr_get_data_type(matrix_a))
                 !CASE (dbcsr_type_real_4)
                 !   CALL dbcsr_iterator_next_block(iter, row, col, data_r, blk)
                 !   CALL dbcsr_put_block(matrix_a, row, col, data_r)
@@ -3300,7 +3300,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                    nze = a_row_size*b_col_size
                    !
                    ! let's scale the block
-                   SELECT CASE (dbcsr_data_type(matrix_a))
+                   SELECT CASE (dbcsr_get_data_type(matrix_a))
                    CASE (dbcsr_type_real_8)
                       CALL daxpy (nze, my_beta_scalar,&
                            b_data_d(ABS(matrix_a%m%blk_p(a_blk))),1,&
@@ -3353,8 +3353,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
-
-    SELECT CASE (dbcsr_data_type(matrix))
+    SELECT CASE (dbcsr_get_data_type(matrix))
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix%m%data_area, data_r)
     CASE (dbcsr_type_real_8)
@@ -3374,7 +3373,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        IF(found) THEN
           offset = ABS(matrix%m%blk_p(blk))
           nze = row_size**2
-          SELECT CASE (dbcsr_data_type(matrix))
+          SELECT CASE (dbcsr_get_data_type(matrix))
           CASE (dbcsr_type_real_8)
              DATA => data_d(offset:offset+nze-1)
              !
@@ -3516,7 +3515,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       SELECT CASE (dbcsr_data_type(matrix))
+       SELECT CASE (dbcsr_get_data_type(matrix))
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
           SELECT CASE(my_method)
@@ -3568,7 +3567,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       SELECT CASE (dbcsr_data_type(matrix))
+       SELECT CASE (dbcsr_get_data_type(matrix))
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
           maxabsval = MAX(maxabsval,MAXVAL(ABS(data_d)))
