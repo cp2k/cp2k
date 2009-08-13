@@ -2356,6 +2356,7 @@ CPSourceFileRef)
           ss=ss-NINT(ss)
           xij=MATMUL(cell%hmat,ss)
           rij=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+          IF(rij < 1.0e-8_dp)CYCLE
           rdist_ij = rij/r_0_a
           IF(ABS(1.0_dp-rdist_ij) > EPSILON(0.0_dp)*1.0E+4_dp) THEN 
              num_ij=(1.0_dp-rdist_ij**p_a)
@@ -2377,6 +2378,7 @@ CPSourceFileRef)
                 ss=ss-NINT(ss)
                 xjk=MATMUL(cell%hmat,ss)
                 rjk=SQRT(xjk(1)**2+xjk(2)**2+xjk(3)**2)
+                IF(rjk < 1.0e-8_dp)CYCLE
                 rdist_jk = rjk/r_0_b
                 IF(ABS(1.0_dp-rdist_jk) > EPSILON(0.0_dp)*1.0E+4_dp) THEN
                    num_jk=(1.0_dp-rdist_jk**p_b)
