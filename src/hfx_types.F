@@ -65,16 +65,16 @@ MODULE hfx_types
           hfx_compression_type,&
           hfx_container_type, hfx_container_node, hfx_cache_type, &
           hfx_basis_type, parse_memory_section, &
-          hfx_p_type, hfx_init_container,&
+          hfx_init_container,&
           hfx_basis_info_type, hfx_screen_coeff_type,&
           hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
           pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
-          hfx_pgf_per_list, hfx_pgf_image, hfx_pgf_product_list
+          hfx_pgf_image, hfx_pgf_product_list
 
 #define CACHE_SIZE 1024
+#define BITS_MAX_VAL 6
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_types'
-  INTEGER(int_8), PARAMETER, PRIVATE         :: one = 1_int_8 
   INTEGER, PARAMETER, PUBLIC                 :: max_atom_block=32
   INTEGER, PARAMETER, PUBLIC                 :: max_images=27
   REAL(dp), PARAMETER, PUBLIC                :: log_zero = -1000.0_dp
@@ -119,6 +119,7 @@ MODULE hfx_types
     LOGICAL                                  :: do_all_on_the_fly       !! max mem == 0 ?
     REAL(dp)                                 :: eps_storage_scaling
     INTEGER                                  :: cache_size
+    INTEGER                                  :: bits_max_val
     INTEGER                                  :: actual_memory_usage
     INTEGER                                  :: actual_memory_usage_disk
     INTEGER(int_8)                           :: max_compression_counter_disk
@@ -157,10 +158,9 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_distribution
-    INTEGER(int_8)                           :: istart, jstart, kstart, lstart
+    INTEGER(int_8)                           :: istart
     INTEGER(int_8)                           :: number_of_atom_quartets
     INTEGER(int_8)                           :: cost
-    INTEGER(int_8)                           :: original_cpu_id
     REAL(KIND=dp)                            :: time_first_scf
     REAL(KIND=dp)                            :: time_other_scf
     REAL(KIND=dp)                            :: time_forces
@@ -229,6 +229,8 @@ MODULE hfx_types
     INTEGER, DIMENSION(:,:), POINTER         :: nl
     INTEGER, DIMENSION(:,:), POINTER         :: nsgfl
     INTEGER, DIMENSION(:), POINTER           :: nshell
+    REAL(dp), DIMENSION(:,:,:,:), POINTER &
+                                             :: sphi_ext
   END TYPE
 
 ! *****************************************************************************
@@ -255,17 +257,6 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
-  TYPE hfx_pgf_list
-    INTEGER                                  :: offset_a1, offset_b1
-    REAL(dp)                                 :: zetapzetb
-    REAL(dp)                                 :: S1234
-    REAL(dp)                                 :: P(3)
-    REAL(dp)                                 :: R
-    REAL(dp)                                 :: ZetaInv
-    REAL(dp)                                 :: pgf_max
-  END TYPE
-
-! *****************************************************************************
   TYPE hfx_pgf_image
     REAL(dp)                                 :: ra(3), rb(3)
     REAL(dp)                                 :: rab2
@@ -276,11 +267,10 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
-  TYPE hfx_pgf_per_list
+  TYPE hfx_pgf_list
     TYPE(hfx_pgf_image), DIMENSION(:), POINTER &
                                              :: image_list
     INTEGER                                  :: nimages
-    INTEGER                                  :: offset_a1, offset_b1
     REAL(dp)                                 :: zetapzetb
     REAL(dp)                                 :: ZetaInv
     REAL(dp)                                 :: zeta, zetb
@@ -377,21 +367,7 @@ MODULE hfx_types
      INTEGER, DIMENSION(:,:), POINTER         :: atomic_block_offset
      INTEGER, DIMENSION(:,:,:,:), POINTER     :: set_offset
      INTEGER, DIMENSION(:), POINTER           :: block_offset
-     REAL(dp), DIMENSION(:,:,:,:,:), POINTER &
-                                              :: sphi_ext
   END TYPE hfx_type
-
-! *****************************************************************************
-!> \brief to build arrays of pointers
-!> \param hfx_data the pointer to the hfx_type
-!> \par History
-!>      02.2008 created [mguidon]
-!> \author Manuel Guidon
-! *****************************************************************************
-  TYPE hfx_p_type
-     TYPE(hfx_type), POINTER :: hfx_data
-  END TYPE hfx_p_type
-
 
   CONTAINS
 
@@ -427,15 +403,15 @@ MODULE hfx_types
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=default_path_length)       :: char_val
     INTEGER :: co_counter, handle, i, i_thread, iatom, ikind, int_val, ipgf, &
-      irep, iset, j, jkind, k, la, max_am, max_cart_coeff, max_nsgfl, &
-      max_pgf, max_set, max_sph_coeff, n_rep_hf, n_threads, natom_a, natom_b, &
-      ncoa, nkind, nl_count, nset, nseta, nsetb, offset_a, offset_a1, &
-      pbc_shells, s_offset_nl_a, sgfa, so_counter, stat, storage_id
+      irep, iset, j, jkind, k, la, max_am_kind, max_coeff, max_nsgfl, &
+      max_pgf, max_pgf_kind, max_set, n_rep_hf, n_threads, natom_a, natom_b, &
+      nkind, nl_count, nset, nseta, nsetb, offset_a, offset_a1, pbc_shells, &
+      s_offset_nl_a, sgfa, so_counter, stat, storage_id
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of, la_max, &
-                                                la_min, npgfa, nsgfa, nshell
+                                                la_min, npgfa, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
     LOGICAL                                  :: exist, failure, logic_val
-    REAL(dp)                                 :: omega, real_val
+    REAL(dp)                                 :: real_val
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
@@ -605,28 +581,30 @@ MODULE hfx_types
           END DO
         END DO
 
-        max_am = actual_x_data%basis_info%max_am
-        max_sph_coeff = nso(max_am)
-        max_cart_coeff = nco(max_am)
         max_nsgfl = 0
         max_pgf = 0
         DO ikind = 1,nkind
+          max_coeff = 0
+          max_am_kind = 0
+          max_pgf_kind = 0
           npgfa => actual_x_data%basis_parameter(ikind)%npgf
           nseta = actual_x_data%basis_parameter(ikind)%nset
           nl_a => actual_x_data%basis_parameter(ikind)%nsgfl
           la_max => actual_x_data%basis_parameter(ikind)%lmax
           la_min => actual_x_data%basis_parameter(ikind)%lmin
           DO iset = 1,nseta
+            max_pgf_kind = MAX(max_pgf_kind,npgfa(iset))
             max_pgf = MAX(max_pgf, npgfa(iset))
             DO la = la_min(iset), la_max(iset)
               max_nsgfl = MAX(max_nsgfl, nl_a(la,iset))
+              max_coeff = MAX(max_coeff, nso(la)*nl_a(la,iset)*nco(la))
+              max_am_kind = MAX(max_am_kind, la)
             END DO
           END DO
+          ALLOCATE(actual_x_data%basis_parameter(ikind)%sphi_ext(max_coeff,0:max_am_kind, max_pgf_kind, nseta), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          actual_x_data%basis_parameter(ikind)%sphi_ext = 0.0_dp
         END DO
-
-        ALLOCATE(actual_x_data%sphi_ext(max_cart_coeff*max_sph_coeff*max_nsgfl,0:max_am, max_pgf, max_set, nkind),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        actual_x_data%sphi_ext = 0.0_dp
 
         DO ikind = 1,nkind
           sphi_a => actual_x_data%basis_parameter(ikind)%sphi
@@ -635,11 +613,9 @@ MODULE hfx_types
           la_min => actual_x_data%basis_parameter(ikind)%lmin
           npgfa => actual_x_data%basis_parameter(ikind)%npgf
           first_sgfa => actual_x_data%basis_parameter(ikind)%first_sgf
-          nsgfa => actual_x_data%basis_parameter(ikind)%nsgf
           nl_a => actual_x_data%basis_parameter(ikind)%nsgfl
           DO iset = 1,nseta
             sgfa = first_sgfa(1,iset)
-            ncoa = npgfa(iset)*ncoset(la_max(iset))
             DO ipgf = 1,npgfa(iset)
               offset_a1 = (ipgf-1)*ncoset(la_max(iset))
               s_offset_nl_a = 0
@@ -651,7 +627,7 @@ MODULE hfx_types
                 DO k = sgfa+s_offset_nl_a,sgfa+s_offset_nl_a+nso(la)*nl_a(la,iset)-1
                   DO i = offset_a+1,offset_a+nco(la)
                     so_counter = so_counter + 1
-                    actual_x_data%sphi_ext(so_counter,la,ipgf,iset,ikind) = sphi_a(i,k)        
+                    actual_x_data%basis_parameter(ikind)%sphi_ext(so_counter,la,ipgf,iset) = sphi_a(i,k)
                   END DO
                 END DO
                 s_offset_nl_a = s_offset_nl_a + nso(la) * (nl_a(la,iset))
@@ -763,7 +739,7 @@ MODULE hfx_types
           CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
           ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, hfx_section, i_thread, error=error)
+          CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, i_thread, error=error)
         ELSE
           ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -950,6 +926,7 @@ MODULE hfx_types
        memory_parameter%do_all_on_the_fly = .FALSE.
     END IF
     memory_parameter%cache_size = CACHE_SIZE
+    memory_parameter%bits_max_val = BITS_MAX_VAL
     memory_parameter%actual_memory_usage = 1
 
     ! Disk Storage
@@ -1069,14 +1046,14 @@ MODULE hfx_types
         DO i=1,SIZE(actual_x_data%basis_parameter)
           DEALLOCATE(actual_x_data%basis_parameter(i)%nsgfl,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%basis_parameter(i)%sphi_ext,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END DO
         DEALLOCATE(actual_x_data%basis_parameter,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(actual_x_data%sphi_ext,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         !! Deallocate containers
-        CALL hfx_init_container(6, actual_x_data%maxval_container, actual_x_data%memory_parameter%actual_memory_usage, &
+        CALL hfx_init_container(actual_x_data%maxval_container, actual_x_data%memory_parameter%actual_memory_usage, &
                                  .FALSE., error)
         DEALLOCATE(actual_x_data%maxval_container%first,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1084,7 +1061,7 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         DO i=1,64   
-          CALL hfx_init_container(i, actual_x_data%integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, &
+          CALL hfx_init_container(actual_x_data%integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, &
                                    .FALSE., error)
           DEALLOCATE(actual_x_data%integral_containers(i)%first,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1093,7 +1070,7 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
         !! Deallocate containers
-        CALL hfx_init_container(6, actual_x_data%maxval_container_disk, &
+        CALL hfx_init_container(actual_x_data%maxval_container_disk, &
                                  actual_x_data%memory_parameter%actual_memory_usage_disk, &
                                  .FALSE., error)
         IF( actual_x_data%memory_parameter%do_disk_storage) THEN
@@ -1105,7 +1082,7 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         DO i=1,64   
-          CALL hfx_init_container(i, actual_x_data%integral_containers_disk(i), &
+          CALL hfx_init_container(actual_x_data%integral_containers_disk(i), &
                                    actual_x_data%memory_parameter%actual_memory_usage_disk, &
                                    .FALSE., error)
           IF( actual_x_data%memory_parameter%do_disk_storage) THEN
@@ -1163,12 +1140,11 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, cell, hfx_section, i_thread, &
+  SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, cell, i_thread, &
                                        error)
     TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(INOUT)                   :: pbc_shells
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: hfx_section
     INTEGER, INTENT(IN)                      :: i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1178,20 +1154,16 @@ MODULE hfx_types
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=64)                        :: char_nshells
     INTEGER :: act_idx, i, ikind, ipgf, iset, j, jkind, jpgf, jset, k, l, &
-      m(3), max_cells_old, ncells_old, nseta, nsetb, nshells, nshells_old, &
-      stat, total_number_of_cells
+      m(3), max_cells_old, ncells_old, nseta, nsetb, nshells, stat, &
+      total_number_of_cells
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb
     LOGICAL                                  :: failure, max_shell_found
     REAL(dp)                                 :: dist, dist_min, l_min, r(3), &
                                                 R1, R_max, s(3), x, y, z, &
                                                 Zeta1
     REAL(dp), DIMENSION(:, :), POINTER       :: zeta, zetb
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hfx_cell_type), ALLOCATABLE, &
       DIMENSION(:)                           :: tmp_neighbor_cells
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
 
     failure = .FALSE.
     total_number_of_cells = 0
@@ -1255,7 +1227,6 @@ MODULE hfx_types
  
       max_shell_found = .FALSE.
       nshells = -1
-      nshells_old = -1
       ncells_old = -1
       max_cells_old = -1
       DO WHILE( .NOT. max_shell_found ) 
@@ -1309,7 +1280,6 @@ MODULE hfx_types
      
         total_number_of_cells = act_idx-1
         IF( ncells_old == total_number_of_cells) max_shell_found = .TRUE.
-        nshells_old = nshells
         ncells_old = total_number_of_cells
         IF( .NOT. max_shell_found ) THEN
           DEALLOCATE(tmp_neighbor_cells,STAT=stat)
@@ -1403,8 +1373,7 @@ MODULE hfx_types
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_init_container(nbits, container, memory_usage, do_disk_storage, error)
-    INTEGER                                  :: nbits
+  SUBROUTINE hfx_init_container(container, memory_usage, do_disk_storage, error)
     TYPE(hfx_container_type)                 :: container
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: do_disk_storage
@@ -1526,14 +1495,10 @@ MODULE hfx_types
 !>      02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, error)
+  SUBROUTINE hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb)
+
     TYPE(hfx_memory_type)                    :: memory_parameter
     INTEGER(int_8), INTENT(IN)               :: subtr_size_mb
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'hfx_reset_memory_usage_counter', &
-      routineP = moduleN//':'//routineN
 
     INTEGER(int_8)                           :: max_memory
 
@@ -1564,9 +1529,6 @@ MODULE hfx_types
     TYPE(section_vals_type), POINTER         :: hfx_section
     INTEGER, INTENT(IN)                      :: i_rep
     TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_print_info', &
-      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iw
     REAL(dp)                                 :: rc_ang

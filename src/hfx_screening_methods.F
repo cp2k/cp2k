@@ -70,7 +70,7 @@ MODULE hfx_screening_methods
   SUBROUTINE screen4(lib, ra, rb, zeta, zetb, &
                      la_min, la_max, lb_min, lb_max,&
                      npgfa, npgfb, &
-                     max_val, potential_parameter, i_thread, tmp_R_1,&
+                     max_val, potential_parameter, tmp_R_1,&
                      rab2)
 
     TYPE(lib_int)                            :: lib
@@ -80,13 +80,9 @@ MODULE hfx_screening_methods
                                                 lb_max, npgfa, npgfb
     REAL(dp), INTENT(INOUT)                  :: max_val
     TYPE(hfx_potential_type)                 :: potential_parameter
-    INTEGER, INTENT(IN)                      :: i_thread
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: tmp_R_1
     REAL(dp)                                 :: rab2
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'screen4', &
-      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ipgf, jpgf, la, lb
     REAL(dp)                                 :: max_val_temp, R1
@@ -122,8 +118,8 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
   SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, set_offset, atomic_block_offset, &
                              full_density, full_density_beta, natom, &
-                             max_set ,kind_of,basis_parameter, last_sgf_global,&
-                             nkind, is_assoc_atomic_block, error)
+                             kind_of,basis_parameter, last_sgf_global,&
+                             nkind, is_assoc_atomic_block)
 
     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
@@ -131,29 +127,24 @@ MODULE hfx_screening_methods
     INTEGER, DIMENSION(:, :), POINTER        :: atomic_block_offset
     REAL(dp), DIMENSION(:), POINTER          :: full_density, &
                                                 full_density_beta
-    INTEGER, INTENT(IN)                      :: natom, max_set
+    INTEGER, INTENT(IN)                      :: natom
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     INTEGER                                  :: last_sgf_global(0:natom), &
                                                 nkind
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: act_atomic_block_offset, act_set_offset, handle, i, jatom, &
-      jkind, jset, katom, kind_kind_idx, kkind, kset, mb, mc, nsetb, nsetc, &
-      nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, sgfb, sgfc
+      jkind, jset, katom, kind_kind_idx, kkind, kset, mb, mc, nsetb, nsetc
     INTEGER, DIMENSION(:), POINTER           :: nsgfb, nsgfc
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: pmax_tmp
 
-    CALL timeset(routineN,handle)
+    CALL timeset(routineP,handle)
 
-    failure = .FALSE.
 
     DO i = 1,SIZE(pmax_set)
       pmax_set(i)%p_kind = 0.0_dp
@@ -161,36 +152,24 @@ MODULE hfx_screening_methods
 
     DO jatom=1,natom
       jkind = kind_of(jatom)
-      nsgfb_total = basis_parameter(jkind)%nsgf_total
       nsetb = basis_parameter(jkind)%nset
-      first_sgfb => basis_parameter(jkind)%first_sgf
       nsgfb => basis_parameter(jkind)%nsgf
-      pb1 = last_sgf_global(jatom) - nsgfb_total
 
       DO katom = 1,natom
         IF( .NOT. is_assoc_atomic_block(jatom,katom) >=1 ) CYCLE
         kkind = kind_of(katom)
         IF( kkind < jkind ) CYCLE
-        nsgfc_total = basis_parameter(kkind)%nsgf_total
         nsetc = basis_parameter(kkind)%nset
-        first_sgfc => basis_parameter(kkind)%first_sgf
         nsgfc => basis_parameter(kkind)%nsgf
-        pc1 = last_sgf_global(katom) - nsgfc_total
         act_atomic_block_offset = atomic_block_offset(katom,jatom)
         DO jset = 1,nsetb
-          sgfb = first_sgfb(1,jset)
           DO kset = 1,nsetc
             IF( katom >= jatom ) THEN
-              sgfc = first_sgfc(1,kset)
               pmax_tmp = 0.0_dp
               act_set_offset = set_offset(kset,jset,kkind,jkind)
               i = act_set_offset + act_atomic_block_offset - 1
               DO mc = 1,nsgfc(kset)
-                pc2 = mc+sgfc-1
-                pc = pc1 + pc2
                 DO mb = 1,nsgfb(jset)
-                  pb2 = mb+sgfb-1
-                  pb = pb1 + pb2
                   pmax_tmp=MAX(pmax_tmp,ABS(full_density(i)))
                   IF( ASSOCIATED(full_density_beta) ) THEN
                     pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i)))
@@ -209,16 +188,11 @@ MODULE hfx_screening_methods
                        map_atom_to_kind_atom(jatom), &
                        map_atom_to_kind_atom(katom)) = pmax_tmp
             ELSE
-              sgfc = first_sgfc(1,kset)
               pmax_tmp = 0.0_dp
               act_set_offset = set_offset(jset,kset,jkind,kkind)
               DO mc = 1,nsgfc(kset)
                 i = act_set_offset + act_atomic_block_offset -1 + mc -1
-                pc2 = mc+sgfc-1
-                pc = pc1 + pc2
                 DO mb = 1,nsgfb(jset)
-                  pb2 = mb+sgfb-1
-                  pb = pb1 + pb2
                   pmax_tmp=MAX(pmax_tmp,ABS(full_density(i)))
                   IF( ASSOCIATED(full_density_beta) ) THEN
                     pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i)))
@@ -278,13 +252,12 @@ MODULE hfx_screening_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
 
-  SUBROUTINE calc_screening_functions(qs_env, lib, potential_parameter, i_thread, &
+  SUBROUTINE calc_screening_functions(qs_env, lib, potential_parameter, &
                                       coeffs_set, coeffs_kind, coeffs_pgf, radii_pgf,&
                                       max_set, max_pgf, error) 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lib_int)                            :: lib
     TYPE(hfx_potential_type)                 :: potential_parameter
-    INTEGER, INTENT(IN)                      :: i_thread
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :, :, :), POINTER         :: coeffs_set
     TYPE(hfx_screen_coeff_type), &
@@ -493,7 +466,7 @@ MODULE hfx_screening_methods
                            zeta(:,iset), zetb(:,jset), &
                            la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                            npgfa(iset), npgfb(jset), &
-                           max_val, potential_parameter, i_thread, tmp_R_1, rb(1)**2)
+                           max_val, potential_parameter, tmp_R_1, rb(1)**2)
               max_val = SQRT(max_val)
               max_val = max_val * max_contraction_a * max_contraction_b
               DATA(1,i) = rb(1)
@@ -571,7 +544,7 @@ MODULE hfx_screening_methods
                            zeta(:,iset), zetb(:,jset), &
                            la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                            npgfa(iset), npgfb(jset), &
-                           max_val, potential_parameter, i_thread, tmp_R_1, rb(1)**2)
+                           max_val, potential_parameter, tmp_R_1, rb(1)**2)
               DATA(1,i) = rb(1)
               max_val = SQRT(max_val)
               max_val = max_val * max_contraction_a*max_contraction_b
@@ -615,12 +588,10 @@ MODULE hfx_screening_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
 
-  SUBROUTINE calc_pair_dist_radii(qs_env, lib, potential_parameter, i_thread, &
+  SUBROUTINE calc_pair_dist_radii(qs_env,&
                   radii_pgf, max_set, max_pgf, eps_schwarz, error)
+
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(lib_int)                            :: lib
-    TYPE(hfx_potential_type)                 :: potential_parameter
-    INTEGER, INTENT(IN)                      :: i_thread
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: radii_pgf
     INTEGER, INTENT(IN)                      :: max_set, max_pgf
@@ -630,8 +601,10 @@ MODULE hfx_screening_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_pair_dist_radii', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, ikind, ipgf, isave, iset, jkind, jpgf, jset, la, &
-      lb, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb, stat
+    INTEGER                                  :: handle, i, ikind, ipgf, iset, &
+                                                jkind, jpgf, jset, la, lb, &
+                                                ncoa, ncob, nkind, nseta, &
+                                                nsetb, sgfa, sgfb, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -657,7 +630,6 @@ MODULE hfx_screening_methods
                     error=error)
 
     nkind = SIZE(atomic_kind_set,1)
-    isave=0
     ra = 0.0_dp
     rb = 0.0_dp
     DATA = 0.0_dp
@@ -749,7 +721,7 @@ MODULE hfx_screening_methods
 
 !
 !
-! little drive routine for the powell minimizer
+! little driver routine for the powell minimizer
 ! data is the data to fit, x is of the form (x(1)*DATA(1)**2+x(2))
 ! only values of DATA(2) larger than fmin are taken into account
 ! it constructs an approximate upper bound of the fitted function

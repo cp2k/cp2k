@@ -144,7 +144,7 @@ CPSourceFileRef,&
           IF (store_int_env%compress) THEN 
              ! Deallocate containers/caches
              DO i=1,64   
-                CALL hfx_init_container(i, store_int_env%integral_containers(i),&
+                CALL hfx_init_container(store_int_env%integral_containers(i),&
                      store_int_env%memory_parameter%actual_memory_usage,&
                      .FALSE., error)
                 DEALLOCATE(store_int_env%integral_containers(i)%first,STAT=stat)
@@ -200,7 +200,7 @@ CPSourceFileRef,&
                 CALL reallocate(store_int_env%max_val_buffer, 1, store_int_env%nbuffer)
                 ! Clean containers
                 DO i=1,64   
-                   CALL hfx_init_container(i, store_int_env%integral_containers(i),&
+                   CALL hfx_init_container(store_int_env%integral_containers(i),&
                         store_int_env%memory_parameter%actual_memory_usage,&
                         .FALSE., error)
                 END DO

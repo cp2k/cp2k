@@ -45,8 +45,6 @@ MODULE hfx_libint_interface
          evaluate_deriv_eri,&
          evaluate_eri_screen
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_interface'
-
   INTEGER, DIMENSION(12), PARAMETER :: full_perm1 = (/1,2,3,4,5,6,7,8,9,10,11,12/)
   INTEGER, DIMENSION(12), PARAMETER :: full_perm2 = (/4,5,6,1,2,3,7,8,9,10,11,12/)
   INTEGER, DIMENSION(12), PARAMETER :: full_perm3 = (/1,2,3,4,5,6,10,11,12,7,8,9/)
@@ -69,14 +67,13 @@ MODULE hfx_libint_interface
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE build_quartet_data_screen(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                                       potential_parameter, prim, np, nq,R11,R22)
+                                       potential_parameter, prim, R11,R22)
      
     REAL(KIND=dp)                            :: A(3), B(3), C(3), D(3)
     REAL(KIND=dp), INTENT(IN)                :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                      :: m_max
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(prim_data)                          :: prim
-    INTEGER                                  :: np, nq
     REAL(dp)                                 :: R11, R22
 
     INTEGER                                  :: i
@@ -266,7 +263,6 @@ MODULE hfx_libint_interface
                                 n_a,n_b,n_c,n_d,&
                                 ncoa,ncob,ncoc,ncod,&
                                 nsgfa, nsgfb, nsgfc, nsgfd,&
-                                offset_a,offset_b,offset_c,offset_d,&
                                 primitives, max_contraction, tmp_max_all, &
                                 eps_schwarz,  &
                                 Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv,EtaInv, &
@@ -277,8 +273,9 @@ MODULE hfx_libint_interface
     TYPE(lib_deriv)                          :: deriv
     TYPE(hfx_pgf_product_list), &
       DIMENSION(:), POINTER                  :: pgf_product_list
-    INTEGER, INTENT(IN) :: nproducts, n_a, n_b, n_c, n_d, ncoa, ncob, ncoc, &
-      ncod, nsgfa, nsgfb, nsgfc, nsgfd, offset_a, offset_b, offset_c, offset_d
+    INTEGER, INTENT(IN)                      :: nproducts, n_a, n_b, n_c, &
+                                                n_d, ncoa, ncob, ncoc, ncod, &
+                                                nsgfa, nsgfb, nsgfc, nsgfd
     REAL(dp), DIMENSION(nsgfa, nsgfb, nsgfc,&
       nsgfd, 12)                             :: primitives
     REAL(dp)                                 :: max_contraction, tmp_max_all, &
@@ -888,7 +885,7 @@ MODULE hfx_libint_interface
       SELECT CASE(perm_case)
         CASE(1)
           CALL build_quartet_data_screen(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            potential_parameter, prim, n_a+n_b, n_c+n_d, R1, R2)
+                            potential_parameter, prim, R1, R2)
           lib%AB=A-B
           lib%CD=C-D
           CALL get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
@@ -897,7 +894,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(2)
           CALL build_quartet_data_screen(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                            potential_parameter, prim, n_b+n_a, n_c+n_d, R1,R2)
+                            potential_parameter, prim, R1,R2)
           lib%AB=B-A
           lib%CD=C-D
           CALL get_eris(n_d, n_c, n_a, n_b, lib, prim, p_work, a_mysize)
@@ -906,7 +903,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(3)
           CALL build_quartet_data_screen(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                            potential_parameter, prim, n_a+n_b, n_d+n_c, R1,R2)
+                            potential_parameter, prim, R1,R2)
           lib%AB=A-B
           lib%CD=D-C
           CALL get_eris(n_c, n_d, n_b, n_a, lib, prim, p_work, a_mysize)
@@ -915,7 +912,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(4)
           CALL build_quartet_data_screen(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                            potential_parameter, prim, n_b+n_a, n_d+n_c, R1,R2)
+                            potential_parameter, prim, R1,R2)
           lib%AB=B-A
           lib%CD=D-C
           CALL get_eris(n_c, n_d, n_a, n_b, lib, prim, p_work, a_mysize)
@@ -924,7 +921,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(5)
           CALL build_quartet_data_screen(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                            potential_parameter, prim, n_c+n_d, n_a+n_b, R1,R2)
+                            potential_parameter, prim, R1,R2)
           lib%AB=C-D
           lib%CD=A-B
           CALL get_eris(n_b, n_a, n_d, n_c, lib, prim, p_work, a_mysize)
@@ -933,7 +930,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(6)
           CALL build_quartet_data_screen(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                            potential_parameter, prim, n_c+n_d, n_b+n_a, R1,R2)
+                            potential_parameter, prim, R1,R2)
           lib%AB=C-D
           lib%CD=B-A
           CALL get_eris(n_a, n_b, n_d, n_c, lib, prim, p_work, a_mysize)
@@ -942,7 +939,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(7)
           CALL build_quartet_data_screen(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                            potential_parameter, prim, n_d+n_c, n_a+n_b, R1,R2)
+                            potential_parameter, prim, R1,R2)
           lib%AB=D-C
           lib%CD=A-B
           CALL get_eris(n_b, n_a, n_c, n_d, lib, prim, p_work, a_mysize)
@@ -951,7 +948,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(8)
           CALL build_quartet_data_screen(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                            potential_parameter, prim, n_d+n_c, n_b+n_a, R1,R2)
+                            potential_parameter, prim, R1,R2)
           lib%AB=D-C
           lib%CD=B-A
           CALL get_eris(n_a, n_b, n_c, n_d, lib, prim, p_work, a_mysize)
@@ -961,7 +958,7 @@ MODULE hfx_libint_interface
       END SELECT
     ELSE
       CALL build_quartet_data_screen(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                              potential_parameter, prim, 0, 0, R1,R2)
+                              potential_parameter, prim, R1,R2)
       max_val = ABS(prim%F(1))
     END IF
 
@@ -1000,7 +997,6 @@ MODULE hfx_libint_interface
                           n_a,n_b,n_c,n_d,&
                           ncoa,ncob,ncoc,ncod,&
                           nsgfa, nsgfb, nsgfc, nsgfd,&
-                          offset_a,offset_b,offset_c,offset_d,&
                           primitives, max_contraction, tmp_max, &
                           eps_schwarz, neris, &
                           ZetaInv,EtaInv, &
@@ -1011,8 +1007,9 @@ MODULE hfx_libint_interface
     TYPE(lib_int)                            :: lib
     TYPE(hfx_pgf_product_list), &
       DIMENSION(:), POINTER                  :: pgf_product_list
-    INTEGER, INTENT(IN) :: nproducts, n_a, n_b, n_c, n_d, ncoa, ncob, ncoc, &
-      ncod, nsgfa, nsgfb, nsgfc, nsgfd, offset_a, offset_b, offset_c, offset_d
+    INTEGER, INTENT(IN)                      :: nproducts, n_a, n_b, n_c, &
+                                                n_d, ncoa, ncob, ncoc, ncod, &
+                                                nsgfa, nsgfb, nsgfc, nsgfd
     REAL(dp), &
       DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd)  :: primitives
     REAL(dp)                                 :: max_contraction, tmp_max, &
@@ -1092,7 +1089,7 @@ MODULE hfx_libint_interface
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
   
-            CALL build_quartet_data(prim, A, B, C, D,&
+            CALL build_quartet_data(prim, A, C,&
                                     ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv,&
                                     P, Q, W)
             lib%AB=AB!A-B
@@ -1145,7 +1142,7 @@ MODULE hfx_libint_interface
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-            CALL build_quartet_data(prim, B, A, C, D,&
+            CALL build_quartet_data(prim, B, C,&
                                     ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv,&
                                     P,Q,W)
             lib%AB=-AB!B-A
@@ -1198,7 +1195,7 @@ MODULE hfx_libint_interface
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-            CALL build_quartet_data(prim, A, B, D, C,&
+            CALL build_quartet_data(prim, A, D,&
                                     ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv,&
                                     P,Q,W)
             lib%AB=AB!A-B
@@ -1251,7 +1248,7 @@ MODULE hfx_libint_interface
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-            CALL build_quartet_data(prim, B, A, D, C,&
+            CALL build_quartet_data(prim, B, D,&
                                     ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv,&
                                     P, Q, W)
             lib%AB=-AB!B-A
@@ -1304,7 +1301,7 @@ MODULE hfx_libint_interface
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-            CALL build_quartet_data(prim, C, D, A, B,&
+            CALL build_quartet_data(prim, C, A,&
                                     EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv,&
                                     Q, P, W)
             lib%AB=CD!C-D
@@ -1357,7 +1354,7 @@ MODULE hfx_libint_interface
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-            CALL build_quartet_data(prim, C, D, B, A, &
+            CALL build_quartet_data(prim, C, B, &
                                     EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv,&
                                     Q, P, W)
             lib%AB=CD!C-D
@@ -1410,7 +1407,7 @@ MODULE hfx_libint_interface
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-            CALL build_quartet_data(prim, D, C, A, B,&
+            CALL build_quartet_data(prim, D, A,&
                                     EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv,&
                                     Q, P, W)
             lib%AB=-CD!D-C
@@ -1463,7 +1460,7 @@ MODULE hfx_libint_interface
             ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
             prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-            CALL build_quartet_data(prim, D, C, B, A,&
+            CALL build_quartet_data(prim, D, B,&
                                     EtaInv, ZetaInv, ZetapEtaInv, Rho, RhoInv,&
                                     Q, P, W)
             lib%AB=-CD!D-C
@@ -1515,7 +1512,7 @@ MODULE hfx_libint_interface
         ZetapEtaInv = pgf_product_list(i)%ZetapEtaInv
         prim%F(1:m_max+1) = pgf_product_list(i)%Fm(1:m_max+1)
 
-        CALL build_quartet_data(prim, A, B, C, D,&
+        CALL build_quartet_data(prim, A, C,&
                                 ZetaInv, EtaInv, ZetapEtaInv, Rho, RhoInv,&
                                 P, Q, W)
         work(1) = work(1) + prim%F(1)
@@ -1579,12 +1576,12 @@ MODULE hfx_libint_interface
 !> \author Manuel Guidon
 ! *****************************************************************************
 
-  SUBROUTINE build_quartet_data(prim, A, B, C, D,&
+  SUBROUTINE build_quartet_data(prim, A, C,&
                                 ZetaInv,EtaInv,ZetapEtaInv,Rho,RhoInv,&
                                 P,Q,W)
      
     TYPE(prim_data)                          :: prim
-    REAL(KIND=dp), INTENT(IN)                :: A(3), B(3), C(3), D(3)
+    REAL(KIND=dp), INTENT(IN)                :: A(3), C(3)
     REAL(dp), INTENT(IN)                     :: ZetaInv, EtaInv, ZetapEtaInv, &
                                                 Rho, RhoInv, P(3), Q(3), W(3)
 

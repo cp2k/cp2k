@@ -15,7 +15,7 @@ MODULE hfx_pair_list_methods
   USE gamma,                           ONLY: fgamma
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_cell_type,&
-                                             hfx_pgf_per_list,&
+                                             hfx_pgf_list,&
                                              hfx_pgf_product_list,&
                                              hfx_potential_type,&
                                              hfx_screen_coeff_type,&
@@ -42,8 +42,6 @@ MODULE hfx_pair_list_methods
          build_pair_list_pgf, &
          build_pgf_product_list
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_pair_list_methods'
-
 !***
   
   CONTAINS
@@ -53,7 +51,7 @@ MODULE hfx_pair_list_methods
                                     cell, potential_parameter, m_max, do_periodic)
   
     INTEGER                                  :: nneighbors3
-    TYPE(hfx_pgf_per_list)                   :: list1, list2
+    TYPE(hfx_pgf_list)                       :: list1, list2
     TYPE(hfx_pgf_product_list), &
       DIMENSION(nneighbors3), INTENT(OUT)    :: product_list
     INTEGER, INTENT(OUT)                     :: nproducts
@@ -67,17 +65,16 @@ MODULE hfx_pair_list_methods
 
     INTEGER                                  :: i, j, k, l, nimages1, nimages2
     LOGICAL                                  :: use_gamma
-    REAL(dp) :: C11(3), CD(3), Eta, EtaInv, factor, Fm(17), omega2, &
-      omega_corr, omega_corr2, P(3), pgf_max_1, pgf_max_2, PQ(3), Q(3), R, &
-      R1, R2, ra(3), rb(3), rc(3), rd(3), Rho, RhoInv, rpq2, S1234, S1234a, &
-      S1234b, shift(3), sqrt_Rho, T, temp(3), temp_CC(3), temp_DD(3), tmp, &
-      tmp_D(3), W(3), Zeta1, Zeta_C, Zeta_D, ZetaInv, ZetapEtaInv
+    REAL(dp) :: C11(3), Eta, EtaInv, factor, Fm(17), omega2, omega_corr, &
+      omega_corr2, P(3), pgf_max_1, pgf_max_2, PQ(3), Q(3), R, R1, R2, ra(3), &
+      rb(3), rc(3), rd(3), Rho, RhoInv, rpq2, S1234, S1234a, S1234b, &
+      shift(3), T, temp(3), temp_CC(3), temp_DD(3), tmp, tmp_D(3), W(3), &
+      Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
 
     nimages1 = list1%nimages
     nimages2 = list2%nimages
     nproducts = 0
     Zeta1 = list1%zetapzetb
-    ZetaInv = list1%ZetaInv
     Eta = list2%zetapzetb
     EtaInv = list2%ZetaInv
     Zeta_C = list2%zeta
@@ -101,7 +98,6 @@ MODULE hfx_pair_list_methods
         ZetapEtaInv = Zeta1+Eta
         ZetapEtaInv = 1.0_dp/ZetapEtaInv
         Rho = Zeta1*Eta*ZetapEtaInv
-        sqrt_Rho = SQRT(Rho)
         RhoInv = 1.0_dp/Rho
         S1234 = EXP(S1234a+S1234b)
         IF( do_periodic ) THEN
@@ -221,7 +217,6 @@ MODULE hfx_pair_list_methods
           END DO
 
           W = (Zeta1*P+Eta*Q)*ZetapEtaInv
-          CD = C11-tmp_D
           product_list(nproducts)%ra = ra
           product_list(nproducts)%rb = rb
           product_list(nproducts)%rc = C11
@@ -242,10 +237,10 @@ MODULE hfx_pair_list_methods
 
 
   SUBROUTINE build_pair_list_pgf(npgfa, npgfb,list, zeta, zetb, screen1, screen2, pgf, R_pgf,&
-                                 log10_pmax, log10_eps_schwarz, ra, rb, ncoseta, ncosetb, nelements,&
+                                 log10_pmax, log10_eps_schwarz, ra, rb, nelements,&
                                  neighbor_cells, do_periodic)
     INTEGER, INTENT(IN)                      :: npgfa, npgfb
-    TYPE(hfx_pgf_per_list), &
+    TYPE(hfx_pgf_list), &
       DIMENSION(npgfa*npgfb)                 :: list
     REAL(dp), DIMENSION(1:npgfa), INTENT(IN) :: zeta
     REAL(dp), DIMENSION(1:npgfb), INTENT(IN) :: zetb
@@ -255,7 +250,6 @@ MODULE hfx_pair_list_methods
     REAL(dp), INTENT(IN)                     :: log10_pmax, &
                                                 log10_eps_schwarz, ra(3), &
                                                 rb(3)
-    INTEGER, INTENT(IN)                      :: ncoseta, ncosetb
     INTEGER, INTENT(OUT)                     :: nelements
     TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
@@ -270,7 +264,6 @@ MODULE hfx_pair_list_methods
     nimages = 0
     ! ** inner loop may never be reached
     nelements = npgfa*npgfb
-    list(1:nelements)%offset_a1 = -1
     DO i = 1,SIZE(neighbor_cells)
       IF( do_periodic ) THEN
         im_B = rb + neighbor_cells(i)%cell_r(:)
@@ -300,8 +293,6 @@ MODULE hfx_pair_list_methods
           ZetaInv = 1.0_dp/Zeta1
 
           IF( nimages(element_counter) == 1 ) THEN
-            list(element_counter)%offset_a1 = (ipgf-1) * ncoseta
-            list(element_counter)%offset_b1 = (jpgf-1) * ncosetb
             list(element_counter)%ipgf = ipgf
             list(element_counter)%jpgf = jpgf
             list(element_counter)%zetaInv = ZetaInv
@@ -328,11 +319,9 @@ MODULE hfx_pair_list_methods
 
     element_counter = 0
     DO j=1,nelements
-      IF( list(j)%offset_a1 == -1 ) CYCLE
+      IF( list(j)%nimages == 0 ) CYCLE
       element_counter = element_counter + 1
       list(element_counter)%nimages = list(j)%nimages
-      list(element_counter)%offset_a1 = list(j)%offset_a1
-      list(element_counter)%offset_b1 = list(j)%offset_b1
       list(element_counter)%zetapzetb = list(j)%zetapzetb
       list(element_counter)%ZetaInv = list(j)%ZetaInv
       list(element_counter)%zeta = list(j)%zeta
@@ -397,7 +386,6 @@ MODULE hfx_pair_list_methods
            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
            B11 = rb ! ra - rb
          END IF
-
          IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
               coeffs_kind(jkind,ikind)%x(2) ) + coeffs_kind_max0 < log10_eps_schwarz ) CYCLE
 
@@ -409,7 +397,6 @@ MODULE hfx_pair_list_methods
          list%elements(n_element)%r1   =ra
          list%elements(n_element)%r2   =B11
          list%elements(n_element)%dist2=rab2
-
          ! build a list of guaranteed overlapping sets
          list%elements(n_element)%set_bounds(1)=nset_ij+1
          DO iset = 1, nseta

@@ -74,7 +74,7 @@ MODULE hfx_communication
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, is_assoc_atomic_block,&
-                              map_atoms_to_cpus, block_offset, natom, last_sgf_global, kind_of, &
+                              block_offset, natom, last_sgf_global, kind_of, &
                               basis_parameter, get_max_vals_spin, rho_beta, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -82,7 +82,6 @@ MODULE hfx_communication
     TYPE(real_matrix_type), POINTER          :: rho
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
-    TYPE(hfx_2D_map), DIMENSION(:), POINTER  :: map_atoms_to_cpus
     INTEGER, DIMENSION(:), POINTER           :: block_offset
     INTEGER, INTENT(IN)                      :: natom
     INTEGER                                  :: last_sgf_global(0:natom), &
@@ -361,10 +360,8 @@ MODULE hfx_communication
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ikind, istat, natom, &
-                                                nspins, number_of_p_entries, &
-                                                stat
+                                                nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
-    INTEGER, DIMENSION(:, :), POINTER        :: is_assoc_atomic_block
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: full_ks
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -378,8 +375,6 @@ MODULE hfx_communication
 !! All shared data is saved in i_thread = 1!
 
     actual_x_data => qs_env%x_data(irep, 1)
-    number_of_p_entries = actual_x_data%number_of_p_entries
-    is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
     basis_parameter => actual_x_data%basis_parameter
    
     CALL get_qs_env(qs_env=qs_env,&

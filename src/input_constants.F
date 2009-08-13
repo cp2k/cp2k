@@ -700,8 +700,12 @@ MODULE input_constants
   ! adiabatic hybrid type                  
   INTEGER, PARAMETER, PUBLIC               :: do_adiabatic_hybrid_mcy3=1
                                            
-  ! adiabati model type                    
+  ! adiabatic model type                    
   INTEGER, PARAMETER, PUBLIC               :: do_adiabatic_model_pade=1
+
+  ! HFX evaluation type
+  INTEGER, PARAMETER, PUBLIC               :: hfx_do_eval_energy=1,&
+                                              hfx_do_eval_forces=2
 
   ! mode selctive vibrational analysis
   INTEGER, PARAMETER, PUBLIC               :: ms_guess_bfgs=1, &

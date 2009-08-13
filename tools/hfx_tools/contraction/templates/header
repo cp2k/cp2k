@@ -5,10 +5,18 @@
 
 ! *****************************************************************************
 !> \brief Contains routines for contraction without dgemms. PLEASE DO NOT MODIFY.
+!> \notes Contains specific routines for contraction. The compiler flag
+!>        -D__MAX_CONTR defines the maximum angular momentum up to which
+!>        specialized code will be used. Default setting is d-functions.
+!>        Increasing -D__MAX_CONTR produces faster code but might overburden
+!>        the optimization capabilities of some poor compilers.
+!>        This file contains specific code up to g-functions. If you need more
+!>        look at cp2k/tools/hfx_tools/contraction/
 !> \par History
 !>      07.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
+
 MODULE hfx_contraction_methods
 
 !** This defines the default behaviour
@@ -24,8 +32,6 @@ MODULE hfx_contraction_methods
 
   PRIVATE
   PUBLIC contract
-
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_contraction_methods'
 
 
   CONTAINS

@@ -16,8 +16,10 @@ MODULE hfx_load_balance_methods
   USE hfx_pair_list_methods,           ONLY: build_pair_list
   USE hfx_types,                       ONLY: &
        hfx_basis_type, hfx_distribution, hfx_load_balance_type, hfx_p_kind, &
-       hfx_potential_type, hfx_screen_coeff_type, hfx_set_distr_energy, &
-       hfx_set_distr_forces, hfx_type, pair_list_type, pair_set_list_type
+       hfx_screen_coeff_type, hfx_set_distr_energy, hfx_set_distr_forces, &
+       hfx_type, pair_list_type, pair_set_list_type
+  USE input_constants,                 ONLY: hfx_do_eval_energy,&
+                                             hfx_do_eval_forces
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
@@ -37,10 +39,8 @@ MODULE hfx_load_balance_methods
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC load_balance_energy, &
-         load_balance_forces, &
-         update_load_balance_energy, &
-         update_load_balance_forces
+  PUBLIC load_balance, &
+         update_load_balance
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_load_balance_methods'
 
@@ -91,19 +91,18 @@ MODULE hfx_load_balance_methods
 !>      02.2009 completely refactored [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE load_balance_energy(x_data, eps_schwarz, particle_set,max_set,para_env,&
-                                 potential_parameter, coeffs_set, coeffs_kind, &
-                                 is_assoc_atomic_block_global, do_periodic,&
-                                 load_balance_parameter, kind_of, basis_parameter, pmax_set, &
-                                 i_thread, n_threads, cell, &
-                                 do_p_screening, map_atom_to_kind_atom, nkind, error)
+  SUBROUTINE load_balance(x_data, eps_schwarz, particle_set,max_set,para_env,&
+                          coeffs_set, coeffs_kind, &
+                          is_assoc_atomic_block_global, do_periodic,&
+                          load_balance_parameter, kind_of, basis_parameter, pmax_set, &
+                          i_thread, n_threads, cell, &
+                          do_p_screening, map_atom_to_kind_atom, nkind, eval_type, error)
     TYPE(hfx_type), POINTER                  :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: max_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(hfx_potential_type), INTENT(IN)     :: potential_parameter
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :, :, :), POINTER         :: coeffs_set
     TYPE(hfx_screen_coeff_type), &
@@ -119,24 +118,22 @@ MODULE hfx_load_balance_methods
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN)                      :: do_p_screening
     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
-    INTEGER, INTENT(IN)                      :: nkind
+    INTEGER, INTENT(IN)                      :: nkind, eval_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_energy', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: error_msg
     INTEGER :: block_size, data_from, dest, handle, handle_inner, i, &
-      i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, &
-      i_set_list_ij_stop, i_set_list_kl, i_set_list_kl_start, &
-      i_set_list_kl_stop, iatom, iatom_block, ibin, icpu, ikind, ipos, iset, &
-      j, jatom, jatom_block, jkind, jset, katom, katom_block, kind_kind_idx, &
-      kkind, kset, latom, latom_block, lkind, lset, my_process_id, natom, &
-      nbins, req(2), source, stat, swap_id
-    INTEGER(int_8) :: atom_block, current_counter, distribution_counter_end, &
-      distribution_counter_start, global_quartet_counter, int_per_cpu, &
-      local_quartet_counter, mepos, n_processes, nblocks, ncpu, &
-      restore_counter, tmp_block, total_integrals
+      iatom_block, iatom_end, iatom_start, ibin, icpu, j, jatom_block, &
+      jatom_end, jatom_start, katom_block, katom_end, katom_start, &
+      latom_block, latom_end, latom_start, my_process_id, natom, nbins, &
+      req(2), source, stat
+    INTEGER(int_8) :: atom_block, cost_per_bin, cost_per_core, current_cost, &
+      distribution_counter_end, distribution_counter_start, &
+      global_quartet_counter, local_quartet_counter, mepos, n_processes, &
+      nblocks, ncpu, tmp_block
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
@@ -144,16 +141,12 @@ MODULE hfx_load_balance_methods
     INTEGER(int_8), SAVE                     :: shm_global_quartet_counter, &
                                                 shm_local_quartet_counter
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
-    INTEGER, DIMENSION(:), POINTER           :: distribution_vector, npgfa, &
-                                                npgfb, npgfc, npgfd, nsgfa, &
-                                                nsgfb, nsgfc, nsgfd
+    INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
     LOGICAL                                  :: failure, &
                                                 last_bin_needs_to_be_filled
-    REAL(dp) :: coeffs_kind_max0, log10_eps_schwarz, max_val1, max_val2, &
-      omega2Inv, pmax_entry, ra(3), rab2, rb(3), rc(3), rcd2, rd(3)
-    REAL(dp), DIMENSION(:, :), POINTER       :: ptr_p_1, ptr_p_2, ptr_p_3, &
-                                                ptr_p_4
+    REAL(dp)                                 :: coeffs_kind_max0, &
+                                                log10_eps_schwarz, log_2
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist, &
                                                 tmp_dist
@@ -169,17 +162,14 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
 
-    IF(potential_parameter%omega /= 0.0_dp) THEN
-      omega2Inv = 1.0_dp/(potential_parameter%omega**2)
-    ELSE
-      omega2Inv = 0.0_dp
-    END IF
-    natom=SIZE(particle_set)
     failure=.FALSE.
+
     log10_eps_schwarz = LOG10(eps_schwarz)
+    log_2 = LOG10(2.0_dp)
     coeffs_kind_max0=MAXVAL(coeffs_kind(:,:)%x(2))
     ncpu = para_env%num_pe
     n_processes = ncpu * n_threads
+    natom=SIZE(particle_set)
 
     ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -192,12 +182,13 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_dist(1)%number_of_atom_quartets = HUGE(tmp_dist(1)%number_of_atom_quartets)
       tmp_dist(1)%istart = 0_int_8
-      tmp_dist(1)%jstart = 1_int_8
-      tmp_dist(1)%kstart = 1_int_8
-      tmp_dist(1)%lstart = 1_int_8
-      tmp_dist(1)%original_cpu_id = 1_int_8
       ptr_to_tmp_dist => tmp_dist(:)
-      CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      SELECT CASE( eval_type)
+      CASE (hfx_do_eval_energy) 
+        CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      CASE (hfx_do_eval_forces)
+        CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      END SELECT
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
@@ -208,7 +199,7 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
 
-      total_integrals = 0
+      cost_per_core = 0_int_8
       my_process_id = para_env%mepos*n_threads + i_thread
       block_size = load_balance_parameter%block_size
       nblocks = MAX((natom+block_size-1)/block_size,1)
@@ -223,151 +214,31 @@ MODULE hfx_load_balance_methods
         iatom_block = MODULO(tmp_block,nblocks)+1
         IF(jatom_block<iatom_block) CYCLE
 
-        CALL build_pair_list(list_ij,set_list_ij,(iatom_block-1)*block_size +1,MIN(iatom_block*block_size,natom), &
-                             (jatom_block-1)*block_size +1, MIN(jatom_block*block_size,natom),&
-                             kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)     
+        iatom_start = (iatom_block-1)*block_size + 1
+        iatom_end = MIN(iatom_block*block_size,natom)
+        jatom_start = (jatom_block-1)*block_size + 1
+        jatom_end = MIN(jatom_block*block_size,natom)
+        katom_start = (katom_block-1)*block_size + 1
+        katom_end = MIN(katom_block*block_size,natom)
+        latom_start = (latom_block-1)*block_size + 1
+        latom_end = MIN(latom_block*block_size,natom)
 
-        CALL build_pair_list(list_kl,set_list_kl,(katom_block-1)*block_size +1,MIN(katom_block*block_size,natom), &
-                             (latom_block-1)*block_size +1, MIN(latom_block*block_size,natom),&
-                             kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)     
+        
+        cost_per_core = cost_per_core &
+                        + estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
+                                              iatom_start, iatom_end, jatom_start, jatom_end, &
+                                              katom_start, katom_end, latom_start, latom_end, &
+                                              particle_set,&
+                                              coeffs_set, coeffs_kind, &
+                                              is_assoc_atomic_block_global, do_periodic,&
+                                              kind_of, basis_parameter, pmax_set, &
+                                              cell, &
+                                              do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                                              log10_eps_schwarz, log_2, coeffs_kind_max0)
 
-        DO i_list_ij=1,list_ij%n_element
-          iatom=list_ij%elements(i_list_ij)%pair(1)
-          jatom=list_ij%elements(i_list_ij)%pair(2)
-          i_set_list_ij_start=list_ij%elements(i_list_ij)%set_bounds(1)
-          i_set_list_ij_stop=list_ij%elements(i_list_ij)%set_bounds(2)
-          ikind=list_ij%elements(i_list_ij)%kind_pair(1)
-          jkind=list_ij%elements(i_list_ij)%kind_pair(2)
-          ra=list_ij%elements(i_list_ij)%r1
-          rb=list_ij%elements(i_list_ij)%r2
-          rab2=list_ij%elements(i_list_ij)%dist2
-
-          nsgfa => basis_parameter(ikind)%nsgf
-          nsgfb => basis_parameter(jkind)%nsgf
-          npgfa => basis_parameter(ikind)%npgf
-          npgfb => basis_parameter(jkind)%npgf
-
-          DO i_list_kl=1,list_kl%n_element
-
-            katom=list_kl%elements(i_list_kl)%pair(1)
-            latom=list_kl%elements(i_list_kl)%pair(2)
-
-            IF( .NOT. (katom+latom<=iatom+jatom))  CYCLE
-            IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-
-            i_set_list_kl_start=list_kl%elements(i_list_kl)%set_bounds(1)
-            i_set_list_kl_stop=list_kl%elements(i_list_kl)%set_bounds(2)
-            kkind=list_kl%elements(i_list_kl)%kind_pair(1)
-            lkind=list_kl%elements(i_list_kl)%kind_pair(2)
-            rc=list_kl%elements(i_list_kl)%r1
-            rd=list_kl%elements(i_list_kl)%r2
-            rcd2=list_kl%elements(i_list_kl)%dist2
-
-            nsgfc => basis_parameter(kkind)%nsgf
-            nsgfd => basis_parameter(lkind)%nsgf
-            npgfc => basis_parameter(kkind)%npgf
-            npgfd => basis_parameter(lkind)%npgf
-
-            IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
-                 coeffs_kind(jkind,ikind)%x(2) ) + &
-                (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-                 coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
-
-            IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE 
-
-            IF( do_p_screening ) THEN
-              swap_id = 0
-              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
-              IF( ikind >= kkind) THEN
-                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(katom), &
-                                    map_atom_to_kind_atom(iatom))
-              ELSE
-                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(iatom), &
-                                    map_atom_to_kind_atom(katom))
-                swap_id = swap_id + 1
-              END IF
-              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
-              IF( jkind>=lkind ) THEN
-                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(latom), &
-                                    map_atom_to_kind_atom(jatom))
-              ELSE
-                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(jatom), &
-                                    map_atom_to_kind_atom(latom))
-                swap_id = swap_id + 2
-              END IF
-              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
-              IF( ikind>=lkind ) THEN
-                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(latom), &
-                                    map_atom_to_kind_atom(iatom))
-              ELSE
-                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(iatom), &
-                                    map_atom_to_kind_atom(latom))
-                swap_id = swap_id + 4
-              END IF
-              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
-              IF( jkind>=kkind) THEN
-                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(katom), &
-                                    map_atom_to_kind_atom(jatom))
-              ELSE
-                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(jatom), &
-                                    map_atom_to_kind_atom(katom))
-                swap_id = swap_id + 8
-              END IF
-            END IF
-
-            DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
-              iset=set_list_ij(i_set_list_ij)%pair(1)
-              jset=set_list_ij(i_set_list_ij)%pair(2)
-
-              max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
-                         coeffs_set(jset,iset,jkind,ikind)%x(2)
-              IF( max_val1 + coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
-                             coeffs_kind(lkind,kkind)%x(2)  <log10_eps_schwarz) CYCLE
-
-              DO i_set_list_kl=i_set_list_kl_start, i_set_list_kl_stop
-                kset=set_list_kl(i_set_list_kl)%pair(1)
-                lset=set_list_kl(i_set_list_kl)%pair(2)
-
-                max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
-                                       coeffs_set(lset,kset,lkind,kkind)%x(2) )
-
-                IF(max_val2 <log10_eps_schwarz ) CYCLE
-                IF( do_p_screening ) THEN
-                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
-                                    iset, jset, kset, lset, &
-                                    pmax_entry, swap_id)
-                ELSE
-                  pmax_entry = 0.0_dp
-                END IF
-                max_val2= max_val2 + pmax_entry
-                IF( max_val2< log10_eps_schwarz) CYCLE
-                ! total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
-                total_integrals = total_integrals + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
-                                                               npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
-                                                               max_val2/log10_eps_schwarz)
-              ENDDO ! i_set_list_kl
-            ENDDO ! i_set_list_ij
-          ENDDO ! i_list_kl
-        ENDDO ! i_list_ij
-      ENDDO ! atom_block
-
-      !! Bin the total amount of integrals on each cpu
+      END DO ! atom_block
       nbins = load_balance_parameter%nbins
-      !floor value
-      int_per_cpu = (total_integrals + nbins -1 ) / (nbins) 
+      cost_per_bin = (cost_per_core + nbins -1 ) / (nbins) 
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -379,20 +250,13 @@ MODULE hfx_load_balance_methods
       ALLOCATE(binned_dist(nbins), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       binned_dist(:)%istart = -1_int_8
-      binned_dist(:)%jstart = 0_int_8
-      binned_dist(:)%kstart = 0_int_8
-      binned_dist(:)%lstart = 0_int_8
       binned_dist(:)%number_of_atom_quartets = 0_int_8
       binned_dist(:)%cost = 0_int_8
-
-      binned_dist(:)%original_cpu_id = 0_int_8
       binned_dist(:)%time_first_scf = 0.0_dp
       binned_dist(:)%time_other_scf =0.0_dp
       binned_dist(:)%time_forces = 0.0_dp
  
-      current_counter = 0
-      restore_counter = 0
-      ipos = 1
+      current_cost = 0
       mepos = 1
       distribution_counter_start = 1
       distribution_counter_end = 0
@@ -417,162 +281,40 @@ MODULE hfx_load_balance_methods
         last_bin_needs_to_be_filled = .TRUE.
 
         IF(binned_dist(ibin)%istart == -1_int_8 ) binned_dist(ibin)%istart = atom_block
-        IF(binned_dist(ibin)%jstart == 0_int_8 ) binned_dist(ibin)%jstart = jatom_block
-        IF(binned_dist(ibin)%kstart == 0_int_8 ) binned_dist(ibin)%kstart = katom_block
-        IF(binned_dist(ibin)%lstart == 0_int_8 ) binned_dist(ibin)%lstart = latom_block
 
-        CALL build_pair_list(list_ij,set_list_ij,(iatom_block-1)*block_size +1,MIN(iatom_block*block_size,natom), &
-                             (jatom_block-1)*block_size +1, MIN(jatom_block*block_size,natom),&
-                             kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
+        iatom_start = (iatom_block-1)*block_size + 1
+        iatom_end = MIN(iatom_block*block_size,natom)
+        jatom_start = (jatom_block-1)*block_size + 1
+        jatom_end = MIN(jatom_block*block_size,natom)
+        katom_start = (katom_block-1)*block_size + 1
+        katom_end = MIN(katom_block*block_size,natom)
+        latom_start = (latom_block-1)*block_size + 1
+        latom_end = MIN(latom_block*block_size,natom)
 
-        CALL build_pair_list(list_kl,set_list_kl,(katom_block-1)*block_size +1,MIN(katom_block*block_size,natom), &
-                             (latom_block-1)*block_size +1, MIN(latom_block*block_size,natom),&
-                             kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
+        current_cost = current_cost &
+                        + estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, & 
+                                              iatom_start, iatom_end, jatom_start, jatom_end, &
+                                              katom_start, katom_end, latom_start, latom_end, &
+                                              particle_set,&
+                                              coeffs_set, coeffs_kind, &
+                                              is_assoc_atomic_block_global, do_periodic,&
+                                              kind_of, basis_parameter, pmax_set, &
+                                              cell, &
+                                              do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                                              log10_eps_schwarz, log_2, coeffs_kind_max0)
 
-        DO i_list_ij=1,list_ij%n_element
 
-          iatom=list_ij%elements(i_list_ij)%pair(1)
-          jatom=list_ij%elements(i_list_ij)%pair(2)
-          i_set_list_ij_start=list_ij%elements(i_list_ij)%set_bounds(1)
-          i_set_list_ij_stop=list_ij%elements(i_list_ij)%set_bounds(2)
-          ikind=list_ij%elements(i_list_ij)%kind_pair(1)
-          jkind=list_ij%elements(i_list_ij)%kind_pair(2)
-          ra=list_ij%elements(i_list_ij)%r1
-          rb=list_ij%elements(i_list_ij)%r2
-          rab2=list_ij%elements(i_list_ij)%dist2
-
-          nsgfa => basis_parameter(ikind)%nsgf
-          nsgfb => basis_parameter(jkind)%nsgf
-          npgfa => basis_parameter(ikind)%npgf
-          npgfb => basis_parameter(jkind)%npgf
-
-          DO i_list_kl=1,list_kl%n_element
-
-            katom=list_kl%elements(i_list_kl)%pair(1)
-            latom=list_kl%elements(i_list_kl)%pair(2)
-
-            IF( .NOT. (katom+latom<=iatom+jatom))  CYCLE
-            IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-
-            i_set_list_kl_start=list_kl%elements(i_list_kl)%set_bounds(1)
-            i_set_list_kl_stop=list_kl%elements(i_list_kl)%set_bounds(2)
-            kkind=list_kl%elements(i_list_kl)%kind_pair(1)
-            lkind=list_kl%elements(i_list_kl)%kind_pair(2)
-            rc=list_kl%elements(i_list_kl)%r1
-            rd=list_kl%elements(i_list_kl)%r2
-            rcd2=list_kl%elements(i_list_kl)%dist2
-
-            nsgfc => basis_parameter(kkind)%nsgf
-            nsgfd => basis_parameter(lkind)%nsgf
-            npgfc => basis_parameter(kkind)%npgf
-            npgfd => basis_parameter(lkind)%npgf
-
-            IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
-                 coeffs_kind(jkind,ikind)%x(2) ) + &
-                (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-                 coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
-
-            IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
-
-            IF( do_p_screening ) THEN
-              swap_id = 0
-              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
-              IF( ikind >= kkind) THEN
-                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(katom), &
-                                    map_atom_to_kind_atom(iatom))
-              ELSE
-                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(iatom), &
-                                    map_atom_to_kind_atom(katom))
-                swap_id = swap_id + 1
-              END IF
-              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
-              IF( jkind>=lkind ) THEN
-                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(latom), &
-                                    map_atom_to_kind_atom(jatom))
-              ELSE
-                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(jatom), &
-                                    map_atom_to_kind_atom(latom))
-                swap_id = swap_id + 2
-              END IF
-              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
-              IF( ikind>=lkind ) THEN
-                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(latom), &
-                                    map_atom_to_kind_atom(iatom))
-              ELSE
-                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(iatom), &
-                                    map_atom_to_kind_atom(latom))
-                swap_id = swap_id + 4
-              END IF
-              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
-              IF( jkind>=kkind) THEN
-                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(katom), &
-                                    map_atom_to_kind_atom(jatom))
-              ELSE
-                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(jatom), &
-                                    map_atom_to_kind_atom(katom))
-                swap_id = swap_id + 8
-              END IF
-            END IF
-
-            DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
-              iset=set_list_ij(i_set_list_ij)%pair(1)
-              jset=set_list_ij(i_set_list_ij)%pair(2)
-
-              max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
-                         coeffs_set(jset,iset,jkind,ikind)%x(2)
-              IF( max_val1 +( coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
-                              coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
-
-              DO i_set_list_kl=i_set_list_kl_start, i_set_list_kl_stop
-                kset=set_list_kl(i_set_list_kl)%pair(1)
-                lset=set_list_kl(i_set_list_kl)%pair(2)
-
-                max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
-                                       coeffs_set(lset,kset,lkind,kkind)%x(2) )
-                IF(max_val2<log10_eps_schwarz) CYCLE
-                IF( do_p_screening) THEN
-                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
-                                    iset, jset, kset, lset, &
-                                    pmax_entry, swap_id)
-                ELSE
-                  pmax_entry = 0.0_dp
-                END IF
-                max_val2 = max_val2 + pmax_entry
-                IF(max_val2<log10_eps_schwarz) CYCLE
-                ! current_counter = current_counter + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
-                current_counter = current_counter + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
-                                                               npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
-                                                               max_val2/log10_eps_schwarz)
-              ENDDO ! i_set_list_kl
-            ENDDO ! i_set_list_ij
-          ENDDO ! i_list_kl
-        ENDDO ! i_list_ij
-
-        IF( current_counter >= int_per_cpu) THEN
+        IF( current_cost >= cost_per_bin) THEN
           IF( ibin==nbins) THEN
             binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
                                distribution_counter_end - distribution_counter_start + 1
           ELSE
             binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
           END IF
-          binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
+          binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_cost
           ibin = MIN(ibin + 1,nbins)
           distribution_counter_start = distribution_counter_end + 1
-          restore_counter = current_counter
-          current_counter = 0
+          current_cost = 0
           last_bin_needs_to_be_filled = .FALSE.
         END IF
       ENDDO
@@ -585,7 +327,7 @@ MODULE hfx_load_balance_methods
 !$OMP BARRIER
       !! Fill the last bin if necessary
       IF( last_bin_needs_to_be_filled ) THEN
-        binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
+        binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_cost
         IF( ibin == nbins ) THEN
           binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
                                                    distribution_counter_end-distribution_counter_start+1
@@ -627,10 +369,7 @@ MODULE hfx_load_balance_methods
       END IF 
 !$OMP END MASTER
 
-      !! store the original cpu_id
-      binned_dist(:)%original_cpu_id = my_process_id + 1 !para_env%mepos + 1
 !$OMP BARRIER     
-      !! store all local results in a big cost matrix
 !$OMP MASTER
       ALLOCATE(cost_matrix(ncpu*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -690,7 +429,7 @@ MODULE hfx_load_balance_methods
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
+      CALL optimize_distribution(ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
                                  distribution_vector, error)
 
 !$OMP BARRIER
@@ -705,12 +444,8 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       full_dist(:,:)%istart = 0_int_8
-      full_dist(:,:)%jstart = 0_int_8
-      full_dist(:,:)%kstart = 0_int_8
-      full_dist(:,:)%lstart = 0_int_8
       full_dist(:,:)%number_of_atom_quartets = 0_int_8
       full_dist(:,:)%cost = 0_int_8
-      full_dist(:,:)%original_cpu_id = 0_int_8
       full_dist(:,:)%time_first_scf = 0.0_dp
       full_dist(:,:)%time_other_scf = 0.0_dp
       full_dist(:,:)%time_forces = 0.0_dp
@@ -721,20 +456,16 @@ MODULE hfx_load_balance_methods
      
 !$OMP BARRIER
 !$OMP MASTER
-      ALLOCATE(sendbuffer(7*nbins*n_threads),STAT=stat)
+      ALLOCATE(sendbuffer(3*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(recbuffer(7*nbins*n_threads),STAT=stat)
+      ALLOCATE(recbuffer(3*nbins*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       mepos = para_env%mepos
       DO j=1,n_threads
         DO i=1,nbins
-          sendbuffer((j-1)*7*nbins+(i-1)*7+1) = full_dist(mepos*n_threads+j,i)%istart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+2) = full_dist(mepos*n_threads+j,i)%jstart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+3) = full_dist(mepos*n_threads+j,i)%kstart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+4) = full_dist(mepos*n_threads+j,i)%lstart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
-          sendbuffer((j-1)*7*nbins+(i-1)*7+6) = full_dist(mepos*n_threads+j,i)%cost
-          sendbuffer((j-1)*7*nbins+(i-1)*7+7) = full_dist(mepos*n_threads+j,i)%original_cpu_id
+          sendbuffer((j-1)*3*nbins+(i-1)*3+1) = full_dist(mepos*n_threads+j,i)%istart
+          sendbuffer((j-1)*3*nbins+(i-1)*3+2) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
+          sendbuffer((j-1)*3*nbins+(i-1)*3+3) = full_dist(mepos*n_threads+j,i)%cost
         END DO
       END DO
 
@@ -750,13 +481,9 @@ MODULE hfx_load_balance_methods
         data_from = MODULO(mepos - icpu,ncpu)
         DO j=1,n_threads
           DO i=1,nbins
-            full_dist(data_from*n_threads+j,i)%istart = sendbuffer((j-1)*7*nbins+(i-1)*7+1)
-            full_dist(data_from*n_threads+j,i)%jstart = sendbuffer((j-1)*7*nbins+(i-1)*7+2)
-            full_dist(data_from*n_threads+j,i)%kstart = sendbuffer((j-1)*7*nbins+(i-1)*7+3)
-            full_dist(data_from*n_threads+j,i)%lstart = sendbuffer((j-1)*7*nbins+(i-1)*7+4)
-            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*7*nbins+(i-1)*7+5)
-            full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*7*nbins+(i-1)*7+6)
-            full_dist(data_from*n_threads+j,i)%original_cpu_id = sendbuffer((j-1)*7*nbins+(i-1)*7+7)
+            full_dist(data_from*n_threads+j,i)%istart = sendbuffer((j-1)*3*nbins+(i-1)*3+1)
+            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*3*nbins+(i-1)*3+2)
+            full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*3*nbins+(i-1)*3+3)
           END DO
         END DO
 
@@ -782,12 +509,8 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       tmp_dist(:)%istart = 0_int_8
-      tmp_dist(:)%jstart = 0_int_8
-      tmp_dist(:)%kstart = 0_int_8
-      tmp_dist(:)%lstart = 0_int_8
       tmp_dist(:)%number_of_atom_quartets = 0_int_8
       tmp_dist(:)%cost = 0_int_8
-      tmp_dist(:)%original_cpu_id = 0_int_8
       tmp_dist(:)%time_first_scf = 0.0_dp
       tmp_dist(:)%time_other_scf = 0.0_dp
       tmp_dist(:)%time_forces = 0.0_dp
@@ -806,7 +529,12 @@ MODULE hfx_load_balance_methods
       NULLIFY(ptr_to_tmp_dist) 
       mepos = my_process_id+1
       ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
-      CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      SELECT CASE (eval_type)
+      CASE (hfx_do_eval_energy)
+        CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      CASE (hfx_do_eval_forces)
+        CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      END SELECT
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -835,730 +563,7 @@ MODULE hfx_load_balance_methods
     CALL timestop(handle)
 !$OMP END MASTER
 !$OMP BARRIER
-  END SUBROUTINE load_balance_energy
-
-
-! *****************************************************************************
-!> \brief Distributes the computation of derivative-eri's to all available processes.
-!> \param x_data Object that stores the indices array
-!> \param eps_schwarz screening parameter
-!> \param particle_set , atomic_kind_set, para_env
-!> \param max_set Maximum number of set to be considered
-!> \param para_env para_env
-!> \param potential_parameter short/longrange screening information 
-!> \param coeffs_set, coeffs_kind: screening functions
-!> \param pmax_set Initial screening matrix
-!> \param is_assoc_atomic_kind KS-matrix sparsity
-!> \param do_periodic flag for periodicity
-!> \param load_balance_parameter Paramters for Monte-Carlo routines
-!> \param kind_of helper array for mapping
-!> \param basis_parameter Basis set parameters
-!> \param i_thread Process ID of current Thread
-!> \param n_thread Total Number of Threads
-!> \param cell cell
-!> \param screen_pmat_forces Flag for p screening
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \note
-!>      The optimization is done via a binning procedure followed by simple 
-!>      Monte Carlo procedure:
-!>      In a first step the total amount of integrals in the system is calculated,
-!>      taking into account the sparsity of the KS-matrix , the screening based
-!>      on near/farfield approximations and if desired the screening on an initial
-!>      density matrix. In a second step, these integrals are distributed to bins
-!>      of a given size. Finally, a Monte Carlo procedure optimizes the assignment
-!>      of the different loads to each process
-!>      At the end each process owns an unique array of inidices-ranges 
-!>      that are used to decide whether a process has to calculate a certain
-!>      bunch of integrals or not
-!> \par History
-!>      06.2007 created [Manuel Guidon]
-!>      08.2007 new parallel scheme [Manuel Guidon]
-!>      09.2007 new 'modulo' parellel scheme and Monte Carlo step [Manuel Guidon]
-!>      11.2007 parallelize load balance on box_idx1 [Manuel Guidon]
-!>      02.2009 completely refactored [Manuel Guidon]
-!> \author Manuel Guidon
-! *****************************************************************************
-  SUBROUTINE load_balance_forces(x_data, eps_schwarz, particle_set,max_set,para_env,&
-                                 potential_parameter, coeffs_set, coeffs_kind,&
-                                 pmax_set, is_assoc_atomic_block_global, do_periodic, &
-                                 load_balance_parameter, kind_of, basis_parameter,&
-                                 i_thread, n_threads, cell, screen_pmat_forces, &
-                                 map_atom_to_kind_atom, nkind, error)
-    TYPE(hfx_type), POINTER                  :: x_data
-    REAL(dp), INTENT(IN)                     :: eps_schwarz
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    INTEGER, INTENT(IN)                      :: max_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(hfx_potential_type), INTENT(IN)     :: potential_parameter
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:, :, :, :), POINTER         :: coeffs_set
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:, :), POINTER               :: coeffs_kind
-    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
-    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
-    LOGICAL                                  :: do_periodic
-    TYPE(hfx_load_balance_type)              :: load_balance_parameter
-    INTEGER                                  :: kind_of(*)
-    TYPE(hfx_basis_type), DIMENSION(:), &
-      POINTER                                :: basis_parameter
-    INTEGER, INTENT(IN)                      :: i_thread, n_threads
-    TYPE(cell_type), POINTER                 :: cell
-    LOGICAL, INTENT(IN)                      :: screen_pmat_forces
-    INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
-    INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_forces', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=512)                       :: error_msg
-    INTEGER :: block_size, data_from, dest, i, i_list_ij, i_list_kl, &
-      i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl, &
-      i_set_list_kl_start, i_set_list_kl_stop, iatom, iatom_block, ibin, &
-      icpu, ikind, ipos, iset, j, jatom, jatom_block, jkind, jset, katom, &
-      katom_block, kind_kind_idx, kkind, kset, latom, latom_block, lkind, &
-      lset, my_process_id, natom, nbins, req(2), source, stat, swap_id
-    INTEGER(int_8) :: atom_block, current_counter, distribution_counter_end, &
-      distribution_counter_start, global_quartet_counter, int_per_cpu, &
-      local_quartet_counter, mepos, n_processes, nblocks, ncpu, &
-      restore_counter, tmp_block, total_integrals
-    INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
-                                                sendbuffer, swapbuffer
-    INTEGER(int_8), DIMENSION(:), POINTER, &
-      SAVE                                   :: cost_matrix
-    INTEGER(int_8), SAVE                     :: shm_global_quartet_counter, &
-                                                shm_local_quartet_counter
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
-    INTEGER, DIMENSION(:), POINTER           :: distribution_vector, nsgfa, &
-                                                nsgfb, nsgfc, nsgfd
-    INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
-    LOGICAL                                  :: failure, &
-                                                last_bin_needs_to_be_filled
-    REAL(dp) :: coeffs_kind_max0, log10_eps_schwarz, log10_pmax, log_2, &
-      max_val1, max_val2, omega2Inv, pmax_tmp, ra(3), rab2, rb(3), rc(3), &
-      rcd2, rd(3)
-    REAL(dp), DIMENSION(:, :), POINTER       :: ptr_p_1, ptr_p_2, ptr_p_3, &
-                                                ptr_p_4
-    TYPE(hfx_distribution), DIMENSION(:), &
-      POINTER                                :: binned_dist, ptr_to_tmp_dist, &
-                                                tmp_dist
-    TYPE(hfx_distribution), &
-      DIMENSION(:, :), POINTER, SAVE         :: full_dist
-    TYPE(pair_list_type)                     :: list_ij, list_kl
-    TYPE(pair_set_list_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: set_list_ij, set_list_kl
-
-    log_2 = LOG10(2.0_dp)
-     
-    IF(potential_parameter%omega /= 0.0_dp) THEN
-      omega2Inv = 1.0_dp/(potential_parameter%omega**2)
-    ELSE
-      omega2Inv = 0.0_dp
-    END IF
-
-    natom=SIZE(particle_set)
-    log10_eps_schwarz = LOG10(eps_schwarz)
-    failure=.FALSE.
-    ncpu = para_env%num_pe
-    n_processes = ncpu * n_threads
-    coeffs_kind_max0=MAXVAL(coeffs_kind(:,:)%x(2))
-    ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    IF(n_processes == 1) THEN
-      ALLOCATE(tmp_dist(1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1)%number_of_atom_quartets = HUGE(tmp_dist(1)%number_of_atom_quartets)
-      tmp_dist(1)%istart = 0_int_8
-      tmp_dist(1)%jstart = 1_int_8
-      tmp_dist(1)%kstart = 1_int_8
-      tmp_dist(1)%lstart = 1_int_8
-      tmp_dist(1)%original_cpu_id = 1_int_8
-      ptr_to_tmp_dist => tmp_dist(:)
-      CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
-      DEALLOCATE(tmp_dist,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-      total_integrals = 0
-      my_process_id = para_env%mepos*n_threads + i_thread
-      block_size = load_balance_parameter%block_size
-      nblocks = MAX((natom+block_size-1)/block_size,1)
-      DO atom_block = my_process_id,nblocks**4-1,n_processes
-        latom_block = MODULO(atom_block,nblocks)+1
-        tmp_block = atom_block/nblocks
-        katom_block = MODULO(tmp_block,nblocks)+1
-        IF(latom_block<katom_block) CYCLE
-        tmp_block = tmp_block/nblocks
-        jatom_block = MODULO(tmp_block,nblocks)+1
-        tmp_block = tmp_block/nblocks
-        iatom_block = MODULO(tmp_block,nblocks)+1
-        IF(jatom_block<iatom_block) CYCLE
-
-        CALL build_pair_list(list_ij,set_list_ij,(iatom_block-1)*block_size +1,MIN(iatom_block*block_size,natom), &
-                             (jatom_block-1)*block_size +1, MIN(jatom_block*block_size,natom),&
-                             kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
-
-        CALL build_pair_list(list_kl,set_list_kl,(katom_block-1)*block_size +1,MIN(katom_block*block_size,natom), &
-                             (latom_block-1)*block_size +1, MIN(latom_block*block_size,natom),&
-                             kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
-        
-        DO i_list_ij=1,list_ij%n_element
-          iatom=list_ij%elements(i_list_ij)%pair(1)
-          jatom=list_ij%elements(i_list_ij)%pair(2)
-          i_set_list_ij_start=list_ij%elements(i_list_ij)%set_bounds(1)
-          i_set_list_ij_stop=list_ij%elements(i_list_ij)%set_bounds(2)
-          ikind=list_ij%elements(i_list_ij)%kind_pair(1)
-          jkind=list_ij%elements(i_list_ij)%kind_pair(2)
-          ra=list_ij%elements(i_list_ij)%r1
-          rb=list_ij%elements(i_list_ij)%r2
-          rab2=list_ij%elements(i_list_ij)%dist2
-
-          nsgfa => basis_parameter(ikind)%nsgf
-          nsgfb => basis_parameter(jkind)%nsgf
-
-          DO i_list_kl=1,list_kl%n_element
-
-            katom=list_kl%elements(i_list_kl)%pair(1)
-            latom=list_kl%elements(i_list_kl)%pair(2)
-
-            IF( .NOT. (katom+latom<=iatom+jatom))  CYCLE
-            IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-            IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
-
-            i_set_list_kl_start=list_kl%elements(i_list_kl)%set_bounds(1)
-            i_set_list_kl_stop=list_kl%elements(i_list_kl)%set_bounds(2)
-            kkind=list_kl%elements(i_list_kl)%kind_pair(1)
-            lkind=list_kl%elements(i_list_kl)%kind_pair(2)
-            rc=list_kl%elements(i_list_kl)%r1
-            rd=list_kl%elements(i_list_kl)%r2
-            rcd2=list_kl%elements(i_list_kl)%dist2
-
-            nsgfc => basis_parameter(kkind)%nsgf
-            nsgfd => basis_parameter(lkind)%nsgf
-
-            IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
-                 coeffs_kind(jkind,ikind)%x(2) ) + &
-                 (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-                 coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
-
-            IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
-            IF( screen_pmat_forces) THEN
-              swap_id = 16
-              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
-              IF( ikind >= kkind) THEN
-                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(katom), &
-                                    map_atom_to_kind_atom(iatom))
-              ELSE
-                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(iatom), &
-                                    map_atom_to_kind_atom(katom))
-                swap_id = swap_id + 1
-              END IF
-              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
-              IF( jkind>=lkind ) THEN
-                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(latom), &
-                                    map_atom_to_kind_atom(jatom))
-              ELSE
-                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(jatom), &
-                                    map_atom_to_kind_atom(latom))
-                swap_id = swap_id + 2
-              END IF
-              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
-              IF( ikind>=lkind ) THEN
-                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(latom), &
-                                    map_atom_to_kind_atom(iatom))
-              ELSE
-                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(iatom), &
-                                    map_atom_to_kind_atom(latom))
-                swap_id = swap_id + 4
-              END IF
-              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
-              IF( jkind>=kkind) THEN
-                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(katom), &
-                                    map_atom_to_kind_atom(jatom))
-              ELSE
-                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(jatom), &
-                                    map_atom_to_kind_atom(katom))
-                swap_id = swap_id + 8
-              END IF
-            END IF
-
-            DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
-              iset=set_list_ij(i_set_list_ij)%pair(1)
-              jset=set_list_ij(i_set_list_ij)%pair(2)
-
-              max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
-                         coeffs_set(jset,iset,jkind,ikind)%x(2)
-              IF( max_val1 + coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
-                             coeffs_kind(lkind,kkind)%x(2)  <log10_eps_schwarz) CYCLE
-
-              DO i_set_list_kl=i_set_list_kl_start, i_set_list_kl_stop
-                kset=set_list_kl(i_set_list_kl)%pair(1)
-                lset=set_list_kl(i_set_list_kl)%pair(2)
-
-                max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
-                                       coeffs_set(lset,kset,lkind,kkind)%x(2) )
-
-                IF(max_val2 <log10_eps_schwarz ) CYCLE
-                IF( screen_pmat_forces) THEN
-                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
-                                    iset, jset, kset, lset, &
-                                    pmax_tmp, swap_id)
-                  log10_pmax = log_2 + pmax_tmp
-                ELSE
-                  log10_pmax = 0.0_dp
-                END IF
-                max_val2= max_val2 + log10_pmax
-                IF( max_val2< log10_eps_schwarz) CYCLE
-                total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
-              ENDDO ! i_set_list_kl
-            ENDDO ! i_set_list_ij
-          ENDDO ! i_list_kl
-        ENDDO ! i_list_ij
-      ENDDO ! atom_block
-
-      nbins = load_balance_parameter%nbins 
-      int_per_cpu = (total_integrals + nbins -1 ) / nbins
-      ALLOCATE(binned_dist(nbins), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      binned_dist(:)%istart = -1_int_8
-      binned_dist(:)%jstart = 0_int_8
-      binned_dist(:)%kstart = 0_int_8
-      binned_dist(:)%lstart = 0_int_8
-      binned_dist(:)%number_of_atom_quartets = 0_int_8
-      binned_dist(:)%cost = 0_int_8
-      binned_dist(:)%original_cpu_id = 0_int_8
- 
-      current_counter = 0
-      restore_counter = 0
-      ipos = 1
-      mepos = 1
-      distribution_counter_start = 1
-      distribution_counter_end = 0
-      ibin = 1
-
-      global_quartet_counter = 0
-      local_quartet_counter = 0
-      last_bin_needs_to_be_filled = .FALSE.
-
-      DO atom_block = my_process_id,nblocks**4-1,n_processes
-        latom_block = MODULO(atom_block,nblocks)+1
-        tmp_block = atom_block/nblocks
-        katom_block = MODULO(tmp_block,nblocks)+1
-        IF(latom_block<katom_block) CYCLE
-        tmp_block = tmp_block/nblocks
-        jatom_block = MODULO(tmp_block,nblocks)+1
-        tmp_block = tmp_block/nblocks
-        iatom_block = MODULO(tmp_block,nblocks)+1
-        IF(jatom_block<iatom_block) CYCLE
-
-        distribution_counter_end = distribution_counter_end + 1
-        global_quartet_counter = global_quartet_counter + 1
-        last_bin_needs_to_be_filled = .TRUE.
-
-        IF(binned_dist(ibin)%istart == -1_int_8 ) binned_dist(ibin)%istart = atom_block
-        IF(binned_dist(ibin)%jstart == 0_int_8 ) binned_dist(ibin)%jstart = jatom_block
-        IF(binned_dist(ibin)%kstart == 0_int_8 ) binned_dist(ibin)%kstart = katom_block
-        IF(binned_dist(ibin)%lstart == 0_int_8 ) binned_dist(ibin)%lstart = latom_block
-
-        CALL build_pair_list(list_ij,set_list_ij,(iatom_block-1)*block_size +1,MIN(iatom_block*block_size,natom), &
-                             (jatom_block-1)*block_size +1, MIN(jatom_block*block_size,natom),&
-                             kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
-
-        CALL build_pair_list(list_kl,set_list_kl,(katom_block-1)*block_size +1,MIN(katom_block*block_size,natom), &
-                             (latom_block-1)*block_size +1, MIN(latom_block*block_size,natom),&
-                             kind_of,basis_parameter,particle_set, &
-                             do_periodic,coeffs_set,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
-
-        DO i_list_ij=1,list_ij%n_element
-          iatom=list_ij%elements(i_list_ij)%pair(1)
-          jatom=list_ij%elements(i_list_ij)%pair(2)
-          i_set_list_ij_start=list_ij%elements(i_list_ij)%set_bounds(1)
-          i_set_list_ij_stop=list_ij%elements(i_list_ij)%set_bounds(2)
-          ikind=list_ij%elements(i_list_ij)%kind_pair(1)
-          jkind=list_ij%elements(i_list_ij)%kind_pair(2)
-          ra=list_ij%elements(i_list_ij)%r1
-          rb=list_ij%elements(i_list_ij)%r2
-          rab2=list_ij%elements(i_list_ij)%dist2
-
-          nsgfa => basis_parameter(ikind)%nsgf
-          nsgfb => basis_parameter(jkind)%nsgf
-
-          DO i_list_kl=1,list_kl%n_element
-            katom=list_kl%elements(i_list_kl)%pair(1)
-            latom=list_kl%elements(i_list_kl)%pair(2)
-
-            IF( .NOT. (katom+latom<=iatom+jatom))  CYCLE
-            IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-            IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
-
-            i_set_list_kl_start=list_kl%elements(i_list_kl)%set_bounds(1)
-            i_set_list_kl_stop=list_kl%elements(i_list_kl)%set_bounds(2)
-            kkind=list_kl%elements(i_list_kl)%kind_pair(1)
-            lkind=list_kl%elements(i_list_kl)%kind_pair(2)
-            rc=list_kl%elements(i_list_kl)%r1
-            rd=list_kl%elements(i_list_kl)%r2
-            rcd2=list_kl%elements(i_list_kl)%dist2
-
-            nsgfc => basis_parameter(kkind)%nsgf
-            nsgfd => basis_parameter(lkind)%nsgf
-
-            IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
-                 coeffs_kind(jkind,ikind)%x(2) ) + &
-                (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-                 coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
-           
-            IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
-                      is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
-
-            IF( screen_pmat_forces) THEN
-              swap_id = 16
-              kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
-              IF( ikind >= kkind) THEN
-                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(katom), &
-                                    map_atom_to_kind_atom(iatom))
-              ELSE
-                ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(iatom), &
-                                    map_atom_to_kind_atom(katom))
-                swap_id = swap_id + 1
-              END IF
-              kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
-              IF( jkind>=lkind ) THEN
-                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(latom), &
-                                    map_atom_to_kind_atom(jatom))
-              ELSE
-                ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(jatom), &
-                                    map_atom_to_kind_atom(latom))
-                swap_id = swap_id + 2
-              END IF
-              kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
-              IF( ikind>=lkind ) THEN
-                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(latom), &
-                                    map_atom_to_kind_atom(iatom))
-              ELSE
-                ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(iatom), &
-                                    map_atom_to_kind_atom(latom))
-                swap_id = swap_id + 4
-              END IF
-              kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
-              IF( jkind>=kkind) THEN
-                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(katom), &
-                                    map_atom_to_kind_atom(jatom))
-              ELSE
-                ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
-                                    map_atom_to_kind_atom(jatom), &
-                                    map_atom_to_kind_atom(katom))
-                swap_id = swap_id + 8
-              END IF
-            END IF
-
-            DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
-              iset=set_list_ij(i_set_list_ij)%pair(1)
-              jset=set_list_ij(i_set_list_ij)%pair(2)
-
-              max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
-                         coeffs_set(jset,iset,jkind,ikind)%x(2)
-              IF( max_val1 +( coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
-                              coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
-
-              DO i_set_list_kl=i_set_list_kl_start, i_set_list_kl_stop
-                kset=set_list_kl(i_set_list_kl)%pair(1)
-                lset=set_list_kl(i_set_list_kl)%pair(2)
-
-                max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
-                                       coeffs_set(lset,kset,lkind,kkind)%x(2) )
-                IF(max_val2<log10_eps_schwarz) CYCLE
-                IF( screen_pmat_forces) THEN
-                  CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
-                                    iset, jset, kset, lset, &
-                                    pmax_tmp, swap_id)
-                  log10_pmax = log_2 + pmax_tmp
-                ELSE
-                  log10_pmax = 0.0_dp
-                END IF
-                max_val2 = max_val2 + log10_pmax
-                IF(max_val2<log10_eps_schwarz) CYCLE
-                current_counter = current_counter + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
-              ENDDO
-            ENDDO
-          ENDDO
-        ENDDO
-        IF( current_counter >= int_per_cpu) THEN
-          IF( ibin==nbins) THEN
-            binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
-                               distribution_counter_end - distribution_counter_start + 1
-          ELSE
-            binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
-          END IF
-          binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
-          ibin = MIN(ibin + 1,nbins)
-          distribution_counter_start = distribution_counter_end + 1
-          restore_counter = current_counter
-          current_counter = 0
-          last_bin_needs_to_be_filled = .FALSE.
-        END IF
-      ENDDO
-
-      !! Fill the last bin if necessary
-      IF( last_bin_needs_to_be_filled ) THEN
-        binned_dist(ibin)%cost = binned_dist(ibin)%cost + current_counter
-        IF( ibin == nbins ) THEN
-          binned_dist(ibin)%number_of_atom_quartets = binned_dist(ibin)%number_of_atom_quartets + &
-                                                   distribution_counter_end-distribution_counter_start+1
-        ELSE
-          binned_dist(ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
-        END IF
-      END IF
-
-      !! Sanity-Check
-      DO ibin=1,nbins
-        local_quartet_counter = local_quartet_counter + binned_dist(ibin)%number_of_atom_quartets
-      END DO
-!$OMP BARRIER
-!$OMP MASTER
-      shm_local_quartet_counter = 0
-      shm_global_quartet_counter = 0
-!$OMP END MASTER
-!$OMP BARRIER
-!$OMP ATOMIC
-      shm_local_quartet_counter = shm_local_quartet_counter + local_quartet_counter
-!$OMP ATOMIC
-      shm_global_quartet_counter = shm_global_quartet_counter + global_quartet_counter
-
-!$OMP BARRIER
-!$OMP MASTER
-      CALL mp_sum_i8(shm_local_quartet_counter, para_env%group)
-      CALL mp_sum_i8(shm_global_quartet_counter, para_env%group)
-      IF(para_env%mepos == 0 ) THEN
-        IF( shm_local_quartet_counter /= shm_global_quartet_counter ) THEN
-          WRITE(error_msg,'(A,I0,A,I0,A)') "HFX Sanity check for parallel distribution failed. "//&
-                "Number of local quartets (", shm_local_quartet_counter, &
-                ") and number of global quartets (", shm_global_quartet_counter,&
-                ") are different. Please send in a bug report."
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                         error_msg,&
-                         error,&
-                         only_ionode=.TRUE.)
-        END IF
-      END IF 
-!$OMP END MASTER
-      !! store the original cpu_di
-      binned_dist(:)%original_cpu_id = my_process_id + 1 !para_env%mepos + 1
-    
-      !! store all local results in a big cost matrix
-!$OMP BARRIER
-!$OMP MASTER
-      ALLOCATE(cost_matrix(ncpu*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      cost_matrix = 0
-!$OMP END MASTER
-!$OMP BARRIER
-      icpu = para_env%mepos+1
-      DO i=1,nbins
-        cost_matrix((icpu-1)*nbins*n_threads +i_thread*nbins + i) = binned_dist(i)%cost
-      END DO
-
-      mepos = para_env%mepos
-!$OMP BARRIER
-!$OMP MASTER
-      ALLOCATE(sendbuffer(nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(recbuffer(nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-      sendbuffer = cost_matrix(mepos*nbins*n_threads+1:mepos*nbins*n_threads+nbins*n_threads)
-
-      ! sync before/after ring of isendrecv
-      CALL mp_sync(para_env%group)
-
-      dest  =MODULO(mepos+1,ncpu)
-      source=MODULO(mepos-1,ncpu)
-      DO icpu = 0, ncpu-1
-        IF (icpu .NE. ncpu-1) THEN
-          CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
-                            para_env%group,req(1),req(2),13)
-        ENDIF
-        data_from = MODULO(mepos - icpu,ncpu)
-        cost_matrix(data_from*nbins*n_threads+1:data_from*nbins*n_threads+nbins*n_threads) = sendbuffer
-        IF (icpu .NE. ncpu -1) THEN
-          CALL mp_waitall(req)
-        ENDIF
-        swapbuffer=>sendbuffer
-        sendbuffer=>recbuffer
-        recbuffer=>swapbuffer
-      ENDDO
-      DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ! sync before/after ring of isendrecv
-      CALL mp_sync(para_env%group)
-!$OMP END MASTER
-
-!$OMP BARRIER
-      !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
-      ALLOCATE(distribution_vector(ncpu*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-!$OMP BARRIER
-      ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      local_cost_matrix = cost_matrix
-      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
-                                 distribution_vector, error)
-!$OMP BARRIER
-!$OMP MASTER
-      ALLOCATE(shm_distribution_vector(ncpu*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      shm_distribution_vector = distribution_vector
-      !! Collect local data to global array
-      ALLOCATE(full_dist(ncpu*n_threads,nbins),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-      full_dist(:,:)%istart = 0_int_8
-      full_dist(:,:)%jstart = 0_int_8
-      full_dist(:,:)%kstart = 0_int_8
-      full_dist(:,:)%lstart = 0_int_8
-      full_dist(:,:)%number_of_atom_quartets = 0_int_8
-      full_dist(:,:)%cost = 0_int_8
-      full_dist(:,:)%original_cpu_id = 0_int_8
-      full_dist(:,:)%time_first_scf = 0.0_dp
-      full_dist(:,:)%time_other_scf = 0.0_dp
-      full_dist(:,:)%time_forces = 0.0_dp
-!$OMP END MASTER
-!$OMP BARRIER
-      mepos=para_env%mepos+1
-      full_dist((mepos-1)*n_threads+i_thread+1,:) = binned_dist(:)
-
-!$OMP BARRIER
-!$OMP MASTER
-      ALLOCATE(sendbuffer(7*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(recbuffer(7*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      mepos = para_env%mepos
-      DO j=1,n_threads
-        DO i=1,nbins
-          sendbuffer((j-1)*7*nbins+(i-1)*7+1) = full_dist(mepos*n_threads+j,i)%istart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+2) = full_dist(mepos*n_threads+j,i)%jstart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+3) = full_dist(mepos*n_threads+j,i)%kstart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+4) = full_dist(mepos*n_threads+j,i)%lstart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
-          sendbuffer((j-1)*7*nbins+(i-1)*7+6) = full_dist(mepos*n_threads+j,i)%cost
-          sendbuffer((j-1)*7*nbins+(i-1)*7+7) = full_dist(mepos*n_threads+j,i)%original_cpu_id
-        END DO
-      END DO
-
-      ! sync before/after a ring of isendrecv
-      CALL mp_sync(para_env%group)
-      dest   = MODULO(mepos+1,ncpu)
-      source = MODULO(mepos-1,ncpu)
-      DO icpu = 0, ncpu-1
-        IF (icpu .NE. ncpu-1) THEN
-          CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
-                            para_env%group,req(1),req(2),13)
-        ENDIF
-        data_from = MODULO(mepos - icpu,ncpu)
-        DO j=1,n_threads
-          DO i=1,nbins
-            full_dist(data_from*n_threads+j,i)%istart = sendbuffer((j-1)*7*nbins+(i-1)*7+1)
-            full_dist(data_from*n_threads+j,i)%jstart = sendbuffer((j-1)*7*nbins+(i-1)*7+2)
-            full_dist(data_from*n_threads+j,i)%kstart = sendbuffer((j-1)*7*nbins+(i-1)*7+3)
-            full_dist(data_from*n_threads+j,i)%lstart = sendbuffer((j-1)*7*nbins+(i-1)*7+4)
-            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*7*nbins+(i-1)*7+5)
-            full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*7*nbins+(i-1)*7+6)
-            full_dist(data_from*n_threads+j,i)%original_cpu_id = sendbuffer((j-1)*7*nbins+(i-1)*7+7)
-          END DO
-        END DO
-
-        IF (icpu .NE. ncpu -1) THEN
-          CALL mp_waitall(req)
-        ENDIF
-        swapbuffer=>sendbuffer
-        sendbuffer=>recbuffer
-        recbuffer=>swapbuffer
-      ENDDO
-      DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ! sync before/after ring of isendrecv
-      ! this one is a magic sync that can speedup the above message passing by a factor of 100 on an XT5
-      CALL mp_sync(para_env%group)
-!$OMP END MASTER
-!$OMP BARRIER
-      !! reorder the distribution according to the distribution vector
-      ALLOCATE(tmp_pos(ncpu*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_pos = 1
-      ALLOCATE(tmp_dist(nbins*ncpu*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-      tmp_dist(:)%istart = 0_int_8
-      tmp_dist(:)%jstart = 0_int_8
-      tmp_dist(:)%kstart = 0_int_8
-      tmp_dist(:)%lstart = 0_int_8
-      tmp_dist(:)%number_of_atom_quartets = 0_int_8
-      tmp_dist(:)%cost = 0_int_8
-      tmp_dist(:)%original_cpu_id = 0_int_8
-      tmp_dist(:)%time_first_scf = 0.0_dp
-      tmp_dist(:)%time_other_scf = 0.0_dp
-      tmp_dist(:)%time_forces = 0.0_dp
-      mepos = my_process_id + 1
-      DO icpu= 1,n_processes
-        DO i=1,nbins
-          IF(shm_distribution_vector((icpu-1)*nbins + i) == mepos) THEN
-              tmp_dist(tmp_pos(mepos)) = full_dist(icpu,i)
-              tmp_pos(mepos) = tmp_pos(mepos) + 1
-          END IF
-        END DO
-      END DO
-
-      !! Assign the load to each process
-      NULLIFY(ptr_to_tmp_dist)
-      mepos = my_process_id + 1
-      ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
-
-      CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
-!$OMP BARRIER
-!$OMP MASTER
-      DEALLOCATE(full_dist,cost_matrix,shm_distribution_vector, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP END MASTER
-!$OMP BARRIER
-      DEALLOCATE(tmp_dist, tmp_pos, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(distribution_vector, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(binned_dist, local_cost_matrix, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
-  END SUBROUTINE load_balance_forces
+  END SUBROUTINE load_balance
 
 ! *****************************************************************************
 !> \brief Cheap way of redistributing the eri's
@@ -1577,17 +582,17 @@ MODULE hfx_load_balance_methods
 !>      02.2009 optimize Memory Usage [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE update_load_balance_energy(x_data, para_env, &
-                                        load_balance_parameter, &
-                                        i_thread, n_threads, error)
+  SUBROUTINE update_load_balance(x_data, para_env, &
+                                load_balance_parameter, &
+                                i_thread, n_threads, eval_type, error)
 
     TYPE(hfx_type), POINTER                  :: x_data
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(hfx_load_balance_type)              :: load_balance_parameter
-    INTEGER, INTENT(IN)                      :: i_thread, n_threads
+    INTEGER, INTENT(IN)                      :: i_thread, n_threads, eval_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_load_balance_energy', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_load_balance', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_from, dest, end_idx, i, ibin, icpu, iprocess, j, &
@@ -1622,12 +627,13 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_dist(1)%number_of_atom_quartets = HUGE(tmp_dist(1)%number_of_atom_quartets)
       tmp_dist(1)%istart = 0_int_8
-      tmp_dist(1)%jstart = 1_int_8
-      tmp_dist(1)%kstart = 1_int_8
-      tmp_dist(1)%lstart = 1_int_8
-      tmp_dist(1)%original_cpu_id = 1_int_8
       ptr_to_tmp_dist => tmp_dist(:)
-      CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      SELECT CASE (eval_type)
+      CASE (hfx_do_eval_energy)
+        CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      CASE (hfx_do_eval_forces)
+        CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      END SELECT
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
@@ -1640,7 +646,12 @@ MODULE hfx_load_balance_methods
       bin_histogram = 0
 !$OMP END MASTER
 !$OMP BARRIER
-      my_bin_size = SIZE(x_data%distribution_energy)
+      SELECT CASE (eval_type)
+      CASE (hfx_do_eval_energy)
+        my_bin_size = SIZE(x_data%distribution_energy)
+      CASE (hfx_do_eval_forces)
+        my_bin_size = SIZE(x_data%distribution_forces)
+      END SELECT
       bin_histogram(my_process_id+1,1) = my_bin_size 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1657,17 +668,28 @@ MODULE hfx_load_balance_methods
       ALLOCATE(binned_dist(my_bin_size), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       !! Use old binned_dist, but with timings cost
-      binned_dist = x_data%distribution_energy
+      SELECT CASE (eval_type)
+      CASE (hfx_do_eval_energy)
+        binned_dist = x_data%distribution_energy
+      CASE (hfx_do_eval_forces)
+        binned_dist = x_data%distribution_forces
+      END SELECT
+
       DO ibin=1,my_bin_size
         IF(binned_dist(ibin)%number_of_atom_quartets == 0 ) THEN
           binned_dist(ibin)%cost = 0
         ELSE
-          IF(.NOT. load_balance_parameter%rtp_redistribute)THEN
-             binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_first_scf + &
-                                      binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
-          ELSE
-             binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
-          END IF
+          SELECT CASE (eval_type)
+          CASE (hfx_do_eval_energy)
+            IF(.NOT. load_balance_parameter%rtp_redistribute)THEN
+               binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_first_scf + &
+                                        binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
+            ELSE
+               binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_other_scf)*10000.0_dp, int_8)
+            END IF
+          CASE (hfx_do_eval_forces)
+            binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_forces)*10000.0_dp,int_8)
+          END SELECT
         END IF
       END DO
 !$OMP BARRIER
@@ -1734,7 +756,7 @@ MODULE hfx_load_balance_methods
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
+      CALL optimize_distribution(ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
                                  distribution_vector, error)
 
 !$OMP BARRIER
@@ -1746,39 +768,28 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       full_dist(:,:)%istart = 0_int_8
-      full_dist(:,:)%jstart = 0_int_8
-      full_dist(:,:)%kstart = 0_int_8
-      full_dist(:,:)%lstart = 0_int_8
       full_dist(:,:)%number_of_atom_quartets = 0_int_8
       full_dist(:,:)%cost = 0_int_8
-      full_dist(:,:)%original_cpu_id = 0_int_8
       full_dist(:,:)%time_first_scf = 0.0_dp
       full_dist(:,:)%time_other_scf = 0.0_dp
       full_dist(:,:)%time_forces = 0.0_dp
 !$OMP END MASTER
 
 !$OMP BARRIER
-      DO mepos = 1,ncpu
-        IF(para_env%mepos == mepos-1) THEN
-           full_dist((mepos-1)*n_threads+i_thread+1,1:my_bin_size) = binned_dist(1:my_bin_size)
-        END IF
-      END DO
+      mepos = para_env%mepos + 1
+      full_dist((mepos-1)*n_threads+i_thread+1,1:my_bin_size) = binned_dist(1:my_bin_size)
 !$OMP BARRIER
 !$OMP MASTER
-      ALLOCATE(sendbuffer(7*max_bin_size*n_threads),STAT=stat)
+      ALLOCATE(sendbuffer(3*max_bin_size*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(recbuffer(7*max_bin_size*n_threads),STAT=stat)
+      ALLOCATE(recbuffer(3*max_bin_size*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       mepos = para_env%mepos
       DO j=1,n_threads
         DO i=1,max_bin_size
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+1) = full_dist(mepos*n_threads+j,i)%istart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+2) = full_dist(mepos*n_threads+j,i)%jstart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+3) = full_dist(mepos*n_threads+j,i)%kstart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+4) = full_dist(mepos*n_threads+j,i)%lstart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+6) = full_dist(mepos*n_threads+j,i)%cost
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+7) = full_dist(mepos*n_threads+j,i)%original_cpu_id
+          sendbuffer((j-1)*3*max_bin_size+(i-1)*3+1) = full_dist(mepos*n_threads+j,i)%istart
+          sendbuffer((j-1)*3*max_bin_size+(i-1)*3+2) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
+          sendbuffer((j-1)*3*max_bin_size+(i-1)*3+3) = full_dist(mepos*n_threads+j,i)%cost
         END DO
       END DO
       dest   = MODULO(mepos+1,ncpu)
@@ -1793,13 +804,9 @@ MODULE hfx_load_balance_methods
         data_from = MODULO(mepos - icpu,ncpu)
         DO j=1,n_threads
           DO i=1,max_bin_size
-            full_dist(data_from*n_threads+j,i)%istart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+1)
-            full_dist(data_from*n_threads+j,i)%jstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+2)
-            full_dist(data_from*n_threads+j,i)%kstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+3)
-            full_dist(data_from*n_threads+j,i)%lstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+4)
-            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5)
-            full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+6)
-            full_dist(data_from*n_threads+j,i)%original_cpu_id = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+7)
+            full_dist(data_from*n_threads+j,i)%istart = sendbuffer((j-1)*3*max_bin_size+(i-1)*3+1)
+            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*3*max_bin_size+(i-1)*3+2)
+            full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*3*max_bin_size+(i-1)*3+3)
           END DO
         END DO
 
@@ -1811,9 +818,9 @@ MODULE hfx_load_balance_methods
         recbuffer=>swapbuffer
       ENDDO
       ! sync before/after ring of isendrecv
-      CALL mp_sync(para_env%group)
       DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL mp_sync(para_env%group)
 !$OMP END MASTER
 !$OMP BARRIER
       !! reorder the distribution according to the distribution vector
@@ -1824,12 +831,8 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       tmp_dist(:)%istart = 0_int_8
-      tmp_dist(:)%jstart = 0_int_8
-      tmp_dist(:)%kstart = 0_int_8
-      tmp_dist(:)%lstart = 0_int_8
       tmp_dist(:)%number_of_atom_quartets = 0_int_8
       tmp_dist(:)%cost = 0_int_8
-      tmp_dist(:)%original_cpu_id = 0_int_8
       tmp_dist(:)%time_first_scf = 0.0_dp
       tmp_dist(:)%time_other_scf = 0.0_dp
       tmp_dist(:)%time_forces = 0.0_dp
@@ -1848,309 +851,12 @@ MODULE hfx_load_balance_methods
       NULLIFY(ptr_to_tmp_dist) 
       mepos = my_process_id + 1
       ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
-
-      CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
-
-!$OMP BARRIER
-!$OMP MASTER
-      DEALLOCATE(full_dist, cost_matrix, shm_distribution_vector, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(bins_per_rank,bin_histogram, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP END MASTER
-!$OMP BARRIER
-      DEALLOCATE(tmp_dist,  tmp_pos, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(distribution_vector, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(binned_dist, local_cost_matrix, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-  END SUBROUTINE update_load_balance_energy
-
-! *****************************************************************************
-!> \brief Cheap way of redistributing the derivative eri's
-!> \param x_data Object that stores the indices array
-!> \param para_env para_env
-!> \param load_balance_parameter contains parmameter for Monte-Carlo routines
-!> \param i_thread current thread ID
-!> \param n_threads Total Number of threads
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \note
-!>      The cost matrix is given by the walltime for each bin that is measured 
-!>      during the calculation
-!> \par History
-!>      12.2007 created [Manuel Guidon]
-!>      02.2009 optimize Memory Usage [Manuel Guidon]
-!> \author Manuel Guidon
-! *****************************************************************************
-  SUBROUTINE update_load_balance_forces(x_data, para_env,&
-                                        load_balance_parameter,i_thread, n_threads, error)
-
-    TYPE(hfx_type), POINTER                  :: x_data
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(hfx_load_balance_type)              :: load_balance_parameter
-    INTEGER, INTENT(IN)                      :: i_thread, n_threads
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_load_balance_forces', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: data_from, dest, end_idx, i, ibin, icpu, iprocess, j, &
-      my_bin_size, my_global_start_idx, my_process_id, nbins, req(2), source, &
-      start_idx, stat
-    INTEGER(int_8)                           :: mepos, n_processes, ncpu
-    INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
-                                                sendbuffer, swapbuffer
-    INTEGER(int_8), DIMENSION(:), POINTER, &
-      SAVE                                   :: cost_matrix
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
-    INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: bins_per_rank
-    INTEGER, ALLOCATABLE, DIMENSION(:, :), &
-      SAVE                                   :: bin_histogram
-    INTEGER, DIMENSION(:), POINTER           :: distribution_vector
-    INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
-    INTEGER, SAVE                            :: max_bin_size
-    LOGICAL                                  :: failure
-    TYPE(hfx_distribution), DIMENSION(:), &
-      POINTER                                :: binned_dist, ptr_to_tmp_dist, &
-                                                tmp_dist
-    TYPE(hfx_distribution), &
-      DIMENSION(:, :), POINTER, SAVE         :: full_dist
-
-    failure=.FALSE.
-
-    ncpu = para_env%num_pe
-    n_processes = ncpu * n_threads
-    !! If there is only 1 cpu skip the binning
-    IF(n_processes == 1) THEN
-      ALLOCATE(tmp_dist(1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1)%number_of_atom_quartets = HUGE(tmp_dist(1)%number_of_atom_quartets)
-      tmp_dist(1)%istart = 0_int_8
-      tmp_dist(1)%jstart = 1_int_8
-      tmp_dist(1)%kstart = 1_int_8
-      tmp_dist(1)%lstart = 1_int_8
-      tmp_dist(1)%original_cpu_id = 1_int_8
-      ptr_to_tmp_dist => tmp_dist(:)
-      CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
-      DEALLOCATE(tmp_dist,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ELSE
-      mepos = para_env%mepos
-      my_process_id = para_env%mepos*n_threads + i_thread
-      nbins = load_balance_parameter%nbins
-!$OMP MASTER
-      ALLOCATE(bin_histogram(n_processes,2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      bin_histogram = 0
-!$OMP END MASTER
-!$OMP BARRIER
-      my_bin_size = SIZE(x_data%distribution_forces)
-      bin_histogram(my_process_id+1,1) = my_bin_size 
-!$OMP BARRIER
-!$OMP MASTER
-      CALL mp_sum(bin_histogram(:,1), para_env%group)
-      bin_histogram(1,2) = bin_histogram(1,1)
-      DO iprocess=2,n_processes
-        bin_histogram(iprocess,2) = bin_histogram(iprocess-1,2) + bin_histogram(iprocess,1)
-      END DO
-
-      max_bin_size = MAXVAL(bin_histogram(para_env%mepos*n_threads+1:para_env%mepos*n_threads+n_threads,1))
-      CALL mp_max(max_bin_size, para_env%group)
-!$OMP END MASTER
-!$OMP BARRIER
-      ALLOCATE(binned_dist(my_bin_size), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      !! Use old binned_dist, but with timings cost
-      binned_dist = x_data%distribution_forces
-      DO ibin=1,my_bin_size
-        IF(binned_dist(ibin)%number_of_atom_quartets == 0 ) THEN
-          binned_dist(ibin)%cost = 0
-        ELSE
-          binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_forces)*10000.0_dp, int_8)
-        END IF
-      END DO
-!$OMP BARRIER
-!$OMP MASTER
-      !! store all local results in a big cost matrix
-      ALLOCATE(cost_matrix(ncpu*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      cost_matrix = 0
-      ALLOCATE(sendbuffer(max_bin_size*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(recbuffer(max_bin_size*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP END MASTER
-!$OMP BARRIER
-      my_global_start_idx = bin_histogram(my_process_id+1,2)- my_bin_size
-      icpu = para_env%mepos+1
-      DO i=1,my_bin_size
-        cost_matrix(my_global_start_idx + i) = binned_dist(i)%cost
-      END DO
-
-      mepos = para_env%mepos
-!$OMP BARRIER
-!$OMP MASTER
-      ALLOCATE(bins_per_rank(ncpu),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      bins_per_rank = 0
-      DO icpu=1,ncpu
-        bins_per_rank(icpu) = SUM(bin_histogram((icpu-1)*n_threads+1:(icpu-1)*n_threads+n_threads,1))
-      END DO
-      sendbuffer(1:bins_per_rank(para_env%mepos+1)) = &
-        cost_matrix(my_global_start_idx+1:my_global_start_idx+bins_per_rank(para_env%mepos+1))
-
-      dest  =MODULO(mepos+1,ncpu)
-      source=MODULO(mepos-1,ncpu)
-      ! sync before/after ring of isendrecv
-      CALL mp_sync(para_env%group)
-      DO icpu = 0, ncpu-1
-        IF (icpu .NE. ncpu-1) THEN
-          CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
-                            para_env%group,req(1),req(2),13)
-        ENDIF
-        data_from = MODULO(mepos - icpu,ncpu)
-        start_idx = SUM(bins_per_rank(1:data_from+1)) - bins_per_rank(data_from+1) + 1
-        end_idx = start_idx + bins_per_rank(data_from+1) - 1
-        cost_matrix(start_idx:end_idx) = sendbuffer(1:end_idx-start_idx+1)
-
-        IF (icpu .NE. ncpu -1) THEN
-          CALL mp_waitall(req)
-        ENDIF
-        swapbuffer=>sendbuffer
-        sendbuffer=>recbuffer
-        recbuffer=>swapbuffer
-      ENDDO
-      ! sync before/after ring of isendrecv
-      CALL mp_sync(para_env%group)
-      DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP END MASTER
-!$OMP BARRIER
-      !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
-      ALLOCATE(distribution_vector(ncpu*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP BARRIER
-      ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      local_cost_matrix = cost_matrix
-      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
-                                 distribution_vector, error)
-      
-!$OMP BARRIER
-!$OMP MASTER
-      ALLOCATE(shm_distribution_vector(ncpu*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      shm_distribution_vector = distribution_vector
-      !! Collect local data to global array
-      ALLOCATE(full_dist(ncpu*n_threads,max_bin_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-      full_dist(:,:)%istart = 0_int_8
-      full_dist(:,:)%jstart = 0_int_8
-      full_dist(:,:)%kstart = 0_int_8
-      full_dist(:,:)%lstart = 0_int_8
-      full_dist(:,:)%number_of_atom_quartets = 0_int_8
-      full_dist(:,:)%cost = 0_int_8
-      full_dist(:,:)%original_cpu_id = 0_int_8
-      full_dist(:,:)%time_first_scf = 0.0_dp
-      full_dist(:,:)%time_other_scf = 0.0_dp
-      full_dist(:,:)%time_forces = 0.0_dp
-!$OMP END MASTER
-
-!$OMP BARRIER
-      mepos = para_env%mepos + 1
-      full_dist((mepos-1)*n_threads+i_thread+1,1:my_bin_size) = binned_dist(1:my_bin_size)
-!$OMP BARRIER
-!$OMP MASTER
-      ALLOCATE(sendbuffer(7*max_bin_size*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(recbuffer(7*max_bin_size*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      mepos = para_env%mepos
-      DO j=1,n_threads
-        DO i=1,max_bin_size
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+1) = full_dist(mepos*n_threads+j,i)%istart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+2) = full_dist(mepos*n_threads+j,i)%jstart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+3) = full_dist(mepos*n_threads+j,i)%kstart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+4) = full_dist(mepos*n_threads+j,i)%lstart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+6) = full_dist(mepos*n_threads+j,i)%cost
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+7) = full_dist(mepos*n_threads+j,i)%original_cpu_id
-        END DO
-      END DO
-      dest   = MODULO(mepos+1,ncpu)
-      source = MODULO(mepos-1,ncpu)
-      ! sync before/after ring of isendrecv
-      CALL mp_sync(para_env%group)
-      DO icpu = 0, ncpu-1
-        IF (icpu .NE. ncpu-1) THEN
-          CALL mp_isendrecv(sendbuffer,dest,recbuffer,source, &
-                            para_env%group,req(1),req(2),13)
-        ENDIF
-        data_from = MODULO(mepos - icpu,ncpu)
-        DO j=1,n_threads
-          DO i=1,max_bin_size
-            full_dist(data_from*n_threads+j,i)%istart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+1)
-            full_dist(data_from*n_threads+j,i)%jstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+2)
-            full_dist(data_from*n_threads+j,i)%kstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+3)
-            full_dist(data_from*n_threads+j,i)%lstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+4)
-            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5)
-            full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+6)
-            full_dist(data_from*n_threads+j,i)%original_cpu_id = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+7)
-          END DO
-        END DO
-
-        IF (icpu .NE. ncpu -1) THEN
-          CALL mp_waitall(req)
-        ENDIF
-        swapbuffer=>sendbuffer
-        sendbuffer=>recbuffer
-        recbuffer=>swapbuffer
-      ENDDO
-      DEALLOCATE(recbuffer, sendbuffer, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ! sync before/after ring of isendrecv
-      CALL mp_sync(para_env%group)
-!$OMP END MASTER
-!$OMP BARRIER
-      !! reorder the distribution according to the distribution vector
-      ALLOCATE(tmp_pos(ncpu*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_pos = 1
-       
-      ALLOCATE(tmp_dist(nbins*ncpu*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-      tmp_dist(:)%istart = 0_int_8
-      tmp_dist(:)%jstart = 0_int_8
-      tmp_dist(:)%kstart = 0_int_8
-      tmp_dist(:)%lstart = 0_int_8
-      tmp_dist(:)%number_of_atom_quartets = 0_int_8
-      tmp_dist(:)%cost = 0_int_8
-      tmp_dist(:)%original_cpu_id = 0_int_8
-      tmp_dist(:)%time_first_scf = 0.0_dp
-      tmp_dist(:)%time_other_scf = 0.0_dp
-      tmp_dist(:)%time_forces = 0.0_dp
-
-      mepos = my_process_id + 1
-      DO icpu= 1,n_processes
-        DO i = 1,bin_histogram(icpu,1)
-          IF(shm_distribution_vector(bin_histogram(icpu,2)- bin_histogram(icpu,1) + i) == mepos) THEN
-              tmp_dist(tmp_pos(mepos)) = full_dist(icpu,i)
-              tmp_pos(mepos) = tmp_pos(mepos) + 1
-          END IF
-        END DO
-      END DO
-     
-      !! Assign the load to each process
-      NULLIFY(ptr_to_tmp_dist) 
-      mepos = my_process_id + 1
-      ptr_to_tmp_dist => tmp_dist(1:tmp_pos(mepos)-1)
-
-      CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      SELECT CASE (eval_type)
+      CASE (hfx_do_eval_energy)
+        CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      CASE (hfx_do_eval_forces)
+        CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      END SELECT
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -2167,8 +873,7 @@ MODULE hfx_load_balance_methods
       DEALLOCATE(binned_dist, local_cost_matrix, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-
-  END SUBROUTINE update_load_balance_forces
+  END SUBROUTINE update_load_balance
 
 ! *****************************************************************************
 !> \brief estimates the cost of a set quartet with info available at load balance time
@@ -2179,7 +884,7 @@ MODULE hfx_load_balance_methods
 ! *****************************************************************************
   FUNCTION cost_model(nsa,nsb,nsc,nsd,npgfa,npgfb,npgfc,npgfd,ratio) RESULT(res)
     IMPLICIT NONE
-    REAL(KIND=dp) :: rmsd,estimate1,estimate2,estimate,ratio,switch,mu,sigma
+    REAL(KIND=dp) :: estimate1,estimate2,estimate,ratio,switch,mu,sigma
     INTEGER(KIND=int_8) :: res
     REAL(KIND=dp), PARAMETER :: p1(12)= (/ 3.68929441208341923897_dp,         0.48940924954656772616_dp, &
                                           0.00102707771831506362_dp,         1.29334668762357529737_dp, &
@@ -2241,9 +946,8 @@ MODULE hfx_load_balance_methods
 !>      03.2009 created from a hack by Joost [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE optimize_distribution(para_env, total_number_of_bins, number_of_processes, bin_costs, &
+  SUBROUTINE optimize_distribution(total_number_of_bins, number_of_processes, bin_costs, &
                                    distribution_vector, error)
-    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER(int_8)                           :: total_number_of_bins, &
                                                 number_of_processes
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs
@@ -2323,6 +1027,252 @@ MODULE hfx_load_balance_methods
     get_1D_idx = min_ij*N + MAX(i,j) - (min_ij-1)*min_ij/2 - N
 
   END FUNCTION get_1D_idx
+
+
+  FUNCTION estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
+                               iatom_start, iatom_end, jatom_start, jatom_end, &
+                               katom_start, katom_end, latom_start, latom_end, &
+                               particle_set,&
+                               coeffs_set, coeffs_kind, &
+                               is_assoc_atomic_block_global, do_periodic,&
+                               kind_of, basis_parameter, pmax_set, &
+                               cell, &
+                               do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                               log10_eps_schwarz, log_2, coeffs_kind_max0)
+
+    TYPE(pair_list_type)                     :: list_ij, list_kl
+    TYPE(pair_set_list_type), DIMENSION(:)   :: set_list_ij, set_list_kl
+    INTEGER, INTENT(IN) :: iatom_start, iatom_end, jatom_start, jatom_end, &
+      katom_start, katom_end, latom_start, latom_end
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :), POINTER         :: coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: coeffs_kind
+    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
+    LOGICAL                                  :: do_periodic
+    INTEGER                                  :: kind_of(*)
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
+    TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(IN)                      :: do_p_screening
+    INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
+    INTEGER, INTENT(IN)                      :: nkind, eval_type
+    REAL(dp)                                 :: log10_eps_schwarz, log_2, &
+                                                coeffs_kind_max0
+    INTEGER(int_8)                           :: estimate_block_cost
+
+    INTEGER :: i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, &
+      i_set_list_ij_stop, i_set_list_kl, i_set_list_kl_start, &
+      i_set_list_kl_stop, iatom, ikind, iset, jatom, jkind, jset, katom, &
+      kind_kind_idx, kkind, kset, latom, lkind, lset, swap_id
+    INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, npgfc, npgfd, &
+                                                nsgfa, nsgfb, nsgfc, nsgfd
+    REAL(dp)                                 :: max_val1, max_val2, &
+                                                pmax_entry, rab2, rcd2
+    REAL(dp), DIMENSION(:, :), POINTER       :: ptr_p_1, ptr_p_2, ptr_p_3, &
+                                                ptr_p_4
+
+    estimate_block_cost = 0_int_8
+  
+    CALL build_pair_list(list_ij, set_list_ij, iatom_start, iatom_end, jatom_start, jatom_end,&
+                         kind_of, basis_parameter, particle_set, &
+                         do_periodic, coeffs_set, coeffs_kind, coeffs_kind_max0, log10_eps_schwarz, cell)     
+
+    CALL build_pair_list(list_kl, set_list_kl, katom_start, katom_end, latom_start, latom_end,&
+                         kind_of, basis_parameter, particle_set, &
+                         do_periodic, coeffs_set, coeffs_kind, coeffs_kind_max0, log10_eps_schwarz,cell)     
+
+
+    DO i_list_ij=1,list_ij%n_element
+      iatom=list_ij%elements(i_list_ij)%pair(1)
+      jatom=list_ij%elements(i_list_ij)%pair(2)
+      i_set_list_ij_start=list_ij%elements(i_list_ij)%set_bounds(1)
+      i_set_list_ij_stop=list_ij%elements(i_list_ij)%set_bounds(2)
+      ikind=list_ij%elements(i_list_ij)%kind_pair(1)
+      jkind=list_ij%elements(i_list_ij)%kind_pair(2)
+      rab2=list_ij%elements(i_list_ij)%dist2
+
+      nsgfa => basis_parameter(ikind)%nsgf
+      nsgfb => basis_parameter(jkind)%nsgf
+      npgfa => basis_parameter(ikind)%npgf
+      npgfb => basis_parameter(jkind)%npgf
+
+      DO i_list_kl=1,list_kl%n_element
+
+        katom=list_kl%elements(i_list_kl)%pair(1)
+        latom=list_kl%elements(i_list_kl)%pair(2)
+
+        IF( .NOT. (katom+latom<=iatom+jatom))  CYCLE
+        IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
+    
+        IF( eval_type == hfx_do_eval_forces) THEN
+          IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
+        END IF
+
+        i_set_list_kl_start=list_kl%elements(i_list_kl)%set_bounds(1)
+        i_set_list_kl_stop=list_kl%elements(i_list_kl)%set_bounds(2)
+        kkind=list_kl%elements(i_list_kl)%kind_pair(1)
+        lkind=list_kl%elements(i_list_kl)%kind_pair(2)
+        rcd2=list_kl%elements(i_list_kl)%dist2
+
+        nsgfc => basis_parameter(kkind)%nsgf
+        nsgfd => basis_parameter(lkind)%nsgf
+        npgfc => basis_parameter(kkind)%npgf
+        npgfd => basis_parameter(lkind)%npgf
+
+        IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
+             coeffs_kind(jkind,ikind)%x(2) ) + &
+            (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+             coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+
+        IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
+                  is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
+                  is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
+                  is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE 
+
+        IF( do_p_screening ) THEN
+          SELECT CASE( eval_type)
+          CASE (hfx_do_eval_energy)
+            swap_id = 0
+            kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
+            IF( ikind >= kkind) THEN
+              ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(katom), &
+                                  map_atom_to_kind_atom(iatom))
+            ELSE
+              ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(iatom), &
+                                  map_atom_to_kind_atom(katom))
+              swap_id = swap_id + 1
+            END IF
+            kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
+            IF( jkind>=lkind ) THEN
+              ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(latom), &
+                                  map_atom_to_kind_atom(jatom))
+            ELSE
+              ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(jatom), &
+                                  map_atom_to_kind_atom(latom))
+              swap_id = swap_id + 2
+            END IF
+            kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
+            IF( ikind>=lkind ) THEN
+              ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(latom), &
+                                  map_atom_to_kind_atom(iatom))
+            ELSE
+              ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(iatom), &
+                                  map_atom_to_kind_atom(latom))
+              swap_id = swap_id + 4
+            END IF
+            kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
+            IF( jkind>=kkind) THEN
+              ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(katom), &
+                                  map_atom_to_kind_atom(jatom))
+            ELSE
+              ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(jatom), &
+                                  map_atom_to_kind_atom(katom))
+              swap_id = swap_id + 8
+            END IF
+          CASE (hfx_do_eval_forces)
+            swap_id = 16
+            kind_kind_idx = INT(get_1D_idx(kkind,ikind,INT(nkind,int_8)))
+            IF( ikind >= kkind) THEN
+              ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(katom), &
+                                  map_atom_to_kind_atom(iatom))
+            ELSE
+              ptr_p_1 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(iatom), &
+                                  map_atom_to_kind_atom(katom))
+              swap_id = swap_id + 1
+            END IF
+            kind_kind_idx = INT(get_1D_idx(lkind,jkind,INT(nkind,int_8)))
+            IF( jkind>=lkind ) THEN
+              ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(latom), &
+                                  map_atom_to_kind_atom(jatom))
+            ELSE
+              ptr_p_2 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(jatom), &
+                                  map_atom_to_kind_atom(latom))
+              swap_id = swap_id + 2
+            END IF
+            kind_kind_idx = INT(get_1D_idx(lkind,ikind,INT(nkind,int_8)))
+            IF( ikind>=lkind ) THEN
+              ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(latom), &
+                                  map_atom_to_kind_atom(iatom))
+            ELSE
+              ptr_p_3 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(iatom), &
+                                  map_atom_to_kind_atom(latom))
+              swap_id = swap_id + 4
+            END IF
+            kind_kind_idx = INT(get_1D_idx(kkind,jkind,INT(nkind,int_8)))
+            IF( jkind>=kkind) THEN
+              ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(katom), &
+                                  map_atom_to_kind_atom(jatom))
+            ELSE
+              ptr_p_4 => pmax_set(kind_kind_idx)%p_kind(:,:, &
+                                  map_atom_to_kind_atom(jatom), &
+                                  map_atom_to_kind_atom(katom))
+              swap_id = swap_id + 8
+            END IF
+          END SELECT
+        END IF
+
+        DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
+          iset=set_list_ij(i_set_list_ij)%pair(1)
+          jset=set_list_ij(i_set_list_ij)%pair(2)
+
+          max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
+                     coeffs_set(jset,iset,jkind,ikind)%x(2)
+          IF( max_val1 + coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
+                         coeffs_kind(lkind,kkind)%x(2)  <log10_eps_schwarz) CYCLE
+
+          DO i_set_list_kl=i_set_list_kl_start, i_set_list_kl_stop
+            kset=set_list_kl(i_set_list_kl)%pair(1)
+            lset=set_list_kl(i_set_list_kl)%pair(2)
+
+            max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
+                                   coeffs_set(lset,kset,lkind,kkind)%x(2) )
+
+            IF(max_val2 <log10_eps_schwarz ) CYCLE
+            IF( do_p_screening ) THEN
+              CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
+                                iset, jset, kset, lset, &
+                                pmax_entry, swap_id)
+              IF (eval_type == hfx_do_eval_forces) THEN
+                pmax_entry = log_2 + pmax_entry
+              END IF
+            ELSE
+              pmax_entry = 0.0_dp
+            END IF
+            max_val2= max_val2 + pmax_entry
+            IF( max_val2< log10_eps_schwarz) CYCLE
+            SELECT CASE (eval_type)
+            CASE (hfx_do_eval_energy)
+              estimate_block_cost = estimate_block_cost + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
+                                                          npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
+                                                          max_val2/log10_eps_schwarz)
+            CASE (hfx_do_eval_forces)
+              estimate_block_cost = estimate_block_cost + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+            END SELECT
+          ENDDO ! i_set_list_kl
+        ENDDO ! i_set_list_ij
+      ENDDO ! i_list_kl
+    ENDDO ! i_list_ij
+
+  END FUNCTION estimate_block_cost
 
 #include "hfx_get_pmax_val.h"
 

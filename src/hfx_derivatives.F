@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Routines to calculate dervivatives with respect to basis function origin 
+!> \brief Routines to calculate derivatives with respect to basis function origin 
 !> \par History
 !>      04.2008 created [Manuel Guidon]
 !> \author Manuel Guidon 
@@ -21,35 +21,30 @@ MODULE hfx_derivatives
   USE hfx_communication,               ONLY: get_full_density
   USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
   USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
-                                             initialize_libint,&
-                                             lib_deriv,&
-                                             lib_int
-  USE hfx_load_balance_methods,        ONLY: load_balance_forces,&
-                                             update_load_balance_forces
+                                             lib_deriv
+  USE hfx_load_balance_methods,        ONLY: load_balance,&
+                                             update_load_balance
   USE hfx_pair_list_methods,           ONLY: build_pair_list,&
                                              build_pair_list_pgf,&
                                              build_pgf_product_list
   USE hfx_screening_methods,           ONLY: update_pmax_mat
   USE hfx_types,                       ONLY: &
        hfx_basis_info_type, hfx_basis_type, hfx_cell_type, hfx_general_type, &
-       hfx_load_balance_type, hfx_p_kind, hfx_pgf_per_list, &
-       hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
-       hfx_screening_type, hfx_type, log_zero, pair_list_type, &
-       pair_set_list_type
-  USE input_constants,                 ONLY: do_hfx_potential_truncated
-  USE input_section_types,             ONLY: section_vals_type
+       hfx_load_balance_type, hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, &
+       hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, &
+       hfx_type, log_zero, pair_list_type, pair_set_list_type
+  USE input_constants,                 ONLY: do_hfx_potential_truncated,&
+                                             hfx_do_eval_forces
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_walltime
   USE mathconstants
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -59,8 +54,6 @@ MODULE hfx_derivatives
   PRIVATE
    
   PUBLIC  derivatives_four_center
-  TYPE(lib_int),   ALLOCATABLE, DIMENSION(:), SAVE      :: lib
-  TYPE(lib_deriv), ALLOCATABLE, DIMENSION(:), SAVE      :: deriv
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_derivatives'
 
@@ -90,15 +83,11 @@ MODULE hfx_derivatives
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE derivatives_four_center(qs_env,ks_matrix,energy,rho,hfx_section,para_env,& 
+  SUBROUTINE derivatives_four_center(qs_env,rho,para_env,& 
                                      irep, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: irep
     REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
@@ -110,36 +99,29 @@ MODULE hfx_derivatives
     INTEGER :: bin, coord, forces_map(4,2), handle, handle_getP, handle_load, &
       handle_main, i, i_atom, i_thread, iatom, ikind, iset, j_atom, jatom, &
       jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, lkind, lset, &
-      max_am, max_set, maxsgf, my_bin_size, n_threads, natom, nco_max, ncoa, &
-      ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, &
-      nsgfc_total, nsgfd_total, nspins, pa1, pb1, pc1, pd1, sgfa, sgfb, sgfc, &
-      sgfd, stat
+      max_am, max_set, my_bin_size, n_threads, natom, nco_max, ncob, nseta, &
+      nsetb, nspins, sgfb, stat
     INTEGER(int_8)                           :: my_current_counter, &
-                                                my_istart, &
-                                                my_original_cpu_id, &
-                                                n_processes, ncpu
+                                                my_istart, n_processes, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
       nsgfc, nsgfd
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
-                                                first_sgfc, first_sgfd
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
     LOGICAL                                  :: do_periodic, failure, &
                                                 screen_pmat_forces
     REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, eps_schwarz, &
       fac, hf_fraction, max_contraction_val, max_val1, max_val2, &
-      my_adiabatic_rescale_factor, omega2Inv, pmax_entry, ra(3), rb(3), &
-      rc(3), rd(3), symm_fac
+      my_adiabatic_rescale_factor, pmax_entry, ra(3), rb(3), rc(3), rd(3), &
+      symm_fac
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
     REAL(dp), DIMENSION(:), POINTER          :: full_density, &
                                                 full_density_beta, T2
-    REAL(dp), DIMENSION(:, :), POINTER       :: max_contraction, sphi_a, &
-                                                sphi_b, sphi_c, sphi_d, zeta, &
-                                                zetb, zetc, zetd
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: max_contraction, sphi_b, &
+                                                zeta, zetb, zetc, zetd
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
@@ -158,8 +140,6 @@ MODULE hfx_derivatives
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
     INTEGER, SAVE                            :: shm_number_of_p_entries
     INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
-    INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
-                                                shm_storage_counter_integrals, shm_neris_incore
     INTEGER                                  :: nkind, l_max
     TYPE(cell_type), POINTER                 :: cell
     INTEGER                                  :: unit_id
@@ -170,7 +150,7 @@ MODULE hfx_derivatives
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:,:), POINTER                :: screen_coeffs_kind, tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
     REAL(dp)                                 :: ln_10, rab2, rcd2, log10_eps_schwarz,&
-                                                log10_pmax, max_val2_set, pbc_B(3), pbc_D(3), log_2
+                                                log10_pmax, max_val2_set, log_2
     INTEGER                                  :: nsgf_max
     REAL(dp), DIMENSION(:), ALLOCATABLE      :: pbd_buf, pbc_buf, pad_buf, pac_buf, &
                                                 pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta
@@ -185,16 +165,14 @@ MODULE hfx_derivatives
     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
     REAL(dp)                                 :: pmax_tmp
     INTEGER                                  :: kind_kind_idx, swap_id
-    REAL(dp)                                 :: pmax_1, pmax_2, pmax_3, pmax_4
     REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4
     INTEGER, DIMENSION(:), POINTER           :: shm_block_offset
     INTEGER, DIMENSION(:,:), POINTER         :: shm_atomic_block_offset
     INTEGER, DIMENSION(:,:,:,:), POINTER     :: shm_set_offset
-    INTEGER                                  :: offset_bd, offset_bc, offset_ad, offset_ac, &
-                                                atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, &
+    INTEGER                                  :: atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, &
                                                 atomic_offset_ac, nneighbors, max_pgf
     INTEGER, DIMENSION(:,:), POINTER         :: offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set
-    TYPE(hfx_pgf_per_list), DIMENSION(:), &
+    TYPE(hfx_pgf_list), DIMENSION(:), &
                             POINTER          :: pgf_list_ij, pgf_list_kl
     TYPE(hfx_pgf_product_list), DIMENSION(:), &
                         POINTER              :: pgf_product_list
@@ -204,6 +182,8 @@ MODULE hfx_derivatives
                                              :: sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set
     INTEGER, DIMENSION(:, :), POINTER        :: nsgfl_a, nsgfl_b, &
                                                 nsgfl_c, nsgfl_d
+    TYPE(lib_deriv)                          :: private_deriv
+
 
 
 
@@ -233,17 +213,11 @@ MODULE hfx_derivatives
         CLOSE(unit_id)
         init_t_c_g0_lmax = l_max
       END IF
-      ! ** We use the same cutoff as for the energy
-! **    CALL set_eps_cutoff(qs_env%x_data(1,1)%screening_parameter%eps_schwarz_forces)
     END IF
 
 
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
-    ALLOCATE(deriv(n_threads), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(lib(n_threads), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     !! get force array
     CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -254,29 +228,19 @@ MODULE hfx_derivatives
     END IF
 
 !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(qs_env,&
-!$OMP                                  ks_matrix,&
-!$OMP                                  energy,&
 !$OMP                                  rho,&
-!$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  irep,&
 !$OMP                                  error,&
 !$OMP                                  ncoset,&
 !$OMP                                  nco,&
 !$OMP                                  nso,&
-!$OMP                                  deriv,&
-!$OMP                                  lib,&
 !$OMP                                  n_threads,&
 !$OMP                                  full_density,&
 !$OMP                                  full_density_beta,&
 !$OMP                                  shm_initial_p,&
-!$OMP                                  pmax_set,&
 !$OMP                                  shm_is_assoc_atomic_block,&
 !$OMP                                  shm_number_of_p_entries,&
-!$OMP                                  shm_neris_total,&
-!$OMP                                  shm_neris_onthefly,&
-!$OMP                                  shm_storage_counter_integrals,&
-!$OMP                                  shm_neris_incore,&
 !$OMP                                  force,&
 !$OMP                                  my_adiabatic_rescale_factor,&
 !$OMP                                  cell,&
@@ -304,12 +268,6 @@ MODULE hfx_derivatives
     potential_parameter    = actual_x_data%potential_parameter
     basis_info             => actual_x_data%basis_info
 
-    IF(potential_parameter%omega /= 0.0_dp) THEN
-      omega2Inv = 1.0_dp/(potential_parameter%omega**2)
-    ELSE
-      omega2Inv = 0.0_dp
-    END IF
-
     load_balance_parameter = actual_x_data%load_balance_parameter
     basis_parameter        => actual_x_data%basis_parameter
    
@@ -318,7 +276,6 @@ MODULE hfx_derivatives
                     particle_set=particle_set,&
                     error=error)
  
-    maxsgf = basis_info%max_sgf
     max_set = basis_info%max_set
     max_am = basis_info%max_am 
     natom = SIZE(particle_set,1)
@@ -335,8 +292,7 @@ MODULE hfx_derivatives
     screen_pmat_forces =  screening_parameter%do_p_screening_forces
 
     !! Initialize memory for libint
-    CALL initialize_libderiv(deriv(i_thread+1), max_am, error)
-    CALL initialize_libint(lib(i_thread+1), max_am, error)
+    CALL initialize_libderiv(private_deriv, max_am, error)
 
     !! Get screening parameter
 
@@ -408,14 +364,14 @@ MODULE hfx_derivatives
     !! Get the full density from all the processors
     CALL timeset(routineN//"_getP",handle_getP)
     CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, shm_number_of_p_entries,&
-                          shm_is_assoc_atomic_block, actual_x_data%map_atoms_to_cpus, &
+                          shm_is_assoc_atomic_block, &
                           shm_block_offset, natom, last_sgf_global, &
                           kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     IF(nspins == 2) THEN
       ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, shm_number_of_p_entries,&
-                            shm_is_assoc_atomic_block, actual_x_data%map_atoms_to_cpus, &
+                            shm_is_assoc_atomic_block, &
                             shm_block_offset, natom, last_sgf_global, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     END IF
@@ -431,8 +387,8 @@ MODULE hfx_derivatives
                            actual_x_data%set_offset, &
                            actual_x_data%atomic_block_offset, &
                            full_density,full_density_beta,&
-                           natom,max_set, kind_of, basis_parameter, &
-                           last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block, error)
+                           natom, kind_of, basis_parameter, &
+                           last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block)
     END IF 
 
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
@@ -451,17 +407,18 @@ MODULE hfx_derivatives
 !$OMP END MASTER
     !! Load balance the work
     IF( actual_x_data%b_first_load_balance_forces ) THEN
-      CALL load_balance_forces(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
-                               potential_parameter,screen_coeffs_set,screen_coeffs_kind,&
-                               shm_initial_p,shm_is_assoc_atomic_block, do_periodic,&
-                               load_balance_parameter, kind_of, basis_parameter,i_thread, n_threads,&
-                               cell, screen_pmat_forces, actual_x_data%map_atom_to_kind_atom, &
-                               nkind, error)
+      CALL load_balance(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
+                        screen_coeffs_set,screen_coeffs_kind,&
+                        shm_is_assoc_atomic_block, do_periodic,&
+                        load_balance_parameter, kind_of, basis_parameter,shm_initial_p, i_thread, n_threads,&
+                        cell, screen_pmat_forces, actual_x_data%map_atom_to_kind_atom, &
+                        nkind, hfx_do_eval_forces, error)
       actual_x_data%b_first_load_balance_forces = .FALSE.
     ELSE
-      CALL update_load_balance_forces(actual_x_data, para_env, &
-                                      load_balance_parameter, &
-                                      i_thread, n_threads, error)
+      CALL update_load_balance(actual_x_data, para_env, &
+                               load_balance_parameter, &
+                               i_thread, n_threads, hfx_do_eval_forces, &
+                               error)
     END IF
 !$OMP MASTER
     CALL timestop(handle_load)
@@ -597,7 +554,6 @@ MODULE hfx_derivatives
     DO bin=1,my_bin_size
       bintime_start=m_walltime()
       my_istart = actual_x_data%distribution_forces(bin)%istart
-      my_original_cpu_id = actual_x_data%distribution_forces(bin)%original_cpu_id 
       my_current_counter = 0
       IF(actual_x_data%distribution_forces(bin)%number_of_atom_quartets == 0 .OR. &
          my_istart == -1_int_8) my_istart = nblocks **4
@@ -641,12 +597,8 @@ MODULE hfx_derivatives
           nseta = basis_parameter(ikind)%nset
           zeta => basis_parameter(ikind)%zet
           nsgfa => basis_parameter(ikind)%nsgf
-          first_sgfa => basis_parameter(ikind)%first_sgf
-          sphi_a_ext => actual_x_data%sphi_ext(:,:,:,:,ikind)
-          sphi_a => basis_parameter(ikind)%sphi
-          nsgfa_total = basis_parameter(ikind)%nsgf_total
+          sphi_a_ext => basis_parameter(ikind)%sphi_ext(:,:,:,:)
           nsgfl_a => basis_parameter(ikind)%nsgfl
-          pa1 = last_sgf_global(iatom) - nsgfa_total
 
           lb_max => basis_parameter(jkind)%lmax
           lb_min => basis_parameter(jkind)%lmin
@@ -654,12 +606,8 @@ MODULE hfx_derivatives
           nsetb = basis_parameter(jkind)%nset
           zetb => basis_parameter(jkind)%zet
           nsgfb => basis_parameter(jkind)%nsgf
-          first_sgfb => basis_parameter(jkind)%first_sgf
-          sphi_b => basis_parameter(jkind)%sphi
-          sphi_b_ext => actual_x_data%sphi_ext(:,:,:,:,jkind)
-          nsgfb_total = basis_parameter(jkind)%nsgf_total
+          sphi_b_ext => basis_parameter(jkind)%sphi_ext(:,:,:,:)
           nsgfl_b => basis_parameter(jkind)%nsgfl
-          pb1 = last_sgf_global(jatom) - nsgfb_total
 
           i_atom = atom_of_kind(iatom)
           forces_map(1,1) = ikind
@@ -720,28 +668,18 @@ MODULE hfx_derivatives
             lc_max => basis_parameter(kkind)%lmax
             lc_min => basis_parameter(kkind)%lmin
             npgfc => basis_parameter(kkind)%npgf
-            nsetc = basis_parameter(kkind)%nset
             zetc => basis_parameter(kkind)%zet
             nsgfc => basis_parameter(kkind)%nsgf
-            first_sgfc => basis_parameter(kkind)%first_sgf
-            sphi_c => basis_parameter(kkind)%sphi
-            sphi_c_ext => actual_x_data%sphi_ext(:,:,:,:,kkind)
-            nsgfc_total = basis_parameter(kkind)%nsgf_total
+            sphi_c_ext => basis_parameter(kkind)%sphi_ext(:,:,:,:)
             nsgfl_c => basis_parameter(kkind)%nsgfl
-            pc1 = last_sgf_global(katom) - nsgfc_total
 
             ld_max => basis_parameter(lkind)%lmax
             ld_min => basis_parameter(lkind)%lmin
             npgfd => basis_parameter(lkind)%npgf
-            nsetd = basis_parameter(lkind)%nset
             zetd => basis_parameter(lkind)%zet
             nsgfd => basis_parameter(lkind)%nsgf
-            first_sgfd => basis_parameter(lkind)%first_sgf
-            sphi_d => basis_parameter(lkind)%sphi
-            sphi_d_ext => actual_x_data%sphi_ext(:,:,:,:,lkind)
-            nsgfd_total = basis_parameter(lkind)%nsgf_total
+            sphi_d_ext => basis_parameter(lkind)%sphi_ext(:,:,:,:)
             nsgfl_d => basis_parameter(lkind)%nsgfl
-            pd1 = last_sgf_global(latom) - nsgfd_total
 
             atomic_offset_bd = shm_atomic_block_offset(jatom,latom)
             atomic_offset_bc = shm_atomic_block_offset(jatom,katom)
@@ -821,10 +759,7 @@ MODULE hfx_derivatives
               iset=set_list_ij(i_set_list_ij)%pair(1)
               jset=set_list_ij(i_set_list_ij)%pair(2)
 
-              ncoa = npgfa(iset)*ncoset(la_max(iset))
-              sgfa = first_sgfa(1,iset)
               ncob = npgfb(jset)*ncoset(lb_max(jset))
-              sgfb = first_sgfb(1,jset)
               max_val1 = screen_coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
                          screen_coeffs_set(jset,iset,jkind,ikind)%x(2)
               !! Near field screening
@@ -836,10 +771,6 @@ MODULE hfx_derivatives
                 kset=set_list_kl(i_set_list_kl)%pair(1)
                 lset=set_list_kl(i_set_list_kl)%pair(2)
 
-                ncoc = npgfc(kset)*ncoset(lc_max(kset))
-                sgfc = first_sgfc(1,kset)
-                ncod = npgfd(lset)*ncoset(ld_max(lset))
-                sgfd = first_sgfd(1,lset)
                 max_val2_set = (screen_coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
                                        screen_coeffs_set(lset,kset,lkind,kkind)%x(2) )
                 max_val2 = max_val1 + max_val2_set
@@ -873,7 +804,7 @@ MODULE hfx_derivatives
                 tmp_screen_pgf1 => screen_coeffs_pgf(:,:,jset,iset,jkind,ikind)
                 tmp_screen_pgf2 => screen_coeffs_pgf(:,:,lset,kset,lkind,kkind)
 
-                CALL forces4(ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                CALL forces4(private_deriv, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                              la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                              lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
                              nsgfa(iset), nsgfb(jset), nsgfc(kset),&
@@ -894,8 +825,7 @@ MODULE hfx_derivatives
                              sphi_b_ext_set,&
                              sphi_c_ext_set,&
                              sphi_d_ext_set,&
-                             do_periodic, i_thread,&
-                             error)
+                             do_periodic)
   
                 IF(cartesian_estimate<eps_schwarz) CYCLE
                 CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), & 
@@ -951,7 +881,6 @@ MODULE hfx_derivatives
     END IF
 
 !$OMP END MASTER
-!    DEALLOCATE(T1,primitive_forces, STAT=stat)
     DEALLOCATE(primitive_forces, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(work_forces, atom_of_kind,kind_of,STAT=stat)
@@ -993,18 +922,15 @@ MODULE hfx_derivatives
     ! this wraps to free_libint, but currently causes a segfault
     ! as a result, we don't call it, but some memory remains allocated
     !  
-    ! CALL terminate_libderiv(deriv)
+    ! CALL terminate_libderiv(private_deriv)
 
 !$OMP END PARALLEL
-
-    DEALLOCATE(lib, deriv, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
   END SUBROUTINE derivatives_four_center
 
-  SUBROUTINE forces4(ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
+  SUBROUTINE forces4(deriv, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
                      la_min, la_max, lb_min, lb_max,&
                      lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd,&
                      zeta, zetb, zetc, zetd,&
@@ -1018,9 +944,9 @@ MODULE hfx_derivatives
                      nsgfl_a, nsgfl_b, nsgfl_c,&
                      nsgfl_d,&
                      sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext,&
-                     do_periodic,i_thread,&
-                     error)
+                     do_periodic)
 
+    TYPE(lib_deriv)                          :: deriv
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, &
       lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, &
@@ -1042,7 +968,7 @@ MODULE hfx_derivatives
     REAL(dp), INTENT(IN)                     :: log10_pmax, log10_eps_schwarz
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: R1_pgf, R2_pgf, pgf1, pgf2
-    TYPE(hfx_pgf_per_list), DIMENSION(:), &
+    TYPE(hfx_pgf_list), DIMENSION(:), &
       POINTER                                :: pgf_list_ij, pgf_list_kl
     TYPE(hfx_pgf_product_list), &
       DIMENSION(:), POINTER                  :: pgf_product_list
@@ -1051,54 +977,39 @@ MODULE hfx_derivatives
     REAL(dp), DIMENSION(:, :, :), POINTER    :: sphi_a_ext, sphi_b_ext, &
                                                 sphi_c_ext, sphi_d_ext
     LOGICAL, INTENT(IN)                      :: do_periodic
-    INTEGER, INTENT(IN)                      :: i_thread
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'forces4', &
-      routineP = moduleN//':'//routineN
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, &
       max_l, ncoa, ncob, ncoc, ncod, nelements_ij, nelements_kl, nneighbors3, &
       nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
-      offset_a, offset_a1, offset_b, offset_b1, offset_c, offset_c1, &
-      offset_d, offset_d1, s_offset_a, s_offset_b, s_offset_c, s_offset_d
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: Eta, EtaInv, tmp_max, Zeta1, &
-                                                Zeta_A, Zeta_B, Zeta_C, &
-                                                Zeta_D, ZetaInv
+      s_offset_a, s_offset_b, s_offset_c, s_offset_d
+    REAL(dp)                                 :: EtaInv, tmp_max, Zeta_A, &
+                                                Zeta_B, Zeta_C, Zeta_D, &
+                                                ZetaInv
     REAL(dp), DIMENSION(:), POINTER          :: sphi_a, sphi_b, sphi_c, sphi_d
-
-    failure = .FALSE.
 
     nneighbors3 = SIZE(neighbor_cells)**3
     CALL build_pair_list_pgf(npgfa, npgfb, pgf_list_ij, zeta, zetb, screen1, screen2,&
                              pgf1, R1_pgf, log10_pmax, log10_eps_schwarz, ra, rb,&
-                             ncoset(la_max), ncoset(lb_max), nelements_ij, &
+                             nelements_ij, &
                              neighbor_cells, do_periodic)
     CALL build_pair_list_pgf(npgfc, npgfd, pgf_list_kl, zetc, zetd, screen2, screen1, &
                              pgf2, R2_pgf, log10_pmax, log10_eps_schwarz, rc, rd,&
-                             ncoset(lc_max), ncoset(ld_max), nelements_kl, &
+                             nelements_kl, &
                              neighbor_cells, do_periodic)
 
     cart_estimate = 0.0_dp
     primitive_integrals = 0.0_dp
     max_l = la_max + lb_max + lc_max + ld_max + 1
     DO list_ij = 1,nelements_ij
-      offset_a1 = pgf_list_ij(list_ij)%offset_a1
-      offset_b1 = pgf_list_ij(list_ij)%offset_b1
       Zeta_A = pgf_list_ij(list_ij)%zeta
       Zeta_B = pgf_list_ij(list_ij)%zetb
-      Zeta1 = pgf_list_ij(list_ij)%zetapzetb
       ZetaInv = pgf_list_ij(list_ij)%ZetaInv
       ipgf = pgf_list_ij(list_ij)%ipgf
       jpgf = pgf_list_ij(list_ij)%jpgf
 
       DO list_kl = 1,nelements_kl
-        offset_c1 = pgf_list_kl(list_kl)%offset_a1
-        offset_d1 = pgf_list_kl(list_kl)%offset_b1
         Zeta_C = pgf_list_kl(list_kl)%zeta
         Zeta_D = pgf_list_kl(list_kl)%zetb
-        Eta = pgf_list_kl(list_kl)%zetapzetb
         EtaInv = pgf_list_kl(list_kl)%ZetaInv
         kpgf = pgf_list_kl(list_kl)%ipgf
         lpgf = pgf_list_kl(list_kl)%jpgf
@@ -1109,7 +1020,6 @@ MODULE hfx_derivatives
                                     potential_parameter, max_l, do_periodic)
         s_offset_a = 0
         DO la = la_min,la_max
-          offset_a = offset_a1 + ncoset(la-1)
           s_offset_b = 0
           ncoa = nco(la)
           nsgfla = nsgfl_a(la)
@@ -1117,7 +1027,6 @@ MODULE hfx_derivatives
           sphi_a => sphi_a_ext(:,la+1,ipgf)
 
           DO lb = lb_min, lb_max
-            offset_b = offset_b1 + ncoset(lb-1)
             s_offset_c = 0
             ncob = nco(lb)
             nsgflb = nsgfl_b(lb)
@@ -1125,7 +1034,6 @@ MODULE hfx_derivatives
             sphi_b => sphi_b_ext(:,lb+1,jpgf)
 
             DO lc = lc_min, lc_max
-              offset_c = offset_c1 + ncoset(lc-1)
               s_offset_d = 0
               ncoc = nco(lc)
               nsgflc = nsgfl_c(lc)
@@ -1133,18 +1041,16 @@ MODULE hfx_derivatives
               sphi_c => sphi_c_ext(:,lc+1,kpgf)
 
               DO ld = ld_min, ld_max
-                offset_d = offset_d1 + ncoset(ld-1)
                 ncod = nco(ld)
                 nsgfld = nsgfl_d(ld)
                 nsod = nso(ld)
                 sphi_d => sphi_d_ext(:,ld+1,lpgf)
 
                 tmp_max = 0.0_dp
-                CALL evaluate_deriv_eri(deriv(i_thread+1), pgf_product_list, nproducts, &
+                CALL evaluate_deriv_eri(deriv, pgf_product_list, nproducts, &
                                         la, lb, lc ,ld,&
                                         ncoa,ncob,ncoc,ncod,&
                                         nsgfa, nsgfb, nsgfc, nsgfd,&
-                                        offset_a,offset_b,offset_c,offset_d, &
                                         primitive_integrals, &
                                         max_contraction_val, tmp_max, eps_schwarz,&
                                         Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv,EtaInv,&

@@ -191,8 +191,8 @@ FUNCTION get_occupation(matrix,para_env,error)
 
     CHARACTER(LEN=80)                        :: matrix_symmetry
     INTEGER                                  :: group, mype, natom, &
-                                                nblock_sum, nblock_tot, &
-                                                nelement_sum, npe, stat
+                                                nblock_sum, nblock_tot, npe, &
+                                                stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: failure
 
@@ -223,7 +223,6 @@ FUNCTION get_occupation(matrix,para_env,error)
     CALL mp_sum(nelement,group)
 
     nblock_sum = SUM(nblock)
-    nelement_sum = SUM(nelement)
 
     IF (TRIM(matrix_symmetry) == "symmetric") THEN
       nblock_tot = natom*(natom + 1)/2

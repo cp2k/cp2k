@@ -15,7 +15,6 @@ MODULE hfx_contract_block
 
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_contract_block'
   PUBLIC :: contract_block
 CONTAINS
   SUBROUTINE contract_block(ma_max,mb_max,mc_max,md_max,kbd,kbc,kad,kac,pbd,pbc,pad,pac,prim,scale)

@@ -72,7 +72,7 @@ MODULE hfx_compression_methods
       cache%element_counter = cache%element_counter + 1
     ELSE
       cache%data(CACHE_SIZE) = int_val
-      CALL hfx_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage, &
+      CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage, &
                               max_val_memory, error)
       cache%element_counter = 1
     END IF
@@ -91,11 +91,11 @@ MODULE hfx_compression_methods
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_compress_cache(full_array, container, nints, nbits, memory_usage, use_disk_storage, &
+  SUBROUTINE hfx_compress_cache(full_array, container, nbits, memory_usage, use_disk_storage, &
                                 max_val_memory, error)
     INTEGER(int_8)                           :: full_array(*)
     TYPE(hfx_container_type)                 :: container
-    INTEGER, INTENT(IN)                      :: nints, nbits
+    INTEGER, INTENT(IN)                      :: nbits
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: use_disk_storage
     INTEGER(int_8), OPTIONAL                 :: max_val_memory
@@ -168,7 +168,7 @@ MODULE hfx_compression_methods
       cache%element_counter = cache%element_counter + 1
     ELSE
       value = cache%data(CACHE_SIZE)
-      CALL hfx_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage)
+      CALL hfx_decompress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage)
       cache%element_counter = 1 
     END IF
 
@@ -187,10 +187,10 @@ MODULE hfx_compression_methods
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_decompress_cache(full_array, container, nints, nbits, memory_usage, use_disk_storage)
+  SUBROUTINE hfx_decompress_cache(full_array, container, nbits, memory_usage, use_disk_storage)
     INTEGER(int_8)                           :: full_array(*)
     TYPE(hfx_container_type)                 :: container
-    INTEGER, INTENT(IN)                      :: nints, nbits
+    INTEGER, INTENT(IN)                      :: nbits
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: use_disk_storage
 
@@ -273,7 +273,7 @@ MODULE hfx_compression_methods
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: use_disk_storage
 
-    CALL hfx_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage)
+    CALL hfx_decompress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage)
     cache%element_counter = 1
   END SUBROUTINE hfx_decompress_first_cache
 
@@ -297,7 +297,7 @@ MODULE hfx_compression_methods
     LOGICAL                                  :: use_disk_storage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL hfx_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage, &
+    CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage, &
                             error=error)
 
     !!If we store to file, we have to make sure, that the last container is also written to disk
@@ -370,7 +370,7 @@ MODULE hfx_compression_methods
           cache%data(i+start_idx-1) = shift
         END IF
       END DO
-      CALL hfx_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage, &
+      CALL hfx_compress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage, &
                               error=error)
       DO i=tmp_elements+1, nints
         values(i) = values(i)*pmax_entry
@@ -404,7 +404,7 @@ MODULE hfx_compression_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE hfx_get_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, &
-                                          use_disk_storage, error)
+                                          use_disk_storage)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
     TYPE(hfx_cache_type)                     :: cache
@@ -412,14 +412,12 @@ MODULE hfx_compression_methods
     REAL(dp), INTENT(IN)                     :: eps_schwarz, pmax_entry
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: use_disk_storage
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: end_idx, i, start_idx, &
                                                 tmp_elements
     INTEGER(int_8)                           :: shift
-    REAL(dp)                                 :: eps_schwarz_inv, factor
+    REAL(dp)                                 :: factor
 
-    eps_schwarz_inv = 1.0_dp/eps_schwarz
     factor = eps_schwarz/pmax_entry
 
     shift = IBSET(one,nbits-1)
@@ -437,7 +435,7 @@ MODULE hfx_compression_methods
       DO i=1,tmp_elements
         values(i) = factor*REAL(cache%data(i+start_idx-1)-shift,dp)
       END DO
-      CALL hfx_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage)
+      CALL hfx_decompress_cache(cache%data(1), container, nbits, memory_usage, use_disk_storage)
       DO i=tmp_elements+1,nints
         values(i) = factor*REAL(cache%data(i-tmp_elements)-shift,dp)
       END DO

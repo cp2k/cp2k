@@ -351,8 +351,9 @@ CONTAINS
                                                 my_rho
     TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(section_vals_type), POINTER :: adiabatic_rescaling_section, &
-      hfx_ri_section, hfx_section, hfx_sections, input, scf_section
+    TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
+                                                hfx_ri_section, hfx_sections, &
+                                                input, scf_section
     TYPE(virial_type), POINTER               :: virial
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
@@ -718,7 +719,7 @@ CONTAINS
                END IF
                IF( calculate_forces ) THEN
                  CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-                 CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hfx_section,&
+                 CALL derivatives_four_center(qs_env, rho, &
                                               para_env, irep, error=error)
                END IF
              ELSE
@@ -774,9 +775,9 @@ CONTAINS
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                !! we also have to scale the forces!!!!
-               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hfx_section,&
+               CALL derivatives_four_center(qs_env, rho, &
                                             para_env, 1, adiabatic_rescale_factor=scale_dEx1, error=error)
-               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hfx_section,&
+               CALL derivatives_four_center(qs_env, rho, &
                                             para_env, 2, adiabatic_rescale_factor=scale_dEx2, error=error)
              END IF
 

@@ -164,7 +164,7 @@ CONTAINS
                                                     store_int_env%integral_containers(nbits), &
                                                     eps_storage, 1.0_dp, &
                                                     store_int_env%memory_parameter%actual_memory_usage, &
-                                                    .FALSE., error)         
+                                                    .FALSE.)         
                    buffer_left  = buffer_left  - buffer_size
                    buffer_start = buffer_start + buffer_size
                 END DO
@@ -325,7 +325,7 @@ CONTAINS
                                                     store_int_env%integral_containers(nbits), &
                                                     eps_storage, 1.0_dp, &
                                                     store_int_env%memory_parameter%actual_memory_usage, &
-                                                    .FALSE., error)         
+                                                    .FALSE.)         
                    buffer_left  = buffer_left  - buffer_size
                    buffer_start = buffer_start + buffer_size
                 END DO
