@@ -112,18 +112,17 @@ MODULE dbcsr_util
      MODULE PROCEDURE dbcsr_valid_index_type, dbcsr_valid_index_obj
   END INTERFACE
   
-  INTERFACE dbcsr_get_block_info
-     MODULE PROCEDURE get_block_info_type, get_block_info_obj
+  INTERFACE dbcsr_get_stored_block_info
+     MODULE PROCEDURE get_stored_block_info_type, get_stored_block_info_obj
   END INTERFACE
 
-  INTERFACE dbcsr_get_lookup
-     MODULE PROCEDURE get_lookup_type, get_lookup_obj
+  INTERFACE dbcsr_get_stored_coordinates
+     MODULE PROCEDURE get_stored_coordinates_type, get_stored_coordinates_obj
   END INTERFACE
 
-  INTERFACE dbcsr_lookup_block
-     MODULE PROCEDURE lookup_block_type, lookup_block_obj
+  INTERFACE dbcsr_get_block_index
+     MODULE PROCEDURE get_block_index_type, get_block_index_obj
   END INTERFACE
-
 
   INTERFACE swap
      MODULE PROCEDURE iswap
@@ -192,7 +191,10 @@ MODULE dbcsr_util
        dbcsr_init,&
        dbcsr_new_transposed,&
        dbcsr_desymmetrize_deep,&
-       dbcsr_work_destroy, dbcsr_print, dbcsr_valid_index,test_sm
+       dbcsr_work_destroy, dbcsr_print, dbcsr_valid_index,&
+       dbcsr_get_block_index
+  ! Temporary
+  PUBLIC :: test_sm
   ! Distributions
   PUBLIC :: dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot,&
        dbcsr_create_dist_l_rot, dbcsr_create_dist_l_unrot,&
@@ -213,7 +215,7 @@ MODULE dbcsr_util
        addto_array, swap, ensure_array_size,&
        dbcsr_set_debug, dbcsr_sleep,&
        checker_tr, bcsr_assert,&
-       dbcsr_get_lookup, dbcsr_get_block_info,&
+       dbcsr_get_stored_coordinates, dbcsr_get_stored_block_info,&
        dbcsr_find_column,&
        add_work_coordinate,&
        dbcsr_copy_block_sizes, dbcsr_block_transpose,&
@@ -264,14 +266,16 @@ CONTAINS
 !> \param[in,out] row         input is logical row, output is lookup row
 !> \param[in,out] column      input is logical column, output is lookup
 !>                            column
-!> \param[out] transpose      whether the data must be transposed
+!> \param[in,out] transpose   input: current block state; output: whether the
+!>                            data should be considered transposed
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! *****************************************************************************
-  PURE SUBROUTINE get_lookup_type(matrix, row, column, transpose, processor)
+  PURE SUBROUTINE get_stored_coordinates_type(matrix, row, column, transpose,&
+       processor)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     INTEGER, INTENT(INOUT)                   :: row, column
-    LOGICAL, INTENT(OUT)                     :: transpose
+    LOGICAL, INTENT(INOUT)                   :: transpose
     INTEGER, INTENT(OUT), OPTIONAL           :: processor
 
     INTEGER                                  :: tmp
@@ -279,12 +283,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    straight = matrix%matrix_type .NE. 'N'
+    straight = matrix%matrix_type .NE. dbcsr_type_normal
     straight = (.NOT.&
-         (matrix%matrix_type.EQ.'S'.OR.matrix%matrix_type.EQ.'A'))&
+         (matrix%matrix_type.EQ.dbcsr_type_symmetric&
+         .OR.matrix%matrix_type.EQ.dbcsr_type_antisymmetric))&
          .OR.&
          (straight .EQV. .NOT.checker_tr(row, column))
-    transpose = .NOT. straight
+    !transpose = .NOT. straight! .NEQV. transpose
+    transpose =  straight .EQV. transpose
     IF (.NOT. straight) THEN
        tmp = row
        row = column
@@ -293,7 +299,7 @@ CONTAINS
     IF (PRESENT (processor)) THEN
        processor = dbcsr_distribution_processor (matrix%dist, row, column)
     END IF
-  END SUBROUTINE get_lookup_type
+  END SUBROUTINE get_stored_coordinates_type
 
 ! *****************************************************************************
 !> \brief Sets the correct source matrix, row, column and possible data
@@ -307,13 +313,13 @@ CONTAINS
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! *****************************************************************************
-  SUBROUTINE get_lookup_obj(matrix, row, column, transpose, processor)
+  SUBROUTINE get_stored_coordinates_obj(matrix, row, column, transpose, processor)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(INOUT)                   :: row, column
-    LOGICAL, INTENT(OUT)                     :: transpose
+    LOGICAL, INTENT(INOUT)                   :: transpose
     INTEGER, INTENT(OUT), OPTIONAL           :: processor
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_lookup_obj', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_stored_coordinates_obj', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
@@ -321,19 +327,20 @@ CONTAINS
     IF(.NOT.ASSOCIATED(matrix%m)) CALL stop_program (routineP, 'matrix%m not associated') 
 
     IF (PRESENT (processor)) THEN
-       CALL dbcsr_get_lookup (matrix%m, row, column, transpose, processor)
+       CALL dbcsr_get_stored_coordinates (matrix%m, row, column, transpose, processor)
     ELSE
-       CALL dbcsr_get_lookup (matrix%m, row, column, transpose)
+       CALL dbcsr_get_stored_coordinates (matrix%m, row, column, transpose)
     ENDIF
-  END SUBROUTINE get_lookup_obj
+  END SUBROUTINE get_stored_coordinates_obj
 
 
 ! *****************************************************************************
 !> \brief Looks up a block's index given logical coordinates.
 !> \param[in] matrix          DBCSR matrix
-!> \param[in,out] row         input is logical row, output is lookup row
-!> \param[in,out] column      input is logical column, output is lookup
-!>                            column
+!> \param[in] row             logical row
+!> \param[in] column          logical column
+!> \param[out] stored_row     row where block is actually stored
+!> \param[out] stored_column  column where block is actually stored
 !> \param[out] transpose      whether the data must be transposed
 !> \param[out] found          whether the block was found
 !> \param[out] block_number   returns the block number of the row
@@ -343,33 +350,40 @@ CONTAINS
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! *****************************************************************************
-  PURE SUBROUTINE lookup_block_type(matrix, row, column, transpose, found,&
-       block_number, data_offset)
+  PURE SUBROUTINE get_block_index_type(matrix, row, column, stored_row,&
+       stored_column, transpose, found, block_number, data_offset)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
-    INTEGER, INTENT(INOUT)                   :: row, column
+    INTEGER, INTENT(IN)                      :: row, column
+    INTEGER, INTENT(OUT)                     :: stored_row, stored_column
     LOGICAL, INTENT(OUT)                     :: transpose, found
     INTEGER, INTENT(OUT)                     :: block_number
     INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
 
 !   ---------------------------------------------------------------------------
 
-    CALL get_lookup_type (matrix, row, column, transpose)
+    stored_row = row
+    stored_column = column
+    transpose = .FALSE.
+    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_column,&
+         transpose)
     IF (PRESENT (data_offset)) THEN
-       CALL get_block_info_type(matrix, row, column, found, block_number,&
-            data_offset)
+       CALL get_stored_block_info_type(matrix, stored_row, stored_column,&
+            found, block_number, data_offset)
     ELSE
-       CALL get_block_info_type(matrix, row, column, found, block_number)
+       CALL get_stored_block_info_type(matrix, stored_row, stored_column,&
+            found, block_number)
     ENDIF
-  END SUBROUTINE lookup_block_type
+  END SUBROUTINE get_block_index_type
 
 ! *****************************************************************************
 !> \brief Sets the correct source matrix, row, column and possible data
 !>        transposition for a given matrix and matrix logical row and
 !>        column.
 !> \param[in] matrix          DBCSR matrix
-!> \param[in,out] row         input is logical row, output is lookup row
-!> \param[in,out] column      input is logical column, output is lookup
-!>                            column
+!> \param[in] row             logical row
+!> \param[in] column          logical column
+!> \param[out] stored_row     row where block is actually stored
+!> \param[out] stored_column  column where block is actually stored
 !> \param[out] transpose      whether the data must be transposed
 !> \param[out] found          whether the block was found
 !> \param[out] block_number   returns the block number of the row
@@ -379,10 +393,11 @@ CONTAINS
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! *****************************************************************************
-  PURE SUBROUTINE lookup_block_obj(matrix, row, column, transpose, found,&
-       block_number, data_offset)
+  PURE SUBROUTINE get_block_index_obj(matrix, row, column, stored_row,&
+       stored_column, transpose, found, block_number, data_offset)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER, INTENT(INOUT)                   :: row, column
+    INTEGER, INTENT(IN)                      :: row, column
+    INTEGER, INTENT(OUT)                     :: stored_row, stored_column
     LOGICAL, INTENT(OUT)                     :: transpose, found
     INTEGER, INTENT(OUT)                     :: block_number
     INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
@@ -390,13 +405,14 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT (data_offset)) THEN
-       CALL dbcsr_lookup_block (matrix%m, row, column, transpose, found,&
-            block_number, data_offset=data_offset)
+       CALL dbcsr_get_block_index (matrix%m, row, column, stored_row,&
+            stored_column, transpose, found, block_number,&
+            data_offset=data_offset)
     ELSE
-       CALL dbcsr_lookup_block (matrix%m, row, column, transpose, found,&
-            block_number)
+       CALL dbcsr_get_block_index (matrix%m, row, column, stored_row,&
+            stored_column, transpose, found, block_number)
     ENDIF
-  END SUBROUTINE lookup_block_obj
+  END SUBROUTINE get_block_index_obj
 
 ! *****************************************************************************
 !> \brief Returns the index to a queried block, given a real (stored) row and
@@ -411,7 +427,7 @@ CONTAINS
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
 ! *****************************************************************************
-  PURE SUBROUTINE get_block_info_type(matrix, row, column,&
+  PURE SUBROUTINE get_stored_block_info_type(matrix, row, column,&
        found, block_number, data_offset)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     INTEGER, INTENT(IN)                      :: row, column
@@ -433,7 +449,7 @@ CONTAINS
           data_offset = 0
        ENDIF
     ENDIF
-  END SUBROUTINE get_block_info_type
+  END SUBROUTINE get_stored_block_info_type
 
 ! *****************************************************************************
 !> \brief Returns the index to a queried block, given a real (stored) row and
@@ -448,7 +464,7 @@ CONTAINS
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
 ! *****************************************************************************
-  PURE SUBROUTINE get_block_info_obj(matrix, row, column,&
+  PURE SUBROUTINE get_stored_block_info_obj(matrix, row, column,&
        found, block_number, data_offset)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: row, column
@@ -459,13 +475,13 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT (data_offset)) THEN
-       CALL dbcsr_get_block_info (matrix%m, row, column, found,&
+       CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
             block_number, data_offset)
     ELSE
-       CALL dbcsr_get_block_info (matrix%m, row, column, found,&
+       CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
             block_number)
     ENDIF
-  END SUBROUTINE get_block_info_obj
+  END SUBROUTINE get_stored_block_info_obj
 
 
   PURE SUBROUTINE dbcsr_find_column(find_col,frst_blk,last_blk,col_i,blk,found)
@@ -1387,7 +1403,8 @@ CONTAINS
           stored_col = block_col
           !tr = checker_tr (stored_row, stored_col)
           !IF (tr) CALL swap (stored_row, stored_col)
-          CALL dbcsr_get_lookup(matrix, stored_row, stored_col, tr)
+          tr = .FALSE.
+          CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, tr)
           newprow = prow_dist(stored_row)
           newpcol = pcol_dist(stored_col)
           dst_p = blacs2mpi(newprow, newpcol)
@@ -1444,23 +1461,29 @@ CONTAINS
           stored_col = block_col
           !tr = checker_tr (stored_row, stored_col)
           !IF (tr) CALL swap (stored_row, stored_col)
-          CALL dbcsr_get_lookup(matrix, stored_row, stored_col, tr)
+          tr = .FALSE.
+          CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, tr)
           newprow = prow_dist(stored_row)
           newpcol = pcol_dist(stored_col)
           dst_p = blacs2mpi(newprow, newpcol)
           nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-          send_meta(smp(dst_p)) = stored_row
-          send_meta(smp(dst_p)+1) = stored_col
           IF (.NOT. tr) THEN
+             send_meta(smp(dst_p)) = stored_row
+          ELSE
+             send_meta(smp(dst_p)) = -stored_row
+          ENDIF
+          send_meta(smp(dst_p)+1) = stored_col
+          !IF (.NOT. tr) THEN
              send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
                   RESHAPE (blkdata_2d, (/nze/))
                   !sm%data(blk_p:blk_p+nze-1)
-          ELSE
-             !send_meta(smp(dst_p)) = -stored_row
-             send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                  RESHAPE (TRANSPOSE(blkdata_2d), (/nze/))
-                  !sm%data(blk_p:blk_p+nze-1)
-          ENDIF
+          !ELSE
+          !   write(*,*)routineN//" reshaping, not good",absrow, block_col
+          !   !send_meta(smp(dst_p)) = -stored_row
+          !   send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+          !        RESHAPE (TRANSPOSE(blkdata_2d), (/nze/))
+          !        !sm%data(blk_p:blk_p+nze-1)
+          !ENDIF
           smp(dst_p) = smp(dst_p) + metalen
           sdp(dst_p) = sdp(dst_p) + nze
           !
@@ -1516,8 +1539,8 @@ CONTAINS
           DBG 'blk: p',blk,src_p,'; row, col',&
                stored_row,stored_col,&
                '; blk_p',blk_p
-          matrix%m%wms(1)%row_i(blk) = stored_row ! It's always positive here
-          !matrix%m%w%row_i(blk) = ABS(stored_row)
+          !matrix%m%wms(1)%row_i(blk) = stored_row ! It's always positive here
+          matrix%m%wms(1)%row_i(blk) = ABS(stored_row)
           matrix%m%wms(1)%col_i(blk) = stored_col
           matrix%m%wms(1)%blk_p(blk) = SIGN(blk_p, stored_row)
           !matrix%m%w%blk_p(blk) = SIGN(blk_p, stored_row)
@@ -1706,6 +1729,7 @@ CONTAINS
           ! The sm_matrix_type has the same data layout as the DBCSR
           ! matrices, so we can use the DBCSR one to get the correct
           ! place.
+!          CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
 !VW          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
 tr = .FALSE.
           newprow = prow_dist(stored_row)
@@ -1759,6 +1783,8 @@ tr = .FALSE.
           blk_p = matrix%m%blk_p(blk)
           stored_row = row
           stored_col = col
+          tr = blk_p .LT. 0
+          CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
 !VW          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
 tr = .FALSE.
           newprow = prow_dist(stored_row)
@@ -1767,18 +1793,23 @@ tr = .FALSE.
           nrows = row_blk_size(row)
           ncols = row_blk_size(col)
           nze = nrows*ncols
-          send_meta(smp(dst_p)) = stored_row
-          send_meta(smp(dst_p)+1) = stored_col
           IF (.NOT. tr) THEN
-             send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                  data_p(blk_p:blk_p+nze-1)
+             send_meta(smp(dst_p)) = stored_row
           ELSE
-             CALL dbcsr_block_transpose (&
-                  send_data(sdp(dst_p):sdp(dst_p)+nze-1),&
-                  data_p(blk_p:blk_p+nze-1), nrows, ncols)
-             !send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-             !     RESHAPE (TRANSPOSE (blkdata_2d), (/nze/))
+             send_meta(smp(dst_p)) = -stored_row
           ENDIF
+          send_meta(smp(dst_p)+1) = stored_col
+          !IF (.NOT. tr) THEN
+             send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+                  data_p(ABS(blk_p):ABS(blk_p)+nze-1)
+          !ELSE
+          !   write(*,*)routineN//" Shouldn't need to reshape; not good",row,col
+          !   CALL dbcsr_block_transpose (&
+          !        send_data(sdp(dst_p):sdp(dst_p)+nze-1),&
+          !        data_p(blk_p:blk_p+nze-1), nrows, ncols)
+          !   !send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+          !   !     RESHAPE (TRANSPOSE (blkdata_2d), (/nze/))
+          !ENDIF
           smp(dst_p) = smp(dst_p) + metalen
           sdp(dst_p) = sdp(dst_p) + nze
        ENDDO
@@ -1810,8 +1841,13 @@ tr = .FALSE.
        data_p => recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
        blk_p = 1
        DO blk_l = 1, recv_count(1, src_p)
-          stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
+          tr = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)) .LT. 0
+          stored_row = ABS(recv_meta(rm_disp(src_p)+metalen*(blk_l-1)))
           stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
+          IF (tr) THEN
+             WRITE(*,*)routineN//" Should not be transposed here",&
+                  stored_row, stored_col
+          ENDIF
           nrows = row_blk_size(stored_row)
           ncols = col_blk_size(stored_col)
           nze = nrows * ncols
@@ -4683,8 +4719,8 @@ tr = .FALSE.
       POINTER                                :: c_sp
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
-    INTEGER :: blk, blk_l, blk_p, col, col_images, col_img, data_p, dst_p, i, &
-      ithread, mp_group, nsymmetries, nthreads, numproc, nze, pcol, &
+    INTEGER :: blk, blk_l, blk_p, bp, col, col_images, col_img, data_p, &
+      dst_p, i, ithread, mp_group, nsymmetries, nthreads, numproc, nze, pcol, &
       prev_blk_p, prev_dst_p, prow, row, row_l, sd_pos, sm_pos, src_p, &
       stored_col, stored_row, symmetry_i, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_ps, blks, lsdp, lsmp, &
@@ -4958,12 +4994,13 @@ tr = .FALSE.
        DO blk = sm%row_p(row)+1, sm%row_p(row+1)
           col = sm%col_i(blk)
           blk_p = sm%blk_p(blk)
+          bp = ABS(blk_p)
           DO symmetry_i = 1, nsymmetries
              IF (symmetry_i .EQ. 1) THEN
-                stored_row = row ; stored_col = col; tr = .FALSE.
+                stored_row = row ; stored_col = col; tr = blk_p .LT. 0
              ELSE                                                
                 IF (row .EQ. col) CYCLE
-                stored_row = col ; stored_col = row; tr = .TRUE.
+                stored_row = col ; stored_col = row; tr = blk_p .GT. 0
              ENDIF
              ! Where do we send this block?
              prow = row_dist(stored_row)
@@ -4983,7 +5020,7 @@ tr = .FALSE.
                 sd_pos = lsdp(dst_p)
                 lsdp(dst_p) = lsdp(dst_p) + nze
                 send_data(sd_pos:sd_pos+nze-1) =&
-                     r_dp(blk_p:blk_p+nze-1)
+                     r_dp(bp:bp+nze-1)
                 !send_data(sd_pos:sd_pos+nze-1) =&
                 !     sm%data(blk_p:blk_p+nze-1)
                 send_meta(sm_pos+1) = stored_col

@@ -35,6 +35,7 @@ MODULE btree_i8_k_cp2d_v
 
   TYPE cp2d
      COMPLEX(KIND=sp), DIMENSION(:,:), POINTER :: p
+     LOGICAL :: tr
   END TYPE cp2d
 
   PUBLIC :: cp2d

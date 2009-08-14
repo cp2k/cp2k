@@ -1517,7 +1517,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: max_c_size, max_r_size, &
-                                                maxsize
+                                                max_size
 
 !   ---------------------------------------------------------------------------
 
@@ -1549,16 +1549,16 @@ CONTAINS
     ENDIF
     NULLIFY (iterator%buffer_r_sp, iterator%buffer_r_dp,&
          iterator%buffer_c_sp, iterator%buffer_c_dp)
-    maxsize = max_r_size * max_c_size
+    max_size = MAX (max_r_size, max_c_size)
     SELECT CASE (matrix%m%data_area%d%data_type)
     CASE (dbcsr_type_real_4)
-       ALLOCATE (iterator%buffer_r_sp (max_r_size, max_c_size))
+       ALLOCATE (iterator%buffer_r_sp (max_size, max_size))
     CASE (dbcsr_type_real_8)
-       ALLOCATE (iterator%buffer_r_dp (max_r_size, max_c_size))
+       ALLOCATE (iterator%buffer_r_dp (max_size, max_size))
     CASE (dbcsr_type_complex_4)
-       ALLOCATE (iterator%buffer_c_sp (max_r_size, max_c_size))
+       ALLOCATE (iterator%buffer_c_sp (max_size, max_size))
     CASE (dbcsr_type_complex_8)
-       ALLOCATE (iterator%buffer_c_dp (max_r_size, max_c_size))
+       ALLOCATE (iterator%buffer_c_dp (max_size, max_size))
     CASE default
        CALL cp_assert(.FALSE., cp_warning_level, cp_internal_error,&
             routineN, "Invalid data type.")
@@ -1687,19 +1687,22 @@ CONTAINS
 !> \param[out] row           row of the data block
 !> \param[out] column        column of the data block
 !> \param[out] block         pointer to the data block
+!> \param[out] transposed    whether the block data is transposed
 !> \param[out] block_number  (optional) block number
 ! *****************************************************************************
-  SUBROUTINE iterator_next_block_d (iterator, row, column, block, block_number)
+  SUBROUTINE iterator_next_block_d (iterator, row, column, block, transposed,&
+       block_number)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     REAL(KIND=real_8), DIMENSION(:, :), &
       POINTER                                :: block
+    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, csize, nze, rsize
+    INTEGER                                  :: blk_p, bp, csize, nze, rsize
     REAL(KIND=real_8), DIMENSION(:), POINTER :: lin_blk_p, rbp
 
 !   ---------------------------------------------------------------------------
@@ -1709,30 +1712,30 @@ CONTAINS
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
        column = iterator%matrix%m%col_i(iterator%pos)
-       !IF (PRESENT (block)) THEN
-          blk_p = iterator%matrix%m%blk_p(iterator%pos)
-          rsize = iterator%row_size
-          csize = iterator%cbs(column)
-          nze = rsize * csize
-          rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
+       blk_p = iterator%matrix%m%blk_p(iterator%pos)
+       transposed = blk_p .LT. 0
+       bp = ABS (blk_p)
+       rsize = iterator%row_size
+       csize = iterator%cbs(column)
+       nze = rsize * csize
+       rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
 #if defined(__PTR_RANK_REMAP)
-          block(1:rsize, 1:csize) => rbp(blk_p:blk_p+nze-1)
+       block(1:rsize, 1:csize) => rbp(bp:bp+nze-1)
 #elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-          lin_blk_p => rbp(blk_p:blk_p+nze-1)
-          CALL pointer_d_rank_remap2 (block, rsize, csize, lin_blk_p)
+       lin_blk_p => rbp(bp:bp+nze-1)
+       CALL pointer_d_rank_remap2 (block, rsize, csize, lin_blk_p)
 #else
-          IF (iterator%contiguous_pointers) THEN
-             IF (SIZE (iterator%buffer_r_dp, 1) .NE. rsize) THEN
-                DEALLOCATE (iterator%buffer_r_dp)
-                ALLOCATE (iterator%buffer_r_dp(&
-                     rsize, iterator%matrix%m%max_cbs))
-             ENDIF
+       IF (iterator%contiguous_pointers) THEN
+          IF (SIZE (iterator%buffer_r_dp, 1) .NE. rsize) THEN
+             DEALLOCATE (iterator%buffer_r_dp)
+             ALLOCATE (iterator%buffer_r_dp(&
+                  rsize, iterator%matrix%m%max_cbs))
           ENDIF
-          iterator%buffer_r_dp =&
-               RESHAPE (rbp(blk_p:blk_p+nze-1), (/rsize, csize/))
-          block => iterator%buffer_r_dp(1:rsize, 1:csize)
+       ENDIF
+       iterator%buffer_r_dp =&
+            RESHAPE (rbp(bp:bp+nze-1), (/rsize, csize/))
+       block => iterator%buffer_r_dp(1:rsize, 1:csize)
 #endif /* __PTR_RANK_REMAP || !__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION */
-       !ENDIF
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        iterator%pos = iterator%pos+1
@@ -1744,7 +1747,7 @@ CONTAINS
     ELSE
        row = 0
        column = 0
-       !IF (PRESENT (block)) NULLIFY (block)
+       NULLIFY (block)
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
   END SUBROUTINE iterator_next_block_d
@@ -1755,18 +1758,21 @@ CONTAINS
 !> \param[out] row           row of the data block
 !> \param[out] column        column of the data block
 !> \param[out] block         pointer to the data block
+!> \param[out] transposed    whether the block data is transposed
 !> \param[out] block_number  (optional) block number
 ! *****************************************************************************
-  SUBROUTINE iterator_next_1d_block_d (iterator, row, column, block, block_number)
+  SUBROUTINE iterator_next_1d_block_d (iterator, row, column, block,&
+       transposed, block_number)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     REAL(KIND=real_8), DIMENSION(:), POINTER :: block
+    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, csize, nze, rsize
+    INTEGER                                  :: blk_p, bp, csize, nze, rsize
     REAL(KIND=real_8), DIMENSION(:), POINTER :: rbp
 
 !   ---------------------------------------------------------------------------
@@ -1776,14 +1782,14 @@ CONTAINS
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
        column = iterator%matrix%m%col_i(iterator%pos)
-       !IF (PRESENT (block)) THEN
-          blk_p = iterator%matrix%m%blk_p(iterator%pos)
-          rsize = iterator%row_size
-          csize = iterator%cbs(column)
-          nze = rsize * csize
-          rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
-          block => rbp(blk_p:blk_p+nze-1)
-       !ENDIF
+       blk_p = iterator%matrix%m%blk_p(iterator%pos)
+       transposed = blk_p .LT. 0
+       bp = ABS (blk_p)
+       rsize = iterator%row_size
+       csize = iterator%cbs(column)
+       nze = rsize * csize
+       rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
+       block => rbp(bp:bp+nze-1)
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        iterator%pos = iterator%pos+1
@@ -1795,7 +1801,7 @@ CONTAINS
     ELSE
        row = 0
        column = 0
-       !IF (PRESENT (block)) NULLIFY (block)
+       NULLIFY (block)
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
   END SUBROUTINE iterator_next_1d_block_d
@@ -1809,13 +1815,17 @@ CONTAINS
 !> \param[out] blk           block number
 !> \param[out] blk_p         (optional) index into block data array
 ! *****************************************************************************
-  SUBROUTINE iterator_next_block_index (iterator, row, column, blk, blk_p)
+  SUBROUTINE iterator_next_block_index (iterator, row, column, blk,&
+       transposed, blk_p)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column, blk
+    LOGICAL, INTENT(OUT), OPTIONAL           :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: blk_p
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_index', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: bp
 
 !   ---------------------------------------------------------------------------
 
@@ -1824,7 +1834,12 @@ CONTAINS
        row = iterator%row
        column = iterator%matrix%m%col_i(iterator%pos)
        blk = iterator%pos
-       IF (PRESENT (blk_p)) blk_p = iterator%matrix%m%blk_p(iterator%pos)
+       !IF (PRESENT (blk_p)) blk_p = iterator%matrix%m%blk_p(iterator%pos)
+       IF (PRESENT (blk_p) .OR. PRESENT (transposed)) THEN
+          bp = iterator%matrix%m%blk_p(iterator%pos)
+          IF (PRESENT (blk_p)) blk_p = bp
+          IF (PRESENT (transposed)) transposed = bp .LT. 0
+       ENDIF
        iterator%pos = iterator%pos+1
        CALL find_first_valid_block (iterator%pos, iterator%matrix%m%nblks,&
             iterator%matrix%m%blk_p)

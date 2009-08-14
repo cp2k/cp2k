@@ -243,12 +243,15 @@
 !> \param[in]  row            the row
 !> \param[in]  col            the column
 !> \param[in]  block          the block to reserve; added if not NULL
+!> \param[in] transposed      the block holds transposed data
 !> \param[out] existed        (optional) block already existed
 ! *****************************************************************************
-  SUBROUTINE dbcsr_reserve_block2d_s(matrix, row, col, block, existed)
+  SUBROUTINE dbcsr_reserve_block2d_s(matrix, row, col, block,&
+       transposed, existed)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:,:), POINTER         :: block
+    LOGICAL, INTENT(IN), OPTIONAL            :: transposed
     LOGICAL, INTENT(OUT), OPTIONAL           :: existed
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_block2d_s', &
@@ -257,9 +260,10 @@
     TYPE(btree_2d_data_s)          :: data_block, data_block2
     INTEGER                                  :: blk, col_size, frst_blk, &
                                                 last_blk, nze, offset, &
-                                                row_size, blk_p
+                                                row_size, blk_p,&
+                                                stored_row, stored_col
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: found, gift
+    LOGICAL                                  :: found, gift, tr, tr2
     REAL(kind=real_4), DIMENSION(:,:), POINTER         :: original_block
 
 !   ---------------------------------------------------------------------------
@@ -272,9 +276,16 @@
     ENDIF
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
-
     row_size = row_blk_size(row)
     col_size = col_blk_size(col)
+
+    stored_row = row ; stored_col = col
+    IF (PRESENT (transposed)) THEN
+       tr = transposed
+    ELSE
+       tr = .FALSE.
+    ENDIF
+    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
 
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_work_create (matrix)
@@ -290,6 +301,7 @@
     ELSE
        data_block%p => block
     ENDIF
+    data_block%tr = tr
 
     CALL btree_add_s (matrix%m%wms(1)%mutable%m%btree_s,&
          make_coordinate_tuple(row, col),&
@@ -360,29 +372,41 @@
 !> \param[in]  row            the row
 !> \param[in]  col            the column
 !> \param[in]  block          the block to put
+!> \param[in]  transposed     the block is transposed
 ! *****************************************************************************
-  SUBROUTINE dbcsr_put_block2d_s(matrix, row, col, block)
+  SUBROUTINE dbcsr_put_block2d_s(matrix, row, col, block, transposed)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:,:), INTENT(IN)      :: block
+    LOGICAL, INTENT(IN), OPTIONAL            :: transposed
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block2d_s', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: tr
     
-    CALL dbcsr_put_block (matrix, row, col, RESHAPE (block, (/SIZE(block)/)))
+    IF (PRESENT (transposed)) THEN
+       tr = transposed
+    ELSE
+       tr = .FALSE.
+    ENDIF
+    CALL dbcsr_put_block (matrix, row, col, RESHAPE (block, (/SIZE(block)/)),&
+      tr)
   END SUBROUTINE dbcsr_put_block2d_s
 
 ! *****************************************************************************
 !> \brief put a block in a dbcsr matrix
-!> \param[in]  matrix DBCSR matrix
-!> \param[in]  row    the row
-!> \param[in]  col    the column
-!> \param[in]  block  the block to put
+!> \param[in]  matrix         DBCSR matrix
+!> \param[in]  row            the row
+!> \param[in]  col            the column
+!> \param[in]  block          the block to put
+!> \param[in]  transposed     the block is transposed
 ! *****************************************************************************
-  SUBROUTINE dbcsr_put_block_s(matrix, row, col, block)
+  SUBROUTINE dbcsr_put_block_s(matrix, row, col, block, transposed)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:), INTENT(IN)        :: block
+    LOGICAL, INTENT(IN), OPTIONAL            :: transposed
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_s', &
       routineP = moduleN//':'//routineN
@@ -391,10 +415,15 @@
                                                 last_blk, nze, offset, &
                                                 row_size, blk_p
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: found
+    LOGICAL                                  :: found, tr
 
 ! IN PARALLEL WE SHOULD ENSURE THAT THE BLOCK GOES TO THE RIGHT PLACE !
 
+    IF (PRESENT (transposed)) THEN
+       tr = transposed
+    ELSE
+       tr = .FALSE.
+    ENDIF
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
 
@@ -409,9 +438,12 @@
        !
        ! let's copy the block
        offset = ABS(matrix%m%blk_p(blk))
+       IF (matrix%m%blk_p(blk).LT.0 .NEQV. tr) THEN
+          matrix%m%blk_p(blk) = -matrix%m%blk_p(blk)
+       ENDIF
        CALL scopy (nze, block(1), 1,&
             pointer_view (&
-               dbcsr_get_data_p (matrix%m%data_area, 0.0_real_4), offset, offset&
+            dbcsr_get_data_p (matrix%m%data_area, 0.0_real_4), offset, offset&
             ), 1)
        !CALL dcopy(nze,block(1),1,matrix%m%data(offset),1)
     ELSE
@@ -422,6 +454,7 @@
                sizedata_guess=SIZE(block))
        ENDIF
        blk_p = matrix%m%wms(1)%datasize + 1
+       IF (tr) blk_p = -blk_p
        CALL add_work_coordinate (matrix%m%wms(1), row, col, blk_p)
        CALL addto_array (matrix%m%wms(1)%data_area, block, blk_p)
        matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + SIZE (block)
@@ -430,7 +463,6 @@
        !     dbcsr_get_data_size (matrix%m%wms(1)%data_area)
        matrix%m%valid = .FALSE.
     ENDIF
-
   END SUBROUTINE dbcsr_put_block_s
 
 

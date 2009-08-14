@@ -3156,18 +3156,26 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     LOGICAL                                  :: found, tr
 
 !   ---------------------------------------------------------------------------
+!r = row
+!c = col
+! Figure out where the desired row and col is actually stored.
+!CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)
+!IF (PRESENT (block_number)) THEN
+!   b = block_number
+!   CALL cp_assert (block_number .LE. matrix%m%nblks, cp_failure_level,&
+!        cp_caller_error, routineN, "Block number too big.")
+!   found = .TRUE.
+!ELSE
+!   CALL dbcsr_get_stored_block_info (matrix, r, c, found, b)
+!ENDIF
 
-    r = row
-    c = col
-    ! Figure out where the desired row and col is actually stored.
-    CALL dbcsr_get_lookup (matrix, r, c, tr)
     IF (PRESENT (block_number)) THEN
        b = block_number
        CALL cp_assert (block_number .LE. matrix%m%nblks, cp_failure_level,&
             cp_caller_error, routineN, "Block number too big.")
        found = .TRUE.
     ELSE
-       CALL dbcsr_get_block_info (matrix, r, c, found, b)
+       CALL dbcsr_get_block_index (matrix, row, col, r, c, tr, found, b)
     ENDIF
     b = ABS (b)
     IF (found .AND. b .GT. 0) THEN
@@ -3205,7 +3213,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
                                                 a_row_blk_size, &
                                                 b_col_blk_size, b_row_blk_size
-    LOGICAL                                  :: found
+    LOGICAL                                  :: found, tr
     REAL(dp)                                 :: my_alpha_scalar, &
                                                 my_beta_scalar
     REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data_d, b_data_d
@@ -3265,7 +3273,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 !   CALL dbcsr_iterator_next_block(iter, row, col, data_r, blk)
                 !   CALL dbcsr_put_block(matrix_a, row, col, data_r)
              CASE (dbcsr_type_real_8)
-                CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
+                CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
                 !
                 ! here put should be an accumulate or so !
                 CALL dbcsr_put_block(matrix_a, row, col, data_d)
@@ -3502,6 +3510,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CHARACTER(LEN=3)                         :: my_method
     INTEGER                                  :: blk, col, row, timing_handle
+    LOGICAL                                  :: tr
     REAL(dp)                                 :: ddot, nrm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
     TYPE(dbcsr_iterator)                     :: iter
@@ -3517,7 +3526,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_get_data_type(matrix))
        CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
           SELECT CASE(my_method)
           CASE('fro')
              !
@@ -3562,6 +3571,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                                                 timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: m_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size
+    LOGICAL                                  :: tr
     REAL(dp)                                 :: fac, my_norm_scalar
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff_d
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
@@ -3593,7 +3603,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        DO WHILE (dbcsr_iterator_blocks_left(iter))
           SELECT CASE (dbcsr_get_data_type(matrix))
           CASE (dbcsr_type_real_8)
-             CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
+             CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
              fac = 1.0_dp
              !IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
              !    dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric)).AND.&
@@ -3611,7 +3621,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        DO WHILE (dbcsr_iterator_blocks_left(iter))
           SELECT CASE (dbcsr_get_data_type(matrix))
           CASE (dbcsr_type_real_8)
-             CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
+             CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
              my_norm_scalar = MAX(my_norm_scalar,MAXVAL(ABS(data_d)))
           CASE DEFAULT
              CALL cp_unimplemented_error (routineN,"Only real double precision")

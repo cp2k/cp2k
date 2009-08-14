@@ -35,6 +35,7 @@ MODULE btree_i8_k_sp2d_v
 
   TYPE sp2d
      REAL(KIND=sp), DIMENSION(:,:), POINTER :: p
+     LOGICAL :: tr
   END TYPE sp2d
 
   PUBLIC :: sp2d

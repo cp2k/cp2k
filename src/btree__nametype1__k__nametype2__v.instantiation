@@ -18,6 +18,7 @@
          +'  INTEGER, PARAMETER :: sp = KIND(0.0)\n\n'
      +'  TYPE sp2d\n'
      +'     REAL(KIND=sp), DIMENSION(:,:), POINTER :: p\n'
+     +'     LOGICAL :: tr\n'
      +'  END TYPE sp2d\n\n'
      +'  PUBLIC :: sp2d',
      'defaultFormatType1':'I12',
@@ -33,6 +34,7 @@
          +'  INTEGER, PARAMETER :: dp = KIND(0.0d0)\n\n'
      +'  TYPE dp2d\n'
      +'     REAL(KIND=dp), DIMENSION(:,:), POINTER :: p\n'
+     +'     LOGICAL :: tr\n'
      +'  END TYPE dp2d\n\n'
      +'  PUBLIC :: dp2d',
      'defaultFormatType1':'I12',
@@ -49,6 +51,7 @@
          +'  INTEGER, PARAMETER :: sp = KIND(0.0)\n\n'
      +'  TYPE cp2d\n'
      +'     COMPLEX(KIND=sp), DIMENSION(:,:), POINTER :: p\n'
+     +'     LOGICAL :: tr\n'
      +'  END TYPE cp2d\n\n'
      +'  PUBLIC :: cp2d',
      'defaultFormatType1':'I12',
@@ -64,6 +67,7 @@
          +'  INTEGER, PARAMETER :: dp = KIND(0.0d0)\n\n'
      +'  TYPE zp2d\n'
      +'     COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: p\n'
+     +'     LOGICAL :: tr\n'
      +'  END TYPE zp2d\n\n'
      +'  PUBLIC :: zp2d',
      'defaultFormatType1':'I12',

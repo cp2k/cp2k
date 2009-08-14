@@ -35,6 +35,7 @@ MODULE btree_i8_k_zp2d_v
 
   TYPE zp2d
      COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: p
+     LOGICAL :: tr
   END TYPE zp2d
 
   PUBLIC :: zp2d

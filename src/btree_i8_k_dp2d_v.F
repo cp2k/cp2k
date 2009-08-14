@@ -35,6 +35,7 @@ MODULE btree_i8_k_dp2d_v
 
   TYPE dp2d
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: p
+     LOGICAL :: tr
   END TYPE dp2d
 
   PUBLIC :: dp2d

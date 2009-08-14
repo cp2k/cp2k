@@ -669,7 +669,7 @@ CONTAINS
     TYPE(btree_node), POINTER :: node_left
     TYPE(btree_node), INTENT(INOUT) :: node_right
     INTEGER, INTENT(IN) :: left_pos
-    INTEGER :: median_pos, filled
+    INTEGER :: median_pos
     [type1] :: separator
     LOGICAL :: leaf
     !
@@ -710,7 +710,7 @@ CONTAINS
     TYPE(btree_node), INTENT(INOUT) :: node_left
     TYPE(btree_node), POINTER :: node_right
     INTEGER, INTENT(IN) :: left_pos
-    INTEGER :: median_pos, filled
+    INTEGER :: median_pos
     [type1] :: separator
     LOGICAL :: leaf
     !
@@ -746,7 +746,6 @@ CONTAINS
     [type1], INTENT(IN) :: key
     [type2], INTENT(IN) :: value
     TYPE(btree_node), POINTER :: old_root, new_root
-    TYPE(btree_node_structure) :: b
     !
     CALL btree_new_node(tree, new_root)
     new_root%filled = 1

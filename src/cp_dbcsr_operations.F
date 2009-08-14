@@ -227,7 +227,8 @@ CONTAINS
                                                 output_unit, row, rowsize
     INTEGER(KIND=int_8)                      :: flop
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
-    LOGICAL                                  :: failure, found, ionode, ldbg
+    LOGICAL                                  :: failure, found, ionode, ldbg, &
+                                                tr
     REAL(kind=dp)                            :: checksum, newtime, oldtime, &
                                                 trace, walltime1, walltime2
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block2d, block2d_2
@@ -385,15 +386,17 @@ CONTAINS
           !     block2d)
           CALL dbcsr_add_block_node (matrix_a2, row, col, block2d, error)
           block2d(1:rowsize, 1:colsize) = 1.0_dp
+          !block2d(:,:) = 1.0_dp
        ENDDO
     ENDDO
     DO row = 1, dbcsr_nblkrows_total (matrix_a2)
        DO col = 1, dbcsr_nblkcols_total (matrix_a2)
           CALL dbcsr_get_tmp_block2d (matrix_a2, row, col, block2d_2, found)
+          IF (found) THEN
+             block2d_2(:,:) = 0.0_dp
+          ENDIF
           !write(*,*)'size1:',size(block2d_2), rowsize, colsize
           !write(*,'(10(1X,F5.1))')block2d_2
-          block2d_2(:,:) = 0.0_dp
-          IF (.NOT. found) WRITE(*,*)"Oops, missing block."
        ENDDO
     ENDDO
     DO row = 1, dbcsr_nblkrows_total (matrix_a2)
@@ -401,7 +404,7 @@ CONTAINS
           CALL dbcsr_get_tmp_block2d (matrix_a2, row, col, block2d, found)
           !write(*,*)'size3:',size(block2d), rowsize, colsize
           !write(*,'(10(1X,F5.1))')block2d
-          IF (.NOT. found) WRITE(*,*)"Oops, missing block."
+          !IF (.NOT. found) WRITE(*,*)"Oops, missing block."
        ENDDO
     ENDDO
     CALL dbcsr_finalize (matrix_a2, error=error)
@@ -458,9 +461,9 @@ CONTAINS
     !CALL dbcsr_print (matrix_b, error)
     CALL dbcsr_iterator_start (iter, matrix_b)
     IF (dbcsr_iterator_blocks_left (iter)) THEN
-       CALL dbcsr_iterator_next_block (iter, row, col, block2d)
+       CALL dbcsr_iterator_next_block (iter, row, col, block2d, tr)
     !write(*,*)'got block',row,col
-       CALL dbcsr_put_block (matrix_b, row, col, block2d)
+       CALL dbcsr_put_block (matrix_b, row, col, block2d, tr)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        !CALL dbcsr_print (matrix_b, error)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
@@ -470,7 +473,7 @@ CONTAINS
        ALLOCATE (block2d_2(SIZE(block2d,1),SIZE(block2d,2)))
        block2d_2(:,:) = block2d(:,:)
        block2d(:,:) = 0.0_dp
-       CALL dbcsr_put_block (matrix_b, row, col, block2d)
+       CALL dbcsr_put_block (matrix_b, row, col, block2d, tr)
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
@@ -478,7 +481,7 @@ CONTAINS
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x wrng cksm", checksum
        ENDIF
        !CALL dbcsr_print (matrix_b, error)
-       CALL dbcsr_put_block (matrix_b, row, col, block2d_2)
+       CALL dbcsr_put_block (matrix_b, row, col, block2d_2, tr)
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
@@ -494,7 +497,7 @@ CONTAINS
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x wrng cks4", checksum
        ENDIF
        !CALL dbcsr_print (matrix_b, error)
-       CALL dbcsr_put_block (matrix_b, row, col, block2d_2)
+       CALL dbcsr_put_block (matrix_b, row, col, block2d_2, tr)
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error=error, local=.TRUE.)
        !CALL dbcsr_print (matrix_b, error)
@@ -1505,7 +1508,10 @@ CONTAINS
          cp_unimplemented_error_nr, routineN,&
          "Data loss due to no conversion of appendable to mutable data")
     is_there = ASSOCIATED(block)
-    CALL dbcsr_reserve_block2d (matrix, row, col, block)
+    !r = row ; c = col ; tr = .FALSE.
+    !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)
+    !CALL dbcsr_reserve_block2d (matrix, row, col, block)
+    CALL dbcsr_reserve_block2d (matrix, row, col, block, .FALSE.)
     IF(.NOT.is_there) block(:,:) = 0.0_dp
   END SUBROUTINE dbcsr_add_block_node
 
