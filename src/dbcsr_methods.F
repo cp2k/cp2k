@@ -33,6 +33,7 @@ MODULE dbcsr_methods
        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
        dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
+  USE distribution_2d_types,           ONLY: distribution_2d_release
   USE f77_blas
   USE f77_blas_generic,                ONLY: bl_copy
   USE kinds,                           ONLY: default_string_length,&
@@ -79,7 +80,7 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_next_block,&
             dbcsr_iterator_stop, dbcsr_iterator_blocks_left
 
-  PUBLIC :: dbcsr_set_init, dbcsr_set_new, dbcsr_set_put, dbcsr_set_get,&
+  PUBLIC :: dbcsr_allocate_matrix_set, dbcsr_set_new, dbcsr_set_put, dbcsr_set_get,&
             dbcsr_set_destroy, dbcsr_set_hold, dbcsr_set_release
 
   PUBLIC :: dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_destroy,&
@@ -116,7 +117,7 @@ MODULE dbcsr_methods
 
   ! For the sets
 
-  INTERFACE dbcsr_set_init
+  INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE set_init_1d, set_init_2d
   END INTERFACE
 
@@ -204,6 +205,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: my_error
+
 !   ---------------------------------------------------------------------------
 
     CALL cp_assert (ASSOCIATED (matrix%m), cp_warning_level, cp_caller_error,&
@@ -227,6 +230,9 @@ CONTAINS
           CALL dbcsr_distribution_release(matrix%m%dist)
           matrix%m%valid = .FALSE.
           matrix%m%initialized = .TRUE.
+          CALL cp_error_init(my_error)
+          IF (ASSOCIATED (matrix%m%dist2d)) &
+               CALL distribution_2d_release(matrix%m%dist2d,my_error)
           DEALLOCATE (matrix%m)
        ENDIF
     ENDIF
@@ -2058,7 +2064,7 @@ CONTAINS
     ENDDO
     DEALLOCATE (set%s)
     DEALLOCATE (set%refcount)
-    CALL dbcsr_set_init (set)
+    CALL dbcsr_allocate_matrix_set (set)
   END SUBROUTINE set_destroy_1d
 
 ! *****************************************************************************
@@ -2089,7 +2095,7 @@ CONTAINS
     ENDDO
     DEALLOCATE (set%s)
     DEALLOCATE (set%refcount)
-    CALL dbcsr_set_init (set)
+    CALL dbcsr_allocate_matrix_set (set)
   END SUBROUTINE set_destroy_2d
 
 

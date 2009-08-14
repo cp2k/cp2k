@@ -177,8 +177,6 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist, product_dist
     TYPE(dbcsr_iterator)                     :: iter
     REAL(dp), DIMENSION(:,:), POINTER        :: DATA
-INTEGER::proc
-LOGICAL::transpose
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
 
     logger => cp_error_get_logger(error)

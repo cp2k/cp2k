@@ -67,6 +67,7 @@ MODULE dbcsr_util
        dbcsr_type_symmetric, dbcsr_type_transposed, dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
+                                             distribution_2d_retain,&
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE f77_blas
@@ -191,7 +192,7 @@ MODULE dbcsr_util
        dbcsr_init,&
        dbcsr_new_transposed,&
        dbcsr_desymmetrize_deep,&
-       dbcsr_work_destroy, dbcsr_print, dbcsr_valid_index
+       dbcsr_work_destroy, dbcsr_print, dbcsr_valid_index,test_sm
   ! Distributions
   PUBLIC :: dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot,&
        dbcsr_create_dist_l_rot, dbcsr_create_dist_l_unrot,&
@@ -658,6 +659,7 @@ CONTAINS
     !matrix%m%nze = nze
     matrix%m%nze = 0
     matrix%m%special_memory = .FALSE.
+    NULLIFY(matrix%m%dist2d)
     IF (PRESENT (special)) matrix%m%special_memory = special
     !
     IF (.NOT. hijack) THEN
@@ -1371,6 +1373,7 @@ CONTAINS
     CALL dbcsr_create(matrix, sm%name, dist, sm%symmetry,&
          rbs_array, cbs_array, nblks=0, nze=0, data_type=dbcsr_type_real_8, error=error)
     matrix%m%matrix_type = 'S'
+    CALL distribution_2d_retain (dist2d, error)
     matrix%m%dist2d => dist2d
     ! Count what to send to others.
     send_count(:,:) = 0
@@ -1662,7 +1665,7 @@ CONTAINS
                          last_col=sm_last_col,&
                          matrix_name=TRIM(name),&
                          matrix_symmetry=sm_symmetry,&
-                         sparsity_id=-1,&
+                         sparsity_id=matrix%m%sparsity_id,&
                          distribution_2d=dist2d, error=error)
     DEALLOCATE (sm_first_row, sm_last_row, sm_first_col, sm_last_col)
     !
@@ -1703,7 +1706,8 @@ CONTAINS
           ! The sm_matrix_type has the same data layout as the DBCSR
           ! matrices, so we can use the DBCSR one to get the correct
           ! place.
-          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
+!VW          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
+tr = .FALSE.
           newprow = prow_dist(stored_row)
           newpcol = pcol_dist(stored_col)
           dst_p = blacs2mpi(newprow, newpcol)
@@ -1755,7 +1759,8 @@ CONTAINS
           blk_p = matrix%m%blk_p(blk)
           stored_row = row
           stored_col = col
-          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
+!VW          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
+tr = .FALSE.
           newprow = prow_dist(stored_row)
           newpcol = pcol_dist(stored_col)
           dst_p = blacs2mpi(newprow, newpcol)
@@ -1813,9 +1818,35 @@ CONTAINS
           block_data_p => data_p(blk_p:blk_p+nze-1)
           CALL pointer_set (blkdata_2d, (/nrows, ncols/),&
                block_data_p, iter%buffer_r_dp)
-          CALL add_block_node(matrix=sm,&
-               block_row=stored_row, block_col=stored_col,&
-               block=blkdata_2d, error=error)
+
+!!$          IF(sm_symmetry == "symmetric" .OR. sm_symmetry == "antisymmetric" ) THEN
+!!$
+!!$             tr = stored_row.GT.stored_col
+!!$             itmp = stored_row
+!!$             stored_row = MIN(itmp,stored_col)
+!!$             stored_col = MAX(itmp,stored_col)
+!!$
+!!$             IF(tr) THEN
+!!$                NULLIFY(blkdatat_2d)
+!!$                CALL add_block_node(matrix=sm,&
+!!$                     block_row=stored_row, block_col=stored_col,&
+!!$                     block=blkdatat_2d, error=error)
+!!$                blkdatat_2d=TRANSPOSE(blkdata_2d)
+!!$             ELSE
+!!$                CALL add_block_node(matrix=sm,&
+!!$                     block_row=stored_row, block_col=stored_col,&
+!!$                     block=blkdata_2d, error=error)
+!!$             ENDIF
+!!$
+!!$          ELSE
+             CALL add_block_node(matrix=sm,&
+                  block_row=stored_row, block_col=stored_col,&
+                  block=blkdata_2d, error=error)
+!!$          ENDIF
+
+!write(*,*) 'add_block_node: stored_row',stored_row,' stored_col',stored_col,'blk',blkdata_2d(1,1),&
+!     SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)
+
           blk_p = blk_p + nze
        ENDDO
     ENDDO
@@ -1833,8 +1864,68 @@ CONTAINS
     DEALLOCATE(send_meta)
     tstop = m_walltime ()
     DBG 'time:',tstop-tstart
+
+!!$    DO irow=1,sm%nblock_row
+!!$       block_node => first_block_node(sm,irow)
+!!$       DO WHILE (ASSOCIATED(block_node))
+!!$          CALL get_block_node(block_node=block_node,block_col=icol,BLOCK=blkdata_2d)
+!!$          write(*,*) 'sm_from_dbcsr1: irow',irow,' icol',icol,'blk',blkdata_2d(1,1),&
+!!$               SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)
+!!$          block_node => next_block_node(block_node)
+!!$       END DO
+!!$    END DO
+!!$
+!!$    DO irow = 1,sm%nblock_row
+!!$    DO icol = irow,sm%nblock_row
+!!$          CALL get_block_node(sm,block_row=irow,block_col=icol,BLOCK=blkdata_2d)
+!!$          write(*,*) 'sm_from_dbcsr2: irow',irow,' icol',icol
+!!$          write(*,*) 'sm_from_dbcsr2: blk',blkdata_2d(1,1),SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)
+!!$       ENDDO
+!!$    ENDDO
+
     CALL timestop(timing_handle)
   END SUBROUTINE sm_from_dbcsr
+
+
+  SUBROUTINE test_sm(sm, error)
+    TYPE(real_matrix_type), POINTER          :: sm
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'test_sm', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: data_exchange_info_cnt = 3, &
+                                                metalen = 2
+
+    INTEGER                                  :: blk, block_col, icol, irow, &
+                                                timing_handle
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d
+    TYPE(real_block_node_type), POINTER      :: block_node
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
+
+    DO irow=1,sm%nblock_row
+       block_node => first_block_node(sm,irow)
+       DO WHILE (ASSOCIATED(block_node))
+          CALL get_block_node(block_node=block_node,block_col=icol,BLOCK=blkdata_2d)
+          WRITE(*,*) 'sm_test: irow',irow,' icol',icol,'blk',blkdata_2d(1,1),&
+               SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)
+          block_node => next_block_node(block_node)
+       END DO
+    END DO
+
+    DO irow = 1,sm%nblock_row
+       DO icol = irow,sm%nblock_row
+          CALL get_block_node(sm,block_row=irow,block_col=icol,BLOCK=blkdata_2d)
+          WRITE(*,*) 'sm_test: irow',irow,' icol',icol,'blk',blkdata_2d(1,1)
+       ENDDO
+    ENDDO
+
+    CALL timestop(timing_handle)
+  END SUBROUTINE test_sm
+
 
 ! *****************************************************************************
 !> \brief Converts sizes to offsets
@@ -2078,13 +2169,13 @@ CONTAINS
     SELECT CASE (sm_symmetry)
     CASE ("symmetric")
        dbcsr_matrix_type = dbcsr_type_symmetric
-    CASE ("anisymmetric")
+    CASE ("antisymmetric")
        dbcsr_matrix_type = dbcsr_type_antisymmetric
     CASE ("none", "no symmetry")
        dbcsr_matrix_type = dbcsr_type_normal
     CASE default
        CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
-            "Unknown matrix type "//"matrix_symmetry")
+            "Unknown matrix type "//sm_symmetry)
     END SELECT
   END SUBROUTINE dbcsr_type_from_sm_symmetry
 

@@ -39,9 +39,8 @@ MODULE cp_dbcsr_operations
        dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_copy, dbcsr_filter, dbcsr_find_column, &
-       dbcsr_get_tmp_block2d, dbcsr_maxabsval, dbcsr_mult_e_ec_m, &
-       dbcsr_put_block, dbcsr_remove_block, dbcsr_reserve_block2d, &
-       dbcsr_scale, dbcsr_trace
+       dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_norm, dbcsr_put_block, &
+       dbcsr_remove_block, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_trace
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
@@ -80,9 +79,11 @@ MODULE cp_dbcsr_operations
 
   PUBLIC :: dbcsr_sm_sm_multiply, dbcsr_check
   PUBLIC :: cp_dbcsr_add_dist2d, cp_dbcsr_get_dist2d, cp_dbcsr_remove_dist2d
+  PUBLIC :: dbcsr_add_block_node, dbcsr_replicate_matrix_structure, dbcsr_allocate_matrix
   PUBLIC :: dbcsr_multiply_vec, dbcsr_pack_vec,&
        packed_vec_scale, dbcsr_unpack_vec,&
-       add_packed_vecs, dbcsr_mult_pack_vec, packed_vec_bif_tech, packed_vec_bif_tech2, dbcsr_copy_vec, packed_vec_build_u
+       add_packed_vecs, dbcsr_mult_pack_vec, packed_vec_bif_tech, &
+       packed_vec_bif_tech2, dbcsr_copy_vec, packed_vec_build_u
 
   PRIVATE
 
@@ -315,9 +316,13 @@ CONTAINS
     CALL dbcsr_destroy(matrix_a2,error)
     !
     ! some norms here
-    CALL dbcsr_maxabsval(matrix_a, checksum, error=error)
+    CALL dbcsr_norm(matrix_a, checksum, which_norm='MaxAbsNorm', error=error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR maxabsval(S)", checksum
+    ENDIF
+    CALL dbcsr_norm(matrix_a, checksum, which_norm='Frobenius', error=error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR frobenius(S)", checksum
     ENDIF
     !
     ! Fill a matrix with all zeros.
@@ -1484,6 +1489,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_block_node', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: is_there
+
 !   ---------------------------------------------------------------------------
 
     CALL cp_assert (matrix%m%work_mutable, cp_warning_level, cp_caller_error,&
@@ -1497,7 +1504,9 @@ CONTAINS
     CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms(1)%row_i), cp_warning_level,&
          cp_unimplemented_error_nr, routineN,&
          "Data loss due to no conversion of appendable to mutable data")
+    is_there = ASSOCIATED(block)
     CALL dbcsr_reserve_block2d (matrix, row, col, block)
+    IF(.NOT.is_there) block(:,:) = 0.0_dp
   END SUBROUTINE dbcsr_add_block_node
 
 
@@ -1585,6 +1594,8 @@ CONTAINS
     CALL dbcsr_create (matrix, matrix_name, dbcsr_dist, dbcsr_matrix_type,&
          row_blk_sizes, col_blk_sizes, 0, 0, dbcsr_type_real_default,&
          mutable_work=.TRUE., error=error)
+    CALL cp_dbcsr_add_dist2d (matrix%m, distribution_2d, error)
+    matrix%m%sparsity_id = sparsity_id
     ! Clean up
     CALL dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
@@ -1630,6 +1641,8 @@ CONTAINS
          dbcsr_row_block_sizes (source), dbcsr_col_block_sizes (source),&
          0, 0, dbcsr_get_data_type (source),&
          dbcsr_uses_special_memory (source), error=error)
+    CALL cp_dbcsr_add_dist2d (TARGET%m, source%m%dist2d, error)
+    TARGET%m%sparsity_id=source%m%sparsity_id
   END SUBROUTINE dbcsr_replicate_matrix_structure
 
 

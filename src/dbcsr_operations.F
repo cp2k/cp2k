@@ -60,7 +60,7 @@ MODULE dbcsr_operations
             dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block,&
             dbcsr_put_block, dbcsr_filter,dbcsr_find_column,&
             dbcsr_btriu, dbcsr_add_on_diag, block_add_on_diag,&
-            block_chol_inv, block_set, dbcsr_remove_block, dbcsr_maxabsval
+            block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm
   ! Direct access to the variants because array reshaping and
   ! typematching is incompatible.
   PUBLIC :: block_add_on_diag_d, block_add_on_diag_s,&
@@ -3541,21 +3541,29 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
   END SUBROUTINE dbcsr_filter
 
 ! *****************************************************************************
-!> \brief max absolute norm of a dbcsr matrix
-!> \param[in] matrix_a  the matrix
-!> \param[out] maxabsval 
+!> \brief compute a norm of a dbcsr matrix
+!> \param[in] matrix  the matrix
+!> \param[out] norm
+!> \param[in] which_norm
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_maxabsval(matrix, maxabsval, error)
+  SUBROUTINE dbcsr_norm(matrix, norm_scalar, which_norm, error)
 
     TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
-    REAL(dp), INTENT(OUT)                    :: maxabsval
+    REAL(dp), INTENT(OUT), OPTIONAL          :: norm_scalar
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: which_norm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_maxabsval', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_norm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, row, timing_handle
+    CHARACTER(LEN=10)                        :: my_which_norm
+    INTEGER                                  :: blk, col, col_size, row, &
+                                                timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: m_offset
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size
+    REAL(dp)                                 :: fac, my_norm_scalar
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff_d
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
@@ -3563,26 +3571,82 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
 
-    maxabsval=0.0_dp
+    my_which_norm = 'Frobenius'
+    IF(PRESENT(which_norm)) my_which_norm = which_norm
 
-    CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       SELECT CASE (dbcsr_get_data_type(matrix))
-       CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
-          maxabsval = MAX(maxabsval,MAXVAL(ABS(data_d)))
-       CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Only real double precision")
-       END SELECT
+    my_norm_scalar = 0.0_dp
+
+    col_blk_size => array_data (matrix%m%col_blk_size)
+
+    !> this should be precomputed somewhere else
+    ALLOCATE(m_offset(matrix%m%nblkcols_total))
+    m_offset(1) = 1
+    DO col = 2,matrix%m%nblkcols_total
+       col_size = col_blk_size(col-1)
+       m_offset(col) = m_offset(col-1) + col_size**2
     ENDDO
-    CALL dbcsr_iterator_stop(iter)
-    !
-    ! maxme
-    CALL mp_max(maxabsval,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+    !<
+
+    SELECT CASE(my_which_norm)
+    CASE('Frobenius')
+       CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+          SELECT CASE (dbcsr_get_data_type(matrix))
+          CASE (dbcsr_type_real_8)
+             CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
+             fac = 1.0_dp
+             !IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
+             !    dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric)).AND.&
+             !    row.NE.col) fac = 2.0_dp
+             my_norm_scalar = my_norm_scalar + fac * SUM(data_d**2)
+          CASE DEFAULT
+             CALL cp_unimplemented_error (routineN,"Only real double precision")
+          END SELECT
+       ENDDO
+       CALL dbcsr_iterator_stop(iter)
+       CALL mp_max(my_norm_scalar,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+       my_norm_scalar = SQRT(my_norm_scalar)
+    CASE('MaxAbsNorm')
+       CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+          SELECT CASE (dbcsr_get_data_type(matrix))
+          CASE (dbcsr_type_real_8)
+             CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk)
+             my_norm_scalar = MAX(my_norm_scalar,MAXVAL(ABS(data_d)))
+          CASE DEFAULT
+             CALL cp_unimplemented_error (routineN,"Only real double precision")
+          END SELECT
+       ENDDO
+       CALL dbcsr_iterator_stop(iter)
+       CALL mp_max(my_norm_scalar,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+    CASE('Gershgorin')
+       ALLOCATE(buff_d(matrix%m%nblkcols_total))
+       buff_d = 0.0_dp
+!       CALL dbcsr_iterator_start(iter, matrix)
+!       DO WHILE (dbcsr_iterator_blocks_left(iter))
+!          SELECT CASE (dbcsr_get_data_type(matrix))
+!          CASE (dbcsr_type_real_8)
+!             CALL dbcsr_iterator_next_block(iter, row, col, data2_d, blk)
+!             m_offset
+!             !my_norm_scalar = MAX(my_norm_scalar,MAXVAL(ABS(data_d)))
+!          CASE DEFAULT
+!             CALL cp_unimplemented_error (routineN,"Only real double precision")
+!          END SELECT
+!       ENDDO
+!       CALL dbcsr_iterator_stop(iter)
+!       !CALL mp_sum(my_norm_scalar,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))       
+       DEALLOCATE(buff_d)
+    CASE DEFAULT
+       CALL stop_program(routineN,"this norm is NYI")
+    END SELECT
+
+    DEALLOCATE(m_offset)
+
+    IF(PRESENT(norm_scalar)) norm_scalar = my_norm_scalar
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_maxabsval
+  END SUBROUTINE dbcsr_norm
 
 ! *****************************************************************************
 !> \brief Calls the functions that are called in the included files but not

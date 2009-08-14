@@ -276,7 +276,10 @@ MODULE dbcsr_types
      TYPE(array_i1d_obj)                   row_blk_size,&
           &                                col_blk_size
      INTEGER                            :: max_rbs, max_cbs
+
      TYPE(distribution_2d_type), POINTER :: dist2d
+     INTEGER                             :: sparsity_id
+
      INTEGER                 :: nblks, nze
      INTEGER                 :: nblkrows_total, nblkcols_total
      INTEGER                 :: nfullrows_total, nfullcols_total

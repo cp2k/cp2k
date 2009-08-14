@@ -224,6 +224,7 @@ CONTAINS
                                         block_row=irow,&
                                         block_col=icol,&
                                         BLOCK=h_block)
+                   CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
                    IF (calculate_forces) THEN
                       CALL get_block_node(matrix=matrix_p(1)%matrix,&
                                           block_row=irow,&
