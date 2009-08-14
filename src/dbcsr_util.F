@@ -1596,9 +1596,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: blk, blk_l, blk_p, block_col, col, dst_p, mp_group, mynode, &
       mypcol, myprow, nblkcols_total, nblkrows_local, nblkrows_total, ncols, &
-      newpcol, newprow, nfullcols_total, nfullrows_total, npcols, nprows, &
-      nrows, numproc, nze, row, row_l, src_p, stored_col, stored_row, &
-      timing_handle
+      nfullcols_total, nfullrows_total, npcols, nprows, nrows, numproc, nze, &
+      row, row_l, src_p, stored_col, stored_row, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:) :: rd_disp, recv_meta, rm_disp, &
       sd_disp, sdp, send_meta, sm_disp, sm_first_col, sm_first_row, &
       sm_last_col, sm_last_row, smp
@@ -1659,13 +1658,16 @@ CONTAINS
          cp_warning_level, cp_internal_error, routineN,&
          "Specified matrix dimensions/distributions seem incompatible.")
     ! Convert type
+    symmetric = .FALSE.
     SELECT CASE (dbcsr_matrix_type)
     CASE (dbcsr_type_normal)
        sm_symmetry = "none"
     CASE (dbcsr_type_symmetric)
        sm_symmetry = "symmetric"
+       symmetric = .TRUE.
     CASE (dbcsr_type_antisymmetric)
        sm_symmetry = "antisymmetric"
+       symmetric = .TRUE.
     CASE default
        CALL cp_unimplemented_error (routineN,&
             "Can not convert this matrix type or invalid matrix type")
@@ -1729,12 +1731,8 @@ CONTAINS
           ! The sm_matrix_type has the same data layout as the DBCSR
           ! matrices, so we can use the DBCSR one to get the correct
           ! place.
-!          CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
-!VW          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
-tr = .FALSE.
-          newprow = prow_dist(stored_row)
-          newpcol = pcol_dist(stored_col)
-          dst_p = blacs2mpi(newprow, newpcol)
+          CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col,&
+               tr, dst_p)
           nze = row_blk_size(row) * col_blk_size(col)
           send_count(1, dst_p) = send_count(1, dst_p) + 1
           send_count(2, dst_p) = send_count(2, dst_p) + nze
@@ -1784,32 +1782,36 @@ tr = .FALSE.
           stored_row = row
           stored_col = col
           tr = blk_p .LT. 0
-          CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
-!VW          CALL dbcsr_get_lookup (matrix, stored_row, stored_col, tr)
-tr = .FALSE.
-          newprow = prow_dist(stored_row)
-          newpcol = pcol_dist(stored_col)
-          dst_p = blacs2mpi(newprow, newpcol)
+          CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col,&
+               tr, dst_p)
           nrows = row_blk_size(row)
           ncols = row_blk_size(col)
           nze = nrows*ncols
-          IF (.NOT. tr) THEN
-             send_meta(smp(dst_p)) = stored_row
-          ELSE
-             send_meta(smp(dst_p)) = -stored_row
+          ! We need to get the upper triangular form for the
+          ! sparse_matrix_type.
+          IF (symmetric .AND. row .GT. col) THEN
+             CALL swap (stored_row, stored_col)
+             tr = .NOT. tr
           ENDIF
+          send_meta(smp(dst_p)) = stored_row
           send_meta(smp(dst_p)+1) = stored_col
-          !IF (.NOT. tr) THEN
+          IF (.NOT. tr) THEN
              send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
                   data_p(ABS(blk_p):ABS(blk_p)+nze-1)
-          !ELSE
-          !   write(*,*)routineN//" Shouldn't need to reshape; not good",row,col
-          !   CALL dbcsr_block_transpose (&
-          !        send_data(sdp(dst_p):sdp(dst_p)+nze-1),&
-          !        data_p(blk_p:blk_p+nze-1), nrows, ncols)
-          !   !send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-          !   !     RESHAPE (TRANSPOSE (blkdata_2d), (/nze/))
-          !ENDIF
+          ELSE
+             ! This should never be the case when converting a
+             ! sparse_matrix_type-compatible matrix back to the
+             ! sparse_matrix_type, but can be the case with other
+             ! matrices.
+             !CALL cp_assert (.FALSE., cp_warning_level, cp_internal_error,&
+             !     routineN, "Should not need to transpose")
+             CALL dbcsr_block_transpose (&
+                  send_data(sdp(dst_p):sdp(dst_p)+nze-1),&
+                  data_p(blk_p:blk_p+nze-1), nrows, ncols)
+             IF (dbcsr_matrix_type .EQ. dbcsr_type_antisymmetric)&
+                  send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+                  -1.0_dp * send_data(sdp(dst_p):sdp(dst_p)+nze-1)
+          ENDIF
           smp(dst_p) = smp(dst_p) + metalen
           sdp(dst_p) = sdp(dst_p) + nze
        ENDDO
@@ -1841,13 +1843,8 @@ tr = .FALSE.
        data_p => recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
        blk_p = 1
        DO blk_l = 1, recv_count(1, src_p)
-          tr = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)) .LT. 0
-          stored_row = ABS(recv_meta(rm_disp(src_p)+metalen*(blk_l-1)))
+          stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
           stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
-          IF (tr) THEN
-             WRITE(*,*)routineN//" Should not be transposed here",&
-                  stored_row, stored_col
-          ENDIF
           nrows = row_blk_size(stored_row)
           ncols = col_blk_size(stored_col)
           nze = nrows * ncols
@@ -4822,7 +4819,7 @@ tr = .FALSE.
     ALLOCATE (row_dst_offsets(2, 0:numproc-1, sm%nblkrows_total))
     !$OMP PARALLEL DEFAULT (NONE) &
     !$OMP          PRIVATE(i, ithread, &
-    !$OMP                  row, row_l, blk, blk_l, blk_p, col, col_img,&
+    !$OMP                  row, row_l, blk, blk_l, blk_p, bp, col, col_img,&
     !$OMP                  symmetry_i,&
     !$OMP                  stored_row, stored_col, prev_blk_p,&
     !$OMP                  prow, pcol, dst_p, prev_dst_p, same_dst_p, nze, tr,&
