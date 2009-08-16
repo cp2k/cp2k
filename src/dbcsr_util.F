@@ -252,9 +252,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: row, column
     LOGICAL                                  :: transpose
 
-!transpose = MOD(column+row,2).NE.0 .EQV. column.GE.row
-
-    transpose = BTEST(column+row, 0) .EQV. column.GE.row
+    transpose = BTEST(column+row, 0) .EQV. column.GT.row
   END FUNCTION checker_tr
 
 
@@ -1789,7 +1787,7 @@ CONTAINS
           nze = nrows*ncols
           ! We need to get the upper triangular form for the
           ! sparse_matrix_type.
-          IF (symmetric .AND. row .GT. col) THEN
+          IF (symmetric .AND. stored_row .GT. stored_col) THEN
              CALL swap (stored_row, stored_col)
              tr = .NOT. tr
           ENDIF
@@ -4177,7 +4175,11 @@ CONTAINS
              block_2d => values_d(blk)%p
              !write(*,*)"block", blk
              !write(*,'(10(1X,F5.1))')block_2d
-             matrix%wms(i)%blk_p(blk) = blk_p
+             IF (.NOT. values_d(blk)%tr) THEN
+                matrix%wms(i)%blk_p(blk) = blk_p
+             ELSE
+                matrix%wms(i)%blk_p(blk) = -blk_p
+             ENDIF
              CALL dbcsr_data_set (matrix%wms(i)%data_area, blk_p,&
                   SIZE(block_2d),&
                   RESHAPE (block_2d, (/SIZE(block_2d)/)), source_lb=1)

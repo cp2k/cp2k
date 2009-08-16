@@ -304,7 +304,7 @@
     data_block%tr = tr
 
     CALL btree_add_z (matrix%m%wms(1)%mutable%m%btree_z,&
-         make_coordinate_tuple(row, col),&
+         make_coordinate_tuple(stored_row, stored_col),&
          data_block, found, data_block2)
 
     IF (.NOT. found) THEN
