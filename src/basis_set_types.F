@@ -2332,26 +2332,34 @@ CONTAINS
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_geminal_basis_set', &
+      routineP = moduleN//':'//routineN
+    
+    LOGICAL                                  :: failure
+    INTEGER                                  :: iset, ishell, ipgf
+
 ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(geminal_basis_set).AND.(output_unit>0)) THEN
-!      WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/,/,T25,A)")&
-!           "GTO basis set information for",TRIM(geminal_basis_set%name),&
-!           "Set   Shell     n   l            Exponent    Coefficient"
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,T51,A30,/,/,T5,A,T45,A)")&
+            "Gaussian geminal basis set information for",TRIM(geminal_basis_set%name),&
+            "Set  Shell   l(R) l(S)","Exponents               Coefficient"
 
-!      DO iset=1,geminal_basis_set%nset
-!         WRITE (UNIT=output_unit,FMT="(A)") ""
-!         DO ishell=1,geminal_basis_set%nshell(iset)
-!            WRITE (UNIT=output_unit,&
-!                 FMT="(T25,I3,4X,I4,4X,I2,2X,I2,(T51,2F15.6))")&
-!                 iset,ishell,&
-!                 geminal_basis_set%n(ishell,iset),&
-!                 geminal_basis_set%l(ishell,iset),&
-!                 (geminal_basis_set%zet(ipgf,iset),&
-!                 geminal_basis_set%gcc(ipgf,ishell,iset),&
-!                 ipgf=1,geminal_basis_set%npgf(iset))
-!         END DO
-!      END DO
+       DO iset=1,geminal_basis_set%nset
+          WRITE (UNIT=output_unit,FMT="(A)") ""
+          DO ishell=1,geminal_basis_set%nshell(iset)
+             WRITE (UNIT=output_unit,&
+                  FMT="(T5,I3,2X,I4,I5,I5,(T29,4F13.6))")&
+                  iset,ishell,&
+                  geminal_basis_set%l(ishell,iset),&
+                  geminal_basis_set%ls(iset),&
+                  (geminal_basis_set%zet(1,1,ipgf,iset),&
+                  geminal_basis_set%zet(2,2,ipgf,iset),&
+                  geminal_basis_set%zet(1,2,ipgf,iset),&
+                  geminal_basis_set%gcc(ipgf,ishell,iset),&
+                  ipgf=1,geminal_basis_set%npgf(iset))
+          END DO
+       END DO
 
     END IF
 

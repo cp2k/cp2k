@@ -64,9 +64,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2008
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_si_create(store_int_env, se_section, error)
+  SUBROUTINE semi_empirical_si_create(store_int_env, se_section, compression, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(section_vals_type), POINTER         :: se_section
+    LOGICAL, OPTIONAL, INTENT(in)            :: compression
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_create', &
@@ -86,7 +87,11 @@ CONTAINS
 
     ! Memory section
     se_mem_section => section_vals_get_subs_vals(se_section,"MEMORY",error=error)
-    CALL section_vals_val_get(se_mem_section,"COMPRESS",l_val=store_int_env%compress,error=error)
+    IF ( PRESENT(compression) ) THEN
+      store_int_env%compress = compression
+    ELSE
+      CALL section_vals_val_get(se_mem_section,"COMPRESS",l_val=store_int_env%compress,error=error)
+    END IF
     CALL parse_memory_section(store_int_env%memory_parameter, se_mem_section, skip_disk=.TRUE.,&
          error=error)
     store_int_env%memory_parameter%ram_counter = 0

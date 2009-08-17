@@ -756,7 +756,7 @@ CONTAINS
             se_control%taper_lrc, se_control%range_lrc, error)
        CALL set_qs_env(qs_env, se_taper=se_taper, error=error)
        ! Store integral environment
-       CALL semi_empirical_si_create(se_store_int_env, se_section, error)
+       CALL semi_empirical_si_create(se_store_int_env, se_section, error=error)
        CALL set_qs_env(qs_env, se_store_int_env=se_store_int_env, error=error)
     ENDIF
 

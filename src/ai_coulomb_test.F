@@ -189,7 +189,7 @@ CONTAINS
          ii = MAX(100/(l+1)**4,1)
          tstart = m_walltime ( )
          DO i=1,ii
-           CALL gemint2(iab,za,na,l,l,a,zb,nb,l,l,b,error)
+           CALL gemint2(iab,za,na,l,l,2*l,a,zb,nb,l,l,2*l,b,error)
          END DO
          tend = m_walltime ( )
          t = tend - tstart + threshold
@@ -313,7 +313,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     iab = 0._dp
 
-    CALL gemint2(iab,za,1,lla,lla,ra,zb,1,llb,llb,rb,error)
+    CALL gemint2(iab,za,1,lla,lla,2*lla,ra,zb,1,llb,llb,2*llb,rb,error)
 
     dmax = 0._dp
     DO ma=0,la+lc
@@ -538,7 +538,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     iab=0._dp
 
-    CALL gemint2(iab,za,1,lla+1,lla+1,ra,zb,1,llb,llb,rb,error)
+    CALL gemint2(iab,za,1,lla+1,lla+1,2*lla+1,ra,zb,1,llb,llb,2*llb,rb,error)
     CALL gemint2_derivative(iab,iabd,za,1,lla,lla,zb,1,llb,llb,1,.FALSE.,error)
 
     dmax = 0._dp

@@ -9,7 +9,11 @@
 !> \author JGH July 2009    
 ! *****************************************************************************
 MODULE ri_environment_types
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sum
+  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
+                                             semi_empirical_si_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -33,6 +37,12 @@ MODULE ri_environment_types
      TYPE(ri_vector_type), POINTER                    :: coeff
      TYPE(ri_vector_type), POINTER                    :: rhs
      REAL(KIND=dp)                                    :: ehfx1, ehfx2
+     TYPE(semi_empirical_si_type), POINTER            :: gem_integral_storage
+     TYPE(semi_empirical_si_type), POINTER            :: gemdiag_integral_storage
+     TYPE(semi_empirical_si_type), POINTER            :: ggg_integral_storage
+     REAL(KIND=dp)                                    :: screening
+     REAL(KIND=dp)                                    :: eps_opt
+     INTEGER                                          :: max_iter
   END TYPE ri_environment_type
 
   TYPE ri_environment_p_type
@@ -84,6 +94,14 @@ CONTAINS
     ri_env%ehfx1=0._dp
     ri_env%ehfx2=0._dp
 
+    ri_env%screening=0._dp
+    ri_env%eps_opt=0._dp
+    ri_env%max_iter=0
+
+    NULLIFY(ri_env%gem_integral_storage)
+    NULLIFY(ri_env%gemdiag_integral_storage)
+    NULLIFY(ri_env%ggg_integral_storage)
+
   END SUBROUTINE ri_env_create
 
 ! *****************************************************************************
@@ -91,13 +109,32 @@ CONTAINS
 !> \param ri_env the ri_environment you want to change
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE set_ri_env ( ri_env, coeff, rhs )
+  SUBROUTINE set_ri_env ( ri_env, coeff, rhs, gem_integral_storage, ggg_integral_storage, &
+                          gemdiag_integral_storage, screening, error )
 
-    TYPE(ri_environment_type), POINTER       :: ri_env
-    TYPE(ri_vector_type), OPTIONAL, POINTER  :: coeff, rhs
+    TYPE(ri_environment_type), POINTER                 :: ri_env
+    TYPE(ri_vector_type), OPTIONAL, POINTER            :: coeff, rhs
+    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: gem_integral_storage
+    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: ggg_integral_storage
+    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: gemdiag_integral_storage
+    REAL(KIND=dp), OPTIONAL, INTENT(in)                :: screening
+    TYPE(cp_error_type), INTENT(INOUT)                 :: error
 
     IF ( PRESENT(coeff) ) ri_env%coeff => coeff
     IF ( PRESENT(rhs) ) ri_env%rhs => rhs
+    IF ( PRESENT(gem_integral_storage) ) THEN
+       CALL semi_empirical_si_release(ri_env%gem_integral_storage,error=error)
+       ri_env%gem_integral_storage => gem_integral_storage
+    END IF
+    IF ( PRESENT(ggg_integral_storage) ) THEN
+       CALL semi_empirical_si_release(ri_env%ggg_integral_storage,error=error)
+       ri_env%ggg_integral_storage => ggg_integral_storage
+    END IF
+    IF ( PRESENT(gemdiag_integral_storage) ) THEN
+       CALL semi_empirical_si_release(ri_env%gemdiag_integral_storage,error=error)
+       ri_env%gemdiag_integral_storage => gemdiag_integral_storage
+    END IF
+    IF ( PRESENT(screening) ) ri_env%screening = screening
 
   END SUBROUTINE set_ri_env
 
@@ -107,13 +144,27 @@ CONTAINS
 !> \param ri_env the ri_environment you want to get information on
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE get_ri_env ( ri_env, coeff, rhs )
+  SUBROUTINE get_ri_env ( ri_env, coeff, rhs, gem_integral_storage, ggg_integral_storage, &
+                          gemdiag_integral_storage, screening, eps_opt, max_iter, error )
 
-    TYPE(ri_environment_type), POINTER       :: ri_env
-    TYPE(ri_vector_type), OPTIONAL, POINTER  :: coeff, rhs
+    TYPE(ri_environment_type), POINTER                 :: ri_env
+    TYPE(ri_vector_type), OPTIONAL, POINTER            :: coeff, rhs
+    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: gem_integral_storage
+    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: ggg_integral_storage
+    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: gemdiag_integral_storage
+    REAL(KIND=dp), OPTIONAL, INTENT(inout)             :: screening
+    REAL(KIND=dp), OPTIONAL, INTENT(inout)             :: eps_opt
+    INTEGER, OPTIONAL, INTENT(inout)                   :: max_iter
+    TYPE(cp_error_type), INTENT(INOUT)                 :: error
 
     IF ( PRESENT(coeff) ) coeff => ri_env%coeff
     IF ( PRESENT(rhs) ) rhs => ri_env%rhs
+    IF ( PRESENT(gem_integral_storage) ) gem_integral_storage => ri_env%gem_integral_storage
+    IF ( PRESENT(ggg_integral_storage) ) ggg_integral_storage => ri_env%ggg_integral_storage
+    IF ( PRESENT(gemdiag_integral_storage) ) gemdiag_integral_storage => ri_env%gemdiag_integral_storage
+    IF ( PRESENT(screening) ) screening = ri_env%screening
+    IF ( PRESENT(eps_opt) ) eps_opt = ri_env%eps_opt
+    IF ( PRESENT(max_iter) ) max_iter = ri_env%max_iter
 
   END SUBROUTINE get_ri_env
 
@@ -141,6 +192,7 @@ SUBROUTINE ri_env_retain(ri_env, error)
      CPPreconditionNoFail(ri_env%ref_count>0,cp_failure_level,routineP,error)
      ri_env%ref_count=ri_env%ref_count+1
   END IF
+
 END SUBROUTINE ri_env_retain
 
 ! *****************************************************************************
@@ -171,6 +223,15 @@ SUBROUTINE ri_env_release(ri_env, error)
         ri_env%ref_count=0
         CALL ri_vector_release(ri_env%coeff, error)
         CALL ri_vector_release(ri_env%rhs, error)
+        IF (ASSOCIATED(ri_env%gem_integral_storage)) THEN
+           CALL semi_empirical_si_release(ri_env%gem_integral_storage, error)
+        END IF
+        IF (ASSOCIATED(ri_env%ggg_integral_storage)) THEN
+           CALL semi_empirical_si_release(ri_env%ggg_integral_storage, error)
+        END IF
+        IF (ASSOCIATED(ri_env%gemdiag_integral_storage)) THEN
+           CALL semi_empirical_si_release(ri_env%gemdiag_integral_storage, error)
+        END IF
         DEALLOCATE(ri_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -334,12 +395,19 @@ SUBROUTINE ri_vector_norm(RESULT, vec, error)
 END SUBROUTINE ri_vector_norm
 
 
-SUBROUTINE ri_vector_sync(ri_vec, error)
-    TYPE(ri_vector_type)                     :: ri_vec
+SUBROUTINE ri_vector_sync(vec, para_env, error)
+    TYPE(ri_vector_type)                     :: vec
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ri_vector_sync', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+   DO i=1,SIZE(vec%vector)
+     CALL mp_sum(vec%vector(i)%vmat(:,:),para_env%group)
+   END DO
 
 END SUBROUTINE ri_vector_sync
 ! *****************************************************************************

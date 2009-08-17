@@ -9,20 +9,42 @@
 ! *****************************************************************************
 MODULE hfx_ri_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: geminal_basis_set_type,&
-                                             get_geminal_basis_set
+                                             get_geminal_basis_set,&
+                                             write_geminal_basis_set
   USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_geminals,                     ONLY: geminal_coulomb,&
-                                             geminal_gto_coulomb
+                                             geminal_charge,&
+                                             geminal_gto_coulomb,&
+                                             geminal_coulomb_diaginv
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE ri_environment_types,            ONLY: &
        get_ri_env, ri_env_create, ri_environment_type, ri_vector_add, &
        ri_vector_copy, ri_vector_create, ri_vector_dot, ri_vector_norm, &
        ri_vector_release, ri_vector_scale, ri_vector_type, set_ri_env
+  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
+                                             semi_empirical_si_type,&
+                                             semi_empirical_si_finalize,&
+                                             semi_empirical_si_initialize
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -55,8 +77,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_env_create', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: failure, ionode
     INTEGER                                  :: handle, ikind, istat, nat, &
-                                                ngem, nkind
+                                                ngem, nkind, output_unit, maxlgem(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natoms, nbasis
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -64,8 +87,14 @@ CONTAINS
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_rhs
+    TYPE(section_vals_type), POINTER         :: hfx_section
+    TYPE(semi_empirical_si_type), POINTER    :: ri_store_int1, ri_store_int2,&
+                                                ri_store_int3
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
 
     CALL ri_env_create(ri_env,error)
 
@@ -89,8 +118,54 @@ CONTAINS
     CALL ri_vector_create(ri_coeff, nkind, natoms, nbasis, error)
     CALL ri_vector_create(ri_rhs, nkind, natoms, nbasis, error)
 
-    CALL set_ri_env(ri_env,coeff=ri_coeff,rhs=ri_rhs)
+    CALL set_ri_env(ri_env,coeff=ri_coeff,rhs=ri_rhs,error=error)
     CALL set_qs_env(qs_env=qs_env,hfx_ri_env=ri_env,error=error)
+
+    !integral storage
+    NULLIFY(ri_store_int1,ri_store_int2,ri_store_int3)
+    hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
+    CALL semi_empirical_si_create(ri_store_int1, hfx_section, compression=.TRUE., error=error)
+    CALL set_ri_env(ri_env, gem_integral_storage=ri_store_int1, error=error)
+    CALL semi_empirical_si_create(ri_store_int2, hfx_section, compression=.TRUE., error=error)
+    CALL set_ri_env(ri_env, ggg_integral_storage=ri_store_int2, error=error)
+    CALL semi_empirical_si_create(ri_store_int3, hfx_section, compression=.FALSE., error=error)
+    CALL set_ri_env(ri_env, gemdiag_integral_storage=ri_store_int3, error=error)
+
+    !input
+    hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF%HFX_RI",error=error)
+
+    CALL section_vals_val_get(hfx_section,"EPS_SCREENING",r_val=ri_env%screening,error=error)
+    CALL section_vals_val_get(hfx_section,"EPS_OPTIMIZATION",r_val=ri_env%eps_opt,error=error)
+    CALL section_vals_val_get(hfx_section,"MAX_ITER",i_val=ri_env%max_iter,error=error)
+
+    output_unit=cp_print_key_unit_nr(logger,hfx_section,"PRINT%GEMINAL_BASIS",&
+         extension=".RILog",error=error)
+    IF ( output_unit > 0 ) THEN
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          NULLIFY(geminal_basis_set)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,geminal_basis_set=geminal_basis_set)
+          IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
+          CALL write_geminal_basis_set(geminal_basis_set,output_unit,error)
+       END DO
+    END IF
+
+    ionode = qs_env%para_env%ionode
+    output_unit = -1
+    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    IF ( output_unit > 0 ) THEN
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgem=maxlgem)
+       ngem=0
+       DO ikind=1,nkind
+         ngem = ngem + nbasis(ikind)*natoms(ikind)
+       END DO
+       WRITE(output_unit,'(/,A,A,T79,I2)') "  HFX_RI|",&
+             " Maximum l qunatum number for R variable",maxlgem(1)
+       WRITE(output_unit,'(A,A,T79,I2)') "  HFX_RI|",&
+             " Maximum l qunatum number for S variable",maxlgem(2)
+       WRITE(output_unit,'(A,A,T71,I10)') "  HFX_RI|",&
+             " Total number of Geminal basis functions",ngem
+    END IF
 
     DEALLOCATE(nbasis,natoms,stat=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -113,18 +188,39 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_energy_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
-    LOGICAL                                  :: calculate_virial
+    INTEGER                                  :: handle, output_unit
+    LOGICAL                                  :: calculate_virial, s_mstruct_changed, &
+                                                ionode
+    REAL(KIND=dp)                            :: t1, t2
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(virial_type), POINTER               :: virial
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
-    CALL optimize_ri_coeff (qs_env,error)
+    t1 = m_walltime()
+    logger => cp_error_get_logger(error)
+    ionode = qs_env%para_env%ionode
+    output_unit = -1
+    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+
+    NULLIFY(ks_env)
+    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,error=error)
+    s_mstruct_changed = ks_env%s_mstruct_changed
+
+    ! calcluate expansion coefficients
+    CALL optimize_ri_coeff (qs_env,s_mstruct_changed,error)
 
     CALL get_qs_env(qs_env=qs_env,virial=virial,error=error)
     calculate_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
+    ! calcluate Fock matrix and energy
     CALL ri_energy_potential(qs_env,calculate_force,calculate_virial,error)
+
+    t2 = m_walltime()
+    IF ( output_unit > 0 ) THEN
+       WRITE(output_unit,'(T15,A,T25,A,T69,F12.3)') "HFX_RI|","Total time for calculation ",t2-t1
+    END IF
 
     CALL timestop(handle)
 
@@ -132,30 +228,55 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE optimize_ri_coeff (qs_env,error)
+  SUBROUTINE optimize_ri_coeff (qs_env,s_mstruct_changed,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: s_mstruct_changed
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_ri_coeff', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, istat, iter, &
-                                                niter, nkind
+                                                niter, nkind, output_unit, ounit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natoms, nbasis
     LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: alpha, beta, energy, eps_ri, &
-                                                papk, rnorm, rrk, rro
+                                                papk, rnorm, rrk, rro, t1, t2, charge
+    TYPE(semi_empirical_si_type), POINTER    :: gem_integral_storage
+    TYPE(semi_empirical_si_type), POINTER    :: ggg_integral_storage
+    TYPE(semi_empirical_si_type), POINTER    :: gemdiag_integral_storage
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_apk, ri_coeff, ri_pk, &
-                                                ri_res, ri_rhs
+                                                ri_res, ri_rhs, ri_zk
+    TYPE(section_vals_type), POINTER         :: hfx_section
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
+    t1 = m_walltime()
+    logger => cp_error_get_logger(error)
+
+    hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF%HFX_RI",error=error)
+    output_unit=cp_print_key_unit_nr(logger,hfx_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".RILog",error=error)
+    IF ( output_unit > 0 ) THEN
+       WRITE(output_unit,'(A)') "  Hartree-Fock-Exchange Resolution of Identity Approximation"
+    END IF
+
+    NULLIFY(ri_env)
     CALL get_qs_env(qs_env=qs_env,hfx_ri_env=ri_env,error=error)
-    CALL get_ri_env(ri_env=ri_env,coeff=ri_coeff,rhs=ri_rhs)
+
+    CALL get_ri_env(ri_env=ri_env,coeff=ri_coeff,rhs=ri_rhs,error=error)
+
+    ! integral storage
+    CALL get_ri_env(ri_env=ri_env,gem_integral_storage=gem_integral_storage,&
+                    ggg_integral_storage=ggg_integral_storage,&
+                    gemdiag_integral_storage=gemdiag_integral_storage,error=error)
 
     ! calculate rhs of linear equation
+    CALL semi_empirical_si_initialize(ggg_integral_storage,s_mstruct_changed,error)
     CALL geminal_gto_coulomb(qs_env,.FALSE.,.FALSE.,.FALSE.,.FALSE.,error)
+    CALL semi_empirical_si_finalize(ggg_integral_storage,s_mstruct_changed,error)
 
     !allocate scratch vectors
     nkind = SIZE(ri_coeff%vector)
@@ -166,45 +287,80 @@ CONTAINS
       nbasis(ikind) = ri_coeff%vector(ikind)%nbasis
     END DO
 
-    NULLIFY(ri_res,ri_pk,ri_apk)
+    NULLIFY(ri_res,ri_zk,ri_pk,ri_apk)
     CALL ri_vector_create(ri_res, nkind, natoms, nbasis, error)
+    CALL ri_vector_create(ri_zk, nkind, natoms, nbasis, error)
     CALL ri_vector_create(ri_pk, nkind, natoms, nbasis, error)
     CALL ri_vector_create(ri_apk, nkind, natoms, nbasis, error)
 
     DEALLOCATE(nbasis,natoms,stat=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
 
-    niter = 20
-    eps_ri = 1.e-5_dp
+    niter = ri_env%max_iter
+    eps_ri = ri_env%eps_opt
 
     converged = .FALSE.
     ! calculate residual
+    CALL semi_empirical_si_initialize(gem_integral_storage,s_mstruct_changed,error)
     CALL geminal_coulomb(ri_coeff,ri_res,qs_env,energy,.FALSE.,.FALSE.,.FALSE.,error)
+    CALL semi_empirical_si_finalize(gem_integral_storage,s_mstruct_changed,error)
+
     CALL ri_vector_add(-1._dp, ri_rhs, ri_res, error)
     CALL ri_vector_scale(-1._dp, ri_res, error)
-    CALL ri_vector_copy(ri_res, ri_pk, error)
-    CALL ri_vector_dot(rrk, ri_res, ri_res, error)
+    ! apply preconditioner
+    CALL semi_empirical_si_initialize(gemdiag_integral_storage,s_mstruct_changed,error)
+    CALL geminal_coulomb_diaginv(ri_res,ri_zk,qs_env,error)
+    CALL semi_empirical_si_finalize(gemdiag_integral_storage,s_mstruct_changed,error)
+    !
+    CALL ri_vector_copy(ri_zk, ri_pk, error)
+    CALL ri_vector_dot(rrk, ri_res, ri_zk, error)
     DO iter=1,niter
+       CALL semi_empirical_si_initialize(gem_integral_storage,.FALSE.,error)
        CALL geminal_coulomb(ri_pk,ri_apk,qs_env,energy,.FALSE.,.FALSE.,.FALSE.,error)
+       CALL semi_empirical_si_finalize(gem_integral_storage,.FALSE.,error)
        CALL ri_vector_dot(papk, ri_pk, ri_apk, error)
        alpha = rrk/papk
        CALL ri_vector_add(alpha, ri_pk, ri_coeff, error)
        CALL ri_vector_add(-alpha, ri_apk, ri_res, error)
        CALL ri_vector_norm(rnorm, ri_res, error)
+
+       IF ( output_unit > 0 ) THEN
+          WRITE(6,'(T15,A,T25,A,T35,i4,T50,A,T61,F20.10)') "HFX_RI|","Iteration :",iter,"Residual=",rnorm
+       END IF
+
        IF ( rnorm < eps_ri ) THEN
           converged = .TRUE.
           EXIT
        END IF
+       ! apply preconditioner
+       CALL semi_empirical_si_initialize(gemdiag_integral_storage,.FALSE.,error)
+       CALL geminal_coulomb_diaginv(ri_res,ri_zk,qs_env,error)
+       CALL semi_empirical_si_finalize(gemdiag_integral_storage,.FALSE.,error)
+       !
        rro = rrk
-       CALL ri_vector_dot(rrk, ri_res, ri_res, error)
+       CALL ri_vector_dot(rrk, ri_res, ri_zk, error)
        beta = rrk/rro
        CALL ri_vector_scale(beta, ri_pk, error)
-       CALL ri_vector_add(1._dp, ri_res, ri_pk, error)
+       CALL ri_vector_add(1._dp, ri_zk, ri_pk, error)
     END DO
 
     CALL ri_vector_release(ri_res, error)
+    CALL ri_vector_release(ri_zk, error)
     CALL ri_vector_release(ri_pk, error)
     CALL ri_vector_release(ri_apk, error)
+
+    ounit=cp_print_key_unit_nr(logger,hfx_section,"PRINT%CHARGE",&
+         extension=".RILog",error=error)
+    IF ( ounit > 0 ) THEN
+       charge=0._dp
+       CALL geminal_charge(ri_coeff,qs_env,charge,error)
+       WRITE(output_unit,'(T15,A,T25,A,T57,F24.12)') "HFX_RI|","Total charge of RI expansion ",charge
+    END IF
+
+    t2 = m_walltime()
+    IF ( output_unit > 0 ) THEN
+       WRITE(output_unit,'(T15,A,T25,A,T69,F12.3)') "HFX_RI|","Total time for optimization ",t2-t1
+    END IF
 
     CALL timestop(handle)
 
@@ -226,13 +382,19 @@ CONTAINS
     LOGICAL                                  :: calculate_energy, &
                                                 calculate_fock
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(semi_empirical_si_type), POINTER    :: gem_integral_storage
+    TYPE(semi_empirical_si_type), POINTER    :: ggg_integral_storage
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_res, ri_rhs
 
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env,hfx_ri_env=ri_env,energy=energy,error=error)
-    CALL get_ri_env(ri_env=ri_env,coeff=ri_coeff,rhs=ri_rhs)
+    ! integral storage
+    CALL get_ri_env(ri_env=ri_env,gem_integral_storage=gem_integral_storage,&
+                    ggg_integral_storage=ggg_integral_storage,error=error)
+
+    CALL get_ri_env(ri_env=ri_env,coeff=ri_coeff,rhs=ri_rhs,error=error)
     nkind = SIZE(ri_coeff%vector)
     ALLOCATE(nbasis(nkind),natoms(nkind),stat=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -250,10 +412,15 @@ CONTAINS
     calculate_energy = .TRUE.
     calculate_fock = .TRUE.
 
+    CALL semi_empirical_si_initialize(gem_integral_storage,.FALSE.,error)
     CALL geminal_coulomb(ri_coeff,ri_res,qs_env,ri_env%ehfx1,calculate_energy,calculate_force,&
                          calculate_virial,error)
+    CALL semi_empirical_si_finalize(gem_integral_storage,.FALSE.,error)
+
+    CALL semi_empirical_si_initialize(ggg_integral_storage,.FALSE.,error)
     CALL geminal_gto_coulomb(qs_env,calculate_fock,calculate_energy,&
                              calculate_force,calculate_virial,error)
+    CALL semi_empirical_si_finalize(ggg_integral_storage,.FALSE.,error)
 
     energy%ex = 0.5_dp*(ri_env%ehfx1 + ri_env%ehfx2)
 

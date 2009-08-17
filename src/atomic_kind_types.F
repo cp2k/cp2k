@@ -25,7 +25,7 @@ MODULE atomic_kind_types
        geminal_basis_set_type, get_gto_basis_set, gto_basis_set_type, &
        init_aux_basis_set, init_orb_basis_set, read_geminal_basis_set, &
        read_gto_basis_set, set_gto_basis_set, write_aux_basis_set, &
-       write_gto_basis_set, write_orb_basis_set
+       write_gto_basis_set, write_orb_basis_set,get_geminal_basis_set
   USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -695,7 +695,7 @@ CONTAINS
        qm_atom_present,shell_present, shell_adiabatic,&
        shell_check_distance, dft_plus_u_atom_present,&
        atom_of_kind,kind_of,natom_of_kind,maxder,&
-       max_ngrid_rad,&
+       maxlgem,max_ngrid_rad,&
        max_sph_harm,maxg_iso_not0,lmax_rho0,&
        zetsoft_max,basis_set_id)
 
@@ -704,7 +704,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL :: maxatom, maxcgf, maxco, maxco_proj, &
       maxgtop, maxgtops, maxlgto, maxlprj, maxlppl, maxlppnl, maxnset, &
       maxpgf, maxppnl, maxsgf, maxsgf_set, maxshell, natom, nelectron, ncgf, &
-      ncgf_aux, npgf, nset, nsgf, nshell
+      ncgf_aux, npgf, nset, nsgf, nshell, maxlgem(2)
     LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
       gth_potential_present, elp_potential_present, paw_atom_present, &
       qm_atom_present, shell_present, shell_adiabatic, shell_check_distance, &
@@ -722,8 +722,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, iatom, ikind, imax, ipgf, iset, lmax_rho0_kind, &
-      max_iso_not0, max_s_harm, my_basis_set_id, n, ngrid_rad, nkind
-    INTEGER, DIMENSION(:), POINTER           :: n_ppl, npgf_kind
+      max_iso_not0, max_s_harm, my_basis_set_id, n, ngrid_rad, nkind, lmg, ls
+    INTEGER, DIMENSION(:), POINTER           :: n_ppl, npgf_kind, lmgem, lsgem
     LOGICAL                                  :: dft_plus_u_atom, paw_atom, &
                                                 qm_atom
     REAL(KIND=dp)                            :: zeff, zeff_correction
@@ -738,6 +738,7 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     TYPE(shell_kind_type), POINTER           :: shell
+    TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
 
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id
@@ -787,6 +788,7 @@ CONTAINS
        IF (PRESENT(max_ngrid_rad))  max_ngrid_rad = 0
        IF (PRESENT(max_sph_harm))   max_sph_harm = 0
        IF (PRESENT(lmax_rho0))      lmax_rho0 = 0
+       IF (PRESENT(maxlgem))        maxlgem = 0
 
        nkind = SIZE(atomic_kind_set)
        DO ikind=1,nkind
@@ -800,6 +802,7 @@ CONTAINS
                orb_basis_set=orb_basis_set,&
                soft_basis_set=soft_basis_set,&
                paw_proj_set=paw_proj_set,&
+               geminal_basis_set=geminal_basis_set,&
                dftb_parameter=dftb_parameter,&
                ngrid_rad=ngrid_rad,&
                max_s_harm=max_s_harm, &
@@ -1228,6 +1231,13 @@ CONTAINS
                    zetsoft_max= MAX(zetsoft_max,zet_kind(ipgf,iset))
                 END DO
              END DO
+          END IF
+          IF (PRESENT(maxlgem)) THEN
+            CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,lmax=lmgem,ls=lsgem)
+            lmg=MAXVAL(lmgem)
+            ls=MAXVAL(lsgem)
+            maxlgem(1) = MAX(maxlgem(1),lmg)
+            maxlgem(2) = MAX(maxlgem(2),ls)
           END IF
        END DO
     ELSE
