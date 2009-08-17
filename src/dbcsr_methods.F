@@ -29,7 +29,7 @@ MODULE dbcsr_methods
   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
                                              btree_new_z => btree_new
   USE dbcsr_types,                     ONLY: &
-       dbcsr_1d_set_obj, dbcsr_2d_set_obj, dbcsr_data_obj, &
+       dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
        dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
@@ -80,8 +80,9 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_next_block,&
             dbcsr_iterator_stop, dbcsr_iterator_blocks_left
 
-  PUBLIC :: dbcsr_allocate_matrix_set, dbcsr_set_new, dbcsr_set_put, dbcsr_set_get,&
-            dbcsr_set_destroy, dbcsr_set_hold, dbcsr_set_release
+  PUBLIC :: dbcsr_allocate_matrix_array, dbcsr_array_new, dbcsr_array_put,&
+            dbcsr_array_get, dbcsr_array_destroy, dbcsr_array_hold,&
+            dbcsr_array_release
 
   PUBLIC :: dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_destroy,&
             dbcsr_mutable_release, dbcsr_mutable_hold,&
@@ -115,34 +116,34 @@ MODULE dbcsr_methods
                       iterator_next_1d_block_d
   END INTERFACE
 
-  ! For the sets
+  ! For the 1-D and 2-D arrays
 
-  INTERFACE dbcsr_allocate_matrix_set
-     MODULE PROCEDURE set_init_1d, set_init_2d
+  INTERFACE dbcsr_allocate_matrix_array
+     MODULE PROCEDURE array_init_1d, array_init_2d
   END INTERFACE
 
-  INTERFACE dbcsr_set_new
-     MODULE PROCEDURE set_new_1d, set_new_2d
+  INTERFACE dbcsr_array_new
+     MODULE PROCEDURE array_new_1d, array_new_2d
   END INTERFACE
 
-  INTERFACE dbcsr_set_put
-     MODULE PROCEDURE set_put_1d, set_put_2d
+  INTERFACE dbcsr_array_put
+     MODULE PROCEDURE array_put_1d, array_put_2d
   END INTERFACE
 
-  INTERFACE dbcsr_set_get
-     MODULE PROCEDURE set_get_1d, set_get_2d
+  INTERFACE dbcsr_array_get
+     MODULE PROCEDURE array_get_1d, array_get_2d
   END INTERFACE
 
-  INTERFACE dbcsr_set_destroy
-     MODULE PROCEDURE set_destroy_1d, set_destroy_2d
+  INTERFACE dbcsr_array_destroy
+     MODULE PROCEDURE array_destroy_1d, array_destroy_2d
   END INTERFACE
 
-  INTERFACE dbcsr_set_hold
-     MODULE PROCEDURE set_hold_1d, set_hold_2d
+  INTERFACE dbcsr_array_hold
+     MODULE PROCEDURE array_hold_1d, array_hold_2d
   END INTERFACE
 
-  INTERFACE dbcsr_set_release
-     MODULE PROCEDURE set_release_1d, set_release_2d
+  INTERFACE dbcsr_array_release
+     MODULE PROCEDURE array_release_1d, array_release_2d
   END INTERFACE
 
 CONTAINS
@@ -1868,334 +1869,334 @@ CONTAINS
 
 
 ! *****************************************************************************
-! Sets
+! Arrays
 ! *****************************************************************************
 
 
 ! *****************************************************************************
-!> \brief Initializes a 1-d set of DBCSR matrices
-!> \param[out] set    the set of matrices
+!> \brief Initializes a 1-d array of DBCSR matrices
+!> \param[out] array    the array of matrices
 !> \param[in] n       (optional) number of matrices to be included
 ! *****************************************************************************
-  SUBROUTINE set_init_1d (set, n)
-    TYPE(dbcsr_1d_set_obj), INTENT(OUT)      :: set
+  SUBROUTINE array_init_1d (array, n)
+    TYPE(dbcsr_1d_array_obj), INTENT(OUT)    :: array
     INTEGER, INTENT(IN), OPTIONAL            :: n
 
-    NULLIFY (set%s, set%refcount)
-    IF (PRESENT (n)) CALL dbcsr_set_new (set, n)
-  END SUBROUTINE set_init_1d
+    NULLIFY (array%s, array%refcount)
+    IF (PRESENT (n)) CALL dbcsr_array_new (array, n)
+  END SUBROUTINE array_init_1d
 
 ! *****************************************************************************
-!> \brief Initializes a 2-d set of DBCSR matrices
-!> \param[out] set    the set of matrices
+!> \brief Initializes a 2-d array of DBCSR matrices
+!> \param[out] array    the array of matrices
 !> \param[in] n       (optional) number of matrices to be included
 ! *****************************************************************************
-  SUBROUTINE set_init_2d (set, n)
-    TYPE(dbcsr_2d_set_obj), INTENT(OUT)      :: set
+  SUBROUTINE array_init_2d (array, n)
+    TYPE(dbcsr_2d_array_obj), INTENT(OUT)    :: array
     INTEGER, DIMENSION(2), INTENT(IN), &
       OPTIONAL                               :: n
 
-    NULLIFY (set%s, set%refcount)
-    IF (PRESENT (n)) CALL dbcsr_set_new (set, n)
-  END SUBROUTINE set_init_2d
+    NULLIFY (array%s, array%refcount)
+    IF (PRESENT (n)) CALL dbcsr_array_new (array, n)
+  END SUBROUTINE array_init_2d
 
 ! *****************************************************************************
-!> \brief Allocates a 1-d set of DBCSR matrices
-!> \param[in,out] set  the set of matrices
+!> \brief Allocates a 1-d array of DBCSR matrices
+!> \param[in,out] array  the array of matrices
 !> \param[in] n        number of matrices to be included
 ! *****************************************************************************
-  SUBROUTINE set_new_1d (set, n)
-    TYPE(dbcsr_1d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_new_1d (array, n)
+    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
     INTEGER, INTENT(IN)                      :: n
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_new_1d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_new_1d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (.NOT. ASSOCIATED (set%s), cp_warning_level,&
+    CALL cp_assert (.NOT. ASSOCIATED (array%s), cp_warning_level,&
          cp_caller_error, routineN,&
-         "Set was already allocated, memory leakage will occur")
-    ALLOCATE (set%s(n))
-    ALLOCATE (set%refcount)
-    set%refcount = 1
-  END SUBROUTINE set_new_1d
+         "Array was already allocated, memory leakage will occur")
+    ALLOCATE (array%s(n))
+    ALLOCATE (array%refcount)
+    array%refcount = 1
+  END SUBROUTINE array_new_1d
 
 ! *****************************************************************************
-!> \brief Allocates a 2-d set of DBCSR matrices
-!> \param[in,out] set  the set of matrices
+!> \brief Allocates a 2-d array of DBCSR matrices
+!> \param[in,out] array  the array of matrices
 !> \param[in] n        number of matrices to be included
 ! *****************************************************************************
-  SUBROUTINE set_new_2d (set, n)
-    TYPE(dbcsr_2d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_new_2d (array, n)
+    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
     INTEGER, DIMENSION(2), INTENT(IN)        :: n
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_new_2d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_new_2d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (.NOT. ASSOCIATED (set%s), cp_warning_level,&
+    CALL cp_assert (.NOT. ASSOCIATED (array%s), cp_warning_level,&
          cp_caller_error, routineN,&
-         "Set was already allocated, memory leakage will occur")
-    ALLOCATE (set%s(n(1), n(2)))
-    ALLOCATE (set%refcount)
-    set%refcount = 1
-  END SUBROUTINE set_new_2d
+         "Array was already allocated, memory leakage will occur")
+    ALLOCATE (array%s(n(1), n(2)))
+    ALLOCATE (array%refcount)
+    array%refcount = 1
+  END SUBROUTINE array_new_2d
 
 ! *****************************************************************************
-!> \brief Inserts a DBCSR matrix into the set
+!> \brief Inserts a DBCSR matrix into the array
 !>
-!> The matrix is inserted into the set and its reference is registered.
-!> \param[in,out] set    the set of matrices
+!> The matrix is inserted into the array and its reference is registered.
+!> \param[in,out] array    the array of matrices
 !> \param[in] position   array position into which matrix is inserted
 !> \param[in] matrix     matrices to be included
 ! *****************************************************************************
-  SUBROUTINE set_put_1d (set, position, matrix)
-    TYPE(dbcsr_1d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_put_1d (array, position, matrix)
+    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
     INTEGER, INTENT(IN)                      :: position
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_put_1d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_put_1d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not insert into unallocated set")
-    CALL cp_assert(position .GE. LBOUND (set%s, 1)&
-         .AND. position .LE. UBOUND (set%s, 1),&
+    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
+         routineN, "Can not insert into unallocated array")
+    CALL cp_assert(position .GE. LBOUND (array%s, 1)&
+         .AND. position .LE. UBOUND (array%s, 1),&
          cp_failure_level, cp_caller_error, routineN,&
          "Insertion position out of bounds.")
-    set%s(position) = matrix
-    CALL dbcsr_hold (set%s(position))
-  END SUBROUTINE set_put_1d
+    array%s(position) = matrix
+    CALL dbcsr_hold (array%s(position))
+  END SUBROUTINE array_put_1d
 
 ! *****************************************************************************
-!> \brief Inserts a DBCSR matrix into the set
+!> \brief Inserts a DBCSR matrix into the array
 !>
-!> The matrix is inserted into the set and its reference is registered.
-!> \param[in,out] set the set of matrices
+!> The matrix is inserted into the array and its reference is registered.
+!> \param[in,out] array the array of matrices
 !> \param[in] position   array position into which matrix is inserted
 !> \param[in] matrix  matrices to be included
 ! *****************************************************************************
-  SUBROUTINE set_put_2d (set, position, matrix)
-    TYPE(dbcsr_2d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_put_2d (array, position, matrix)
+    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
     INTEGER, DIMENSION(2), INTENT(IN)        :: position
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_put_2d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_put_2d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not insert into unallocated set")
-    CALL cp_assert(position(1) .GE. LBOUND (set%s, 1)&
-         .AND. position(1) .LE. UBOUND (set%s, 1)&
-         .AND. position(2) .GE. LBOUND (set%s, 2)&
-         .AND. position(2) .LE. UBOUND (set%s, 2),&
+    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
+         routineN, "Can not insert into unallocated array")
+    CALL cp_assert(position(1) .GE. LBOUND (array%s, 1)&
+         .AND. position(1) .LE. UBOUND (array%s, 1)&
+         .AND. position(2) .GE. LBOUND (array%s, 2)&
+         .AND. position(2) .LE. UBOUND (array%s, 2),&
          cp_failure_level, cp_caller_error, routineN,&
          "Insertion position out of bounds.")
-    set%s(position(1), position(2)) = matrix
-    CALL dbcsr_hold (set%s(position(1), position(2)))
-  END SUBROUTINE set_put_2d
+    array%s(position(1), position(2)) = matrix
+    CALL dbcsr_hold (array%s(position(1), position(2)))
+  END SUBROUTINE array_put_2d
 
 ! *****************************************************************************
-!> \brief Gets a DBCSR matrix from the set
-!> \param[in] set     the set of matrices
+!> \brief Gets a DBCSR matrix from the array
+!> \param[in] array     the array of matrices
 !> \param[in] position   array position into which matrix is inserted
 !> \param matrix      matrix (no new reference is registered)
 ! *****************************************************************************
-  FUNCTION set_get_1d (set, position) RESULT (matrix)
-    TYPE(dbcsr_1d_set_obj), INTENT(IN)       :: set
+  FUNCTION array_get_1d (array, position) RESULT (matrix)
+    TYPE(dbcsr_1d_array_obj), INTENT(IN)     :: array
     INTEGER, INTENT(IN)                      :: position
     TYPE(dbcsr_obj)                          :: matrix
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_get_1d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_get_1d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not read from an unallocated set")
-    CALL cp_assert (position .GE. LBOUND (set%s,1)&
-         .AND. position .LE. UBOUND (set%s,1),&
+    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
+         routineN, "Can not read from an unallocated array")
+    CALL cp_assert (position .GE. LBOUND (array%s,1)&
+         .AND. position .LE. UBOUND (array%s,1),&
          cp_failure_level, cp_caller_error, routineN,&
          "Read position out of bounds.")
-    matrix = set%s(position)
-  END FUNCTION set_get_1d
+    matrix = array%s(position)
+  END FUNCTION array_get_1d
 
 ! *****************************************************************************
-!> \brief Gets a DBCSR matrix from the set
-!> \param[in] set     the set of matrices
+!> \brief Gets a DBCSR matrix from the array
+!> \param[in] array     the array of matrices
 !> \param[in] position   array position into which matrix is inserted
 !> \param matrix      matrix (no new reference is registered)
 ! *****************************************************************************
-  FUNCTION set_get_2d (set, position) RESULT (matrix)
-    TYPE(dbcsr_2d_set_obj), INTENT(IN)       :: set
+  FUNCTION array_get_2d (array, position) RESULT (matrix)
+    TYPE(dbcsr_2d_array_obj), INTENT(IN)     :: array
     INTEGER, DIMENSION(2), INTENT(IN)        :: position
     TYPE(dbcsr_obj)                          :: matrix
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_get_2d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_get_2d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not read from an unallocated set")
-    CALL cp_assert(position(1) .GE. LBOUND (set%s, 1)&
-         .AND. position(1) .LE. UBOUND (set%s, 1)&
-         .AND. position(2) .GE. LBOUND (set%s, 2)&
-         .AND. position(2) .LE. UBOUND (set%s, 2),&
+    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
+         routineN, "Can not read from an unallocated array")
+    CALL cp_assert(position(1) .GE. LBOUND (array%s, 1)&
+         .AND. position(1) .LE. UBOUND (array%s, 1)&
+         .AND. position(2) .GE. LBOUND (array%s, 2)&
+         .AND. position(2) .LE. UBOUND (array%s, 2),&
          cp_failure_level, cp_caller_error, routineN,&
          "Read position out of bounds.")
-    matrix = set%s(position(1), position(2))
-  END FUNCTION set_get_2d
+    matrix = array%s(position(1), position(2))
+  END FUNCTION array_get_2d
 
 ! *****************************************************************************
-!> \brief Destroys a 1-d set and releases all held resources
-!> \param[in,out] set    the set of matrices
+!> \brief Destroys a 1-d array and releases all held resources
+!> \param[in,out] array    the array of matrices
 ! *****************************************************************************
-  SUBROUTINE set_destroy_1d (set)
-    TYPE(dbcsr_1d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_destroy_1d (array)
+    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_destroy_1d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_destroy_1d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not destroy an unallocated set")
-    CALL cp_assert (ASSOCIATED (set%refcount),&
+    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
+         routineN, "Can not destroy an unallocated array")
+    CALL cp_assert (ASSOCIATED (array%refcount),&
          cp_failure_level, cp_caller_error, routineN,&
          "Reference count does not exist.")
-    CALL cp_assert (set%refcount .EQ. 0, cp_warning_level, cp_caller_error,&
+    CALL cp_assert (array%refcount .EQ. 0, cp_warning_level, cp_caller_error,&
          routineN, "References are still held")
-    DO i = LBOUND (set%s, 1), UBOUND (set%s, 1)
-       CALL dbcsr_release (set%s(i))
+    DO i = LBOUND (array%s, 1), UBOUND (array%s, 1)
+       CALL dbcsr_release (array%s(i))
     ENDDO
-    DEALLOCATE (set%s)
-    DEALLOCATE (set%refcount)
-    CALL dbcsr_allocate_matrix_set (set)
-  END SUBROUTINE set_destroy_1d
+    DEALLOCATE (array%s)
+    DEALLOCATE (array%refcount)
+    CALL dbcsr_allocate_matrix_array (array)
+  END SUBROUTINE array_destroy_1d
 
 ! *****************************************************************************
-!> \brief Destroys a 2-d set and releases all held resources
-!> \param[in,out] set    the set of matrices
+!> \brief Destroys a 2-d array and releases all held resources
+!> \param[in,out] array    the array of matrices
 ! *****************************************************************************
-  SUBROUTINE set_destroy_2d (set)
-    TYPE(dbcsr_2d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_destroy_2d (array)
+    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_destroy_2d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_destroy_2d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not destroy an unallocated set")
-    CALL cp_assert (ASSOCIATED (set%refcount),&
+    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
+         routineN, "Can not destroy an unallocated array")
+    CALL cp_assert (ASSOCIATED (array%refcount),&
          cp_failure_level, cp_caller_error, routineN,&
          "Reference count does not exist.")
-    CALL cp_assert (set%refcount .EQ. 0, cp_warning_level, cp_caller_error,&
+    CALL cp_assert (array%refcount .EQ. 0, cp_warning_level, cp_caller_error,&
          routineN, "References are still held")
-    DO i = LBOUND (set%s, 1), UBOUND (set%s, 1)
-       DO j = LBOUND (set%s, 2), UBOUND (set%s, 2)
-          CALL dbcsr_release (set%s(i, j))
+    DO i = LBOUND (array%s, 1), UBOUND (array%s, 1)
+       DO j = LBOUND (array%s, 2), UBOUND (array%s, 2)
+          CALL dbcsr_release (array%s(i, j))
        ENDDO
     ENDDO
-    DEALLOCATE (set%s)
-    DEALLOCATE (set%refcount)
-    CALL dbcsr_allocate_matrix_set (set)
-  END SUBROUTINE set_destroy_2d
+    DEALLOCATE (array%s)
+    DEALLOCATE (array%refcount)
+    CALL dbcsr_allocate_matrix_array (array)
+  END SUBROUTINE array_destroy_2d
 
 
 ! *****************************************************************************
-!> \brief Registers another reference for a 1-d set
-!> \param[in,out] set    the set of matrices
+!> \brief Registers another reference for a 1-d array
+!> \param[in,out] array    the array of matrices
 ! *****************************************************************************
-  SUBROUTINE set_hold_1d (set)
-    TYPE(dbcsr_1d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_hold_1d (array)
+    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_hold_1d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_hold_1d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%refcount),&
+    CALL cp_assert (ASSOCIATED (array%refcount),&
          cp_failure_level, cp_caller_error, routineN,&
          "Reference count does not exist.")
-    set%refcount = set%refcount + 1
-  END SUBROUTINE set_hold_1d
+    array%refcount = array%refcount + 1
+  END SUBROUTINE array_hold_1d
 
 ! *****************************************************************************
-!> \brief Registers another reference for a 2-d set
-!> \param[in,out] set    the set of matrices
+!> \brief Registers another reference for a 2-d array
+!> \param[in,out] array    the array of matrices
 ! *****************************************************************************
-  SUBROUTINE set_hold_2d (set)
-    TYPE(dbcsr_2d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_hold_2d (array)
+    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_hold_2d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_hold_2d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%refcount),&
+    CALL cp_assert (ASSOCIATED (array%refcount),&
          cp_failure_level, cp_caller_error, routineN,&
          "Reference count does not exist.")
-    set%refcount = set%refcount + 1
-  END SUBROUTINE set_hold_2d
+    array%refcount = array%refcount + 1
+  END SUBROUTINE array_hold_2d
 
 
 ! *****************************************************************************
-!> \brief Releases a reference for a 1-d set
+!> \brief Releases a reference for a 1-d array
 !>
-!> If there are no references left, the set is destroyed.
-!> \param[in,out] set    the set of matrices
+!> If there are no references left, the array is destroyed.
+!> \param[in,out] array    the array of matrices
 ! *****************************************************************************
-  SUBROUTINE set_release_1d (set)
-    TYPE(dbcsr_1d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_release_1d (array)
+    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_release_1d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_release_1d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%refcount),&
+    CALL cp_assert (ASSOCIATED (array%refcount),&
          cp_failure_level, cp_caller_error, routineN,&
          "Reference count does not exist.")
-    set%refcount = set%refcount - 1
-    IF (set%refcount .EQ. 0) THEN
-       CALL dbcsr_set_destroy (set)
+    array%refcount = array%refcount - 1
+    IF (array%refcount .EQ. 0) THEN
+       CALL dbcsr_array_destroy (array)
     ENDIF
-  END SUBROUTINE set_release_1d
+  END SUBROUTINE array_release_1d
 
 ! *****************************************************************************
-!> \brief Releases a reference for a 2-d set
+!> \brief Releases a reference for a 2-d array
 !>
-!> If there are no references left, the set is destroyed.
-!> \param[in,out] set    the set of matrices
+!> If there are no references left, the array is destroyed.
+!> \param[in,out] array    the array of matrices
 ! *****************************************************************************
-  SUBROUTINE set_release_2d (set)
-    TYPE(dbcsr_2d_set_obj), INTENT(INOUT)    :: set
+  SUBROUTINE array_release_2d (array)
+    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_release_2d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'array_release_2d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (set%refcount),&
+    CALL cp_assert (ASSOCIATED (array%refcount),&
          cp_failure_level, cp_caller_error, routineN,&
          "Reference count does not exist.")
-    set%refcount = set%refcount - 1
-    IF (set%refcount .EQ. 0) THEN
-       CALL dbcsr_set_destroy (set)
+    array%refcount = array%refcount - 1
+    IF (array%refcount .EQ. 0) THEN
+       CALL dbcsr_array_destroy (array)
     ENDIF
-  END SUBROUTINE set_release_2d
+  END SUBROUTINE array_release_2d
 
 #if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
 ! *****************************************************************************

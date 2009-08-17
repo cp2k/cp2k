@@ -512,7 +512,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_type (matrix, error)
     TYPE(dbcsr_type), INTENT(OUT)            :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_type', &
       routineP = moduleN//':'//routineN
@@ -536,7 +537,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_obj (matrix, error)
     TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj', &
       routineP = moduleN//':'//routineN

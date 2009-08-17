@@ -79,11 +79,31 @@ MODULE cp_dbcsr_operations
 
   PUBLIC :: dbcsr_sm_sm_multiply, dbcsr_check
   PUBLIC :: cp_dbcsr_add_dist2d, cp_dbcsr_get_dist2d, cp_dbcsr_remove_dist2d
-  PUBLIC :: dbcsr_add_block_node, dbcsr_replicate_matrix_structure, dbcsr_allocate_matrix
   PUBLIC :: dbcsr_multiply_vec, dbcsr_pack_vec,&
        packed_vec_scale, dbcsr_unpack_vec,&
        add_packed_vecs, dbcsr_mult_pack_vec, packed_vec_bif_tech, &
        packed_vec_bif_tech2, dbcsr_copy_vec, packed_vec_build_u
+  ! CP2K API emulation
+  PUBLIC :: dbcsr_add_block_node,&
+            dbcsr_replicate_matrix_structure,&
+            dbcsr_allocate_matrix, dbcsr_deallocate_matrix,&
+            dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
+            dbcsr_obj_p_type
+
+  INTERFACE dbcsr_allocate_matrix_set
+     MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
+  END INTERFACE
+
+  INTERFACE dbcsr_deallocate_matrix_set
+     MODULE PROCEDURE deallocate_dbcsr_matrix_set,&
+                      deallocate_dbcsr_matrix_set_2d
+  END INTERFACE
+
+  TYPE dbcsr_obj_p_type
+     TYPE(dbcsr_obj)          :: matrix
+  END TYPE dbcsr_obj_p_type
+
+
 
   PRIVATE
 
@@ -383,14 +403,15 @@ CONTAINS
     cbs => array_data (dbcsr_col_block_sizes (matrix_a2))
     DO row = 1, dbcsr_nblkrows_total (matrix_a2)
        rowsize = rbs (row)
-       DO col = 1, dbcsr_nblkcols_total (matrix_a2)
+       DO col = row, dbcsr_nblkcols_total (matrix_a2)
           colsize = cbs (col)
           NULLIFY (block2d)
           !CALL dbcsr_reserve_block2d (matrix_a2, row, col,&
           !     block2d)
           CALL dbcsr_add_block_node (matrix_a2, row, col, block2d, error)
-          block2d(1:rowsize, 1:colsize) = 1.0_dp
-          !block2d(:,:) = 1.0_dp
+!write(*,*)routineN//" setting block at virt. coor", row, col, rowsize, colsize          
+          !block2d(1:rowsize, 1:colsize) = 1.0_dp
+          block2d(:,:) = 1.0_dp
        ENDDO
     ENDDO
     DO row = 1, dbcsr_nblkrows_total (matrix_a2)
@@ -1496,7 +1517,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_block_node', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: is_there
+    LOGICAL                                  :: existed, is_there
 
 !   ---------------------------------------------------------------------------
 
@@ -1516,7 +1537,10 @@ CONTAINS
     !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)
     !CALL dbcsr_reserve_block2d (matrix, row, col, block)
     !write(*,*) 'add_block_node: block_row',block_row,' block_col',block_col
-    CALL dbcsr_reserve_block2d (matrix, block_row, block_col, block)
+    CALL dbcsr_reserve_block2d (matrix, block_row, block_col, block,&
+         existed=existed)
+    CALL cp_assert (.NOT.existed, cp_warning_level, cp_wrong_args_error,&
+         routineN, "You should not add existing blocks according to old API.")
     IF(.NOT.is_there) block(:,:) = 0.0_dp
   END SUBROUTINE dbcsr_add_block_node
 
@@ -1621,6 +1645,19 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Deallocates a DBCSR matrix for compatibility with CP2K
+!> \param[in,out] matrix      DBCSR matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_deallocate_matrix(matrix, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CALL dbcsr_destroy (matrix)
+  END SUBROUTINE dbcsr_deallocate_matrix
+
+
+! *****************************************************************************
 !> \brief Emulation of sparse_matrix_types/replicate_matrix_structure mapped to
 !>        replicate_real_matrix_structure
 !> \note This just sets up the metadata; it does not acutally replicate the
@@ -1662,6 +1699,128 @@ CONTAINS
     CALL cp_dbcsr_add_dist2d (TARGET%m, source%m%dist2d, error)
     TARGET%m%sparsity_id=source%m%sparsity_id
   END SUBROUTINE dbcsr_replicate_matrix_structure
+
+
+! *****************************************************************************
+! CP2k-compatible matrix sets
+! *****************************************************************************
+
+
+! *****************************************************************************
+!> \brief   Allocate and initialize a real matrix 1-dimensional set.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrices
+!> \param[in] nmatrix         Size of set
+!> \param[in,out] error       cp2k error
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! *****************************************************************************
+  SUBROUTINE allocate_dbcsr_matrix_set(matrix_set, nmatrix, error)
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_set
+    INTEGER, INTENT(IN)                      :: nmatrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imatrix, istat
+
+    IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set,error=error)
+    ALLOCATE (matrix_set(nmatrix),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"matrix_set",0)
+    DO imatrix=1,nmatrix
+       !NULLIFY (matrix_set(imatrix)%matrix)
+       CALL dbcsr_init (matrix_set(imatrix)%matrix)
+    END DO
+  END SUBROUTINE allocate_dbcsr_matrix_set
+
+! *****************************************************************************
+!> \brief   Allocate and initialize a real matrix 2-dimensional set.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in] nmatrix         Size of set
+!> \param[in,out] error       cp2k error
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! *****************************************************************************
+  SUBROUTINE allocate_dbcsr_matrix_set_2d(matrix_set,nmatrix,mmatrix,error)
+    TYPE(dbcsr_obj_p_type), &
+      DIMENSION(:, :), POINTER               :: matrix_set
+    INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_2d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imatrix, istat, jmatrix
+
+    IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set,error=error)
+    ALLOCATE (matrix_set(nmatrix,mmatrix),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"matrix_set",0)
+    DO jmatrix=1,mmatrix
+      DO imatrix=1,nmatrix
+         !NULLIFY (matrix_set(imatrix,jmatrix)%matrix)
+         CALL dbcsr_init (matrix_set(imatrix,jmatrix)%matrix)
+      END DO
+    END DO
+  END SUBROUTINE allocate_dbcsr_matrix_set_2d
+
+
+! *****************************************************************************
+!> \brief Deallocate a real matrix set and release all of the member matrices.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in,out] error       cp2k error
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! *****************************************************************************
+  SUBROUTINE deallocate_dbcsr_matrix_set(matrix_set,error)
+
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imatrix, istat
+
+    IF (ASSOCIATED(matrix_set)) THEN
+      DO imatrix=1,SIZE(matrix_set)
+        CALL dbcsr_deallocate_matrix(matrix_set(imatrix)%matrix,error=error)
+      END DO
+      DEALLOCATE (matrix_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"matrix_set")
+    END IF
+  END SUBROUTINE deallocate_dbcsr_matrix_set
+
+! *****************************************************************************
+!> \brief Deallocate a real matrix set and release all of the member matrices.
+!> \param[in,out] matrix_set  Set containing the DBCSR matrix pointer type
+!> \param[in,out] error       cp2k error
+!> \par History
+!>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
+! *****************************************************************************
+  SUBROUTINE deallocate_dbcsr_matrix_set_2d(matrix_set,error)
+
+    TYPE(dbcsr_obj_p_type), &
+      DIMENSION(:, :), POINTER               :: matrix_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'deallocate_dbcsr_matrix_set_2d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imatrix, istat, jmatrix
+
+    IF (ASSOCIATED(matrix_set)) THEN
+      DO jmatrix=1,SIZE(matrix_set,2)
+        DO imatrix=1,SIZE(matrix_set,1)
+          CALL dbcsr_deallocate_matrix(matrix_set(imatrix,jmatrix)%matrix,error=error)
+        END DO
+      END DO
+      DEALLOCATE (matrix_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"matrix_set")
+    END IF
+  END SUBROUTINE deallocate_dbcsr_matrix_set_2d
 
 
 END MODULE cp_dbcsr_operations

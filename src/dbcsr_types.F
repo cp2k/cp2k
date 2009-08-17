@@ -41,8 +41,8 @@ MODULE dbcsr_types
             dbcsr_distribution_obj, dbcsr_distribution_type,&
             dbcsr_imagedistribution_type,&
             dbcsr_iterator,&
-            dbcsr_1d_set_obj,&
-            dbcsr_2d_set_obj,&
+            dbcsr_1d_array_obj,&
+            dbcsr_2d_array_obj,&
             dbcsr_mutable_obj, dbcsr_mutable_type
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
@@ -331,24 +331,24 @@ MODULE dbcsr_types
   END TYPE dbcsr_work_type_p
 
 ! *****************************************************************************
-!> \brief A 1-D set of DBCSR matrices
-!> \var s           the set of matrices
+!> \brief A 1-D array of DBCSR matrices
+!> \var s           the array of matrices
 !> \var refcount    reference counter
 ! *****************************************************************************
-  TYPE dbcsr_1d_set_obj
+  TYPE dbcsr_1d_array_obj
      TYPE(dbcsr_obj), DIMENSION(:), POINTER :: s
      INTEGER, POINTER                       :: refcount
-  END TYPE dbcsr_1d_set_obj
+  END TYPE dbcsr_1d_array_obj
 
 ! *****************************************************************************
-!> \brief A 2-D set of DBCSR matrices
-!> \var s           the set of matrices
+!> \brief A 2-D array of DBCSR matrices
+!> \var s           the array of matrices
 !> \var refcount    reference counter
 ! *****************************************************************************
-  TYPE dbcsr_2d_set_obj
+  TYPE dbcsr_2d_array_obj
      TYPE(dbcsr_obj), DIMENSION(:,:), POINTER :: s
      INTEGER, POINTER                         :: refcount
-  END TYPE dbcsr_2d_set_obj
+  END TYPE dbcsr_2d_array_obj
 
 ! *****************************************************************************
 !> \brief An array of DBCSR matrices
