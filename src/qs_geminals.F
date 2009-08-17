@@ -10,11 +10,9 @@
 !> \author J. Hutter
 ! *****************************************************************************
 MODULE qs_geminals
-  
   USE ai_geminals,                     ONLY: g2gemint,&
                                              gemint2,&
-                                             gemint2_derivative,&
-                                             gemnorm
+                                             gemint2_derivative
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -27,12 +25,14 @@ MODULE qs_geminals
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
                                              hfx_get_mult_cache_elements
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi, dfac
+  USE mathconstants,                   ONLY: dfac,&
+                                             pi
   USE mathlib,                         ONLY: invmat
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
-  USE orbital_pointers,                ONLY: init_orbital_pointers,&
-                                             nco,indco,&
+  USE orbital_pointers,                ONLY: indco,&
+                                             init_orbital_pointers,&
+                                             nco,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -42,8 +42,8 @@ MODULE qs_geminals
   USE ri_environment_types,            ONLY: get_ri_env,&
                                              ri_environment_type,&
                                              ri_vector_set,&
-                                             ri_vector_type,&
-                                             ri_vector_sync
+                                             ri_vector_sync,&
+                                             ri_vector_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
   USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
@@ -86,14 +86,12 @@ MODULE qs_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'geminal_coulomb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, handle, ia, &
-                                                iatom, ikind, istat, ja, &
-                                                jatom, jkind, natom, nd, &
-                                                nder, nga, ngb, nkind, ml, maxlgem(2)
+    INTEGER :: atom_a, atom_b, handle, ia, iatom, ikind, istat, ja, jatom, &
+      jkind, maxlgem(2), ml, natom, nd, nder, nga, ngb, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: ehfx1, fij, eps_screening
+    REAL(KIND=dp)                            :: ehfx1, eps_screening, fij
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ivec, jvec
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: intab
@@ -101,17 +99,17 @@ MODULE qs_geminals
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ivmat, jvmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(ri_environment_type), POINTER       :: ri_env
-    TYPE(semi_empirical_si_type), POINTER    :: store_int
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_a, atomic_kind_b
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(ri_environment_type), POINTER       :: ri_env
+    TYPE(semi_empirical_si_type), POINTER    :: store_int
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
@@ -194,7 +192,7 @@ MODULE qs_geminals
                   IF (MODULO(iatom + jatom,2) /= 0) CYCLE
                 END IF
  
-                CALL gemgem_integral_atom(intab,nga,ngb,nd,atomic_kind_a,ri,atomic_kind_b,rj,nder,&
+                CALL gemgem_integral_atom(nga,ngb,nd,intab,atomic_kind_a,ri,atomic_kind_b,rj,nder,&
                                           store_int,eps_screening,error)
 
                 IF ( iatom==jatom) THEN
@@ -278,12 +276,12 @@ MODULE qs_geminals
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, ikind, istat, jatom, &
-      jkind, k, ka, katom, kkind, maxlgto, na, natom, nb, nd, nder, ngem, &
-      nkind, nspins, maxlgem(2), ml
+      jkind, k, ka, katom, kkind, maxlgem(2), maxlgto, ml, na, natom, nb, nd, &
+      nder, ngem, nkind, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list, atom_of_kind, &
                                                 kind_of
     LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: ehfx2, f0, fij, eps_screening
+    REAL(KIND=dp)                            :: ehfx2, eps_screening, f0, fij
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: kdvec
     REAL(KIND=dp), ALLOCATABLE, &
@@ -297,6 +295,7 @@ MODULE qs_geminals
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_a, atomic_kind_b, &
                                                 atomic_kind_c
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set_a, &
@@ -310,10 +309,9 @@ MODULE qs_geminals
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_p
     TYPE(ri_environment_type), POINTER       :: ri_env
-    TYPE(semi_empirical_si_type), POINTER    :: store_int
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_rhs
+    TYPE(semi_empirical_si_type), POINTER    :: store_int
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
@@ -418,7 +416,7 @@ MODULE qs_geminals
                 atom_c = atom_of_kind(katom)
                 rk = particle_set(katom)%r
 
-                CALL gemgau_integral_atom(intabc,na,nb,ngem,nd,atomic_kind_a,ri,atomic_kind_b,rj,&
+                CALL gemgau_integral_atom(na,nb,ngem,nd,intabc,atomic_kind_a,ri,atomic_kind_b,rj,&
                      atomic_kind_c,rk,nder,store_int,eps_screening,error)
 
                 DO i=1,ngem
@@ -503,14 +501,12 @@ MODULE qs_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'geminal_coulomb_diaginv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, iat, iatom, &
-                                                ikind, info, istat, natom, &
-                                                nga, nkind, nints, cache_size, &
-                                                mem_compression_counter, new_size, &
-                                                nbits, buffer_left, buffer_start, &
-                                                buffer_size, ia, ib, bb, memory_usage
+    INTEGER :: atom_a, cache_size, handle, iat, iatom, ikind, info, istat, &
+      mem_compression_counter, memory_usage, natom, new_size, nga, nints, &
+      nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    LOGICAL                                  :: failure = .FALSE., buffer_overflow
+    LOGICAL                                  :: buffer_overflow, &
+                                                failure = .FALSE.
     REAL(KIND=dp)                            :: eps_screening, eps_storage
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ivec
     REAL(KIND=dp), ALLOCATABLE, &
@@ -520,13 +516,13 @@ MODULE qs_geminals
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_a
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(semi_empirical_si_type), POINTER    :: store_int
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
@@ -679,20 +675,21 @@ MODULE qs_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'geminal_charge', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom, handle, iat, iatom, &
-                                                ikind, info, istat, natom, &
-                                                nga, nkind, nints, cache_size, &
-                                                mem_compression_counter, new_size, &
-                                                nbits, buffer_left, buffer_start, &
-                                                buffer_size, ia, ib, bb, memory_usage, ix, iy, iz
+    INTEGER                                  :: handle, ii, ikind, ipgf, ira, &
+                                                iset, ishell, istat, ix, iy, &
+                                                iz, ll, natom, nga, nkind, &
+                                                nseta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    LOGICAL                                  :: failure = .FALSE., buffer_overflow
-    REAL(KIND=dp)                            :: eps_screening, eps_storage, ff
+    INTEGER, DIMENSION(:), POINTER           :: lrmaxa, lsa, npgfa, nshella
+    INTEGER, DIMENSION(:, :), POINTER        :: firsta, la
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: al, cc, ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ivec
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: intab
-    REAL(KIND=dp), DIMENSION(3)              :: ri
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ivmat
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcca
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -701,21 +698,6 @@ MODULE qs_geminals
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(ri_environment_type), POINTER       :: ri_env
-    INTEGER :: ii, iira, iirb, iisa, iisb, ij, ipgf, ira, irb, isa, isb, &
-      iset, ishell, jj, jpgf, jset, jshell, lrmap, lsap, ltap, ltb, ll,&
-      nder, ngema, ngemb, nn, nna, nnb, nra, nrb, nsa, nsb, nseta, nsetb
-    INTEGER, DIMENSION(:), POINTER           :: lrmaxa, lrmaxb, lrmina, &
-                                                lrminb, lsa, lsb, npgfa, &
-                                                npgfb, nshella, nshellb
-    INTEGER, DIMENSION(:, :), POINTER        :: firsta, firstb, la, lb
-    REAL(KIND=dp)                            :: cc,al
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: anorm
-    REAL(KIND=dp), DIMENSION(6)              :: rra, rrb
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: gcca, gccb
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: zeta, zetb, zetbh
 
     CALL timeset(routineN,handle)
 
@@ -797,10 +779,10 @@ MODULE qs_geminals
 !> \par History
 !> \author J. Hutter
 ! *****************************************************************************
-  SUBROUTINE gemgem_integral_atom(intab,nga,ngb,nd,atomic_kind_a,ra,atomic_kind_b,rb,nderivative,&
+  SUBROUTINE gemgem_integral_atom(nga,ngb,nd,intab,atomic_kind_a,ra,atomic_kind_b,rb,nderivative,&
                                   store_int,eps_screening,error)
     INTEGER, INTENT(IN)                      :: nga, ngb, nd
-    REAL(KIND=dp), DIMENSION(nga,ngb,nd), &
+    REAL(KIND=dp), DIMENSION(nga, ngb, nd), &
       INTENT(OUT)                            :: intab
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_a
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra
@@ -814,13 +796,12 @@ MODULE qs_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'gemgem_integral_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure=.FALSE.,&
-                                                buffer_overflow
-    INTEGER                                  :: nints, cache_size,mem_compression_counter,&
-                                                nbits, buffer_left, buffer_start, ngem,&
-                                                ia, ib, ig, new_size, buffer_size, bb
+    INTEGER :: bb, buffer_left, buffer_size, buffer_start, cache_size, ia, &
+      ib, mem_compression_counter, nbits, new_size, nints
+    LOGICAL                                  :: buffer_overflow, failure
     REAL(KIND=dp)                            :: eps_storage
 
+    failure = .FALSE.
     IF (store_int%memory_parameter%do_all_on_the_fly .OR. nderivative > 0) THEN
        CALL gemgem_integral_atom_calc(intab,atomic_kind_a,ra,atomic_kind_b,rb,nderivative,error)
     ELSE
@@ -922,7 +903,7 @@ MODULE qs_geminals
                                                 lrminb, lsa, lsb, npgfa, &
                                                 npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: firsta, firstb, la, lb
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: iab
@@ -936,6 +917,7 @@ MODULE qs_geminals
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set_a, &
                                                 geminal_basis_set_b
 
+    failure = .FALSE.
     CALL get_atomic_kind(atomic_kind=atomic_kind_a,geminal_basis_set=geminal_basis_set_a)
     CALL get_atomic_kind(atomic_kind=atomic_kind_b,geminal_basis_set=geminal_basis_set_b)
 
@@ -1059,10 +1041,11 @@ MODULE qs_geminals
 !> \par History
 !> \author J. Hutter
 ! *****************************************************************************
-  SUBROUTINE gemgau_integral_atom(intabc,na,nb,ngem,nd,atomic_kind_a,ra,atomic_kind_b,rb,&
+  SUBROUTINE gemgau_integral_atom(na,nb,ngem,nd,intabc,atomic_kind_a,ra,atomic_kind_b,rb,&
              atomic_kind_c,rc,nderivative,store_int,eps_screening,error)
-    INTEGER, INTENT(IN)                      :: na,nb,ngem,nd
-    REAL(KIND=dp), DIMENSION(na,nb,ngem,nd), &
+    INTEGER, INTENT(IN)                      :: na, nb, ngem, nd
+    REAL(KIND=dp), &
+      DIMENSION(na, nb, ngem, nd), &
       INTENT(OUT)                            :: intabc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_a
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra
@@ -1078,11 +1061,10 @@ MODULE qs_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'gemgau_integral_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure=.FALSE.,&
-                                                buffer_overflow
-    INTEGER                                  :: nints, cache_size,mem_compression_counter,&
-                                                nbits, buffer_left, buffer_start,&
-                                                ia, ib, ig, new_size, buffer_size, bb
+    INTEGER :: bb, buffer_left, buffer_size, buffer_start, cache_size, ia, &
+      ib, ig, mem_compression_counter, nbits, new_size, nints
+    LOGICAL                                  :: buffer_overflow, &
+                                                failure = .FALSE.
     REAL(KIND=dp)                            :: eps_storage
 
     IF (store_int%memory_parameter%do_all_on_the_fly .OR. nderivative > 0) THEN

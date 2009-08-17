@@ -14,37 +14,29 @@ MODULE hfx_ri_methods
   USE basis_set_types,                 ONLY: geminal_basis_set_type,&
                                              get_geminal_basis_set,&
                                              write_geminal_basis_set
-  USE kinds,                           ONLY: dp
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
-                                             cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_rm_iter_level
-  USE machine,                         ONLY: m_flush,&
-                                             m_walltime
+  USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_walltime
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_geminals,                     ONLY: geminal_coulomb,&
-                                             geminal_charge,&
-                                             geminal_gto_coulomb,&
-                                             geminal_coulomb_diaginv
+  USE qs_geminals,                     ONLY: geminal_charge,&
+                                             geminal_coulomb,&
+                                             geminal_coulomb_diaginv,&
+                                             geminal_gto_coulomb
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE ri_environment_types,            ONLY: &
        get_ri_env, ri_env_create, ri_environment_type, ri_vector_add, &
        ri_vector_copy, ri_vector_create, ri_vector_dot, ri_vector_norm, &
        ri_vector_release, ri_vector_scale, ri_vector_type, set_ri_env
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
-                                             semi_empirical_si_type,&
                                              semi_empirical_si_finalize,&
-                                             semi_empirical_si_initialize
+                                             semi_empirical_si_initialize,&
+                                             semi_empirical_si_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -77,20 +69,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, ionode
-    INTEGER                                  :: handle, ikind, istat, nat, &
-                                                ngem, nkind, output_unit, maxlgem(2)
+    INTEGER                                  :: handle, ikind, istat, &
+                                                maxlgem(2), nat, ngem, nkind, &
+                                                output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natoms, nbasis
+    LOGICAL                                  :: ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_rhs
     TYPE(section_vals_type), POINTER         :: hfx_section
-    TYPE(semi_empirical_si_type), POINTER    :: ri_store_int1, ri_store_int2,&
+    TYPE(semi_empirical_si_type), POINTER    :: ri_store_int1, ri_store_int2, &
                                                 ri_store_int3
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
@@ -189,12 +182,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: calculate_virial, s_mstruct_changed, &
-                                                ionode
+    LOGICAL                                  :: calculate_virial, ionode, &
+                                                s_mstruct_changed
     REAL(KIND=dp)                            :: t1, t2
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
@@ -237,19 +230,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, istat, iter, &
-                                                niter, nkind, output_unit, ounit
+                                                niter, nkind, ounit, &
+                                                output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natoms, nbasis
     LOGICAL                                  :: converged
-    REAL(KIND=dp)                            :: alpha, beta, energy, eps_ri, &
-                                                papk, rnorm, rrk, rro, t1, t2, charge
-    TYPE(semi_empirical_si_type), POINTER    :: gem_integral_storage
-    TYPE(semi_empirical_si_type), POINTER    :: ggg_integral_storage
-    TYPE(semi_empirical_si_type), POINTER    :: gemdiag_integral_storage
+    REAL(KIND=dp)                            :: alpha, beta, charge, energy, &
+                                                eps_ri, papk, rnorm, rrk, &
+                                                rro, t1, t2
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_apk, ri_coeff, ri_pk, &
                                                 ri_res, ri_rhs, ri_zk
     TYPE(section_vals_type), POINTER         :: hfx_section
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(semi_empirical_si_type), POINTER    :: gem_integral_storage, &
+                                                gemdiag_integral_storage, &
+                                                ggg_integral_storage
 
     CALL timeset(routineN,handle)
 
@@ -382,10 +377,10 @@ CONTAINS
     LOGICAL                                  :: calculate_energy, &
                                                 calculate_fock
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(semi_empirical_si_type), POINTER    :: gem_integral_storage
-    TYPE(semi_empirical_si_type), POINTER    :: ggg_integral_storage
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_res, ri_rhs
+    TYPE(semi_empirical_si_type), POINTER    :: gem_integral_storage, &
+                                                ggg_integral_storage
 
     CALL timeset(routineN,handle)
 

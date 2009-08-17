@@ -112,13 +112,14 @@ CONTAINS
   SUBROUTINE set_ri_env ( ri_env, coeff, rhs, gem_integral_storage, ggg_integral_storage, &
                           gemdiag_integral_storage, screening, error )
 
-    TYPE(ri_environment_type), POINTER                 :: ri_env
-    TYPE(ri_vector_type), OPTIONAL, POINTER            :: coeff, rhs
-    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: gem_integral_storage
-    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: ggg_integral_storage
-    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: gemdiag_integral_storage
-    REAL(KIND=dp), OPTIONAL, INTENT(in)                :: screening
-    TYPE(cp_error_type), INTENT(INOUT)                 :: error
+    TYPE(ri_environment_type), POINTER       :: ri_env
+    TYPE(ri_vector_type), OPTIONAL, POINTER  :: coeff, rhs
+    TYPE(semi_empirical_si_type), OPTIONAL, &
+      POINTER                                :: gem_integral_storage, &
+                                                ggg_integral_storage, &
+                                                gemdiag_integral_storage
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: screening
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     IF ( PRESENT(coeff) ) ri_env%coeff => coeff
     IF ( PRESENT(rhs) ) ri_env%rhs => rhs
@@ -147,15 +148,15 @@ CONTAINS
   SUBROUTINE get_ri_env ( ri_env, coeff, rhs, gem_integral_storage, ggg_integral_storage, &
                           gemdiag_integral_storage, screening, eps_opt, max_iter, error )
 
-    TYPE(ri_environment_type), POINTER                 :: ri_env
-    TYPE(ri_vector_type), OPTIONAL, POINTER            :: coeff, rhs
-    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: gem_integral_storage
-    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: ggg_integral_storage
-    TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: gemdiag_integral_storage
-    REAL(KIND=dp), OPTIONAL, INTENT(inout)             :: screening
-    REAL(KIND=dp), OPTIONAL, INTENT(inout)             :: eps_opt
-    INTEGER, OPTIONAL, INTENT(inout)                   :: max_iter
-    TYPE(cp_error_type), INTENT(INOUT)                 :: error
+    TYPE(ri_environment_type), POINTER       :: ri_env
+    TYPE(ri_vector_type), OPTIONAL, POINTER  :: coeff, rhs
+    TYPE(semi_empirical_si_type), OPTIONAL, &
+      POINTER                                :: gem_integral_storage, &
+                                                ggg_integral_storage, &
+                                                gemdiag_integral_storage
+    REAL(KIND=dp), INTENT(inout), OPTIONAL   :: screening, eps_opt
+    INTEGER, INTENT(inout), OPTIONAL         :: max_iter
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     IF ( PRESENT(coeff) ) coeff => ri_env%coeff
     IF ( PRESENT(rhs) ) rhs => ri_env%rhs

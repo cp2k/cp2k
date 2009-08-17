@@ -2334,9 +2334,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_geminal_basis_set', &
       routineP = moduleN//':'//routineN
-    
-    LOGICAL                                  :: failure
-    INTEGER                                  :: iset, ishell, ipgf
+
+    INTEGER                                  :: ipgf, iset, ishell
 
 ! -------------------------------------------------------------------------
 

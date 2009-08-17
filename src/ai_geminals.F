@@ -41,8 +41,7 @@ MODULE ai_geminals
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE gemnorm(anorm,zeta,na,lra,lsa,error)
-    REAL(KIND=dp), &
-      DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: anorm
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: zeta
@@ -52,13 +51,14 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'gemnorm', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, ir, irm, irx, iry, &
+                                                irz, is, ism, istat, isx, &
+                                                isy, isz, lr, ls
     LOGICAL                                  :: failure = .FALSE.
-    INTEGER                                  :: handle, i, lr, ls, irx, iry, irz,&
-                                                ir, isx, isy, isz, is, istat, irm ,ism
     REAL(KIND=dp)                            :: pi3
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: zdet
-    REAL(KIND=dp), DIMENSION(:,:,:), &
-                                 ALLOCATABLE :: zg
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zdet
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: zg
 
     CALL timeset(routineN,handle)
 

@@ -67,7 +67,7 @@ CONTAINS
   SUBROUTINE semi_empirical_si_create(store_int_env, se_section, compression, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(section_vals_type), POINTER         :: se_section
-    LOGICAL, OPTIONAL, INTENT(in)            :: compression
+    LOGICAL, INTENT(in), OPTIONAL            :: compression
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_create', &
