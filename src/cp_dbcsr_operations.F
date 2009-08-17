@@ -317,13 +317,17 @@ CONTAINS
     CALL dbcsr_destroy(matrix_a2,error)
     !
     ! some norms here
-    CALL dbcsr_norm(matrix_a, checksum, which_norm='MaxAbsNorm', error=error)
+    CALL dbcsr_norm(matrix_a, 'MaxAbsNorm', checksum, error=error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR maxabsval(S)", checksum
     ENDIF
-    CALL dbcsr_norm(matrix_a, checksum, which_norm='Frobenius', error=error)
+    CALL dbcsr_norm(matrix_a, 'Frobenius', checksum, error=error)
     IF (ldbg.AND.ionode) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR frobenius(S)", checksum
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Frobenius(S)", checksum
+    ENDIF
+    CALL dbcsr_norm(matrix_a, 'Gershgorin', checksum, error=error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Gershgorin(S)", checksum
     ENDIF
     !
     ! Fill a matrix with all zeros.
@@ -1482,9 +1486,9 @@ CONTAINS
 !> \param[in]  block          the block to put
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add_block_node (matrix, row, col, block, error)
+  SUBROUTINE dbcsr_add_block_node (matrix, block_row, block_col, block, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    INTEGER, INTENT(IN)                      :: row, col
+    INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -1511,7 +1515,8 @@ CONTAINS
     !r = row ; c = col ; tr = .FALSE.
     !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)
     !CALL dbcsr_reserve_block2d (matrix, row, col, block)
-    CALL dbcsr_reserve_block2d (matrix, row, col, block, .FALSE.)
+    !write(*,*) 'add_block_node: block_row',block_row,' block_col',block_col
+    CALL dbcsr_reserve_block2d (matrix, block_row, block_col, block)
     IF(.NOT.is_there) block(:,:) = 0.0_dp
   END SUBROUTINE dbcsr_add_block_node
 
@@ -1546,8 +1551,7 @@ CONTAINS
       INTENT(IN)                             :: first_col, last_col
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name, matrix_symmetry
     INTEGER, INTENT(IN)                      :: sparsity_id
-    TYPE(distribution_2d_type), OPTIONAL, &
-      POINTER                                :: distribution_2d
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_allocate_matrix', &
@@ -1562,6 +1566,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! Setup the distribution
 
+    CALL cp_assert (ASSOCIATED(distribution_2d),&
+         cp_fatal_level, cp_caller_error, routineN,&
+         "distribution_2d not associated", error=error)
     CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     CALL cp_assert (&
          dbcsr_distribution_nrows (dbcsr_dist) .EQ. nblock_row,&
@@ -1606,6 +1613,10 @@ CONTAINS
     CALL dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     CALL array_release (col_blk_sizes)
+    CALL dbcsr_work_create (matrix)
+    matrix%m%valid = .FALSE.
+    CALL dbcsr_mutable_new (matrix%m%wms(1)%mutable,&
+         dbcsr_get_data_type (matrix))
   END SUBROUTINE dbcsr_allocate_matrix
 
 
@@ -1646,7 +1657,8 @@ CONTAINS
          dbcsr_matrix_type,&
          dbcsr_row_block_sizes (source), dbcsr_col_block_sizes (source),&
          0, 0, dbcsr_get_data_type (source),&
-         dbcsr_uses_special_memory (source), error=error)
+         dbcsr_uses_special_memory (source), mutable_work=source%m%work_mutable,&
+         error=error)
     CALL cp_dbcsr_add_dist2d (TARGET%m, source%m%dist2d, error)
     TARGET%m%sparsity_id=source%m%sparsity_id
   END SUBROUTINE dbcsr_replicate_matrix_structure

@@ -17,6 +17,7 @@ MODULE core_ppl
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE dbcsr_types,                     ONLY: dbcsr_1d_set_obj
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE kinds,                           ONLY: dp
@@ -52,6 +53,7 @@ CONTAINS
   SUBROUTINE build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
 
+    !TYPE(dbcsr_1d_set_obj)                   :: matrix_h
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
     TYPE(qs_force_type), DIMENSION(:), &
@@ -220,10 +222,12 @@ CONTAINS
                       irow = jatom
                       icol = iatom
                    END IF
+                   !CALL dbcsr_get_block_node(matrix=matrix_h%s(1),&
                    CALL get_block_node(matrix=matrix_h(1)%matrix,&
-                                        block_row=irow,&
-                                        block_col=icol,&
-                                        BLOCK=h_block)
+                                             block_row=irow,&
+                                             block_col=icol,&
+                                             BLOCK=h_block)
+
                    CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
                    IF (calculate_forces) THEN
                       CALL get_block_node(matrix=matrix_p(1)%matrix,&

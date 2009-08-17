@@ -1,4 +1,4 @@
-!!-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2009  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
@@ -253,6 +253,7 @@ CONTAINS
     LOGICAL                                  :: transpose
 
     transpose = BTEST(column+row, 0) .EQV. column.GT.row
+
   END FUNCTION checker_tr
 
 
@@ -1595,7 +1596,7 @@ CONTAINS
     INTEGER :: blk, blk_l, blk_p, block_col, col, dst_p, mp_group, mynode, &
       mypcol, myprow, nblkcols_total, nblkrows_local, nblkrows_total, ncols, &
       nfullcols_total, nfullrows_total, npcols, nprows, nrows, numproc, nze, &
-      row, row_l, src_p, stored_col, stored_row, timing_handle
+      row, src_p, stored_col, stored_row, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:) :: rd_disp, recv_meta, rm_disp, &
       sd_disp, sdp, send_meta, sm_disp, sm_first_col, sm_first_row, &
       sm_last_col, sm_last_row, smp
@@ -1657,6 +1658,7 @@ CONTAINS
          "Specified matrix dimensions/distributions seem incompatible.")
     ! Convert type
     symmetric = .FALSE.
+
     SELECT CASE (dbcsr_matrix_type)
     CASE (dbcsr_type_normal)
        sm_symmetry = "none"
@@ -1703,6 +1705,7 @@ CONTAINS
     row_blk_size => array_data (dbcsr_row_block_sizes (matrix))
     col_blk_size => array_data (dbcsr_col_block_sizes (matrix))
     nblkrows_local = dbcsr_distribution_nlocal_rows (dist)
+    nblkrows_total = dbcsr_distribution_nrows (dist)
     local_rows => array_data (dbcsr_distribution_local_rows (dist))
     ! Assume the DBCSR matrix and the new one have a compatible
     ! parallel environment (i.e., number of nodes), but the
@@ -1720,8 +1723,9 @@ CONTAINS
     ALLOCATE (rm_disp(0:numproc-1))
     ! Count what to send to others.
     send_count(:,:) = 0
-    DO row_l = 1, nblkrows_local
-       row = local_rows(row_l)
+    !DO row_l = 1, nblkrows_local
+    DO row = 1, nblkrows_total
+       !row = local_rows(row_l)
        DO blk = matrix%m%row_p(row)+1, matrix%m%row_p(row+1)
           stored_row = row
           col = matrix%m%col_i(blk)
@@ -1729,8 +1733,10 @@ CONTAINS
           ! The sm_matrix_type has the same data layout as the DBCSR
           ! matrices, so we can use the DBCSR one to get the correct
           ! place.
+          !write(*,*) 'conversion: stored_row',stored_row,' stored_col',stored_col
           CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col,&
                tr, dst_p)
+       dst_p = mynode
           nze = row_blk_size(row) * col_blk_size(col)
           send_count(1, dst_p) = send_count(1, dst_p) + 1
           send_count(2, dst_p) = send_count(2, dst_p) + nze
@@ -1772,8 +1778,9 @@ CONTAINS
     ! Perform exchanges
     !
     CALL dbcsr_get_data (matrix, data_p)
-    DO row_l = 1, nblkrows_local
-       row = local_rows(row_l)
+    !DO row_l = 1, nblkrows_local
+    DO row = 1, nblkrows_total
+       !row = local_rows(row_l)
        DO blk = matrix%m%row_p(row)+1, matrix%m%row_p(row+1)
           col = matrix%m%col_i(blk)
           blk_p = matrix%m%blk_p(blk)
@@ -1782,8 +1789,10 @@ CONTAINS
           tr = blk_p .LT. 0
           CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col,&
                tr, dst_p)
-          nrows = row_blk_size(row)
-          ncols = row_blk_size(col)
+          !write(*,*) 'outgoing copy: stored_row',stored_row,' stored_col',stored_col
+       dst_p = mynode
+          nrows = row_blk_size(stored_row)
+          ncols = col_blk_size(stored_col)
           nze = nrows*ncols
           ! We need to get the upper triangular form for the
           ! sparse_matrix_type.
@@ -1850,32 +1859,13 @@ CONTAINS
           CALL pointer_set (blkdata_2d, (/nrows, ncols/),&
                block_data_p, iter%buffer_r_dp)
 
-!!$          IF(sm_symmetry == "symmetric" .OR. sm_symmetry == "antisymmetric" ) THEN
-!!$
-!!$             tr = stored_row.GT.stored_col
-!!$             itmp = stored_row
-!!$             stored_row = MIN(itmp,stored_col)
-!!$             stored_col = MAX(itmp,stored_col)
-!!$
-!!$             IF(tr) THEN
-!!$                NULLIFY(blkdatat_2d)
-!!$                CALL add_block_node(matrix=sm,&
-!!$                     block_row=stored_row, block_col=stored_col,&
-!!$                     block=blkdatat_2d, error=error)
-!!$                blkdatat_2d=TRANSPOSE(blkdata_2d)
-!!$             ELSE
-!!$                CALL add_block_node(matrix=sm,&
-!!$                     block_row=stored_row, block_col=stored_col,&
-!!$                     block=blkdata_2d, error=error)
-!!$             ENDIF
-!!$
-!!$          ELSE
+!write(*,*) 'adding to SM: stored_row',stored_row,' stored_col',stored_col,'blk',blkdata_2d(1,1),&
+!     SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)
              CALL add_block_node(matrix=sm,&
                   block_row=stored_row, block_col=stored_col,&
                   block=blkdata_2d, error=error)
-!!$          ENDIF
 
-!write(*,*) 'add_block_node: stored_row',stored_row,' stored_col',stored_col,'blk',blkdata_2d(1,1),&
+!write(*,*) 'added to SM: stored_row',stored_row,' stored_col',stored_col,'blk',blkdata_2d(1,1),&
 !     SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)
 
           blk_p = blk_p + nze
@@ -1896,24 +1886,6 @@ CONTAINS
     tstop = m_walltime ()
     DBG 'time:',tstop-tstart
 
-!!$    DO irow=1,sm%nblock_row
-!!$       block_node => first_block_node(sm,irow)
-!!$       DO WHILE (ASSOCIATED(block_node))
-!!$          CALL get_block_node(block_node=block_node,block_col=icol,BLOCK=blkdata_2d)
-!!$          write(*,*) 'sm_from_dbcsr1: irow',irow,' icol',icol,'blk',blkdata_2d(1,1),&
-!!$               SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)
-!!$          block_node => next_block_node(block_node)
-!!$       END DO
-!!$    END DO
-!!$
-!!$    DO irow = 1,sm%nblock_row
-!!$    DO icol = irow,sm%nblock_row
-!!$          CALL get_block_node(sm,block_row=irow,block_col=icol,BLOCK=blkdata_2d)
-!!$          write(*,*) 'sm_from_dbcsr2: irow',irow,' icol',icol
-!!$          write(*,*) 'sm_from_dbcsr2: blk',blkdata_2d(1,1),SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)
-!!$       ENDDO
-!!$    ENDDO
-
     CALL timestop(timing_handle)
   END SUBROUTINE sm_from_dbcsr
 
@@ -1928,7 +1900,7 @@ CONTAINS
                                                 metalen = 2
 
     INTEGER                                  :: blk, block_col, icol, irow, &
-                                                timing_handle
+                                                proc, timing_handle
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d
     TYPE(real_block_node_type), POINTER      :: block_node
 
@@ -1937,11 +1909,15 @@ CONTAINS
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
 
+    proc = sm%distribution_2d%blacs_env%para_env%mepos
+
     DO irow=1,sm%nblock_row
+       WRITE(*,*) '1proc',proc,' irow',irow
        block_node => first_block_node(sm,irow)
        DO WHILE (ASSOCIATED(block_node))
           CALL get_block_node(block_node=block_node,block_col=icol,BLOCK=blkdata_2d)
-          WRITE(*,*) 'sm_test: irow',irow,' icol',icol,'blk',blkdata_2d(1,1),&
+
+          WRITE(*,*) '1sm_test: proc',proc,' irow',irow,' icol',icol,'blk',blkdata_2d(1,1),&
                SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)
           block_node => next_block_node(block_node)
        END DO
@@ -1949,8 +1925,11 @@ CONTAINS
 
     DO irow = 1,sm%nblock_row
        DO icol = irow,sm%nblock_row
+          WRITE(*,*) '2proc',proc,' irow',irow,' icol',icol
           CALL get_block_node(sm,block_row=irow,block_col=icol,BLOCK=blkdata_2d)
-          WRITE(*,*) 'sm_test: irow',irow,' icol',icol,'blk',blkdata_2d(1,1)
+          IF(ASSOCIATED(blkdata_2d)) THEN
+             WRITE(*,*) '2sm_test: proc',proc,' irow',irow,' icol',icol,'blk',blkdata_2d(1,1)
+          ENDIF
        ENDDO
     ENDDO
 
@@ -4175,11 +4154,13 @@ CONTAINS
              block_2d => values_d(blk)%p
              !write(*,*)"block", blk
              !write(*,'(10(1X,F5.1))')block_2d
+
              IF (.NOT. values_d(blk)%tr) THEN
                 matrix%wms(i)%blk_p(blk) = blk_p
              ELSE
                 matrix%wms(i)%blk_p(blk) = -blk_p
              ENDIF
+
              CALL dbcsr_data_set (matrix%wms(i)%data_area, blk_p,&
                   SIZE(block_2d),&
                   RESHAPE (block_2d, (/SIZE(block_2d)/)), source_lb=1)

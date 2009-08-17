@@ -594,6 +594,7 @@ CONTAINS
                     scf_control=scf_control   ,&
                     subsys=subsys             ,&
                     wf_history=wf_history     ,&
+                    distribution_2d=distribution_2d,&
                     error=error                 )
 
     !   *** Setup the grids for the G-space Interpolation if any

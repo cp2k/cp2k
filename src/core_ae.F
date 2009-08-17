@@ -54,6 +54,7 @@ CONTAINS
   SUBROUTINE build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ae, error)
 
+    !TYPE(dbcsr_1d_set_obj)                   :: matrix_h
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
     TYPE(qs_force_type), DIMENSION(:), &
@@ -222,6 +223,7 @@ CONTAINS
                       irow = jatom
                       icol = iatom
                    END IF
+                   !CALL dbcsr_get_block_node(matrix=matrix_h%s(1),&
                    CALL get_block_node(matrix=matrix_h(1)%matrix,&
                                         block_row=irow,&
                                         block_col=icol,&

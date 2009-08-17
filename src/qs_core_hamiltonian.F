@@ -82,11 +82,19 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_replicate_matrix_structure
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_set_release
+  USE dbcsr_types,                     ONLY: dbcsr_1d_set_obj
+  USE dbcsr_util,                      ONLY: dbcsr_finalize,&
+                                             sm_from_dbcsr
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE dkh_main,                        ONLY: dkh_mol_integrals
   USE ep_qs_types,                     ONLY: ep_qs_type
@@ -111,8 +119,8 @@ MODULE qs_core_hamiltonian
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next, reduced_3c_list_type
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
+       neighbor_list_type, neighbor_node_type, next, reduced_3c_list_type
   USE qs_oce_methods,                  ONLY: build_oce_matrices
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                              allocate_vtriple,&
@@ -126,10 +134,13 @@ MODULE qs_core_hamiltonian
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_matrix_distribution,&
                                              write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: &
-       add_block_node, add_matrices, allocate_matrix, allocate_matrix_set, &
-       cp_sm_scale_and_add, deallocate_matrix_set, get_block_node, &
-       real_matrix_p_type, replicate_matrix_structure
+  USE sparse_matrix_types,             ONLY: add_matrices,&
+                                             allocate_matrix_set,&
+                                             cp_sm_scale_and_add,&
+                                             deallocate_matrix_set,&
+                                             get_block_node,&
+                                             real_matrix_p_type,&
+                                             replicate_matrix_structure
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE termination,                     ONLY: stop_program
@@ -208,6 +219,7 @@ CONTAINS
       POINTER                                :: sintt, tintt
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_1d_set_obj)                   :: matrix_h, matrix_s, matrix_t
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -226,8 +238,9 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s, &
-                                                matrix_t, matrix_w
+      POINTER                                :: matrix_h_tmp, matrix_p, &
+                                                matrix_s_tmp, matrix_t_tmp, &
+                                                matrix_w
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_rho0
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -248,7 +261,9 @@ CONTAINS
     NULLIFY (atomic_kind_set)
     NULLIFY (distribution_2d)
     NULLIFY (force)
-    NULLIFY (matrix_h)
+    NULLIFY (matrix_h_tmp)
+    NULLIFY (matrix_s_tmp)
+    NULLIFY (matrix_t_tmp)
     NULLIFY (habt)
     NULLIFY (oce)
     NULLIFY (VH_3c_list)
@@ -256,7 +271,6 @@ CONTAINS
     NULLIFY (pabt)
     NULLIFY (particle_set)
     NULLIFY (rho)
-    NULLIFY (matrix_s)
     NULLIFY (sab_orb)
     NULLIFY (sabt)
     NULLIFY (sac_ae)
@@ -267,7 +281,6 @@ CONTAINS
     NULLIFY (sbc_3c)
     NULLIFY (scf_control)
     NULLIFY (sdabt)
-    NULLIFY (matrix_t)
     NULLIFY (matrix_w)
     NULLIFY (workt)
     NULLIFY (harris_env)
@@ -286,11 +299,11 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    matrix_h=matrix_h,&
-                    kinetic=matrix_t,&
+                    matrix_h=matrix_h_tmp,&
+                    kinetic=matrix_t_tmp,&
                     oce=oce, &
                     particle_set=particle_set,&
-                    matrix_s=matrix_s,&
+                    matrix_s=matrix_s_tmp,&
                     sab_orb=sab_orb,&
                     sac_ae=sac_ae,&
                     sac_ppl=sac_ppl,&
@@ -372,8 +385,8 @@ CONTAINS
     
     maxder = ncoset(nder)
 
-    CALL allocate_matrix_set(matrix_s,maxder,error=error)
-    
+    CALL dbcsr_allocate_matrix_set( matrix_s, maxder )
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
     
     ALLOCATE (first_sgf(natom),STAT=stat)
@@ -388,7 +401,7 @@ CONTAINS
     ! we assert that the sparsity of s is determined by the neighbor list that is used to build it
     ! is that right ? i.e. this implies that even if forces are computed the sparsity of s remains the same.
     ! this seems necessary anyway.
-    CALL allocate_matrix(matrix=matrix_s(1)%matrix,&
+    CALL dbcsr_allocate_matrix(matrix_s%s(1),&
                          nblock_row=natom,&
                          nblock_col=natom,&
                          nrow=nsgf,&
@@ -421,10 +434,10 @@ CONTAINS
             "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                      TARGET=matrix_s(i)%matrix,&
-                                      target_name=TRIM(name),&
-                                      target_symmetry="antisymmetric",error=error)
+      CALL dbcsr_replicate_matrix_structure(source=matrix_s%s(1),&
+                                            TARGET=matrix_s%s(i),&
+                                            target_name=TRIM(name),&
+                                            target_symmetry="antisymmetric",error=error)
    END DO
    
    !   *** Allocate the kinetic energy integral ***
@@ -449,38 +462,39 @@ CONTAINS
         globenv%run_type_id==linear_response_run .OR. xas_calculation .OR. epr_calculation)
    ! Assume false by default
    return_t_derivatives = .FALSE.
-  
+
    IF (build_kinetic_energy_matrix) THEN
       IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
-         CALL allocate_matrix_set(matrix_t,maxder,error=error)
+         CALL dbcsr_allocate_matrix_set ( matrix_t, maxder )
          return_t_derivatives = .TRUE.
       ELSE
-         CALL allocate_matrix_set(matrix_t,1,error=error)
+         CALL dbcsr_allocate_matrix_set ( matrix_t, 1 )
          return_t_derivatives = .FALSE.
       END IF
-      CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                      TARGET=matrix_t(1)%matrix,&
-                                      target_name="KINETIC ENERGY MATRIX",error=error)
-      DO i=2,SIZE(matrix_t)
+
+      CALL dbcsr_replicate_matrix_structure(source=matrix_s%s(1),&
+                                            TARGET=matrix_t%s(1),&
+                                            target_name="KINETIC ENERGY MATRIX",error=error)
+
+      DO i=2,SIZE(matrix_t%s)
          cgfsym = cgf_symbol(1,indco(1:3,i))
          name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE KINETIC ENERGY MATRIX "//&
               "W.R.T. THE NUCLEAR COORDINATES"
          CALL compress(name)
          CALL uppercase(name)
-         CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                         TARGET=matrix_t(i)%matrix,&
-                                         target_name=name,&
-                                         target_symmetry="antisymmetric",error=error)
+         CALL dbcsr_replicate_matrix_structure(source=matrix_s%s(1),&
+                                               TARGET=matrix_t%s(i),&
+                                               target_name=name,&
+                                               target_symmetry="antisymmetric",error=error)
       END DO
    END IF
 
    ! *** Allocate the core Hamiltonian matrix ***
-   CALL allocate_matrix_set(matrix_h,1,error=error)
-   CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                   TARGET=matrix_h(1)%matrix,&
-                                   target_name="CORE HAMILTONIAN MATRIX",error=error)
-
+   CALL dbcsr_allocate_matrix_set(matrix_h,1)
+   CALL dbcsr_replicate_matrix_structure(source=matrix_s%s(1),&
+                                         TARGET=matrix_h%s(1),&
+                                         target_name="CORE HAMILTONIAN MATRIX",error=error)
    ! *** Allocate work storage ***
    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                             gth_potential_present=gth_potential_present,&
@@ -497,7 +511,7 @@ CONTAINS
                              maxder=MAX(1,nder))
 
     ldsab = MAX(maxco,maxsgf)
-    maxblock = MAX(SIZE(matrix_s),maxder)
+    maxblock = MAX(SIZE(matrix_s%s),maxder)
     nthread = 1
     ldai = ncoset(maxl+nder+1)
     
@@ -509,7 +523,7 @@ CONTAINS
        CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
     END IF
     
-    ALLOCATE (sintt(SIZE(matrix_s),0:nthread-1),STAT=stat)
+    ALLOCATE (sintt(SIZE(matrix_s%s),0:nthread-1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO i=1,SIZE(sintt,1)
@@ -519,7 +533,7 @@ CONTAINS
     END DO
     
     IF (build_kinetic_energy_matrix) THEN
-       ALLOCATE (tintt(SIZE(matrix_t),0:nthread-1),STAT=stat)
+       ALLOCATE (tintt(SIZE(matrix_t%s),0:nthread-1),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i=1,SIZE(tintt,1)
           DO j=0,nthread-1
@@ -655,27 +669,30 @@ CONTAINS
                       irow = jatom
                       icol = iatom
                    END IF
-                   DO i=1,SIZE(matrix_s)
+
+                   DO i=1,SIZE(matrix_s%s)
                       NULLIFY (sint(i)%block)
-                      CALL add_block_node(matrix=matrix_s(i)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=sint(i)%block,error=error)
+                      CALL dbcsr_add_block_node(matrix=matrix_s%s(i),&
+                                                block_row=irow,&
+                                                block_col=icol,&
+                                                BLOCK=sint(i)%block,error=error)
                    END DO
                    IF (build_kinetic_energy_matrix) THEN
-                      DO i=1,SIZE(matrix_t)
+                      DO i=1,SIZE(matrix_t%s)
                          NULLIFY (tint(i)%block)
-                         CALL add_block_node(matrix=matrix_t(i)%matrix,&
+                         CALL dbcsr_add_block_node(matrix=matrix_t%s(i),&
                                              block_row=irow,&
                                              block_col=icol,&
                                              BLOCK=tint(i)%block,error=error)
                       END DO
                    END IF
                    NULLIFY (h_block)
-                   CALL add_block_node(matrix=matrix_h(1)%matrix,&
+
+                   CALL dbcsr_add_block_node(matrix=matrix_h%s(1),&
                                        block_row=irow,&
                                        block_col=icol,&
                                        BLOCK=h_block,error=error)
+
                    IF (calculate_forces) THEN
                       CALL get_block_node(matrix=matrix_p(1)%matrix,&
                                           block_row=irow,&
@@ -747,7 +764,7 @@ CONTAINS
                                  ai_work,ldai,sdab)
                          END IF
                          ! *** Contraction step (overlap matrix and its derivatives) ***
-                         DO i=1,SIZE(matrix_s)
+                         DO i=1,SIZE(matrix_s%s)
                             IF ((i > 1).AND.(.NOT.return_s_derivatives)) CYCLE
                             first_col = (i - 1)*SIZE(sab,1) + 1
                             CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
@@ -819,7 +836,7 @@ CONTAINS
                          ! *** Contraction step (kinetic energy integral ***
                          ! *** matrix and its derivatives)               ***
                          IF (build_kinetic_energy_matrix) THEN
-                            DO i=1,SIZE(matrix_t)
+                            DO i=1,SIZE(matrix_t%s)
                                IF ((i > 1).AND.(.NOT.return_t_derivatives)) CYCLE
                                first_col = (i - 1)*SIZE(hab,1) + 1
                                CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
@@ -902,6 +919,22 @@ CONTAINS
        END DO
     END DO
 
+    DO i = 1,SIZE(matrix_s%s)
+       CALL dbcsr_finalize(matrix_s%s(i), error=error)
+    ENDDO
+
+    IF (build_kinetic_energy_matrix) THEN
+       DO i = 1,SIZE(matrix_t%s)
+          CALL dbcsr_finalize(matrix_t%s(i), error=error)
+       ENDDO
+    ENDIF
+
+    CALL dbcsr_finalize(matrix_h%s(1), error=error)
+
+
+!call dbcsr_print(matrix_h%s(1), error)
+
+
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -917,16 +950,29 @@ CONTAINS
        END IF
     END IF
 
+    CALL allocate_matrix_set(matrix_h_tmp,1,error=error)
+    CALL sm_from_dbcsr ( matrix_h_tmp(1)%matrix, matrix_h%s(1), distribution_2d, error=error )
+
+
+!    CALL test_sm(matrix_h_tmp(1)%matrix,error)
+
+
+!    WRITE(*,*) 'H checksum dbcsr=',dbcsr_checksum(matrix_h%s(1),error),&
+!            ' sm',checksum_matrix(matrix_h_tmp(1)%matrix, matrix_h_tmp(1)%matrix%distribution_2d%blacs_env%para_env)
+
+
     ! *** compute the ppl contribution to the core hamiltonian ***
     IF (ppl_present) THEN
       IF(qs_env%dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
-        CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+        !CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+        CALL build_core_ppl(matrix_h_tmp, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
       END IF
     END IF
+
     ! *** compute the nucelar attraction contribution to the core hamiltonian ***
     IF (all_potential_present) THEN
-      CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+      CALL build_core_ae(matrix_h_tmp, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ae, error)
     END IF
 
@@ -934,7 +980,7 @@ CONTAINS
     eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
     ! *** compute the ppnl contribution to the core hamiltonian ***
     IF(qs_env%rel_control%rel_method==rel_none)THEN
-      CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+      CALL build_core_ppnl(matrix_h_tmp, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
     END IF
 
@@ -943,10 +989,26 @@ CONTAINS
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
+    CALL allocate_matrix_set(matrix_s_tmp,SIZE(matrix_s%s),error=error)
+    DO i = 1,SIZE(matrix_s%s)
+       CALL sm_from_dbcsr ( matrix_s_tmp(i)%matrix, matrix_s%s(i), distribution_2d, error=error )
+!       WRITE(*,*) 'S checksum dbcsr=',dbcsr_checksum(matrix_s%s(i),error),&
+!            ' sm',checksum_matrix(matrix_s_tmp(i)%matrix, matrix_s_tmp(i)%matrix%distribution_2d%blacs_env%para_env)
+    ENDDO
+
+    IF (build_kinetic_energy_matrix) THEN
+       CALL allocate_matrix_set(matrix_t_tmp,SIZE(matrix_t%s),error=error)
+       DO i = 1,SIZE(matrix_t%s)
+          CALL sm_from_dbcsr ( matrix_t_tmp(i)%matrix, matrix_t%s(i), distribution_2d, error=error )
+!          WRITE(*,*) 'T checksum dbcsr=',dbcsr_checksum(matrix_t%s(i),error),&
+!               ' sm',checksum_matrix(matrix_t_tmp(1)%matrix, matrix_t_tmp(1)%matrix%distribution_2d%blacs_env%para_env)
+       ENDDO
+    ENDIF
+
     CALL set_qs_env(qs_env=qs_env,&
-                    matrix_s=matrix_s,&
-                    kinetic=matrix_t,&
-                    matrix_h=matrix_h,&
+                    matrix_s=matrix_s_tmp,&
+                    kinetic=matrix_t_tmp,&
+                    matrix_h=matrix_h_tmp,&
                     oce=oce,error=error)
 
     IF(ASSOCIATED(VH_3c_list))THEN
@@ -956,12 +1018,12 @@ CONTAINS
     IF(qs_env%rel_control%rel_method/=rel_none)THEN
       CALL dkh_mol_integrals(qs_env,error)
       CALL get_qs_env(qs_env=qs_env,&
-                      matrix_h=matrix_h,&
+                      matrix_h=matrix_h_tmp,&
                       error=error)
-      CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+      CALL build_core_ppnl(matrix_h_tmp, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
       CALL set_qs_env(qs_env=qs_env,&
-                      matrix_h=matrix_h,&
+                      matrix_h=matrix_h_tmp,&
                       error=error)
     END IF
     ! *** Release work storage ***
@@ -974,7 +1036,6 @@ CONTAINS
     DEALLOCATE (workt,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-
     
     DEALLOCATE (sintt,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -982,10 +1043,14 @@ CONTAINS
     IF (build_kinetic_energy_matrix) THEN
        DEALLOCATE (tintt,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL dbcsr_set_release ( matrix_t )
     END IF
     
+    CALL dbcsr_set_release ( matrix_s )
+    CALL dbcsr_set_release ( matrix_h )
+
     ! Print matrices if requested
-    CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, calculate_forces, para_env, error)
+    CALL dump_info_core_hamiltonian(matrix_s_tmp, matrix_t_tmp, matrix_h_tmp, oce, qs_env, calculate_forces, para_env, error)
     CALL timestop(handle)
     
   END SUBROUTINE build_core_hamiltonian_matrix
@@ -1083,5 +1148,131 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE dump_info_core_hamiltonian
+
+  SUBROUTINE get_neighbor_list_sizes(qs_env, neighbor_list_sab, nblks, nze, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: neighbor_list_sab
+    INTEGER, INTENT(out), OPTIONAL           :: nblks, nze
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list_sizes', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, iab, iatom, ikind, ilist, inode, istat, jatom, jkind, &
+      last_jatom, my_nblks, my_nze, natom, nkind, nlist, nnode
+    INTEGER, DIMENSION(:), POINTER           :: nsgf
+    LOGICAL                                  :: failure, new_atom_b
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,&
+                    error=error)
+
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+    ALLOCATE(nsgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_particle_set(particle_set=particle_set,nsgf=nsgf,error=error)
+
+    my_nze = 0
+    my_nblks = 0
+
+    DO ikind=1,nkind
+
+       atomic_kind => atomic_kind_set(ikind)
+
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            orb_basis_set=orb_basis_set)
+
+       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+       DO jkind=1,nkind
+
+          atomic_kind => atomic_kind_set(jkind)
+
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               orb_basis_set=orb_basis_set)
+
+          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+          iab = ikind + nkind*(jkind - 1)
+
+          IF (.NOT.ASSOCIATED(neighbor_list_sab(iab)%neighbor_list_set)) CYCLE
+
+          neighbor_list_set => neighbor_list_sab(iab)%neighbor_list_set
+
+          CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                     nlist=nlist)
+
+          neighbor_list => first_list(neighbor_list_set)
+
+          DO ilist=1,nlist
+
+             CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                    atom=iatom,&
+                                    nnode=nnode)
+
+             last_jatom = 0
+
+             neighbor_node => first_node(neighbor_list)
+
+             DO inode=1,nnode
+
+                CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                       neighbor=jatom)
+
+                IF (jatom /= last_jatom) THEN
+                   new_atom_b = .TRUE.
+                   last_jatom = jatom
+                ELSE
+                   new_atom_b = .FALSE.
+                END IF
+
+                IF (new_atom_b) THEN
+
+                   my_nze = my_nze + nsgf(iatom)*nsgf(jatom)
+                   my_nblks = my_nblks + 1
+
+                END IF
+
+                neighbor_node => next(neighbor_node)
+
+             END DO
+
+             neighbor_list => next(neighbor_list)
+
+          END DO
+
+       END DO
+    END DO
+
+    DEALLOCATE(nsgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    IF(PRESENT(nblks)) nblks = my_nblks
+    IF(PRESENT(nze)) nze = my_nze
+
+    !write(*,*) 'get_neighbor_list_sizes: nblks',my_nblks,' nze',my_nze
+
+    CALL timestop(handle)
+
+  END SUBROUTINE get_neighbor_list_sizes
 
 END MODULE qs_core_hamiltonian
