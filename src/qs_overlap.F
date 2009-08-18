@@ -161,7 +161,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY ( atomic_kind_set,particle_set,distribution_2d)
+    NULLIFY ( atomic_kind_set,particle_set,distribution_2d, matrix_s)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
