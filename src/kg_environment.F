@@ -376,7 +376,7 @@ CONTAINS
 
     IF ( kg_gpw ) THEN
       !Sets up qs_env for subsys
-      CALL kg_subsys_setup(kg_env,force_env_section,subsys_section,error)
+      CALL kg_subsys_setup(kg_env,force_env_section,subsys_section,globenv,error)
     ELSE
       CALL dft_control_release(dft_control, error=error)
     END IF
@@ -470,10 +470,11 @@ CONTAINS
 !>       Charged molecule kinds need to be specified here, reading the info from input somehow
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE kg_subsys_setup(kg_env,force_env_section,subsys_section,error)
+  SUBROUTINE kg_subsys_setup(kg_env,force_env_section,subsys_section,globenv,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
@@ -547,7 +548,8 @@ CONTAINS
                     subsys=subsys,&
                     error=error)
 
-    CALL qs_env_create(qs_env, para_env=para_env, error=error)
+    CALL qs_env_create(qs_env, para_env=para_env, &
+                       globenv=globenv, error=error)
 
     CALL virial_create ( qs_env % virial, error=error)
 

@@ -64,6 +64,7 @@ MODULE qs_environment_types
   USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
                                              fist_nonbond_env_type
+  USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_release,&
                                              harris_env_type
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
@@ -710,10 +711,11 @@ CONTAINS
 !> \date    25.01.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_qs_env(qs_env,para_env,error)
+  SUBROUTINE init_qs_env(qs_env,para_env,globenv,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (qs_env%blacs_env)
@@ -808,7 +810,9 @@ CONTAINS
     CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
-    CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,error=error)
+    CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,&
+                             globenv%blacs_grid_layout,&
+                             globenv%blacs_repeatable,error=error)
     qs_env%ref_count=1
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
@@ -1223,9 +1227,10 @@ CONTAINS
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_env_create(qs_env,para_env,error)
+  SUBROUTINE qs_env_create(qs_env,para_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_create', &
@@ -1240,7 +1245,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL init_qs_env(qs_env,para_env=para_env,&
-            error=error)
+            globenv=globenv, error=error)
     END IF
   END SUBROUTINE qs_env_create
 

@@ -105,6 +105,7 @@ MODULE cp_para_types
      TYPE(cp_para_env_type), POINTER :: para_env
      INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
      INTEGER, DIMENSION(:,:), POINTER :: mpi2blacs
+     LOGICAL :: repeatable
   END TYPE cp_blacs_env_type
 
 END MODULE cp_para_types

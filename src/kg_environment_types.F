@@ -41,6 +41,7 @@ MODULE kg_environment_types
                                              dyn_coeff_set_retain,&
                                              dyn_coeff_set_type
   USE f77_blas
+  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
@@ -261,10 +262,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialise the KG environment.
 ! *****************************************************************************
-  SUBROUTINE init_kg_env ( kg_env, para_env, error )
+  SUBROUTINE init_kg_env ( kg_env, para_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (kg_env%blacs_env)
@@ -291,7 +293,9 @@ CONTAINS
     CALL cp_subsys_create(kg_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     kg_env%para_env => para_env
-    CALL cp_blacs_env_create(kg_env%blacs_env,kg_env%para_env,error=error)
+    CALL cp_blacs_env_create(kg_env%blacs_env,kg_env%para_env,&
+                             globenv%blacs_grid_layout,&
+                             globenv%blacs_repeatable,error=error)
 
     kg_env%ref_count=1
     last_kg_env_id_nr=last_kg_env_id_nr+1
@@ -495,9 +499,10 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-SUBROUTINE kg_env_create(kg_env,para_env,error)
+SUBROUTINE kg_env_create(kg_env,para_env,globenv,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
@@ -511,7 +516,7 @@ SUBROUTINE kg_env_create(kg_env,para_env,error)
   ALLOCATE(kg_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL init_kg_env(kg_env,para_env=para_env,error=error)
+     CALL init_kg_env(kg_env,para_env=para_env,globenv=globenv,error=error)
   END IF
 END SUBROUTINE kg_env_create
 

@@ -22,7 +22,7 @@ MODULE cp_blacs_calls
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_calls'
   PRIVATE
   ! setup / info calls
-  PUBLIC :: cp_blacs_gridinit, cp_blacs_get, cp_blacs_pnum, &
+  PUBLIC :: cp_blacs_gridinit, cp_blacs_get, cp_blacs_set, cp_blacs_pnum, &
             cp_blacs_pinfo, cp_blacs_gridexit, cp_blacs_gridinfo
   ! actual message passing
   PUBLIC :: cp_blacs_zgebs2d, cp_blacs_zgebr2d, cp_blacs_dgebs2d, &
@@ -103,6 +103,21 @@ SUBROUTINE cp_blacs_get(context,what,val)
    CALL blacs_get(context,what,val)
 #endif
 END SUBROUTINE cp_blacs_get
+
+! WHAT = 0 : Handle indicating default system context;  ! DO NOT USE (i.e. use para_env%group)
+! WHAT = 1 : The BLACS message ID range; 
+! WHAT = 2 : The BLACS debug level the library was compiled with; 
+! WHAT = 10: Handle indicating the system context used to define the BLACS context whose handle is ICONTXT; 
+! WHAT = 11: Number of rings multiring topology is presently using; 
+! WHAT = 12: Number of branches general tree topology is presently using. 
+! WHAT = 15: If non-zero, makes topology choice for repeatable collectives
+! *****************************************************************************
+SUBROUTINE cp_blacs_set(context,what,val)
+   INTEGER, INTENT(IN)  :: context,what,val
+#if defined(__BLACS)
+   CALL blacs_set(context,what,val)
+#endif
+END SUBROUTINE cp_blacs_set
 
 ! the total number available to the system, not for a particular context (DO NOT USE)
 ! *****************************************************************************

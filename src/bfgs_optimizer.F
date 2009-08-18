@@ -140,7 +140,8 @@ CONTAINS
     nfree = gopt_env%nfree
     
     ! Initialize hessian (hes = unitary matrix )
-    CALL cp_blacs_env_create(blacs_env,para_env,error=error)
+    CALL cp_blacs_env_create(blacs_env,para_env,globenv%blacs_grid_layout,&
+                             globenv%blacs_repeatable,error=error)
     CALL cp_fm_struct_create(fm_struct_hes,para_env=para_env,context=blacs_env, &
          nrow_global=ndf,ncol_global=ndf,error=error)
     CALL cp_fm_create(hess_mat, fm_struct_hes,name="hess_mat",error=error)

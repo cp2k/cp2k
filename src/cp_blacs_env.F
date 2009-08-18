@@ -14,13 +14,14 @@ MODULE cp_blacs_env
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinfo,&
-                                             cp_blacs_gridinit
+                                             cp_blacs_gridinit,&
+                                             cp_blacs_set
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE f77_blas
-  USE global_types,                    ONLY: BLACS_GRID_COL,&
+  USE input_constants,                 ONLY: BLACS_GRID_COL,&
                                              BLACS_GRID_ROW,&
                                              BLACS_GRID_SQUARE
   USE kinds,                           ONLY: dp
@@ -86,10 +87,11 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,error)
+SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeatable,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: blacs_grid_layout
+    LOGICAL, INTENT(IN), OPTIONAL            :: blacs_repeatable
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create', &
@@ -98,7 +100,7 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,error)
     INTEGER                                  :: ipcol, ipe, iprow, &
                                                 my_blacs_grid_layout, npcol, &
                                                 npe, nprow, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_blacs_repeatable
 
   failure=.FALSE.
 
@@ -160,6 +162,11 @@ CPSourceFileRef,&
      ! blacs_env%group will be set to the blacs context for this blacs env, this is not the same as the MPI context
      blacs_env%group=para_env%group
      CALL cp_blacs_gridinit(blacs_env%group,"Row-major",nprow,npcol)
+
+     my_blacs_repeatable = .FALSE.
+     IF(PRESENT(blacs_repeatable)) my_blacs_repeatable=blacs_repeatable
+     blacs_env%repeatable = my_blacs_repeatable
+     IF (blacs_env%repeatable) CALL cp_blacs_set(blacs_env%group, 15, 1)
 
      ! fill in the info one needs
      CALL cp_blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&

@@ -164,7 +164,7 @@ CONTAINS
     !
     IF ( runtest ( 9 ) /= 0 ) CALL rng_test( para_env, iw, error)
     !
-    IF ( runtest ( 10 )/= 0 ) CALL eigensolver_test( para_env, iw, error)
+    IF ( runtest ( 10 )/= 0 ) CALL eigensolver_test( para_env, globenv, iw, error)
 
     rs_pw_transfer_section => section_vals_get_subs_vals(root_section,"TEST%RS_PW_TRANSFER",error=error)
     CALL section_vals_get(rs_pw_transfer_section,explicit=explicit, error=error)
@@ -1548,8 +1548,9 @@ CONTAINS
 !>      JGH  6-Feb-2001 : Test and performance code
 !> \author JGH  1-JAN-2001
 ! *****************************************************************************
-  SUBROUTINE eigensolver_test(para_env,output_unit,error)
+  SUBROUTINE eigensolver_test(para_env,globenv,output_unit,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER                                  :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1582,6 +1583,8 @@ CONTAINS
     NULLIFY (blacs_env)
     CALL cp_blacs_env_create(blacs_env=blacs_env,&
                              para_env=para_env,&
+                             blacs_grid_layout=globenv%blacs_grid_layout,&
+                             blacs_repeatable=globenv%blacs_repeatable,&
                              error=error)
     IF (ionode) THEN
        WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&

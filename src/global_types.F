@@ -20,6 +20,7 @@ MODULE global_types
 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
+  USE input_constants,                 ONLY: BLACS_GRID_SQUARE
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -36,10 +37,7 @@ MODULE global_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'global_types'
 
-  INTEGER, PARAMETER :: BLACS_GRID_SQUARE = 1,&
-                        BLACS_GRID_ROW    = 2,&
-                        BLACS_GRID_COL    = 3,&
-                        SILENT = 0,&
+  INTEGER, PARAMETER :: SILENT = 0,&
                         LOW    = 1,&
                         MEDIUM = 2,&
                         HIGH   = 3,&
@@ -49,21 +47,16 @@ MODULE global_types
 
   ! Public parameters
 
-  PUBLIC :: BLACS_GRID_SQUARE,&
-            BLACS_GRID_ROW,&
-            BLACS_GRID_COL,&
-            SILENT,&
+  PUBLIC :: SILENT,&
             LOW,&
             MEDIUM,&
             HIGH,&
             DEBUG
 
   ! Public data types
-
   PUBLIC :: global_environment_type
 
   ! Public subroutines
-
   PUBLIC :: globenv_create,&
             globenv_retain,&
             globenv_release
@@ -93,6 +86,7 @@ MODULE global_types
      INTEGER :: prog_name_id !! index to define the type of program
      INTEGER :: run_type_id  !! index to define the run_tupe
      INTEGER :: blacs_grid_layout !! will store the user preference for the blacs grid
+     LOGICAL :: blacs_repeatable !! will store the user preference for the repeatability of blacs collectives
      REAL(KIND=dp) :: cp2k_start_time, cp2k_target_time
      INTEGER :: handle
   END TYPE global_environment_type

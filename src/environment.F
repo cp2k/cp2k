@@ -422,6 +422,7 @@ CONTAINS
 
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
+    CALL section_vals_val_get(global_section,"BLACS_REPEATABLE",l_val=globenv%blacs_repeatable,error=error)
     CALL section_vals_val_get(global_section,"PREFERRED_FFT_LIBRARY",i_val=i_fft,error=error)
 
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)

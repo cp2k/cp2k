@@ -236,10 +236,18 @@ CONTAINS
     CALL keyword_create(keyword, name="BLACS_GRID",&
          description="how to distribute the processors on the 2d grid needed "//&
          "by BLACS (and thus SCALAPACK)", usage="BLACS_GRID SQUARE",&
-         default_i_val=blacs_square,enum_c_vals=s2a("SQUARE","ROW","COLUMN"),&
+         default_i_val=BLACS_GRID_SQUARE,enum_c_vals=s2a("SQUARE","ROW","COLUMN"),&
          enum_desc=s2a("Distribution by matrix blocks", "Distribution by matrix rows",&
          "Distribution by matrix columns"), &
-         enum_i_vals=(/blacs_square,blacs_row,blacs_col/), error=error)
+         enum_i_vals=(/BLACS_GRID_SQUARE,BLACS_GRID_ROW,BLACS_GRID_COL/), error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="BLACS_REPEATABLE",&
+         description="Use a topology for BLACS collectives that is guaranteed to be repeatable "//&
+                     "on homegeneous architectures",&
+         usage="BLACS_REPEATABLE",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

@@ -59,9 +59,9 @@ MODULE input_constants
                                               weight_type_mass=1
 
   ! Blacs type of distribution 
-  INTEGER, PARAMETER, PUBLIC               :: blacs_square=1,&
-                                              blacs_row=2,&
-                                              blacs_col=3
+  INTEGER, PARAMETER, PUBLIC               :: BLACS_GRID_SQUARE = 1,&
+                                              BLACS_GRID_ROW    = 2,&
+                                              BLACS_GRID_COL    = 3
 
   ! EWALD methods       
   INTEGER, PARAMETER, PUBLIC               :: do_ewald_none=1,&

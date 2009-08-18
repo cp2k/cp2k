@@ -63,7 +63,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     CALL cite_reference(Iannuzzi2006)
     failure=.FALSE.
-    CALL kg_env_create(kg_env,para_env=para_env,error=error)
+    CALL kg_env_create(kg_env,para_env=para_env,globenv=globenv,error=error)
 
     CALL kg_init( kg_env, root_section, para_env, globenv, force_env_section, &
          subsys_section, use_motion_section, error )
