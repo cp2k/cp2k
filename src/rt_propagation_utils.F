@@ -180,6 +180,7 @@ MODULE  rt_propagation_utils
     NULLIFY(rtp)
     NULLIFY (work)
     NULLIFY(distribution_2d)
+    NULLIFY(s_derivs)
 
     CALL get_qs_env(qs_env=qs_env,&
                     rtp=rtp,&

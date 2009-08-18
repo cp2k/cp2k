@@ -64,10 +64,9 @@ MODULE preconditioner
        ot_precond_full_single_inverse, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
        ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
-       ot_precond_sparse_diag, ot_precond_sparse_firstorder, &
-       ot_precond_sparse_kinetic, ot_precond_sparse_kinetic_sainv
+       ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
+       ot_precond_sparse_kinetic_sainv
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE sparse_matrix_types,             ONLY: &
@@ -208,18 +207,6 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      ELSE
         CALL stop_program("make preconditioner","Type for S=1 not implemented")
      END IF
-  CASE (ot_precond_sparse_firstorder)
-     preconditioner_env%in_use=ot_precond_sparse_firstorder
-     IF(my_solver_type.NE.ot_precond_solver_default) THEN
-        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
-     ENDIF
-     IF ( PRESENT(matrix_s) ) THEN
-        CALL make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
-                                     energy_homo, energy_gap ,error=error)
-     ELSE
-        CALL make_sparse_first_order_ortho(preconditioner_env, matrix_h, &
-                                           energy_homo, energy_gap ,error=error)
-     END IF
   CASE (ot_precond_full_kinetic)
      preconditioner_env%in_use=ot_precond_full_kinetic
      IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
@@ -324,7 +311,7 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
      CALL stop_program("apply preconditioner","No preconditioner in use")
-  CASE (ot_precond_sparse_diag,ot_precond_sparse_firstorder)
+  CASE (ot_precond_sparse_diag)
      CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_single)
      CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
@@ -563,128 +550,6 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
   DEALLOCATE(evals)
 
 END SUBROUTINE make_local_block
-! different types of preconditioner come here
-! a sparse one based on 2inv(A)-inv(A) F inv(A) where F is S
-! turns out that this inverse is not symmetric positive definite unless
-! inv(A) is scaled by some number
-! *****************************************************************************
-SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
-                                   energy_homo, energy_gap, error)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
-    REAL(KIND=dp)                            :: energy_homo, energy_gap
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: iblock_col_h, iblock_col_s, &
-                                                iblock_row, k, n, nblocks
-    INTEGER, DIMENSION(:), POINTER           :: first_row, last_row, offset
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: block_buffer
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s, &
-                                                block_tmp
-    TYPE(real_block_node_type), POINTER      :: block_node_h, block_node_s
-
-!----
-
-  IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-     CALL deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
-     NULLIFY(preconditioner_env%sparse_matrix)
-  ENDIF
-  ! first we get the all blocks of the block diagonal preconditioner replicated
-  ! on every CPU (store in block_buffer)
-
-  CALL get_matrix_info(matrix_h,nblock_row=nblocks,first_row=first_row,last_row=last_row)
-
-  ALLOCATE(offset(nblocks+1))
-  offset(1)=0
-  DO iblock_row=1,nblocks
-     offset(iblock_row+1)=offset(iblock_row)+(last_row(iblock_row)-first_row(iblock_row)+1)**2
-  ENDDO
-  ALLOCATE(block_buffer(offset(nblocks+1)))
-  CALL DCOPY(offset(nblocks+1),0.0_dp,0,block_buffer(1),1)
-
-  DO iblock_row=1,nblocks
-     block_node_s => first_block_node(matrix_s,iblock_row)
-     block_node_h => first_block_node(matrix_h,iblock_row)
-     DO WHILE (ASSOCIATED(block_node_s) .OR. ASSOCIATED(block_node_h))
-        IF (.NOT.ASSOCIATED(block_node_s) .OR. .NOT.ASSOCIATED(block_node_h)) &
-            CALL stop_program("qs preconditioner", ".NOT.ASSOCIATED")
-
-        CALL get_block_node(block_node=block_node_s,&
-                            block_col=iblock_col_s,&
-                            BLOCK=block_s)
-
-        CALL get_block_node(block_node=block_node_h,&
-                            block_col=iblock_col_h,&
-                            BLOCK=block_h)
-
-        IF (iblock_col_h .NE. iblock_col_s) &
-           CALL stop_program("qs preconditioner","iblock_col_h .ne. iblock_col_s")
-
-        IF (iblock_col_s .EQ. iblock_row) THEN
-           n=SIZE(block_s,1)
-           ALLOCATE(block_pre(n,n))
-
-           CALL make_local_block(block_h,block_s,block_pre,  &
-                                                  energy_homo,energy_gap,4)
-           CALL DCOPY(n*n,block_pre(1,1),1,block_buffer(offset(iblock_row)+1),1)
-
-           DEALLOCATE(block_pre)
-
-        ENDIF
-        block_node_s => next_block_node(block_node_s)
-        block_node_h => next_block_node(block_node_h)
-     END DO
-  ENDDO
-
-  CALL mp_sum(block_buffer,preconditioner_env%para_env%group)
-
-  CALL DSCAL(offset(nblocks+1),0.2_dp,block_buffer(1),1)
-
-  ! now every diagonal block is everywhere, form the product
-  CALL Replicate_matrix(matrix_h,preconditioner_env%sparse_matrix,"PRECONDITIONER",.FALSE.,error=error)
-
-  DO iblock_row=1,nblocks
-     block_node_s => first_block_node(matrix_s,iblock_row)
-     block_node_h => first_block_node(matrix_h,iblock_row)
-     DO WHILE (ASSOCIATED(block_node_s) .OR. ASSOCIATED(block_node_h))
-
-        CALL get_block_node(block_node=block_node_s,&
-                            block_col=iblock_col_s,&
-                            BLOCK=block_s)
-
-        CALL get_block_node(block_node=block_node_h,&
-                            block_col=iblock_col_h,&
-                            BLOCK=block_h)
-
-        n=SIZE(block_s,1)
-        k=SIZE(block_s,2)
-        ALLOCATE(block_pre(n,k))
-        ALLOCATE(block_tmp(n,k))
-        block_pre(:,:)=-block_s(:,:)
-        CALL DGEMM('N','N',n,k,k,1.0_dp,block_pre(1,1),n, &
-                                        block_buffer(offset(iblock_col_s)+1), &
-                                        k,0.0_dp,block_tmp(1,1),n)
-        CALL DGEMM('N','N',n,k,n,1.0_dp,block_buffer(offset(iblock_row)+1),n, &
-                                        block_tmp(1,1), &
-                                        n,0.0_dp,block_pre(1,1),n)
-        IF (iblock_row .EQ. iblock_col_s) &
-           CALL DAXPY(n*k,2.0_dp,block_buffer(offset(iblock_row)+1),1,block_pre(1,1),1)
-
-        CALL add_block_node(preconditioner_env%sparse_matrix,iblock_row,iblock_col_s,block_pre,error=error)
-
-        DEALLOCATE(block_pre)
-        DEALLOCATE(block_tmp)
-        block_node_s => next_block_node(block_node_s)
-        block_node_h => next_block_node(block_node_h)
-     END DO
-  ENDDO
-
-  DEALLOCATE(offset)
-  DEALLOCATE(block_buffer)
-
-END SUBROUTINE make_sparse_first_order
-
 ! different types of preconditioner come here
 ! a full matrix preconditioner
 ! *****************************************************************************
@@ -1326,119 +1191,9 @@ SUBROUTINE make_sparse_diag_ortho(preconditioner_env, matrix_h, energy_homo, ene
      END DO
   ENDDO
 END SUBROUTINE make_sparse_diag_ortho
+
 ! *****************************************************************************
-! different types of preconditioner come here
-! a sparse one based on 2inv(A)-inv(A) F inv(A) where F is S
-! turns out that this inverse is not symmetric positive definite unless
-! inv(A) is scaled by some number
-! *****************************************************************************
-SUBROUTINE make_sparse_first_order_ortho(preconditioner_env, matrix_h, &
-                                   energy_homo, energy_gap, error)
 
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(real_matrix_type), POINTER          :: matrix_h
-    REAL(KIND=dp)                            :: energy_homo, energy_gap
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: i, iblock_col_h, &
-                                                iblock_col_s, iblock_row, k, &
-                                                n, nblocks
-    INTEGER, DIMENSION(:), POINTER           :: first_row, last_row, offset
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: block_buffer
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s, &
-                                                block_tmp
-    TYPE(real_block_node_type), POINTER      :: block_node_h
-
-!----
-
-  IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-     CALL deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
-     NULLIFY(preconditioner_env%sparse_matrix)
-  ENDIF
-  ! first we get the all blocks of the block diagonal preconditioner replicated
-  ! on every CPU (store in block_buffer)
-
-  CALL get_matrix_info(matrix_h,nblock_row=nblocks,first_row=first_row,last_row=last_row)
-
-  ALLOCATE(offset(nblocks+1))
-  offset(1)=0
-  DO iblock_row=1,nblocks
-     offset(iblock_row+1)=offset(iblock_row)+(last_row(iblock_row)-first_row(iblock_row)+1)**2
-  ENDDO
-  ALLOCATE(block_buffer(offset(nblocks+1)))
-  CALL DCOPY(offset(nblocks+1),0.0_dp,0,block_buffer(1),1)
-
-  DO iblock_row=1,nblocks
-     block_node_h => first_block_node(matrix_h,iblock_row)
-     DO WHILE (ASSOCIATED(block_node_h))
-
-        CALL get_block_node(block_node=block_node_h,&
-                            block_col=iblock_col_h,&
-                            BLOCK=block_h)
-
-        IF (iblock_col_h .EQ. iblock_row) THEN
-           n=SIZE(block_h,1)
-           ALLOCATE(block_pre(n,n),block_s(n,n))
-           block_s = 0._dp
-           DO i=1,n
-             block_s(i,i) = 1._dp
-           END DO
-
-           CALL make_local_block(block_h,block_s,block_pre,  &
-                                                  energy_homo,energy_gap,4)
-           CALL DCOPY(n*n,block_pre(1,1),1,block_buffer(offset(iblock_row)+1),1)
-
-           DEALLOCATE(block_pre,block_s)
-
-        ENDIF
-        block_node_h => next_block_node(block_node_h)
-     END DO
-  ENDDO
-
-  CALL mp_sum(block_buffer,preconditioner_env%para_env%group)
-
-  CALL DSCAL(offset(nblocks+1),0.2_dp,block_buffer(1),1)
-
-  ! now every diagonal block is everywhere, form the product
-  CALL Replicate_matrix(matrix_h,preconditioner_env%sparse_matrix,"PRECONDITIONER",.FALSE.,error=error)
-
-  DO iblock_row=1,nblocks
-     block_node_h => first_block_node(matrix_h,iblock_row)
-     DO WHILE (ASSOCIATED(block_node_h))
-
-        CALL get_block_node(block_node=block_node_h,&
-                            block_col=iblock_col_h,&
-                            BLOCK=block_h)
-
-        n=SIZE(block_h,1)
-        k=SIZE(block_h,2)
-        ALLOCATE(block_pre(n,k),block_tmp(n,k))
-        block_pre(:,:)=0._dp
-        IF (iblock_col_h .EQ. iblock_row) THEN
-          DO i=1,n
-            block_pre(i,i)=-1._dp
-          END DO
-        END IF
-        CALL DGEMM('N','N',n,k,k,1.0_dp,block_pre(1,1),n, &
-                                        block_buffer(offset(iblock_col_s)+1), &
-                                        k,0.0_dp,block_tmp(1,1),n)
-        CALL DGEMM('N','N',n,k,n,1.0_dp,block_buffer(offset(iblock_row)+1),n, &
-                                        block_tmp(1,1), &
-                                        n,0.0_dp,block_pre(1,1),n)
-        IF (iblock_row .EQ. iblock_col_s) &
-           CALL DAXPY(n*k,2.0_dp,block_buffer(offset(iblock_row)+1),1,block_pre(1,1),1)
-
-        CALL add_block_node(preconditioner_env%sparse_matrix,iblock_row,iblock_col_s,block_pre,error=error)
-
-        DEALLOCATE(block_pre,block_tmp)
-        block_node_h => next_block_node(block_node_h)
-     END DO
-  ENDDO
-
-  DEALLOCATE(offset,block_buffer)
-
-END SUBROUTINE make_sparse_first_order_ortho
-! *****************************************************************************
 SUBROUTINE make_full_single_ortho(preconditioner_env, fm, matrix_h, &
                        energy_homo, energy_gap , error)
 

@@ -82,9 +82,9 @@ MODULE qs_scf
        direct_p_mix, history_guess, kerker_mix, multisec_mix, no_mix, &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-       ot_precond_sparse_diag, ot_precond_sparse_firstorder, &
-       ot_precond_sparse_kinetic, outer_scf_none, outer_scf_scp, &
-       plus_u_lowdin, pulay_mix, wfi_frozen_method_nr, wfi_use_guess_method_nr
+       ot_precond_sparse_diag, ot_precond_sparse_kinetic, outer_scf_none, &
+       outer_scf_scp, plus_u_lowdin, pulay_mix, wfi_frozen_method_nr, &
+       wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -1365,8 +1365,7 @@ END SUBROUTINE qs_scf_print_summary
              DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
              CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse, &
-                  ot_precond_sparse_diag,ot_precond_sparse_kinetic,&
-                  ot_precond_sparse_firstorder) ! these are 'independent'
+                  ot_precond_sparse_diag,ot_precond_sparse_kinetic) ! these are 'independent'
            ! do nothing
            CASE DEFAULT
              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -1505,8 +1504,7 @@ CPSourceFileRef)
                DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
              CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse, &
-                  ot_precond_sparse_diag,ot_precond_sparse_kinetic,&
-                  ot_precond_sparse_firstorder) ! these are 'independent'
+                  ot_precond_sparse_diag,ot_precond_sparse_kinetic) ! these are 'independent'
                 ! do nothing
              CASE DEFAULT
               CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)

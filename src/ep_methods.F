@@ -2031,7 +2031,7 @@ CONTAINS
        DEALLOCATE(ep_env%precond,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        !CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse, &
-       !     ot_precond_sparse_diag,ot_precond_sparse_firstorder) ! these are 'independent'
+       !     ot_precond_sparse_diag) ! these are 'independent'
     END IF
 
     CALL deallocate_matrix_set(matrix_w,error=error)
