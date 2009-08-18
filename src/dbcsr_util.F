@@ -272,7 +272,7 @@ CONTAINS
   PURE FUNCTION checker_square_proc(row, col, pgrid,&
        row_dist, col_dist) RESULT(process)
     INTEGER, INTENT(IN)                      :: row, col
-    INTEGER, DIMENSION(:,:), INTENT(IN)      :: pgrid
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: pgrid
     INTEGER, DIMENSION(:), INTENT(IN)        :: row_dist, col_dist
     INTEGER                                  :: process
 
@@ -308,8 +308,8 @@ CONTAINS
     LOGICAL                                  :: straight
 
 !   ---------------------------------------------------------------------------
+! SM-compatible way
 
-    ! SM-compatible way
     IF (PRESENT (processor)) THEN
        IF (.NOT. checker_tr (row, column)) THEN
           processor = dbcsr_distribution_processor (matrix%dist, row, column)
@@ -1348,7 +1348,7 @@ CONTAINS
 
     INTEGER :: absrow, blk, blk_l, blk_p, block_col, dst_p, mp_group, mynod, &
       mypcol, myprow, nblkcols_local, nblkcols_total, nblkrows_local, &
-      nblkrows_total, newpcol, newprow, nfullcols_local, nfullcols_total, &
+      nblkrows_total, newprow, nfullcols_local, nfullcols_total, &
       nfullrows_local, nfullrows_total, npcols, nprows, numproc, nze, row_l, &
       src_p, stat, stored_col, stored_row, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &

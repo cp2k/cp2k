@@ -2367,7 +2367,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(dbcsr_obj)                          :: matrix
+    TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -2380,6 +2380,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(particle_set,distribution_2d,atomic_kind_set,sab_orb)
+    NULLIFY (matrix)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
