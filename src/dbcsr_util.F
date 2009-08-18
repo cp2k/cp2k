@@ -256,6 +256,33 @@ CONTAINS
 
   END FUNCTION checker_tr
 
+! *****************************************************************************
+!> \brief Determines the home process for a given logical matrix element.
+!> \note This routine is a more low-level version of
+!>       dbcsr_get_stored_coordinate without the setting the row and column
+!>       to the stored position.
+!> \note It assumes a square matrix.
+!> \param[in] row             logical row
+!> \param[in] col             logical column
+!> \param[in] pgrid           process grid
+!> \param[in] row_dist        row distribution
+!> \param[in] col_dist        column distribution
+!> \retval process            home process of the given element
+! *****************************************************************************
+  PURE FUNCTION checker_square_proc(row, col, pgrid,&
+       row_dist, col_dist) RESULT(process)
+    INTEGER, INTENT(IN)                      :: row, col
+    INTEGER, DIMENSION(:,:), INTENT(IN)      :: pgrid
+    INTEGER, DIMENSION(:), INTENT(IN)        :: row_dist, col_dist
+    INTEGER                                  :: process
+
+    IF (.NOT. checker_tr (row, col)) THEN
+       process = pgrid (row_dist (row), col_dist(col))
+    ELSE
+       process = pgrid (row_dist (col), col_dist(row))
+    ENDIF
+  END FUNCTION checker_square_proc
+
 
 ! *****************************************************************************
 !> \brief Sets the correct source matrix, row, column and possible data
@@ -282,6 +309,16 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    ! SM-compatible way
+    IF (PRESENT (processor)) THEN
+       IF (.NOT. checker_tr (row, column)) THEN
+          processor = dbcsr_distribution_processor (matrix%dist, row, column)
+       ELSE
+          processor = dbcsr_distribution_processor (matrix%dist, column, row)
+       ENDIF
+    ENDIF
+    ! The old way
+    RETURN
     straight = matrix%matrix_type .NE. dbcsr_type_normal
     straight = (.NOT.&
          (matrix%matrix_type.EQ.dbcsr_type_symmetric&
@@ -425,27 +462,41 @@ CONTAINS
 !>                            and column
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
+!> \param[out] transposed     (optional) whether the block is stored transposed
+!>                            according to its position
 ! *****************************************************************************
   PURE SUBROUTINE get_stored_block_info_type(matrix, row, column,&
-       found, block_number, data_offset)
+       found, block_number, data_offset, transposed)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     INTEGER, INTENT(IN)                      :: row, column
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT)                     :: block_number
     INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
+    LOGICAL, INTENT(OUT), OPTIONAL           :: transposed
 
-    INTEGER                                  :: blk, blk_last
+    INTEGER                                  :: blk_last, offset
 
 !   ---------------------------------------------------------------------------
 
     blk_last = matrix%row_p(row+1)
     CALL dbcsr_find_column(column, matrix%row_p(row)+1, blk_last,&
          matrix%col_i(1:blk_last), block_number, found)
-    IF (PRESENT (data_offset)) THEN
-       IF (found) THEN
-          data_offset = matrix%blk_p(blk)
-       ELSE
+    IF (found) THEN
+       IF (PRESENT (data_offset) .OR. PRESENT (transposed)) THEN
+          offset = matrix%blk_p(block_number)
+       ENDIF
+       IF (PRESENT (data_offset)) THEN
+          data_offset = ABS (offset)
+       ENDIF
+       IF (PRESENT (transposed)) THEN
+          transposed = offset .LT. 0
+       ENDIF
+    ELSE
+       IF (PRESENT (data_offset)) THEN
           data_offset = 0
+       ENDIF
+       IF (PRESENT (transposed)) THEN
+          transposed = .FALSE.
        ENDIF
     ENDIF
   END SUBROUTINE get_stored_block_info_type
@@ -462,23 +513,36 @@ CONTAINS
 !>                            and column; 0 if nonexistent
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
+!> \param[out] transposed     (optional) whether the block is stored transposed
+!>                            according to its position
 ! *****************************************************************************
   PURE SUBROUTINE get_stored_block_info_obj(matrix, row, column,&
-       found, block_number, data_offset)
+       found, block_number, data_offset, transposed)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: row, column
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT)                     :: block_number
     INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
+    LOGICAL, INTENT(OUT), OPTIONAL           :: transposed
 
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT (data_offset)) THEN
-       CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
-            block_number, data_offset)
+       IF (PRESENT (transposed)) THEN
+          CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
+               block_number, data_offset, transposed)
+       ELSE
+          CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
+               block_number, data_offset)
+       ENDIF
     ELSE
-       CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
-            block_number)
+       IF (PRESENT (transposed)) THEN
+          CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
+               block_number, transposed=transposed)
+       ELSE
+          CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
+               block_number)
+       ENDIF
     ENDIF
   END SUBROUTINE get_stored_block_info_obj
 
@@ -1402,13 +1466,16 @@ CONTAINS
                block=blkdata_2d)
           stored_row = absrow
           stored_col = block_col
-          !tr = checker_tr (stored_row, stored_col)
-          !IF (tr) CALL swap (stored_row, stored_col)
+          !!tr = checker_tr (stored_row, stored_col)
+          !!IF (tr) CALL swap (stored_row, stored_col)
+          !tr = .FALSE.
+          !CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, tr)
+          !newprow = prow_dist(stored_row)
+          !newpcol = pcol_dist(stored_col)
+          !dst_p = blacs2mpi(newprow, newpcol)
           tr = .FALSE.
-          CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, tr)
-          newprow = prow_dist(stored_row)
-          newpcol = pcol_dist(stored_col)
-          dst_p = blacs2mpi(newprow, newpcol)
+          CALL get_stored_coordinates_type (matrix%m, stored_row, stored_col,&
+               tr, dst_p)
           nze = row_blk_size(absrow) * col_blk_size(block_col)
           send_count(1, dst_p) = send_count(1, dst_p) + 1
           send_count(2, dst_p) = send_count(2, dst_p) + nze
@@ -1463,10 +1530,11 @@ CONTAINS
           !tr = checker_tr (stored_row, stored_col)
           !IF (tr) CALL swap (stored_row, stored_col)
           tr = .FALSE.
-          CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, tr)
-          newprow = prow_dist(stored_row)
-          newpcol = pcol_dist(stored_col)
-          dst_p = blacs2mpi(newprow, newpcol)
+          CALL dbcsr_get_stored_coordinates(matrix%m, stored_row, stored_col,&
+               tr, dst_p)
+          !newprow = prow_dist(stored_row)
+          !newpcol = pcol_dist(stored_col)
+          !dst_p = blacs2mpi(newprow, newpcol)
           nze = row_blk_size(stored_row) * col_blk_size(stored_col)
           IF (.NOT. tr) THEN
              send_meta(smp(dst_p)) = stored_row
@@ -4847,8 +4915,9 @@ CONTAINS
     prev_dst_p = -1
     ! Count initial sizes for sending.
     !$OMP DO
-    DO row_l = 1, sm%nblkrows_local
-       row = stored_local_rows(row_l)
+    !DO row_l = 1, sm%nblkrows_local
+    DO row = 1, sm%nblkrows_total
+       !row = stored_local_rows(row_l)
        DO blk = sm%row_p(row)+1, sm%row_p(row+1)
           col = sm%col_i(blk)
           DO symmetry_i = 1, nsymmetries
@@ -4969,8 +5038,9 @@ CONTAINS
     prev_dst_p = -1
     ! Copies metadata and actual data to be sent into the send buffers.
     !$OMP DO
-    DO row_l = 1, sm%nblkrows_local
-       row = stored_local_rows(row_l)
+    !DO row_l = 1, sm%nblkrows_local
+    DO row = 1, sm%nblkrows_total
+       !row = stored_local_rows(row_l)
        lsmp = row_dst_offsets(1, :, row)
        lsdp = row_dst_offsets(2, :, row)
        DO blk = sm%row_p(row)+1, sm%row_p(row+1)

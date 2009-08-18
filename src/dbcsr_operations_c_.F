@@ -394,10 +394,12 @@
   END SUBROUTINE dbcsr_put_block2d_c
 
 ! *****************************************************************************
-!> \brief put a block in a dbcsr matrix
+!> \brief Inserts a block in a dbcsr matrix.
+!>
+!> If the block exists, the current data is overwritten.
 !> \param[in]  matrix         DBCSR matrix
-!> \param[in]  row            the row
-!> \param[in]  col            the column
+!> \param[in]  row            the logical row
+!> \param[in]  col            the logical column
 !> \param[in]  block          the block to put
 !> \param[in]  transposed     the block is transposed
 ! *****************************************************************************
@@ -410,9 +412,11 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_c', &
       routineP = moduleN//':'//routineN
 
+    TYPE(btree_2d_data_c)          :: data_block, data_block2
     INTEGER                                  :: blk, col_size, frst_blk, &
                                                 last_blk, nze, offset, &
-                                                row_size, blk_p
+                                                row_size, blk_p,&
+                                                stored_row, stored_col
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: found, tr
 
@@ -428,15 +432,23 @@
 
     row_size = row_blk_size(row)
     col_size = col_blk_size(col)
-    blk = matrix%m%row_p(row)+1
-    frst_blk = matrix%m%row_p(row)+1
-    last_blk = matrix%m%row_p(row+1)
-    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
+    IF (tr) CALL swap (row_size, col_size)
+    CALL cp_assert (SIZE(block) .GE. row_size*col_size, cp_fatal_level,&
+         cp_caller_error, routineN, "Invalid block dimensions")
+    stored_row = row ; stored_col = col
+    CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col, tr)
+    CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
+         found, blk, offset)
+    !blk = matrix%m%row_p(row)+1
+    !frst_blk = matrix%m%row_p(row)+1
+    !last_blk = matrix%m%row_p(row+1)
+    !CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
     IF(found) THEN
        nze = row_size*col_size
        !
        ! let's copy the block
-       offset = ABS(matrix%m%blk_p(blk))
+       offset = ABS (offset)
+       !offset = ABS(matrix%m%blk_p(blk))
        IF (matrix%m%blk_p(blk).LT.0 .NEQV. tr) THEN
           matrix%m%blk_p(blk) = -matrix%m%blk_p(blk)
        ENDIF
@@ -444,22 +456,33 @@
             pointer_view (&
             dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
             ), 1)
-       !CALL dcopy(nze,block(1),1,matrix%m%data(offset),1)
     ELSE
-       !WRITE(*,*)routineN//" Adding block to matrix"
        IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
           !WRITE(*,*)routineN//" Creating new work matrix to hold new data"
           CALL dbcsr_work_create (matrix, nblks_guess=1,&
                sizedata_guess=SIZE(block))
        ENDIF
        blk_p = matrix%m%wms(1)%datasize + 1
-       IF (tr) blk_p = -blk_p
-       CALL add_work_coordinate (matrix%m%wms(1), row, col, blk_p)
-       CALL addto_array (matrix%m%wms(1)%data_area, block, blk_p)
+       IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(1))) THEN
+          IF (tr) blk_p = -blk_p
+          CALL add_work_coordinate (matrix%m%wms(1), row, col, blk_p)
+          CALL dbcsr_data_ensure_size (matrix%m%wms(1)%data_area,&
+               matrix%m%wms(1)%datasize+SIZE(block))
+          CALL addto_array (matrix%m%wms(1)%data_area, block, ABS(blk_p))
+       ELSE
+          ALLOCATE (data_block%p (row_size, col_size))
+          data_block%p(:,:) = RESHAPE (block, (/row_size, col_size/))
+          CALL btree_add_c (&
+               matrix%m%wms(1)%mutable%m%btree_c,&
+               make_coordinate_tuple(stored_row, stored_col),&
+               data_block, found, data_block2, replace=.TRUE.)
+          IF (found) THEN
+             CALL cp_assert (ASSOCIATED (data_block2%p), cp_warning_level,&
+                  cp_internal_error, routineN, "Data was not present in block")
+             IF (ASSOCIATED (data_block2%p)) DEALLOCATE (data_block2%p)
+          ENDIF
+       ENDIF
        matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + SIZE (block)
-       !matrix%m%wms(1)%datasize = dbcsr_get_data_size (matrix%m%wms(1)%data_area)
-       !WRITE(*,*)routineN//" Volume of new data is",matrix%m%wms(1)%datasize,&
-       !     dbcsr_get_data_size (matrix%m%wms(1)%data_area)
        matrix%m%valid = .FALSE.
     ENDIF
   END SUBROUTINE dbcsr_put_block_c

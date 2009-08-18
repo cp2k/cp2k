@@ -3729,6 +3729,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
   END SUBROUTINE dbcsr_norm
 
+
 ! *****************************************************************************
 !> \brief Calls the functions that are called in the included files but not
 !>        in thin one. Needed to make prettify think the functions ary really

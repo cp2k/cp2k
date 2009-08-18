@@ -217,12 +217,13 @@ CONTAINS
   ! 1. select median
   ! 2. split keys into two nodes (one is new)
   ! 3. insert separation key put into parent, and repeat upwards
-  SUBROUTINE btree_add (tree, key, value, exists, existing_value)
+  SUBROUTINE btree_add (tree, key, value, exists, existing_value, replace)
     TYPE(btree), INTENT(INOUT)               :: tree
     INTEGER(KIND=keyt), INTENT(IN)           :: key
     TYPE(cp2d), INTENT(IN)                   :: value
     LOGICAL, INTENT(OUT), OPTIONAL           :: exists
     TYPE(cp2d), INTENT(OUT), OPTIONAL        :: existing_value
+    LOGICAL, INTENT(IN), OPTIONAL            :: replace
 
     INTEGER                                  :: ge_pos, position
     TYPE(btree_node), POINTER                :: node
@@ -236,6 +237,11 @@ CONTAINS
        IF (position .GT. 0) THEN
           exists = .TRUE.
           existing_value = node%values(position)
+          IF (PRESENT (replace)) THEN
+             IF (replace) THEN
+                node%values(position) = value
+             ENDIF
+          ENDIF
           RETURN
        ELSE
           exists = .FALSE.

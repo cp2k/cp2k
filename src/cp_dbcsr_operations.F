@@ -88,7 +88,7 @@ MODULE cp_dbcsr_operations
             dbcsr_replicate_matrix_structure,&
             dbcsr_allocate_matrix, dbcsr_deallocate_matrix,&
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
-            dbcsr_obj_p_type
+            dbcsr_obj_p_type, dbcsr_real_block_node_type
 
   INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
@@ -99,11 +99,30 @@ MODULE cp_dbcsr_operations
                       deallocate_dbcsr_matrix_set_2d
   END INTERFACE
 
+  INTERFACE dbcsr_get_block_node
+     MODULE PROCEDURE get_block_node, get_matrix_block
+  END INTERFACE
+
+  !INTERFACE dbcsr_put_block_node
+  !   MODULE PROCEDURE put_block_node, put_matrix_block
+  !END INTERFACE
+  !
+  !INTERFACE dbcsr_next_block_node
+  !   MODULE PROCEDURE next_block_node
+  !END INTERFACE
+
+!> \brief Emulation of real_matrix_p_type
   TYPE dbcsr_obj_p_type
      TYPE(dbcsr_obj)          :: matrix
   END TYPE dbcsr_obj_p_type
 
-
+!> \brief Emulation of real_block_node_type
+  TYPE dbcsr_real_block_node_type
+     PRIVATE
+     TYPE(dbcsr_iterator)                   :: iterator
+     INTEGER                                :: block_col
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: block
+  END TYPE dbcsr_real_block_node_type
 
   PRIVATE
 
@@ -1543,6 +1562,82 @@ CONTAINS
          routineN, "You should not add existing blocks according to old API.")
     IF(.NOT.is_there) block(:,:) = 0.0_dp
   END SUBROUTINE dbcsr_add_block_node
+
+
+! *****************************************************************************
+!> \brief Emulation of sparse_matrix_types/get_block_node mapped to
+!>        get_real_block_node
+! *****************************************************************************
+  SUBROUTINE get_block_node(block_node,block_col,BLOCK)
+
+    TYPE(dbcsr_real_block_node_type), INTENT(IN) :: block_node
+    INTEGER, INTENT(OUT), OPTIONAL               :: block_col
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                          :: BLOCK
+!   ---------------------------------------------------------------------------
+    IF (PRESENT(block_col)) block_col = block_node%block_col
+    IF (PRESENT(BLOCK)) BLOCK => block_node%block
+  END SUBROUTINE get_block_node
+
+
+! *****************************************************************************
+!> \brief Emulation of sparse_matrix_types/get_block_node mapped to
+!>        get_matrix_block
+! *****************************************************************************
+  SUBROUTINE get_matrix_block(matrix,block_row,block_col,&
+                                   first_row,last_row,first_col,last_col,&
+                                   block_node,BLOCK)
+    TYPE(dbcsr_obj)                          :: matrix
+    INTEGER, INTENT(IN)                      :: block_row, block_col
+    INTEGER, INTENT(OUT), OPTIONAL           :: first_row, last_row, &
+                                                first_col, last_col
+    TYPE(dbcsr_real_block_node_type), OPTIONAL, &
+      POINTER                                :: block_node
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: BLOCK
+
+    TYPE(dbcsr_real_block_node_type), POINTER :: current_block_node
+    INTEGER, DIMENSION(:), POINTER           :: bs
+    INTEGER                                  :: first_pos
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(first_row) .OR. PRESENT(last_row)) THEN
+       bs = array_data (dbcsr_row_block_sizes (matrix))
+       first_pos = 1 + SUM (bs(1:block_row-1))
+       IF (PRESENT(first_row)) first_row = first_pos
+       IF (PRESENT(last_row)) last_row = first_pos - 1 + bs(block_row)
+    ENDIF
+
+    IF (PRESENT(first_col) .OR. PRESENT(last_col)) THEN
+       bs = array_data (dbcsr_col_block_sizes (matrix))
+       first_pos = 1 + SUM (bs(1:block_col-1))
+       IF (PRESENT(first_col)) first_col = first_pos
+       IF (PRESENT(last_col)) last_col = first_pos - 1 + bs(block_row)
+    ENDIF
+    CALL cp_assert (.NOT. PRESENT (block_node), cp_fatal_level,&
+         cp_unimplemented_error_nr, "get_matrix_block",&
+         "No block structure support yet.")
+    !current_block_node => find_real_block_node(matrix,block_row,block_col)
+    !
+    !IF (ASSOCIATED(current_block_node)) THEN
+    !  IF (PRESENT(block_node)) block_node => current_block_node
+    !  IF (PRESENT(BLOCK)) BLOCK => current_block_node%block
+    !ELSE
+    !  IF (PRESENT(block_node)) NULLIFY (block_node)
+    !  IF (PRESENT(BLOCK)) NULLIFY (BLOCK)
+    !END IF
+    
+  END SUBROUTINE get_matrix_block
+
+
+!  INTERFACE dbcsr_put_block_node
+!     MODULE PROCEDURE put_block_node, put_matrix_block
+!  END INTERFACE
+!
+!  INTERFACE dbcsr_next_block_node
+!     MODULE PROCEDURE next_block_node
+!  END INTERFACE
 
 
 ! *****************************************************************************
