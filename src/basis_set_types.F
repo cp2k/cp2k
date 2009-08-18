@@ -1897,7 +1897,8 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE get_geminal_basis_set(geminal_basis_set,name,cgf_symbol,ngeminals,nset,&
-    lmax,lmin,ls,npgf,nshell,l,first_cgf,last_cgf,zet,zeth,gcc)
+    lmax,lmin,ls,npgf,nshell,l,first_cgf,last_cgf,kind_radius,set_radius,pgf_radius,&
+    zet,zeth,gcc)
 
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     CHARACTER(LEN=default_string_length), &
@@ -1908,6 +1909,11 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: lmax, lmin, ls, npgf, nshell
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: l, first_cgf, last_cgf
+    REAL(KIND=dp), OPTIONAL                  :: kind_radius
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: set_radius
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: pgf_radius
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       OPTIONAL, POINTER                      :: zet, zeth
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -1934,6 +1940,10 @@ CONTAINS
        IF (PRESENT(first_cgf)) first_cgf => geminal_basis_set%first_cgf
        IF (PRESENT(last_cgf)) last_cgf => geminal_basis_set%last_cgf
        IF (PRESENT(l)) l => geminal_basis_set%l
+
+       IF (PRESENT(kind_radius)) kind_radius = geminal_basis_set%kind_radius
+       IF (PRESENT(set_radius)) set_radius => geminal_basis_set%set_radius
+       IF (PRESENT(pgf_radius)) pgf_radius => geminal_basis_set%pgf_radius
 
        IF (PRESENT(zet)) zet => geminal_basis_set%zet
        IF (PRESENT(zeth)) zeth => geminal_basis_set%zeth
@@ -2305,11 +2315,16 @@ CONTAINS
   END SUBROUTINE read_geminal_basis_set
 
 ! *****************************************************************************
-  SUBROUTINE set_geminal_basis_set(geminal_basis_set,name)
+  SUBROUTINE set_geminal_basis_set(geminal_basis_set,name,kind_radius,set_radius,pgf_radius)
 
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name
+    REAL(KIND=dp), OPTIONAL                  :: kind_radius
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: set_radius
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: pgf_radius
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_geminal_basis_set', &
       routineP = moduleN//':'//routineN
@@ -2318,6 +2333,11 @@ CONTAINS
 
     IF (ASSOCIATED(geminal_basis_set)) THEN
        IF (PRESENT(name)) geminal_basis_set%name = name
+
+       IF (PRESENT(kind_radius)) geminal_basis_set%kind_radius = kind_radius
+       IF (PRESENT(set_radius)) geminal_basis_set%set_radius(:) = set_radius(:)
+       IF (PRESENT(pgf_radius)) geminal_basis_set%pgf_radius(:,:) = pgf_radius(:,:)
+
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer geminal_basis_set is not associated")
