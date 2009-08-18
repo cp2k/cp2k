@@ -23,7 +23,13 @@ MODULE qs_operators_ao
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_deallocate_matrix
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_util,                      ONLY: dbcsr_finalize,&
+                                             sm_from_dbcsr
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -38,9 +44,7 @@ MODULE qs_operators_ao
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
-                                             get_block_node,&
+  USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
@@ -2346,9 +2350,9 @@ CONTAINS
 !>      07.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE set_up_op_sm(matrix,qs_env,symmetry,name,error)
+  SUBROUTINE set_up_op_sm(matrix_sm,qs_env,symmetry,name,error)
 
-    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(real_matrix_type), POINTER          :: matrix_sm
     TYPE(qs_environment_type), POINTER       :: qs_env
     CHARACTER(LEN=*)                         :: symmetry, name
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2363,6 +2367,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(dbcsr_obj)                          :: matrix
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -2403,7 +2408,7 @@ CONTAINS
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
 
-    CALL allocate_matrix(matrix=matrix,&
+    CALL dbcsr_allocate_matrix(matrix=matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
                          nrow=nsgf,&
@@ -2468,7 +2473,7 @@ CONTAINS
 
             NULLIFY(block)
             IF(symmetry=="none") THEN
-              CALL add_block_node(matrix=matrix,&
+              CALL dbcsr_add_block_node(matrix=matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
                                   block=block,error=error)
@@ -2480,7 +2485,7 @@ CONTAINS
                 irow = jatom
                 icol = iatom
               END IF
-              CALL add_block_node(matrix=matrix,&
+              CALL dbcsr_add_block_node(matrix=matrix,&
                                   block_row=irow,&
                                   block_col=icol,&
                                   block=block,error=error)
@@ -2491,6 +2496,10 @@ CONTAINS
         END DO  ! ilist
       END DO  ! jkind
     END DO  ! ikind
+
+    CALL dbcsr_finalize( matrix, error=error )
+    CALL sm_from_dbcsr ( matrix_sm, matrix, distribution_2d, error=error )
+    CALL dbcsr_deallocate_matrix( matrix, error=error )
 
   END SUBROUTINE set_up_op_sm
 

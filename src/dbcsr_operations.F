@@ -3680,7 +3680,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           DEALLOCATE(buff_d)
        ENDIF
 
-    CASE('column')
+    CASE('Column')
 
        IF(PRESENT(norm_vector)) THEN
           norm_vector(:) = 0.0_dp

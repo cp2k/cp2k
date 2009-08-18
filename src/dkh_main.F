@@ -11,6 +11,12 @@ MODULE dkh_main
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_replicate_matrix_structure
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -35,6 +41,8 @@ MODULE dkh_main
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
                                              copy_sm_to_fm_full
+  USE dbcsr_util,                      ONLY: dbcsr_finalize,&
+                                             sm_from_dbcsr
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
@@ -66,14 +74,11 @@ MODULE dkh_main
                                              retrieve_sac_list,&
                                              vtriple_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
-                                             allocate_matrix_set,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              get_block_node,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -152,6 +157,11 @@ CONTAINS
                                                 matrix_s_full, matrix_t_full, &
                                                 matrix_v_full
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_hpgf, &
+                                                matrix_pVppgf, matrix_s, &
+                                                matrix_spgf, matrix_tpgf, &
+                                                matrix_vnuc
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -166,8 +176,9 @@ CONTAINS
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_h, matrix_hpgf, &
-      matrix_pVppgf, matrix_s, matrix_spgf, matrix_t, matrix_tpgf, matrix_vnuc
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_h_sm, &
+      matrix_hpgf_sm, matrix_pVppgf_sm, matrix_s_sm, matrix_spgf_sm, &
+      matrix_t_sm, matrix_tpgf_sm, matrix_vnuc_sm
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_oce, &
                                                 reduced_3c_rho0
@@ -188,18 +199,24 @@ CONTAINS
 
     NULLIFY (atomic_kind_set)
     NULLIFY (distribution_2d)
-    NULLIFY (matrix_h)
+    NULLIFY (matrix_h_sm)
     NULLIFY (habt)
-    NULLIFY (matrix_hpgf)               
-    NULLIFY (matrix_vnuc)
+    NULLIFY (matrix_hpgf_sm)               
+    NULLIFY (matrix_vnuc_sm)
     NULLIFY (nabt)
     NULLIFY (pVpabt)
     NULLIFY (VH_3c_list)
     NULLIFY (pabt)
     NULLIFY (particle_set)
-    NULLIFY (matrix_pVppgf)              
+    NULLIFY (matrix_pVppgf_sm)              
+    NULLIFY (matrix_s_sm)
     NULLIFY (matrix_s)
-    NULLIFY (matrix_spgf)                 
+    NULLIFY (matrix_spgf)
+    NULLIFY (matrix_tpgf)
+    NULLIFY (matrix_hpgf)
+    NULLIFY (matrix_vnuc)
+    NULLIFY (matrix_pVppgf)
+    NULLIFY (matrix_spgf_sm)                 
     NULLIFY (sab_orb)
     NULLIFY (sabt)
     NULLIFY (sac_ppl)
@@ -207,9 +224,9 @@ CONTAINS
     NULLIFY (sbc_3c)
     NULLIFY (scf_control)
     NULLIFY (sdabt)
-    NULLIFY (matrix_t)
-    NULLIFY (matrix_tpgf)                  
-    NULLIFY (matrix_vnuc)                    
+    NULLIFY (matrix_t_sm)
+    NULLIFY (matrix_tpgf_sm)                  
+    NULLIFY (matrix_vnuc_sm)                    
     NULLIFY (workt)
     NULLIFY (para_env)
     NULLIFY (atom_list)
@@ -238,11 +255,11 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
-         matrix_h=matrix_h,&
-         kinetic=matrix_t,&
+         matrix_h=matrix_h_sm,&
+         kinetic=matrix_t_sm,&
          oce=oce, &
          particle_set=particle_set,&
-         matrix_s=matrix_s,&
+         matrix_s=matrix_s_sm,&
          sab_orb=sab_orb,&
          sac_ppl=sac_ppl,&
          VH_3c_list=VH_3c_list,&
@@ -293,8 +310,8 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
-    CALL allocate_matrix_set(matrix_spgf,1,error=error)
-    CALL allocate_matrix(matrix=matrix_spgf(1)%matrix,&
+    CALL dbcsr_allocate_matrix_set(matrix_spgf,1,error=error)
+    CALL dbcsr_allocate_matrix(matrix=matrix_spgf(1)%matrix,&
          nblock_row=natom,&
          nblock_col=natom,&
          nrow=nsgf,& 
@@ -318,30 +335,29 @@ CONTAINS
     !   *** Construct all other matrices ( uncontracted GTO ) ***************
     !   *********************************************************************
 
-
-    CALL allocate_matrix_set(matrix_tpgf,1,error=error)             
-    CALL replicate_matrix_structure(source=matrix_spgf(1)%matrix,&
+    CALL dbcsr_allocate_matrix_set(matrix_tpgf,1,error=error)             
+    CALL dbcsr_replicate_matrix_structure(source=matrix_spgf(1)%matrix,&
          TARGET=matrix_tpgf(1)%matrix,&
          target_name="KINETIC ENERGY MATRIX PGF",&
          error=error)
 
 
-    CALL allocate_matrix_set(matrix_hpgf,1,error=error)
-    CALL replicate_matrix_structure(source=matrix_spgf(1)%matrix,&
+    CALL dbcsr_allocate_matrix_set(matrix_hpgf,1,error=error)
+    CALL dbcsr_replicate_matrix_structure(source=matrix_spgf(1)%matrix,&
          TARGET=matrix_hpgf(1)%matrix,&
          target_name="CORE HAMILTONIAN MATRIX PGF",&
          error=error)
 
 
-    CALL allocate_matrix_set(matrix_vnuc,1,error=error)                                   
-    CALL replicate_matrix_structure(source=matrix_spgf(1)%matrix,&            
+    CALL dbcsr_allocate_matrix_set(matrix_vnuc,1,error=error)                                   
+    CALL dbcsr_replicate_matrix_structure(source=matrix_spgf(1)%matrix,&            
          TARGET=matrix_vnuc(1)%matrix,&            
          target_name="NUCLEAR POTENTIAL ENERGY MATRIX",&
          error=error)
 
 
-    CALL allocate_matrix_set(matrix_pVppgf,1,error=error)
-    CALL replicate_matrix_structure(source=matrix_spgf(1)%matrix,&
+    CALL dbcsr_allocate_matrix_set(matrix_pVppgf,1,error=error)
+    CALL dbcsr_replicate_matrix_structure(source=matrix_spgf(1)%matrix,&
          TARGET=matrix_pVppgf(1)%matrix,&
          target_name="pVp MATRIX PGF",&
          error=error)
@@ -611,35 +627,35 @@ CONTAINS
                    END IF
 
                    NULLIFY (s_block)
-                   CALL add_block_node(matrix=matrix_spgf(1)%matrix,&
+                   CALL dbcsr_add_block_node(matrix=matrix_spgf(1)%matrix,&
                         block_row=irow,&                 
                         block_col=icol,&                 
                         block=s_block,&                  
                         error=error)                     
 
                    NULLIFY(t_block)
-                   CALL add_block_node(matrix=matrix_tpgf(1)%matrix,&
+                   CALL dbcsr_add_block_node(matrix=matrix_tpgf(1)%matrix,&
                         block_row=irow,&
                         block_col=icol,&
                         block=t_block,&
                         error=error)
 
                    NULLIFY (n_block)
-                   CALL add_block_node(matrix=matrix_vnuc(1)%matrix,&
+                   CALL dbcsr_add_block_node(matrix=matrix_vnuc(1)%matrix,&
                         block_row=irow,&
                         block_col=icol,&
                         block=n_block,&
                         error=error)
 
                    NULLIFY (hp_block)
-                   CALL add_block_node(matrix=matrix_hpgf(1)%matrix,&
+                   CALL dbcsr_add_block_node(matrix=matrix_hpgf(1)%matrix,&
                         block_row=irow,&
                         block_col=icol,&
                         block=hp_block,&
                         error=error)
 
                    NULLIFY (pVp_block)
-                   CALL add_block_node(matrix=matrix_pVppgf(1)%matrix,&
+                   CALL dbcsr_add_block_node(matrix=matrix_pVppgf(1)%matrix,&
                         block_row=irow,&
                         block_col=icol,&
                         block=pVp_block,&
@@ -891,9 +907,35 @@ CONTAINS
 
     END DO
 
+
+    CALL dbcsr_finalize(matrix_spgf(1)%matrix, error=error)
+    CALL dbcsr_finalize(matrix_tpgf(1)%matrix, error=error)
+    CALL dbcsr_finalize(matrix_vnuc(1)%matrix, error=error)
+    CALL dbcsr_finalize(matrix_hpgf(1)%matrix, error=error)
+    CALL dbcsr_finalize(matrix_pVppgf(1)%matrix, error=error)
+
+    CALL allocate_matrix_set(matrix_spgf_sm,1,error=error)
+    CALL allocate_matrix_set(matrix_tpgf_sm,1,error=error)
+    CALL allocate_matrix_set(matrix_vnuc_sm,1,error=error)
+    CALL allocate_matrix_set(matrix_hpgf_sm,1,error=error)
+    CALL allocate_matrix_set(matrix_pVppgf_sm,1,error=error)
+
+    CALL sm_from_dbcsr ( matrix_spgf_sm(1)%matrix, matrix_spgf(1)%matrix, distribution_2d, error=error )
+    CALL sm_from_dbcsr ( matrix_tpgf_sm(1)%matrix, matrix_tpgf(1)%matrix, distribution_2d, error=error )
+    CALL sm_from_dbcsr ( matrix_vnuc_sm(1)%matrix, matrix_vnuc(1)%matrix, distribution_2d, error=error )
+    CALL sm_from_dbcsr ( matrix_hpgf_sm(1)%matrix, matrix_hpgf(1)%matrix, distribution_2d, error=error )
+    CALL sm_from_dbcsr ( matrix_pVppgf_sm(1)%matrix, matrix_pVppgf(1)%matrix, distribution_2d, error=error )
+
+    CALL dbcsr_deallocate_matrix_set ( matrix_spgf, error=error )
+    CALL dbcsr_deallocate_matrix_set ( matrix_tpgf, error=error )
+    CALL dbcsr_deallocate_matrix_set ( matrix_vnuc, error=error )
+    CALL dbcsr_deallocate_matrix_set ( matrix_hpgf, error=error )
+    CALL dbcsr_deallocate_matrix_set ( matrix_pVppgf, error=error )
+
+
     IF(dkh_full) THEN
        IF(qs_env%rel_control%rel_potential.eq.rel_pot_erfc)THEN
-          CALL cp_sm_scale_and_add(matrix_hpgf(1)%matrix,1.0_dp,matrix_vnuc(1)%matrix,1.0_dp,error=error)
+          CALL cp_sm_scale_and_add(matrix_hpgf_sm(1)%matrix,1.0_dp,matrix_vnuc_sm(1)%matrix,1.0_dp,error=error)
        END IF
 
        CALL cp_fm_create(matrix_t_full, matrix_full, error=error)
@@ -901,22 +943,22 @@ CONTAINS
        CALL cp_fm_create(matrix_v_full, matrix_full, error=error)
        CALL cp_fm_create(matrix_pVp_full, matrix_full, error=error)
 
-       CALL copy_sm_to_fm_full(matrix_spgf(1)%matrix,matrix_s_full,error=error)
-       CALL copy_sm_to_fm_full(matrix_hpgf(1)%matrix,matrix_v_full,error=error)
-       CALL copy_sm_to_fm_full(matrix_tpgf(1)%matrix,matrix_t_full,error=error)
-       CALL copy_sm_to_fm_full(matrix_pVppgf(1)%matrix,matrix_pVp_full,error=error)
+       CALL copy_sm_to_fm_full(matrix_spgf_sm(1)%matrix,matrix_s_full,error=error)
+       CALL copy_sm_to_fm_full(matrix_hpgf_sm(1)%matrix,matrix_v_full,error=error)
+       CALL copy_sm_to_fm_full(matrix_tpgf_sm(1)%matrix,matrix_t_full,error=error)
+       CALL copy_sm_to_fm_full(matrix_pVppgf_sm(1)%matrix,matrix_pVp_full,error=error)
 
        CALL dkh_full_transformation(qs_env,matrix_s_full,matrix_v_full,matrix_t_full,&
             matrix_pVp_full, matrix_s_full%matrix_struct%nrow_global,&
             qs_env%rel_control%rel_dkh_order,error)
 
-       CALL copy_fm_to_sm(matrix_s_full,matrix_spgf(1)%matrix)
-       CALL copy_fm_to_sm(matrix_v_full,matrix_hpgf(1)%matrix)
-       CALL copy_fm_to_sm(matrix_t_full,matrix_tpgf(1)%matrix)
-       CALL cp_sm_scale_and_add(matrix_hpgf(1)%matrix,1.0_dp,matrix_tpgf(1)%matrix,1.0_dp,error=error)
+       CALL copy_fm_to_sm(matrix_s_full,matrix_spgf_sm(1)%matrix)
+       CALL copy_fm_to_sm(matrix_v_full,matrix_hpgf_sm(1)%matrix)
+       CALL copy_fm_to_sm(matrix_t_full,matrix_tpgf_sm(1)%matrix)
+       CALL cp_sm_scale_and_add(matrix_hpgf_sm(1)%matrix,1.0_dp,matrix_tpgf_sm(1)%matrix,1.0_dp,error=error)
 
        IF(qs_env%rel_control%rel_potential.eq.rel_pot_full)THEN
-          CALL cp_sm_scale_and_add(matrix_hpgf(1)%matrix,1.0_dp,matrix_vnuc(1)%matrix,1.0_dp,error=error)
+          CALL cp_sm_scale_and_add(matrix_hpgf_sm(1)%matrix,1.0_dp,matrix_vnuc_sm(1)%matrix,1.0_dp,error=error)
        END IF
 
        CALL cp_fm_release(matrix_t_full, error=error)
@@ -1061,38 +1103,38 @@ CONTAINS
                    END IF
 
                    NULLIFY(spgf_block)
-                   CALL get_block_node(matrix=matrix_spgf(1)%matrix,&
+                   CALL get_block_node(matrix=matrix_spgf_sm(1)%matrix,&
                         block_row=iblock_row,&
                         block_col=iblock_col,&
                         BLOCK=spgf_block)
 
                    NULLIFY(hpgf_block)
-                   CALL get_block_node(matrix=matrix_hpgf(1)%matrix,&
+                   CALL get_block_node(matrix=matrix_hpgf_sm(1)%matrix,&
                         block_row=iblock_row,&
                         block_col=iblock_col,&
                         BLOCK=hpgf_block)
 
                    NULLIFY(tpgf_block)
-                   CALL get_block_node(matrix=matrix_tpgf(1)%matrix,&
+                   CALL get_block_node(matrix=matrix_tpgf_sm(1)%matrix,&
                         block_row=iblock_row,&
                         block_col=iblock_col,&
                         BLOCK=tpgf_block)
 
                    NULLIFY(s_block)
-                   CALL get_block_node(matrix=matrix_s(1)%matrix,&
+                   CALL get_block_node(matrix=matrix_s_sm(1)%matrix,&
                         block_row=iblock_row,&
                         block_col=iblock_col,&
                         BLOCK=s_block)
 
                    NULLIFY(hp_block)
-                   CALL get_block_node(matrix=matrix_h(1)%matrix,&
+                   CALL get_block_node(matrix=matrix_h_sm(1)%matrix,&
                         block_row=iblock_row,&
                         block_col=iblock_col,&
                         BLOCK=hp_block)
 
                    IF(kinetic_m)THEN
                       NULLIFY(t_block)
-                      CALL get_block_node(matrix=matrix_t(1)%matrix,&
+                      CALL get_block_node(matrix=matrix_t_sm(1)%matrix,&
                            block_row=iblock_row,&
                            block_col=iblock_col,&
                            BLOCK=t_block)
@@ -1242,13 +1284,13 @@ CONTAINS
     END DO
 
     CALL set_qs_env(qs_env=qs_env,&
-         matrix_s=matrix_s,&
-         matrix_h=matrix_h,&
+         matrix_s=matrix_s_sm,&
+         matrix_h=matrix_h_sm,&
          error=error)
 
     IF(kinetic_m)THEN
        CALL set_qs_env(qs_env=qs_env,&
-            kinetic=matrix_t,&
+            kinetic=matrix_t_sm,&
             error=error)
     END IF
 
@@ -1295,11 +1337,11 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! deallocate temporary DKH matrices
-    CALL deallocate_matrix_set(matrix_vnuc,error) 
-    CALL deallocate_matrix_set(matrix_spgf  ,error)    
-    CALL deallocate_matrix_set(matrix_tpgf  ,error)    
-    CALL deallocate_matrix_set(matrix_pVppgf,error)    
-    CALL deallocate_matrix_set(matrix_hpgf  ,error)    
+    CALL deallocate_matrix_set(matrix_vnuc_sm,error) 
+    CALL deallocate_matrix_set(matrix_spgf_sm  ,error)    
+    CALL deallocate_matrix_set(matrix_tpgf_sm  ,error)    
+    CALL deallocate_matrix_set(matrix_pVppgf_sm,error)    
+    CALL deallocate_matrix_set(matrix_hpgf_sm  ,error)    
 
     CALL timestop(handle)
 

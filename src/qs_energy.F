@@ -180,7 +180,7 @@ CONTAINS
            nder = 0
          END IF
          CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, error=error)
-         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit,&
+         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s_sm=matrix_s_aux_fit,&
                                    matrix_name="AUX_FIT_OVERLAP",&
                                    basis_set_id_a=use_aux_fit_basis_set,&
                                    basis_set_id_b=use_aux_fit_basis_set, &
@@ -188,7 +188,7 @@ CONTAINS
                                    error=error)
          CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
          CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, error=error)
-         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit_vs_orb,&
+         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s_sm=matrix_s_aux_fit_vs_orb,&
                                    matrix_name="MIXED_OVERLAP",&
                                    basis_set_id_a=use_aux_fit_basis_set,&
                                    basis_set_id_b=use_orb_basis_set, &

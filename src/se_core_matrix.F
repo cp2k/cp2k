@@ -118,7 +118,7 @@ CONTAINS
      ! calculate overlap matrix
      IF(calculate_forces) THEN
         CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-        CALL build_overlap_matrix(qs_env,para_env,nderivative=1, matrix_s=matrix_s,&
+        CALL build_overlap_matrix(qs_env,para_env,nderivative=1, matrix_s_sm=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
@@ -129,7 +129,7 @@ CONTAINS
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      ELSE
         CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-        CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
+        CALL build_overlap_matrix(qs_env,para_env,matrix_s_sm=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &

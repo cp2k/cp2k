@@ -19,11 +19,19 @@ MODULE qs_overlap
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_replicate_matrix_structure
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_util,                      ONLY: dbcsr_finalize,&
+                                             sm_from_dbcsr
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -44,11 +52,8 @@ MODULE qs_overlap
        neighbor_list_type, neighbor_node_type, next
   USE sparse_matrix_output,            ONLY: write_matrix_distribution,&
                                              write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
-                                             allocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             real_matrix_p_type
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE termination,                     ONLY: stop_memory
@@ -93,7 +98,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_overlap_matrix(qs_env,para_env,nderivative,matrix_s,matrix_name,&
+  SUBROUTINE build_overlap_matrix(qs_env,para_env,nderivative,matrix_s_sm,matrix_name,&
                                   basis_set_id_a, basis_set_id_b, neighbor_list_sab, &
                                   error)
 
@@ -101,7 +106,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s_sm
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
     INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
     TYPE(neighbor_list_set_p_type), &
@@ -142,6 +147,8 @@ CONTAINS
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: sint
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
@@ -174,7 +181,7 @@ CONTAINS
     END IF
 
     maxder = ncoset(nder)
-    CALL allocate_matrix_set(matrix_s,maxder,error=error)
+    CALL dbcsr_allocate_matrix_set(matrix_s,maxder,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_a,basis_set_id=basis_set_id_a)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_b,basis_set_id=basis_set_id_b)
@@ -211,7 +218,7 @@ CONTAINS
    ! XXXXXXX, sparsity_id, does this result in the same overlap matrix
    ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have
    ! XXXXXXX, the code duplication,if not, this sparsity_id is wrong.
-    CALL allocate_matrix(matrix=matrix_s(1)%matrix,&
+   CALL dbcsr_allocate_matrix(matrix=matrix_s(1)%matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
                          nrow=nsgf_a,&
@@ -249,10 +256,10 @@ CONTAINS
              " W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                      TARGET=matrix_s(i)%matrix,&
-                                      target_name=TRIM(name),&
-                                      target_symmetry=TRIM(symmetry_string),error=error)
+      CALL dbcsr_replicate_matrix_structure(source=matrix_s(1)%matrix,&
+                                            TARGET=matrix_s(i)%matrix,&
+                                            target_name=TRIM(name),&
+                                            target_symmetry=TRIM(symmetry_string),error=error)
     END DO
 
 !   *** Allocate work storage ***
@@ -405,7 +412,7 @@ CONTAINS
               END IF
               DO i=1,maxder
                 NULLIFY (sint(i)%block)
-                CALL add_block_node(matrix=matrix_s(i)%matrix,&
+                CALL dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=sint(i)%block,error=error)
@@ -511,6 +518,10 @@ CONTAINS
       END DO
     END DO
 
+    DO i = 1,SIZE(matrix_s)
+       CALL dbcsr_finalize(matrix_s(i)%matrix, error=error)
+    ENDDO
+
 !   *** Release work storage ***
 
     DEALLOCATE (ai_work,STAT=istat)
@@ -532,10 +543,16 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sint")
 
+    CALL allocate_matrix_set(matrix_s_sm,SIZE(matrix_s),error=error)
+    DO i = 1,SIZE(matrix_s)
+       CALL sm_from_dbcsr ( matrix_s_sm(i)%matrix, matrix_s(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set ( matrix_s, error=error )
+
 
 !   *** Print the overlap matrix distribution ***
 
-    CALL write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
+    CALL write_matrix_distribution(matrix_s_sm(1)%matrix,qs_env%input,para_env,error)
 
 !   *** Print the overlap matrix, if requested ***
 
@@ -543,11 +560,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_s_sm(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
           DO i=2,maxder
-             CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             CALL write_sparse_matrix(matrix_s_sm(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
           END DO
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&

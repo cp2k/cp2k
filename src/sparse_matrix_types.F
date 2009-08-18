@@ -127,7 +127,7 @@ MODULE sparse_matrix_types
             find_block_node
 
   INTERFACE add_block_node
-    MODULE PROCEDURE add_real_matrix_block
+    MODULE PROCEDURE add_real_matrix_block_obsolete
   END INTERFACE
 
   INTERFACE add_matrices
@@ -455,9 +455,13 @@ END SUBROUTINE cp_sm_scale_and_add
 !> \brief   Allocate and initialize a new block node.
 !> \author  MK
 !> \date    28.07.2000
+!>  DONT USE THIS ROUTINE ANYMORE! WILL BE REMOVED SOON.
+!>  DONT USE THIS ROUTINE ANYMORE! WILL BE REMOVED SOON.
+!>  DONT USE THIS ROUTINE ANYMORE! WILL BE REMOVED SOON.
+!>  DONT USE THIS ROUTINE ANYMORE! Use the new sparse library dbcsr*.
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE add_real_matrix_block(matrix,block_row,block_col,BLOCK, error)
+  SUBROUTINE add_real_matrix_block_obsolete(matrix,block_row,block_col,BLOCK, error)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -465,7 +469,8 @@ END SUBROUTINE cp_sm_scale_and_add
       OPTIONAL, POINTER                      :: BLOCK
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'add_real_matrix_block', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'add_real_matrix_block_obsolete', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: cbc, cbr, istat, mypcol, &
@@ -561,7 +566,7 @@ END SUBROUTINE cp_sm_scale_and_add
     matrix%block_list(block_row)%nblock_node =&
       matrix%block_list(block_row)%nblock_node + 1
 
-  END SUBROUTINE add_real_matrix_block
+  END SUBROUTINE add_real_matrix_block_obsolete
 
 ! *****************************************************************************
 !> \brief   Allocate and initialize a new block node in the oce matrix

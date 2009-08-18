@@ -115,7 +115,7 @@ CONTAINS
     NULLIFY (se_kind_a, se_kind_mm, se_taper)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-    CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
+    CALL build_overlap_matrix(qs_env,para_env,matrix_s_sm=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &

@@ -20,6 +20,12 @@ MODULE  rt_propagation_utils
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_replicate_matrix_structure
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -33,6 +39,8 @@ MODULE  rt_propagation_utils
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE dbcsr_util,                      ONLY: dbcsr_finalize,&
+                                             sm_from_dbcsr
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_restart_wfn,&
                                              use_rt_restart
@@ -62,12 +70,9 @@ MODULE  rt_propagation_utils
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE scp_environment_types,           ONLY: scp_environment_type
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
-                                             allocate_matrix_set,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure
+                                             real_matrix_p_type
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE timings,                         ONLY: timeset,&
@@ -111,7 +116,7 @@ MODULE  rt_propagation_utils
 
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name
-    INTEGER :: atom_a, atom_b, first_col, handle, iab, iatom, icol, &
+    INTEGER :: atom_a, atom_b, first_col, handle, i, iab, iatom, icol, &
       icol_atom, icol_global, icol_local, ikind, ilist, inode, irow, &
       irow_atom, irow_global, irow_local, iset, j, jatom, jkind, jset, &
       last_jatom, ldai, ldsab, m, maxblock, maxco, maxcoa, maxdco, maxdcoa, &
@@ -145,6 +150,8 @@ MODULE  rt_propagation_utils
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: C_mat
     TYPE(cp_fm_type), POINTER                :: B_mat, tmp_mat, tmp_mat2
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: s_derivs
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
@@ -157,7 +164,7 @@ MODULE  rt_propagation_utils
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s_derivs
+      POINTER                                :: s_derivs_sm
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure = .FALSE.
@@ -167,7 +174,7 @@ MODULE  rt_propagation_utils
 
     NULLIFY (atomic_kind_set)
     NULLIFY (force)
-    NULLIFY(s_derivs)
+    NULLIFY(s_derivs_sm)
     NULLIFY (particle_set)
     NULLIFY (sab)
     NULLIFY(rtp)
@@ -195,8 +202,6 @@ MODULE  rt_propagation_utils
     nder = 2
     maxder = ncoset(nder)
 
-    CALL allocate_matrix_set(s_derivs,maxder-1,error=error)
-
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
 
@@ -212,7 +217,8 @@ MODULE  rt_propagation_utils
     ! we assert that the sparsity of s is determined by the neighbor list that is used to build it
     ! is that right ? i.e. this implies that even if forces are computed the sparsity of s remains the same.
     ! this seems necessary anyway.
-    CALL allocate_matrix(matrix=s_derivs(1)%matrix,&
+    CALL dbcsr_allocate_matrix_set(s_derivs,maxder-1,error=error)
+    CALL dbcsr_allocate_matrix(matrix=s_derivs(1)%matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
                          nrow=nsgf,&
@@ -234,7 +240,7 @@ MODULE  rt_propagation_utils
             "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL replicate_matrix_structure(source=s_derivs(1)%matrix,&
+      CALL dbcsr_replicate_matrix_structure(source=s_derivs(1)%matrix,&
                                       TARGET=s_derivs(m)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="antisymmetric",error=error)
@@ -247,7 +253,7 @@ MODULE  rt_propagation_utils
             "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL replicate_matrix_structure(source=s_derivs(1)%matrix,&
+      CALL dbcsr_replicate_matrix_structure(source=s_derivs(1)%matrix,&
                                       TARGET=s_derivs(m)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="symmetric",error=error)
@@ -377,7 +383,7 @@ MODULE  rt_propagation_utils
                END IF
               DO m=1,SIZE(s_derivs)
                  NULLIFY (sint(m)%block)
-                 CALL add_block_node(matrix=s_derivs(m)%matrix,&
+                 CALL dbcsr_add_block_node(matrix=s_derivs(m)%matrix,&
                       block_row=irow,&
                       block_col=icol,&
                       BLOCK=sint(m)%block,error=error)
@@ -444,6 +450,14 @@ MODULE  rt_propagation_utils
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END DO
     END DO
+
+    CALL allocate_matrix_set(s_derivs_sm,SIZE(s_derivs),error=error)
+    DO i = 1,SIZE(s_derivs)
+       CALL dbcsr_finalize(s_derivs(i)%matrix,error=error)
+       CALL sm_from_dbcsr ( s_derivs_sm(i)%matrix, s_derivs(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set ( s_derivs, error=error )
+ 
     DEALLOCATE (sab,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (sintt,STAT=stat)
@@ -494,7 +508,7 @@ MODULE  rt_propagation_utils
 
     DO m=1,3
 
-       CALL copy_sm_to_fm(s_derivs(m)%matrix,tmp_mat2,error=error)
+       CALL copy_sm_to_fm(s_derivs_sm(m)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
        DO icol_local=1,ncol_local
           DO irow_local=1,nrow_local
@@ -533,7 +547,7 @@ MODULE  rt_propagation_utils
     END DO
     
     DO m=1,6
-       CALL copy_sm_to_fm(s_derivs(m+3)%matrix,tmp_mat2,error=error)
+       CALL copy_sm_to_fm(s_derivs_sm(m+3)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
        DO j=1,2
           IF(c_map_mat(m,j)==0)CYCLE
@@ -558,7 +572,7 @@ MODULE  rt_propagation_utils
 
     CALL cp_fm_release(tmp_mat,error)
     CALL cp_fm_release(tmp_mat2,error)
-    CALL deallocate_matrix_set(s_derivs,error)
+    CALL deallocate_matrix_set(s_derivs_sm,error)
     DEALLOCATE(row_atom_index,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(col_atom_index,stat=stat)

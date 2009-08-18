@@ -119,8 +119,8 @@ MODULE qs_core_hamiltonian
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
-       neighbor_list_type, neighbor_node_type, next, reduced_3c_list_type
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next, reduced_3c_list_type
   USE qs_oce_methods,                  ONLY: build_oce_matrices
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                              allocate_vtriple,&
@@ -220,7 +220,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_s, matrix_t
+      POINTER                                :: matrix_h, matrix_s, matrix_t, &
+                                                matrix_w
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -239,17 +240,15 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h_tmp, matrix_p, &
+      POINTER                                :: matrix_h_tmp, matrix_p_tmp, &
                                                 matrix_s_tmp, matrix_t_tmp, &
-                                                matrix_w
+                                                matrix_w_tmp
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_rho0
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
     TYPE(vtriple_type), DIMENSION(:, :), &
       POINTER                                :: VH_3c_list
-
-!TYPE(dbcsr_1d_set_obj)                   :: matrix_h, matrix_s, matrix_t
 
     failure = .FALSE.
     IF (calculate_forces) THEN
@@ -273,7 +272,7 @@ CONTAINS
     NULLIFY (habt)
     NULLIFY (oce)
     NULLIFY (VH_3c_list)
-    NULLIFY (matrix_p)
+    NULLIFY (matrix_p_tmp)
     NULLIFY (pabt)
     NULLIFY (particle_set)
     NULLIFY (rho)
@@ -287,7 +286,7 @@ CONTAINS
     NULLIFY (sbc_3c)
     NULLIFY (scf_control)
     NULLIFY (sdabt)
-    NULLIFY (matrix_w)
+    NULLIFY (matrix_w_tmp)
     NULLIFY (workt)
     NULLIFY (harris_env)
     NULLIFY (para_env)
@@ -336,22 +335,23 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
-       CALL get_qs_env(qs_env=qs_env,force=force,ep_qs_env=ep_qs_env,matrix_w=matrix_w,error=error)
+       CALL get_qs_env(qs_env=qs_env,force=force,ep_qs_env=ep_qs_env,matrix_w=matrix_w_tmp,error=error)
+
        do_ep=ASSOCIATED(ep_qs_env)
        IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
        IF (harris_flag) THEN
           CALL get_qs_env(qs_env=qs_env, harris_env=harris_env,error=error)
-          matrix_p => harris_env%rho%rho_ao
+          matrix_p_tmp => harris_env%rho%rho_ao
        ELSE
           CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
-          matrix_p => rho%rho_ao
+          matrix_p_tmp => rho%rho_ao
        END IF
        IF (do_ep) THEN
           IF (ASSOCIATED(ep_qs_env%dH_coeffs)) THEN
-             matrix_p => ep_qs_env%dH_coeffs
+             matrix_p_tmp => ep_qs_env%dH_coeffs
           END IF
           IF (ASSOCIATED(ep_qs_env%dS_coeffs)) THEN
-             matrix_w => ep_qs_env%dS_coeffs
+             matrix_w_tmp => ep_qs_env%dS_coeffs
           END IF
        END IF
 
@@ -361,11 +361,11 @@ CONTAINS
        !     (since all things can be computed based on the sum of these matrices anyway)
        !     (matrix_p is restored at the end of the run, matrix_w is left in its modified state
        !     (as it should not be needed afterwards)
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,matrix_p(2)%matrix,1.0_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-2.0_dp,matrix_p(1)%matrix,1.0_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_w(1)%matrix, 1.0_dp,matrix_w(2)%matrix,1.0_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_w(2)%matrix,-2.0_dp,matrix_w(1)%matrix,1.0_dp,error=error)
+       IF (SIZE(matrix_p_tmp) == 2) THEN
+          CALL cp_sm_scale_and_add(matrix_p_tmp(1)%matrix, 1.0_dp,matrix_p_tmp(2)%matrix,1.0_dp,error=error)
+          CALL cp_sm_scale_and_add(matrix_p_tmp(2)%matrix,-2.0_dp,matrix_p_tmp(1)%matrix,1.0_dp,error=error)
+          CALL cp_sm_scale_and_add(matrix_w_tmp(1)%matrix, 1.0_dp,matrix_w_tmp(2)%matrix,1.0_dp,error=error)
+          CALL cp_sm_scale_and_add(matrix_w_tmp(2)%matrix,-2.0_dp,matrix_w_tmp(1)%matrix,1.0_dp,error=error)
        END IF
     ELSE
        IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
@@ -700,7 +700,7 @@ CONTAINS
                                        BLOCK=h_block,error=error)
 
                    IF (calculate_forces) THEN
-                      CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                      CALL get_block_node(matrix=matrix_p_tmp(1)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=p_block)
@@ -708,7 +708,7 @@ CONTAINS
                          CALL stop_program(routineN,moduleN,__LINE__,&
                               "A density matrix block is missing",para_env)
                       END IF
-                      CALL get_block_node(matrix=matrix_w(1)%matrix,&
+                      CALL get_block_node(matrix=matrix_w_tmp(1)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=w_block)
@@ -937,10 +937,6 @@ CONTAINS
 
     CALL dbcsr_finalize(matrix_h(1)%matrix, error=error)
 
-
-!call dbcsr_print(matrix_h%s(1), error)
-
-
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -950,35 +946,29 @@ CONTAINS
        ! *** from the total density (1) and the spin density (2)     ***
        ! *** The W matrix is neglected, since it will be destroyed   ***
        ! *** in the calling force routine after leaving this routine ***
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 0.5_dp,matrix_p(2)%matrix,0.5_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-1.0_dp,matrix_p(1)%matrix,1.0_dp,error=error)
+       IF (SIZE(matrix_p_tmp) == 2) THEN
+          CALL cp_sm_scale_and_add(matrix_p_tmp(1)%matrix, 0.5_dp,matrix_p_tmp(2)%matrix,0.5_dp,error=error)
+          CALL cp_sm_scale_and_add(matrix_p_tmp(2)%matrix,-1.0_dp,matrix_p_tmp(1)%matrix,1.0_dp,error=error)
        END IF
     END IF
 
     CALL allocate_matrix_set(matrix_h_tmp,1,error=error)
     CALL sm_from_dbcsr ( matrix_h_tmp(1)%matrix, matrix_h(1)%matrix, distribution_2d, error=error )
-
-
-!    CALL test_sm(matrix_h_tmp(1)%matrix,error)
-
-
 !    WRITE(*,*) 'H checksum dbcsr=',dbcsr_checksum(matrix_h%s(1),error),&
 !            ' sm',checksum_matrix(matrix_h_tmp(1)%matrix, matrix_h_tmp(1)%matrix%distribution_2d%blacs_env%para_env)
-
 
     ! *** compute the ppl contribution to the core hamiltonian ***
     IF (ppl_present) THEN
       IF(qs_env%dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
-        !CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-        CALL build_core_ppl(matrix_h_tmp, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+        !CALL build_core_ppl(matrix_h, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
+        CALL build_core_ppl(matrix_h_tmp, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
       END IF
     END IF
 
     ! *** compute the nucelar attraction contribution to the core hamiltonian ***
     IF (all_potential_present) THEN
-      CALL build_core_ae(matrix_h_tmp, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+      CALL build_core_ae(matrix_h_tmp, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ae, error)
     END IF
 
@@ -986,7 +976,7 @@ CONTAINS
     eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
     ! *** compute the ppnl contribution to the core hamiltonian ***
     IF(qs_env%rel_control%rel_method==rel_none)THEN
-      CALL build_core_ppnl(matrix_h_tmp, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+      CALL build_core_ppnl(matrix_h_tmp, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
     END IF
 
@@ -1026,7 +1016,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       matrix_h=matrix_h_tmp,&
                       error=error)
-      CALL build_core_ppnl(matrix_h_tmp, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+      CALL build_core_ppnl(matrix_h_tmp, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
       CALL set_qs_env(qs_env=qs_env,&
                       matrix_h=matrix_h_tmp,&
@@ -1056,7 +1046,8 @@ CONTAINS
     CALL dbcsr_deallocate_matrix_set ( matrix_h, error )
 
     ! Print matrices if requested
-    CALL dump_info_core_hamiltonian(matrix_s_tmp, matrix_t_tmp, matrix_h_tmp, oce, qs_env, calculate_forces, para_env, error)
+    CALL dump_info_core_hamiltonian(matrix_s_tmp, matrix_t_tmp, matrix_h_tmp, &
+         oce, qs_env, calculate_forces, para_env, error)
     CALL timestop(handle)
     
   END SUBROUTINE build_core_hamiltonian_matrix
@@ -1154,131 +1145,5 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE dump_info_core_hamiltonian
-
-  SUBROUTINE get_neighbor_list_sizes(qs_env, neighbor_list_sab, nblks, nze, error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: neighbor_list_sab
-    INTEGER, INTENT(out), OPTIONAL           :: nblks, nze
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list_sizes', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: handle, iab, iatom, ikind, ilist, inode, istat, jatom, jkind, &
-      last_jatom, my_nblks, my_nze, natom, nkind, nlist, nnode
-    INTEGER, DIMENSION(:), POINTER           :: nsgf
-    LOGICAL                                  :: failure, new_atom_b
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
-    TYPE(neighbor_list_type), POINTER        :: neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: neighbor_node
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-
-    failure = .FALSE.
-
-    CALL timeset(routineN,handle)
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set,&
-                    error=error)
-
-    nkind = SIZE(atomic_kind_set)
-    natom = SIZE(particle_set)
-
-    ALLOCATE(nsgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    CALL get_particle_set(particle_set=particle_set,nsgf=nsgf,error=error)
-
-    my_nze = 0
-    my_nblks = 0
-
-    DO ikind=1,nkind
-
-       atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            orb_basis_set=orb_basis_set)
-
-       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-       DO jkind=1,nkind
-
-          atomic_kind => atomic_kind_set(jkind)
-
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               orb_basis_set=orb_basis_set)
-
-          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-          iab = ikind + nkind*(jkind - 1)
-
-          IF (.NOT.ASSOCIATED(neighbor_list_sab(iab)%neighbor_list_set)) CYCLE
-
-          neighbor_list_set => neighbor_list_sab(iab)%neighbor_list_set
-
-          CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
-                                     nlist=nlist)
-
-          neighbor_list => first_list(neighbor_list_set)
-
-          DO ilist=1,nlist
-
-             CALL get_neighbor_list(neighbor_list=neighbor_list,&
-                                    atom=iatom,&
-                                    nnode=nnode)
-
-             last_jatom = 0
-
-             neighbor_node => first_node(neighbor_list)
-
-             DO inode=1,nnode
-
-                CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                       neighbor=jatom)
-
-                IF (jatom /= last_jatom) THEN
-                   new_atom_b = .TRUE.
-                   last_jatom = jatom
-                ELSE
-                   new_atom_b = .FALSE.
-                END IF
-
-                IF (new_atom_b) THEN
-
-                   my_nze = my_nze + nsgf(iatom)*nsgf(jatom)
-                   my_nblks = my_nblks + 1
-
-                END IF
-
-                neighbor_node => next(neighbor_node)
-
-             END DO
-
-             neighbor_list => next(neighbor_list)
-
-          END DO
-
-       END DO
-    END DO
-
-    DEALLOCATE(nsgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    IF(PRESENT(nblks)) nblks = my_nblks
-    IF(PRESENT(nze)) nze = my_nze
-
-    !write(*,*) 'get_neighbor_list_sizes: nblks',my_nblks,' nze',my_nze
-
-    CALL timestop(handle)
-
-  END SUBROUTINE get_neighbor_list_sizes
 
 END MODULE qs_core_hamiltonian
