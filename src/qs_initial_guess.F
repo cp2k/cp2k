@@ -20,6 +20,8 @@ MODULE qs_initial_guess
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_check,&
+                                             dbcsr_from_fm,&
+                                             dbcsr_from_sm,&
                                              dbcsr_sm_sm_multiply
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
@@ -42,8 +44,6 @@ MODULE qs_initial_guess
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
                                              dbcsr_finalize,&
-                                             dbcsr_from_fm,&
-                                             dbcsr_from_sm,&
                                              dbcsr_init,&
                                              dbcsr_verify_matrix
   USE distribution_2d_types,           ONLY: distribution_2d_type

@@ -16,7 +16,8 @@ MODULE dkh_main
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_structure
+                                             dbcsr_replicate_matrix_structure,&
+                                             sm_from_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -41,8 +42,7 @@ MODULE dkh_main
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
                                              copy_sm_to_fm_full
-  USE dbcsr_util,                      ONLY: dbcsr_finalize,&
-                                             sm_from_dbcsr
+  USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&

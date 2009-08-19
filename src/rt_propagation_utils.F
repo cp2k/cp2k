@@ -25,7 +25,8 @@ MODULE  rt_propagation_utils
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_structure
+                                             dbcsr_replicate_matrix_structure,&
+                                             sm_from_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -39,8 +40,7 @@ MODULE  rt_propagation_utils
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
-  USE dbcsr_util,                      ONLY: dbcsr_finalize,&
-                                             sm_from_dbcsr
+  USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_restart_wfn,&
                                              use_rt_restart

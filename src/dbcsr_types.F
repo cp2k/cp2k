@@ -44,6 +44,8 @@ MODULE dbcsr_types
             dbcsr_1d_array_obj,&
             dbcsr_2d_array_obj,&
             dbcsr_mutable_obj, dbcsr_mutable_type
+  ! CP2K compatibility
+  PUBLIC :: dbcsr_block_node_type
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
             dbcsr_slot_row_p,&
@@ -179,6 +181,40 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER          :: dbcsr_type_complex_default = 'c'
 #endif
 
+
+! *****************************************************************************
+!> \brief An iterator over a DBCSR matrix.
+!> \note This is briefly change to allow being included in the dbcsr_type type
+!>       What is written here is what the structure should be.
+!> \var matrix           the matrix
+!> \var buffer_r_sp      Real single precision buffer
+!> \var buffer_r_dp      Real double precision buffer
+!> \var buffer_c_sp      Complex single precision buffer
+!> \var buffer_c_dp      Complex double precision buffer
+!> \var row              Current row
+!> \var pos              Current position
+!> \var row_size         Size of current row
+!> \var rbs, cbs         Pointer to row and column size array
+!> \var contiguous_pointers   Whether pointers to data should be contiguous
+!>                            in memory.
+! *****************************************************************************
+  TYPE dbcsr_iterator
+     !TYPE(dbcsr_obj)                               :: matrix
+     REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: buffer_r_sp
+     REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: buffer_r_dp
+     COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: buffer_c_sp
+     COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: buffer_c_dp
+     INTEGER            :: row, row_size
+     INTEGER            :: pos
+     INTEGER, DIMENSION(:), POINTER :: rbs, cbs
+     LOGICAL            :: contiguous_pointers
+     ! Copies from the matrix.
+     INTEGER            :: nblks, nblkrows_total, max_r_size, max_c_size
+     INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p
+     TYPE(dbcsr_data_obj) :: data_area
+  END TYPE dbcsr_iterator
+
+
 ! *****************************************************************************
 !> \brief Data area with random acces reads, insertions, and deletions.
 !> \var tree_s, tree_d, tree_c, tree_z  Data types for the various types
@@ -223,6 +259,13 @@ MODULE dbcsr_types
      !TYPE(btree_2d_d)        :: tree
      TYPE(dbcsr_mutable_obj)                 :: mutable
   END TYPE dbcsr_work_type
+
+!> \brief CP2k compatibility
+  TYPE dbcsr_block_node_type
+     TYPE(dbcsr_iterator)                   :: iter
+     INTEGER                                :: block_col
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: block
+  END TYPE dbcsr_block_node_type
 
 ! *****************************************************************************
 !> \brief The BCSR sparse matrix type.
@@ -292,6 +335,7 @@ MODULE dbcsr_types
      TYPE(dbcsr_distribution_obj)       :: dist
      INTEGER                 :: refcount
      LOGICAL                 :: work_mutable
+     TYPE(dbcsr_block_node_type), POINTER :: block_node
   END TYPE dbcsr_type
 
   CHARACTER, PARAMETER        :: dbcsr_type_normal = 'N'
@@ -361,31 +405,5 @@ MODULE dbcsr_types
      TYPE(mp_window_type), DIMENSION(:), POINTER :: data_windows, index_windows
      TYPE(dbcsr_imagedistribution_type) :: image_dist
   END TYPE dbcsr_array_type
-
-! *****************************************************************************
-!> \brief An iterator over a DBCSR matrix.
-!> \var matrix           the matrix
-!> \var buffer_r_sp      Real single precision buffer
-!> \var buffer_r_dp      Real double precision buffer
-!> \var buffer_c_sp      Complex single precision buffer
-!> \var buffer_c_dp      Complex double precision buffer
-!> \var row              Current row
-!> \var pos              Current position
-!> \var row_size         Size of current row
-!> \var rbs, cbs         Pointer to row and column size array
-!> \var contiguous_pointers   Whether pointers to data should be contiguous
-!>                            in memory.
-! *****************************************************************************
-  TYPE dbcsr_iterator
-     TYPE(dbcsr_obj)                               :: matrix
-     REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: buffer_r_sp
-     REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: buffer_r_dp
-     COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: buffer_c_sp
-     COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: buffer_c_dp
-     INTEGER            :: row, row_size
-     INTEGER            :: pos
-     INTEGER, DIMENSION(:), POINTER :: rbs, cbs
-     LOGICAL            :: contiguous_pointers
-  END TYPE dbcsr_iterator
 
 END MODULE dbcsr_types

@@ -225,15 +225,20 @@ CONTAINS
           !ELSE
           !   DEALLOCATE(matrix%m%data)
           !ENDIF
+          CALL cp_error_init(my_error)
+          IF (ASSOCIATED (matrix%m%dist2d)) &
+               CALL distribution_2d_release(matrix%m%dist2d,my_error)
+          IF (ASSOCIATED (matrix%m%block_node)) THEN
+             CALL dbcsr_iterator_stop (matrix%m%block_node%iter)
+             DEALLOCATE (matrix%m%block_node)
+             NULLIFY (matrix%m%block_node)
+          ENDIF
           CALL dbcsr_data_release (matrix%m%data_area)
           CALL array_release (matrix%m%row_blk_size)
           CALL array_release (matrix%m%col_blk_size)
           CALL dbcsr_distribution_release(matrix%m%dist)
           matrix%m%valid = .FALSE.
           matrix%m%initialized = .TRUE.
-          CALL cp_error_init(my_error)
-          IF (ASSOCIATED (matrix%m%dist2d)) &
-               CALL distribution_2d_release(matrix%m%dist2d,my_error)
           DEALLOCATE (matrix%m)
        ENDIF
     ENDIF
@@ -1527,31 +1532,41 @@ CONTAINS
     ELSE
        iterator%contiguous_pointers = .FALSE.
     ENDIF
-    iterator%matrix = matrix
     iterator%row = 0
     iterator%pos = 0
     iterator%rbs => array_data (matrix%m%row_blk_size)
     iterator%cbs => array_data (matrix%m%col_blk_size)
+    iterator%nblks = matrix%m%nblks
+    iterator%nblkrows_total = matrix%m%nblkrows_total
+    iterator%max_r_size = matrix%m%max_rbs
+    iterator%max_c_size = matrix%m%max_cbs
+    ! Can't do that because fortran forces us lose the matrix reference.
+    !CALL dbcsr_hold (matrix)
+    iterator%row_p => matrix%m%row_p
+    iterator%col_i => matrix%m%col_i
+    iterator%blk_p => matrix%m%blk_p
+    iterator%data_area = matrix%m%data_area
+    CALL dbcsr_data_hold (iterator%data_area)
     iterator%row_size = 0
     max_r_size = 0
     max_c_size = 0
     IF (matrix%m%nblks .GE. 1) THEN
        iterator%row = 1
        iterator%pos = 1
-       CALL find_first_valid_block (iterator%pos, matrix%m%nblks,&
-            iterator%matrix%m%blk_p)
+       CALL find_first_valid_block (iterator%pos, iterator%nblks,&
+            iterator%blk_p)
        CALL find_proper_row (iterator%pos, iterator%row,&
-            iterator%matrix%m%nblkrows_total, iterator%matrix%m%row_p)
+            iterator%nblkrows_total, iterator%row_p)
        IF (iterator%row .GT. 0) THEN
           iterator%row_size = iterator%rbs(iterator%row)
-          max_r_size = matrix%m%max_rbs
-          max_c_size = matrix%m%max_cbs
+          max_r_size = iterator%max_r_size
+          max_c_size = iterator%max_c_size
        ENDIF
     ENDIF
     NULLIFY (iterator%buffer_r_sp, iterator%buffer_r_dp,&
          iterator%buffer_c_sp, iterator%buffer_c_dp)
     max_size = MAX (max_r_size, max_c_size)
-    SELECT CASE (matrix%m%data_area%d%data_type)
+    SELECT CASE (iterator%data_area%d%data_type)
     CASE (dbcsr_type_real_4)
        ALLOCATE (iterator%buffer_r_sp (max_size, max_size))
     CASE (dbcsr_type_real_8)
@@ -1579,9 +1594,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_data_release (iterator%data_area)
+    !CALL dbcsr_release (iterator%matrix)
     iterator%row = 0
     iterator%pos = 0
-    SELECT CASE (iterator%matrix%m%data_area%d%data_type)
+    SELECT CASE (iterator%data_area%d%data_type)
     CASE (dbcsr_type_real_4)
        CALL cp_assert (ASSOCIATED (iterator%buffer_r_sp), cp_warning_level,&
             cp_internal_error, routineN, "Array should have been allocated")
@@ -1610,7 +1627,6 @@ CONTAINS
        CALL cp_assert(.FALSE., cp_warning_level, cp_internal_error,&
             routineN, "Invalid data type.")
     END SELECT
-    !CALL dbcsr_init (iterator%matrix)
     NULLIFY (iterator%buffer_r_sp, iterator%buffer_r_dp,&
          iterator%buffer_c_sp, iterator%buffer_c_dp, iterator%rbs, iterator%cbs)
   END SUBROUTINE dbcsr_iterator_stop
@@ -1709,17 +1725,17 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! If we're pointing to a valid block, return that block.
 
-    IF (iterator%pos .LE. iterator%matrix%m%nblks&
+    IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
-       column = iterator%matrix%m%col_i(iterator%pos)
-       blk_p = iterator%matrix%m%blk_p(iterator%pos)
+       column = iterator%col_i(iterator%pos)
+       blk_p = iterator%blk_p(iterator%pos)
        transposed = blk_p .LT. 0
        bp = ABS (blk_p)
        rsize = iterator%row_size
        csize = iterator%cbs(column)
        nze = rsize * csize
-       rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
+       rbp => dbcsr_get_data_p (iterator%data_area, 0.0_real_8)
 #if defined(__PTR_RANK_REMAP)
        block(1:rsize, 1:csize) => rbp(bp:bp+nze-1)
 #elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
@@ -1730,7 +1746,7 @@ CONTAINS
           IF (SIZE (iterator%buffer_r_dp, 1) .NE. rsize) THEN
              DEALLOCATE (iterator%buffer_r_dp)
              ALLOCATE (iterator%buffer_r_dp(&
-                  rsize, iterator%matrix%m%max_cbs))
+                  rsize, MAX(iterator%max_cbs, iterator%max_rbs)))
           ENDIF
        ENDIF
        iterator%buffer_r_dp =&
@@ -1740,10 +1756,10 @@ CONTAINS
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        iterator%pos = iterator%pos+1
-       CALL find_first_valid_block (iterator%pos, iterator%matrix%m%nblks,&
-            iterator%matrix%m%blk_p)
+       CALL find_first_valid_block (iterator%pos, iterator%nblks,&
+            iterator%blk_p)
        CALL find_proper_row (iterator%pos, iterator%row,&
-            iterator%matrix%m%nblkrows_total, iterator%matrix%m%row_p)
+            iterator%nblkrows_total, iterator%row_p)
        IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
     ELSE
        row = 0
@@ -1779,25 +1795,25 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! If we're pointing to a valid block, return that block.
 
-    IF (iterator%pos .LE. iterator%matrix%m%nblks&
+    IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
-       column = iterator%matrix%m%col_i(iterator%pos)
-       blk_p = iterator%matrix%m%blk_p(iterator%pos)
+       column = iterator%col_i(iterator%pos)
+       blk_p = iterator%blk_p(iterator%pos)
        transposed = blk_p .LT. 0
        bp = ABS (blk_p)
        rsize = iterator%row_size
        csize = iterator%cbs(column)
        nze = rsize * csize
-       rbp => dbcsr_get_data_p (iterator%matrix%m%data_area, 0.0_real_8)
+       rbp => dbcsr_get_data_p (iterator%data_area, 0.0_real_8)
        block => rbp(bp:bp+nze-1)
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        iterator%pos = iterator%pos+1
-       CALL find_first_valid_block (iterator%pos, iterator%matrix%m%nblks,&
-            iterator%matrix%m%blk_p)
+       CALL find_first_valid_block (iterator%pos, iterator%nblks,&
+            iterator%blk_p)
        CALL find_proper_row (iterator%pos, iterator%row,&
-            iterator%matrix%m%nblkrows_total, iterator%matrix%m%row_p)
+            iterator%nblkrows_total, iterator%row_p)
        IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
     ELSE
        row = 0
@@ -1830,22 +1846,21 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (iterator%pos .LE. iterator%matrix%m%nblks&
+    IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
-       column = iterator%matrix%m%col_i(iterator%pos)
+       column = iterator%col_i(iterator%pos)
        blk = iterator%pos
-       !IF (PRESENT (blk_p)) blk_p = iterator%matrix%m%blk_p(iterator%pos)
        IF (PRESENT (blk_p) .OR. PRESENT (transposed)) THEN
-          bp = iterator%matrix%m%blk_p(iterator%pos)
+          bp = iterator%blk_p(iterator%pos)
           IF (PRESENT (blk_p)) blk_p = bp
           IF (PRESENT (transposed)) transposed = bp .LT. 0
        ENDIF
        iterator%pos = iterator%pos+1
-       CALL find_first_valid_block (iterator%pos, iterator%matrix%m%nblks,&
-            iterator%matrix%m%blk_p)
+       CALL find_first_valid_block (iterator%pos, iterator%nblks,&
+            iterator%blk_p)
        CALL find_proper_row (iterator%pos, iterator%row,&
-            iterator%matrix%m%nblkrows_total, iterator%matrix%m%row_p)
+            iterator%nblkrows_total, iterator%row_p)
        IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
     ELSE
        row = 0

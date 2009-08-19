@@ -25,11 +25,11 @@ MODULE qs_operators_ao
                                              pbc
   USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix,&
-                                             dbcsr_deallocate_matrix
+                                             dbcsr_deallocate_matrix,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_finalize,&
-                                             sm_from_dbcsr
+  USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi

@@ -15,9 +15,10 @@ MODULE preconditioner
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj
   USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_get_dist2d, dbcsr_copy_vec, dbcsr_multiply_vec, &
-       dbcsr_pack_vec, dbcsr_sm_sm_multiply, dbcsr_unpack_vec, &
-       packed_vec_bif_tech2, packed_vec_build_u, packed_vec_scale
+       cp_dbcsr_get_dist2d, dbcsr_copy_vec, dbcsr_from_fm, dbcsr_from_sm, &
+       dbcsr_multiply_vec, dbcsr_pack_vec, dbcsr_sm_sm_multiply, &
+       dbcsr_unpack_vec, packed_vec_bif_tech2, packed_vec_build_u, &
+       packed_vec_scale
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -54,8 +55,6 @@ MODULE preconditioner
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
-                                             dbcsr_from_fm,&
-                                             dbcsr_from_sm,&
                                              dbcsr_init,&
                                              dbcsr_verify_matrix
   USE distribution_2d_types,           ONLY: distribution_2d_type
