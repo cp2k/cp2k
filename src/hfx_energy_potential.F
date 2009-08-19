@@ -142,7 +142,7 @@ MODULE hfx_energy_potential
       katom_block, kind_kind_idx, kkind, kset, l_max, latom, latom_block, &
       lkind, lset, ma, max_am
     INTEGER :: max_pgf, max_set, mb, my_bin_size, n_threads, natom, nbits, &
-      nco_max, ncob, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, &
+      ncob, ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, &
       nspins, pa, sgfb, stat, swap_id, unit_id
     INTEGER(int_8) :: estimate_to_store_int, mem_compression_counter, &
       mem_compression_counter_disk, mem_eris, mem_eris_disk, mem_max_val, &
@@ -238,13 +238,21 @@ MODULE hfx_energy_potential
     INTEGER, DIMENSION(:,:), POINTER         :: offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set
     REAL(dp)                                 :: ene_x_aa_diag, ene_x_bb_diag
     TYPE(hfx_pgf_list), DIMENSION(:), &
-                            POINTER          :: pgf_list_ij, pgf_list_kl
+                            ALLOCATABLE      :: pgf_list_ij, pgf_list_kl
     TYPE(hfx_pgf_product_list), DIMENSION(:), &
-                        POINTER              :: pgf_product_list
+                        ALLOCATABLE          :: pgf_product_list
     REAL(dp), DIMENSION(:,:,:,:), POINTER & 
                                              :: sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext
     REAL(dp), DIMENSION(:,:,:), POINTER & 
                                              :: sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set
+    REAL(dp), DIMENSION(:), ALLOCATABLE      :: ee_work, ee_work2, &
+                                                ee_buffer1, ee_buffer2, &
+                                                ee_primitives_tmp
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: nimages
+    INTEGER :: sphi_d_u1,sphi_d_u2,sphi_d_u3
+    INTEGER :: sphi_c_u1,sphi_c_u2,sphi_c_u3
+    INTEGER :: sphi_b_u1,sphi_b_u2,sphi_b_u3
+    INTEGER :: sphi_a_u1,sphi_a_u2,sphi_a_u3
 
 
     CALL timeset(routineN,handle)
@@ -417,7 +425,7 @@ MODULE hfx_energy_potential
                              kind_of=kind_of)
 
     !! precompute maximum nco and allocate scratch
-    nco_max=0
+    ncos_max=0
     nsgf_max=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
@@ -426,7 +434,7 @@ MODULE hfx_energy_potential
       la_max => basis_parameter(ikind)%lmax
       nsgfa => basis_parameter(ikind)%nsgf
       DO iset = 1, nseta
-         nco_max = MAX(nco_max,npgfa(iset)*ncoset(la_max(iset)))
+         ncos_max = MAX(ncos_max,ncoset(la_max(iset)))
          nsgf_max = MAX(nsgf_max,nsgfa(iset))
       ENDDO
     ENDDO
@@ -451,6 +459,17 @@ MODULE hfx_energy_potential
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(kac_buf(nsgf_max**2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ee_work(ncos_max**4),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ee_work2(ncos_max**4),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ee_buffer1(ncos_max**4),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ee_buffer2(ncos_max**4),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
 
     nspins = qs_env%dft_control%nspins
 
@@ -485,6 +504,8 @@ MODULE hfx_energy_potential
     ALLOCATE(pgf_list_kl(max_pgf**2), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(pgf_product_list(nneighbors**3), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(nimages(max_pgf**2),STAT=stat) 
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO i=1,max_pgf**2
@@ -934,6 +955,9 @@ MODULE hfx_energy_potential
           nsgfa => basis_parameter(ikind)%nsgf
           sphi_a_ext => basis_parameter(ikind)%sphi_ext(:,:,:,:)
           nsgfl_a => basis_parameter(ikind)%nsgfl
+          sphi_a_u1=UBOUND(sphi_a_ext,1)
+          sphi_a_u2=UBOUND(sphi_a_ext,2)
+          sphi_a_u3=UBOUND(sphi_a_ext,3)
 
           lb_max => basis_parameter(jkind)%lmax
           lb_min => basis_parameter(jkind)%lmin
@@ -943,6 +967,9 @@ MODULE hfx_energy_potential
           nsgfb => basis_parameter(jkind)%nsgf
           sphi_b_ext => basis_parameter(jkind)%sphi_ext(:,:,:,:)
           nsgfl_b => basis_parameter(jkind)%nsgfl
+          sphi_b_u1=UBOUND(sphi_b_ext,1)
+          sphi_b_u2=UBOUND(sphi_b_ext,2)
+          sphi_b_u3=UBOUND(sphi_b_ext,3)
 
           DO i_list_kl=1,list_kl%n_element
             katom=list_kl%elements(i_list_kl)%pair(1)
@@ -986,6 +1013,9 @@ MODULE hfx_energy_potential
             nsgfc => basis_parameter(kkind)%nsgf
             sphi_c_ext => basis_parameter(kkind)%sphi_ext(:,:,:,:)
             nsgfl_c => basis_parameter(kkind)%nsgfl
+            sphi_c_u1=UBOUND(sphi_c_ext,1)
+            sphi_c_u2=UBOUND(sphi_c_ext,2)
+            sphi_c_u3=UBOUND(sphi_c_ext,3)
 
             ld_max => basis_parameter(lkind)%lmax
             ld_min => basis_parameter(lkind)%lmin
@@ -994,6 +1024,9 @@ MODULE hfx_energy_potential
             nsgfd => basis_parameter(lkind)%nsgf
             sphi_d_ext => basis_parameter(lkind)%sphi_ext(:,:,:,:)
             nsgfl_d => basis_parameter(lkind)%nsgfl
+            sphi_d_u1=UBOUND(sphi_d_ext,1)
+            sphi_d_u2=UBOUND(sphi_d_ext,2)
+            sphi_d_u3=UBOUND(sphi_d_ext,3)
 
             atomic_offset_bd = shm_atomic_block_offset(jatom,latom)
             atomic_offset_bc = shm_atomic_block_offset(jatom,katom)
@@ -1216,8 +1249,11 @@ MODULE hfx_energy_potential
                   CALL coulomb4(private_lib, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                                 la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                                 lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                                nsgfa(iset), nsgfb(jset), nsgfc(kset),&
-                                nsgfd(lset),&
+                                nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset),&
+                                sphi_a_u1,sphi_a_u2,sphi_a_u3,&
+                                sphi_b_u1,sphi_b_u2,sphi_b_u3,&
+                                sphi_c_u1,sphi_c_u2,sphi_c_u3,&
+                                sphi_d_u1,sphi_d_u2,sphi_d_u3,&
                                 zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset),&
                                 zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
                                 primitive_integrals,&
@@ -1234,7 +1270,8 @@ MODULE hfx_energy_potential
                                 sphi_b_ext_set,&
                                 sphi_c_ext_set,&
                                 sphi_d_ext_set,&
-                                do_periodic)
+                                ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
+                                nimages,do_periodic)
 
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                   neris_total = neris_total + nints
@@ -1700,6 +1737,13 @@ MODULE hfx_energy_potential
 
     DEALLOCATE(max_contraction, kind_of, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(nimages, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     !
     ! this wraps to free_libint, but currently causes a segfault
     ! as a result, we don't call it, but some memory remains allocated
@@ -1743,6 +1787,10 @@ MODULE hfx_energy_potential
   SUBROUTINE coulomb4(lib, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
                       la_min, la_max, lb_min, lb_max,&
                       lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd,&
+                                sphi_a_u1,sphi_a_u2,sphi_a_u3,&
+                                sphi_b_u1,sphi_b_u2,sphi_b_u3,&
+                                sphi_c_u1,sphi_c_u2,sphi_c_u3,&
+                                sphi_d_u1,sphi_d_u2,sphi_d_u3,&
                       zeta, zetb, zetc, zetd,&
                       primitive_integrals,&
                       potential_parameter, neighbor_cells,&
@@ -1754,13 +1802,16 @@ MODULE hfx_energy_potential
                       nsgfl_a, nsgfl_b, nsgfl_c,&
                       nsgfl_d,&
                       sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext,&
-                      do_periodic)
+                      ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
+                      nimages, do_periodic)
    
     TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, &
       lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, &
-      nsgfd
+      nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, sphi_b_u1, sphi_b_u2, &
+      sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
+      sphi_d_u3
     REAL(dp), DIMENSION(1:npgfa), INTENT(IN) :: zeta
     REAL(dp), DIMENSION(1:npgfb), INTENT(IN) :: zetb
     REAL(dp), DIMENSION(1:npgfc), INTENT(IN) :: zetc
@@ -1779,14 +1830,18 @@ MODULE hfx_energy_potential
     REAL(dp), INTENT(IN)                     :: log10_pmax, log10_eps_schwarz
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: R1_pgf, R2_pgf, pgf1, pgf2
-    TYPE(hfx_pgf_list), DIMENSION(:), &
-      POINTER                                :: pgf_list_ij, pgf_list_kl
-    TYPE(hfx_pgf_product_list), &
-      DIMENSION(:), POINTER                  :: pgf_product_list
+    TYPE(hfx_pgf_list), DIMENSION(*)         :: pgf_list_ij, pgf_list_kl
+    TYPE(hfx_pgf_product_list), DIMENSION(*) :: pgf_product_list
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nsgfl_a, nsgfl_b, nsgfl_c, &
                                                 nsgfl_d
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: sphi_a_ext, sphi_b_ext, &
-                                                sphi_c_ext, sphi_d_ext
+    REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1,sphi_a_u2,sphi_a_u3), &
+      sphi_b_ext(sphi_b_u1,sphi_b_u2,sphi_b_u3), &
+      sphi_c_ext(sphi_c_u1,sphi_c_u2,sphi_c_u3), &
+      sphi_d_ext(sphi_d_u1,sphi_d_u2,sphi_d_u3)
+    REAL(dp), DIMENSION(*)                   :: ee_work, ee_work2, &
+                                                ee_buffer1, ee_buffer2, &
+                                                ee_primitives_tmp
+    INTEGER, DIMENSION(*)                    :: nimages
     LOGICAL, INTENT(IN)                      :: do_periodic
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, &
@@ -1794,17 +1849,16 @@ MODULE hfx_energy_potential
       nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
       s_offset_a, s_offset_b, s_offset_c, s_offset_d
     REAL(dp)                                 :: EtaInv, tmp_max, ZetaInv
-    REAL(dp), DIMENSION(:), POINTER          :: sphi_a, sphi_b, sphi_c, sphi_d
 
     nneighbors3 = SIZE(neighbor_cells)**3
     CALL build_pair_list_pgf(npgfa, npgfb, pgf_list_ij, zeta, zetb, screen1, screen2,&
                              pgf1, R1_pgf, log10_pmax, log10_eps_schwarz, ra, rb,&
                              nelements_ij, &
-                             neighbor_cells, do_periodic)
+                             neighbor_cells, nimages, do_periodic)
     CALL build_pair_list_pgf(npgfc, npgfd, pgf_list_kl, zetc, zetd, screen2, screen1, &
                              pgf2, R2_pgf, log10_pmax, log10_eps_schwarz, rc, rd,&
                              nelements_kl, &
-                             neighbor_cells, do_periodic)
+                             neighbor_cells, nimages, do_periodic)
 
     cart_estimate = 0.0_dp
     neris_tmp = 0
@@ -1830,30 +1884,26 @@ MODULE hfx_energy_potential
           ncoa = nco(la)
           nsgfla = nsgfl_a(la)
           nsoa = nso(la)
-          sphi_a => sphi_a_ext(:,la+1,ipgf)
 
           DO lb = lb_min, lb_max
             s_offset_c = 0
             ncob = nco(lb)
             nsgflb = nsgfl_b(lb)
             nsob = nso(lb)
-            sphi_b => sphi_b_ext(:,lb+1,jpgf)
 
             DO lc = lc_min, lc_max
               s_offset_d = 0
               ncoc = nco(lc)
               nsgflc = nsgfl_c(lc)
               nsoc = nso(lc)
-              sphi_c => sphi_c_ext(:,lc+1,kpgf)
 
               DO ld = ld_min, ld_max
                 ncod = nco(ld)
                 nsgfld = nsgfl_d(ld)
                 nsod = nso(ld)
-                sphi_d => sphi_d_ext(:,ld+1,lpgf)
 
                 tmp_max = 0.0_dp
-                CALL evaluate_eri(lib, pgf_product_list, nproducts, &
+                CALL evaluate_eri(lib, nproducts, pgf_product_list, &
                                   la, lb, lc ,ld,&
                                   ncoa,ncob,ncoc,ncod,&
                                   nsgfa, nsgfb, nsgfc, nsgfd,&
@@ -1862,10 +1912,11 @@ MODULE hfx_energy_potential
                                   neris_tmp,ZetaInv,EtaInv,&
                                   s_offset_a, s_offset_b, s_offset_c, s_offset_d,&
                                   nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
-                                  sphi_a(1:ncoa*nsoa*nsgfla), &
-                                  sphi_b(1:ncob*nsob*nsgflb), &
-                                  sphi_c(1:ncoc*nsoc*nsgflc), &
-                                  sphi_d(1:ncod*nsod*nsgfld))
+                                  sphi_a_ext(1,la+1,ipgf), &
+                                  sphi_b_ext(1,lb+1,jpgf), &
+                                  sphi_c_ext(1,lc+1,kpgf), &
+                                  sphi_d_ext(1,ld+1,lpgf), &
+                                  ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp)
                 cart_estimate = MAX(tmp_max,cart_estimate)
                 s_offset_d = s_offset_d + nsod*nsgfld
               END DO !ld

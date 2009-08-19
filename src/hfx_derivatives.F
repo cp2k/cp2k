@@ -99,7 +99,7 @@ MODULE hfx_derivatives
     INTEGER :: bin, coord, forces_map(4,2), handle, handle_getP, handle_load, &
       handle_main, i, i_atom, i_thread, iatom, ikind, iset, j_atom, jatom, &
       jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, lkind, lset, &
-      max_am, max_set, my_bin_size, n_threads, natom, nco_max, ncob, nseta, &
+      max_am, max_set, my_bin_size, n_threads, natom, ncob, ncos_max, nseta, &
       nsetb, nspins, sgfb, stat
     INTEGER(int_8)                           :: my_current_counter, &
                                                 my_istart, n_processes, ncpu
@@ -173,17 +173,24 @@ MODULE hfx_derivatives
                                                 atomic_offset_ac, nneighbors, max_pgf
     INTEGER, DIMENSION(:,:), POINTER         :: offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set
     TYPE(hfx_pgf_list), DIMENSION(:), &
-                            POINTER          :: pgf_list_ij, pgf_list_kl
+                            ALLOCATABLE      :: pgf_list_ij, pgf_list_kl
     TYPE(hfx_pgf_product_list), DIMENSION(:), &
-                        POINTER              :: pgf_product_list
+                        ALLOCATABLE          :: pgf_product_list
     REAL(dp), DIMENSION(:,:,:,:), POINTER &
                                              :: sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext
     REAL(dp), DIMENSION(:,:,:), POINTER &
                                              :: sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set
     INTEGER, DIMENSION(:, :), POINTER        :: nsgfl_a, nsgfl_b, &
                                                 nsgfl_c, nsgfl_d
+    REAL(dp), DIMENSION(:), ALLOCATABLE      :: ede_work, ede_work2, ede_work_forces,  &
+                                                ede_buffer1, ede_buffer2, &
+                                                ede_primitives_tmp
     TYPE(lib_deriv)                          :: private_deriv
-
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: nimages
+    INTEGER :: sphi_d_u1,sphi_d_u2,sphi_d_u3
+    INTEGER :: sphi_c_u1,sphi_c_u2,sphi_c_u3
+    INTEGER :: sphi_b_u1,sphi_b_u2,sphi_b_u3
+    INTEGER :: sphi_a_u1,sphi_a_u2,sphi_a_u3
 
 
 
@@ -425,7 +432,7 @@ MODULE hfx_derivatives
 !$OMP END MASTER
 
     !! precompute maximum nco and allocate scratch
-    nco_max=0
+    ncos_max=0
     nsgf_max=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
@@ -434,18 +441,12 @@ MODULE hfx_derivatives
       la_max => basis_parameter(ikind)%lmax
       nsgfa => basis_parameter(ikind)%nsgf
       DO iset = 1, nseta
-         nco_max = MAX(nco_max,npgfa(iset)*ncoset(la_max(iset)))
+         ncos_max = MAX(ncos_max,ncoset(la_max(iset)))
          nsgf_max = MAX(nsgf_max, nsgfa(iset))
       ENDDO
     ENDDO
 
     !! Allocate work arrays
-!    ALLOCATE(primitive_forces(12*nco_max**4),STAT=stat)
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!    primitive_forces=0.0_dp
-!    ALLOCATE(T1(nco_max**4),STAT=stat)
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!    T1=0.0_dp
     ALLOCATE(primitive_forces(12*nsgf_max**4),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     primitive_forces=0.0_dp
@@ -458,6 +459,9 @@ MODULE hfx_derivatives
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(pgf_product_list(nneighbors**3), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(nimages(max_pgf**2), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
 
     DO i=1,max_pgf**2
       ALLOCATE(pgf_list_ij(i)%image_list(nneighbors), STAT=stat)
@@ -485,6 +489,19 @@ MODULE hfx_derivatives
       ALLOCATE(pac_buf_beta(nsgf_max**2),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
+    ALLOCATE(ede_work(ncos_max**4*12),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ede_work2(ncos_max**4*12),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ede_work_forces(ncos_max**4*12),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ede_buffer1(ncos_max**4),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ede_buffer2(ncos_max**4),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ede_primitives_tmp(nsgf_max**4*12),STAT=stat) ! XXXXX could be wrong
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     !! Start caluclating integrals of the form (ab|cd) or (ij|kl)
     !! In order to do so, there is a main four-loop structre that takes into account the two symmetries
@@ -599,6 +616,10 @@ MODULE hfx_derivatives
           nsgfa => basis_parameter(ikind)%nsgf
           sphi_a_ext => basis_parameter(ikind)%sphi_ext(:,:,:,:)
           nsgfl_a => basis_parameter(ikind)%nsgfl
+          sphi_a_u1=UBOUND(sphi_a_ext,1)
+          sphi_a_u2=UBOUND(sphi_a_ext,2)
+          sphi_a_u3=UBOUND(sphi_a_ext,3)
+
 
           lb_max => basis_parameter(jkind)%lmax
           lb_min => basis_parameter(jkind)%lmin
@@ -608,6 +629,9 @@ MODULE hfx_derivatives
           nsgfb => basis_parameter(jkind)%nsgf
           sphi_b_ext => basis_parameter(jkind)%sphi_ext(:,:,:,:)
           nsgfl_b => basis_parameter(jkind)%nsgfl
+          sphi_b_u1=UBOUND(sphi_b_ext,1)
+          sphi_b_u2=UBOUND(sphi_b_ext,2)
+          sphi_b_u3=UBOUND(sphi_b_ext,3)
 
           i_atom = atom_of_kind(iatom)
           forces_map(1,1) = ikind
@@ -672,6 +696,10 @@ MODULE hfx_derivatives
             nsgfc => basis_parameter(kkind)%nsgf
             sphi_c_ext => basis_parameter(kkind)%sphi_ext(:,:,:,:)
             nsgfl_c => basis_parameter(kkind)%nsgfl
+            sphi_c_u1=UBOUND(sphi_c_ext,1)
+            sphi_c_u2=UBOUND(sphi_c_ext,2)
+            sphi_c_u3=UBOUND(sphi_c_ext,3)
+
 
             ld_max => basis_parameter(lkind)%lmax
             ld_min => basis_parameter(lkind)%lmin
@@ -680,6 +708,9 @@ MODULE hfx_derivatives
             nsgfd => basis_parameter(lkind)%nsgf
             sphi_d_ext => basis_parameter(lkind)%sphi_ext(:,:,:,:)
             nsgfl_d => basis_parameter(lkind)%nsgfl
+            sphi_d_u1=UBOUND(sphi_d_ext,1)
+            sphi_d_u2=UBOUND(sphi_d_ext,2)
+            sphi_d_u3=UBOUND(sphi_d_ext,3)
 
             atomic_offset_bd = shm_atomic_block_offset(jatom,latom)
             atomic_offset_bc = shm_atomic_block_offset(jatom,katom)
@@ -767,6 +798,8 @@ MODULE hfx_derivatives
                               screen_coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
               sphi_a_ext_set => sphi_a_ext(:,:,:,iset)
               sphi_b_ext_set => sphi_b_ext(:,:,:,jset)
+
+
               DO i_set_list_kl=i_set_list_kl_start, i_set_list_kl_stop
                 kset=set_list_kl(i_set_list_kl)%pair(1)
                 lset=set_list_kl(i_set_list_kl)%pair(2)
@@ -807,8 +840,11 @@ MODULE hfx_derivatives
                 CALL forces4(private_deriv, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
                              la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                              lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                             nsgfa(iset), nsgfb(jset), nsgfc(kset),&
-                             nsgfd(lset),&
+                             nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset),&
+                             sphi_a_u1,sphi_a_u2,sphi_a_u3,&
+                             sphi_b_u1,sphi_b_u2,sphi_b_u3,&
+                             sphi_c_u1,sphi_c_u2,sphi_c_u3,&
+                             sphi_d_u1,sphi_d_u2,sphi_d_u3,&
                              zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset),&
                              zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
                              primitive_forces,&
@@ -821,11 +857,10 @@ MODULE hfx_derivatives
                              pgf_list_ij, pgf_list_kl, pgf_product_list, &
                              nsgfl_a(:,iset), nsgfl_b(:,jset),&
                              nsgfl_c(:,kset), nsgfl_d(:,lset),&
-                             sphi_a_ext_set,&
-                             sphi_b_ext_set,&
-                             sphi_c_ext_set,&
-                             sphi_d_ext_set,&
-                             do_periodic)
+                             sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set,&
+                             ede_work,ede_work2,ede_work_forces, &
+                             ede_buffer1,ede_buffer2,ede_primitives_tmp, &
+                             nimages,do_periodic)
   
                 IF(cartesian_estimate<eps_schwarz) CYCLE
                 CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), & 
@@ -913,6 +948,12 @@ MODULE hfx_derivatives
     DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    DEALLOCATE(ede_work, ede_work2, ede_work_forces, ede_buffer1, ede_buffer2, ede_primitives_tmp, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(nimages, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     IF( nspins == 2 ) THEN
       DEALLOCATE(pbd_buf_beta,pbc_buf_beta,pad_buf_beta,pac_buf_beta, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -933,6 +974,10 @@ MODULE hfx_derivatives
   SUBROUTINE forces4(deriv, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
                      la_min, la_max, lb_min, lb_max,&
                      lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd,&
+                     sphi_a_u1,sphi_a_u2,sphi_a_u3,&
+                     sphi_b_u1,sphi_b_u2,sphi_b_u3,&
+                     sphi_c_u1,sphi_c_u2,sphi_c_u3,&
+                     sphi_d_u1,sphi_d_u2,sphi_d_u3,&
                      zeta, zetb, zetc, zetd,&
                      primitive_integrals,&
                      potential_parameter, neighbor_cells,&
@@ -944,13 +989,17 @@ MODULE hfx_derivatives
                      nsgfl_a, nsgfl_b, nsgfl_c,&
                      nsgfl_d,&
                      sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext,&
-                     do_periodic)
+                     ede_work,ede_work2,ede_work_forces, &
+                     ede_buffer1,ede_buffer2,ede_primitives_tmp, &
+                     nimages, do_periodic)
 
     TYPE(lib_deriv)                          :: deriv
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, &
       lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, &
-      nsgfd
+      nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, sphi_b_u1, sphi_b_u2, &
+      sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
+      sphi_d_u3
     REAL(dp), DIMENSION(1:npgfa), INTENT(IN) :: zeta
     REAL(dp), DIMENSION(1:npgfb), INTENT(IN) :: zetb
     REAL(dp), DIMENSION(1:npgfc), INTENT(IN) :: zetc
@@ -968,14 +1017,19 @@ MODULE hfx_derivatives
     REAL(dp), INTENT(IN)                     :: log10_pmax, log10_eps_schwarz
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: R1_pgf, R2_pgf, pgf1, pgf2
-    TYPE(hfx_pgf_list), DIMENSION(:), &
-      POINTER                                :: pgf_list_ij, pgf_list_kl
-    TYPE(hfx_pgf_product_list), &
-      DIMENSION(:), POINTER                  :: pgf_product_list
+    TYPE(hfx_pgf_list), DIMENSION(*)         :: pgf_list_ij, pgf_list_kl
+    TYPE(hfx_pgf_product_list), DIMENSION(*) :: pgf_product_list
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nsgfl_a, nsgfl_b, nsgfl_c, &
                                                 nsgfl_d
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: sphi_a_ext, sphi_b_ext, &
-                                                sphi_c_ext, sphi_d_ext
+    REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1,sphi_a_u2,sphi_a_u3), &
+      sphi_b_ext(sphi_b_u1,sphi_b_u2,sphi_b_u3), &
+      sphi_c_ext(sphi_c_u1,sphi_c_u2,sphi_c_u3), &
+      sphi_d_ext(sphi_d_u1,sphi_d_u2,sphi_d_u3)
+    REAL(dp), DIMENSION(*)                   :: ede_work, ede_work2, &
+                                                ede_work_forces, ede_buffer1, &
+                                                ede_buffer2, &
+                                                ede_primitives_tmp
+    INTEGER, DIMENSION(*)                    :: nimages
     LOGICAL, INTENT(IN)                      :: do_periodic
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, &
@@ -985,17 +1039,16 @@ MODULE hfx_derivatives
     REAL(dp)                                 :: EtaInv, tmp_max, Zeta_A, &
                                                 Zeta_B, Zeta_C, Zeta_D, &
                                                 ZetaInv
-    REAL(dp), DIMENSION(:), POINTER          :: sphi_a, sphi_b, sphi_c, sphi_d
 
     nneighbors3 = SIZE(neighbor_cells)**3
     CALL build_pair_list_pgf(npgfa, npgfb, pgf_list_ij, zeta, zetb, screen1, screen2,&
                              pgf1, R1_pgf, log10_pmax, log10_eps_schwarz, ra, rb,&
                              nelements_ij, &
-                             neighbor_cells, do_periodic)
+                             neighbor_cells, nimages, do_periodic)
     CALL build_pair_list_pgf(npgfc, npgfd, pgf_list_kl, zetc, zetd, screen2, screen1, &
                              pgf2, R2_pgf, log10_pmax, log10_eps_schwarz, rc, rd,&
                              nelements_kl, &
-                             neighbor_cells, do_periodic)
+                             neighbor_cells, nimages, do_periodic)
 
     cart_estimate = 0.0_dp
     primitive_integrals = 0.0_dp
@@ -1024,30 +1077,26 @@ MODULE hfx_derivatives
           ncoa = nco(la)
           nsgfla = nsgfl_a(la)
           nsoa = nso(la)
-          sphi_a => sphi_a_ext(:,la+1,ipgf)
 
           DO lb = lb_min, lb_max
             s_offset_c = 0
             ncob = nco(lb)
             nsgflb = nsgfl_b(lb)
             nsob = nso(lb)
-            sphi_b => sphi_b_ext(:,lb+1,jpgf)
 
             DO lc = lc_min, lc_max
               s_offset_d = 0
               ncoc = nco(lc)
               nsgflc = nsgfl_c(lc)
               nsoc = nso(lc)
-              sphi_c => sphi_c_ext(:,lc+1,kpgf)
 
               DO ld = ld_min, ld_max
                 ncod = nco(ld)
                 nsgfld = nsgfl_d(ld)
                 nsod = nso(ld)
-                sphi_d => sphi_d_ext(:,ld+1,lpgf)
 
                 tmp_max = 0.0_dp
-                CALL evaluate_deriv_eri(deriv, pgf_product_list, nproducts, &
+                CALL evaluate_deriv_eri(deriv, nproducts, pgf_product_list,  &
                                         la, lb, lc ,ld,&
                                         ncoa,ncob,ncoc,ncod,&
                                         nsgfa, nsgfb, nsgfc, nsgfd,&
@@ -1056,10 +1105,13 @@ MODULE hfx_derivatives
                                         Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv,EtaInv,&
                                         s_offset_a, s_offset_b, s_offset_c, s_offset_d,&
                                         nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
-                                        sphi_a(1:ncoa*nsoa*nsgfla), &
-                                        sphi_b(1:ncob*nsob*nsgflb), &
-                                        sphi_c(1:ncoc*nsoc*nsgflc), &
-                                        sphi_d(1:ncod*nsod*nsgfld))
+                                        sphi_a_ext(1,la+1,ipgf), &
+                                        sphi_b_ext(1,lb+1,jpgf), &
+                                        sphi_c_ext(1,lc+1,kpgf), &
+                                        sphi_d_ext(1,ld+1,lpgf), &
+                                        ede_work,ede_work2,ede_work_forces, &
+                                        ede_buffer1,ede_buffer2,ede_primitives_tmp)
+
                 cart_estimate = MAX(tmp_max,cart_estimate)
                 s_offset_d = s_offset_d + nsod*nsgfld
               END DO !ld

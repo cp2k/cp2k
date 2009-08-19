@@ -12,7 +12,7 @@
 MODULE hfx_pair_list_methods 
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE gamma,                           ONLY: fgamma
+  USE gamma,                           ONLY: fgamma=>fgamma_0
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_cell_type,&
                                              hfx_pgf_list,&
@@ -127,14 +127,14 @@ MODULE hfx_pair_list_methods
           SELECT CASE(potential_parameter%potential_type)
           CASE( do_hfx_potential_truncated )
             R = potential_parameter%cutoff_radius * SQRT(Rho)
-            CALL t_c_g0_n(product_list(nproducts)%Fm,use_gamma,R,T,m_max)
-            IF( use_gamma ) CALL fgamma(m_max, T, product_list(nproducts)%Fm)
+            CALL t_c_g0_n(product_list(nproducts)%Fm(1),use_gamma,R,T,m_max)
+            IF( use_gamma ) CALL fgamma(m_max, T, product_list(nproducts)%Fm(1))
             factor = 2.0_dp * Pi * RhoInv
           CASE(do_hfx_potential_coulomb)
-            CALL fgamma(m_max,T,product_list(nproducts)%Fm)
+            CALL fgamma(m_max,T,product_list(nproducts)%Fm(1))
             factor = 2.0_dp*Pi*RhoInv
           CASE(do_hfx_potential_short)
-            CALL fgamma(m_max,T,product_list(nproducts)%Fm)
+            CALL fgamma(m_max,T,product_list(nproducts)%Fm(1))
             omega2 = potential_parameter%omega**2
             omega_corr2 = omega2/(omega2+Rho)
             omega_corr = SQRT(omega_corr2)
@@ -151,7 +151,7 @@ MODULE hfx_pair_list_methods
             omega_corr2 = omega2/(omega2+Rho)
             omega_corr = SQRT(omega_corr2)
             T = T*omega_corr2
-            CALL fgamma(m_max,T,product_list(nproducts)%Fm)
+            CALL fgamma(m_max,T,product_list(nproducts)%Fm(1))
             tmp = omega_corr
             DO l=1,m_max+1
               product_list(nproducts)%Fm(l)= product_list(nproducts)%Fm(l)*tmp
@@ -159,7 +159,7 @@ MODULE hfx_pair_list_methods
             END DO
             factor = 2.0_dp*Pi*RhoInv
           CASE(do_hfx_potential_mix_cl)
-            CALL fgamma(m_max,T,product_list(nproducts)%Fm)
+            CALL fgamma(m_max,T,product_list(nproducts)%Fm(1))
             omega2 = potential_parameter%omega**2
             omega_corr2 = omega2/(omega2+Rho)
             omega_corr = SQRT(omega_corr2)
@@ -238,7 +238,7 @@ MODULE hfx_pair_list_methods
 
   SUBROUTINE build_pair_list_pgf(npgfa, npgfb,list, zeta, zetb, screen1, screen2, pgf, R_pgf,&
                                  log10_pmax, log10_eps_schwarz, ra, rb, nelements,&
-                                 neighbor_cells, do_periodic)
+                                 neighbor_cells, nimages, do_periodic)
     INTEGER, INTENT(IN)                      :: npgfa, npgfb
     TYPE(hfx_pgf_list), &
       DIMENSION(npgfa*npgfb)                 :: list
@@ -253,10 +253,11 @@ MODULE hfx_pair_list_methods
     INTEGER, INTENT(OUT)                     :: nelements
     TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
+    INTEGER                                  :: nimages(npgfa*npgfb)
     LOGICAL, INTENT(IN)                      :: do_periodic
 
     INTEGER                                  :: element_counter, i, ipgf, j, &
-                                                jpgf, nimages(npgfa*npgfb)
+                                                jpgf
     REAL(dp)                                 :: AB(3), im_B(3), pgf_max, &
                                                 rab2, Zeta1, Zeta_A, Zeta_B, &
                                                 ZetaInv

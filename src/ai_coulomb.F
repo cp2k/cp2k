@@ -38,7 +38,7 @@
 ! *****************************************************************************
 MODULE ai_coulomb
   USE f77_blas
-  USE gamma,                           ONLY: fgamma
+  USE gamma,                           ONLY: fgamma=>fgamma_0
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&

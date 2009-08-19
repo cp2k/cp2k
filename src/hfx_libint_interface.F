@@ -15,7 +15,7 @@
 MODULE hfx_libint_interface
 
   USE f77_blas
-  USE gamma,                           ONLY: fgamma
+  USE gamma,                           ONLY: fgamma=>fgamma_0
   USE hfx_contraction_methods,         ONLY: contract
   USE hfx_libint_wrapper,              ONLY: get_derivs,&
                                              get_eris,&
@@ -117,14 +117,14 @@ MODULE hfx_libint_interface
         IF( PQ2 > (R1+R2+potential_parameter%cutoff_radius)**2 ) THEN
           RETURN
         END IF
-        CALL t_c_g0_n(prim%F,use_gamma,R,T,m_max)
-        IF( use_gamma ) CALL fgamma(m_max, T, prim%F)
+        CALL t_c_g0_n(prim%F(1),use_gamma,R,T,m_max)
+        IF( use_gamma ) CALL fgamma(m_max, T, prim%F(1))
         factor = 2.0_dp * Pi * RhoInv
       CASE(do_hfx_potential_coulomb)
-        CALL fgamma(m_max,T,prim%F)
+        CALL fgamma(m_max,T,prim%F(1))
         factor = 2.0_dp*Pi*RhoInv
       CASE(do_hfx_potential_short)
-        CALL fgamma(m_max,T,prim%F)
+        CALL fgamma(m_max,T,prim%F(1))
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
@@ -141,7 +141,7 @@ MODULE hfx_libint_interface
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
         T = T*omega_corr2
-        CALL fgamma(m_max,T,prim%F)
+        CALL fgamma(m_max,T,prim%F(1))
         tmp = omega_corr
         DO i=1,m_max+1
           prim%F(i)= prim%F(i)*tmp
@@ -149,7 +149,7 @@ MODULE hfx_libint_interface
         END DO
         factor = 2.0_dp*Pi*RhoInv
       CASE(do_hfx_potential_mix_cl)
-        CALL fgamma(m_max,T,prim%F)
+        CALL fgamma(m_max,T,prim%F(1))
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
@@ -259,7 +259,7 @@ MODULE hfx_libint_interface
 !>      08.2007 refactured permutation part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE evaluate_deriv_eri(deriv, pgf_product_list, nproducts, &
+  SUBROUTINE evaluate_deriv_eri(deriv, nproducts, pgf_product_list, &
                                 n_a,n_b,n_c,n_d,&
                                 ncoa,ncob,ncoc,ncod,&
                                 nsgfa, nsgfb, nsgfc, nsgfd,&
@@ -268,14 +268,16 @@ MODULE hfx_libint_interface
                                 Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv,EtaInv, &
                                 s_offset_a, s_offset_b, s_offset_c, s_offset_d,&
                                 nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod,&
-                                sphi_a, sphi_b, sphi_c, sphi_d)
+                                sphi_a, sphi_b, sphi_c, sphi_d,&
+                                work,work2,work_forces,buffer1,buffer2,primitives_tmp)
     
     TYPE(lib_deriv)                          :: deriv
+    INTEGER, INTENT(IN)                      :: nproducts
     TYPE(hfx_pgf_product_list), &
-      DIMENSION(:), POINTER                  :: pgf_product_list
-    INTEGER, INTENT(IN)                      :: nproducts, n_a, n_b, n_c, &
-                                                n_d, ncoa, ncob, ncoc, ncod, &
-                                                nsgfa, nsgfb, nsgfc, nsgfd
+      DIMENSION(nproducts)                   :: pgf_product_list
+    INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d, ncoa, &
+                                                ncob, ncoc, ncod, nsgfa, &
+                                                nsgfb, nsgfc, nsgfd
     REAL(dp), DIMENSION(nsgfa, nsgfb, nsgfc,&
       nsgfd, 12)                             :: primitives
     REAL(dp)                                 :: max_contraction, tmp_max_all, &
@@ -290,17 +292,19 @@ MODULE hfx_libint_interface
     REAL(dp), DIMENSION(ncob, nsob*nl_b)     :: sphi_b
     REAL(dp), DIMENSION(ncoc, nsoc*nl_c)     :: sphi_c
     REAL(dp), DIMENSION(ncod, nsod*nl_d)     :: sphi_d
+    REAL(dp) :: work(ncoa*ncob*ncoc*ncod,12), work2(ncoa,ncob,ncoc,ncod,12), &
+      work_forces(ncoa*ncob*ncoc*ncod,12)
+    REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod) :: buffer1, buffer2
+    REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b&
+      , nsoc*nl_c, nsod*nl_d, 12)            :: primitives_tmp
 
     INTEGER                                  :: a_mysize(1), i, j, k, l, &
                                                 m_max, mysize, n, p1, p2, p3, &
                                                 p4, perm_case
-    REAL(dp) :: A(3), AB(3), B(3), C(3), CD(3), D(3), P(3), Q(3), Rho, &
-      RhoInv, tmp_max, W(3), work(ncoa*ncob*ncoc*ncod,12), &
-      work2(ncoa,ncob,ncoc,ncod,12), work_forces(ncoa*ncob*ncoc*ncod,12), &
-      ZetapEtaInv
-    REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod) :: buffer1, buffer2
-    REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b&
-      , nsoc*nl_c, nsod*nl_d, 12)            :: primitives_tmp
+    REAL(dp)                                 :: A(3), AB(3), B(3), C(3), &
+                                                CD(3), D(3), P(3), Q(3), Rho, &
+                                                RhoInv, tmp_max, W(3), &
+                                                ZetapEtaInv
     TYPE(prim_data), TARGET                  :: prim
 
     m_max = n_a+n_b+n_c+n_d
@@ -800,12 +804,12 @@ MODULE hfx_libint_interface
     DO i = 1,12
       primitives_tmp(:,:,:,:,i) = 0.0_dp
       CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&
-                    n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2(:,:,:,:,i),&
+                    n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2(1,1,1,1,i),&
                     sphi_a, &
                     sphi_b, &
                     sphi_c, &
                     sphi_d, &
-                    primitives_tmp(:,:,:,:,i), &
+                    primitives_tmp(1,1,1,1,i), &
                     buffer1, buffer2)
   
       primitives(s_offset_a+1:s_offset_a+nsoa*nl_a,&
@@ -993,7 +997,7 @@ MODULE hfx_libint_interface
 !> \author Manuel Guidon
 ! *****************************************************************************
 
-  SUBROUTINE evaluate_eri(lib, pgf_product_list, nproducts, &
+  SUBROUTINE evaluate_eri(lib, nproducts, pgf_product_list, &
                           n_a,n_b,n_c,n_d,&
                           ncoa,ncob,ncoc,ncod,&
                           nsgfa, nsgfb, nsgfc, nsgfd,&
@@ -1002,14 +1006,15 @@ MODULE hfx_libint_interface
                           ZetaInv,EtaInv, &
                           s_offset_a, s_offset_b, s_offset_c, s_offset_d,&
                           nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod,&
-                          sphi_a, sphi_b, sphi_c, sphi_d)
+                          sphi_a, sphi_b, sphi_c, sphi_d, work,work2,buffer1,buffer2, primitives_tmp)
     
     TYPE(lib_int)                            :: lib
+    INTEGER, INTENT(IN)                      :: nproducts
     TYPE(hfx_pgf_product_list), &
-      DIMENSION(:), POINTER                  :: pgf_product_list
-    INTEGER, INTENT(IN)                      :: nproducts, n_a, n_b, n_c, &
-                                                n_d, ncoa, ncob, ncoc, ncod, &
-                                                nsgfa, nsgfb, nsgfc, nsgfd
+      DIMENSION(nproducts)                   :: pgf_product_list
+    INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d, ncoa, &
+                                                ncob, ncoc, ncod, nsgfa, &
+                                                nsgfb, nsgfc, nsgfd
     REAL(dp), &
       DIMENSION(nsgfa, nsgfb, nsgfc, nsgfd)  :: primitives
     REAL(dp)                                 :: max_contraction, tmp_max, &
@@ -1020,21 +1025,27 @@ MODULE hfx_libint_interface
                                                 s_offset_c, s_offset_d, nl_a, &
                                                 nl_b, nl_c, nl_d, nsoa, nsob, &
                                                 nsoc, nsod
-    REAL(dp), DIMENSION(ncoa, nsoa*nl_a)     :: sphi_a
-    REAL(dp), DIMENSION(ncob, nsob*nl_b)     :: sphi_b
-    REAL(dp), DIMENSION(ncoc, nsoc*nl_c)     :: sphi_c
-    REAL(dp), DIMENSION(ncod, nsod*nl_d)     :: sphi_d
+    REAL(dp), DIMENSION(ncoa, nsoa*nl_a), &
+      INTENT(IN)                             :: sphi_a
+    REAL(dp), DIMENSION(ncob, nsob*nl_b), &
+      INTENT(IN)                             :: sphi_b
+    REAL(dp), DIMENSION(ncoc, nsoc*nl_c), &
+      INTENT(IN)                             :: sphi_c
+    REAL(dp), DIMENSION(ncod, nsod*nl_d), &
+      INTENT(IN)                             :: sphi_d
+    REAL(dp)                                 :: work(ncoa*ncob*ncoc*ncod), &
+                                                work2(ncoa,ncob,ncoc,ncod)
+    REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod) :: buffer1, buffer2
+    REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b&
+      , nsoc*nl_c, nsod*nl_d)                :: primitives_tmp
 
     INTEGER                                  :: a_mysize(1), i, j, k, l, &
                                                 m_max, mysize, p1, p2, p3, &
                                                 p4, perm_case
-    REAL(dp) :: A(3), AB(3), B(3), C(3), CD(3), D(3), P(3), Q(3), Rho, &
-      RhoInv, W(3), work(ncoa*ncob*ncoc*ncod), work2(ncoa,ncob,ncoc,ncod), &
-      ZetapEtaInv
+    REAL(dp)                                 :: A(3), AB(3), B(3), C(3), &
+                                                CD(3), D(3), P(3), Q(3), Rho, &
+                                                RhoInv, W(3), ZetapEtaInv
     REAL(dp), DIMENSION(:), POINTER          :: p_work
-    REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod) :: buffer1, buffer2
-    REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b&
-      , nsoc*nl_c, nsod*nl_d)                :: primitives_tmp
     TYPE(prim_data), TARGET                  :: prim
 
     m_max = n_a+n_b+n_c+n_d

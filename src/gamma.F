@@ -41,13 +41,9 @@ MODULE gamma
 ! *** Public subroutines ***
 
   PUBLIC :: deallocate_md_ftable,&
-            fgamma,&
+            fgamma_0, fgamma_1,&
             fgamma_ref,&
             init_md_ftable
-
-  INTERFACE fgamma
-    MODULE PROCEDURE fgamma_0,fgamma_1
-  END INTERFACE
 
 CONTAINS
 
