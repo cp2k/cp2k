@@ -467,8 +467,12 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     blk_last = matrix%row_p(row+1)
-    CALL dbcsr_find_column(column, matrix%row_p(row)+1, blk_last,&
-         matrix%col_i(1:blk_last), block_number, found)
+    IF (blk_last .GT. 0) THEN
+       CALL dbcsr_find_column(column, matrix%row_p(row)+1, blk_last,&
+            matrix%col_i(1:blk_last), block_number, found)
+    ELSE
+       found = .FALSE.
+    ENDIF
     IF (found) THEN
        IF (PRESENT (data_offset) .OR. PRESENT (transposed)) THEN
           offset = matrix%blk_p(block_number)
