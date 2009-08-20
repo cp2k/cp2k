@@ -28,6 +28,13 @@ MODULE qs_moments
                                              cp_cfm_p_type,&
                                              cp_cfm_release
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
@@ -43,7 +50,10 @@ MODULE qs_moments
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_operations,                ONLY: dbcsr_copy
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: twopi
@@ -64,10 +74,14 @@ MODULE qs_moments
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: &
-       allocate_matrix_set, cp_sm_sm_trace, deallocate_matrix, &
-       deallocate_matrix_set, get_block_node, real_matrix_p_type, &
-       real_matrix_type, replicate_matrix, set_matrix
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             cp_sm_sm_trace,&
+                                             deallocate_matrix,&
+                                             deallocate_matrix_set,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix,&
+                                             set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -86,11 +100,11 @@ MODULE qs_moments
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,ref_points,error)
+  SUBROUTINE build_local_moment_matrix(qs_env,moments_sm,nmoments,ref_point,ref_points,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: moments
+      POINTER                                :: moments_sm
     INTEGER, INTENT(IN)                      :: nmoments
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: ref_point
@@ -124,6 +138,9 @@ CONTAINS
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: mint
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, moments
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -133,7 +150,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s_sm
 
     IF ( nmoments < 1 ) RETURN
 
@@ -141,18 +158,24 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set,cell,matrix_s,particle_set,sab_orb)
-    NULLIFY (neighbor_list,neighbor_list_set,neighbor_node,orb_basis_set)
+    NULLIFY (atomic_kind_set,cell,matrix_s_sm,particle_set,sab_orb, moments)
+    NULLIFY (neighbor_list,neighbor_list_set,neighbor_node,orb_basis_set,matrix_s)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm,distribution_2d=distribution_2d,error=error)
 
+    CALL dbcsr_allocate_matrix_set( matrix_s, 1, error )
+    ALLOCATE(matrix_s(1)%matrix)!super dirty
+    CALL dbcsr_from_sm(matrix_s(1)%matrix, matrix_s_sm(1)%matrix, error)
+    
     nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
-    CALL allocate_matrix_set ( moments, nm ,error=error)
+    CALL dbcsr_allocate_matrix_set ( moments, nm ,error=error)
 
     DO i=1,nm
-      CALL replicate_matrix(source=matrix_s(1)%matrix,&
-                            TARGET=moments(i)%matrix,&
-                            target_name="Moments",error=error)
+       ALLOCATE(moments(i)%matrix)
+       CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments", error)
+       !CALL replicate_matrix(source=matrix_s(1)%matrix,&
+       !                     TARGET=moments(i)%matrix,&
+       !                     target_name="Moments",error=error)
     END DO
 
     NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
@@ -271,7 +294,7 @@ CONTAINS
 
             DO i=1,nm
               NULLIFY (mint(i)%block)
-              CALL get_block_node(matrix=moments(i)%matrix,&
+              CALL dbcsr_get_block_node(matrix=moments(i)%matrix,&
                                   block_row=irow,&
                                   block_col=icol,&
                                   BLOCK=mint(i)%block)
@@ -370,15 +393,25 @@ CONTAINS
     DEALLOCATE (mint,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    CALL allocate_matrix_set ( moments_sm, nm ,error=error)
+    DO i = 1,SIZE(moments)
+       CALL replicate_matrix(source=matrix_s_sm(1)%matrix,&
+                             TARGET=moments_sm(i)%matrix,&
+                             target_name="Moments",error=error)
+       CALL sm_from_dbcsr ( moments_sm(i)%matrix, moments(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set( moments, error=error )
+    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )
+
     CALL timestop(handle)
 
   END SUBROUTINE build_local_moment_matrix
 
 ! *****************************************************************************
-  SUBROUTINE build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+  SUBROUTINE build_berry_moment_matrix(qs_env,cosmat_sm,sinmat_sm,kvec,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
+    TYPE(real_matrix_type), POINTER          :: cosmat_sm, sinmat_sm
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: kvec
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -404,6 +437,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -417,10 +452,11 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
+    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell,cosmat,sinmat)
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,cell=cell,&
+                    distribution_2d=distribution_2d,&
                     sab_orb=sab_orb,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxco=ldwork )
@@ -435,8 +471,11 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-    CALL set_matrix(cosmat,0.0_dp)
-    CALL set_matrix(sinmat,0.0_dp)
+    CALL set_matrix(cosmat_sm,0.0_dp)
+    CALL set_matrix(sinmat_sm,0.0_dp)
+    ALLOCATE(cosmat,sinmat)
+    CALL dbcsr_from_sm(cosmat, cosmat_sm, error)
+    CALL dbcsr_from_sm(sinmat, sinmat_sm, error)
 
     DO ikind=1,nkind
 
@@ -517,15 +556,17 @@ CONTAINS
             END IF
 
             NULLIFY (cblock)
-            CALL get_block_node(matrix=cosmat,&
+            CALL dbcsr_get_block_node(matrix=cosmat,&
                                 block_row=irow,&
                                 block_col=icol,&
                                 BLOCK=cblock)
+            CPPostcondition(ASSOCIATED(cblock),cp_failure_level,routineP,error,failure)
             NULLIFY (sblock)
-            CALL get_block_node(matrix=sinmat,&
+            CALL dbcsr_get_block_node(matrix=sinmat,&
                                 block_row=irow,&
                                 block_col=icol,&
                                 BLOCK=sblock)
+            CPPostcondition(ASSOCIATED(sblock),cp_failure_level,routineP,error,failure)
 
             ra(:) = pbc(particle_set(iatom)%r(:),cell)
             rb(:) = ra+rab
@@ -572,6 +613,12 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(work,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL sm_from_dbcsr ( cosmat_sm, cosmat, distribution_2d, error=error )
+    CALL sm_from_dbcsr ( sinmat_sm, sinmat, distribution_2d, error=error )
+
+    CALL dbcsr_deallocate_matrix ( cosmat, error=error )
+    CALL dbcsr_deallocate_matrix ( sinmat, error=error )
 
     CALL timestop(handle)
 

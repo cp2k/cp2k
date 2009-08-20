@@ -14,7 +14,14 @@ MODULE qs_ks_atom
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -37,8 +44,7 @@ MODULE qs_ks_atom
                                              alist_pre_align_blk,&
                                              alist_type,&
                                              get_alist
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -76,13 +82,13 @@ CONTAINS
 !>      the loop over the spins is done internally [03-05,MI]
 !>      Rewrite using new OCE matrices [08.02.09, jhu]        
 ! *****************************************************************************
-  SUBROUTINE update_ks_atom(qs_env,ks,p,forces,tddft,p_env,error)
+  SUBROUTINE update_ks_atom(qs_env,ks_sm,p_sm,forces,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: ks
+      INTENT(INOUT)                          :: ks_sm
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(IN)                             :: p
+      INTENT(IN)                             :: p_sm
     LOGICAL, INTENT(IN)                      :: forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
@@ -91,7 +97,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_ks_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2), handle, ia_kind, iab, iac, iat, iatom, ibc, ikind, &
+    INTEGER :: bo(2), handle, i, ia_kind, iab, iac, iat, iatom, ibc, ikind, &
       ilist, inode, ip, ispin, istat, ja_kind, jatom, jkind, ka_kind, kac, &
       katom, kbc, kkind, lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, &
       mepos, n_cont_a, n_cont_b, nat, natom, nkind, nlist, nnode, nsetc, &
@@ -120,6 +126,9 @@ CONTAINS
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_h, mat_p
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks, p
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -139,7 +148,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,force,oce,para_env,rho_atom,sab_orb)
-    NULLIFY(mat_h, mat_p ,orb_basis)
+    NULLIFY(mat_h, mat_p ,orb_basis, ks, p)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -158,7 +167,17 @@ CONTAINS
            para_env=para_env,&
            rho_atom_set=rho_atom,&
            virial=virial,&
+           distribution_2d=distribution_2d,&
            sab_orb=sab_orb,error=error)
+
+    CALL dbcsr_allocate_matrix_set( ks, SIZE(ks_sm), error )
+    CALL dbcsr_allocate_matrix_set( p, SIZE(p_sm), error )
+    DO i = 1,SIZE(ks)
+       ALLOCATE(ks(i)%matrix)
+       ALLOCATE(p(i)%matrix)
+       CALL dbcsr_from_sm(ks(i)%matrix, ks_sm(i)%matrix, error)
+       CALL dbcsr_from_sm(p(i)%matrix, p_sm(i)%matrix, error)
+    ENDDO
 
     IF (my_tddft) THEN
        rho_atom   => p_env%local_rho_set%rho_atom_set
@@ -285,12 +304,12 @@ CONTAINS
             DO ispin = 1,nspins
               NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
               IF (iatom <= jatom) THEN
-                CALL get_block_node(matrix=ks(ispin)%matrix,&
+                CALL dbcsr_get_block_node(matrix=ks(ispin)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
                                     BLOCK=mat_h(ispin)%array)
               ELSE
-                CALL get_block_node(matrix=ks(ispin)%matrix,&
+                CALL dbcsr_get_block_node(matrix=ks(ispin)%matrix,&
                                     block_row=jatom,&
                                     block_col=iatom,&
                                     BLOCK=mat_h(ispin)%array)
@@ -298,12 +317,12 @@ CONTAINS
 
               IF(forces) THEN
                 IF (iatom <= jatom) THEN
-                  CALL get_block_node(matrix=p(ispin)%matrix,&
+                  CALL dbcsr_get_block_node(matrix=p(ispin)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
                                     BLOCK=mat_p(ispin)%array)
                 ELSE
-                  CALL get_block_node(matrix=p(ispin)%matrix,&
+                  CALL dbcsr_get_block_node(matrix=p(ispin)%matrix,&
                                       block_row=jatom,&
                                       block_col=iatom,&
                                       BLOCK=mat_p(ispin)%array)
@@ -432,7 +451,6 @@ CONTAINS
       ENDDO    ! jkind
     ENDDO    ! ikind
 
-
     DO ispin = 1,nspins
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
     END DO
@@ -448,6 +466,13 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
          "DCPC_h,dCPC_s,PC_h,PC_s")
     END IF
+
+    DO i = 1,SIZE(ks)
+       CALL sm_from_dbcsr ( ks_sm(i)%matrix, ks(i)%matrix, distribution_2d, error=error )
+    ENDDO
+
+    CALL dbcsr_deallocate_matrix_set ( ks, error )
+    CALL dbcsr_deallocate_matrix_set ( p, error )
 
     CALL timestop(handle)
 

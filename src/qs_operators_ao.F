@@ -23,12 +23,15 @@ MODULE qs_operators_ao
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix,&
-                                             dbcsr_deallocate_matrix,&
-                                             sm_from_dbcsr
+  USE cp_dbcsr_operations,             ONLY: &
+       dbcsr_add_block_node, dbcsr_allocate_matrix, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
+       dbcsr_deallocate_matrix_set, dbcsr_from_sm, dbcsr_get_block_node, &
+       dbcsr_obj_p_type, sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type
+  USE dbcsr_types,                     ONLY: dbcsr_obj,&
+                                             dbcsr_type_antisymmetric
   USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
@@ -44,8 +47,7 @@ MODULE qs_operators_ao
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type,&
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -71,11 +73,11 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_lin_mom_matrix(qs_env,matrix,error)
+  SUBROUTINE build_lin_mom_matrix(qs_env,matrix_sm,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix
+      POINTER                                :: matrix_sm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix', &
@@ -107,6 +109,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -121,7 +126,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(cell,sab_orb,atomic_kind_set,particle_set,para_env)
-    NULLIFY(logger)
+    NULLIFY(logger,matrix)
 
     logger => cp_error_get_logger(error)
 
@@ -132,10 +137,17 @@ CONTAINS
                     para_env=para_env,&
                     sab_orb=sab_orb,&
                     cell=cell,&
+                    distribution_2d=distribution_2d,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
+
+    CALL dbcsr_allocate_matrix_set( matrix, SIZE(matrix_sm), error )
+    DO i = 1,SIZE(matrix)
+       ALLOCATE(matrix(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(matrix(i)%matrix, matrix_sm(i)%matrix, error)
+    ENDDO
 
 !   *** Allocate work storage ***
 
@@ -233,10 +245,11 @@ CONTAINS
 
                    DO i=1,3
                       NULLIFY(integral(i)%block)
-                      CALL get_block_node(matrix=matrix(i)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=matrix(i)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=integral(i)%block)
+                      CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,error,failure)
                    ENDDO
                 END IF
 
@@ -312,6 +325,11 @@ CONTAINS
 
     DEALLOCATE(intab,work,integral,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DO i = 1,SIZE(matrix)
+       CALL sm_from_dbcsr( matrix_sm(i)%matrix, matrix(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set(matrix, error)
 
 !   *** Print the spin orbit matrix, if requested ***
 
@@ -459,11 +477,11 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_ang_mom_matrix(qs_env,matrix,rc,error)
+  SUBROUTINE build_ang_mom_matrix(qs_env,matrix_sm,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix
+      POINTER                                :: matrix_sm
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -496,6 +514,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -510,7 +531,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(cell,sab_orb,atomic_kind_set,particle_set,para_env)
-    NULLIFY(logger)
+    NULLIFY(logger,matrix)
 
     logger => cp_error_get_logger(error)
 
@@ -522,10 +543,17 @@ CONTAINS
                     sab_all=sab_orb,&
                     !sab_orb=sab_orb,&
                     cell=cell,&
+                    distribution_2d=distribution_2d,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
+
+    CALL dbcsr_allocate_matrix_set( matrix, SIZE(matrix_sm), error )
+    DO i = 1,SIZE(matrix)
+       ALLOCATE(matrix(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(matrix(i)%matrix, matrix_sm(i)%matrix, error)
+    ENDDO
 
 !   *** Allocate work storage ***
 
@@ -625,10 +653,11 @@ CONTAINS
 
                    DO i=1,3
                       NULLIFY(INTEGRAL(i)%block)
-                      CALL get_block_node(matrix=matrix(i)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=matrix(i)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=INTEGRAL(i)%block)
+                      CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,error,failure)
                    ENDDO
                 END IF
 
@@ -715,6 +744,11 @@ CONTAINS
 
     DEALLOCATE(intab,work,integral,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DO i = 1,SIZE(matrix)
+       CALL sm_from_dbcsr( matrix_sm(i)%matrix, matrix(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set(matrix, error)
 
 !   *** Print the spin orbit matrix, if requested ***
 
@@ -915,6 +949,9 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: op_dipt
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -929,7 +966,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY (atomic_kind, atomic_kind_set,op)
     NULLIFY (cell, particle_set, orb_basis_set)
     NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
              sab_orb_neighbor_node)
@@ -939,9 +976,16 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
+         distribution_2d=distribution_2d,&
          sab_orb=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
+
+    CALL dbcsr_allocate_matrix_set( op, SIZE(op_sm), error )
+    DO i = 1,SIZE(op)
+       ALLOCATE(op(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(op(i)%matrix, op_sm(i)%matrix, error)
+    ENDDO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
@@ -1038,7 +1082,7 @@ CONTAINS
 !$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,difabt,qs_env)&
 !$OMP shared(op_dipt)&
-!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
+!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
 !$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)
         ithread = 0
@@ -1098,17 +1142,19 @@ CONTAINS
               ELSE
                 irow = jatom
                 icol = iatom
-                IF(op_sm(1)%matrix%symmetry=="antisymmetric") THEN
+                IF(dbcsr_get_matrix_type(op(1)%matrix)==dbcsr_type_antisymmetric) THEN
+                !IF(op(1)%matrix%symmetry=="antisymmetric") THEN
                   alpha = -1.0_dp
                 END IF
               END IF
 
               DO i = 1,3
                  NULLIFY(op_dip(i)%block)
-                 CALL get_block_node(matrix=op_sm(i)%matrix,&
+                 CALL dbcsr_get_block_node(matrix=op(i)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_dip(i)%block)
+                 CPPostcondition(ASSOCIATED(op_dip(i)%block),cp_failure_level,routineP,error,failure)
               END DO
             END IF  ! new_atom_b
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -1215,6 +1261,11 @@ CONTAINS
     DEALLOCATE(difabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    DO i = 1,SIZE(op)
+       CALL sm_from_dbcsr( op_sm(i)%matrix, op(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set(op, error)
+
     CALL timestop(handle)
 
   END SUBROUTINE p_xyz_ao
@@ -1278,6 +1329,9 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: op_angijt
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -1292,7 +1346,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY (atomic_kind, atomic_kind_set, op)
     NULLIFY (cell, particle_set, orb_basis_set)
     NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
              sab_orb_neighbor_node)
@@ -1302,9 +1356,16 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
+         distribution_2d=distribution_2d,&
          sab_all=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
+
+    CALL dbcsr_allocate_matrix_set( op, SIZE(op_sm), error )
+    DO i = 1,SIZE(op)
+       ALLOCATE(op(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(op(i)%matrix, op_sm(i)%matrix, error)
+    ENDDO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
@@ -1402,7 +1463,7 @@ CONTAINS
 !$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,angabt,qs_env)&
 !$OMP shared(op_angijt)&
-!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
+!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
 !$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)&
 !$OMP shared(wancen)
@@ -1462,10 +1523,11 @@ CONTAINS
                  NULLIFY(op_angij(i)%block)
                  irow = iatom
                  icol = jatom
-                 CALL get_block_node(matrix=op_sm(i)%matrix,&
+                 CALL dbcsr_get_block_node(matrix=op(i)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_angij(i)%block)
+                 CPPostcondition(ASSOCIATED(op_angij(i)%block),cp_failure_level,routineP,error,failure)
               END DO
             END IF  !new_atom_b
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -1543,6 +1605,11 @@ CONTAINS
     DEALLOCATE(angabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    DO i = 1,SIZE(op)
+       CALL sm_from_dbcsr( op_sm(i)%matrix, op(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set(op, error)
+
     CALL timestop(handle)
 
   END SUBROUTINE rmc_x_p_xyz_ao
@@ -1606,6 +1673,9 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: op_dipt
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -1620,7 +1690,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY (atomic_kind, atomic_kind_set, op)
     NULLIFY (cell, particle_set, orb_basis_set)
     NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
              sab_orb_neighbor_node)
@@ -1629,9 +1699,16 @@ CONTAINS
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-         cell=cell,particle_set=particle_set,sab_orb=sab_orb,error=error)
+         cell=cell,particle_set=particle_set,sab_orb=sab_orb,&
+         distribution_2d=distribution_2d,error=error)
 
     nkind = SIZE(atomic_kind_set)
+
+    CALL dbcsr_allocate_matrix_set( op, SIZE(op_sm), error )
+    DO i = 1,SIZE(op)
+       ALLOCATE(op(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(op(i)%matrix, op_sm(i)%matrix, error)
+    ENDDO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
@@ -1653,7 +1730,7 @@ CONTAINS
 !$  nthread = omp_get_max_threads()
 
     M_dim = ncoset(order)-1
-    CPPostcondition(M_dim<=SIZE(op_sm,1),cp_failure_level,routineP,error,failure)
+    CPPostcondition(M_dim<=SIZE(op,1),cp_failure_level,routineP,error,failure)
 
     ALLOCATE(mabt(ldab,ldab,M_dim,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1740,7 +1817,7 @@ CONTAINS
 !$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,mabt,qs_env)&
 !$OMP shared(op_dipt,order,M_dim,rc)&
-!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
+!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
 !$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)
         ithread = 0
@@ -1802,10 +1879,11 @@ CONTAINS
 
               DO imom = 1, M_dim
                  NULLIFY(op_dip(imom)%block)
-                 CALL get_block_node(matrix=op_sm(imom)%matrix,&
+                 CALL dbcsr_get_block_node(matrix=op(imom)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_dip(imom)%block)
+                 CPPostcondition(ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
               END DO   ! imom
             END IF  ! new_atom_b
 
@@ -1873,6 +1951,7 @@ CONTAINS
       END DO ! jkind
 
     END DO ! ikind
+
     DO i = 1,3
       DO j = 0,nthread-1
            NULLIFY(op_dipt(i,j)%block)
@@ -1883,6 +1962,11 @@ CONTAINS
 
     DEALLOCATE(mabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DO i = 1,SIZE(op)
+       CALL sm_from_dbcsr( op_sm(i)%matrix, op(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set(op, error)
 
     CALL timestop(handle)
 
@@ -1976,6 +2060,11 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :, :), &
       POINTER                                :: op_dip_dert
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op
+    TYPE(dbcsr_obj_p_type), &
+      DIMENSION(:, :), POINTER               :: op_der
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -1998,7 +2087,7 @@ CONTAINS
       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
-    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY (atomic_kind, atomic_kind_set, op, op_der)
     NULLIFY (cell, particle_set, orb_basis_set)
     NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
              sab_orb_neighbor_node)
@@ -2009,9 +2098,24 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
+         distribution_2d=distribution_2d,&
          sab_all=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
+
+    CALL dbcsr_allocate_matrix_set( op, SIZE(op_sm), error )
+    DO i = 1,SIZE(op)
+       ALLOCATE(op(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(op(i)%matrix, op_sm(i)%matrix, error)
+    ENDDO
+
+    CALL dbcsr_allocate_matrix_set( op_der, SIZE(op_sm_der,1),SIZE(op_sm_der,2), error )
+    DO j = 1,SIZE(op_der,2)
+    DO i = 1,SIZE(op_der,1)
+       ALLOCATE(op_der(i,j)%matrix)!super dirty
+       CALL dbcsr_from_sm(op_der(i,j)%matrix, op_sm_der(i,j)%matrix, error)
+    ENDDO
+    ENDDO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
@@ -2033,7 +2137,7 @@ CONTAINS
 !$  nthread = omp_get_max_threads()
 
     M_dim = ncoset(order)-1
-    CPPostcondition(M_dim<=SIZE(op_sm,1),cp_failure_level,routineP,error,failure)
+    CPPostcondition(M_dim<=SIZE(op,1),cp_failure_level,routineP,error,failure)
 
     ALLOCATE(mabt(ldab,ldab,M_dim,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -2133,7 +2237,7 @@ CONTAINS
 !$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,mabt,difmabt,qs_env)&
 !$OMP shared(op_dipt,op_dip_dert,order,M_dim,rc)&
-!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm,op_sm_der)&
+!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op,op_der)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
 !$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2,alpha_der,error)
         ithread = 0
@@ -2193,17 +2297,19 @@ CONTAINS
 
               DO imom = 1, M_dim
                  NULLIFY(op_dip(imom)%block)
-                 CALL get_block_node(matrix=op_sm(imom)%matrix,&
+                 CALL dbcsr_get_block_node(matrix=op(imom)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_dip(imom)%block)
+                 CPPostcondition(ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
                  DO idir = 1,3
                    NULLIFY(op_dip_der(imom,idir)%block)
-                   CALL get_block_node(matrix=op_sm_der(imom,idir)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=op_der(imom,idir)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_dip_der(imom,idir)%block)
-                 END DO  ! idir
+                   CPPostcondition(ASSOCIATED(op_dip_der(imom,idir)%block),cp_failure_level,routineP,error,failure)
+                END DO  ! idir
               END DO   ! imom
             END IF  ! new_atom_b
 
@@ -2325,6 +2431,7 @@ CONTAINS
       END DO ! jkind
 
     END DO ! ikind
+
     DO i = 1,3
       DO j = 0,nthread-1
            NULLIFY(op_dipt(i,j)%block)
@@ -2336,6 +2443,18 @@ CONTAINS
     DEALLOCATE(mabt,difmabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    DO i = 1,SIZE(op)
+       CALL sm_from_dbcsr( op_sm(i)%matrix, op(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set(op, error)
+
+    DO j = 1,SIZE(op_der,2)
+    DO i = 1,SIZE(op_der,1)
+       CALL sm_from_dbcsr( op_sm_der(i,j)%matrix, op_der(i,j)%matrix, distribution_2d, error=error )
+    ENDDO
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set(op_der, error)
+    
     CALL timestop(handle)
 
   END SUBROUTINE   rRc_xyz_der_ao

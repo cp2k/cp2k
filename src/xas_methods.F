@@ -397,7 +397,7 @@ CONTAINS
       IF(xas_control%dipole_form==xas_dip_vel) THEN
           CALL p_xyz_ao(op_sm,qs_env,error=error)
       END IF
-
+      DO i = 1,3;xas_env%ostrength_sm(i)%matrix=>op_sm(i)%matrix;ENDDO!super dirty
     END IF
     ! by using td-dft case the oscillator strength should be obtained from the linear response orbitals
 
@@ -1059,6 +1059,7 @@ CONTAINS
              op_sm(i)%matrix => ostrength_sm(i)%matrix
            END DO
            CALL rRc_xyz_ao(op_sm,qs_env,rc,order=1,minimum_image=.TRUE.,error=error)
+           DO i = 1,3;xas_env%ostrength_sm(i)%matrix=>op_sm(i)%matrix;ENDDO!super dirty
            CALL spectrum_dip_vel(dip_fm_set,op_sm,mos,excvec_coeff,&
                 all_vectors,all_evals,fm_work,&
                 spectrum,dft_control%xas_estate,error=error)

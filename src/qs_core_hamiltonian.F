@@ -82,18 +82,17 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_structure,&
-                                             sm_from_dbcsr
+  USE cp_dbcsr_operations,             ONLY: &
+       dbcsr_add_block_node, dbcsr_allocate_matrix, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
+       dbcsr_get_block_node, dbcsr_obj_p_type, &
+       dbcsr_replicate_matrix_structure, sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_add
   USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE dkh_main,                        ONLY: dkh_mol_integrals
@@ -136,9 +135,7 @@ MODULE qs_core_hamiltonian
                                              write_sparse_matrix
   USE sparse_matrix_types,             ONLY: add_matrices,&
                                              allocate_matrix_set,&
-                                             cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
-                                             get_block_node,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure
   USE string_utilities,                ONLY: compress,&
@@ -220,8 +217,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_s, matrix_t, &
-                                                matrix_w
+      POINTER                                :: matrix_h, matrix_p, matrix_s, &
+                                                matrix_t, matrix_w
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -287,6 +284,8 @@ CONTAINS
     NULLIFY (scf_control)
     NULLIFY (sdabt)
     NULLIFY (matrix_w_tmp)
+    NULLIFY (matrix_w)
+    NULLIFY (matrix_p)
     NULLIFY (workt)
     NULLIFY (harris_env)
     NULLIFY (para_env)
@@ -355,17 +354,30 @@ CONTAINS
           END IF
        END IF
 
+       CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_tmp), error )
+       CALL dbcsr_allocate_matrix_set( matrix_w, SIZE(matrix_w_tmp), error )
+       DO i = 1,SIZE(matrix_p_tmp)
+          ALLOCATE(matrix_p(i)%matrix)!super dirty
+          ALLOCATE(matrix_w(i)%matrix)!super dirty
+          CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_tmp(i)%matrix, error)
+          CALL dbcsr_from_sm(matrix_w(i)%matrix, matrix_w_tmp(i)%matrix, error)
+       ENDDO
+
        !     *** If LSD, then combine alpha density and beta density to
        !     *** total density: alpha <- alpha + beta   and
        !     *** spin density:   beta <- alpha - beta
        !     (since all things can be computed based on the sum of these matrices anyway)
        !     (matrix_p is restored at the end of the run, matrix_w is left in its modified state
        !     (as it should not be needed afterwards)
-       IF (SIZE(matrix_p_tmp) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p_tmp(1)%matrix, 1.0_dp,matrix_p_tmp(2)%matrix,1.0_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_p_tmp(2)%matrix,-2.0_dp,matrix_p_tmp(1)%matrix,1.0_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_w_tmp(1)%matrix, 1.0_dp,matrix_w_tmp(2)%matrix,1.0_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_w_tmp(2)%matrix,-2.0_dp,matrix_w_tmp(1)%matrix,1.0_dp,error=error)
+       IF (SIZE(matrix_p) == 2) THEN
+          CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                         alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
+          CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+                         alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
+          CALL dbcsr_add(matrix_w(1)%matrix, matrix_w(2)%matrix, &
+                         alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
+          CALL dbcsr_add(matrix_w(2)%matrix, matrix_w(1)%matrix, &
+                         alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
     ELSE
        IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
@@ -700,7 +712,8 @@ CONTAINS
                                        BLOCK=h_block,error=error)
 
                    IF (calculate_forces) THEN
-                      CALL get_block_node(matrix=matrix_p_tmp(1)%matrix,&
+                      NULLIFY(p_block)
+                      CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=p_block)
@@ -708,7 +721,8 @@ CONTAINS
                          CALL stop_program(routineN,moduleN,__LINE__,&
                               "A density matrix block is missing",para_env)
                       END IF
-                      CALL get_block_node(matrix=matrix_w_tmp(1)%matrix,&
+                      NULLIFY(w_block)
+                      CALL dbcsr_get_block_node(matrix=matrix_w(1)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=w_block)
@@ -946,29 +960,26 @@ CONTAINS
        ! *** from the total density (1) and the spin density (2)     ***
        ! *** The W matrix is neglected, since it will be destroyed   ***
        ! *** in the calling force routine after leaving this routine ***
-       IF (SIZE(matrix_p_tmp) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p_tmp(1)%matrix, 0.5_dp,matrix_p_tmp(2)%matrix,0.5_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_p_tmp(2)%matrix,-1.0_dp,matrix_p_tmp(1)%matrix,1.0_dp,error=error)
+       IF (SIZE(matrix_p) == 2) THEN
+          CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                         alpha_scalar= 0.5_dp, beta_scalar=0.5_dp,error=error)
+          CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+                         alpha_scalar=-1.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
     END IF
 
-    CALL allocate_matrix_set(matrix_h_tmp,1,error=error)
-    CALL sm_from_dbcsr ( matrix_h_tmp(1)%matrix, matrix_h(1)%matrix, distribution_2d, error=error )
-!    WRITE(*,*) 'H checksum dbcsr=',dbcsr_checksum(matrix_h%s(1),error),&
-!            ' sm',checksum_matrix(matrix_h_tmp(1)%matrix, matrix_h_tmp(1)%matrix%distribution_2d%blacs_env%para_env)
 
     ! *** compute the ppl contribution to the core hamiltonian ***
     IF (ppl_present) THEN
       IF(qs_env%dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
-        !CALL build_core_ppl(matrix_h, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
-        CALL build_core_ppl(matrix_h_tmp, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
+        CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
       END IF
     END IF
 
     ! *** compute the nucelar attraction contribution to the core hamiltonian ***
     IF (all_potential_present) THEN
-      CALL build_core_ae(matrix_h_tmp, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
+      CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ae, error)
     END IF
 
@@ -976,7 +987,7 @@ CONTAINS
     eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
     ! *** compute the ppnl contribution to the core hamiltonian ***
     IF(qs_env%rel_control%rel_method==rel_none)THEN
-      CALL build_core_ppnl(matrix_h_tmp, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
+      CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
     END IF
 
@@ -985,19 +996,19 @@ CONTAINS
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
+
+    CALL allocate_matrix_set(matrix_h_tmp,1,error=error)
+    CALL sm_from_dbcsr ( matrix_h_tmp(1)%matrix, matrix_h(1)%matrix, distribution_2d, error=error )
+
     CALL allocate_matrix_set(matrix_s_tmp,SIZE(matrix_s),error=error)
     DO i = 1,SIZE(matrix_s)
        CALL sm_from_dbcsr ( matrix_s_tmp(i)%matrix, matrix_s(i)%matrix, distribution_2d, error=error )
-!       WRITE(*,*) 'S checksum dbcsr=',dbcsr_checksum(matrix_s%s(i),error),&
-!            ' sm',checksum_matrix(matrix_s_tmp(i)%matrix, matrix_s_tmp(i)%matrix%distribution_2d%blacs_env%para_env)
     ENDDO
 
     IF (build_kinetic_energy_matrix) THEN
        CALL allocate_matrix_set(matrix_t_tmp,SIZE(matrix_t),error=error)
        DO i = 1,SIZE(matrix_t)
           CALL sm_from_dbcsr ( matrix_t_tmp(i)%matrix, matrix_t(i)%matrix, distribution_2d, error=error )
-!          WRITE(*,*) 'T checksum dbcsr=',dbcsr_checksum(matrix_t%s(i),error),&
-!               ' sm',checksum_matrix(matrix_t_tmp(1)%matrix, matrix_t_tmp(1)%matrix%distribution_2d%blacs_env%para_env)
        ENDDO
     ENDIF
 
@@ -1010,18 +1021,29 @@ CONTAINS
     IF(ASSOCIATED(VH_3c_list))THEN
        CALL deallocate_vtriple(VH_3c_list,error=error)
     END IF
-    
+
     IF(qs_env%rel_control%rel_method/=rel_none)THEN
       CALL dkh_mol_integrals(qs_env,error)
       CALL get_qs_env(qs_env=qs_env,&
                       matrix_h=matrix_h_tmp,&
                       error=error)
-      CALL build_core_ppnl(matrix_h_tmp, matrix_p_tmp, force, virial, calculate_forces, use_virial, nder,&
+
+      CALL dbcsr_deallocate_matrix_set ( matrix_h, error )
+      CALL dbcsr_allocate_matrix_set( matrix_h, 1, error )
+      ALLOCATE(matrix_h(1)%matrix)!super dirty
+      CALL dbcsr_from_sm(matrix_h(1)%matrix, matrix_h_tmp(1)%matrix, error)
+
+      CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
+
+      CALL sm_from_dbcsr ( matrix_h_tmp(1)%matrix, matrix_h(1)%matrix, distribution_2d, error=error )
+
       CALL set_qs_env(qs_env=qs_env,&
                       matrix_h=matrix_h_tmp,&
                       error=error)
     END IF
+
+    
     ! *** Release work storage ***
     DEALLOCATE (habt,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1031,8 +1053,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (workt,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    
     DEALLOCATE (sintt,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
@@ -1044,6 +1064,10 @@ CONTAINS
     
     CALL dbcsr_deallocate_matrix_set ( matrix_s, error )
     CALL dbcsr_deallocate_matrix_set ( matrix_h, error )
+    IF (calculate_forces) THEN
+       CALL dbcsr_deallocate_matrix_set ( matrix_p, error )
+       CALL dbcsr_deallocate_matrix_set ( matrix_w, error )
+    ENDIF
 
     ! Print matrices if requested
     CALL dump_info_core_hamiltonian(matrix_s_tmp, matrix_t_tmp, matrix_h_tmp, &

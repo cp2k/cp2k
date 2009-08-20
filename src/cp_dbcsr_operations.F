@@ -101,7 +101,7 @@ MODULE cp_dbcsr_operations
        add_packed_vecs, dbcsr_mult_pack_vec, packed_vec_bif_tech, &
        packed_vec_bif_tech2, dbcsr_copy_vec, packed_vec_build_u
   ! CP2K API emulation
-  PUBLIC :: dbcsr_add_block_node,&
+  PUBLIC :: dbcsr_add_block_node,dbcsr_get_block_node,&
             dbcsr_replicate_matrix_structure,&
             dbcsr_allocate_matrix, dbcsr_deallocate_matrix,&
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
@@ -2424,6 +2424,7 @@ CONTAINS
     ENDDO ! src_p
     matrix%m%wms(1)%lastblk = blk - 1
     matrix%m%wms(1)%datasize = blk_p - 1
+    matrix%m%sparsity_id = sm%sparsity_id
     !
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)

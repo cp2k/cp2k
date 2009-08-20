@@ -17,6 +17,9 @@ MODULE core_ae
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
+  USE dbcsr_operations,                ONLY: dbcsr_add
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential
   USE kinds,                           ONLY: dp
@@ -30,9 +33,6 @@ MODULE core_ae
        find_neighbor_list, first_list, first_node, get_neighbor_list, &
        get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-                                             get_block_node,&
-                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -54,8 +54,7 @@ CONTAINS
   SUBROUTINE build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ae, error)
 
-    !TYPE(dbcsr_1d_set_obj)                   :: matrix_h
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -123,8 +122,10 @@ CONTAINS
 
     IF (calculate_forces) THEN
        IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,matrix_p(2)%matrix,1.0_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-2.0_dp,matrix_p(1)%matrix,1.0_dp,error=error)
+          CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                         alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
+          CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+                         alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
     END IF
   
@@ -223,13 +224,14 @@ CONTAINS
                       irow = jatom
                       icol = iatom
                    END IF
-                   !CALL dbcsr_get_block_node(matrix=matrix_h%s(1),&
-                   CALL get_block_node(matrix=matrix_h(1)%matrix,&
+                   NULLIFY(h_block)
+                   CALL dbcsr_get_block_node(matrix=matrix_h(1)%matrix,&
                                         block_row=irow,&
                                         block_col=icol,&
                                         BLOCK=h_block)
                    IF (calculate_forces) THEN
-                      CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                      NULLIFY(p_block)
+                      CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=p_block)
@@ -409,8 +411,10 @@ CONTAINS
        ! *** If LSD, then recover alpha density and beta density     ***
        ! *** from the total density (1) and the spin density (2)     ***
        IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 0.5_dp,matrix_p(2)%matrix,0.5_dp,error=error)
-          CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-1.0_dp,matrix_p(1)%matrix,1.0_dp,error=error)
+          CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                         alpha_scalar= 0.5_dp, beta_scalar=0.5_dp,error=error)
+          CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+                         alpha_scalar=-1.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
     END IF
 
