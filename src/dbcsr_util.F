@@ -298,10 +298,14 @@ CONTAINS
 ! SM-compatible way
 
     IF (PRESENT (processor)) THEN
-       IF (.NOT. checker_tr (row, column)) THEN
-          processor = dbcsr_distribution_processor (matrix%dist, row, column)
-       ELSE
+       IF ((matrix%matrix_type .EQ. dbcsr_type_symmetric&
+            .OR. matrix%matrix_type .EQ. dbcsr_type_antisymmetric)&
+            .AND. checker_tr(row, column)) THEN
+          ! The transposed way.
           processor = dbcsr_distribution_processor (matrix%dist, column, row)
+       ELSE
+          ! The default way.
+          processor = dbcsr_distribution_processor (matrix%dist, row, column)
        ENDIF
     ENDIF
     ! The old way
@@ -2650,11 +2654,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Prints a BCSR matrix (block-style, not full)
 !> \param[in] matrix          matrix
-!> \param error     cp2k error
+!> \param[in,out] error       cp2k error
+!> \param[in] nodata          (optional) don't print actual data
 ! *****************************************************************************
-  SUBROUTINE dbcsr_print(matrix, error)
+  SUBROUTINE dbcsr_print(matrix, error, nodata)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: nodata
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print', &
       routineP = moduleN//':'//routineN
@@ -2664,7 +2670,7 @@ CONTAINS
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: tr, yesprint
     REAL(KIND=dp)                            :: blk_cs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
@@ -2675,6 +2681,8 @@ CONTAINS
     CALL timeset(routineN, timing_handle)
     CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
          routineN, "Matrix does not exist.")
+    yesprint = .TRUE.
+    IF (PRESENT (nodata)) yesprint = .NOT. nodata
     WRITE(*,*)routineP//' Contents of matrix named ', matrix%m%name
     SELECT CASE (matrix%m%data_type)
     CASE (dbcsr_type_real_8)
@@ -2725,16 +2733,18 @@ CONTAINS
              WRITE(*,'(A,I6,",",I6,A,I7,A,I6,I6,"=",I7,A,E12.3)')&
                   " Checksum for (",br,bc,") at ",blk_p," size ",m,n,mn,&
                   " checksum=",blk_cs
-             SELECT CASE (matrix%m%data_type)
-             CASE (dbcsr_type_real_8)
-                CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             CASE (dbcsr_type_real_4)
-                CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             CASE (dbcsr_type_complex_8)
-                CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             CASE (dbcsr_type_complex_4)
-                CALL dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
-             END SELECT
+             IF (yesprint) THEN
+                SELECT CASE (matrix%m%data_type)
+                CASE (dbcsr_type_real_8)
+                   CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                CASE (dbcsr_type_real_4)
+                   CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                CASE (dbcsr_type_complex_8)
+                   CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                CASE (dbcsr_type_complex_4)
+                   CALL dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                END SELECT
+             ENDIF
           ENDDO
        ENDDO
     ENDIF

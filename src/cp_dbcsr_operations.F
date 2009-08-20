@@ -2231,8 +2231,6 @@ CONTAINS
     CALL dbcsr_distribution_init (dist)
     CALL dbcsr_dist2d_to_dist (dist2d, dist, error)
     symmetric = (sm%symmetry .EQ. "symmetric")
-    CALL cp_assert (symmetric, cp_warning_level, cp_caller_error,&
-         routineN, "Matrix not symmetric.", error=error)
     nblkrows_total = sm%nblock_row
     nblkcols_total = sm%nblock_col
     row_blk_begin => sm%first_row
@@ -2322,6 +2320,8 @@ CONTAINS
              tr = .FALSE. ! SM matrix blocks are never transposed
              CALL dbcsr_get_stored_coordinates (matrix%m, stored_row,&
                   stored_col, tr, dst_p)
+             ! Force same processor for KG stuff.
+             dst_p = mynod
              nze = row_blk_size(absrow) * col_blk_size(block_col)
              send_count(1, dst_p) = send_count(1, dst_p) + 1
              send_count(2, dst_p) = send_count(2, dst_p) + nze
@@ -2367,6 +2367,8 @@ CONTAINS
              tr = .FALSE. ! SM matrix blocks are never transposed
              CALL dbcsr_get_stored_coordinates(matrix%m, stored_row,&
                   stored_col, tr, dst_p)
+             ! Force same processor for KG stuff.
+             dst_p = mynod
              nze = row_blk_size(stored_row) * col_blk_size(stored_col)
              IF (.NOT. tr) THEN
                 send_meta(smp(dst_p)) = stored_row
