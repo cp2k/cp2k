@@ -1084,7 +1084,7 @@ CONTAINS
 !$OMP shared(op_dipt)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
-!$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)
+!$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2,error,failure)
         ithread = 0
 !$      ithread = omp_get_thread_num()
 
@@ -1466,7 +1466,7 @@ CONTAINS
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
 !$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)&
-!$OMP shared(wancen)
+!$OMP shared(wancen,error,failure)
         ithread = 0
 !$      ithread = omp_get_thread_num()
 
@@ -1819,7 +1819,7 @@ CONTAINS
 !$OMP shared(op_dipt,order,M_dim,rc)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
-!$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)
+!$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2,error,failure)
         ithread = 0
 !$      ithread = omp_get_thread_num()
 
