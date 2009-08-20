@@ -722,7 +722,7 @@ MODULE  rt_propagation_utils
 
     INTEGER :: i, iatom, icol_atom, icol_global, icol_local, ikind, &
       irow_atom, irow_global, irow_local, ispin, kind_atom, nao, natom, &
-      ncol_local, nrow_local, stat
+      ncol_local, nrow_local, stat, handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, col_atom_index, &
                                                 first_sgf, kind_of, last_sgf, &
                                                 row_atom_index
@@ -734,7 +734,7 @@ MODULE  rt_propagation_utils
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: C_mat, S_der
     TYPE(cp_fm_type), POINTER                :: B_mat, ks, p, S_inv, tmp_mat, &
-                                                tmp_mat1
+                                                tmp_mat1,tmp_mat2,tmp_mat3
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -744,6 +744,8 @@ MODULE  rt_propagation_utils
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure=.FALSE.
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(rtp,particle_set,atomic_kind_set,mos)
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,particle_set=particle_set,&
@@ -766,6 +768,8 @@ MODULE  rt_propagation_utils
 
     CALL cp_fm_create(tmp_mat,C_mat(1)%matrix%matrix_struct,error=error)
     CALL cp_fm_create(tmp_mat1,C_mat(1)%matrix%matrix_struct,error=error)
+    CALL cp_fm_create(tmp_mat2,C_mat(1)%matrix%matrix_struct,error=error)
+    CALL cp_fm_create(tmp_mat3,C_mat(1)%matrix%matrix_struct,error=error)
 
     ALLOCATE (atom_of_kind(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -806,31 +810,6 @@ MODULE  rt_propagation_utils
 
        CALL calculate_dp_imag(dp_imag,qs_env%rtp%mos_new(2*ispin-1:2*ispin),mos(ispin)%mo_set,error)
        
-       !  calculate C_matrix forces
-
-       CALL cp_fm_get_info(dp_imag,local_data=local_dp,error=error)    
-       DO i=1,3
-          CALL cp_fm_transpose(dp_imag,tmp_mat,error)
-          CALL cp_fm_transpose(C_mat(i)%matrix,tmp_mat1,error)
-          CALL cp_fm_get_info(tmp_mat,local_data=local_data,error=error)
-
-
-          DO icol_local=1,ncol_local
-             DO irow_local=1,nrow_local
-                irow_atom=row_atom_index(irow_local)
-                icol_atom=col_atom_index(icol_local)  
-                ikind=kind_of(icol_atom)
-                kind_atom=atom_of_kind(icol_atom)
-                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)-&
-                     local_data(irow_local,icol_local)* C_mat(i)%matrix%local_data(irow_local,icol_local)
-                ikind=kind_of(irow_atom)
-                kind_atom=atom_of_kind(irow_atom)
-                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
-                     local_data(irow_local,icol_local)* tmp_mat1%local_data(irow_local,icol_local)             
-             END DO
-          END DO
-       END DO
-
        ! calculate B_mat force 
 
        CALL get_rtp(rtp=rtp,B_mat=B_mat,S_der=S_der,S_inv=S_inv,error=error)
@@ -841,29 +820,8 @@ MODULE  rt_propagation_utils
        CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,dp_imag,tmp_mat,0.0_dp,tmp_mat1,error=error)
 
        CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
-       DO i=1,3
-          DO icol_local=1,ncol_local
-             DO irow_local=1,nrow_local
-                icol_atom=col_atom_index(icol_local)
-                ikind=kind_of(icol_atom)
-                kind_atom=atom_of_kind(icol_atom)
-                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
-                     tmp_mat%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)
-             END DO
-          END DO
-       END DO
-
-       DO i=1,3
-          DO icol_local=1,ncol_local
-             DO irow_local=1,nrow_local
-                irow_atom=row_atom_index(irow_local)
-                ikind=kind_of(irow_atom)
-                kind_atom=atom_of_kind(irow_atom)
-                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)-&
-                     tmp_mat1%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)
-             END DO
-          END DO
-       END DO
+       CALL cp_fm_scale_and_add(0.0_dp,tmp_mat2,1.0_dp,tmp_mat,error)
+       CALL cp_fm_scale_and_add(0.0_dp,tmp_mat3,1.0_dp,tmp_mat1,error)
 
        !calculate the W matrix analogue for EMD
 
@@ -878,27 +836,36 @@ MODULE  rt_propagation_utils
        CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,tmp_mat,S_inv,0.0_dp,tmp_mat1,error=error)
        CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
 
+       CALL cp_fm_scale_and_add(1.0_dp,tmp_mat2,1.0_dp,tmp_mat,error)
+       CALL cp_fm_scale_and_add(1.0_dp,tmp_mat3,1.0_dp,tmp_mat1,error)
+
+       !C_mat forces
+
+       CALL cp_fm_transpose(dp_imag,tmp_mat,error)
+       CALL cp_fm_get_info(tmp_mat,local_data=local_data,error=error)
+
+       !This loop evaluates all forces, and puts them in the right place
        DO i=1,3
+          CALL cp_fm_transpose(C_mat(i)%matrix,tmp_mat1,error)
+
           DO icol_local=1,ncol_local
              DO irow_local=1,nrow_local
 
                 icol_atom=col_atom_index(icol_local)
+                irow_atom=row_atom_index(irow_local)
                 ikind=kind_of(icol_atom)
                 kind_atom=atom_of_kind(icol_atom)
-                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
-                     tmp_mat%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)
-             END DO
-          END DO
-       END DO
 
-       DO i=1,3
-          DO icol_local=1,ncol_local
-             DO irow_local=1,nrow_local
-                irow_atom=row_atom_index(irow_local)
+                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
+                     tmp_mat2%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)-&
+                     local_data(irow_local,icol_local)* C_mat(i)%matrix%local_data(irow_local,icol_local)
+
                 ikind=kind_of(irow_atom)
                 kind_atom=atom_of_kind(irow_atom)
+
                 force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)-&
-                     tmp_mat1%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)
+                     tmp_mat3%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)+ &
+                     local_data(irow_local,icol_local)* tmp_mat1%local_data(irow_local,icol_local)             
              END DO
           END DO
        END DO
@@ -915,6 +882,8 @@ MODULE  rt_propagation_utils
 
     CALL cp_fm_release(tmp_mat,error)
     CALL cp_fm_release(tmp_mat1,error)
+    CALL cp_fm_release(tmp_mat2,error)
+    CALL cp_fm_release(tmp_mat3,error)
     CALL cp_fm_release(dp_imag,error)
 
     DEALLOCATE(row_atom_index,stat=stat)
@@ -929,6 +898,7 @@ MODULE  rt_propagation_utils
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (kind_of,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(handle)
   END SUBROUTINE calc_c_mat_force
 
 END MODULE rt_propagation_utils
