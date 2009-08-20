@@ -211,8 +211,7 @@ MODULE dbcsr_util
        dbcsr_unpack_i8_2i4,&
        pointer_view, pointer_set, pointer_replace, dbcsr_data_ensure_size,&
        dbcsr_wm_use_mutable,&
-       convert_sizes_to_offsets, convert_offsets_to_sizes,&
-       dbcsr_type_from_sm_symmetry
+       convert_sizes_to_offsets, convert_offsets_to_sizes
   ! Some higher-level operations
   PUBLIC :: dbcsr_set_diagonal
 
@@ -1367,33 +1366,6 @@ CONTAINS
     END SELECT
   END SUBROUTINE dbcsr_transposed_type
 
-
-! *****************************************************************************
-!> \brief Maps sparse_matrix_type symmetry to DBCSR matrix type
-!> \param[out] dbcsr_matrix_type        matrix_type of the DBCSR matrix
-!> \param[in] sm_symmetry               sparse_matrix_symmetry
-! *****************************************************************************
-  SUBROUTINE dbcsr_type_from_sm_symmetry (dbcsr_matrix_type, sm_symmetry)
-    CHARACTER, INTENT(OUT)                   :: dbcsr_matrix_type
-    CHARACTER(LEN=*), INTENT(IN)             :: sm_symmetry
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_type_from_sm_symmetry', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    SELECT CASE (sm_symmetry)
-    CASE ("symmetric")
-       dbcsr_matrix_type = dbcsr_type_symmetric
-    CASE ("antisymmetric")
-       dbcsr_matrix_type = dbcsr_type_antisymmetric
-    CASE ("none", "no symmetry")
-       dbcsr_matrix_type = dbcsr_type_normal
-    CASE default
-       CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
-            "Unknown matrix type "//sm_symmetry)
-    END SELECT
-  END SUBROUTINE dbcsr_type_from_sm_symmetry
 
 ! *****************************************************************************
 !> \brief Re-indexes row_p and blk_i according to columns.

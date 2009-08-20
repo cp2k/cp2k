@@ -65,8 +65,8 @@ MODULE cp_dbcsr_operations
        dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, dbcsr_finalize, &
        dbcsr_get_block_index, dbcsr_get_stored_coordinates, dbcsr_init, &
        dbcsr_make_col_images, dbcsr_new_transposed, dbcsr_set_debug, &
-       dbcsr_type_from_sm_symmetry, dbcsr_valid_index, dbcsr_verify_matrix, &
-       dbcsr_work_create, ensure_array_size, pointer_set, pointer_view, swap
+       dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_work_create, &
+       ensure_array_size, pointer_set, pointer_view, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -107,7 +107,7 @@ MODULE cp_dbcsr_operations
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
             dbcsr_obj_p_type, dbcsr_block_node_type, test_sm,&
             dbcsr_from_fm, dbcsr_from_sm,&
-            sm_from_dbcsr
+            sm_from_dbcsr, dbcsr_type_from_sm_symmetry
 
   INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
@@ -1967,6 +1967,36 @@ CONTAINS
   END SUBROUTINE deallocate_dbcsr_matrix_set_2d
 
 
+
+! *****************************************************************************
+!> \brief Maps sparse_matrix_type symmetry to DBCSR matrix type
+!> \param[out] dbcsr_matrix_type        matrix_type of the DBCSR matrix
+!> \param[in] sm_symmetry               sparse_matrix_symmetry
+! *****************************************************************************
+  SUBROUTINE dbcsr_type_from_sm_symmetry (dbcsr_matrix_type, sm_symmetry)
+    CHARACTER, INTENT(OUT)                   :: dbcsr_matrix_type
+    CHARACTER(LEN=*), INTENT(IN)             :: sm_symmetry
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_type_from_sm_symmetry', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    SELECT CASE (sm_symmetry)
+    CASE ("symmetric")
+       dbcsr_matrix_type = dbcsr_type_symmetric
+    CASE ("antisymmetric")
+       dbcsr_matrix_type = dbcsr_type_antisymmetric
+    CASE ("none", "no symmetry")
+       dbcsr_matrix_type = dbcsr_type_normal
+    CASE default
+       CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
+            "Unknown matrix type "//sm_symmetry)
+    END SELECT
+  END SUBROUTINE dbcsr_type_from_sm_symmetry
+
+
+
 ! *****************************************************************************
 !> \brief Converts a CP full matrix into a BCSR matrix.
 !> \param[out] matrix         the created BCSR matrix
@@ -2273,8 +2303,8 @@ CONTAINS
     !ALLOCATE (matrix)
     CALL dbcsr_init (matrix, error)
     CALL dbcsr_create(matrix, sm%name, dist, sm%symmetry,&
-         rbs_array, cbs_array, nblks=0, nze=0, data_type=dbcsr_type_real_8, error=error)
-    matrix%m%matrix_type = 'S'
+         rbs_array, cbs_array, nblks=0, nze=0, data_type=dbcsr_type_real_8,&
+         error=error)
     CALL distribution_2d_retain (dist2d, error)
     matrix%m%dist2d => dist2d
     ! Count what to send to others.
@@ -2285,42 +2315,31 @@ CONTAINS
        DO WHILE (ASSOCIATED(sm_block_node))
           CALL get_block_node(block_node=sm_block_node, block_col=block_col,&
                block=blkdata_2d)
-          stored_row = absrow
-          stored_col = block_col
-          !!tr = checker_tr (stored_row, stored_col)
-          !!IF (tr) CALL swap (stored_row, stored_col)
-          !tr = .FALSE.
-          !CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, tr)
-          !newprow = prow_dist(stored_row)
-          !newpcol = pcol_dist(stored_col)
-          !dst_p = blacs2mpi(newprow, newpcol)
-          tr = .FALSE.
-          CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col,&
-               tr, dst_p)
-          nze = row_blk_size(absrow) * col_blk_size(block_col)
-          send_count(1, dst_p) = send_count(1, dst_p) + 1
-          send_count(2, dst_p) = send_count(2, dst_p) + nze
-          IF (dbg) WRITE(*,*)routineP//' To send block from',mynod,'to',&
-               dst_p,'block at (',absrow,block_col,') with',nze,&
-               'elements, position','?','as (',stored_row,',',stored_col,')',tr
+          ! Only add data if the block is associated
+          IF (ASSOCIATED (blkdata_2d)) THEN
+             stored_row = absrow
+             stored_col = block_col
+             tr = .FALSE. ! SM matrix blocks are never transposed
+             CALL dbcsr_get_stored_coordinates (matrix%m, stored_row,&
+                  stored_col, tr, dst_p)
+             nze = row_blk_size(absrow) * col_blk_size(block_col)
+             send_count(1, dst_p) = send_count(1, dst_p) + 1
+             send_count(2, dst_p) = send_count(2, dst_p) + nze
+             IF (dbg) WRITE(*,*)routineP//' To send block from',mynod,'to',&
+                  dst_p,'block at (',absrow,block_col,') with',nze,&
+                  'elements, position','?','as (',stored_row,',',&
+                  stored_col,')',tr
+          ENDIF ! data associated
           sm_block_node => next_block_node(sm_block_node)
-       END DO ! associated
+       END DO ! node associated
     ENDDO ! absrow
-    DBG 'B'
     ! Exchange data on what to send
     CALL mp_alltoall(send_count, recv_count, 2, mp_group)
-    DBG 'C'
-    DBG 'send counts',send_count
-    DBG 'recv counts',recv_count
     ! Allocate data structures needed for data exchange.
     ALLOCATE (recv_data(SUM(recv_count(2, :))))
     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :))))
     ALLOCATE (send_data(SUM(send_count(2, :))))
     ALLOCATE (send_meta(metalen*SUM(send_count(1, :))))
-    DBG 'send data len',SIZE (send_data)
-    DBG 'send meta len',SIZE (send_meta)
-    DBG 'recv data len',SIZE (recv_data)
-    DBG 'recv meta len',SIZE (recv_meta)
     ! Fill in the meta data structures and copy the data.
     sd_disp = -1 ; sm_disp = -1
     rd_disp = -1 ; rm_disp = -1
@@ -2333,11 +2352,6 @@ CONTAINS
        rd_disp(dst_p) = rd_disp(dst_p-1) + recv_count(2, dst_p-1)
     ENDDO
     sdp = sd_disp ; smp = sm_disp
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
-    DBG 'recv disps data',rd_disp
-    DBG 'recv disps meta',rm_disp
-    DBG 'D'
     !> Now exchange information on the upcoming transfers.
     ! Perform exchanges
     DO absrow = 1, nblkrows_total
@@ -2346,70 +2360,43 @@ CONTAINS
        DO WHILE (ASSOCIATED(sm_block_node))
           CALL get_block_node(block_node=sm_block_node, block_col=block_col,&
                block=blkdata_2d)
-          stored_row = absrow
-          stored_col = block_col
-          !tr = checker_tr (stored_row, stored_col)
-          !IF (tr) CALL swap (stored_row, stored_col)
-          tr = .FALSE.
-          CALL dbcsr_get_stored_coordinates(matrix%m, stored_row, stored_col,&
-               tr, dst_p)
-          !newprow = prow_dist(stored_row)
-          !newpcol = pcol_dist(stored_col)
-          !dst_p = blacs2mpi(newprow, newpcol)
-          nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-          IF (.NOT. tr) THEN
-             send_meta(smp(dst_p)) = stored_row
-          ELSE
-             send_meta(smp(dst_p)) = -stored_row
-          ENDIF
-          send_meta(smp(dst_p)+1) = stored_col
-          !IF (.NOT. tr) THEN
+          ! Only add data if the block is associated
+          IF (ASSOCIATED (blkdata_2d)) THEN
+             stored_row = absrow
+             stored_col = block_col
+             tr = .FALSE. ! SM matrix blocks are never transposed
+             CALL dbcsr_get_stored_coordinates(matrix%m, stored_row,&
+                  stored_col, tr, dst_p)
+             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
+             IF (.NOT. tr) THEN
+                send_meta(smp(dst_p)) = stored_row
+             ELSE
+                send_meta(smp(dst_p)) = -stored_row
+             ENDIF
+             send_meta(smp(dst_p)+1) = stored_col
              send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
                   RESHAPE (blkdata_2d, (/nze/))
-                  !sm%data(blk_p:blk_p+nze-1)
-          !ELSE
-          !   write(*,*)routineN//" reshaping, not good",absrow, block_col
-          !   !send_meta(smp(dst_p)) = -stored_row
-          !   send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-          !        RESHAPE (TRANSPOSE(blkdata_2d), (/nze/))
-          !        !sm%data(blk_p:blk_p+nze-1)
-          !ENDIF
-          smp(dst_p) = smp(dst_p) + metalen
-          sdp(dst_p) = sdp(dst_p) + nze
-          !
+             smp(dst_p) = smp(dst_p) + metalen
+             sdp(dst_p) = sdp(dst_p) + nze
+             !
+          ENDIF ! data associated
           sm_block_node => next_block_node(sm_block_node)
-       END DO ! associated
+       END DO ! node associated
     ENDDO ! absrow
     !
     ! Exchange the data and metadata structures.
-    DBG 'E'
     CALL mp_alltoall(send_data(:), send_count(2,:), sd_disp(:)-1,&
          recv_data(:), recv_count(2,:), rd_disp(:)-1, mp_group)
-    DBG 'F'
-    DBG 'send_meta',send_meta
     CALL mp_alltoall(send_meta(:), metalen*send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), metalen*recv_count(1,:), rm_disp(:)-1, mp_group)
-    DBG 'recv_meta',recv_meta
-    DBG 'G'
     ! Now fill in the data.
     blk = SUM(recv_count(1,:))
     nze = SUM(recv_count(2,:))
-    !CALL array_new (rbs_array, row_blk_size, gift=.TRUE.)
-    !CALL array_new (cbs_array, col_blk_size, gift=.TRUE.)
-    !CALL dbcsr_init (matrix, error)
-    !CALL dbcsr_create(matrix, sm%name, dist, sm%symmetry,&
-    !     rbs_array, cbs_array, nblks=blk, nze=nze, data_type=dbcsr_type_real_8, error=error)
-    !matrix%m%matrix_type = 'S'
-    !matrix%m%dist2d => dist2d
     CALL array_release (rbs_array)
     CALL array_release (cbs_array)
     CALL dbcsr_work_create(matrix,&
             nblks_guess=blk,&
             sizedata_guess=nze, error=error)
-    !DBG 'send disps data',sd_disp
-    !DBG 'send disps meta',sm_disp
-    !DBG 'recv disps data',rd_disp
-    !DBG 'recv disps meta',rm_disp
     blk_p = 1
     blk = 1
     CALL dbcsr_get_data (matrix%m%wms(1)%data_area, data_p)
@@ -2417,23 +2404,16 @@ CONTAINS
        nze = recv_count(2, src_p)
        data_p(blk_p:blk_p+nze-1) =&
             recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
-       !matrix%m%w%data(blk_p:blk_p+nze-1) =&
-       !     recv_data(rd_disp(src_p):rd_disp(src_p)+nze-1)
        DBG 'processing from',src_p,'counts',send_count(1, src_p)
        DO blk_l = 1, recv_count(1, src_p)
           stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
           stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
-          !DBG 'blk: p',blk,src_p,'; row, col',stored_row,stored_col,&
-          !     '; blk_p',blk_p,'; row_rep, rptdist',row_rep,&
-          !     row_rep_dist (ABS (stored_row))
           DBG 'blk: p',blk,src_p,'; row, col',&
                stored_row,stored_col,&
                '; blk_p',blk_p
-          !matrix%m%wms(1)%row_i(blk) = stored_row ! It's always positive here
           matrix%m%wms(1)%row_i(blk) = ABS(stored_row)
           matrix%m%wms(1)%col_i(blk) = stored_col
           matrix%m%wms(1)%blk_p(blk) = SIGN(blk_p, stored_row)
-          !matrix%m%w%blk_p(blk) = SIGN(blk_p, stored_row)
           nze = row_blk_size(ABS(stored_row))&
                * col_blk_size(stored_col)
           blk_p = blk_p + nze
@@ -2457,7 +2437,6 @@ CONTAINS
          error=error)
     CALL dbcsr_distribution_release (dist)
     tstop = m_walltime ()
-    DBG 'time:',tstop-tstart
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_from_sm
 
