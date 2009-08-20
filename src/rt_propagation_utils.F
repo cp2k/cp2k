@@ -853,17 +853,14 @@ MODULE  rt_propagation_utils
           END DO
        END DO
 
-       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,S_inv,B_mat,0.0_dp,tmp_mat,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,tmp_mat,dp_imag,0.0_dp,tmp_mat1,error=error)
-       CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
        DO i=1,3
           DO icol_local=1,ncol_local
              DO irow_local=1,nrow_local
                 irow_atom=row_atom_index(irow_local)
                 ikind=kind_of(irow_atom)
                 kind_atom=atom_of_kind(irow_atom)
-                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)+&
-                     tmp_mat%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)
+                force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)-&
+                     tmp_mat1%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)
              END DO
           END DO
        END DO
@@ -894,9 +891,6 @@ MODULE  rt_propagation_utils
           END DO
        END DO
 
-       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,S_inv,ks,0.0_dp,tmp_mat,error=error)
-       CALL cp_fm_gemm("N","T",nao,nao,nao,1.0_dp,tmp_mat,p,0.0_dp,tmp_mat1,error=error)
-       CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
        DO i=1,3
           DO icol_local=1,ncol_local
              DO irow_local=1,nrow_local
@@ -904,7 +898,7 @@ MODULE  rt_propagation_utils
                 ikind=kind_of(irow_atom)
                 kind_atom=atom_of_kind(irow_atom)
                 force(ikind)%ehrenfest(i,kind_atom)=force(ikind)%ehrenfest(i,kind_atom)-&
-                     tmp_mat%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)
+                     tmp_mat1%local_data(irow_local,icol_local)* S_der(i)%matrix%local_data(irow_local,icol_local)
              END DO
           END DO
        END DO
