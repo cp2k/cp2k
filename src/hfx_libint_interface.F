@@ -21,7 +21,8 @@ MODULE hfx_libint_interface
                                              get_eris,&
                                              lib_deriv,&
                                              lib_int,&
-                                             prim_data
+                                             prim_data,&
+                                             prim_data_f_size
   USE hfx_types,                       ONLY: hfx_pgf_product_list,&
                                              hfx_potential_type
   USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
@@ -81,7 +82,8 @@ MODULE hfx_libint_interface
     REAL(KIND=dp) :: AB(3), AB2, CD(3), CD2, Eta, EtaInv, factor, omega2, &
       omega_corr, omega_corr2, P(3), PQ(3), PQ2, Q(3), R, R1, R2, Rho, &
       RhoInv, S1234, T, tmp, W(3), Zeta, ZetaInv, ZetapEtaInv
-    REAL(KIND=dp), DIMENSION(17)             :: Fm
+    REAL(KIND=dp), &
+      DIMENSION(prim_data_f_size)            :: Fm
 
     Zeta = Zeta_A + Zeta_B
     ZetaInv = 1.0_dp/Zeta

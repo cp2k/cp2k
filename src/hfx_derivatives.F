@@ -29,10 +29,11 @@ MODULE hfx_derivatives
                                              build_pgf_product_list
   USE hfx_screening_methods,           ONLY: update_pmax_mat
   USE hfx_types,                       ONLY: &
-       hfx_basis_info_type, hfx_basis_type, hfx_cell_type, hfx_general_type, &
-       hfx_load_balance_type, hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, &
-       hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, &
-       hfx_type, log_zero, pair_list_type, pair_set_list_type
+       hfx_basis_info_type, hfx_basis_type, hfx_cell_type, hfx_distribution, &
+       hfx_general_type, hfx_load_balance_type, hfx_p_kind, hfx_pgf_list, &
+       hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
+       hfx_screening_type, hfx_task_list_type, hfx_type, log_zero, &
+       pair_list_type, pair_set_list_type
   USE input_constants,                 ONLY: do_hfx_potential_truncated,&
                                              hfx_do_eval_forces
   USE kinds,                           ONLY: dp,&
@@ -48,6 +49,7 @@ MODULE hfx_derivatives
   USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -186,6 +188,16 @@ MODULE hfx_derivatives
                                                 ede_buffer1, ede_buffer2, &
                                                 ede_primitives_tmp
     TYPE(lib_deriv)                          :: private_deriv
+    LOGICAL                                  :: do_dynamic_load_balancing, bins_left, do_it
+    TYPE(hfx_distribution), POINTER          :: distribution_forces
+    INTEGER                                  :: shm_total_bins, shm_task_counter, my_thread_id, my_bin_id ,&
+                                                storage_id
+    TYPE(hfx_task_list_type), DIMENSION(:), &
+                              POINTER        :: shm_task_list, tmp_task_list
+    INTEGER(int_8), DIMENSION(:), &
+                    ALLOCATABLE              :: tmp_task_list_cost
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: tmp_index
+    INTEGER(int_8)                           :: current_ram_counter
     INTEGER, DIMENSION(:), ALLOCATABLE       :: nimages
     INTEGER :: sphi_d_u1,sphi_d_u2,sphi_d_u3
     INTEGER :: sphi_c_u1,sphi_c_u2,sphi_c_u3
@@ -258,8 +270,10 @@ MODULE hfx_derivatives
 !$OMP                                  radii_pgf,&
 !$OMP                                  shm_atomic_block_offset,&
 !$OMP                                  shm_set_offset,&
-!$OMP                                  shm_block_offset)
-
+!$OMP                                  shm_block_offset,&
+!$OMP                                  shm_task_counter,&
+!$OMP                                  shm_task_list,&
+!$OMP                                  shm_total_bins)
 
     i_thread = 0
 !$  i_thread = omp_get_thread_num()
@@ -549,11 +563,59 @@ MODULE hfx_derivatives
 !$OMP END MASTER
 !$OMP BARRIER
 
-
-
-
 !$OMP BARRIER
 
+
+    do_dynamic_load_balancing = .TRUE.
+    IF( n_threads == 1 ) do_dynamic_load_balancing = .FALSE.
+ 
+!$OMP BARRIER
+!$OMP MASTER
+    IF( do_dynamic_load_balancing ) THEN
+      ! ** Lets contstruct the task list
+      shm_total_bins = 0
+      DO i = 1,n_threads
+        shm_total_bins = shm_total_bins + SIZE(qs_env%x_data(irep, i)%distribution_forces)
+      END DO
+      ALLOCATE(tmp_task_list(shm_total_bins), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      shm_task_counter = 0
+      DO i = 1,n_threads
+        DO bin = 1,SIZE(qs_env%x_data(irep,i)%distribution_forces)
+          shm_task_counter = shm_task_counter + 1
+          tmp_task_list(shm_task_counter)%thread_id = i
+          tmp_task_list(shm_task_counter)%bin_id = bin
+          tmp_task_list(shm_task_counter)%cost = qs_env%x_data(irep,i)%distribution_forces(bin)%cost
+        END DO
+      END DO
+
+      ! ** Now sort the task list
+      ALLOCATE(tmp_task_list_cost(shm_total_bins),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(tmp_index(shm_total_bins),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      DO i = 1,shm_total_bins
+        tmp_task_list_cost(i) = tmp_task_list(i)%cost
+      END DO
+
+      CALL sort(tmp_task_list_cost,shm_total_bins,tmp_index)
+
+      ALLOCATE(actual_x_data%task_list(shm_total_bins), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      DO i = 1,shm_total_bins
+        actual_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i +1))
+      END DO
+
+      shm_task_list => actual_x_data%task_list
+      shm_task_counter = 0
+
+      DEALLOCATE(tmp_task_list_cost, tmp_index, tmp_task_list, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+!$OMP END MASTER
+!$OMP BARRIER
 
     coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
     ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
@@ -568,11 +630,43 @@ MODULE hfx_derivatives
     block_size = load_balance_parameter%block_size
     nblocks = MAX((natom+block_size-1)/block_size,1)
     !! outer loop will be cycled if actual work_load done
-    DO bin=1,my_bin_size
+
+    bins_left = .TRUE.
+    do_it = .TRUE.
+    bin = 0
+    DO WHILE (bins_left)
+      IF( .NOT. do_dynamic_load_balancing) THEN
+        bin = bin + 1
+        IF( bin > my_bin_size ) THEN
+          do_it = .FALSE.
+          bins_left = .FALSE.
+        ELSE
+          do_it = .TRUE.
+          bins_left = .TRUE.
+          distribution_forces => actual_x_data%distribution_forces(bin)
+        END IF
+      ELSE
+!$OMP CRITICAL
+        shm_task_counter = shm_task_counter + 1
+        IF( shm_task_counter <= shm_total_bins) THEN
+          my_thread_id = shm_task_list(shm_task_counter)%thread_id
+          my_bin_id = shm_task_list(shm_task_counter)%bin_id
+          distribution_forces => qs_env%x_data(irep,my_thread_id)%distribution_forces(my_bin_id) 
+          do_it = .TRUE.
+          bins_left = .TRUE.
+        ELSE
+          do_it = .FALSE.
+          bins_left = .FALSE.
+        END IF
+!$OMP END CRITICAL
+      END IF
+
+      IF( .NOT. do_it ) CYCLE
+
       bintime_start=m_walltime()
-      my_istart = actual_x_data%distribution_forces(bin)%istart
+      my_istart = distribution_forces%istart
       my_current_counter = 0
-      IF(actual_x_data%distribution_forces(bin)%number_of_atom_quartets == 0 .OR. &
+      IF(distribution_forces%number_of_atom_quartets == 0 .OR. &
          my_istart == -1_int_8) my_istart = nblocks **4
       atomic_blocks: DO atom_block = my_istart,nblocks**4-1,n_processes
         latom_block = MODULO(atom_block,nblocks)+1
@@ -585,7 +679,7 @@ MODULE hfx_derivatives
         iatom_block = MODULO(tmp_block,nblocks)+1
         IF(jatom_block<iatom_block) CYCLE
         my_current_counter = my_current_counter + 1
-        IF(my_current_counter > actual_x_data%distribution_forces(bin)%number_of_atom_quartets) EXIT atomic_blocks
+        IF(my_current_counter > distribution_forces%number_of_atom_quartets) EXIT atomic_blocks
 
         CALL build_pair_list(list_ij,set_list_ij,(iatom_block-1)*block_size +1,MIN(iatom_block*block_size,natom), &
                              (jatom_block-1)*block_size +1, MIN(jatom_block*block_size,natom),&
@@ -897,7 +991,7 @@ MODULE hfx_derivatives
         END DO !i_list_ij
       END DO atomic_blocks
       bintime_stop=m_walltime()
-      actual_x_data%distribution_forces(bin)%time_forces=bintime_stop-bintime_start
+      distribution_forces%time_forces=bintime_stop-bintime_start
     END DO  !bin
 
 !$OMP BARRIER

@@ -44,13 +44,14 @@ MODULE hfx_energy_potential
                                              calc_screening_functions,&
                                              update_pmax_mat
   USE hfx_types,                       ONLY: &
-       hfx_basis_info_type, hfx_basis_type, hfx_cache_type, hfx_cell_type, &
-       hfx_container_type, hfx_general_type, hfx_init_container, &
+       alloc_containers, dealloc_containers, hfx_basis_info_type, &
+       hfx_basis_type, hfx_cache_type, hfx_cell_type, hfx_container_type, &
+       hfx_distribution, hfx_general_type, hfx_init_container, &
        hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, &
        hfx_pgf_product_list, hfx_potential_type, &
        hfx_reset_memory_usage_counter, hfx_screen_coeff_type, &
-       hfx_screening_type, hfx_type, log_zero, pair_list_type, &
-       pair_set_list_type
+       hfx_screening_type, hfx_task_list_type, hfx_type, log_zero, &
+       pair_list_type, pair_set_list_type
   USE input_constants,                 ONLY: do_hfx_potential_truncated,&
                                              hfx_do_eval_energy
   USE input_section_types,             ONLY: section_vals_type
@@ -74,6 +75,7 @@ MODULE hfx_energy_potential
   USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -245,6 +247,16 @@ MODULE hfx_energy_potential
                                              :: sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext
     REAL(dp), DIMENSION(:,:,:), POINTER & 
                                              :: sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set
+    LOGICAL                                  :: do_dynamic_load_balancing, bins_left, do_it
+    TYPE(hfx_distribution), POINTER          :: distribution_energy
+    INTEGER                                  :: shm_total_bins, shm_task_counter, my_thread_id, my_bin_id ,&
+                                                storage_id
+    TYPE(hfx_task_list_type), DIMENSION(:), &
+                              POINTER        :: shm_task_list, tmp_task_list
+    INTEGER(int_8), DIMENSION(:), &
+                    ALLOCATABLE              :: tmp_task_list_cost
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: tmp_index
+    INTEGER(int_8)                           :: current_ram_counter
     REAL(dp), DIMENSION(:), ALLOCATABLE      :: ee_work, ee_work2, &
                                                 ee_buffer1, ee_buffer2, &
                                                 ee_primitives_tmp
@@ -354,7 +366,10 @@ MODULE hfx_energy_potential
 !$OMP                                  ispin,&
 !$OMP                                  shm_atomic_block_offset,&
 !$OMP                                  shm_set_offset,&
-!$OMP                                  shm_block_offset)
+!$OMP                                  shm_block_offset,&
+!$OMP                                  shm_task_counter,&
+!$OMP                                  shm_task_list,&
+!$OMP                                  shm_total_bins)
 
 
     ln_10 = LOG(10.0_dp)
@@ -374,11 +389,11 @@ MODULE hfx_energy_potential
     cache_size = memory_parameter%cache_size
     bits_max_val = memory_parameter%bits_max_val
 
-    maxval_container       => actual_x_data%maxval_container
-    maxval_cache           => actual_x_data%maxval_cache
+    maxval_container       => actual_x_data%maxval_container(1)
+    maxval_cache           => actual_x_data%maxval_cache(1)
 
-    integral_containers    => actual_x_data%integral_containers
-    integral_caches        => actual_x_data%integral_caches
+    integral_containers    => actual_x_data%integral_containers(:,1)
+    integral_caches        => actual_x_data%integral_caches(:,1)
 
     maxval_container_disk       => actual_x_data%maxval_container_disk
     maxval_cache_disk           => actual_x_data%maxval_cache_disk
@@ -607,48 +622,6 @@ MODULE hfx_energy_potential
      memory_parameter%ram_counter = HUGE(memory_parameter%ram_counter) 
     END IF
    
-    !! We do not need the containers if MAX_MEM = 0
-    IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
-      !! IF new md step -> reinitialize containers
-      IF(geometry_did_change) THEN
-        CALL hfx_init_container(maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
-        DO i=1,64
-          CALL hfx_init_container(integral_containers(i),memory_parameter%actual_memory_usage, .FALSE., error)
-        END DO
-      END IF
-
-      !! Decompress the first cache for maxvals and integrals
-      IF( .NOT. geometry_did_change) THEN
-        CALL hfx_decompress_first_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
-        DO i=1,64
-          CALL hfx_decompress_first_cache(i, integral_caches(i), integral_containers(i), &
-                                           memory_parameter%actual_memory_usage,.FALSE.)
-        END DO
-      END IF
-    END IF
-    
-    !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
-!$OMP CRITICAL
-    !! If we do disk storage, we have to initialize the containers/caches
-    IF(do_disk_storage) THEN
-      !! IF new md step -> reinitialize containers
-      IF(geometry_did_change) THEN
-        CALL hfx_init_container(maxval_container_disk, memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
-        DO i=1,64
-          CALL hfx_init_container(integral_containers_disk(i),memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
-        END DO
-      END IF
-      !! Decompress the first cache for maxvals and integrals
-      IF( .NOT. geometry_did_change) THEN
-        CALL hfx_decompress_first_cache(bits_max_val, maxval_cache_disk, maxval_container_disk, &
-                                         memory_parameter%actual_memory_usage_disk, .TRUE.)
-        DO i=1,64
-          CALL hfx_decompress_first_cache(i, integral_caches_disk(i), integral_containers_disk(i), &
-                                           memory_parameter%actual_memory_usage_disk, .TRUE.)
-        END DO
-      END IF
-    END IF
-!$OMP END CRITICAL
 
 
     !! Get screening parameter
@@ -878,6 +851,129 @@ MODULE hfx_energy_potential
     !! lstart only the first time the loop is executed. All subsequent loops have to start with one or
     !! iatom and katom respectively. Therefore, we use flags like first_j_loop etc.
 
+
+    do_dynamic_load_balancing = .TRUE.
+
+    IF( n_threads == 1 .OR. do_disk_storage ) do_dynamic_load_balancing = .FALSE.
+
+    IF( do_dynamic_load_balancing ) THEN
+      my_bin_size = SIZE(actual_x_data%distribution_energy)
+    ELSE
+      my_bin_size = 1
+    END IF
+    !! We do not need the containers if MAX_MEM = 0
+    IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
+      !! IF new md step -> reinitialize containers
+      IF(geometry_did_change) THEN
+        CALL dealloc_containers(actual_x_data, error)
+        CALL alloc_containers(actual_x_data, my_bin_size, error)
+    
+        DO bin = 1,my_bin_size
+          maxval_container => actual_x_data%maxval_container(bin)
+          integral_containers => actual_x_data%integral_containers(:,bin)
+          CALL hfx_init_container(maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
+          DO i=1,64
+            CALL hfx_init_container(integral_containers(i),memory_parameter%actual_memory_usage, .FALSE., error)
+          END DO
+        END DO
+      END IF
+
+      !! Decompress the first cache for maxvals and integrals
+      IF( .NOT. geometry_did_change) THEN
+        DO bin = 1,my_bin_size
+          maxval_cache => actual_x_data%maxval_cache(bin)
+          maxval_container => actual_x_data%maxval_container(bin)
+          integral_caches => actual_x_data%integral_caches(:,bin)
+          integral_containers => actual_x_data%integral_containers(:,bin)
+          CALL hfx_decompress_first_cache(bits_max_val, maxval_cache, maxval_container, &
+                                          memory_parameter%actual_memory_usage, .FALSE.)
+          DO i=1,64
+            CALL hfx_decompress_first_cache(i, integral_caches(i), integral_containers(i), &
+                                            memory_parameter%actual_memory_usage,.FALSE.)
+          END DO
+        END DO
+      END IF
+    END IF
+    
+    !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
+!$OMP CRITICAL
+    !! If we do disk storage, we have to initialize the containers/caches
+    IF(do_disk_storage) THEN
+      !! IF new md step -> reinitialize containers
+      IF(geometry_did_change) THEN
+        CALL hfx_init_container(maxval_container_disk, memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
+        DO i=1,64
+          CALL hfx_init_container(integral_containers_disk(i),memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
+        END DO
+      END IF
+      !! Decompress the first cache for maxvals and integrals
+      IF( .NOT. geometry_did_change) THEN
+        CALL hfx_decompress_first_cache(bits_max_val, maxval_cache_disk, maxval_container_disk, &
+                                         memory_parameter%actual_memory_usage_disk, .TRUE.)
+        DO i=1,64
+          CALL hfx_decompress_first_cache(i, integral_caches_disk(i), integral_containers_disk(i), &
+                                           memory_parameter%actual_memory_usage_disk, .TRUE.)
+        END DO
+      END IF
+    END IF
+!$OMP END CRITICAL
+
+!$OMP BARRIER
+!$OMP MASTER
+   
+    IF( do_dynamic_load_balancing ) THEN
+      ! ** Lets contstruct the task list
+      shm_total_bins = 0
+      DO i = 1,n_threads
+        shm_total_bins = shm_total_bins + SIZE(qs_env%x_data(irep, i)%distribution_energy)
+      END DO
+      ALLOCATE(tmp_task_list(shm_total_bins), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      shm_task_counter = 0
+      DO i = 1,n_threads
+        DO bin = 1,SIZE(qs_env%x_data(irep,i)%distribution_energy)
+          shm_task_counter = shm_task_counter + 1
+          tmp_task_list(shm_task_counter)%thread_id = i
+          tmp_task_list(shm_task_counter)%bin_id = bin
+          tmp_task_list(shm_task_counter)%cost = qs_env%x_data(irep,i)%distribution_energy(bin)%cost
+        END DO
+      END DO
+
+      ! ** Now sort the task list
+      ALLOCATE(tmp_task_list_cost(shm_total_bins),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(tmp_index(shm_total_bins),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      DO i = 1,shm_total_bins
+        tmp_task_list_cost(i) = tmp_task_list(i)%cost
+      END DO
+
+      CALL sort(tmp_task_list_cost,shm_total_bins,tmp_index)
+
+      ALLOCATE(actual_x_data%task_list(shm_total_bins), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      DO i = 1,shm_total_bins
+        actual_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i +1))
+      END DO
+
+      shm_task_list => actual_x_data%task_list
+      shm_task_counter = 0
+
+      DEALLOCATE(tmp_task_list_cost, tmp_index, tmp_task_list, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+!$OMP END MASTER
+!$OMP BARRIER
+
+
+    maxval_container       => actual_x_data%maxval_container(1)
+    maxval_cache           => actual_x_data%maxval_cache(1)
+
+    integral_containers    => actual_x_data%integral_containers(:,1)
+    integral_caches        => actual_x_data%integral_caches(:,1)
+
 !$OMP BARRIER
 !$OMP MASTER
     CALL timeset(routineN//"_main",handle_main)
@@ -903,14 +999,52 @@ MODULE hfx_energy_potential
     block_size = load_balance_parameter%block_size
     nblocks = MAX((natom+block_size-1)/block_size,1)
 
-    DO bin=1,my_bin_size
+    bins_left = .TRUE.
+    do_it = .TRUE.
+    bin = 0
+    DO WHILE (bins_left)
+      IF( .NOT. do_dynamic_load_balancing) THEN
+        bin = bin + 1
+        IF( bin > my_bin_size ) THEN
+          do_it = .FALSE.
+          bins_left = .FALSE.
+        ELSE
+          do_it = .TRUE.
+          bins_left = .TRUE.
+          distribution_energy => actual_x_data%distribution_energy(bin)
+        END IF
+      ELSE
+!$OMP CRITICAL
+        shm_task_counter = shm_task_counter + 1
+        IF( shm_task_counter <= shm_total_bins) THEN
+          my_thread_id = shm_task_list(shm_task_counter)%thread_id
+          my_bin_id = shm_task_list(shm_task_counter)%bin_id
+          maxval_cache => qs_env%x_data(irep,my_thread_id)%maxval_cache(my_bin_id)
+          maxval_container => qs_env%x_data(irep,my_thread_id)%maxval_container(my_bin_id)
+          integral_caches => qs_env%x_data(irep,my_thread_id)%integral_caches(:,my_bin_id)
+          integral_containers => qs_env%x_data(irep,my_thread_id)%integral_containers(:,my_bin_id)
+          distribution_energy => qs_env%x_data(irep,my_thread_id)%distribution_energy(my_bin_id) 
+          do_it = .TRUE.
+          bins_left = .TRUE.
+          IF( geometry_did_change) THEN
+            distribution_energy%ram_counter = HUGE(distribution_energy%ram_counter)
+          END IF
+          counter = 0_Int_8
+        ELSE
+          do_it = .FALSE.
+          bins_left = .FALSE.
+        END IF
+!$OMP END CRITICAL
+      END IF
+
+      IF( .NOT. do_it ) CYCLE
 !$OMP MASTER
       CALL timeset(routineN//"_bin",handle_bin)
 !$OMP END MASTER
       bintime_start=m_walltime()
-      my_istart = actual_x_data%distribution_energy(bin)%istart
+      my_istart = distribution_energy%istart
       my_current_counter = 0
-      IF(actual_x_data%distribution_energy(bin)%number_of_atom_quartets == 0 .OR. &
+      IF(distribution_energy%number_of_atom_quartets == 0 .OR. &
          my_istart == -1_int_8) my_istart = nblocks **4
       atomic_blocks:  DO atom_block = my_istart,nblocks**4-1,n_processes
         latom_block = MODULO(atom_block,nblocks)+1
@@ -923,7 +1057,7 @@ MODULE hfx_energy_potential
         iatom_block = MODULO(tmp_block,nblocks)+1
         IF(jatom_block<iatom_block) CYCLE
         my_current_counter = my_current_counter + 1
-        IF(my_current_counter > actual_x_data%distribution_energy(bin)%number_of_atom_quartets) EXIT atomic_blocks
+        IF(my_current_counter > distribution_energy%number_of_atom_quartets) EXIT atomic_blocks
 
         CALL build_pair_list(list_ij,set_list_ij,(iatom_block-1)*block_size +1,MIN(iatom_block*block_size,natom), &
                              (jatom_block-1)*block_size +1, MIN(jatom_block*block_size,natom),&
@@ -1121,7 +1255,11 @@ MODULE hfx_energy_potential
                 END DO
                 IF(mem_compression_counter > memory_parameter%max_compression_counter) THEN
                   buffer_overflow = .TRUE.
-                  memory_parameter%ram_counter = counter
+                  IF( do_dynamic_load_balancing ) THEN
+                    distribution_energy%ram_counter = counter
+                  ELSE
+                    memory_parameter%ram_counter = counter
+                  END IF
                 ELSE
                   counter = counter + 1
                   buffer_overflow = .FALSE.
@@ -1129,11 +1267,21 @@ MODULE hfx_energy_potential
               END IF
             ELSE
               IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
-                IF(memory_parameter%ram_counter == counter) THEN
-                  buffer_overflow = .TRUE.
+                IF( do_dynamic_load_balancing) THEN
+                  IF(distribution_energy%ram_counter == counter) THEN
+                    buffer_overflow = .TRUE.
+                  ELSE
+                    counter = counter + 1
+                    buffer_overflow = .FALSE.
+                  END IF
+
                 ELSE
-                  counter = counter + 1
-                  buffer_overflow = .FALSE.
+                  IF(memory_parameter%ram_counter == counter) THEN
+                    buffer_overflow = .TRUE.
+                  ELSE
+                    counter = counter + 1
+                    buffer_overflow = .FALSE.
+                  END IF
                 END IF
               END IF
             END IF
@@ -1391,10 +1539,10 @@ MODULE hfx_energy_potential
       END DO atomic_blocks
       bintime_stop = m_walltime()
       IF (geometry_did_change) THEN
-        actual_x_data%distribution_energy(bin)%time_first_scf=bintime_stop-bintime_start 
+        distribution_energy%time_first_scf=bintime_stop-bintime_start 
       ELSE
-        actual_x_data%distribution_energy(bin)%time_other_scf= &
-            actual_x_data%distribution_energy(bin)%time_other_scf+bintime_stop-bintime_start 
+        distribution_energy%time_other_scf= &
+            distribution_energy%time_other_scf+bintime_stop-bintime_start 
       ENDIF
 !$OMP MASTER
       CALL timestop(handle_bin)
@@ -1663,19 +1811,42 @@ MODULE hfx_energy_potential
 !$OMP END MASTER
 
     !! flush caches if the geometry changed 
+    IF( do_dynamic_load_balancing ) THEN
+      my_bin_size = SIZE(actual_x_data%distribution_energy)
+    ELSE
+      my_bin_size = 1
+    END IF
+
     IF(geometry_did_change ) THEN
-      CALL hfx_flush_last_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
-      DO i=1,64
-        CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
-                                   memory_parameter%actual_memory_usage, .FALSE., error)
-      END DO
+      IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
+        DO bin = 1,my_bin_size
+          maxval_cache => actual_x_data%maxval_cache(bin)
+          maxval_container => actual_x_data%maxval_container(bin)
+          integral_caches => actual_x_data%integral_caches(:,bin)
+          integral_containers => actual_x_data%integral_containers(:,bin)
+          CALL hfx_flush_last_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, & 
+                                    .FALSE., error)
+          DO i=1,64
+            CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
+                                      memory_parameter%actual_memory_usage, .FALSE., error)
+          END DO
+        END DO
+      END IF
     END IF
     !! reset all caches except we calculate all on the fly
     IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
-      CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
-      DO i=1,64
-        CALL hfx_reset_cache_and_container(integral_caches(i), integral_containers(i), memory_parameter%actual_memory_usage, &
-                                            .FALSE.)
+      DO bin = 1,my_bin_size
+        maxval_cache => actual_x_data%maxval_cache(bin)
+        maxval_container => actual_x_data%maxval_container(bin)
+        integral_caches => actual_x_data%integral_caches(:,bin)
+        integral_containers => actual_x_data%integral_containers(:,bin)
+
+        CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
+        DO i=1,64
+          CALL hfx_reset_cache_and_container(integral_caches(i), integral_containers(i), &
+                                             memory_parameter%actual_memory_usage, &
+                                             .FALSE.)
+        END DO
       END DO
     END IF
 
@@ -1712,6 +1883,10 @@ MODULE hfx_energy_potential
         DEALLOCATE(full_density_beta,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+    END IF
+    IF (do_dynamic_load_balancing) THEN
+      DEALLOCATE(actual_x_data%task_list, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 !$OMP END MASTER
     DEALLOCATE(pbd_buf, pbc_buf, pad_buf, pac_buf, STAT=stat)

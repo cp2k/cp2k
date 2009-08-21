@@ -38,7 +38,7 @@ MODULE hfx_libint_wrapper
   PRIVATE
   PUBLIC initialize_libint, lib_int, terminate_libint,&
          initialize_libderiv, lib_deriv, prim_data,&
-         get_eris, get_derivs
+         get_eris, get_derivs, prim_data_f_size
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper'
 

@@ -31,7 +31,8 @@ MODULE hfx_types
   USE f77_blas
   USE hfx_helpers,                     ONLY: count_cells_perd,&
                                              next_image_cell_perd
-  USE hfx_libint_wrapper,              ONLY: lib_int
+  USE hfx_libint_wrapper,              ONLY: lib_int,&
+                                             prim_data_f_size
   USE input_constants,                 ONLY: &
        do_hfx_auto_shells, do_hfx_potential_coulomb, &
        do_hfx_potential_gaussian, do_hfx_potential_id, do_hfx_potential_long, &
@@ -69,7 +70,8 @@ MODULE hfx_types
           hfx_basis_info_type, hfx_screen_coeff_type,&
           hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
           pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
-          hfx_pgf_image, hfx_pgf_product_list
+          hfx_pgf_image, hfx_pgf_product_list, &
+          alloc_containers, dealloc_containers, hfx_task_list_type
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -164,6 +166,7 @@ MODULE hfx_types
     REAL(KIND=dp)                            :: time_first_scf
     REAL(KIND=dp)                            :: time_other_scf
     REAL(KIND=dp)                            :: time_forces
+    INTEGER(int_8)                           :: ram_counter
   END TYPE
 
 ! *****************************************************************************
@@ -284,9 +287,15 @@ MODULE hfx_types
     REAL(dp)                                 :: Rho, RhoInv
     REAL(dp)                                 :: P(3), Q(3), W(3)
     REAL(dp)                                 :: AB(3), CD(3)
-    REAL(dp)                                 :: Fm(17)
+    REAL(dp)                                 :: Fm(prim_data_f_size)
   END TYPE
 
+! *****************************************************************************
+  TYPE hfx_task_list_type
+    INTEGER                                  :: thread_id
+    INTEGER                                  :: bin_id
+    INTEGER(int_8)                           :: cost
+  END TYPE
 
 ! *****************************************************************************
 !> \brief stores some data used in construction of Kohn-Sham matrix
@@ -330,11 +339,20 @@ MODULE hfx_types
      TYPE(hfx_periodic_type)                  :: periodic_parameter
      TYPE(hfx_load_balance_type)              :: load_balance_parameter
      TYPE(hfx_general_type)                   :: general_parameter
-     TYPE(hfx_container_type), POINTER        :: maxval_container, maxval_container_disk
-     TYPE(hfx_cache_type)                     :: maxval_cache, maxval_cache_disk
+     TYPE(hfx_container_type), DIMENSION(:),&
+                               POINTER        :: maxval_container
+     TYPE(hfx_cache_type), DIMENSION(:),&
+                           POINTER            :: maxval_cache
+     TYPE(hfx_container_type), DIMENSION(:,:), &
+                               POINTER        :: integral_containers
+     TYPE(hfx_cache_type), DIMENSION(:,:),&
+                           POINTER            :: integral_caches
+
+     TYPE(hfx_container_type), POINTER        :: maxval_container_disk
+     TYPE(hfx_cache_type)                     :: maxval_cache_disk
      TYPE(hfx_container_type), POINTER, &
-                                DIMENSION(:)  :: integral_containers, integral_containers_disk
-     TYPE(hfx_cache_type)                     :: integral_caches(64), integral_caches_disk(64)
+                                DIMENSION(:)  :: integral_containers_disk
+     TYPE(hfx_cache_type)                     :: integral_caches_disk(64)
 
      TYPE(hfx_cell_type), DIMENSION(:), &
                 POINTER                       :: neighbor_cells
@@ -367,6 +385,9 @@ MODULE hfx_types
      INTEGER, DIMENSION(:,:), POINTER         :: atomic_block_offset
      INTEGER, DIMENSION(:,:,:,:), POINTER     :: set_offset
      INTEGER, DIMENSION(:), POINTER           :: block_offset
+      TYPE(hfx_task_list_type), DIMENSION(:), &
+                               POINTER        :: task_list
+
   END TYPE hfx_type
 
   CONTAINS
@@ -808,31 +829,8 @@ MODULE hfx_types
           DEALLOCATE(kind_of, atom2kind, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
-        actual_x_data%maxval_cache%element_counter = 1
-        ALLOCATE(actual_x_data%maxval_container,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(actual_x_data%maxval_container%first,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        actual_x_data%maxval_container%first%prev => NULL()
-        actual_x_data%maxval_container%first%next => NULL()
-        actual_x_data%maxval_container%current => actual_x_data%maxval_container%first
-        actual_x_data%maxval_container%current%data = 0
-        actual_x_data%maxval_container%element_counter = 1
-    
-        ALLOCATE(actual_x_data%integral_containers(64), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DO i=1,64
-          actual_x_data%integral_caches(i)%element_counter = 1
-          actual_x_data%integral_caches(i)%data = 0
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(actual_x_data%integral_containers(i)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          actual_x_data%integral_containers(i)%first%prev => NULL()
-          actual_x_data%integral_containers(i)%first%next => NULL()
-          actual_x_data%integral_containers(i)%current => actual_x_data%integral_containers(i)%first
-          actual_x_data%integral_containers(i)%current%data = 0
-          actual_x_data%integral_containers(i)%element_counter = 1
-        END DO
+
+        CALL alloc_containers(actual_x_data, 1, error)
 
         actual_x_data%maxval_cache_disk%element_counter = 1
         ALLOCATE(actual_x_data%maxval_container_disk,STAT=stat)
@@ -841,7 +839,7 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         actual_x_data%maxval_container_disk%first%prev => NULL()
         actual_x_data%maxval_container_disk%first%next => NULL()
-        actual_x_data%maxval_container_disk%current => actual_x_data%maxval_container%first
+        actual_x_data%maxval_container_disk%current => actual_x_data%maxval_container_disk%first
         actual_x_data%maxval_container_disk%current%data = 0
         actual_x_data%maxval_container_disk%element_counter = 1
         actual_x_data%maxval_container_disk%file_counter = 1
@@ -860,7 +858,7 @@ MODULE hfx_types
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           actual_x_data%integral_containers_disk(i)%first%prev => NULL()
           actual_x_data%integral_containers_disk(i)%first%next => NULL()
-          actual_x_data%integral_containers_disk(i)%current => actual_x_data%integral_containers(i)%first
+          actual_x_data%integral_containers_disk(i)%current => actual_x_data%integral_containers_disk(i)%first
           actual_x_data%integral_containers_disk(i)%current%data = 0
           actual_x_data%integral_containers_disk(i)%element_counter = 1
           actual_x_data%integral_containers_disk(i)%file_counter = 1
@@ -1053,26 +1051,12 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         !! Deallocate containers
-        CALL hfx_init_container(actual_x_data%maxval_container, actual_x_data%memory_parameter%actual_memory_usage, &
-                                 .FALSE., error)
-        DEALLOCATE(actual_x_data%maxval_container%first,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(actual_x_data%maxval_container,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-        DO i=1,64   
-          CALL hfx_init_container(actual_x_data%integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, &
-                                   .FALSE., error)
-          DEALLOCATE(actual_x_data%integral_containers(i)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END DO
-        DEALLOCATE(actual_x_data%integral_containers,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CALL dealloc_containers(actual_x_data, error)
 
         !! Deallocate containers
         CALL hfx_init_container(actual_x_data%maxval_container_disk, &
-                                 actual_x_data%memory_parameter%actual_memory_usage_disk, &
-                                 .FALSE., error)
+                                actual_x_data%memory_parameter%actual_memory_usage_disk, &
+                                .FALSE., error)
         IF( actual_x_data%memory_parameter%do_disk_storage) THEN
           CALL close_file(unit_number=actual_x_data%maxval_container_disk%unit,file_status="DELETE")
         END IF
@@ -1083,8 +1067,8 @@ MODULE hfx_types
     
         DO i=1,64   
           CALL hfx_init_container(actual_x_data%integral_containers_disk(i), &
-                                   actual_x_data%memory_parameter%actual_memory_usage_disk, &
-                                   .FALSE., error)
+                                  actual_x_data%memory_parameter%actual_memory_usage_disk, &
+                                  .FALSE., error)
           IF( actual_x_data%memory_parameter%do_disk_storage) THEN
             CALL close_file(unit_number=actual_x_data%integral_containers_disk(i)%unit,file_status="DELETE")
           END IF
@@ -1623,6 +1607,99 @@ MODULE hfx_types
     CALL cp_print_key_finished_output(iw,logger,hfx_section,&
                                      "HF_INFO", error=error)
   END SUBROUTINE hfx_print_info
+
+  SUBROUTINE dealloc_containers(x_data, error)
+    TYPE(hfx_type), POINTER                  :: x_data
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_containers', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: bin, i, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+
+    DO bin=1,SIZE(x_data%maxval_container)
+      CALL hfx_init_container(x_data%maxval_container(bin), x_data%memory_parameter%actual_memory_usage, &
+                               .FALSE., error)
+      DEALLOCATE(x_data%maxval_container(bin)%first,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(x_data%maxval_container,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(x_data%maxval_cache,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO bin = 1,SIZE(x_data%integral_containers,2)
+      DO i=1,64
+        CALL hfx_init_container(x_data%integral_containers(i,bin), x_data%memory_parameter%actual_memory_usage, &
+                                 .FALSE., error)
+        DEALLOCATE(x_data%integral_containers(i,bin)%first,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END DO
+    END DO
+    DEALLOCATE(x_data%integral_containers,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(x_data%integral_caches, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE dealloc_containers
+
+  SUBROUTINE alloc_containers(x_data, bin_size, error)
+    TYPE(hfx_type), POINTER                  :: x_data
+    INTEGER, INTENT(IN)                      :: bin_size
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_containers', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: bin, i, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+
+    ALLOCATE(x_data%maxval_cache(bin_size),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO bin = 1,bin_size
+      x_data%maxval_cache(bin)%element_counter = 1
+    END DO
+    ALLOCATE(x_data%maxval_container(bin_size),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO bin = 1,bin_size
+      ALLOCATE(x_data%maxval_container(bin)%first,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      x_data%maxval_container(bin)%first%prev => NULL()
+      x_data%maxval_container(bin)%first%next => NULL()
+      x_data%maxval_container(bin)%current => x_data%maxval_container(bin)%first
+      x_data%maxval_container(bin)%current%data = 0
+      x_data%maxval_container(bin)%element_counter = 1
+    END DO
+
+    ALLOCATE(x_data%integral_containers(64,bin_size), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(x_data%integral_caches(64,bin_size), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO bin = 1,bin_size
+      DO i=1,64
+        x_data%integral_caches(i,bin)%element_counter = 1
+        x_data%integral_caches(i,bin)%data = 0
+        ALLOCATE(x_data%integral_containers(i,bin)%first,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        x_data%integral_containers(i,bin)%first%prev => NULL()
+        x_data%integral_containers(i,bin)%first%next => NULL()
+        x_data%integral_containers(i,bin)%current => x_data%integral_containers(i,bin)%first
+        x_data%integral_containers(i,bin)%current%data = 0
+        x_data%integral_containers(i,bin)%element_counter = 1
+      END DO
+    END DO
+
+  END SUBROUTINE alloc_containers
+
 
 END MODULE hfx_types
 
