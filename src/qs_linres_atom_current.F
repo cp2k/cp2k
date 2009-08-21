@@ -22,6 +22,11 @@ MODULE qs_linres_atom_current
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&
@@ -57,8 +62,7 @@ MODULE qs_linres_atom_current
   USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
                                              alist_type,&
                                              get_alist
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -85,21 +89,21 @@ CONTAINS
 !>      02.2009 using new setup of projector-basis overlap [jgh]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE calculate_jrho_atom_coeff(qs_env,current_env,mat_d0,mat_jp,mat_jp_rii,&
-       &                               mat_jp_riii,iB,idir,error)
+  SUBROUTINE calculate_jrho_atom_coeff(qs_env,current_env,mat_d0_sm,mat_jp_sm,mat_jp_rii_sm,&
+       &                               mat_jp_riii_sm,iB,idir,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(current_env_type)                   :: current_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: mat_d0, mat_jp, mat_jp_rii, &
-                                                mat_jp_riii
+      POINTER                                :: mat_d0_sm, mat_jp_sm, &
+                                                mat_jp_rii_sm, mat_jp_riii_sm
     INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2), handle, iab, iac, iat, iatom, ibc, idir2, ii, iii, &
+    INTEGER :: bo(2), handle, i, iab, iac, iat, iatom, ibc, idir2, ii, iii, &
       ikind, ilist, inode, ispin, istat, jatom, jkind, kac, katom, kbc, &
       kkind, max_gau, max_nsgf, mepos, n_cont_a, n_cont_b, nat, natom, nkind, &
       nlist, nnode, nsatbas, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe, &
@@ -122,6 +126,10 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: mat_a, mat_b, mat_c, mat_d, &
+                                                mat_d0, mat_jp, mat_jp_rii, &
+                                                mat_jp_riii
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(jrho_atom_type), DIMENSION(:), &
@@ -133,8 +141,6 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: mat_a, mat_b, mat_c, mat_d
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: a_block, b_block, c_block, &
                                                 d_block, jp2_RARnu, jp_RARnu
@@ -155,6 +161,20 @@ CONTAINS
          &          sab_all=sab_orb,&
          &          para_env=para_env,&
          &          error=error)
+
+    NULLIFY(mat_d0,mat_jp,mat_jp_rii,mat_jp_riii)
+    CALL dbcsr_allocate_matrix_set( mat_d0, SIZE(mat_d0_sm), error )
+    CALL dbcsr_allocate_matrix_set( mat_jp, SIZE(mat_d0_sm), error )
+    CALL dbcsr_allocate_matrix_set( mat_jp_rii, SIZE(mat_d0_sm), error )
+    CALL dbcsr_allocate_matrix_set( mat_jp_riii, SIZE(mat_d0_sm), error )
+    DO i=1,SIZE(mat_d0)
+       ALLOCATE(mat_d0(i)%matrix,mat_jp(i)%matrix,mat_jp_rii(i)%matrix,mat_jp_riii(i)%matrix)
+       CALL dbcsr_from_sm(mat_d0(i)%matrix, mat_d0_sm(i)%matrix, error)
+       CALL dbcsr_from_sm(mat_jp(i)%matrix, mat_jp_sm(i)%matrix, error)
+       CALL dbcsr_from_sm(mat_jp_rii(i)%matrix, mat_jp_rii_sm(i)%matrix, error)
+       CALL dbcsr_from_sm(mat_jp_riii(i)%matrix, mat_jp_riii_sm(i)%matrix, error)
+    END DO
+
     !
     CPPrecondition(ASSOCIATED(oce),cp_failure_level,routineP,error,failure)
     !
@@ -289,22 +309,22 @@ CONTAINS
                    NULLIFY(b_block(ispin)%r_coef)
                    NULLIFY(c_block(ispin)%r_coef)
                    NULLIFY(d_block(ispin)%r_coef)
-                   CALL get_block_node(matrix=mat_a(ispin)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=mat_a(ispin)%matrix,&
                         &              block_row=iatom,&
                         &              block_col=jatom,&
                         &              BLOCK=a_block(ispin)%r_coef)
                    jmax = jmax + MAXVAL(ABS(a_block(ispin)%r_coef))
-                   CALL get_block_node(matrix=mat_b(ispin)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=mat_b(ispin)%matrix,&
                         &              block_row=iatom,&
                         &              block_col=jatom,&
                         &              BLOCK=b_block(ispin)%r_coef)
                    jmax = jmax + MAXVAL(ABS(b_block(ispin)%r_coef))
-                   CALL get_block_node(matrix=mat_c(ispin)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=mat_c(ispin)%matrix,&
                         &              block_row=iatom,&
                         &              block_col=jatom,&
                         &              BLOCK=c_block(ispin)%r_coef)
                    jmax = jmax + MAXVAL(ABS(c_block(ispin)%r_coef))
-                   CALL get_block_node(matrix=mat_d(ispin)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=mat_d(ispin)%matrix,&
                         &              block_row=iatom,&
                         &              block_col=jatom,&
                         &              BLOCK=d_block(ispin)%r_coef)
@@ -568,6 +588,10 @@ CONTAINS
          &     jp_RARnu,jp2_RARnu,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    CALL dbcsr_deallocate_matrix_set( mat_d0, error )
+    CALL dbcsr_deallocate_matrix_set( mat_jp, error )
+    CALL dbcsr_deallocate_matrix_set( mat_jp_rii, error )
+    CALL dbcsr_deallocate_matrix_set( mat_jp_riii, error )
     !
     CALL timestop(handle)
     !

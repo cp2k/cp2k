@@ -16,7 +16,14 @@ MODULE  hartree_local_3centers
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: tddfpt_singlet
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -49,14 +56,12 @@ MODULE  hartree_local_3centers
                                              rho_atom_type
   USE qs_util,                         ONLY: trace_r_AxB,&
                                              trace_r_AxB_new
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-!, &
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -89,14 +94,14 @@ CONTAINS
 !>      the calculation is the bottleneck. It needs optimization for better performance
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE integrate_a_vhg0_b(qs_env,h_mat,p_mat,energy_hartree_3c,just_energy,&
+  SUBROUTINE integrate_a_vhg0_b(qs_env,h_mat_sm,p_mat_sm,energy_hartree_3c,just_energy,&
        calculate_forces,tddft,do_triplet,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: h_mat
+      INTENT(INOUT)                          :: h_mat_sm
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(IN)                             :: p_mat
+      INTENT(IN)                             :: p_mat_sm
     REAL(kind=dp), INTENT(INOUT)             :: energy_hartree_3c
     LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft, do_triplet
@@ -107,7 +112,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(dp), PARAMETER                      :: EPS_a_vhg0_b = 1.E-8_dp 
 
-    INTEGER :: ab, bo(2), handle, i_atom, iatom, ic, ic1, ic1_max, &
+    INTEGER :: ab, bo(2), handle, i, i_atom, iatom, ic, ic1, ic1_max, &
       ic1_min_m1, ic2, ic2_max, ic2_min_m1, ico, idir, ifs1, ifs2, ikind, &
       ilist, inode, ip1, ip2, is, iset1, iset2, iso, ispin, istat, j_atom, &
       jatom, jkind, k_atom, kat, katom, kkind, knode, l0_kkind, ldcpc1, &
@@ -116,8 +121,9 @@ CONTAINS
       maxlgto1, maxsgf, maxsgf_set, maxsoc, mepos, n1, n2, nat, natom, &
       nchan0_car, nchan0_sph, nco1, nco2, ncotota, ncotota_old, ncototb, &
       ncototb_old, nkind, nlist, nn1, nn2, nnode, nnode_c, ns1, ns2, nseta, &
-      nsetb, nsetc
-    INTEGER :: nsgfa, nsgfb, nsototc, nspins, num_pe, nz1, nz2, output_unit
+      nsetb
+    INTEGER :: nsetc, nsgfa, nsgfb, nsototc, nspins, num_pe, nz1, nz2, &
+      output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 lb_max, lb_min, npgfa, npgfb, &
@@ -148,6 +154,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: h_mat, p_mat
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -175,7 +184,7 @@ CONTAINS
 
     NULLIFY(atomic_kind_set,cell)
     NULLIFY( para_env,particle_set,rho0_mpole)
-    NULLIFY(sab_orb,reduced_3c_rho0)
+    NULLIFY(sab_orb,reduced_3c_rho0,h_mat,p_mat)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -199,13 +208,29 @@ CONTAINS
          particle_set=particle_set,&
          rho0_mpole=rho0_mpole,&
          rho_atom_set=rho_atom_set,&
+         distribution_2d=distribution_2d,&
          sab_orb=sab_orb,error=error)
+
+
+    CALL dbcsr_allocate_matrix_set( h_mat, SIZE(h_mat_sm), error )
+    CALL dbcsr_allocate_matrix_set( p_mat, SIZE(h_mat_sm), error )
+    DO i=1,SIZE(h_mat)
+       ALLOCATE(h_mat(i)%matrix)
+       ALLOCATE(p_mat(i)%matrix)
+       CALL dbcsr_from_sm(h_mat(i)%matrix, h_mat_sm(i)%matrix, error)
+       CALL dbcsr_from_sm(p_mat(i)%matrix, p_mat_sm(i)%matrix, error)
+    END DO
+
 
     NULLIFY(ng0_h,ng0_s)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
          norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0,&
          set_radius_3c=set_radius_3c)
     IF(.NOT. qs_env%dft_control%qs_control%gapw_control%full_gapw) THEN !z0_h==z0_s
+
+       CALL dbcsr_deallocate_matrix_set( h_mat, error=error )
+       CALL dbcsr_deallocate_matrix_set( p_mat, error=error )
+
        RETURN
     END IF
 
@@ -396,23 +421,23 @@ CONTAINS
                 NULLIFY(h_block, p_block, p_block2, h_block2)
                 IF (iatom <= jatom) THEN
                    !             Retrieve KS and density matrix for this couple of atoms
-                   CALL get_block_node(matrix=h_mat(1)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=h_mat(1)%matrix,&
                         block_row=iatom,&
                         block_col=jatom,&
                         BLOCK=h_block)
 
-                   CALL get_block_node(matrix=p_mat(1)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=p_mat(1)%matrix,&
                         block_row=iatom,&
                         block_col=jatom,&
                         BLOCK=p_block)
 
                    IF(nspins == 2) THEN
-                      CALL get_block_node(matrix=h_mat(2)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=h_mat(2)%matrix,&
                            block_row=iatom,&
                            block_col=jatom,&
                            BLOCK=h_block2)
 
-                      CALL get_block_node(matrix=p_mat(2)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=p_mat(2)%matrix,&
                            block_row=iatom,&
                            block_col=jatom,&
                            BLOCK=p_block2)
@@ -531,23 +556,23 @@ CONTAINS
 
                 ELSE
 
-                   CALL get_block_node(matrix=h_mat(1)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=h_mat(1)%matrix,&
                         block_row=jatom,&
                         block_col=iatom,&
                         BLOCK=h_block)
 
-                   CALL get_block_node(matrix=p_mat(1)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=p_mat(1)%matrix,&
                         block_row=jatom,&
                         block_col=iatom,&
                         BLOCK=p_block)
 
                    IF(nspins == 2) THEN
-                      CALL get_block_node(matrix=h_mat(2)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=h_mat(2)%matrix,&
                            block_row=jatom,&
                            block_col=iatom,&
                            BLOCK=h_block2)
 
-                      CALL get_block_node(matrix=p_mat(2)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=p_mat(2)%matrix,&
                            block_row=jatom,&
                            block_col=iatom,&
                            BLOCK=p_block2)
@@ -999,6 +1024,12 @@ CONTAINS
     END DO  ! kkind
 
 100 CONTINUE
+
+    DO i=1,SIZE(h_mat)
+       CALL sm_from_dbcsr ( h_mat_sm(i)%matrix, h_mat(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set( h_mat, error=error )
+    CALL dbcsr_deallocate_matrix_set( p_mat, error=error )
 
     IF(ASSOCIATED(Int_ab_sum)) THEN
        DEALLOCATE(Int_ab_sum,STAT=istat)

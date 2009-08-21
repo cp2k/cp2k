@@ -12,6 +12,11 @@ MODULE qs_rho_atom_methods
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: dp
@@ -48,8 +53,7 @@ MODULE qs_rho_atom_methods
   USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
                                              alist_type,&
                                              get_alist
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                              clebsch_gordon_deallocate,&
                                              clebsch_gordon_init
@@ -469,11 +473,11 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set,error)
+  SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao_sm, rho_atom_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao
+      POINTER                                :: rho_ao_sm
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -503,6 +507,8 @@ MODULE qs_rho_atom_methods
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
@@ -527,6 +533,7 @@ MODULE qs_rho_atom_methods
     NULLIFY(sab_orb)
     NULLIFY(rho_atom)
     NULLIFY(orb_basis_set)
+    NULLIFY(rho_ao)
 
     CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
@@ -534,6 +541,12 @@ MODULE qs_rho_atom_methods
             para_env=para_env,&
             oce=oce,sab_orb=sab_orb,&
             rho_atom_set=rho_atom,error=error)
+
+    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )
+    DO i = 1,SIZE(rho_ao)
+       ALLOCATE(rho_ao(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(rho_ao(i)%matrix, rho_ao_sm(i)%matrix, error)
+    ENDDO
 
     eps_cpc = qs_env%dft_control%qs_control%gapw_control%eps_cpc
 
@@ -634,26 +647,19 @@ MODULE qs_rho_atom_methods
             IF (iatom <= jatom) THEN
                irow = iatom
                icol = jatom
-               DO ispin = 1,nspins
-                  NULLIFY(p_block_spin(ispin)%r_coef)
-                  CALL get_block_node(matrix=rho_ao(ispin)%matrix,&
-                                    block_row=irow,&
-                                    block_col=icol,&
-                                    BLOCK=p_block_spin(ispin)%r_coef)
-                  pmax = pmax+MAXVAL(ABS(p_block_spin(ispin)%r_coef))
-               ENDDO
             ELSE
                irow = jatom
                icol = iatom
-               DO ispin = 1,nspins
-                  NULLIFY(p_block_spin(ispin)%r_coef)
-                  CALL get_block_node(matrix=rho_ao(ispin)%matrix,&
-                                    block_row=irow,&
-                                    block_col=icol,&
-                                    BLOCK=p_block_spin(ispin)%r_coef)
-                  pmax = pmax+MAXVAL(ABS(p_block_spin(ispin)%r_coef))
-               ENDDO
             ENDIF
+
+            DO ispin = 1,nspins
+               NULLIFY(p_block_spin(ispin)%r_coef)
+               CALL dbcsr_get_block_node(matrix=rho_ao(ispin)%matrix,&
+                                         block_row=irow,&
+                                         block_col=icol,&
+                                         BLOCK=p_block_spin(ispin)%r_coef)
+               pmax = pmax+MAXVAL(ABS(p_block_spin(ispin)%r_coef))
+            ENDDO
 
             DO kkind = 1 ,nkind
 
@@ -776,6 +782,8 @@ MODULE qs_rho_atom_methods
 
     DEALLOCATE(PC1,CPC,p_block_spin,p_matrix,kind_of,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL dbcsr_deallocate_matrix_set(rho_ao, error)
 
     CALL timestop(handle)
 

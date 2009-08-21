@@ -80,6 +80,9 @@ MODULE cp_dbcsr_operations
                                              mp_bcast,&
                                              mp_sum_i8,&
                                              mp_sync
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, checksum_matrix, deallocate_matrix, &
        first_block_node, get_block_node, next_block_node, &
@@ -107,7 +110,7 @@ MODULE cp_dbcsr_operations
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
             dbcsr_obj_p_type, dbcsr_block_node_type, test_sm,&
             dbcsr_from_fm, dbcsr_from_sm,&
-            sm_from_dbcsr, dbcsr_type_from_sm_symmetry
+            sm_from_dbcsr, dbcsr_type_from_sm_symmetry, dbcsr_write_sparse_matrix
 
   INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
@@ -2762,6 +2765,38 @@ CONTAINS
     CALL timestop(timing_handle)
   END SUBROUTINE sm_from_dbcsr
 
+
+  SUBROUTINE dbcsr_write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
+                                      first_row,last_row,first_col,last_col,scale,&
+                                       output_unit,error)
+
+    TYPE(dbcsr_obj), POINTER                 :: sparse_matrix
+    INTEGER, INTENT(IN)                      :: before, after
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
+                                                first_col, last_col
+    REAL(dp), INTENT(IN), OPTIONAL           :: scale
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_write_sparse_matrix', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(real_matrix_type), POINTER          :: sparse_matrix_sm
+
+    CALL get_qs_env(qs_env=qs_env,distribution_2d=distribution_2d,error=error)
+
+    CALL sm_from_dbcsr ( sparse_matrix_sm, sparse_matrix, distribution_2d, error=error )
+
+    CALL write_sparse_matrix(sparse_matrix_sm,before,after,qs_env,para_env,&
+                             first_row,last_row,first_col,last_col,scale,&
+                             output_unit,error)
+
+    CALL deallocate_matrix(sparse_matrix_sm, error)
+
+  END SUBROUTINE dbcsr_write_sparse_matrix
 
   SUBROUTINE test_sm(sm, error)
     TYPE(real_matrix_type), POINTER          :: sm

@@ -597,7 +597,7 @@ CPSourceFileRef,&
        unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
             middle_name="",log_filename=.FALSE.,error=error)
        mulliken_title="  Mulliken charges : iteration level: "//cp_iter_string(logger%iter_info, print_key,error=error)
-       CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,para_env,particle_set,unit_nr,mulliken_title)
+       CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,para_env,particle_set,unit_nr,mulliken_title,error=error)
 
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
     END IF

@@ -19,11 +19,18 @@ MODULE qs_fermi_contact
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -37,8 +44,7 @@ MODULE qs_fermi_contact
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -66,11 +72,11 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_fermi_contact_matrix(qs_env,matrix_fc,rc,error)
+  SUBROUTINE build_fermi_contact_matrix(qs_env,matrix_fc_sm,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_fc
+      POINTER                                :: matrix_fc_sm
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -101,6 +107,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_fc
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -123,10 +132,16 @@ CONTAINS
                     para_env=para_env,&
                     sab_orb=sab_orb,&
                     cell=cell,&
+                    distribution_2d=distribution_2d,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
+
+    NULLIFY(matrix_fc)
+    CALL dbcsr_allocate_matrix_set( matrix_fc, 1, error )
+    ALLOCATE(matrix_fc(1)%matrix)!super dirty
+    CALL dbcsr_from_sm(matrix_fc(1)%matrix, matrix_fc_sm(1)%matrix, error)
 
     ! *** Allocate work storage ***
 
@@ -245,7 +260,7 @@ CONTAINS
                    END IF
 
                    NULLIFY (fcint(1)%block)
-                   CALL get_block_node(matrix=matrix_fc(1)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=matrix_fc(1)%matrix,&
                                        block_row=irow,&
                                        block_col=icol,&
                                        BLOCK=fcint(1)%block)
@@ -326,6 +341,8 @@ CONTAINS
     DEALLOCATE (fcint,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "fcint")
+    CALL sm_from_dbcsr( matrix_fc_sm(1)%matrix, matrix_fc(1)%matrix, distribution_2d, error=error )
+    CALL dbcsr_deallocate_matrix_set(matrix_fc, error)
 
 !   *** Print the Fermi contact matrix, if requested ***
 
@@ -333,7 +350,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/FERMI_CONTACT",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/FERMI_CONTACT",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_fc(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_fc_sm(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/FERMI_CONTACT", error=error)
     END IF

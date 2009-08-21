@@ -19,11 +19,18 @@ MODULE qs_spin_orbit
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -37,8 +44,7 @@ MODULE qs_spin_orbit
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -66,11 +72,11 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_pso_matrix(qs_env,matrix_so,rc,error)
+  SUBROUTINE build_pso_matrix(qs_env,matrix_so_sm,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_so
+      POINTER                                :: matrix_so_sm
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -103,6 +109,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_so
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -126,10 +135,18 @@ CONTAINS
                     para_env=para_env,&
                     sab_orb=sab_orb,&
                     cell=cell,&
+                    distribution_2d=distribution_2d,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
+
+    NULLIFY(matrix_so)
+    CALL dbcsr_allocate_matrix_set( matrix_so, SIZE(matrix_so_sm), error )
+    DO i = 1,SIZE(matrix_so)
+       ALLOCATE(matrix_so(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(matrix_so(i)%matrix, matrix_so_sm(i)%matrix, error)
+    ENDDO
 
 !   *** Allocate work storage ***
 
@@ -249,7 +266,7 @@ CONTAINS
 
                    DO i=1,3
                       NULLIFY(soint(i)%block)
-                      CALL get_block_node(matrix=matrix_so(i)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=matrix_so(i)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=soint(i)%block)
@@ -334,15 +351,20 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "soint")
 
+    DO i = 1,SIZE(matrix_so)
+       CALL sm_from_dbcsr( matrix_so_sm(i)%matrix, matrix_so(i)%matrix, distribution_2d, error=error )
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set(matrix_so, error)
+
 !   *** Print the spin orbit matrix, if requested ***
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/PSO",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/PSO",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_so(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_so(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_so(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_so_sm(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_so_sm(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_so_sm(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/PSO", error=error)
     END IF

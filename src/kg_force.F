@@ -838,7 +838,7 @@ END SUBROUTINE kg_calculate_forces
 !   *** from an eventual mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
         CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                                para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
+                                para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix_sm=matrix_w,error=error)
     ENDIF
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 

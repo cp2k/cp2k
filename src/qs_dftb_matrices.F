@@ -695,7 +695,7 @@ CONTAINS
          ALLOCATE(charges(natom,nspins),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          !
-         CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges)
+         CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
          !
          ALLOCATE(mcharge(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

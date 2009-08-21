@@ -126,11 +126,11 @@ CONTAINS
        IF (just_energy) THEN
           CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
                para_env,matrix_s(1)%matrix, rho%rho_ao,energy=energy%mulliken, &
-               order_p=mulliken_order_p)
+               order_p=mulliken_order_p,error=error)
        ELSE
           CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control,&
                para_env,matrix_s(1)%matrix,rho%rho_ao,energy=energy%mulliken, &
-               ks_matrix=ks_matrix, order_p=mulliken_order_p)
+               ks_matrix_sm=ks_matrix, order_p=mulliken_order_p,error=error)
        ENDIF
     ENDIF
 

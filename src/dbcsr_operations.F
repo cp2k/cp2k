@@ -57,7 +57,7 @@ MODULE dbcsr_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
   PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_trace,&
-            dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block,&
+            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block,&
             dbcsr_put_block, dbcsr_filter,dbcsr_find_column,&
             dbcsr_btriu, dbcsr_add_on_diag, block_add_on_diag,&
             block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm
@@ -3135,6 +3135,46 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
   END SUBROUTINE dbcsr_scale
 
+
+
+! *****************************************************************************
+!> \brief Set a DBCSR matrix by alpha
+!> \param[inout] matrix       DBCSR matrix
+!> \param[in] alpha           a scalar
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_set(matrix, alpha, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    REAL(dp), INTENT(IN)                     :: alpha
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, row, timing_handle
+    LOGICAL                                  :: tr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    !
+    !
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       SELECT CASE (dbcsr_get_data_type(matrix))
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          data_d(:,:) = alpha
+       CASE DEFAULT
+          CALL cp_unimplemented_error (routineN,"Only real double precision")
+       END SELECT
+    ENDDO
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_set
 
 ! *****************************************************************************
 !> \brief Marks a block for removal from a DBCSR matrix. Handles
