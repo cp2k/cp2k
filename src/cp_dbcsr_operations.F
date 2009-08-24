@@ -64,9 +64,9 @@ MODULE cp_dbcsr_operations
        dbcsr_create_dist_r_unrot, dbcsr_destroy_array, &
        dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, dbcsr_finalize, &
        dbcsr_get_block_index, dbcsr_get_stored_coordinates, dbcsr_init, &
-       dbcsr_make_col_images, dbcsr_new_transposed, dbcsr_set_debug, &
-       dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_work_create, &
-       ensure_array_size, pointer_set, pointer_view, swap
+       dbcsr_make_col_images, dbcsr_new_transposed, dbcsr_replicate_all, &
+       dbcsr_set_debug, dbcsr_valid_index, dbcsr_verify_matrix, &
+       dbcsr_work_create, ensure_array_size, pointer_set, pointer_view, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -254,7 +254,7 @@ CONTAINS
     !CALL dbcsr_distribution_release (dist_left)
     !CALL dbcsr_distribution_release (dist_right)
     CALL dbcsr_destroy_image_dist (rdist_left)
-    CALL dbcsr_destroy_array (ms_left, error)
+    CALL dbcsr_destroy_array (ms_left)
     ! Perform multiplication
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_sm_sm_multiply
@@ -591,10 +591,14 @@ CONTAINS
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 3*x/3  checksum", checksum
     ENDIF
     !
-    !
+    ! Replication
+    CALL dbcsr_init (matrix_bt)
+    CALL dbcsr_replicate_all (matrix_bt, matrix_b)
+    CALL dbcsr_verify_matrix (matrix_bt)
+    CALL dbcsr_release (matrix_bt)
+    ! Transpose
     CALL dbcsr_new_transposed (matrix_bt, matrix_b, error=error)
-    CALL dbcsr_verify_matrix (matrix_bt, error)
-    !CALL dbcsr_destroy (matrix_bt, error)
+    CALL dbcsr_verify_matrix (matrix_bt)
     !
     CALL dbcsr_distribution_new (product_dist,&
          dbcsr_distribution_mp (matrix_a%m%dist),&

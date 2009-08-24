@@ -720,21 +720,21 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, iatom, icol_atom, icol_global, icol_local, ikind, &
+    INTEGER :: handle, i, iatom, icol_atom, icol_global, icol_local, ikind, &
       irow_atom, irow_global, irow_local, ispin, kind_atom, nao, natom, &
-      ncol_local, nrow_local, stat, handle
+      ncol_local, nrow_local, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, col_atom_index, &
                                                 first_sgf, kind_of, last_sgf, &
                                                 row_atom_index
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data, local_dp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: C_mat, S_der
     TYPE(cp_fm_type), POINTER                :: B_mat, ks, p, S_inv, tmp_mat, &
-                                                tmp_mat1,tmp_mat2,tmp_mat3
+                                                tmp_mat1, tmp_mat2, tmp_mat3
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &

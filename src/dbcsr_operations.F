@@ -461,7 +461,7 @@ CONTAINS
           IF (all_sizes(4, 1, right_src_p_calc) .EQ. 0) THEN
              DBG 'ZERO SIZED INDEX'
           ENDIF
-          CALL dbcsr_repoint_index (rbuffer_calc%m, error=error)
+          CALL dbcsr_repoint_index (rbuffer_calc%m)
        ENDIF calc_case_right
        !
        ! No waits in first loop iteration.
@@ -562,7 +562,7 @@ CONTAINS
           DO myt_mult = 1, left_multiplicity
              !$OMP MASTER
              mult = myt_mult
-             CALL dbcsr_repoint_index (lbuffer_calc%mats(myt_mult)%m, error=error)
+             CALL dbcsr_repoint_index (lbuffer_calc%mats(myt_mult)%m)
              tstart = m_walltime ()
              !$OMP END MASTER
              !$OMP BARRIER
@@ -615,10 +615,10 @@ CONTAINS
     ENDIF
     !ENDIF
     !
-    CALL dbcsr_destroy (rbuffer_1, error)
-    CALL dbcsr_destroy (rbuffer_2, error)
-    CALL dbcsr_destroy_array (lbuffer_1, error)
-    CALL dbcsr_destroy_array (lbuffer_2, error)
+    CALL dbcsr_destroy (rbuffer_1)
+    CALL dbcsr_destroy (rbuffer_2)
+    CALL dbcsr_destroy_array (lbuffer_1)
+    CALL dbcsr_destroy_array (lbuffer_2)
     DEALLOCATE (my_sizes)
     !
     !$OMP END MASTER
@@ -883,7 +883,7 @@ CONTAINS
           IF (all_sizes(4, 1, right_src_p_calc) .EQ. 0) THEN
              DBG 'ZERO SIZED INDEX'
           ENDIF
-          CALL dbcsr_repoint_index (rbuffer_calc%m, error=error)
+          CALL dbcsr_repoint_index (rbuffer_calc%m)
        ENDIF calc_case_right
        ! Now we transfer/multiply with the left matrix
        right_src_p_calc = right_src_p_comm
@@ -925,7 +925,7 @@ CONTAINS
        calc_case_left: IF (right_prow_i .GT. 0) THEN
              !left_src_p_calc == left_pgrid (left_prow, right_prow-1)
           DO mult = 1, left_multiplicity
-             CALL dbcsr_repoint_index (lbuffer_calc%mats(mult)%m, error=error)
+             CALL dbcsr_repoint_index (lbuffer_calc%mats(mult)%m)
              tstart = m_walltime ()
              CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult)%m, rbuffer_calc%m,&
                   product_matrix_p%m, flop=flop_single,&
@@ -975,13 +975,13 @@ CONTAINS
     CALL mp_window_destroy (right_data_window)
     CALL mp_window_destroy (right_index_window)
     !
-    CALL dbcsr_destroy (rbuffer_1, error)
-    CALL dbcsr_destroy (rbuffer_2, error)
-    CALL dbcsr_destroy_array (lbuffer_1, error)
-    CALL dbcsr_destroy_array (lbuffer_2, error)
+    CALL dbcsr_destroy (rbuffer_1)
+    CALL dbcsr_destroy (rbuffer_2)
+    CALL dbcsr_destroy_array (lbuffer_1)
+    CALL dbcsr_destroy_array (lbuffer_2)
     DEALLOCATE (my_sizes)
     !
-    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error=error)
+    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE.)
     !
     IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
@@ -3485,7 +3485,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_data_copyall (matrix_b%m%data_area, matrix_a%m%data_area)
     !
     ! the row_p, col_i and blk_p ...
-    CALL dbcsr_repoint_index(matrix_b%m, error=error)
+    CALL dbcsr_repoint_index(matrix_b%m)
     matrix_b%m%nze = matrix_a%m%nze
     matrix_b%m%nblks = matrix_b%m%nblks
     matrix_b%m%valid = .TRUE.
