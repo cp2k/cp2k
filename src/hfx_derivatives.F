@@ -22,8 +22,8 @@ MODULE hfx_derivatives
   USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
   USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
                                              lib_deriv
-  USE hfx_load_balance_methods,        ONLY: load_balance,&
-                                             update_load_balance
+  USE hfx_load_balance_methods,        ONLY: hfx_load_balance,&
+                                             hfx_update_load_balance
   USE hfx_pair_list_methods,           ONLY: build_pair_list,&
                                              build_pair_list_pgf,&
                                              build_pgf_product_list
@@ -431,7 +431,7 @@ MODULE hfx_derivatives
 !$OMP END MASTER
     !! Load balance the work
     IF( actual_x_data%b_first_load_balance_forces ) THEN
-      CALL load_balance(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
+      CALL hfx_load_balance(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
                         screen_coeffs_set,screen_coeffs_kind,&
                         shm_is_assoc_atomic_block, do_periodic,&
                         load_balance_parameter, kind_of, basis_parameter,shm_initial_p, i_thread, n_threads,&
@@ -439,7 +439,7 @@ MODULE hfx_derivatives
                         nkind, hfx_do_eval_forces, error)
       actual_x_data%b_first_load_balance_forces = .FALSE.
     ELSE
-      CALL update_load_balance(actual_x_data, para_env, &
+      CALL hfx_update_load_balance(actual_x_data, para_env, &
                                load_balance_parameter, &
                                i_thread, n_threads, hfx_do_eval_forces, &
                                error)

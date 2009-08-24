@@ -40,10 +40,37 @@ MODULE hfx_load_balance_methods
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC load_balance, &
-         update_load_balance
+  PUBLIC hfx_load_balance, &
+         hfx_update_load_balance
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_load_balance_methods'
+
+  REAL(KIND=dp), PARAMETER :: p1_energy(12)=(/2.9461408209700424_dp,       1.0624718662999657_dp, &
+                                             -1.91570128356921242E-002_dp,-1.6668495454436603_dp, &
+                                              1.7512639006523709_dp,      -9.76074323945336081E-002_dp, &
+                                              2.6230786127311889_dp,      -0.31870737623014189_dp, &
+                                              7.9588203912690973_dp,       1.8331423413134813_dp, &
+                                             -0.15427618665346299_dp,      0.19749436090711650_dp/)
+  REAL(KIND=dp), PARAMETER :: p2_energy(12)=(/ 2.3104682960662593_dp,      1.8744052737304417_dp, &
+                                              -9.36564055598656797E-002_dp,0.64284973765086939_dp, &
+                                               1.0137565430060556_dp,     -6.80088178288954567E-003_dp, &
+                                               1.1692629207374552_dp,     -2.6314710080507573_dp, &
+                                              19.237814781880786_dp,       1.0505934173661349_dp, &
+                                               0.80382371955699250_dp,     0.49903401991818103_dp/)
+  REAL(KIND=dp), PARAMETER :: p3_energy(2) =(/7.82336287670072350E-002_dp, 0.38073304105744837_dp/)
+  REAL(KIND=dp), PARAMETER :: p1_forces(12)=(/2.5746279948798874_dp,       1.3420575378609276_dp, &
+                                             -9.41673106447732111E-002_dp, 0.94568006899317825_dp, &
+                                             -1.4511897117448544_dp,       0.59178934677316952_dp, &
+                                              2.7291149361757236_dp,      -0.50555512044800210_dp, &
+                                              8.3508180969609871_dp,       1.6829982496141809_dp, &
+                                             -0.74895370472152600_dp,      0.43801726744197500_dp/)
+  REAL(KIND=dp), PARAMETER :: p2_forces(12)=(/2.6398568961569020_dp,       2.3024918834564101_dp, &
+                                              5.33216585432061581E-003_dp, 0.45572145697283628_dp, &
+                                              1.8119743851500618_dp,      -0.12533918548421166_dp, &
+                                             -1.4040312084552751_dp,      -4.5331650463917859_dp, &
+                                             12.593431549069477_dp,        1.1311978374487595_dp, &
+                                              1.4245996087624646_dp,       1.1425350529853495_dp/)
+  REAL(KIND=dp), PARAMETER :: p3_forces(2) =(/0.12051930516830946_dp,      1.3828051586144336_dp/)
 
 !***
   
@@ -92,7 +119,7 @@ MODULE hfx_load_balance_methods
 !>      02.2009 completely refactored [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE load_balance(x_data, eps_schwarz, particle_set,max_set,para_env,&
+  SUBROUTINE hfx_load_balance(x_data, eps_schwarz, particle_set,max_set,para_env,&
                           coeffs_set, coeffs_kind, &
                           is_assoc_atomic_block_global, do_periodic,&
                           load_balance_parameter, kind_of, basis_parameter, pmax_set, &
@@ -122,7 +149,7 @@ MODULE hfx_load_balance_methods
     INTEGER, INTENT(IN)                      :: nkind, eval_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_load_balance', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: error_msg
@@ -674,7 +701,7 @@ MODULE hfx_load_balance_methods
     CALL timestop(handle)
 !$OMP END MASTER
 !$OMP BARRIER
-  END SUBROUTINE load_balance
+  END SUBROUTINE hfx_load_balance
 
 ! *****************************************************************************
 !> \brief Cheap way of redistributing the eri's
@@ -693,7 +720,7 @@ MODULE hfx_load_balance_methods
 !>      02.2009 optimize Memory Usage [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE update_load_balance(x_data, para_env, &
+  SUBROUTINE hfx_update_load_balance(x_data, para_env, &
                                 load_balance_parameter, &
                                 i_thread, n_threads, eval_type, error)
 
@@ -703,7 +730,7 @@ MODULE hfx_load_balance_methods
     INTEGER, INTENT(IN)                      :: i_thread, n_threads, eval_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_load_balance', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_update_load_balance', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_from, dest, end_idx, i, ibin, icpu, iprocess, j, &
@@ -984,33 +1011,20 @@ MODULE hfx_load_balance_methods
       DEALLOCATE(binned_dist, local_cost_matrix, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-  END SUBROUTINE update_load_balance
+  END SUBROUTINE hfx_update_load_balance
 
 ! *****************************************************************************
 !> \brief estimates the cost of a set quartet with info available at load balance time
-!>        i.e. without primitives
+!>        i.e. without much info on the primitives primitives
 !> \par History
 !>      08.2009 created Joost VandeVondele
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  FUNCTION cost_model(nsa,nsb,nsc,nsd,npgfa,npgfb,npgfc,npgfd,ratio) RESULT(res)
+  FUNCTION cost_model(nsa,nsb,nsc,nsd,npgfa,npgfb,npgfc,npgfd,ratio,p1,p2,p3) RESULT(res)
     IMPLICIT NONE
     REAL(KIND=dp) :: estimate1,estimate2,estimate,ratio,switch,mu,sigma
     INTEGER(KIND=int_8) :: res
-    REAL(KIND=dp), PARAMETER :: p1(12)= (/ 3.68929441208341923897_dp,         0.48940924954656772616_dp, &
-                                          0.00102707771831506362_dp,         1.29334668762357529737_dp, &
-                                          1.66880505533381828798_dp,        -0.09749697096154402720_dp, &
-                                          2.01199967713937599711_dp,         0.07454267451127583044_dp, &
-                                          7.95519915010950917633_dp,         1.35724416447166351674_dp, &
-                                         -0.36984994682595428994_dp,         0.13596671313848385232_dp/)
-    REAL(KIND=dp), PARAMETER :: p2(12)= (/3.64080653092177541907_dp,         0.26350123725292662336_dp, &
-                                         -0.01482523772559220243_dp,         0.91188319202419487741_dp, &
-                                          1.40426707920750248881_dp,        -0.06281784386298409906_dp, &
-                                         -2.63101986861228942516_dp,        -4.12905535855329208772_dp, &
-                                         11.38869897885007809180_dp,         1.70436080319537230920_dp, &
-                                          1.83286850171357773576_dp,         0.24388862662611737742_dp/)
-    REAL(KIND=dp), PARAMETER :: p3(2) = (/1.40688884221826859822_dp,         1.32587994555282162601_dp/)
-
+    REAL(KIND=dp), INTENT(IN) :: p1(12),p2(12),p3(2)
 
     INTEGER   :: nsa,nsb,nsc,nsd,npgfa,npgfb,npgfc,npgfd
     
@@ -1020,7 +1034,7 @@ MODULE hfx_load_balance_methods
     sigma=p3(2)*0.1_dp*mu
     switch=1.0_dp/(1.0_dp+EXP((LOG(estimate1)-mu)/sigma))
     estimate=estimate1*(1.0_dp-switch)+estimate2*switch
-    res = CEILING(estimate*0.001_dp)
+    res = estimate*0.001_dp+1
 
   CONTAINS
      
@@ -1374,11 +1388,13 @@ MODULE hfx_load_balance_methods
             CASE (hfx_do_eval_energy)
               estimate_block_cost = estimate_block_cost + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
                                                           npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
-                                                          max_val2/log10_eps_schwarz)
+                                                          max_val2/log10_eps_schwarz,&
+                                                          p1_energy,p2_energy,p3_energy)
             CASE (hfx_do_eval_forces)
               estimate_block_cost = estimate_block_cost + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
                                                           npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
-                                                          max_val2/log10_eps_schwarz)
+                                                          max_val2/log10_eps_schwarz,&
+                                                          p1_forces,p2_forces,p3_forces)
 !              estimate_block_cost = estimate_block_cost + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
             END SELECT
           ENDDO ! i_set_list_kl
