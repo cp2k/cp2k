@@ -33,3 +33,11 @@ H2-rtp_restart.inp
 wfn_mix_0.inp
 wfn_mix_1.inp
 wfn_mix_2.inp
+# bug fix in LDA forces (tiny changes)
+H2-emd_CN.inp
+H2-emd-efield.inp
+H2-emd_EM.inp
+H2-emd_ETRS_PADE.inp
+H2-emd.inp
+H2-emd_restart-1.inp
+H2-emd_restart.inp
