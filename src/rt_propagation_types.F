@@ -56,6 +56,8 @@ MODULE rt_propagation_types
     TYPE(cp_fm_type),POINTER                                   :: B_mat
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: C_mat
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: S_der
+    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: SinvH
+    TYPE(cp_fm_type),POINTER                    :: SinvB
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: mos_new
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: mos_old
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: mos_next
@@ -196,6 +198,8 @@ CONTAINS
     NULLIFY(rtp%B_mat)
     NULLIFY(rtp%C_mat)
     NULLIFY(rtp%S_der)
+    NULLIFY(rtp%SinvH)
+    NULLIFY(rtp%SinvB)
     IF(.NOT.rtp_control%fixed_ions)THEN
    
        CALL cp_fm_create(rtp%B_mat,&
@@ -203,9 +207,20 @@ CONTAINS
             name="B_mat",&
             error=error)
 
+      CALL cp_fm_create(rtp%SinvB,&
+            matrix_struct=ao_ao_fmstruct,&
+            name="SinvH"//TRIM(ADJUSTL(cp_to_string(i))),&
+            error=error)
        ALLOCATE(rtp%C_mat(3))
        ALLOCATE(rtp%S_der(3))
-       
+       ALLOCATE(rtp%SinvH(SIZE(mos)))
+       DO i=1,SIZE(mos)
+          NULLIFY(rtp%SinvH(i)%matrix)
+          CALL cp_fm_create(rtp%SinvH(i)%matrix,&
+               matrix_struct=ao_ao_fmstruct,&
+               name="SinvH"//TRIM(ADJUSTL(cp_to_string(i))),&
+               error=error)
+       END DO
        DO i=1,3
           NULLIFY(rtp%C_mat(i)%matrix)
           CALL cp_fm_create(rtp%C_mat(i)%matrix,&
@@ -230,7 +245,8 @@ CONTAINS
 
 
   SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,mos_new,mos_old,mos_next,&
-                     S_inv,S_half,S_minus_half,B_mat,C_mat,S_der,dt,nsteps,error)
+                     S_inv,S_half,S_minus_half,B_mat,C_mat,&
+                     S_der,dt,nsteps,SinvH,SinvB,error)
     
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -242,6 +258,9 @@ CONTAINS
       OPTIONAL, POINTER                      :: C_mat, S_der
     REAL(dp), OPTIONAL                       :: dt
     INTEGER, OPTIONAL                        :: nsteps
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: SinvH
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: SinvB
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_rtp', &
@@ -266,6 +285,8 @@ CONTAINS
     IF(PRESENT(S_minus_half))S_minus_half=>rtp%S_minus_half
     IF(PRESENT(B_mat))B_mat=>rtp%B_mat
     IF(PRESENT(C_mat))C_mat=>rtp%C_mat
+    IF(PRESENT(SinvH))SinvH=>rtp%SinvH
+    IF(PRESENT(SinvB))SinvB=>rtp%SinvB
     IF(PRESENT(S_der))S_der=>rtp%S_der
 
     IF(PRESENT(dt))dt=rtp%dt
@@ -296,6 +317,10 @@ CONTAINS
          CALL cp_fm_vect_dealloc(rtp%C_mat,error)
     IF(ASSOCIATED(rtp%S_der))&
          CALL cp_fm_vect_dealloc(rtp%S_der,error)
+    IF(ASSOCIATED(rtp%SinvH))&
+         CALL cp_fm_vect_dealloc(rtp%SinvH,error)
+    IF(ASSOCIATED(rtp%SinvB))&
+         CALL cp_fm_release(rtp%SinvB,error)
     IF(ASSOCIATED(rtp%history))&
          CALL rtp_history_release(rtp,error)
     DEALLOCATE(rtp%orders)

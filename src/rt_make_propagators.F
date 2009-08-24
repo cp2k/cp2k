@@ -81,7 +81,9 @@ CONTAINS
     INTEGER                                  :: handle, ispin, lb, ndim, ub
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
-    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, &
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: SinvH
+    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, SinvB, &
                                                 tmp_mat_B, tmp_mat_H
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
@@ -92,7 +94,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)  
     CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
-
+    IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)CALL get_rtp(rtp=rtp,SinvH=SinvH,error=error)
     CALL cp_fm_create(H_fm,&
          matrix_struct=exp_H(1)%matrix%matrix_struct,&
          name="RTP_H_FM",&
@@ -114,33 +116,39 @@ CONTAINS
 
        CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
 
-       CALL cp_fm_scale(t,H_fm,error)
     
        SELECT CASE(qs_env%dft_control%rtp_control%mat_exp)
 
        CASE(do_taylor,do_pade)
           CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,tmp_mat_H,error) 
           IF(qs_env%dft_control%rtp_control%fixed_ions)THEN
+             CALL cp_fm_scale(t,tmp_mat_H,error)
              IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
                   CALL taylor_only_imaginary(exp_H(lb:ub),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
 
              IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
                   CALL exp_pade_only_imaginary(exp_H(lb:ub),tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
           ELSE
-             CALL get_rtp(rtp=rtp,B_mat=B_mat,error=error)
+             CALL cp_fm_to_fm(tmp_mat_H,SinvH(ispin)%matrix,error)
+             CALL cp_fm_scale(t,tmp_mat_H,error)
+             IF(ispin==1)THEN
+                CALL get_rtp(rtp=rtp,B_mat=B_mat,SinvB=SinvB,error=error)
 
-             CALL cp_fm_create(tmp_mat_B,&
-                  matrix_struct=exp_H(1)%matrix%matrix_struct,&
-                  name="TMP_B",&
-                  error=error)
-             CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,tmp_mat_B,error) 
-             CALL cp_fm_scale(t,tmp_mat_B,error)
+                CALL cp_fm_create(tmp_mat_B,&
+                     matrix_struct=exp_H(1)%matrix%matrix_struct,&
+                     name="TMP_B",&
+                     error=error)
+
+                CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,tmp_mat_B,error)
+                CALL cp_fm_to_fm(tmp_mat_B,SinvB,error)
+
+                CALL cp_fm_scale(t,tmp_mat_B,error)
+             END IF
              IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)&
                   CALL taylor_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),error)
              IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)&
                   CALL exp_pade_full_complex(exp_H(lb:ub),tmp_mat_B,tmp_mat_H,rtp%orders(1,ispin),rtp%orders(2,ispin),&
                   qs_env%sim_step,error)
-             CALL cp_fm_release(tmp_mat_B,error)
           END IF
 
        CASE(do_diag)
@@ -153,6 +161,7 @@ CONTAINS
           
     END DO
 
+    IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)CALL cp_fm_release(tmp_mat_B,error)
     CALL cp_fm_release(H_fm,error)
     CALL cp_fm_release(tmp_mat_H,error)
 
@@ -349,13 +358,13 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_next, mos_old, &
                                                 new_Ham, old_Ham
-    TYPE(cp_fm_type), POINTER                :: S_inv, tmp_mat_B, tmp_mat_H
+    TYPE(cp_fm_type), POINTER                :: tmp_mat_B, tmp_mat_H
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)  
-    CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,mos_new=mos_new,mos_old=mos_old,&
+    CALL get_rtp(rtp=rtp,dt=t,mos_new=mos_new,mos_old=mos_old,&
          mos_next=mos_next,exp_H_old=old_Ham,exp_H_new=new_Ham,error=error)
 
     CALL cp_fm_create(tmp_mat_H,&

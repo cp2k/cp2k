@@ -32,6 +32,9 @@ MODULE  rt_propagation_utils
                                              cp_fm_scale_and_add,&
                                              cp_fm_transpose,&
                                              cp_fm_upper_to_full
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -672,7 +675,7 @@ MODULE  rt_propagation_utils
 
     INTEGER                                  :: handle, nao, nmo
     REAL(KIND=dp)                            :: alpha
-    TYPE(cp_fm_type), POINTER                :: fm_tmp, fm_tmp1
+    TYPE(cp_fm_type), POINTER                :: fm_tmp
 
     CALL timeset(routineN,handle)
 
@@ -690,16 +693,10 @@ MODULE  rt_propagation_utils
     ENDIF
     CALL get_mo_set(mo_set, nao=nao,nmo=nmo)
 
-    CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,mos_new(1)%matrix,fm_tmp,0.0_dp,dp_imag,error)
+    CALL cp_fm_gemm("N","T",nao,nao,nmo,alpha,mos_new(1)%matrix,fm_tmp,0.0_dp,dp_imag,error)
 
-    CALL cp_fm_gemm("N","T",nao,nao,nmo,-1.0_dp,fm_tmp,mos_new(1)%matrix,1.0_dp,dp_imag,error)
+    CALL cp_fm_gemm("N","T",nao,nao,nmo,-alpha,fm_tmp,mos_new(1)%matrix,1.0_dp,dp_imag,error)
 
-    CALL cp_fm_create(fm_tmp1,dp_imag%matrix_struct,error=error)
-    CALL cp_fm_transpose(dp_imag,fm_tmp1,error)
-    
-    CALL cp_fm_scale_and_add(1.0_dp,dp_imag,-0.0_dp,fm_tmp1,error)
-
-    CALL cp_fm_release(fm_tmp1,error)
     CALL cp_fm_release(fm_tmp,error=error)
 
     CALL timestop(handle)
@@ -722,19 +719,22 @@ MODULE  rt_propagation_utils
 
     INTEGER :: handle, i, iatom, icol_atom, icol_global, icol_local, ikind, &
       irow_atom, irow_global, irow_local, ispin, kind_atom, nao, natom, &
-      ncol_local, nrow_local, stat
+      ncol_local, nmo, nrow_local, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, col_atom_index, &
                                                 first_sgf, kind_of, last_sgf, &
                                                 row_atom_index
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: C_mat, S_der
-    TYPE(cp_fm_type), POINTER                :: B_mat, ks, p, S_inv, tmp_mat, &
-                                                tmp_mat1, tmp_mat2, tmp_mat3
+      POINTER                                :: C_mat, mos_new, S_der, SinvH
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: B_mat, p, S_inv, SinvB, &
+                                                tmp_mat, tmp_mat1, tmp_mat2, &
+                                                tmp_mat3, tmp_mo1, tmp_mo2
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -809,16 +809,26 @@ MODULE  rt_propagation_utils
     DO ispin=1,SIZE(mos)
 
        CALL calculate_dp_imag(dp_imag,qs_env%rtp%mos_new(2*ispin-1:2*ispin),mos(ispin)%mo_set,error)
-       
+
+       alpha=mos(ispin)%mo_set%maxocc
+
        ! calculate B_mat force 
 
-       CALL get_rtp(rtp=rtp,B_mat=B_mat,S_der=S_der,S_inv=S_inv,error=error)
-       CALL cp_fm_get_info(S_inv,nrow_global=nao,error=error)
+       CALL get_rtp(rtp=rtp,B_mat=B_mat,S_der=S_der,S_inv=S_inv,SinvH=SinvH,SinvB=SinvB,mos_new=mos_new,error=error)
+       CALL cp_fm_get_info(mos_new(2*ispin-1)%matrix,nrow_global=nao,ncol_global=nmo,error=error)
 
+       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,ncol_global=nao,&
+            para_env=mos_new(2*ispin-1)%matrix%matrix_struct%para_env, &
+            context=mos_new(2*ispin-1)%matrix%matrix_struct%context,error=error)
 
-       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,B_mat,S_inv,0.0_dp,tmp_mat,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,dp_imag,tmp_mat,0.0_dp,tmp_mat1,error=error)
-
+       CALL cp_fm_create(tmp_mo1,tmp_fm_struct,error=error)
+       CALL cp_fm_create(tmp_mo2,tmp_fm_struct,error=error)
+       CALL cp_fm_struct_release(tmp_fm_struct,error)
+       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin)%matrix,SinvB,0.0_dp,tmp_mo1,error=error)
+       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin-1)%matrix,SinvB,0.0_dp,tmp_mo2,error=error)
+       CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(2*ispin-1)%matrix,tmp_mo1,0.0_dp,tmp_mat1,error=error)
+       CALL cp_fm_gemm("N","N",nao,nao,nmo,-1.0_dp,mos_new(2*ispin)%matrix,tmp_mo2,1.0_dp,tmp_mat1,error=error)
+       
        CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
        CALL cp_fm_scale_and_add(0.0_dp,tmp_mat2,1.0_dp,tmp_mat,error)
        CALL cp_fm_scale_and_add(0.0_dp,tmp_mat3,1.0_dp,tmp_mat1,error)
@@ -826,14 +836,16 @@ MODULE  rt_propagation_utils
        !calculate the W matrix analogue for EMD
 
        CALL cp_fm_create(p,C_mat(1)%matrix%matrix_struct,error=error)
-       CALL cp_fm_create(ks,C_mat(1)%matrix%matrix_struct,error=error)
-       CALL copy_sm_to_fm(qs_env%matrix_ks(ispin)%matrix,ks,error=error)
        CALL copy_sm_to_fm(qs_env%rho%rho_ao(ispin)%matrix,p,error=error)
        CALL cp_fm_upper_to_full(p,tmp_mat,error)
-       CALL cp_fm_upper_to_full(ks,tmp_mat,error)
 
-       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,p,ks,0.0_dp,tmp_mat,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,tmp_mat,S_inv,0.0_dp,tmp_mat1,error=error)
+       
+       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin-1)%matrix,SinvH(ispin)%matrix,0.0_dp,tmp_mo1,error=error)
+       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin)%matrix,SinvH(ispin)%matrix,0.0_dp,tmp_mo2,error=error)
+       CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(2*ispin-1)%matrix,tmp_mo1,0.0_dp,tmp_mat1,error=error)
+       CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(2*ispin)%matrix,tmp_mo2,1.0_dp,tmp_mat1,error=error)
+        
+!      CALL cp_fm_gemm("T","T",nao,nao,nao,1.0_dp,p,SinvH(ispin)%matrix,0.0_dp,tmp_mat1,error=error)
        CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
 
        CALL cp_fm_scale_and_add(1.0_dp,tmp_mat2,1.0_dp,tmp_mat,error)
@@ -872,7 +884,8 @@ MODULE  rt_propagation_utils
 
        ! recall QS forces, at this point have the other sign.
        CALL cp_fm_release(p,error)
-       CALL cp_fm_release(ks,error)
+       CALL cp_fm_release(tmp_mo1,error)
+       CALL cp_fm_release(tmp_mo2,error)
        
     END DO
     ! recall QS forces, at this point have the other sign.

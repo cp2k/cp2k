@@ -384,7 +384,10 @@ CONTAINS
     INTEGER                                  :: handle, ispin, lb, ndim, ub
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
-    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, tmp_mat_H
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: SinvH
+    TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, SinvB, &
+                                                tmp_mat_H
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -411,13 +414,20 @@ CONTAINS
        ub=(ispin-1)*2+2
 
        CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
-       CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,exp_H(ub)%matrix,error) 
+       CALL cp_fm_upper_to_full(H_fm,exp_H(ub)%matrix,error)
+       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,exp_H(ub)%matrix,error)
+
        IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
-          CALL get_rtp(rtp=rtp,B_mat=B_mat,error=error)
-          CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,exp_H(lb)%matrix,error)
+          CALL get_rtp(rtp=rtp,SinvH=SinvH,error=error)
+          CALL cp_fm_to_fm(exp_H(ub)%matrix,SinvH(ispin)%matrix,error)
        END IF
     END DO
+    IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
+       CALL get_rtp(rtp=rtp,B_mat=B_mat,SinvB=SinvB,error=error)
+       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,exp_H(1)%matrix,error)
+       CALL cp_fm_to_fm(exp_H(1)%matrix,SinvB,error)
+       IF(SIZE(matrix_ks)==2)CALL cp_fm_to_fm(exp_H(1)%matrix,exp_H(3)%matrix,error)
+    END IF
             
     CALL cp_fm_release(H_fm,error)
     CALL cp_fm_release(tmp_mat_H,error)
