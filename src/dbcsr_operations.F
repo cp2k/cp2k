@@ -3171,6 +3171,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CALL cp_unimplemented_error (routineN,"Only real double precision")
        END SELECT
     ENDDO
+    CALL dbcsr_iterator_stop(iter)
 
     CALL timestop(timing_handle)
 
@@ -3327,6 +3328,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 CALL cp_unimplemented_error (routineN,"Only real double precision")
              END SELECT
           ENDDO
+          CALL dbcsr_iterator_stop(iter)
           CALL dbcsr_finalize (matrix_a, error=error)
 
        ELSE

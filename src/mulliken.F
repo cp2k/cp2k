@@ -16,7 +16,8 @@ MODULE mulliken
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
                                              dbcsr_iterator_blocks_left,&
@@ -149,16 +150,18 @@ CONTAINS
              IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block) ) ) THEN
                 CALL stop_program("Mulliken","unexpected s / ks structure")
              ENDIF
-    
-             mult = 0.5_dp * charges_deriv(iblock_row,ispin) + &
-                    0.5_dp * charges_deriv(iblock_col,ispin)
-   
-             ks_block=ks_block+mult*s_block
-   
+                mult = 0.5_dp * charges_deriv(iblock_row,ispin) + &
+                       0.5_dp * charges_deriv(iblock_col,ispin)
+
+                ks_block=ks_block+mult*s_block
+
           ENDDO
           CALL dbcsr_iterator_stop(iter)
        ENDDO
 
+       DO i = 1,SIZE(ks_matrix)
+          CALL sm_from_dbcsr(ks_matrix_sm(i)%matrix, ks_matrix(i)%matrix ,error=error)
+       ENDDO
        CALL dbcsr_deallocate_matrix_set( ks_matrix, error=error )
 
     ENDIF
@@ -186,13 +189,16 @@ CONTAINS
              ! minus sign relates to convention for W 
              mult = -0.5_dp * charges_deriv(iblock_row,ispin)   &
                     -0.5_dp * charges_deriv(iblock_col,ispin)
-   
+
              w_block=w_block+mult*p_block
 
           END DO
           CALL dbcsr_iterator_stop(iter)
        ENDDO
 
+       DO i = 1,SIZE(w_matrix)
+          CALL sm_from_dbcsr(w_matrix_sm(i)%matrix, w_matrix(i)%matrix, error=error)
+       ENDDO
        CALL dbcsr_deallocate_matrix_set( w_matrix, error=error )
 
     ENDIF
@@ -348,6 +354,7 @@ END SUBROUTINE rf_deriv_check
                                             mult*SUM(p_block*s_block)
           charges(iblock_col,ispin)=charges(iblock_col,ispin) + &
                                             mult*SUM(p_block*s_block)
+
        ENDDO
        CALL dbcsr_iterator_stop(iter)
     ENDDO
