@@ -130,7 +130,7 @@ MODULE hfx_derivatives
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_general_type)                   :: general_parameter
-    TYPE(hfx_load_balance_type)              :: load_balance_parameter
+    TYPE(hfx_load_balance_type), POINTER     :: load_balance_parameter
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(hfx_screening_type)                 :: screening_parameter
     TYPE(hfx_type), POINTER                  :: actual_x_data
@@ -157,7 +157,7 @@ MODULE hfx_derivatives
     REAL(dp), DIMENSION(:), ALLOCATABLE      :: pbd_buf, pbc_buf, pad_buf, pac_buf, &
                                                 pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta
     INTEGER(int_8)                           :: atom_block, tmp_block, nblocks
-    INTEGER                                  :: iatom_block, jatom_block, katom_block, latom_block, block_size
+    INTEGER                                  :: iatom_block, jatom_block, katom_block, latom_block
     INTEGER                                  :: i_list_ij,i_list_kl, &
                                                 i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop,&
                                                 i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop
@@ -199,10 +199,13 @@ MODULE hfx_derivatives
     INTEGER, DIMENSION(:), ALLOCATABLE       :: tmp_index
     INTEGER(int_8)                           :: current_ram_counter
     INTEGER, DIMENSION(:), ALLOCATABLE       :: nimages
-    INTEGER :: sphi_d_u1,sphi_d_u2,sphi_d_u3
-    INTEGER :: sphi_c_u1,sphi_c_u2,sphi_c_u3
-    INTEGER :: sphi_b_u1,sphi_b_u2,sphi_b_u3
-    INTEGER :: sphi_a_u1,sphi_a_u2,sphi_a_u3
+    INTEGER                                  :: sphi_d_u1,sphi_d_u2,sphi_d_u3
+    INTEGER                                  :: sphi_c_u1,sphi_c_u2,sphi_c_u3
+    INTEGER                                  :: sphi_b_u1,sphi_b_u2,sphi_b_u3
+    INTEGER                                  :: sphi_a_u1,sphi_a_u2,sphi_a_u3
+    INTEGER                                  :: iatom_start, iatom_end, jatom_start, jatom_end, katom_start,&
+                                                katom_end, latom_start, latom_end, my_process_id
+
 
 
 
@@ -289,7 +292,7 @@ MODULE hfx_derivatives
     potential_parameter    = actual_x_data%potential_parameter
     basis_info             => actual_x_data%basis_info
 
-    load_balance_parameter = actual_x_data%load_balance_parameter
+    load_balance_parameter => actual_x_data%load_balance_parameter
     basis_parameter        => actual_x_data%basis_parameter
    
     CALL get_qs_env(qs_env=qs_env,&
@@ -627,8 +630,7 @@ MODULE hfx_derivatives
     DO bin=1,my_bin_size
        actual_x_data%distribution_forces(bin)%time_forces=0.0_dp
     ENDDO
-    block_size = load_balance_parameter%block_size
-    nblocks = MAX((natom+block_size-1)/block_size,1)
+    nblocks = load_balance_parameter%nblocks
     !! outer loop will be cycled if actual work_load done
 
     bins_left = .TRUE.
@@ -681,15 +683,25 @@ MODULE hfx_derivatives
         my_current_counter = my_current_counter + 1
         IF(my_current_counter > distribution_forces%number_of_atom_quartets) EXIT atomic_blocks
 
-        CALL build_pair_list(list_ij,set_list_ij,(iatom_block-1)*block_size +1,MIN(iatom_block*block_size,natom), &
-                             (jatom_block-1)*block_size +1, MIN(jatom_block*block_size,natom),&
+        iatom_start = actual_x_data%blocks(iatom_block)%istart
+        iatom_end =   actual_x_data%blocks(iatom_block)%iend
+        jatom_start = actual_x_data%blocks(jatom_block)%istart
+        jatom_end =   actual_x_data%blocks(jatom_block)%iend
+        katom_start = actual_x_data%blocks(katom_block)%istart
+        katom_end =   actual_x_data%blocks(katom_block)%iend
+        latom_start = actual_x_data%blocks(latom_block)%istart
+        latom_end =   actual_x_data%blocks(latom_block)%iend
+
+        CALL build_pair_list(list_ij,set_list_ij,iatom_start, iatom_end, &
+                             jatom_start, jatom_end, &
                              kind_of,basis_parameter,particle_set, &
                              do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
 
-        CALL build_pair_list(list_kl,set_list_kl,(katom_block-1)*block_size +1,MIN(katom_block*block_size,natom), &
-                             (latom_block-1)*block_size +1, MIN(latom_block*block_size,natom),&
+        CALL build_pair_list(list_kl,set_list_kl, katom_start, katom_end, &
+                             latom_start, latom_end, &
                              kind_of,basis_parameter,particle_set, &
                              do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
+
 
         DO i_list_ij=1,list_ij%n_element
           iatom=list_ij%elements(i_list_ij)%pair(1)

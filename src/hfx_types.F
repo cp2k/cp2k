@@ -70,7 +70,7 @@ MODULE hfx_types
           hfx_basis_info_type, hfx_screen_coeff_type,&
           hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
           pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
-          hfx_pgf_image, hfx_pgf_product_list, &
+          hfx_pgf_image, hfx_pgf_product_list, hfx_block_range_type, &
           alloc_containers, dealloc_containers, hfx_task_list_type
 
 #define CACHE_SIZE 1024
@@ -143,6 +143,7 @@ MODULE hfx_types
   TYPE hfx_load_balance_type
     INTEGER                                  :: nbins                   
     INTEGER                                  :: block_size
+    INTEGER                                  :: nblocks
     LOGICAL                                  :: rtp_redistribute
   END TYPE
 
@@ -291,6 +292,12 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
+  TYPE hfx_block_range_type
+    INTEGER        :: istart,iend
+    INTEGER(int_8) :: cost
+  END TYPE
+
+! *****************************************************************************
   TYPE hfx_task_list_type
     INTEGER                                  :: thread_id
     INTEGER                                  :: bin_id
@@ -385,9 +392,10 @@ MODULE hfx_types
      INTEGER, DIMENSION(:,:), POINTER         :: atomic_block_offset
      INTEGER, DIMENSION(:,:,:,:), POINTER     :: set_offset
      INTEGER, DIMENSION(:), POINTER           :: block_offset
+     TYPE(hfx_block_range_type), DIMENSION(:), &
+                                 POINTER      :: blocks
       TYPE(hfx_task_list_type), DIMENSION(:), &
                                POINTER        :: task_list
-
   END TYPE hfx_type
 
   CONTAINS

@@ -135,17 +135,17 @@ MODULE hfx_energy_potential
 
     INTEGER :: act_atomic_block_offset, act_set_offset, atomic_offset_ac, &
       atomic_offset_ad, atomic_offset_bc, atomic_offset_bd, bin, &
-      bits_max_val, block_size, buffer_left, buffer_size, buffer_start, &
-      cache_size, current_counter, handle, handle_bin, handle_dist_ks, &
-      handle_getP, handle_load, handle_main, i, i_list_ij, i_list_kl, &
-      i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl, &
+      bits_max_val, buffer_left, buffer_size, buffer_start, cache_size, &
+      current_counter, handle, handle_bin, handle_dist_ks, handle_getP, &
+      handle_load, handle_main, i, i_list_ij, i_list_kl, i_set_list_ij, &
+      i_set_list_ij_start, i_set_list_ij_stop, i_set_list_kl, &
       i_set_list_kl_start, i_set_list_kl_stop, i_thread, iatom, iatom_block, &
       ikind, iset, iw, j, jatom, jatom_block, jkind, jset, katom, &
       katom_block, kind_kind_idx, kkind, kset, l_max, latom, latom_block, &
-      lkind, lset, ma, max_am
-    INTEGER :: max_pgf, max_set, mb, my_bin_size, n_threads, natom, nbits, &
-      ncob, ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, &
-      nspins, pa, sgfb, stat, swap_id, unit_id
+      lkind, lset, ma, max_am, max_pgf
+    INTEGER :: max_set, mb, my_bin_size, n_threads, natom, nbits, ncob, &
+      ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, nspins, pa, &
+      sgfb, stat, swap_id, unit_id
     INTEGER(int_8) :: estimate_to_store_int, mem_compression_counter, &
       mem_compression_counter_disk, mem_eris, mem_eris_disk, mem_max_val, &
       my_current_counter, my_istart, n_processes, ncpu, neris_disk, &
@@ -185,7 +185,7 @@ MODULE hfx_energy_potential
     TYPE(hfx_container_type), POINTER        :: maxval_container, &
                                                 maxval_container_disk
     TYPE(hfx_general_type)                   :: general_parameter
-    TYPE(hfx_load_balance_type)              :: load_balance_parameter
+    TYPE(hfx_load_balance_type), POINTER     :: load_balance_parameter
     TYPE(hfx_memory_type), POINTER           :: memory_parameter
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(hfx_screening_type)                 :: screening_parameter
@@ -261,10 +261,12 @@ MODULE hfx_energy_potential
                                                 ee_buffer1, ee_buffer2, &
                                                 ee_primitives_tmp
     INTEGER, DIMENSION(:), ALLOCATABLE       :: nimages
-    INTEGER :: sphi_d_u1,sphi_d_u2,sphi_d_u3
-    INTEGER :: sphi_c_u1,sphi_c_u2,sphi_c_u3
-    INTEGER :: sphi_b_u1,sphi_b_u2,sphi_b_u3
-    INTEGER :: sphi_a_u1,sphi_a_u2,sphi_a_u3
+    INTEGER                                  :: sphi_d_u1,sphi_d_u2,sphi_d_u3
+    INTEGER                                  :: sphi_c_u1,sphi_c_u2,sphi_c_u3
+    INTEGER                                  :: sphi_b_u1,sphi_b_u2,sphi_b_u3
+    INTEGER                                  :: sphi_a_u1,sphi_a_u2,sphi_a_u3
+    INTEGER                                  :: iatom_start, iatom_end, jatom_start, jatom_end, katom_start,&
+                                                katom_end, latom_start, latom_end, my_process_id
 
 
     CALL timeset(routineN,handle)
@@ -383,8 +385,10 @@ MODULE hfx_energy_potential
     potential_parameter    = actual_x_data%potential_parameter
 
     general_parameter      = actual_x_data%general_parameter
-    load_balance_parameter = actual_x_data%load_balance_parameter
+    load_balance_parameter => actual_x_data%load_balance_parameter
     memory_parameter       => actual_x_data%memory_parameter
+
+
 
     cache_size = memory_parameter%cache_size
     bits_max_val = memory_parameter%bits_max_val
@@ -996,8 +1000,7 @@ MODULE hfx_energy_potential
         actual_x_data%distribution_energy(bin)%time_forces=0.0_dp
        END DO
     ENDIF
-    block_size = load_balance_parameter%block_size
-    nblocks = MAX((natom+block_size-1)/block_size,1)
+    nblocks = load_balance_parameter%nblocks
 
     bins_left = .TRUE.
     do_it = .TRUE.
@@ -1059,13 +1062,22 @@ MODULE hfx_energy_potential
         my_current_counter = my_current_counter + 1
         IF(my_current_counter > distribution_energy%number_of_atom_quartets) EXIT atomic_blocks
 
-        CALL build_pair_list(list_ij,set_list_ij,(iatom_block-1)*block_size +1,MIN(iatom_block*block_size,natom), &
-                             (jatom_block-1)*block_size +1, MIN(jatom_block*block_size,natom),&
+        iatom_start = actual_x_data%blocks(iatom_block)%istart
+        iatom_end =   actual_x_data%blocks(iatom_block)%iend
+        jatom_start = actual_x_data%blocks(jatom_block)%istart
+        jatom_end =   actual_x_data%blocks(jatom_block)%iend
+        katom_start = actual_x_data%blocks(katom_block)%istart
+        katom_end =   actual_x_data%blocks(katom_block)%iend
+        latom_start = actual_x_data%blocks(latom_block)%istart
+        latom_end =   actual_x_data%blocks(latom_block)%iend
+
+        CALL build_pair_list(list_ij,set_list_ij,iatom_start, iatom_end, &
+                             jatom_start, jatom_end, &
                              kind_of,basis_parameter,particle_set, &
                              do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
 
-        CALL build_pair_list(list_kl,set_list_kl,(katom_block-1)*block_size +1,MIN(katom_block*block_size,natom), &
-                             (latom_block-1)*block_size +1, MIN(latom_block*block_size,natom),&
+        CALL build_pair_list(list_kl,set_list_kl, katom_start, katom_end, &
+                             latom_start, latom_end, &
                              kind_of,basis_parameter,particle_set, &
                              do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
 

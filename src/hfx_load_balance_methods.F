@@ -15,9 +15,10 @@ MODULE hfx_load_balance_methods
   USE f77_blas
   USE hfx_pair_list_methods,           ONLY: build_pair_list
   USE hfx_types,                       ONLY: &
-       hfx_basis_type, hfx_distribution, hfx_load_balance_type, hfx_p_kind, &
-       hfx_screen_coeff_type, hfx_set_distr_energy, hfx_set_distr_forces, &
-       hfx_type, pair_list_type, pair_set_list_type
+       hfx_basis_type, hfx_block_range_type, hfx_distribution, &
+       hfx_load_balance_type, hfx_p_kind, hfx_screen_coeff_type, &
+       hfx_set_distr_energy, hfx_set_distr_forces, hfx_type, pair_list_type, &
+       pair_set_list_type
   USE input_constants,                 ONLY: hfx_do_eval_energy,&
                                              hfx_do_eval_forces
   USE kinds,                           ONLY: dp,&
@@ -109,7 +110,7 @@ MODULE hfx_load_balance_methods
       DIMENSION(:, :), POINTER               :: coeffs_kind
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
     LOGICAL                                  :: do_periodic
-    TYPE(hfx_load_balance_type)              :: load_balance_parameter
+    TYPE(hfx_load_balance_type), POINTER     :: load_balance_parameter
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -125,15 +126,17 @@ MODULE hfx_load_balance_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: error_msg
-    INTEGER :: block_size, data_from, dest, handle, handle_inner, i, &
-      iatom_block, iatom_end, iatom_start, ibin, icpu, j, jatom_block, &
-      jatom_end, jatom_start, katom_block, katom_end, katom_start, &
-      latom_block, latom_end, latom_start, my_process_id, natom, nbins, &
-      req(2), source, stat
+    INTEGER :: block_size, current_block_id, data_from, dest, handle, &
+      handle_inner, i, iatom_block, iatom_end, iatom_start, ibin, icpu, j, &
+      jatom_block, jatom_end, jatom_start, katom_block, katom_end, &
+      katom_start, latom_block, latom_end, latom_start, my_process_id, natom, &
+      nbins, new_iatom_end, new_iatom_start, new_jatom_end, new_jatom_start, &
+      objective_block_size, objective_nblocks, req(2), source, stat
     INTEGER(int_8) :: atom_block, cost_per_bin, cost_per_core, current_cost, &
       distribution_counter_end, distribution_counter_start, &
-      global_quartet_counter, local_quartet_counter, mepos, n_processes, &
-      nblocks, ncpu, tmp_block
+      global_quartet_counter, local_quartet_counter, max_block_cost, mepos, &
+      n_processes, nblocks, ncpu, self_cost_per_block, tmp_block, &
+      total_block_self_cost
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
@@ -143,10 +146,14 @@ MODULE hfx_load_balance_methods
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
-    LOGICAL                                  :: failure, &
-                                                last_bin_needs_to_be_filled
+    LOGICAL                                  :: changed, failure, &
+                                                last_bin_needs_to_be_filled, &
+                                                optimized
     REAL(dp)                                 :: coeffs_kind_max0, &
                                                 log10_eps_schwarz, log_2
+    TYPE(hfx_block_range_type), &
+      DIMENSION(:), POINTER                  :: blocks_guess, tmp_blocks, &
+                                                tmp_blocks2
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist, &
                                                 tmp_dist
@@ -171,9 +178,114 @@ MODULE hfx_load_balance_methods
     n_processes = ncpu * n_threads
     natom=SIZE(particle_set)
 
-    ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
+    block_size = load_balance_parameter%block_size
+    nblocks = MAX((natom+block_size-1)/block_size,1)
+    ALLOCATE(blocks_guess(nblocks),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
+    ALLOCATE(tmp_blocks(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(tmp_blocks2(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(set_list_ij((max_set*block_size)**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(set_list_kl((max_set*block_size)**2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL init_blocks(natom,block_size,INT(nblocks),blocks_guess,&
+                     list_ij, list_kl, set_list_ij, set_list_kl, &
+                     particle_set,&
+                     coeffs_set, coeffs_kind, &
+                     is_assoc_atomic_block_global, do_periodic,&
+                     kind_of, basis_parameter, pmax_set, &
+                     cell, &
+                     do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                     log10_eps_schwarz, log_2, coeffs_kind_max0)
+
+    total_block_self_cost = 0
+
+    DO i=1,nblocks
+       total_block_self_cost = total_block_self_cost + blocks_guess(i)%cost
+    END DO
+
+    objective_block_size = load_balance_parameter%block_size
+    objective_nblocks = MAX((natom+objective_block_size-1)/objective_block_size,1)
+
+    self_cost_per_block =  (total_block_self_cost + objective_nblocks -1 ) / (objective_nblocks)
+
+    max_block_cost = 0_int_8
+    DO i = 1,nblocks
+      tmp_blocks2(i) = blocks_guess(i)
+      max_block_cost = MAX(max_block_cost, blocks_guess(i)%cost)
+    END DO
+
+    optimized = .FALSE.
+    i = 0 
+    DO WHILE( .NOT. optimized) 
+      i = i + 1
+      current_block_id = 0
+      changed = .FALSE.
+      DO atom_block = 1,nblocks
+        current_block_id = current_block_id + 1
+        iatom_start = tmp_blocks2(atom_block)%istart
+        iatom_end = tmp_blocks2(atom_block)%iend
+        IF(tmp_blocks2(atom_block)%cost > 1.5_dp * self_cost_per_block .AND. iatom_end-iatom_start > 0) THEN
+          changed = .TRUE.
+          new_iatom_start = iatom_start
+          new_iatom_end  = (iatom_end - iatom_start+1) /2 + iatom_start
+          new_jatom_start = new_iatom_end + 1
+          new_jatom_end = iatom_end
+          tmp_blocks(current_block_id)%istart = new_iatom_start
+          tmp_blocks(current_block_id)%iend = new_iatom_end
+          tmp_blocks(current_block_id)%cost = estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
+                                              new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
+                                              new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
+                                              particle_set,&
+                                              coeffs_set, coeffs_kind, &
+                                              is_assoc_atomic_block_global, do_periodic,&
+                                              kind_of, basis_parameter, pmax_set, &
+                                              cell, &
+                                              do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                                              log10_eps_schwarz, log_2, coeffs_kind_max0)
+          current_block_id = current_block_id + 1
+          tmp_blocks(current_block_id)%istart = new_jatom_start
+          tmp_blocks(current_block_id)%iend = new_jatom_end
+          tmp_blocks(current_block_id)%cost = estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
+                                              new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
+                                              new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
+                                              particle_set,&
+                                              coeffs_set, coeffs_kind, &
+                                              is_assoc_atomic_block_global, do_periodic,&
+                                              kind_of, basis_parameter, pmax_set, &
+                                              cell, &
+                                              do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                                              log10_eps_schwarz, log_2, coeffs_kind_max0)
+        ELSE
+          tmp_blocks(current_block_id)%istart = iatom_start
+          tmp_blocks(current_block_id)%iend = iatom_end
+          tmp_blocks(current_block_id)%cost = tmp_blocks2(atom_block)%cost
+        END IF
+      END DO
+      IF( .NOT. changed) optimized = .TRUE.
+      IF( i> 20) optimized = .TRUE.
+      nblocks = current_block_id
+      max_block_cost = 0_int_8
+      DO atom_block = 1,nblocks
+        tmp_blocks2(atom_block) = tmp_blocks(atom_block)
+        max_block_cost = MAX(max_block_cost, tmp_blocks2(atom_block)%cost)
+      END DO
+    END DO
+
+    ! ** Set nblocks in structure
+    load_balance_parameter%nblocks = nblocks
+
+    ALLOCATE(x_data%blocks(nblocks), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO atom_block = 1,nblocks
+      x_data%blocks(atom_block) = tmp_blocks(atom_block)
+    END DO
+
+    DEALLOCATE(blocks_guess, tmp_blocks, tmp_blocks2, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     !! If there is only 1 cpu skip the binning
@@ -202,7 +314,8 @@ MODULE hfx_load_balance_methods
       cost_per_core = 0_int_8
       my_process_id = para_env%mepos*n_threads + i_thread
       block_size = load_balance_parameter%block_size
-      nblocks = MAX((natom+block_size-1)/block_size,1)
+      nblocks = load_balance_parameter%nblocks
+
       DO atom_block = my_process_id,nblocks**4-1,n_processes
         latom_block = MODULO(atom_block,nblocks)+1
         tmp_block = atom_block/nblocks
@@ -214,16 +327,15 @@ MODULE hfx_load_balance_methods
         iatom_block = MODULO(tmp_block,nblocks)+1
         IF(jatom_block<iatom_block) CYCLE
 
-        iatom_start = (iatom_block-1)*block_size + 1
-        iatom_end = MIN(iatom_block*block_size,natom)
-        jatom_start = (jatom_block-1)*block_size + 1
-        jatom_end = MIN(jatom_block*block_size,natom)
-        katom_start = (katom_block-1)*block_size + 1
-        katom_end = MIN(katom_block*block_size,natom)
-        latom_start = (latom_block-1)*block_size + 1
-        latom_end = MIN(latom_block*block_size,natom)
+        iatom_start = x_data%blocks(iatom_block)%istart
+        iatom_end =   x_data%blocks(iatom_block)%iend
+        jatom_start = x_data%blocks(jatom_block)%istart
+        jatom_end =   x_data%blocks(jatom_block)%iend
+        katom_start = x_data%blocks(katom_block)%istart
+        katom_end =   x_data%blocks(katom_block)%iend
+        latom_start = x_data%blocks(latom_block)%istart
+        latom_end =   x_data%blocks(latom_block)%iend
 
-        
         cost_per_core = cost_per_core &
                         + estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
                                               iatom_start, iatom_end, jatom_start, jatom_end, &
@@ -282,14 +394,14 @@ MODULE hfx_load_balance_methods
 
         IF(binned_dist(ibin)%istart == -1_int_8 ) binned_dist(ibin)%istart = atom_block
 
-        iatom_start = (iatom_block-1)*block_size + 1
-        iatom_end = MIN(iatom_block*block_size,natom)
-        jatom_start = (jatom_block-1)*block_size + 1
-        jatom_end = MIN(jatom_block*block_size,natom)
-        katom_start = (katom_block-1)*block_size + 1
-        katom_end = MIN(katom_block*block_size,natom)
-        latom_start = (latom_block-1)*block_size + 1
-        latom_end = MIN(latom_block*block_size,natom)
+        iatom_start = x_data%blocks(iatom_block)%istart
+        iatom_end =   x_data%blocks(iatom_block)%iend
+        jatom_start = x_data%blocks(jatom_block)%istart
+        jatom_end =   x_data%blocks(jatom_block)%iend
+        katom_start = x_data%blocks(katom_block)%istart
+        katom_end =   x_data%blocks(katom_block)%iend
+        latom_start = x_data%blocks(latom_block)%istart
+        latom_end =   x_data%blocks(latom_block)%iend
 
         current_cost = current_cost &
                         + estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, & 
@@ -557,7 +669,6 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
     END IF
-
 !$OMP BARRIER
 !$OMP MASTER
     CALL timestop(handle)
@@ -1265,7 +1376,10 @@ MODULE hfx_load_balance_methods
                                                           npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
                                                           max_val2/log10_eps_schwarz)
             CASE (hfx_do_eval_forces)
-              estimate_block_cost = estimate_block_cost + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+              estimate_block_cost = estimate_block_cost + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
+                                                          npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
+                                                          max_val2/log10_eps_schwarz)
+!              estimate_block_cost = estimate_block_cost + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
             END SELECT
           ENDDO ! i_set_list_kl
         ENDDO ! i_set_list_ij
@@ -1273,6 +1387,67 @@ MODULE hfx_load_balance_methods
     ENDDO ! i_list_ij
 
   END FUNCTION estimate_block_cost
+
+  SUBROUTINE init_blocks(natom,block_size,nblock,blocks,list_ij, list_kl, set_list_ij, set_list_kl, &
+                         particle_set,&
+                         coeffs_set, coeffs_kind, &
+                         is_assoc_atomic_block_global, do_periodic,&
+                         kind_of, basis_parameter, pmax_set, &
+                         cell, &
+                         do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                         log10_eps_schwarz, log_2, coeffs_kind_max0)
+
+    INTEGER                                  :: natom, block_size, nblock
+    TYPE(hfx_block_range_type), &
+      DIMENSION(1:nblock)                    :: blocks
+    TYPE(pair_list_type)                     :: list_ij, list_kl
+    TYPE(pair_set_list_type), DIMENSION(:)   :: set_list_ij, set_list_kl
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :), POINTER         :: coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: coeffs_kind
+    INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
+    LOGICAL                                  :: do_periodic
+    INTEGER                                  :: kind_of(*)
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
+    TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(IN)                      :: do_p_screening
+    INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
+    INTEGER, INTENT(IN)                      :: nkind, eval_type
+    REAL(dp)                                 :: log10_eps_schwarz, log_2, &
+                                                coeffs_kind_max0
+
+    INTEGER                                  :: atom_block, i, iatom_block, &
+                                                iatom_end, iatom_start
+
+    DO atom_block = 0,nblock-1
+      iatom_block = MODULO(atom_block,nblock)+1
+      iatom_start = (iatom_block-1)*block_size + 1
+      iatom_end = MIN(iatom_block*block_size,natom)
+      blocks(atom_block+1)%istart = iatom_start
+      blocks(atom_block+1)%iend   = iatom_end
+    END DO
+
+    DO i=1,nblock
+      iatom_start = blocks(i)%istart
+      iatom_end = blocks(i)%iend
+      blocks(i)%cost = estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
+                                           iatom_start, iatom_end, iatom_start, iatom_end, &
+                                           iatom_start, iatom_end, iatom_start, iatom_end, &
+                                           particle_set,&
+                                           coeffs_set, coeffs_kind, &
+                                           is_assoc_atomic_block_global, do_periodic,&
+                                           kind_of, basis_parameter, pmax_set, &
+                                           cell, &
+                                           do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                                           log10_eps_schwarz, log_2, coeffs_kind_max0)
+
+    END DO
+  END SUBROUTINE init_blocks
 
 #include "hfx_get_pmax_val.h"
 
