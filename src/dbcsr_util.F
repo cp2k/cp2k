@@ -4585,8 +4585,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
     TYPE(dbcsr_distribution_obj)             :: target_dist
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_mp_obj)                       :: mp_obj
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
