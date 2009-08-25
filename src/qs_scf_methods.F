@@ -14,6 +14,12 @@
 ! *****************************************************************************
 MODULE qs_scf_methods
 
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -29,6 +35,13 @@ MODULE qs_scf_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_operations,                ONLY: dbcsr_add
+  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
+                                             dbcsr_obj
   USE f77_blas
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              cholesky_off,&
@@ -41,14 +54,7 @@ MODULE qs_scf_methods
                                              get_mo_set,&
                                              mo_set_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-                                             first_block_node,&
-                                             get_block_node,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -82,11 +88,11 @@ CONTAINS
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_env_density_mixing(p_mix_new,scf_env,iter_delta,&
+  SUBROUTINE scf_env_density_mixing(p_mix_new_sm,scf_env,iter_delta,&
                                     qs_env,diis,invert,error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_mix_new
+      POINTER                                :: p_mix_new_sm
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -100,8 +106,19 @@ CONTAINS
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure, my_invert
     REAL(KIND=dp)                            :: my_p_mix, tmp
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: p_mix_new, rho_ao
 
     CALL timeset(routineN,handle)
+
+    NULLIFY(p_mix_new,rho_ao)
+    CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(p_mix_new_sm), error )
+    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(p_mix_new_sm), error )
+    DO ispin=1,SIZE(p_mix_new)
+       ALLOCATE(p_mix_new(ispin)%matrix,rho_ao(ispin)%matrix)!super dirty
+       CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, p_mix_new_sm(ispin)%matrix, error)
+       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)
+    ENDDO
 
     failure=.FALSE.
     my_invert=.FALSE.
@@ -119,15 +136,15 @@ CONTAINS
           IF (my_invert) THEN
              CPPrecondition(my_p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
              IF (my_p_mix/=1.0_dp) THEN
-                CALL cp_sm_scale_and_add(matrix_a=p_mix_new(ispin)%matrix,&
-                     alpha=1.0_dp/my_p_mix,&
-                     matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&
-                     beta=(my_p_mix-1.0_dp)/my_p_mix,&
+                CALL dbcsr_add(matrix_a=p_mix_new(ispin)%matrix,&
+                     alpha_scalar=1.0_dp/my_p_mix,&
+                     matrix_b=rho_ao(ispin)%matrix,&
+                     beta_scalar=(my_p_mix-1.0_dp)/my_p_mix,&
                      error=error)
              END IF
           ELSE
              CALL cp_sm_mix(m1=p_mix_new(ispin)%matrix,&
-                  m2=qs_env%rho%rho_ao(ispin)%matrix,&
+                  m2=rho_ao(ispin)%matrix,&
                   p_mix=my_p_mix,&
                   delta=tmp,&
                   para_env=qs_env%para_env,&
@@ -136,6 +153,14 @@ CONTAINS
           END IF
        END DO
     END IF
+
+    DO ispin=1,SIZE(p_mix_new)
+       CALL sm_from_dbcsr( p_mix_new_sm(ispin)%matrix, p_mix_new(ispin)%matrix, &
+            qs_env%rho%rho_ao(ispin)%matrix%distribution_2d, error=error )
+    ENDDO
+
+    CALL dbcsr_deallocate_matrix_set( p_mix_new, error=error )
+    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )
 
     CALL timestop(handle)
 
@@ -374,96 +399,59 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_sm_mix(m1,m2,p_mix,delta,para_env,m3,error)
 
-    TYPE(real_matrix_type), POINTER          :: m1, m2
+    TYPE(dbcsr_obj), POINTER                 :: m1, m2
     REAL(KIND=dp), INTENT(IN)                :: p_mix
     REAL(KIND=dp), INTENT(OUT)               :: delta
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: m3
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: m3
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iblock_col_m1, &
-                                                iblock_col_m2, iblock_col_m3, &
-                                                iblock_row, j, nblock_row
-    LOGICAL                                  :: failure
+    INTEGER                                  :: blk, handle, i, iblock_col, &
+                                                iblock_row, j
+    LOGICAL                                  :: failure, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_delta_block, p_new_block, &
                                                 p_old_block
-    TYPE(real_block_node_type), POINTER      :: block_node_m1, block_node_m2, &
-                                                block_node_m3
+    TYPE(dbcsr_iterator)                     :: iter
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
     delta = 0.0_dp
 
-    CALL get_matrix_info(matrix=m2,nblock_row=nblock_row)
-
-    DO iblock_row=1,nblock_row
-
-       block_node_m1 => first_block_node(matrix=m1,&
-            block_row=iblock_row)
-       block_node_m2 => first_block_node(matrix=m2,&
-            block_row=iblock_row)
+    CALL dbcsr_iterator_start(iter, m1)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, tr, blk)
+       CALL dbcsr_get_block_node(matrix=m2,&
+                                 block_row=iblock_row,&
+                                 block_col=iblock_col,&
+                                 BLOCK=p_old_block)
+       CPPostcondition(ASSOCIATED(p_old_block),cp_failure_level,routineP,error,failure)
        IF(PRESENT(m3)) THEN
-         ! compute only the difference and store it in m3 
-         block_node_m3 => first_block_node(matrix=m3,&
-              block_row=iblock_row)
+          CALL dbcsr_get_block_node(matrix=m3,&
+                                    block_row=iblock_row,&
+                                    block_col=iblock_col,&
+                                    BLOCK=p_delta_block)
+          CPPostcondition(ASSOCIATED(p_delta_block),cp_failure_level,routineP,error,failure)
 
-         DO WHILE (ASSOCIATED(block_node_m1))
-
-            CALL get_block_node(block_node=block_node_m1,&
-                 block_col=iblock_col_m1,&
-                 BLOCK=p_new_block)
-
-            CALL get_block_node(block_node=block_node_m2,&
-                 block_col=iblock_col_m2,&
-                 BLOCK=p_old_block)
-            CPPostcondition(iblock_col_m1==iblock_col_m2,cp_failure_level,routineP,error,failure)
-
-            CALL get_block_node(block_node=block_node_m3,&
-                 block_col=iblock_col_m3,&
-                 BLOCK=p_delta_block)
-            CPPostcondition(iblock_col_m1==iblock_col_m3,cp_failure_level,routineP,error,failure)
-
-            DO j=1,SIZE(p_new_block,2)
-               DO i=1,SIZE(p_new_block,1)
-                  p_delta_block(i,j) = p_new_block(i,j) - p_old_block(i,j)
-                  delta = MAX(delta,ABS(p_delta_block(i,j)))
-               END DO
-            END DO
-
-            block_node_m1 => next_block_node(block_node_m1)
-            block_node_m2 => next_block_node(block_node_m2)
-            block_node_m3 => next_block_node(block_node_m3)
-
-         END DO
+          DO j=1,SIZE(p_new_block,2)
+             DO i=1,SIZE(p_new_block,1)
+                p_delta_block(i,j) = p_new_block(i,j) - p_old_block(i,j)
+                delta = MAX(delta,ABS(p_delta_block(i,j)))
+             END DO
+          END DO
        ELSE
-         DO WHILE (ASSOCIATED(block_node_m1))
-
-            CALL get_block_node(block_node=block_node_m1,&
-                 block_col=iblock_col_m1,&
-                 BLOCK=p_new_block)
-
-            CALL get_block_node(block_node=block_node_m2,&
-                 block_col=iblock_col_m2,&
-                 BLOCK=p_old_block)
-            CPPostcondition(iblock_col_m1==iblock_col_m2,cp_failure_level,routineP,error,failure)
-
-            DO j=1,SIZE(p_new_block,2)
-               DO i=1,SIZE(p_new_block,1)
-                  p_new_block(i,j) = p_new_block(i,j) - p_old_block(i,j)
-                  delta = MAX(delta,ABS(p_new_block(i,j)))
-                  p_new_block(i,j) = p_old_block(i,j) + p_mix*p_new_block(i,j)
-               END DO
-            END DO
-
-            block_node_m1 => next_block_node(block_node_m1)
-            block_node_m2 => next_block_node(block_node_m2)
-         END DO
-       END IF
-    END DO
+          DO j=1,SIZE(p_new_block,2)
+             DO i=1,SIZE(p_new_block,1)
+                p_new_block(i,j) = p_new_block(i,j) - p_old_block(i,j)
+                delta = MAX(delta,ABS(p_new_block(i,j)))
+                p_new_block(i,j) = p_old_block(i,j) + p_mix*p_new_block(i,j)
+             END DO
+          END DO
+       ENDIF
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
 
     CALL mp_max(delta,para_env%group)
 

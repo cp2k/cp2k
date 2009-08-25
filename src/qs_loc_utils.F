@@ -20,6 +20,12 @@ MODULE qs_loc_utils
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -29,6 +35,7 @@ MODULE qs_loc_utils
        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: do_loc_none,&
                                              op_loc_berry,&
                                              op_loc_pipek,&
@@ -53,8 +60,7 @@ MODULE qs_loc_utils
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type,&
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
   USE termination,                     ONLY: stop_program
@@ -546,6 +552,9 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: op_cost, op_sint
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dbcsr_obj_p_type), &
+      DIMENSION(:, :), POINTER               :: op_sm_set
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -555,7 +564,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: op_sm_set
+      DIMENSION(:, :), POINTER               :: op_sm_set_sm
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
@@ -566,12 +575,13 @@ CONTAINS
     NULLIFY ( cell, op_sm_set , orb_basis_set, particle_set)
     NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
              sab_orb_neighbor_node)
-    NULLIFY (cosabt,sinabt, workt,cosab,sinab, work)
+    NULLIFY (cosabt,sinabt, workt,cosab,sinab, work, distribution_2d)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set, sab_orb=sab_orb,error=error)
+                    particle_set=particle_set, sab_orb=sab_orb,&
+                    distribution_2d=distribution_2d,error=error)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -587,8 +597,18 @@ CONTAINS
     ALLOCATE(workt(ldwork,ldwork,0:nthread-1))
     workt = 0.0_dp
 
-    CALL get_qs_loc_env(qs_loc_env=qs_loc_env, op_sm_set=op_sm_set, &
+    CALL get_qs_loc_env(qs_loc_env=qs_loc_env, op_sm_set=op_sm_set_sm, &
          cell=cell, dim_op=dim_op, error=error)
+
+    NULLIFY(op_sm_set)
+    CALL dbcsr_allocate_matrix_set( op_sm_set, SIZE(op_sm_set_sm,1), SIZE(op_sm_set_sm,2), error )
+    DO j = 1,SIZE(op_sm_set,2)
+    DO i = 1,SIZE(op_sm_set,1)
+       ALLOCATE(op_sm_set(i,j)%matrix)!super dirty
+       CALL dbcsr_from_sm(op_sm_set(i,j)%matrix, op_sm_set_sm(i,j)%matrix, error)
+    ENDDO
+    ENDDO
+
     ALLOCATE (op_cost(dim_op,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (op_sint(dim_op,0:nthread-1),STAT=istat)
@@ -736,12 +756,12 @@ CONTAINS
 
               DO i = 1,dim_op
                  NULLIFY(op_cos(i)%block)
-                 CALL get_block_node(matrix=op_sm_set(1,i)%matrix,&
+                 CALL dbcsr_get_block_node(matrix=op_sm_set(1,i)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_cos(i)%block)
                  NULLIFY(op_sin(i)%block)
-                 CALL get_block_node(matrix=op_sm_set(2,i)%matrix,&
+                 CALL dbcsr_get_block_node(matrix=op_sm_set(2,i)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_sin(i)%block)
@@ -815,6 +835,16 @@ CONTAINS
 
     DEALLOCATE(cosabt,sinabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
+    DO j = 1,SIZE(op_sm_set,2)
+    DO i = 1,SIZE(op_sm_set,1)
+       CALL sm_from_dbcsr ( op_sm_set_sm(i,j)%matrix, op_sm_set(i,j)%matrix, distribution_2d, error=error )
+    ENDDO
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set( op_sm_set, error=error )
+
+    CALL set_qs_loc_env(qs_loc_env=qs_loc_env, op_sm_set=op_sm_set_sm, error=error)
 
     CALL timestop(handle)
   END SUBROUTINE get_berry_operator

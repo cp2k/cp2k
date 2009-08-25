@@ -48,7 +48,6 @@ MODULE ep_methods
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             sm_pool_create_matrix,&
                                              sm_pool_give_back_matrix,&
                                              sm_pools_create_matrix_vect
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -2505,83 +2504,6 @@ CONTAINS
 
   END SUBROUTINE ep_create_full_diag_sm
 
-! *****************************************************************************
-!> \brief creates copy of the diagonal (molecular) part of a sparse matrix
-!> \param ep_env the ep_environment
-!> \param source_m the source matrix
-!> \param diag_m diagonal matrix that will be created
-!> \param diag_m_name name of the newly created matrix
-!> \param do_copy if source_m should be copied or only the structure should
-!>        be recreated. Defaults to false (only structure)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE ep_create_diag_sm(ep_env,source_m,diag_m,diag_m_name,do_copy,error)
-
-    !   History: - Creation (17.11.2000, MK)
-
-    TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(real_matrix_type), POINTER          :: source_m, diag_m
-    CHARACTER(LEN=*), INTENT(IN)             :: diag_m_name
-    LOGICAL, INTENT(in), OPTIONAL            :: do_copy
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'ep_create_diag_sm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iblock_col, iblock_row
-    LOGICAL                                  :: failure, my_copy
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(source_m),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(diag_m),cp_failure_level,routineP,error,failure)
-
-    my_copy=.FALSE.
-    IF (PRESENT(do_copy)) my_copy=do_copy
-
-    CALL allocate_matrix(matrix=diag_m,&
-         nrow=source_m%nrow,&
-         ncol=source_m%ncol,&
-         nblock_row=source_m%nblock_row,&
-         nblock_col=source_m%nblock_col,&
-         first_row=source_m%first_row(:),&
-         last_row=source_m%last_row(:),&
-         first_col=source_m%first_col(:),&
-         last_col=source_m%last_col(:),&
-         matrix_name=diag_m_name,&
-         sparsity_id=source_m%sparsity_id, &
-         distribution_2d=source_m%distribution_2d,&
-         matrix_symmetry="none",error=error)
-
-    !   *** Initialize all block nodes ***
-
-    DO iblock_row=1,source_m%nblock_row
-
-       block_node => first_block_node(source_m,iblock_row)
-
-       DO WHILE (ASSOCIATED(block_node))
-
-          CALL get_block_node(block_node=block_node,&
-               block_col=iblock_col,&
-               BLOCK=BLOCK)
-          IF (.not.my_copy) NULLIFY(block)
-          IF (ep_env%at2sub(iblock_col)==ep_env%at2sub(iblock_row)) THEN
-             CALL add_block_node(diag_m,&
-                  block_row=iblock_row,&
-                  block_col=iblock_col,&
-                  BLOCK=BLOCK,error=error)
-          END IF
-
-          block_node => next_block_node(block_node)
-
-       END DO
-
-    END DO
-
-  END SUBROUTINE ep_create_diag_sm
 
 ! *****************************************************************************
 !> \brief creates local sparse matrixes with no blocks.
@@ -2670,59 +2592,6 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE ep_create_local_empty_sm
-
-! *****************************************************************************
-!> \brief creates local sparse matrixes with the sparsity of the local S matrix
-!> \param ep_env the ep_environment
-!> \param local_sm the matrixes to be created
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE ep_create_local_sm(ep_env,local_sm,error)
-    TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: local_sm
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ep_create_local_sm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, ierr, ispin, stat
-    LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: new_error
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
-    TYPE(f_env_type), POINTER                :: f_env
-    TYPE(qs_environment_type), POINTER       :: sub_qs_env
-
-    failure=.FALSE.
-    CALL timeset(routineN,handle)
-    NULLIFY(f_env,sub_qs_env)
-    CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE(local_sm(ep_env%nspins,SIZE(ep_env%mol_envs%local_rep_indices)),&
-            stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-    END IF
-    IF (.not.failure) THEN
-       CALL f_env_add_defaults(ep_env%f_env_id,f_env=f_env,&
-            new_error=new_error,failure=failure)
-       CALL force_env_get(f_env%force_env,qs_env=sub_qs_env,error=new_error)
-       CALL mpools_get(sub_qs_env%mpools,S_sm_pools=S_sm_pools,error=new_error)
-       DO i=1,SIZE(local_sm,2)
-          DO ispin=1,ep_env%nspins
-             NULLIFY(local_sm(ispin,i)%matrix)
-             CALL sm_pool_create_matrix(S_sm_pools(ispin)%pool,&
-                  local_sm(ispin,i)%matrix,error=new_error)
-          END DO
-       END DO
-       CALL f_env_rm_defaults(f_env,new_error,ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE ep_create_local_sm
 
 ! *****************************************************************************
 !> \brief gives back a local spare matrix

@@ -15,6 +15,11 @@ MODULE kg_scf
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -302,6 +307,8 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: diis_ev_global
     REAL(dp), DIMENSION(:, :), POINTER       :: diis_m1_global, diis_m2_global
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: p_mix_new, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -316,7 +323,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, scf_section
 
-    NULLIFY(dft_control,scf_control,ks_env,qs_env)
+    NULLIFY(dft_control,scf_control,ks_env,qs_env,p_mix_new,rho_ao)
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
     NULLIFY(dft_section,scf_section)
     NULLIFY(logger)
@@ -608,15 +615,34 @@ CONTAINS
              scf_env%skip_mixing = .FALSE.
              my_p_mix = 1.0_dp
           END IF
+
+
+          CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(scf_env%p_mix_new), error )
+          CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(scf_env%p_mix_new), error )
+          DO ispin = 1,SIZE(p_mix_new)
+             ALLOCATE(p_mix_new(ispin)%matrix,rho_ao(ispin)%matrix)!super dirty
+             CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, error)
+             CALL dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)
+          ENDDO
+
           DO ispin=1,SIZE(scf_env%p_mix_new)
-             CALL cp_sm_mix(m1=scf_env%p_mix_new(ispin)%matrix,&
-                  m2=qs_env%rho%rho_ao(ispin)%matrix,&
+             CALL cp_sm_mix(m1=p_mix_new(ispin)%matrix,&
+                  m2=rho_ao(ispin)%matrix,&
                   p_mix=my_p_mix,&
                   delta=tmp,&
                   para_env=qs_env%para_env,&
                   error=error)
              scf_env%iter_delta=MAX(scf_env%iter_delta,tmp)
           END DO
+
+          DO ispin = 1,SIZE(p_mix_new)
+             CALL sm_from_dbcsr( scf_env%p_mix_new(ispin)%matrix, p_mix_new(ispin)%matrix, &
+                  qs_env%rho%rho_ao(ispin)%matrix%distribution_2d, error=error )
+          ENDDO
+
+          CALL dbcsr_deallocate_matrix_set( p_mix_new, error=error )
+          CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )
+
 !          CALL scf_env_density_mixing(scf_env%p_mix_new,&
 !                                    qs_env%scf_env,scf_env%iter_delta,&
 !                                    qs_env=qs_env, diis=diis_step,error=error)

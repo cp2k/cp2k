@@ -56,10 +56,10 @@ MODULE dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
-  PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_trace,&
-            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_block,&
+  PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_trace, dbcsr_add_on_diag,&
+            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, dbcsr_get_block,&
             dbcsr_put_block, dbcsr_filter,dbcsr_find_column,&
-            dbcsr_btriu, dbcsr_add_on_diag, block_add_on_diag,&
+            dbcsr_btriu, block_add_on_diag,&
             block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm
   ! Direct access to the variants because array reshaping and
   ! typematching is incompatible.
@@ -3444,6 +3444,55 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_add_on_diag
+
+! *****************************************************************************
+!> \brief get the diagonal of a dbcsr matrix
+!> \param[in] matrix    the matrix
+!> \param[inout] diag   the diagonal
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_diag(matrix, diag, error)
+
+    TYPE(dbcsr_obj), INTENT(IN), TARGET      :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: diag
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, row, timing_handle
+    LOGICAL                                  :: tr
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    CALL dbcsr_create(diag, 'diag of '//matrix%m%name, &
+         matrix%m%dist, matrix%m%matrix_type, matrix%m%row_blk_size,&
+         matrix%m%col_blk_size, matrix%m%nblks, matrix%m%nze,&
+         matrix%m%data_type, matrix%m%special_memory, error=error)
+
+    CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       SELECT CASE (dbcsr_get_data_type(matrix))
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          IF(row.EQ.col) THEN
+             CALL dbcsr_put_block(diag, row, col, data_d, tr)
+          ENDIF
+       CASE DEFAULT
+          CALL cp_unimplemented_error (routineN,&
+               "Only real double precision")
+       END SELECT
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_finalize(diag, error=error)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_get_diag
 
 ! *****************************************************************************
 !> \brief copy a matrix 

@@ -113,11 +113,9 @@ MODULE sparse_matrix_types
             cp_sm_get_id_nr,&
             cp_sm_set,&
             cp_sm_sm_trace,&
-            cp_sm_get_block_list,&
             cp_sm_maxabsval,&
             create_dbm_from_sm,&
             deallocate_dbm_from_sm,&
-            cp_sm_add_constant, &
             mpsum_dbm
 
 ! *** Public functions ***
@@ -2379,56 +2377,6 @@ SUBROUTINE cp_sm_set(matrix,name,error)
 END SUBROUTINE cp_sm_set
 
 ! *****************************************************************************
-!> \brief gets a list of indices of all allocated blocks (locally) of a
-!>      given matrix
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      none
-!> \author JGH (04-07-2003)
-! *****************************************************************************
-SUBROUTINE cp_sm_get_block_list ( matrix, list, error )
-    TYPE(real_matrix_type), POINTER          :: matrix
-    INTEGER, DIMENSION(:, :), POINTER        :: list
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_get_block_list', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, ib, istat, j, num_blocks
-    LOGICAL                                  :: failure
-    TYPE(real_block_node_type), POINTER      :: node
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
-  CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-
-    CALL get_matrix_info ( matrix, nblock_allocated=num_blocks )
-    ALLOCATE (list(2,num_blocks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"list",2*num_blocks)
-
-    ib = 0
-    DO i=1, matrix%nblock_row
-       node => first_block_node(matrix, i)
-       DO WHILE (ASSOCIATED(node))
-          IF ( ASSOCIATED(node%block) ) THEN
-            j = node%block_col
-            ib = ib + 1
-            IF ( ib > num_blocks ) CALL stop_program(routineP,"too many blocks")
-            list(1,ib) = i
-            list(2,ib) = j
-          END IF
-          node => next_block_node(node)
-       END DO
-    END DO
-
-  END IF
-
-END SUBROUTINE cp_sm_get_block_list
-
-! *****************************************************************************
 !> \brief returns the maximum of the abs of the matrix entries
 !> \param matrix the matrix you are interested in
 !> \param error variable to control error logging, stopping,...
@@ -2797,52 +2745,5 @@ SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
   CALL timestop(handle)
 
 END SUBROUTINE deallocate_dbm_from_sm
-
-! *****************************************************************************
-!> \brief Adds a constant value to each matrix element
-!> \param matrix_a a sparse matrix (inout)
-!> \param alpha value to be added
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      01.2008 created [mguidon]
-!> \author Manuel Guidon 
-! *****************************************************************************
-SUBROUTINE cp_sm_add_constant(matrix_a,alpha,error)
-    TYPE(real_matrix_type), POINTER          :: matrix_a
-    REAL(KIND=dp), INTENT(in)                :: alpha
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_add_constant', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, iblock_row, j
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-  CALL timeset(routineN,handle)
-
-  NULLIFY(a_block,block_node)
-  failure=.FALSE.
-  CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
-
-  DO iblock_row=1,matrix_a%nblock_row
-   block_node => first_block_node(matrix_a,iblock_row)
-    DO WHILE (ASSOCIATED(block_node))
-
-      CALL get_block_node(block_node=block_node,&
-                          BLOCK=a_block)
-      
-      DO j=1,SIZE(a_block,2)
-        DO i=1,SIZE(a_block,1)
-          a_block(i,j) = a_block(i,j) + alpha
-        END DO
-      END DO
-      block_node => block_node%next_block_node
-    END DO
-  END DO
-  CALL timestop(handle)
-END SUBROUTINE cp_sm_add_constant
 
 END MODULE sparse_matrix_types

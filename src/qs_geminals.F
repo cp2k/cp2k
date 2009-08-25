@@ -20,7 +20,18 @@ MODULE qs_geminals
                                              get_geminal_basis_set,&
                                              get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_types,                     ONLY: dbcsr_iterator
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
                                              hfx_get_mult_cache_elements
@@ -45,11 +56,7 @@ MODULE qs_geminals
                                              ri_vector_sync,&
                                              ri_vector_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
-  USE sparse_matrix_types,             ONLY: first_block_node,&
-                                             get_block_node,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -275,12 +282,12 @@ MODULE qs_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'geminal_gto_coulomb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, ikind, istat, jatom, &
-      jkind, k, ka, katom, kkind, maxlgem(2), maxlgto, ml, na, natom, nb, nd, &
-      nder, ngem, nkind, nspins
+    INTEGER :: atom_a, atom_b, atom_c, blk, handle, i, iatom, ikind, istat, &
+      jatom, jkind, k, ka, katom, kkind, maxlgem(2), maxlgto, ml, na, natom, &
+      nb, nd, nder, ngem, nkind, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list, atom_of_kind, &
                                                 kind_of
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure = .FALSE., tr
     REAL(KIND=dp)                            :: ehfx2, eps_screening, f0, fij
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: kdvec
@@ -296,6 +303,9 @@ MODULE qs_geminals
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_a, atomic_kind_b, &
                                                 atomic_kind_c
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_p
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set_a, &
@@ -305,9 +315,8 @@ MODULE qs_geminals
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_p
+      POINTER                                :: matrix_ks_sm, matrix_p_sm
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_rhs
     TYPE(semi_empirical_si_type), POINTER    :: store_int
@@ -316,13 +325,14 @@ MODULE qs_geminals
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,particle_set,local_particles,rho,matrix_ks,ri_env,force,virial)
+    NULLIFY(matrix_ks,matrix_p)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
                     local_particles=local_particles,&
                     rho=rho,&
-                    matrix_ks=matrix_ks,&
+                    matrix_ks=matrix_ks_sm,&
                     hfx_ri_env=ri_env,&
                     force=force,&
                     virial=virial,&
@@ -335,8 +345,20 @@ MODULE qs_geminals
     CALL get_ri_env(ri_env=ri_env,coeff=ri_coeff,rhs=ri_rhs,error=error)
     CALL ri_vector_set(ri_rhs, 0._dp, error)
 
-    matrix_p => rho%rho_ao
-    nspins = SIZE(matrix_p)
+    matrix_p_sm => rho%rho_ao
+    nspins = SIZE(matrix_p_sm)
+
+    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )
+    DO i = 1,SIZE(matrix_ks)
+       ALLOCATE(matrix_ks(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(matrix_ks(i)%matrix, matrix_ks_sm(i)%matrix, error)
+    ENDDO
+
+    CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )
+    DO i = 1,SIZE(matrix_p)
+       ALLOCATE(matrix_p(i)%matrix)!super dirty
+       CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_sm(i)%matrix, error)
+    ENDDO
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -361,116 +383,117 @@ MODULE qs_geminals
 
     ehfx2 = 0._dp
 
-    DO iatom=1,natom
-       NULLIFY(block_node)
-       block_node => first_block_node(matrix_p(1)%matrix,iatom)
-       DO WHILE (ASSOCIATED(block_node))
-          CALL get_block_node(block_node,block_col=jatom,BLOCK=p_block1)
+    CALL dbcsr_iterator_start(iter, matrix_p(1)%matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block1, tr, blk)
+       IF ( calculate_fock ) THEN
+          CALL dbcsr_get_block_node(matrix=matrix_ks(1)%matrix,&
+                                    block_row=iatom,block_col=jatom,&
+                                    BLOCK=ks_block1)
+       END IF
+       IF (nspins==2) THEN
+          CALL dbcsr_get_block_node(matrix=matrix_p(2)%matrix,&
+                                    block_row=iatom,block_col=jatom,&
+                                    BLOCK=p_block2)
           IF ( calculate_fock ) THEN
-            CALL get_block_node(matrix=matrix_ks(1)%matrix,block_row=iatom,block_col=jatom,&
-                                BLOCK=ks_block1)
-          END IF
-          IF (nspins==2) THEN
-            CALL get_block_node(matrix=matrix_p(2)%matrix,block_row=iatom,block_col=jatom,&
-                                BLOCK=p_block2)
-            IF ( calculate_fock ) THEN
-              CALL get_block_node(matrix=matrix_ks(2)%matrix,block_row=iatom,block_col=jatom,&
-                                  BLOCK=ks_block2)
-            END IF
-          END IF
-          ikind  = kind_of(iatom)
-          jkind  = kind_of(jatom)
-          atom_a = atom_of_kind(iatom)
-          atom_b = atom_of_kind(jatom)
+             CALL dbcsr_get_block_node(matrix=matrix_ks(2)%matrix,&
+                                       block_row=iatom,block_col=jatom,&
+                                       BLOCK=ks_block2)
+          ENDIF
+       ENDIF
 
-          fij = 2._dp
-          IF ( iatom==jatom ) fij=1._dp
+       ikind  = kind_of(iatom)
+       jkind  = kind_of(jatom)
+       atom_a = atom_of_kind(iatom)
+       atom_b = atom_of_kind(jatom)
 
-          atomic_kind_a => atomic_kind_set(ikind)
-          NULLIFY(orb_basis_set_a)
-          CALL get_atomic_kind(atomic_kind=atomic_kind_a,orb_basis_set=orb_basis_set_a)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set_a,nsgf=na)
+       fij = 2._dp
+       IF ( iatom==jatom ) fij=1._dp
 
-          atomic_kind_b => atomic_kind_set(jkind)
-          NULLIFY(orb_basis_set_b)
-          CALL get_atomic_kind(atomic_kind=atomic_kind_b,orb_basis_set=orb_basis_set_b)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set_b,nsgf=nb)
+       atomic_kind_a => atomic_kind_set(ikind)
+       NULLIFY(orb_basis_set_a)
+       CALL get_atomic_kind(atomic_kind=atomic_kind_a,orb_basis_set=orb_basis_set_a)
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set_a,nsgf=na)
 
-          ri = particle_set(iatom)%r
-          rj = particle_set(jatom)%r
+       atomic_kind_b => atomic_kind_set(jkind)
+       NULLIFY(orb_basis_set_b)
+       CALL get_atomic_kind(atomic_kind=atomic_kind_b,orb_basis_set=orb_basis_set_b)
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set_b,nsgf=nb)
 
-          DO kkind=1,nkind
-             atomic_kind_c => atomic_kind_set(kkind)
-             NULLIFY(geminal_basis_set)
-             CALL get_atomic_kind(atomic_kind=atomic_kind_c,&
-                                  atom_list=atom_list,&
-                                  geminal_basis_set=geminal_basis_set)
-             IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
-             CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,ngeminals=ngem)
+       ri = particle_set(iatom)%r
+       rj = particle_set(jatom)%r
 
-             ALLOCATE (intabc(na,nb,ngem,nd),kdvec(ngem,nd),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO kkind=1,nkind
+          atomic_kind_c => atomic_kind_set(kkind)
+          NULLIFY(geminal_basis_set)
+          CALL get_atomic_kind(atomic_kind=atomic_kind_c,&
+                               atom_list=atom_list,&
+                               geminal_basis_set=geminal_basis_set)
+          IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
+          CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,ngeminals=ngem)
 
-             DO ka=1,SIZE(atom_list)
-                katom=atom_list(ka)
-                atom_c = atom_of_kind(katom)
-                rk = particle_set(katom)%r
+          ALLOCATE (intabc(na,nb,ngem,nd),kdvec(ngem,nd),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-                CALL gemgau_integral_atom(na,nb,ngem,nd,intabc,atomic_kind_a,ri,atomic_kind_b,rj,&
-                     atomic_kind_c,rk,nder,store_int,eps_screening,error)
+          DO ka=1,SIZE(atom_list)
+             katom=atom_list(ka)
+             atom_c = atom_of_kind(katom)
+             rk = particle_set(katom)%r
 
-                DO i=1,ngem
-                   kdvec(i,1) = SUM(intabc(1:na,1:nb,i,1)*p_block1(1:na,1:nb))
-                END DO
-                ri_rhs%vector(kkind)%vmat(1:ngem,atom_c) = ri_rhs%vector(kkind)%vmat(1:ngem,atom_c) &
+             CALL gemgau_integral_atom(na,nb,ngem,nd,intabc,atomic_kind_a,ri,atomic_kind_b,rj,&
+                  atomic_kind_c,rk,nder,store_int,eps_screening,error)
+
+             DO i=1,ngem
+                kdvec(i,1) = SUM(intabc(1:na,1:nb,i,1)*p_block1(1:na,1:nb))
+             END DO
+             ri_rhs%vector(kkind)%vmat(1:ngem,atom_c) = ri_rhs%vector(kkind)%vmat(1:ngem,atom_c) &
                                                            + fij*kdvec(1:ngem,1)
 
-                kcoeff => ri_coeff%vector(kkind)%vmat(:,atom_c)
-                IF ( calculate_energy ) THEN
-                  ehfx2 = ehfx2 + fij*DOT_PRODUCT(kdvec(1:ngem,1),kcoeff(1:ngem))
-                END IF
-                IF ( calculate_force .OR. calculate_virial ) THEN
-                   DO k=2,7
-                      DO i=1,ngem
-                         kdvec(i,k) = fij*SUM(intabc(1:na,1:nb,i,k)*p_block1(1:na,1:nb))
-                      END DO
+             kcoeff => ri_coeff%vector(kkind)%vmat(:,atom_c)
+             IF ( calculate_energy ) THEN
+                ehfx2 = ehfx2 + fij*DOT_PRODUCT(kdvec(1:ngem,1),kcoeff(1:ngem))
+             END IF
+             IF ( calculate_force .OR. calculate_virial ) THEN
+                DO k=2,7
+                   DO i=1,ngem
+                      kdvec(i,k) = fij*SUM(intabc(1:na,1:nb,i,k)*p_block1(1:na,1:nb))
                    END DO
-                   force_c(1) = -DOT_PRODUCT(kdvec(1:ngem,2),kcoeff(1:ngem))
-                   force_c(2) = -DOT_PRODUCT(kdvec(1:ngem,3),kcoeff(1:ngem))
-                   force_c(3) = -DOT_PRODUCT(kdvec(1:ngem,4),kcoeff(1:ngem))
-                   force_a(1) = -DOT_PRODUCT(kdvec(1:ngem,5),kcoeff(1:ngem))
-                   force_a(2) = -DOT_PRODUCT(kdvec(1:ngem,6),kcoeff(1:ngem))
-                   force_a(3) = -DOT_PRODUCT(kdvec(1:ngem,7),kcoeff(1:ngem))
-                   force_b = -0.5_dp*(force_a + force_c)
-                   force_a =  0.5_dp*(force_a - force_c)
-                   IF ( calculate_force ) THEN
-                      force(ikind)%hfx_ri(:,atom_a)=force(ikind)%hfx_ri(:,atom_a) - force_a(:)
-                      force(jkind)%hfx_ri(:,atom_b)=force(jkind)%hfx_ri(:,atom_b) - force_b(:)
-                      force(kkind)%hfx_ri(:,atom_c)=force(kkind)%hfx_ri(:,atom_c) - force_c(:)
-                   END IF
+                END DO
+                force_c(1) = -DOT_PRODUCT(kdvec(1:ngem,2),kcoeff(1:ngem))
+                force_c(2) = -DOT_PRODUCT(kdvec(1:ngem,3),kcoeff(1:ngem))
+                force_c(3) = -DOT_PRODUCT(kdvec(1:ngem,4),kcoeff(1:ngem))
+                force_a(1) = -DOT_PRODUCT(kdvec(1:ngem,5),kcoeff(1:ngem))
+                force_a(2) = -DOT_PRODUCT(kdvec(1:ngem,6),kcoeff(1:ngem))
+                force_a(3) = -DOT_PRODUCT(kdvec(1:ngem,7),kcoeff(1:ngem))
+                force_b = -0.5_dp*(force_a + force_c)
+                force_a =  0.5_dp*(force_a - force_c)
+                IF ( calculate_force ) THEN
+                   force(ikind)%hfx_ri(:,atom_a)=force(ikind)%hfx_ri(:,atom_a) - force_a(:)
+                   force(jkind)%hfx_ri(:,atom_b)=force(jkind)%hfx_ri(:,atom_b) - force_b(:)
+                   force(kkind)%hfx_ri(:,atom_c)=force(kkind)%hfx_ri(:,atom_c) - force_c(:)
                 END IF
-                IF ( calculate_virial ) THEN
-                   f0 = 1.0_dp
-                   rac = ri - rk
-                   rbc = rj - rk
-                   CALL virial_pair_force ( virial%pv_virial, f0, force_a, rac, error)
-                   CALL virial_pair_force ( virial%pv_virial, f0, force_b, rbc, error)
-                END IF
-                IF ( calculate_fock ) THEN
-                  DO i=1,ngem
-                     ks_block1(1:na,1:nb) = ks_block1(1:na,1:nb)-0.5_dp*intabc(1:na,1:nb,i,1)*kcoeff(i)
-                  END DO
-                END IF
-
-             END DO
-
-             DEALLOCATE (intabc,kdvec,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF ( calculate_virial ) THEN
+                f0 = 1.0_dp
+                rac = ri - rk
+                rbc = rj - rk
+                CALL virial_pair_force ( virial%pv_virial, f0, force_a, rac, error)
+                CALL virial_pair_force ( virial%pv_virial, f0, force_b, rbc, error)
+             END IF
+             IF ( calculate_fock ) THEN
+                DO i=1,ngem
+                   ks_block1(1:na,1:nb) = ks_block1(1:na,1:nb)-0.5_dp*intabc(1:na,1:nb,i,1)*kcoeff(i)
+                END DO
+             END IF
 
           END DO
-          block_node => next_block_node(block_node)
+
+          DEALLOCATE (intabc,kdvec,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
        END DO
     END DO
+    CALL dbcsr_iterator_stop(iter)
 
     DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -480,6 +503,12 @@ MODULE qs_geminals
     CALL mp_sum(ehfx2,para_env%group)
 
     ri_env%ehfx2 = -ehfx2
+
+    DO i = 1,SIZE(matrix_ks)
+       CALL sm_from_dbcsr(matrix_ks_sm(i)%matrix, matrix_ks(i)%matrix ,error=error)
+    ENDDO
+    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )
+    CALL dbcsr_deallocate_matrix_set( matrix_p, error=error )
 
     CALL timestop(handle)
 
