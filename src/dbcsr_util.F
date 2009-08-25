@@ -4566,8 +4566,8 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
-    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, dst_p, mp_group, &
-      numnodes, nze, row, src_p, stored_col, stored_row, timing_handle
+    INTEGER :: blk, blk_l, blk_ps, blks, col, dst_p, mp_group, numnodes, nze, &
+      row, src_p, stored_col, stored_row, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
