@@ -145,6 +145,7 @@ MODULE hfx_types
     INTEGER                                  :: block_size
     INTEGER                                  :: nblocks
     LOGICAL                                  :: rtp_redistribute
+    LOGICAL                                  :: blocks_initialized
   END TYPE
 
 ! *****************************************************************************
@@ -540,6 +541,7 @@ MODULE hfx_types
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
         actual_x_data%load_balance_parameter%nbins = MAX(1,int_val)
+        actual_x_data%load_balance_parameter%blocks_initialized = .FALSE.
 
         actual_x_data%load_balance_parameter%rtp_redistribute=.FALSE.
         IF(ASSOCIATED(dft_control%rtp_control))&
@@ -1015,14 +1017,17 @@ MODULE hfx_types
     DO i_thread= 1,n_threads
       DO irep=1,n_rep_hf
         actual_x_data => x_data(irep,i_thread)
-!        IF( actual_x_data%periodic_parameter%do_periodic ) THEN
-          DEALLOCATE(actual_x_data%neighbor_cells,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!        END IF
+        DEALLOCATE(actual_x_data%neighbor_cells,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(actual_x_data%distribution_energy,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(actual_x_data%distribution_forces,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+        IF( actual_x_data%load_balance_parameter%blocks_initialized ) THEN
+          DEALLOCATE(actual_x_data%blocks,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
     
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN

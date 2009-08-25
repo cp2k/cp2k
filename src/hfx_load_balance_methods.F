@@ -206,114 +206,121 @@ MODULE hfx_load_balance_methods
     natom=SIZE(particle_set)
 
     block_size = load_balance_parameter%block_size
-    nblocks = MAX((natom+block_size-1)/block_size,1)
-    ALLOCATE(blocks_guess(nblocks),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(tmp_blocks(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(tmp_blocks2(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     ALLOCATE(set_list_ij((max_set*block_size)**2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(set_list_kl((max_set*block_size)**2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL init_blocks(natom,block_size,INT(nblocks),blocks_guess,&
-                     list_ij, list_kl, set_list_ij, set_list_kl, &
-                     particle_set,&
-                     coeffs_set, coeffs_kind, &
-                     is_assoc_atomic_block_global, do_periodic,&
-                     kind_of, basis_parameter, pmax_set, &
-                     cell, &
-                     do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                     log10_eps_schwarz, log_2, coeffs_kind_max0)
 
-    total_block_self_cost = 0
+    IF( .NOT. load_balance_parameter%blocks_initialized ) THEN
 
-    DO i=1,nblocks
-       total_block_self_cost = total_block_self_cost + blocks_guess(i)%cost
-    END DO
-
-    objective_block_size = load_balance_parameter%block_size
-    objective_nblocks = MAX((natom+objective_block_size-1)/objective_block_size,1)
-
-    self_cost_per_block =  (total_block_self_cost + objective_nblocks -1 ) / (objective_nblocks)
-
-    max_block_cost = 0_int_8
-    DO i = 1,nblocks
-      tmp_blocks2(i) = blocks_guess(i)
-      max_block_cost = MAX(max_block_cost, blocks_guess(i)%cost)
-    END DO
-
-    optimized = .FALSE.
-    i = 0 
-    DO WHILE( .NOT. optimized) 
-      i = i + 1
-      current_block_id = 0
-      changed = .FALSE.
-      DO atom_block = 1,nblocks
-        current_block_id = current_block_id + 1
-        iatom_start = tmp_blocks2(atom_block)%istart
-        iatom_end = tmp_blocks2(atom_block)%iend
-        IF(tmp_blocks2(atom_block)%cost > 1.5_dp * self_cost_per_block .AND. iatom_end-iatom_start > 0) THEN
-          changed = .TRUE.
-          new_iatom_start = iatom_start
-          new_iatom_end  = (iatom_end - iatom_start+1) /2 + iatom_start
-          new_jatom_start = new_iatom_end + 1
-          new_jatom_end = iatom_end
-          tmp_blocks(current_block_id)%istart = new_iatom_start
-          tmp_blocks(current_block_id)%iend = new_iatom_end
-          tmp_blocks(current_block_id)%cost = estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
-                                              new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
-                                              new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
-                                              particle_set,&
-                                              coeffs_set, coeffs_kind, &
-                                              is_assoc_atomic_block_global, do_periodic,&
-                                              kind_of, basis_parameter, pmax_set, &
-                                              cell, &
-                                              do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                                              log10_eps_schwarz, log_2, coeffs_kind_max0)
-          current_block_id = current_block_id + 1
-          tmp_blocks(current_block_id)%istart = new_jatom_start
-          tmp_blocks(current_block_id)%iend = new_jatom_end
-          tmp_blocks(current_block_id)%cost = estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
-                                              new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
-                                              new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
-                                              particle_set,&
-                                              coeffs_set, coeffs_kind, &
-                                              is_assoc_atomic_block_global, do_periodic,&
-                                              kind_of, basis_parameter, pmax_set, &
-                                              cell, &
-                                              do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                                              log10_eps_schwarz, log_2, coeffs_kind_max0)
-        ELSE
-          tmp_blocks(current_block_id)%istart = iatom_start
-          tmp_blocks(current_block_id)%iend = iatom_end
-          tmp_blocks(current_block_id)%cost = tmp_blocks2(atom_block)%cost
-        END IF
+      nblocks = MAX((natom+block_size-1)/block_size,1)
+      ALLOCATE(blocks_guess(nblocks),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(tmp_blocks(natom),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(tmp_blocks2(natom),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+      CALL init_blocks(natom,block_size,INT(nblocks),blocks_guess,&
+                       list_ij, list_kl, set_list_ij, set_list_kl, &
+                       particle_set,&
+                       coeffs_set, coeffs_kind, &
+                       is_assoc_atomic_block_global, do_periodic,&
+                       kind_of, basis_parameter, pmax_set, &
+                       cell, &
+                       do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                       log10_eps_schwarz, log_2, coeffs_kind_max0)
+  
+      total_block_self_cost = 0
+  
+      DO i=1,nblocks
+         total_block_self_cost = total_block_self_cost + blocks_guess(i)%cost
       END DO
-      IF( .NOT. changed) optimized = .TRUE.
-      IF( i> 20) optimized = .TRUE.
-      nblocks = current_block_id
+  
+      objective_block_size = load_balance_parameter%block_size
+      objective_nblocks = MAX((natom+objective_block_size-1)/objective_block_size,1)
+  
+      self_cost_per_block =  (total_block_self_cost + objective_nblocks -1 ) / (objective_nblocks)
+  
       max_block_cost = 0_int_8
-      DO atom_block = 1,nblocks
-        tmp_blocks2(atom_block) = tmp_blocks(atom_block)
-        max_block_cost = MAX(max_block_cost, tmp_blocks2(atom_block)%cost)
+      DO i = 1,nblocks
+        tmp_blocks2(i) = blocks_guess(i)
+        max_block_cost = MAX(max_block_cost, blocks_guess(i)%cost)
       END DO
-    END DO
+  
+      optimized = .FALSE.
+      i = 0 
+      DO WHILE( .NOT. optimized) 
+        i = i + 1
+        current_block_id = 0
+        changed = .FALSE.
+        DO atom_block = 1,nblocks
+          current_block_id = current_block_id + 1
+          iatom_start = tmp_blocks2(atom_block)%istart
+          iatom_end = tmp_blocks2(atom_block)%iend
+          IF(tmp_blocks2(atom_block)%cost > 1.5_dp * self_cost_per_block .AND. iatom_end-iatom_start > 0) THEN
+            changed = .TRUE.
+            new_iatom_start = iatom_start
+            new_iatom_end  = (iatom_end - iatom_start+1) /2 + iatom_start
+            new_jatom_start = new_iatom_end + 1
+            new_jatom_end = iatom_end
+            tmp_blocks(current_block_id)%istart = new_iatom_start
+            tmp_blocks(current_block_id)%iend = new_iatom_end
+            tmp_blocks(current_block_id)%cost = estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
+                                                new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
+                                                new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
+                                                particle_set,&
+                                                coeffs_set, coeffs_kind, &
+                                                is_assoc_atomic_block_global, do_periodic,&
+                                                kind_of, basis_parameter, pmax_set, &
+                                                cell, &
+                                                do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                                                log10_eps_schwarz, log_2, coeffs_kind_max0)
+            current_block_id = current_block_id + 1
+            tmp_blocks(current_block_id)%istart = new_jatom_start
+            tmp_blocks(current_block_id)%iend = new_jatom_end
+            tmp_blocks(current_block_id)%cost = estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
+                                                new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
+                                                new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
+                                                particle_set,&
+                                                coeffs_set, coeffs_kind, &
+                                                is_assoc_atomic_block_global, do_periodic,&
+                                                kind_of, basis_parameter, pmax_set, &
+                                                cell, &
+                                                do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
+                                                log10_eps_schwarz, log_2, coeffs_kind_max0)
+          ELSE
+            tmp_blocks(current_block_id)%istart = iatom_start
+            tmp_blocks(current_block_id)%iend = iatom_end
+            tmp_blocks(current_block_id)%cost = tmp_blocks2(atom_block)%cost
+          END IF
+        END DO
+        IF( .NOT. changed) optimized = .TRUE.
+        IF( i> 20) optimized = .TRUE.
+        nblocks = current_block_id
+        max_block_cost = 0_int_8
+        DO atom_block = 1,nblocks
+          tmp_blocks2(atom_block) = tmp_blocks(atom_block)
+          max_block_cost = MAX(max_block_cost, tmp_blocks2(atom_block)%cost)
+        END DO
+      END DO
+  
+      ! ** Set nblocks in structure
+      load_balance_parameter%nblocks = nblocks
+  
+      ALLOCATE(x_data%blocks(nblocks), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DO atom_block = 1,nblocks
+        x_data%blocks(atom_block) = tmp_blocks(atom_block)
+      END DO
+  
+      DEALLOCATE(blocks_guess, tmp_blocks, tmp_blocks2, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ! ** Set nblocks in structure
-    load_balance_parameter%nblocks = nblocks
+      load_balance_parameter%blocks_initialized = .TRUE.
+    END IF
 
-    ALLOCATE(x_data%blocks(nblocks), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO atom_block = 1,nblocks
-      x_data%blocks(atom_block) = tmp_blocks(atom_block)
-    END DO
-
-    DEALLOCATE(blocks_guess, tmp_blocks, tmp_blocks2, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     !! If there is only 1 cpu skip the binning
     IF(n_processes == 1) THEN
@@ -340,7 +347,6 @@ MODULE hfx_load_balance_methods
 
       cost_per_core = 0_int_8
       my_process_id = para_env%mepos*n_threads + i_thread
-      block_size = load_balance_parameter%block_size
       nblocks = load_balance_parameter%nblocks
 
       DO atom_block = my_process_id,nblocks**4-1,n_processes
