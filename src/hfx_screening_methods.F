@@ -143,7 +143,7 @@ MODULE hfx_screening_methods
     INTEGER, DIMENSION(:), POINTER           :: nsgfb, nsgfc
     REAL(dp)                                 :: pmax_tmp
 
-    CALL timeset(routineP,handle)
+    CALL timeset(routineN,handle)
 
 
     DO i = 1,SIZE(pmax_set)

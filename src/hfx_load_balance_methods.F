@@ -154,11 +154,12 @@ MODULE hfx_load_balance_methods
 
     CHARACTER(LEN=512)                       :: error_msg
     INTEGER :: block_size, current_block_id, data_from, dest, handle, &
-      handle_inner, i, iatom_block, iatom_end, iatom_start, ibin, icpu, j, &
-      jatom_block, jatom_end, jatom_start, katom_block, katom_end, &
-      katom_start, latom_block, latom_end, latom_start, my_process_id, natom, &
-      nbins, new_iatom_end, new_iatom_start, new_jatom_end, new_jatom_start, &
-      objective_block_size, objective_nblocks, req(2), source, stat
+      handle_inner, handle_range, i, iatom_block, iatom_end, iatom_start, &
+      ibin, icpu, j, jatom_block, jatom_end, jatom_start, katom_block, &
+      katom_end, katom_start, latom_block, latom_end, latom_start, &
+      my_process_id, natom, nbins, new_iatom_end, new_iatom_start, &
+      new_jatom_end, new_jatom_start, objective_block_size, &
+      objective_nblocks, req(2), source, stat
     INTEGER(int_8) :: atom_block, cost_per_bin, cost_per_core, current_cost, &
       distribution_counter_end, distribution_counter_start, &
       global_quartet_counter, local_quartet_counter, max_block_cost, mepos, &
@@ -213,6 +214,11 @@ MODULE hfx_load_balance_methods
 
 
     IF( .NOT. load_balance_parameter%blocks_initialized ) THEN
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timeset(routineN//"_range",handle_range)
+!$OMP END MASTER
+!$OMP BARRIER
 
       nblocks = MAX((natom+block_size-1)/block_size,1)
       ALLOCATE(blocks_guess(nblocks),STAT=stat)
@@ -319,6 +325,11 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       load_balance_parameter%blocks_initialized = .TRUE.
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle_range)
+!$OMP END MASTER
+!$OMP BARRIER
     END IF
 
 
