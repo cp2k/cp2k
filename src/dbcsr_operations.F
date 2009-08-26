@@ -4204,7 +4204,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER                                  :: blk, col, mp_group, mynode, &
-                                                numnodes, nze, p, row
+                                                numnodes, p, row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
                                                 row_blk_size, row_dist, &
                                                 tmp_index
