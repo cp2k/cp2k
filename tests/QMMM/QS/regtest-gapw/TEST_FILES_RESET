@@ -56,3 +56,5 @@ C11H24-qmmmgapwall-gauss-0.inp
 C11H24-qmmmgapw-gauss-0.inp
 #new HFX code
 H2O-qmmm-hfx.inp
+#restore screening for derivs
+H2O-qmmm-hfx.inp
