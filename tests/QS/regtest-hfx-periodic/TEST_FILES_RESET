@@ -56,3 +56,6 @@ CH3-trunc-auto.inp
 CH3-trunc-1.inp
 CH3-trunc-auto-md.inp
 CH3-coul-0.inp
+#restore screening on forces
+H2O-trunc-auto-md.inp
+CH3-trunc-auto-md.inp
