@@ -85,8 +85,8 @@ MODULE qs_core_hamiltonian
   USE cp_dbcsr_operations,             ONLY: &
        dbcsr_add_block_node, dbcsr_allocate_matrix, &
        dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
-       dbcsr_get_block_node, dbcsr_obj_p_type, &
-       dbcsr_replicate_matrix_structure, sm_from_dbcsr
+       dbcsr_get_block_node, dbcsr_obj_p_type, dbcsr_replicate_matrix_struct, &
+       sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -452,7 +452,7 @@ CONTAINS
             "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL dbcsr_replicate_matrix_structure(source=matrix_s(1)%matrix,&
+      CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
                                             TARGET=matrix_s(i)%matrix,&
                                             target_name=TRIM(name),&
                                             target_symmetry="antisymmetric",error=error)
@@ -491,7 +491,7 @@ CONTAINS
          return_t_derivatives = .FALSE.
       END IF
 
-      CALL dbcsr_replicate_matrix_structure(source=matrix_s(1)%matrix,&
+      CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
                                             TARGET=matrix_t(1)%matrix,&
                                             target_name="KINETIC ENERGY MATRIX",error=error)
 
@@ -501,7 +501,7 @@ CONTAINS
               "W.R.T. THE NUCLEAR COORDINATES"
          CALL compress(name)
          CALL uppercase(name)
-         CALL dbcsr_replicate_matrix_structure(source=matrix_s(1)%matrix,&
+         CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
                                                TARGET=matrix_t(i)%matrix,&
                                                target_name=name,&
                                                target_symmetry="antisymmetric",error=error)
@@ -510,7 +510,7 @@ CONTAINS
 
    ! *** Allocate the core Hamiltonian matrix ***
    CALL dbcsr_allocate_matrix_set(matrix_h,1,error)
-   CALL dbcsr_replicate_matrix_structure(source=matrix_s(1)%matrix,&
+   CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
                                          TARGET=matrix_h(1)%matrix,&
                                          target_name="CORE HAMILTONIAN MATRIX",error=error)
    ! *** Allocate work storage ***

@@ -59,6 +59,7 @@ MODULE dbcsr_types
             dbcsr_type_real_default, dbcsr_type_complex_default
   PUBLIC :: dbcsr_type_normal, dbcsr_type_symmetric,&
             dbcsr_type_antisymmetric, dbcsr_type_transposed
+  PUBLIC :: dbcsr_repl_none, dbcsr_repl_row, dbcsr_repl_col, dbcsr_repl_full
 
 
   INTEGER, PARAMETER :: dbcsr_meta_size = 13 ! The number of meta fields
@@ -302,6 +303,7 @@ MODULE dbcsr_types
 !>                            symmetric, and 'A' for antisymmetric
 !> \var data_type             'r'/'R' for single/double precision real or
 !>                            'c'/'C' for single/double precision complex data
+!> \var replication_type      multi-process replication used in the matrix
 !> \var special_memory        uses special (MPI-allocated) memory
 !> \var refcount              reference count
 !> \var work_mutable          uses the mutable data for working and not the
@@ -328,7 +330,7 @@ MODULE dbcsr_types
      INTEGER                 :: nfullrows_total, nfullcols_total
      INTEGER                 :: nblkrows_local, nblkcols_local
      INTEGER                 :: nfullrows_local, nfullcols_local
-     CHARACTER               :: matrix_type, data_type
+     CHARACTER               :: matrix_type, data_type, replication_type
      LOGICAL                 :: special_memory
      !TYPE(dbcsr_work_type)   :: w
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
@@ -342,6 +344,11 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER        :: dbcsr_type_symmetric = 'S'
   CHARACTER, PARAMETER        :: dbcsr_type_antisymmetric = 'A'
   CHARACTER, PARAMETER        :: dbcsr_type_transposed = 'T'
+
+  CHARACTER, PARAMETER        :: dbcsr_repl_none = 'N'
+  CHARACTER, PARAMETER        :: dbcsr_repl_row = 'R'
+  CHARACTER, PARAMETER        :: dbcsr_repl_col = 'C'
+  CHARACTER, PARAMETER        :: dbcsr_repl_full = 'A'
 
 ! *****************************************************************************
 !> These specify which array index in the index array is the start of the

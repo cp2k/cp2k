@@ -50,7 +50,8 @@ MODULE cp_dbcsr_operations
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_copy, dbcsr_filter, dbcsr_find_column, &
        dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_norm, dbcsr_put_block, &
-       dbcsr_remove_block, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_trace
+       dbcsr_remove_block, dbcsr_reserve_block2d, dbcsr_scale, &
+       dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_block_node_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
@@ -105,7 +106,7 @@ MODULE cp_dbcsr_operations
        packed_vec_bif_tech2, dbcsr_copy_vec, packed_vec_build_u
   ! CP2K API emulation
   PUBLIC :: dbcsr_add_block_node,dbcsr_get_block_node,&
-            dbcsr_replicate_matrix_structure,&
+            dbcsr_replicate_matrix_struct,&
             dbcsr_allocate_matrix, dbcsr_deallocate_matrix,&
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
             dbcsr_obj_p_type, dbcsr_block_node_type, test_sm,&
@@ -486,7 +487,7 @@ CONTAINS
     CALL dbcsr_deallocate_matrix (matrix_a2, error)
     !
     ! Tests matrix structure replication
-    CALL dbcsr_replicate_matrix_structure(matrix_a, matrix_a2, "replication",&
+    CALL dbcsr_replicate_matrix_struct(matrix_a, matrix_a2, "replication",&
          error=error)
     CALL dbcsr_finalize (matrix_a2, error=error)
     CALL dbcsr_verify_matrix(matrix_a2, error)
@@ -595,6 +596,16 @@ CONTAINS
     CALL dbcsr_init (matrix_bt)
     CALL dbcsr_replicate_all (matrix_bt, matrix_b)
     CALL dbcsr_verify_matrix (matrix_bt)
+    checksum = dbcsr_checksum(matrix_bt, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x.*p checksum", checksum
+    ENDIF
+    ! Sum the replicates.
+    CALL dbcsr_sum_replicated (matrix_bt)
+    checksum = dbcsr_checksum(matrix_bt, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSRpx.*p checksum", checksum
+    ENDIF
     CALL dbcsr_release (matrix_bt)
     ! Transpose
     CALL dbcsr_new_transposed (matrix_bt, matrix_b, error=error)
@@ -1818,7 +1829,7 @@ CONTAINS
 !> \param[in] target_symmetry symmetry of the target matrix
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_replicate_matrix_structure(source,TARGET,target_name,&
+  SUBROUTINE dbcsr_replicate_matrix_struct(source,TARGET,target_name,&
                                              target_symmetry,error)
     TYPE(dbcsr_obj), INTENT(IN)              :: source
     TYPE(dbcsr_obj), POINTER                 :: TARGET
@@ -1827,7 +1838,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_replicate_matrix_structure', &
+      routineN = 'dbcsr_replicate_matrix_struct', &
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: dbcsr_matrix_type
@@ -1849,7 +1860,7 @@ CONTAINS
          error=error)
     CALL cp_dbcsr_add_dist2d (TARGET%m, source%m%dist2d, error)
     TARGET%m%sparsity_id=source%m%sparsity_id
-  END SUBROUTINE dbcsr_replicate_matrix_structure
+  END SUBROUTINE dbcsr_replicate_matrix_struct
 
 
 ! *****************************************************************************
@@ -2005,9 +2016,9 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Converts a CP full matrix into a BCSR matrix.
+!> \brief Converts a cp2k full matrix into a DBCSR matrix.
 !> \param[out] matrix         the created BCSR matrix
-!> \param[in] fm    the cpk full matrix
+!> \param[in] fm              the cpk full matrix
 !> \param[in] threshold       the threshold for determining sparsity
 !> \param[in] row_blk_sizes   sizes of row blocks
 !> \param[in] col_blk_sizes   sizes of column blocks

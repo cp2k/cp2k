@@ -14,8 +14,8 @@ MODULE dkh_main
   USE cp_dbcsr_operations,             ONLY: &
        dbcsr_add_block_node, dbcsr_allocate_matrix, &
        dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
-       dbcsr_get_block_node, dbcsr_obj_p_type, &
-       dbcsr_replicate_matrix_structure, sm_from_dbcsr
+       dbcsr_get_block_node, dbcsr_obj_p_type, dbcsr_replicate_matrix_struct, &
+       sm_from_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -347,28 +347,28 @@ CONTAINS
     !   *********************************************************************
 
     CALL dbcsr_allocate_matrix_set(matrix_tpgf,1,error=error)             
-    CALL dbcsr_replicate_matrix_structure(source=matrix_spgf(1)%matrix,&
+    CALL dbcsr_replicate_matrix_struct(source=matrix_spgf(1)%matrix,&
          TARGET=matrix_tpgf(1)%matrix,&
          target_name="KINETIC ENERGY MATRIX PGF",&
          error=error)
 
 
     CALL dbcsr_allocate_matrix_set(matrix_hpgf,1,error=error)
-    CALL dbcsr_replicate_matrix_structure(source=matrix_spgf(1)%matrix,&
+    CALL dbcsr_replicate_matrix_struct(source=matrix_spgf(1)%matrix,&
          TARGET=matrix_hpgf(1)%matrix,&
          target_name="CORE HAMILTONIAN MATRIX PGF",&
          error=error)
 
 
     CALL dbcsr_allocate_matrix_set(matrix_vnuc,1,error=error)                                   
-    CALL dbcsr_replicate_matrix_structure(source=matrix_spgf(1)%matrix,&            
+    CALL dbcsr_replicate_matrix_struct(source=matrix_spgf(1)%matrix,&            
          TARGET=matrix_vnuc(1)%matrix,&            
          target_name="NUCLEAR POTENTIAL ENERGY MATRIX",&
          error=error)
 
 
     CALL dbcsr_allocate_matrix_set(matrix_pVppgf,1,error=error)
-    CALL dbcsr_replicate_matrix_structure(source=matrix_spgf(1)%matrix,&
+    CALL dbcsr_replicate_matrix_struct(source=matrix_spgf(1)%matrix,&
          TARGET=matrix_pVppgf(1)%matrix,&
          target_name="pVp MATRIX PGF",&
          error=error)

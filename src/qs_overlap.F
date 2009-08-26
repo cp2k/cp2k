@@ -24,7 +24,7 @@ MODULE qs_overlap
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_structure,&
+                                             dbcsr_replicate_matrix_struct,&
                                              sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -256,7 +256,7 @@ CONTAINS
              " W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL dbcsr_replicate_matrix_structure(source=matrix_s(1)%matrix,&
+      CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
                                             TARGET=matrix_s(i)%matrix,&
                                             target_name=TRIM(name),&
                                             target_symmetry=TRIM(symmetry_string),error=error)

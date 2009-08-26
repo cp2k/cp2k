@@ -53,12 +53,13 @@ MODULE dbcsr_util
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_meta_size, &
-       dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, &
-       dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, &
-       dbcsr_slot_size, dbcsr_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_normal, &
-       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, &
-       dbcsr_type_symmetric, dbcsr_type_transposed, dbcsr_work_type
+       dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, dbcsr_repl_full, &
+       dbcsr_repl_none, dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, &
+       dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_normal, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_type_transposed, &
+       dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
                                              distribution_2d_type,&
@@ -734,6 +735,7 @@ CONTAINS
     !matrix%m%nze = nze
     matrix%m%nze = 0
     matrix%m%special_memory = .FALSE.
+    matrix%m%replication_type = dbcsr_repl_none
     NULLIFY(matrix%m%dist2d)
     NULLIFY(matrix%m%block_node)
     IF (PRESENT (special)) matrix%m%special_memory = special
@@ -4653,6 +4655,7 @@ CONTAINS
     CALL dbcsr_create(replicated, 'Replicated '//matrix%m%name, matrix%m%dist,&
          'N', matrix%m%row_blk_size, matrix%m%col_blk_size,&
          0, 0, matrix%m%data_type, special=matrix%m%special_memory)
+    matrix%m%replication_type = dbcsr_repl_full
     ! Count initial sizes for sending.
     DBG 'A'
     send_count(:,:) = 0

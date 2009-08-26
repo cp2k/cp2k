@@ -25,7 +25,7 @@ MODULE  rt_propagation_utils
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_structure,&
+                                             dbcsr_replicate_matrix_struct,&
                                              sm_from_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -244,7 +244,7 @@ MODULE  rt_propagation_utils
             "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL dbcsr_replicate_matrix_structure(source=s_derivs(1)%matrix,&
+      CALL dbcsr_replicate_matrix_struct(source=s_derivs(1)%matrix,&
                                       TARGET=s_derivs(m)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="antisymmetric",error=error)
@@ -257,7 +257,7 @@ MODULE  rt_propagation_utils
             "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL dbcsr_replicate_matrix_structure(source=s_derivs(1)%matrix,&
+      CALL dbcsr_replicate_matrix_struct(source=s_derivs(1)%matrix,&
                                       TARGET=s_derivs(m)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="symmetric",error=error)

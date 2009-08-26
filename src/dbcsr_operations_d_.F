@@ -372,25 +372,40 @@
 !> \param[in]  col            the column
 !> \param[in]  block          the block to put
 !> \param[in]  transposed     the block is transposed
+!> \param[in]  summation      (optional) if block exists, then sum the new
+!>                            block to the old one instead of replacing it
+!> \param[in]  scale          (optional) scale the block being added
 ! *****************************************************************************
-  SUBROUTINE dbcsr_put_block2d_d(matrix, row, col, block, transposed)
+  SUBROUTINE dbcsr_put_block2d_d(matrix, row, col, block, transposed,&
+       summation, scale)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:,:), INTENT(IN)      :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed
+    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: scale
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block2d_d', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: tr, do_sum
     
     IF (PRESENT (transposed)) THEN
        tr = transposed
     ELSE
        tr = .FALSE.
     ENDIF
-    CALL dbcsr_put_block (matrix, row, col, RESHAPE (block, (/SIZE(block)/)),&
-      tr)
+    IF (PRESENT (summation)) THEN
+       do_sum = summation
+    ELSE
+       do_sum = .FALSE.
+    ENDIF
+    IF (PRESENT (scale)) THEN
+       CALL dbcsr_put_block (matrix, row, col,&
+            RESHAPE (block, (/SIZE(block)/)), tr, do_sum, scale)
+    ELSE
+       CALL dbcsr_put_block (matrix, row, col,&
+            RESHAPE (block, (/SIZE(block)/)), tr, do_sum)
+    ENDIF
   END SUBROUTINE dbcsr_put_block2d_d
 
 ! *****************************************************************************
@@ -402,12 +417,17 @@
 !> \param[in]  col            the logical column
 !> \param[in]  block          the block to put
 !> \param[in]  transposed     the block is transposed
+!> \param[in]  summation      (optional) if block exists, then sum the new
+!>                            block to the old one instead of replacing it
+!> \param[in]  scale          (optional) scale the block being added
 ! *****************************************************************************
-  SUBROUTINE dbcsr_put_block_d(matrix, row, col, block, transposed)
+  SUBROUTINE dbcsr_put_block_d(matrix, row, col, block, transposed,&
+       summation, scale)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:), INTENT(IN)        :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed
+    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: scale
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_d', &
       routineP = moduleN//':'//routineN
@@ -418,7 +438,7 @@
                                                 row_size, blk_p,&
                                                 stored_row, stored_col
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: found, tr
+    LOGICAL                                  :: found, tr, do_sum
 
 ! IN PARALLEL WE SHOULD ENSURE THAT THE BLOCK GOES TO THE RIGHT PLACE !
 
@@ -426,6 +446,11 @@
        tr = transposed
     ELSE
        tr = .FALSE.
+    ENDIF
+    IF (PRESENT (summation)) THEN
+       do_sum = summation
+    ELSE
+       do_sum = .FALSE.
     ENDIF
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
@@ -452,10 +477,27 @@
        IF (matrix%m%blk_p(blk).LT.0 .NEQV. tr) THEN
           matrix%m%blk_p(blk) = -matrix%m%blk_p(blk)
        ENDIF
-       CALL dcopy (nze, block(1), 1,&
-            pointer_view (&
-            dbcsr_get_data_p (matrix%m%data_area, 0.0_real_8), offset, offset&
-            ), 1)
+       IF (do_sum) THEN
+          IF (PRESENT (scale)) THEN
+             CALL daxpy (nze, scale, block(1), 1,&
+                  pointer_view (dbcsr_get_data_p (&
+                  matrix%m%data_area, 0.0_real_8), offset, offset), 1)
+          ELSE
+             CALL daxpy (nze, 1.0_real_8, block(1), 1,&
+                  pointer_view (dbcsr_get_data_p (&
+                  matrix%m%data_area, 0.0_real_8), offset, offset), 1)
+          ENDIF
+       ELSE
+          IF (PRESENT (scale)) THEN
+             CALL dcopy (nze, scale*block(1:nze), 1,&
+                  pointer_view (dbcsr_get_data_p (&
+                  matrix%m%data_area, 0.0_real_8), offset, offset), 1)
+          ELSE
+             CALL dcopy (nze, block(1), 1,&
+                  pointer_view (dbcsr_get_data_p (&
+                  matrix%m%data_area, 0.0_real_8), offset, offset), 1)
+          ENDIF
+       ENDIF
     ELSE
        IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
           !WRITE(*,*)routineN//" Creating new work matrix to hold new data"
@@ -472,14 +514,26 @@
        ELSE
           ALLOCATE (data_block%p (row_size, col_size))
           data_block%p(:,:) = RESHAPE (block, (/row_size, col_size/))
-          CALL btree_add_d (&
-               matrix%m%wms(1)%mutable%m%btree_d,&
-               make_coordinate_tuple(stored_row, stored_col),&
-               data_block, found, data_block2, replace=.TRUE.)
-          IF (found) THEN
-             CALL cp_assert (ASSOCIATED (data_block2%p), cp_warning_level,&
-                  cp_internal_error, routineN, "Data was not present in block")
-             IF (ASSOCIATED (data_block2%p)) DEALLOCATE (data_block2%p)
+          IF (.NOT. do_sum) THEN
+             CALL btree_add_d (&
+                  matrix%m%wms(1)%mutable%m%btree_d,&
+                  make_coordinate_tuple(stored_row, stored_col),&
+                  data_block, found, data_block2, replace=.TRUE.)
+             IF (found) THEN
+                CALL cp_assert (ASSOCIATED (data_block2%p), cp_warning_level,&
+                     cp_internal_error, routineN,&
+                     "Data was not present in block")
+                IF (ASSOCIATED (data_block2%p)) DEALLOCATE (data_block2%p)
+             ENDIF
+          ELSE
+             CALL btree_add_d (&
+                  matrix%m%wms(1)%mutable%m%btree_d,&
+                  make_coordinate_tuple(stored_row, stored_col),&
+                  data_block, found, data_block2, replace=.FALSE.)
+             IF (found) THEN
+                CALL daxpy (nze, 1.0_real_8, block(1), 1,&
+                     data_block2%p(1,1), 1)
+             ENDIF
           ENDIF
        ENDIF
        matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + SIZE (block)

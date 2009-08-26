@@ -60,7 +60,8 @@ MODULE dbcsr_operations
             dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, dbcsr_get_block,&
             dbcsr_put_block, dbcsr_filter,dbcsr_find_column,&
             dbcsr_btriu, block_add_on_diag,&
-            block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm
+            block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm,&
+            dbcsr_sum_replicated
   ! Direct access to the variants because array reshaping and
   ! typematching is incompatible.
   PUBLIC :: block_add_on_diag_d, block_add_on_diag_s,&
@@ -3306,7 +3307,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     IF(my_beta_scalar.NE.0.0_dp) THEN
 
-       IF(.FALSE.)THEN
+       IF(.TRUE.)THEN
           CALL dbcsr_iterator_start(iter, matrix_b)
           DO WHILE (dbcsr_iterator_blocks_left(iter))
              SELECT CASE (dbcsr_get_data_type(matrix_a))
@@ -3317,7 +3318,13 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
                 !
                 ! here put should be an accumulate or so !
-                CALL dbcsr_put_block(matrix_a, row, col, data_d)
+                IF (my_beta_scalar.EQ.1.0_dp) THEN
+                   CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
+                        summation=.TRUE.)
+                ELSE
+                   CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
+                        summation=.TRUE., scale=my_beta_scalar)
+                ENDIF
                 !CASE (dbcsr_type_complex_4)
                 !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
                 !   CALL dbcsr_put_block(matrix_a, row, col, data_c)
@@ -3330,7 +3337,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           ENDDO
           CALL dbcsr_iterator_stop(iter)
           CALL dbcsr_finalize (matrix_a, error=error)
-
        ELSE
           DO row = 1, matrix_b%m%nblkrows_total
              a_row_size = a_row_blk_size(row)
@@ -3820,6 +3826,67 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
   END SUBROUTINE dbcsr_norm
 
+
+! *****************************************************************************
+!> \brief Sums blocks in a replicated dbcsr matrix.
+!> \param[in,out] matrix      dbcsr matrix to operate on
+! *****************************************************************************
+  SUBROUTINE dbcsr_sum_replicated (matrix)
+    TYPE(dbcsr_obj), INTENT(inout)           :: matrix
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sum_replicated', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: comm, max_data_size, &
+                                                max_index_size, mynode, &
+                                                numnodes, p
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_sizes
+    INTEGER, DIMENSION(2)                    :: my_sizes
+    INTEGER, DIMENSION(:), POINTER           :: recv_index
+    REAL(kind=dp), DIMENSION(:), POINTER     :: recv_dp, send_dp
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_mp_obj)                       :: mp
+    TYPE(dbcsr_obj)                          :: recv_matrix
+
+!   ---------------------------------------------------------------------------
+
+    mp = dbcsr_distribution_mp (dbcsr_distribution (matrix))
+    comm = dbcsr_mp_group (mp)
+    numnodes = dbcsr_mp_numnodes (mp)
+    mynode = dbcsr_mp_mynode (mp)
+    send_dp => dbcsr_get_data_p (matrix%m%data_area, 0.0_dp)
+    ! Count data sizes
+    my_sizes(1) = SIZE (matrix%m%index)
+    my_sizes(2) = SIZE (send_dp)
+    ALLOCATE (all_sizes (2, 0:numnodes-1))
+    CALL mp_allgather (my_sizes, all_sizes, comm)
+    max_index_size = MAXVAL (all_sizes(1,:))
+    max_data_size = MAXVAL (all_sizes(2,:))
+    CALL cp_error_init (error)
+    CALL dbcsr_create(recv_matrix, "Temporary receiving buffer",&
+         dbcsr_distribution(matrix), dbcsr_get_matrix_type(matrix),&
+         dbcsr_row_block_sizes(matrix), dbcsr_col_block_sizes(matrix),&
+         0, 0, dbcsr_get_data_type(matrix), error=error)
+    CALL ensure_array_size (recv_matrix%m%index, ub=max_index_size)
+    CALL dbcsr_data_ensure_size (recv_matrix%m%data_area, max_data_size)
+    ! Broadcasts a matrix and every processor sums it. Inefficient,
+    ! but it gets the job done.
+    DO p = 0, numnodes-1
+       IF (p .EQ. mynode) THEN
+          CALL mp_bcast (matrix%m%index, p, comm)
+          CALL mp_bcast (send_dp, p, comm)
+       ELSE
+          recv_index => recv_matrix%m%index(1:all_sizes(1,p))
+          recv_dp => pointer_view ( dbcsr_get_data_p (&
+               recv_matrix%m%data_area, 0.0_dp), 1, all_sizes(2,p))
+          CALL mp_bcast (recv_index, p, comm)
+          CALL mp_bcast (recv_dp, p, comm)
+          CALL dbcsr_repoint_index(recv_matrix%m)
+          CALL dbcsr_add (matrix, recv_matrix, 1.0_dp, 1.0_dp, error)
+        ENDIF
+    ENDDO
+    CALL dbcsr_destroy (recv_matrix)
+  END SUBROUTINE dbcsr_sum_replicated
 
 ! *****************************************************************************
 !> \brief Calls the functions that are called in the included files but not
