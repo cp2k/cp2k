@@ -175,49 +175,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="MOVES",&
-            description="Total number of Monte Carlo moves to use in the optimization.",&
-            usage="MOVES 1000000 ",&
-            n_var=1,default_i_val=100000,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="CYCLES",&
-            description="How many annealing cycles to use in the MC process.",&
-            usage="CYCLES 10", default_i_val=5, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="REDUCTION_STEPS",&
-            description="How many temperature reduction steps have to be performed per cycle.",&
-            usage="REDUCTION_STEPS 5", default_i_val=10, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="REDUCTION_FACTOR",&
-            description="How to scale the temperature at each reduction step.",&
-            usage="REDUCTION_FACTOR 0.8", default_r_val=0.8_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="TEMPERATURE",&
-            description="Highest temperature to be used (in units of the RMSD of the initial solution).",&
-            usage="TEMPERATURE 0.005", default_r_val=0.001_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="TOLERANCE",&
-            description="If the found distribution is within a fraction of the optimal one, the optimization stops.",&
-            usage="TOLERANCE 0.01", default_r_val=0.02_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="SWAP_PROBABILITY",&
-            description="Probability of a swap of two bins.",&
-            usage="SWAP_PROBABILITY 0.8", default_r_val=0.9_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(&
             keyword=keyword,&
             name="BLOCK_SIZE",&

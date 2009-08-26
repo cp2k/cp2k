@@ -189,7 +189,8 @@ MODULE hfx_energy_potential
     TYPE(hfx_memory_type), POINTER           :: memory_parameter
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(hfx_screening_type)                 :: screening_parameter
-    TYPE(hfx_type), POINTER                  :: actual_x_data
+    TYPE(hfx_type), POINTER                  :: actual_x_data, &
+                                                shm_master_x_data
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
@@ -267,7 +268,6 @@ MODULE hfx_energy_potential
     INTEGER                                  :: sphi_a_u1,sphi_a_u2,sphi_a_u3
     INTEGER                                  :: iatom_start, iatom_end, jatom_start, jatom_end, katom_start,&
                                                 katom_end, latom_start, latom_end, my_process_id
-
 
     CALL timeset(routineN,handle)
 
@@ -371,7 +371,8 @@ MODULE hfx_energy_potential
 !$OMP                                  shm_block_offset,&
 !$OMP                                  shm_task_counter,&
 !$OMP                                  shm_task_list,&
-!$OMP                                  shm_total_bins)
+!$OMP                                  shm_total_bins,&
+!$OMP                                  shm_master_x_data)
 
 
     ln_10 = LOG(10.0_dp)
@@ -379,6 +380,11 @@ MODULE hfx_energy_potential
 !$  i_thread = omp_get_thread_num()
     
     actual_x_data => qs_env%x_data(irep, i_thread + 1)
+!$OMP MASTER
+    shm_master_x_data => qs_env%x_data(irep,1)
+!$OMP END MASTER
+!$OMP BARRIER
+
     do_periodic = actual_x_data%periodic_parameter%do_periodic
 
     screening_parameter    = actual_x_data%screening_parameter
@@ -538,17 +544,17 @@ MODULE hfx_energy_potential
     !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
     IF( geometry_did_change ) THEN
       CALL get_atomic_block_maps(ks_matrix(1)%matrix,basis_parameter,kind_of,&
-                                 actual_x_data%is_assoc_atomic_block,&
-                                 actual_x_data%number_of_p_entries ,&
+                                 shm_master_x_data%is_assoc_atomic_block,&
+                                 shm_master_x_data%number_of_p_entries ,&
                                  para_env, &
-                                 actual_x_data%atomic_block_offset,&
-                                 actual_x_data%set_offset,&
-                                 actual_x_data%block_offset,&
-                                 actual_x_data%map_atoms_to_cpus,&
+                                 shm_master_x_data%atomic_block_offset,&
+                                 shm_master_x_data%set_offset,&
+                                 shm_master_x_data%block_offset,&
+                                 shm_master_x_data%map_atoms_to_cpus,&
                                  nkind,&
                                  error)
 
-      shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
+      shm_is_assoc_atomic_block => shm_master_x_data%is_assoc_atomic_block
 
       !! Get occupation of KS-matrix
       ks_fully_occ = .TRUE.
@@ -573,11 +579,11 @@ MODULE hfx_energy_potential
     END IF
 
     ! ** Set pointers
-    shm_number_of_p_entries = actual_x_data%number_of_p_entries
-    shm_is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
-    shm_atomic_block_offset => actual_x_data%atomic_block_offset
-    shm_set_offset => actual_x_data%set_offset
-    shm_block_offset => actual_x_data%block_offset
+    shm_number_of_p_entries = shm_master_x_data%number_of_p_entries
+    shm_is_assoc_atomic_block => shm_master_x_data%is_assoc_atomic_block
+    shm_atomic_block_offset => shm_master_x_data%atomic_block_offset
+    shm_set_offset => shm_master_x_data%set_offset
+    shm_block_offset => shm_master_x_data%block_offset
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -681,14 +687,14 @@ MODULE hfx_energy_potential
       CALL timeset(routineN//"_getP",handle_getP)
       CALL get_full_density(para_env, full_density, rho%rho_ao(ispin)%matrix, shm_number_of_p_entries,&
                             shm_is_assoc_atomic_block, &
-                            actual_x_data%block_offset, natom, last_sgf_global, &
+                            shm_master_x_data%block_offset, natom, last_sgf_global, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)   
 
       IF(nspins == 2) THEN
         ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
         CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, shm_number_of_p_entries,&
                               shm_is_assoc_atomic_block, & 
-                              actual_x_data%block_offset, natom, last_sgf_global, &
+                              shm_master_x_data%block_offset, natom, last_sgf_global, &
                               kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
       END IF
       CALL timestop(handle_getP)
@@ -698,15 +704,15 @@ MODULE hfx_energy_potential
       !! a changed geometry 
       NULLIFY(shm_initial_p) 
       IF( do_p_screening) THEN
-        shm_initial_p => actual_x_data%initial_p
+        shm_initial_p => shm_master_x_data%initial_p
         IF(geometry_did_change ) THEN
-          CALL update_pmax_mat(actual_x_data%initial_p, &
-                               actual_x_data%map_atom_to_kind_atom, &
-                               actual_x_data%set_offset,&
-                               actual_x_data%atomic_block_offset,&
+          CALL update_pmax_mat(shm_master_x_data%initial_p, &
+                               shm_master_x_data%map_atom_to_kind_atom, &
+                               shm_master_x_data%set_offset,&
+                               shm_master_x_data%atomic_block_offset,&
                                full_density,full_density_beta,&
                                natom, kind_of, basis_parameter, &
-                               last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block)
+                               last_sgf_global, nkind, shm_master_x_data%is_assoc_atomic_block)
         END IF
       END IF
     ELSE
@@ -714,7 +720,7 @@ MODULE hfx_energy_potential
         CALL timeset(routineN//"_getP",handle_getP)
         CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, shm_number_of_p_entries,&
                               shm_is_assoc_atomic_block, &
-                              actual_x_data%block_offset, natom, last_sgf_global, &
+                              shm_master_x_data%block_offset, natom, last_sgf_global, &
                               kind_of, basis_parameter,  get_max_vals_spin=.TRUE., &
                               rho_beta=rho%rho_ao(2)%matrix, error=error)   
         CALL timestop(handle_getP)
@@ -725,34 +731,34 @@ MODULE hfx_energy_potential
         NULLIFY(shm_initial_p) 
         shm_initial_p => actual_x_data%initial_p
         IF(geometry_did_change ) THEN
-          CALL update_pmax_mat(actual_x_data%initial_p, &
-                               actual_x_data%map_atom_to_kind_atom, &
-                               actual_x_data%set_offset,&
-                               actual_x_data%atomic_block_offset,&
+          CALL update_pmax_mat(shm_master_x_data%initial_p, &
+                               shm_master_x_data%map_atom_to_kind_atom, &
+                               shm_master_x_data%set_offset,&
+                               shm_master_x_data%atomic_block_offset,&
                                full_density,full_density_beta,&
                                natom, kind_of, basis_parameter, &
-                               last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block)
+                               last_sgf_global, nkind, shm_master_x_data%is_assoc_atomic_block)
         END IF
       END IF
       ! ** Now get the density(ispin)
       CALL get_full_density(para_env, full_density, rho%rho_ao(ispin)%matrix, shm_number_of_p_entries,&
                             shm_is_assoc_atomic_block, &
-                            actual_x_data%block_offset, natom, last_sgf_global, &
+                            shm_master_x_data%block_offset, natom, last_sgf_global, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     END IF
 
     NULLIFY(full_ks, full_ks_beta)
-    ALLOCATE(actual_x_data%full_ks_alpha(shm_block_offset(ncpu+1)),STAT=stat)
+    ALLOCATE(shm_master_x_data%full_ks_alpha(shm_block_offset(ncpu+1)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    full_ks => actual_x_data%full_ks_alpha
+    full_ks => shm_master_x_data%full_ks_alpha
     full_ks = 0.0_dp
 
    
     IF (.NOT. treat_lsd_in_core ) THEN 
       IF(nspins==2) THEN
-        ALLOCATE(actual_x_data%full_ks_beta(shm_block_offset(ncpu+1)),STAT=stat)
+        ALLOCATE(shm_master_x_data%full_ks_beta(shm_block_offset(ncpu+1)),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        full_ks_beta => actual_x_data%full_ks_beta
+        full_ks_beta => shm_master_x_data%full_ks_beta
         full_ks_beta = 0.0_dp
       END IF
     END IF
@@ -761,25 +767,34 @@ MODULE hfx_energy_potential
     !! for far field estimates. The update is only performed if the geomtry of the system changed.
     !! If the system is periodic, then the corresponding routines are called and some variables 
     !! are initialized
-    IF( .NOT. actual_x_data%screen_funct_is_initialized ) THEN
-      CALL calc_pair_dist_radii(qs_env,&
-                                actual_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz,&
-                                error)
-      CALL calc_screening_functions(qs_env, private_lib, actual_x_data%potential_parameter,&
-                                    actual_x_data%screen_funct_coeffs_set, actual_x_data%screen_funct_coeffs_kind, &
-                                    actual_x_data%screen_funct_coeffs_pgf,actual_x_data%pair_dist_radii_pgf,&
-                                    max_set, max_pgf, error)
-
-      actual_x_data%screen_funct_is_initialized = .TRUE.
-    END IF
-    screen_coeffs_set   => actual_x_data%screen_funct_coeffs_set
-    screen_coeffs_kind  => actual_x_data%screen_funct_coeffs_kind
-    screen_coeffs_pgf   => actual_x_data%screen_funct_coeffs_pgf
-    radii_pgf           => actual_x_data%pair_dist_radii_pgf
 
 !$OMP END MASTER
 !$OMP BARRIER
 
+
+    IF( .NOT. shm_master_x_data%screen_funct_is_initialized ) THEN
+      CALL calc_pair_dist_radii(qs_env,&
+                                shm_master_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz,&
+                                n_threads, i_thread, error)
+!$OMP BARRIER
+      CALL calc_screening_functions(qs_env, private_lib, shm_master_x_data%potential_parameter,&
+                                    shm_master_x_data%screen_funct_coeffs_set,&
+                                    shm_master_x_data%screen_funct_coeffs_kind, &
+                                    shm_master_x_data%screen_funct_coeffs_pgf, &
+                                    shm_master_x_data%pair_dist_radii_pgf,&
+                                    max_set, max_pgf, n_threads, i_thread, error)
+
+      shm_master_x_data%screen_funct_is_initialized = .TRUE.
+   END IF
+!$OMP BARRIER
+
+!$OMP MASTER
+    screen_coeffs_set   => shm_master_x_data%screen_funct_coeffs_set
+    screen_coeffs_kind  => shm_master_x_data%screen_funct_coeffs_kind
+    screen_coeffs_pgf   => shm_master_x_data%screen_funct_coeffs_pgf
+    radii_pgf           => shm_master_x_data%pair_dist_radii_pgf
+!$OMP END MASTER
+!$OMP BARRIER
 
     !! Initialize a prefactor depending on the fraction and the number of spins
     IF(nspins == 1) THEN
@@ -955,14 +970,14 @@ MODULE hfx_energy_potential
 
       CALL sort(tmp_task_list_cost,shm_total_bins,tmp_index)
 
-      ALLOCATE(actual_x_data%task_list(shm_total_bins), STAT=stat)
+      ALLOCATE(shm_master_x_data%task_list(shm_total_bins), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       DO i = 1,shm_total_bins
-        actual_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i +1))
+        shm_master_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i +1))
       END DO
 
-      shm_task_list => actual_x_data%task_list
+      shm_task_list => shm_master_x_data%task_list
       shm_task_counter = 0
 
       DEALLOCATE(tmp_task_list_cost, tmp_index, tmp_task_list, STAT=stat)
@@ -1690,7 +1705,7 @@ MODULE hfx_energy_potential
                                 off_diag_fac=0.5_dp,error=error)
 
       NULLIFY(full_ks)
-      DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
+      DEALLOCATE(shm_master_x_data%full_ks_alpha, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       IF( .NOT. treat_lsd_in_core ) THEN
         IF(nspins == 2) THEN
@@ -1699,7 +1714,7 @@ MODULE hfx_energy_potential
                                     shm_block_offset, natom, last_sgf_global, kind_of, basis_parameter, &
                                     off_diag_fac=0.5_dp, error=error)
           NULLIFY(full_ks_beta)
-          DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
+          DEALLOCATE(shm_master_x_data%full_ks_beta, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
       END IF
@@ -1807,7 +1822,7 @@ MODULE hfx_energy_potential
           WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
           WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Number of periodic image cells considered: ", SIZE(actual_x_data%neighbor_cells)
+                 "HFX_MEM_INFO| Number of periodic image cells considered: ", SIZE(shm_master_x_data%neighbor_cells)
         ELSE
            WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
@@ -1897,7 +1912,7 @@ MODULE hfx_energy_potential
        END IF
     END IF
     IF (do_dynamic_load_balancing) THEN
-      DEALLOCATE(actual_x_data%task_list, STAT=stat)
+      DEALLOCATE(shm_master_x_data%task_list, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 !$OMP END MASTER

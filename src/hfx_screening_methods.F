@@ -254,7 +254,7 @@ MODULE hfx_screening_methods
 
   SUBROUTINE calc_screening_functions(qs_env, lib, potential_parameter, &
                                       coeffs_set, coeffs_kind, coeffs_pgf, radii_pgf,&
-                                      max_set, max_pgf, error) 
+                                      max_set, max_pgf, n_threads, i_thread, error) 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lib_int)                            :: lib
     TYPE(hfx_potential_type)                 :: potential_parameter
@@ -264,7 +264,8 @@ MODULE hfx_screening_methods
       DIMENSION(:, :), POINTER               :: coeffs_kind
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: coeffs_pgf, radii_pgf
-    INTEGER, INTENT(IN)                      :: max_set, max_pgf
+    INTEGER, INTENT(IN)                      :: max_set, max_pgf, n_threads, &
+                                                i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_screening_functions', &
@@ -279,12 +280,12 @@ MODULE hfx_screening_methods
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure
-    REAL(dp) :: DATA(2,0:100), kind_radius_a, kind_radius_b, &
-      max_contraction_a, max_contraction_b, max_val, max_val_temp, R1, ra(3), &
-      radius, rb(3), x(2)
+    REAL(dp) :: kind_radius_a, kind_radius_b, max_contraction_a, &
+      max_contraction_b, max_val, max_val_temp, R1, ra(3), radius, rb(3), x(2)
     REAL(dp), DIMENSION(:), POINTER          :: set_radius_a, set_radius_b
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
+    REAL(dp), SAVE                           :: DATA(2,0:100)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -294,8 +295,9 @@ MODULE hfx_screening_methods
 
     failure = .FALSE.
 
+!$OMP MASTER
     CALL timeset(routineN,handle)
-
+!$OMP END MASTER
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -303,6 +305,7 @@ MODULE hfx_screening_methods
 
     nkind = SIZE(atomic_kind_set,1)
 
+!$OMP MASTER
     ALLOCATE(coeffs_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -319,9 +322,11 @@ MODULE hfx_screening_methods
         END DO
       END DO
     END DO
+
+!$OMP END MASTER
+!$OMP BARRIER
     ra = 0.0_dp
     rb = 0.0_dp
-    DATA = 0.0_dp
     DO ikind=1,nkind
       NULLIFY(atom_kind,orb_basis)
       atom_kind => atomic_kind_set(ikind)
@@ -365,9 +370,8 @@ MODULE hfx_screening_methods
             radius=set_radius_a(iset)+set_radius_b(jset)
             DO ipgf = 1,npgfa(iset)
               DO jpgf = 1,npgfb(jset)
-                DATA = 0.0_dp
                 radius=rpgfa(ipgf,iset)+rpgfb(jpgf,jset)
-                DO i=0,100 
+                DO i=i_thread,100,n_threads 
                   rb(1) = 0.0_dp + REAL(i,dp) * 0.01_dp * radius
                   max_val = 0.0_dp
                   R1 = MAX(0.0_dp, radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x(1)*rb(1)**2 + &
@@ -392,9 +396,12 @@ MODULE hfx_screening_methods
                     DATA(2,i) = LOG10((max_val))
                   END IF
                 END DO
-
+!$OMP BARRIER
+!$OMP MASTER
                 CALL optimize_it(DATA,x,powell_min_log)
                 coeffs_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x = x 
+!$OMP END MASTER
+!$OMP BARRIER
 
               END DO
             END DO
@@ -402,7 +409,8 @@ MODULE hfx_screening_methods
         END DO
       END DO
     END DO
-  
+ 
+!$OMP MASTER 
     ALLOCATE(coeffs_set(max_set,max_set,nkind,nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -415,9 +423,10 @@ MODULE hfx_screening_methods
         END DO
       END DO
     END DO
+!$OMP END MASTER
+!$OMP BARRIER
     ra = 0.0_dp
     rb = 0.0_dp
-    DATA = 0.0_dp
     DO ikind=1,nkind
       NULLIFY(atom_kind,orb_basis)
       atom_kind => atomic_kind_set(ikind)
@@ -457,9 +466,8 @@ MODULE hfx_screening_methods
             sgfb = first_sgfb(1,jset)
             max_contraction_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,i))),i=sgfb,sgfb+nsgfb(jset)-1)/))
             radius=set_radius_a(iset)+set_radius_b(jset)
-            DATA = 0.0_dp
             tmp_R_1 => radii_pgf(:,:,jset,iset,jkind,ikind)
-            DO i=0,100 
+            DO i=i_thread,100,n_threads
               rb(1) = 0.0_dp + REAL(i,dp) * 0.01_dp * radius
               max_val = 0.0_dp
               CALL screen4(lib, ra, rb, &
@@ -476,15 +484,20 @@ MODULE hfx_screening_methods
                 DATA(2,i) = LOG10((max_val))
               END IF
             END DO
-
+!$OMP BARRIER
+!$OMP MASTER
             CALL optimize_it(DATA,x,powell_min_log)
             coeffs_set(jset,iset,jkind,ikind)%x = x 
+!$OMP END MASTER
+!$OMP BARRIER
           END DO
         END DO
        
       END DO
     END DO
+
     ! ** now kinds
+!$OMP MASTER
     ALLOCATE(coeffs_kind(nkind,nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -493,6 +506,7 @@ MODULE hfx_screening_methods
         coeffs_kind(jkind,ikind)%x(:) = 0.0_dp
       END DO
     END DO
+!$OMP END MASTER
     ra = 0.0_dp
     rb = 0.0_dp
     DO ikind=1,nkind
@@ -527,7 +541,6 @@ MODULE hfx_screening_methods
                                nsgf_set=nsgfb)
 
         radius=kind_radius_a + kind_radius_b
-        DATA = -100.0_dp
         DO iset=1,nseta
           ncoa = npgfa(iset)*ncoset(la_max(iset))
           sgfa = first_sgfa(1,iset)
@@ -536,7 +549,7 @@ MODULE hfx_screening_methods
             ncob = npgfb(jset)*ncoset(lb_max(jset))
             sgfb = first_sgfb(1,jset)
             max_contraction_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,i))),i=sgfb,sgfb+nsgfb(jset)-1)/))
-            DO i=0,100 
+            DO i=i_thread,100,n_threads
               rb(1) = 0.0_dp + REAL(i,dp) * 0.01_dp * radius
               max_val = 0.0_dp
               tmp_R_1 => radii_pgf(:,:,jset,iset,jkind,ikind)
@@ -556,14 +569,18 @@ MODULE hfx_screening_methods
             END DO
           END DO
         END DO
-
+!$OMP BARRIER
+!$OMP MASTER
         CALL optimize_it(DATA,x,powell_min_log)
         coeffs_kind(jkind,ikind)%x = x 
-
+!$OMP END MASTER
+!$OMP BARRIER
       END DO
     END DO
 
+!$OMP MASTER
     CALL timestop(handle)
+!$OMP END MASTER
 
   END SUBROUTINE calc_screening_functions
 
@@ -589,13 +606,15 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 
   SUBROUTINE calc_pair_dist_radii(qs_env,&
-                  radii_pgf, max_set, max_pgf, eps_schwarz, error)
+                                  radii_pgf, max_set, max_pgf, eps_schwarz, &
+                                  n_threads, i_thread, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: radii_pgf
     INTEGER, INTENT(IN)                      :: max_set, max_pgf
     REAL(dp)                                 :: eps_schwarz
+    INTEGER, INTENT(IN)                      :: n_threads, i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_pair_dist_radii', &
@@ -610,12 +629,12 @@ MODULE hfx_screening_methods
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure
-    REAL(dp) :: cutoff, DATA(2,0:100), ff, max_contraction_a, &
-      max_contraction_b, prefactor, R1, R_max, ra(3), rab(3), rab2, radius, &
-      rap(3), rb(3), rp(3), x(2), zetp
+    REAL(dp) :: cutoff, ff, max_contraction_a, max_contraction_b, prefactor, &
+      R1, R_max, ra(3), rab(3), rab2, radius, rap(3), rb(3), rp(3), x(2), zetp
     REAL(dp), DIMENSION(:), POINTER          :: set_radius_a, set_radius_b
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
+    REAL(dp), SAVE                           :: DATA(2,0:100)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -623,18 +642,37 @@ MODULE hfx_screening_methods
 
     failure = .FALSE.
 
-    CALL timeset(routineN,handle)
 
+!$OMP MASTER
+    CALL timeset(routineN,handle)
+!$OMP END MASTER
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     error=error)
-
+ 
     nkind = SIZE(atomic_kind_set,1)
     ra = 0.0_dp
     rb = 0.0_dp
-    DATA = 0.0_dp
+!$OMP MASTER
     ALLOCATE(radii_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ikind = 1,nkind
+      DO jkind = 1,nkind
+        DO iset=1,max_set
+          DO jset=1,max_set
+            DO ipgf=1,max_pgf
+              DO jpgf=1,max_pgf
+                radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x(:) = 0.0_dp
+              END DO
+            END DO   
+          END DO
+        END DO
+      END DO
+    END DO
+
+    DATA = 0.0_dp
+!$OMP END MASTER
+!$OMP BARRIER
 
     DO ikind=1,nkind
       NULLIFY(atom_kind,orb_basis)
@@ -642,7 +680,7 @@ MODULE hfx_screening_methods
       CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
       CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                             lmax=la_max,&
+                              lmax=la_max,&
                              lmin=la_min,&
                              npgf=npgfa,&
                              nset=nseta,&
@@ -676,12 +714,10 @@ MODULE hfx_screening_methods
             ncob = npgfb(jset)*ncoset(lb_max(jset))
             sgfb = first_sgfb(1,jset)
             max_contraction_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,i))),i=sgfb,sgfb+nsgfb(jset)-1)/))
-            DATA = 0.0_dp
             DO ipgf = 1,npgfa(iset)
               DO jpgf = 1,npgfb(jset)
-                DATA = 0.0_dp
                 radius=rpgfa(ipgf,iset)+rpgfb(jpgf,jset)
-                DO i=0,100
+                DO i = i_thread, 100, n_threads
                   rb(1) = 0.0_dp + 0.01_dp * radius*i
                   R_max = 0.0_dp
                   DO la = la_min(iset),la_max(iset)
@@ -706,18 +742,22 @@ MODULE hfx_screening_methods
                 END DO
                 ! the radius can not be negative, we take that into account in the code as well by using a MAX
                 ! the functional form we use for fitting does not seem particularly accurate 
+!$OMP BARRIER
+!$OMP MASTER
                 CALL optimize_it(DATA,x,0.0_dp)
                 radii_pgf(jpgf,ipgf,jset,iset,jkind,ikind)%x = x 
+!$OMP END MASTER
+!$OMP BARRIER
               END DO !jpgf
             END DO !ipgf
           END DO
         END DO
       END DO
     END DO
-
+!$OMP MASTER 
     CALL timestop(handle)
-
-  END SUBROUTINE calc_pair_dist_radii
+!$OMP END MASTER
+END SUBROUTINE calc_pair_dist_radii
 
 !
 !
