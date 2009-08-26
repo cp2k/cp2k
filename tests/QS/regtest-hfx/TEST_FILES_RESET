@@ -232,3 +232,6 @@ CH-hfx-md-2.inp
 4H2O-mix-disk-ram-on-the-fly.inp
 # numerics
 He-ri.inp
+# new screening forces
+CH-hfx-md.inp
+CH-hfx-md-2.inp
