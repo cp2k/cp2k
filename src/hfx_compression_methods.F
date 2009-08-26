@@ -33,7 +33,24 @@ MODULE hfx_compression_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_compression_methods'
 
-  INTEGER(int_8), PARAMETER, PRIVATE :: one = 1_int_8
+  INTEGER(kind=int_8), PARAMETER :: ugly_duck = ISHFT(1_int_8,63)
+  INTEGER(int_8), PARAMETER :: shifts(0:63) = &
+    (/ 1_int_8, 2_int_8, 4_int_8, 8_int_8, 16_int_8,32_int_8, 64_int_8, 128_int_8, 256_int_8, &
+       512_int_8, 1024_int_8, 2048_int_8, 4096_int_8, 8192_int_8, 16384_int_8, 32768_int_8, &
+       65536_int_8, 131072_int_8, 262144_int_8, 524288_int_8, 1048576_int_8, 2097152_int_8, &
+       4194304_int_8, 8388608_int_8, 16777216_int_8, 33554432_int_8, 67108864_int_8, &
+       134217728_int_8, 268435456_int_8, 536870912_int_8, 1073741824_int_8, 2147483648_int_8, &
+       4294967296_int_8, 8589934592_int_8, 17179869184_int_8, 34359738368_int_8, 68719476736_int_8, &
+       137438953472_int_8, 274877906944_int_8, 549755813888_int_8, 1099511627776_int_8, 2199023255552_int_8, &
+       4398046511104_int_8, 8796093022208_int_8, 17592186044416_int_8, 35184372088832_int_8, 70368744177664_int_8, &
+       140737488355328_int_8, 281474976710656_int_8, 562949953421312_int_8, 1125899906842624_int_8, &
+       2251799813685248_int_8, 4503599627370496_int_8, 9007199254740992_int_8, 18014398509481984_int_8, &
+       36028797018963968_int_8, 72057594037927936_int_8, 144115188075855872_int_8, 288230376151711744_int_8, &
+       576460752303423488_int_8, 1152921504606846976_int_8, 2305843009213693952_int_8, &
+       4611686018427387904_int_8, ugly_duck /)
+       
+
+
 !***
 
 
@@ -65,7 +82,7 @@ MODULE hfx_compression_methods
 
     INTEGER(int_8)                           :: int_val
 
-    int_val = value + IBSET(one,nbits-1)
+    int_val = value + shifts(nbits-1)
     
     IF(cache%element_counter /= CACHE_SIZE ) THEN
       cache%data(cache%element_counter) = int_val
@@ -172,7 +189,7 @@ MODULE hfx_compression_methods
       cache%element_counter = 1 
     END IF
 
-    value = value - IBSET(one,nbits-1)
+    value = value - shifts(nbits-1)
 
   END SUBROUTINE hfx_get_single_cache_element
 
@@ -342,7 +359,7 @@ MODULE hfx_compression_methods
     eps_schwarz_inv = 1.0_dp/eps_schwarz
     factor = eps_schwarz/pmax_entry
 
-    shift = IBSET(one,nbits-1)
+    shift = shifts(nbits-1)
 
     start_idx = cache%element_counter
     end_idx = start_idx + nints-1
@@ -420,7 +437,7 @@ MODULE hfx_compression_methods
 
     factor = eps_schwarz/pmax_entry
 
-    shift = IBSET(one,nbits-1)
+    shift = shifts(nbits-1)
 
     start_idx = cache%element_counter
     end_idx = start_idx + nints-1

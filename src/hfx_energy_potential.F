@@ -1369,7 +1369,7 @@ MODULE hfx_energy_potential
                   END IF
                   spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                   IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
-                  nbits = EXPONENT(spherical_estimate*pmax_entry/eps_storage) + 1                         
+                  nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1                         
                   buffer_left = nints
                   buffer_start = 1
                   DO WHILE (buffer_left > 0 )
@@ -1482,7 +1482,7 @@ MODULE hfx_energy_potential
                   spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                   IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE 
                   IF(.NOT.buffer_overflow) THEN
-                    nbits = EXPONENT(spherical_estimate*pmax_entry/eps_storage) + 1
+                    nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1
                     buffer_left = nints
                     buffer_start = 1
                     IF( .NOT. use_disk_storage) THEN
