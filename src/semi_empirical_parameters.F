@@ -1758,11 +1758,11 @@ CONTAINS
        sep%sto_exponents(0) =    0.6500000_dp
        sep%sto_exponents(1) =    0.7500000_dp
        sep%alp   =    1.2550000_dp
-       sep%gss   =    9.0128510_dp
-       sep%gsp   =    6.5761990_dp
-       sep%gpp   =    6.0571820_dp
-       sep%gp2   =    9.0052190_dp
-       sep%hsp   =    0.5446790_dp
+       sep%gss   =    4.5000000_dp
+       sep%gsp   =    3.0000000_dp
+       sep%gpp   =    5.2500000_dp
+       sep%gp2   =    4.5000000_dp
+       sep%hsp   =    0.1500000_dp
        sep%fn1(1) = -0.4500000_dp; sep%fn2(1) = 5.0000000_dp; sep%fn3(1) = 1.0000000_dp
        sep%fn1(2) =  0.8000000_dp; sep%fn2(2) = 6.5000000_dp; sep%fn3(2) = 1.0000000_dp
     CASE (4)
