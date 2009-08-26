@@ -193,6 +193,7 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_release
 
+
 ! *****************************************************************************
 !> \brief Deallocates and destroys a matrix.
 !> \param[in,out] matrix      matrix
@@ -243,6 +244,7 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_destroy
+
 
 ! *****************************************************************************
 !> \brief Creates new process grid
@@ -2338,6 +2340,7 @@ CONTAINS
          .OR. data_type.EQ.dbcsr_type_complex_8, cp_fatal_level,&
          cp_wrong_args_error, routineN, "Invalid data type")
     ALLOCATE (mutable%m)
+    mutable%m%refcount = 1
     mutable%m%data_type = data_type
     CALL btree_new_s (mutable%m%btree_s)
     CALL btree_new_d (mutable%m%btree_d)

@@ -14,9 +14,12 @@
 
     INTEGER                                  :: a_blk, a_col, a_col_size, &
                                                 a_nze, a_row, a_row_size, i, &
-                                                timing_handle
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+                                                mynode, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size,&
+                                                row_dist, col_dist
     [type1], DIMENSION(:), POINTER           :: a_data, data_p
+    INTEGER, DIMENSION(:,:), POINTER         :: pgrid
+    TYPE(dbcsr_distribution_obj)             :: dist
 
 !   ---------------------------------------------------------------------------
 
@@ -25,6 +28,11 @@
     row_blk_size => array_data (matrix_a%m%row_blk_size)
     col_blk_size => array_data (matrix_a%m%col_blk_size)
     CALL dbcsr_get_data (matrix_a%m%data_area, data_p)
+    dist = dbcsr_distribution (matrix_a)
+    mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dist))
+    pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (dist))
+    row_dist => array_data (dbcsr_distribution_row_dist (dist))
+    col_dist => array_data (dbcsr_distribution_col_dist (dist))
     !
     ! let's go
     trace = 0.0_[prec1]
@@ -33,6 +41,11 @@
        DO a_blk = matrix_a%m%row_p(a_row)+1,matrix_a%m%row_p(a_row+1)
           a_col = matrix_a%m%col_i(a_blk)
           IF(a_col.ne.a_row) CYCLE
+          ! We must skip non-local blocks in a replicated matrix.
+          IF(matrix_a%m%replication_type .NE. dbcsr_repl_full) THEN
+             IF (mynode .NE. checker_square_proc (a_row, a_col, pgrid,&
+                  row_dist, col_dist)) CYCLE
+          ENDIF
           a_col_size = col_blk_size(a_col)
           IF(a_row_size.NE.a_col_size) CALL stop_program(routineN,"is that a square matrix?")
           a_nze = a_row_size**2
@@ -86,7 +99,10 @@
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
-    
+    CALL cp_assert (matrix_a%m%replication_type .EQ. dbcsr_repl_none&
+         .AND. matrix_b%m%replication_type .EQ. dbcsr_repl_none,&
+         cp_failure_level, cp_unimplemented_error_nr, routineN,&
+         "Trace of product of replicated matrices not yet possible.")
     a_row_blk_size => array_data (matrix_a%m%row_blk_size)
     a_col_blk_size => array_data (matrix_a%m%col_blk_size)
     b_row_blk_size => array_data (matrix_b%m%row_blk_size)
@@ -117,7 +133,8 @@
           a_col_size = a_col_blk_size(a_col)
           !
           ! find the b_blk we assume here that the colums are ordered !
-          CALL dbcsr_find_column(a_col,b_frst_blk,b_last_blk,matrix_b%m%col_i,b_blk,found)
+          CALL dbcsr_find_column(a_col,b_frst_blk,b_last_blk,matrix_b%m%col_i,&
+               matrix_b%m%blk_p,b_blk,found)
           IF(found) THEN
              b_col_size = b_col_blk_size(a_col)
              IF(a_col_size.NE.b_col_size) CALL stop_program(routineN,"matrices not consistent")
@@ -176,7 +193,8 @@
     blk = matrix%m%row_p(row)+1
     frst_blk = matrix%m%row_p(row)+1
     last_blk = matrix%m%row_p(row+1)
-    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
+    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,&
+         matrix%m%blk_p,blk,found)
     IF(found) THEN
        nze = row_size*col_size
        !
@@ -222,7 +240,8 @@
     blk = matrix%m%row_p(row)+1
     frst_blk = matrix%m%row_p(row)+1
     last_blk = matrix%m%row_p(row+1)
-    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
+    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,&
+         matrix%m%blk_p,blk,found)
     IF(found) THEN
        nze = row_size*col_size
        !
@@ -464,16 +483,11 @@
     CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col, tr)
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
          found, blk, offset)
-    !blk = matrix%m%row_p(row)+1
-    !frst_blk = matrix%m%row_p(row)+1
-    !last_blk = matrix%m%row_p(row+1)
-    !CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
     IF(found) THEN
        nze = row_size*col_size
        !
        ! let's copy the block
        offset = ABS (offset)
-       !offset = ABS(matrix%m%blk_p(blk))
        IF (matrix%m%blk_p(blk).LT.0 .NEQV. tr) THEN
           matrix%m%blk_p(blk) = -matrix%m%blk_p(blk)
        ENDIF
@@ -514,6 +528,7 @@
        ELSE
           ALLOCATE (data_block%p (row_size, col_size))
           data_block%p(:,:) = RESHAPE (block, (/row_size, col_size/))
+          data_block%tr = tr
           IF (.NOT. do_sum) THEN
              CALL btree_add_[nametype1] (&
                   matrix%m%wms(1)%mutable%m%btree_[nametype1],&

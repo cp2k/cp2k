@@ -48,10 +48,10 @@ MODULE cp_dbcsr_operations
        dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_release, &
        dbcsr_row_block_sizes, dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: &
-       block_set_d, dbcsr_add, dbcsr_copy, dbcsr_filter, dbcsr_find_column, &
+       block_set_d, dbcsr_add, dbcsr_copy, dbcsr_distribute, dbcsr_filter, &
        dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_norm, dbcsr_put_block, &
-       dbcsr_remove_block, dbcsr_reserve_block2d, dbcsr_scale, &
-       dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_remove_block, dbcsr_replace_blocks, dbcsr_replicate_all, &
+       dbcsr_reserve_block2d, dbcsr_scale, dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_block_node_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
@@ -64,10 +64,11 @@ MODULE cp_dbcsr_operations
        dbcsr_create_col_image_dist, dbcsr_create_dist_r_rot, &
        dbcsr_create_dist_r_unrot, dbcsr_destroy_array, &
        dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, dbcsr_finalize, &
-       dbcsr_get_block_index, dbcsr_get_stored_coordinates, dbcsr_init, &
-       dbcsr_make_col_images, dbcsr_new_transposed, dbcsr_replicate_all, &
-       dbcsr_set_debug, dbcsr_valid_index, dbcsr_verify_matrix, &
-       dbcsr_work_create, ensure_array_size, pointer_set, pointer_view, swap
+       dbcsr_find_column, dbcsr_get_block_index, &
+       dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_make_col_images, &
+       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_valid_index, &
+       dbcsr_verify_matrix, dbcsr_work_create, ensure_array_size, &
+       pointer_set, pointer_view, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -361,6 +362,15 @@ CONTAINS
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR copy and add: 2*S-2*S  checksum", checksum
     ENDIF
+    !CALL dbcsr_release(matrix_a2)
+    !
+    ! Replace blocks
+    CALL dbcsr_replace_blocks(matrix_a2, matrix_a)
+    CALL dbcsr_verify_matrix(matrix_a, error)
+    checksum = dbcsr_checksum(matrix_a2, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR replace=S checksum", checksum
+    ENDIF
     CALL dbcsr_release(matrix_a2)
     !
     ! filter
@@ -402,13 +412,11 @@ CONTAINS
                block2d(1:rowsize, 1:colsize))
        ENDDO
     ENDDO
-    DEALLOCATE (block2d)
-    CALL dbcsr_finalize (matrix_a2, error=error)
-    CALL dbcsr_verify_matrix(matrix_a2, error)
     checksum = dbcsr_checksum(matrix_a2, error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum ", checksum
     ENDIF
+    DEALLOCATE (block2d)
     ! Now delete all the blocks.
     !WRITE(*,*)'Deleting all blocks!'
     CALL dbcsr_iterator_start (iter, matrix_a2)
@@ -532,8 +540,12 @@ CONTAINS
     !CALL dbcsr_print (matrix_b, error)
     CALL dbcsr_iterator_start (iter, matrix_b)
     IF (dbcsr_iterator_blocks_left (iter)) THEN
+       checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
+       IF (ldbg.AND.ionode) THEN
+          WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksumL", checksum
+       ENDIF
        CALL dbcsr_iterator_next_block (iter, row, col, block2d, tr)
-    !write(*,*)'got block',row,col
+       !write(*,*)'got block',row,col,tr
        CALL dbcsr_put_block (matrix_b, row, col, block2d, tr)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        !CALL dbcsr_print (matrix_b, error)
@@ -543,6 +555,7 @@ CONTAINS
        ENDIF
        ALLOCATE (block2d_2(SIZE(block2d,1),SIZE(block2d,2)))
        block2d_2(:,:) = block2d(:,:)
+       !write(*,'(8(1X,F7.2))')block2d_2
        block2d(:,:) = 0.0_dp
        CALL dbcsr_put_block (matrix_b, row, col, block2d, tr)
        CALL dbcsr_finalize (matrix_b, error=error)
@@ -568,10 +581,16 @@ CONTAINS
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x wrng cks4", checksum
        ENDIF
        !CALL dbcsr_print (matrix_b, error)
+       !write(*,*)'use block',row,col,tr
+       !write(*,'(8(1X,F7.2))')block2d_2
        CALL dbcsr_put_block (matrix_b, row, col, block2d_2, tr)
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error=error, local=.TRUE.)
        !CALL dbcsr_print (matrix_b, error)
+       checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
+       IF (ldbg.AND.ionode) THEN
+          WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksm4L", checksum
+       ENDIF
        DEALLOCATE (block2d_2)
     ENDIF
     CALL dbcsr_iterator_stop (iter)
@@ -594,7 +613,8 @@ CONTAINS
     !
     ! Replication
     CALL dbcsr_init (matrix_bt)
-    CALL dbcsr_replicate_all (matrix_bt, matrix_b)
+    CALL dbcsr_copy (matrix_bt, matrix_b, error=error)
+    CALL dbcsr_replicate_all (matrix_bt)
     CALL dbcsr_verify_matrix (matrix_bt)
     checksum = dbcsr_checksum(matrix_bt, error)
     IF (ldbg.AND.ionode) THEN
@@ -602,10 +622,34 @@ CONTAINS
     ENDIF
     ! Sum the replicates.
     CALL dbcsr_sum_replicated (matrix_bt)
+    CALL dbcsr_verify_matrix (matrix_bt)
     checksum = dbcsr_checksum(matrix_bt, error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSRpx.*p checksum", checksum
     ENDIF
+    ! Again, to test unity of distribution of replication
+    CALL dbcsr_release(matrix_bt)
+    CALL dbcsr_copy (matrix_bt, matrix_b, error=error)
+    CALL dbcsr_replicate_all (matrix_bt)
+    CALL dbcsr_verify_matrix (matrix_bt)
+    CALL dbcsr_distribute (matrix_bt)
+    CALL dbcsr_verify_matrix (matrix_bt)
+    checksum = dbcsr_checksum(matrix_bt, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x s  checksum", checksum
+    ENDIF
+    CALL dbcsr_release(matrix_bt)
+    !
+    CALL dbcsr_copy (matrix_bt, matrix_b, error=error)
+    CALL dbcsr_replicate_all (matrix_bt)
+    CALL dbcsr_verify_matrix (matrix_bt)
+    CALL dbcsr_distribute (matrix_bt, fast=.TRUE.)
+    CALL dbcsr_verify_matrix (matrix_bt)
+    !checksum = dbcsr_checksum(matrix_bt, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x d  checksum", checksum
+    ENDIF
+
     CALL dbcsr_release (matrix_bt)
     ! Transpose
     CALL dbcsr_new_transposed (matrix_bt, matrix_b, error=error)
@@ -886,7 +930,8 @@ CONTAINS
           blk = matrix%m%row_p(row)+1
           frst_blk = matrix%m%row_p(row)+1
           last_blk = matrix%m%row_p(row+1)
-          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
+          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,&
+               matrix%m%blk_p,blk,found)
           IF(found) THEN
              nze = row_size*col_size
              !
@@ -968,7 +1013,8 @@ CONTAINS
           blk = matrix%m%row_p(row)+1
           frst_blk = matrix%m%row_p(row)+1
           last_blk = matrix%m%row_p(row+1)
-          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
+          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,&
+               matrix%m%blk_p,blk,found)
           IF(found) THEN
              nze = row_size*col_size
              !
@@ -996,7 +1042,8 @@ CONTAINS
           IF(v_offset.LE.0) CYCLE
           col_size = col_blk_size(col)
           ! we assume that the columns are ordered !
-          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,blk,found)
+          CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,&
+               matrix%m%blk_p,blk,found)
           IF(found) THEN
              nze = row_size*col_size
              offset = ABS(matrix%m%blk_p(blk))
@@ -1524,7 +1571,8 @@ CONTAINS
        a_last_blk = matrix_a%m%row_p(row+1)
        DO b_blk = matrix_b%m%row_p(row)+1,matrix_b%m%row_p(row+1)
           b_col = matrix_b%m%col_i(b_blk)
-          CALL dbcsr_find_column(b_col, a_frst_blk, a_last_blk, matrix_a%m%col_i, a_blk, found)
+          CALL dbcsr_find_column(b_col, a_frst_blk, a_last_blk,&
+               matrix_a%m%col_i, matrix_a%m%blk_p, a_blk, found)
           IF(found) THEN
              a_col_size = a_col_blk_size(b_col)
              b_col_size = b_col_blk_size(b_col)

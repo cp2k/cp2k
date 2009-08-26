@@ -41,8 +41,8 @@ MODULE dbcsr_operations
                                              sp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: &
-       mp_allgather, mp_bcast, mp_isendrecv, mp_max, mp_rma_get, mp_sum, &
-       mp_wait, mp_window_create, mp_window_destroy, mp_window_fence, &
+       mp_allgather, mp_alltoall, mp_bcast, mp_isendrecv, mp_max, mp_rma_get, &
+       mp_sum, mp_wait, mp_window_create, mp_window_destroy, mp_window_fence, &
        mp_window_type
 
   !$ USE OMP_LIB
@@ -57,10 +57,13 @@ MODULE dbcsr_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
   PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_trace, dbcsr_add_on_diag,&
-            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, dbcsr_get_block,&
-            dbcsr_put_block, dbcsr_filter,dbcsr_find_column,&
+            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag,&
+            dbcsr_replace_blocks,&
+            dbcsr_get_block,&
+            dbcsr_put_block, dbcsr_filter,&
             dbcsr_btriu, block_add_on_diag,&
             block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm,&
+            dbcsr_replicate_all, dbcsr_distribute,&
             dbcsr_sum_replicated
   ! Direct access to the variants because array reshaping and
   ! typematching is incompatible.
@@ -130,6 +133,10 @@ MODULE dbcsr_operations
 #define DEBUG_HEADER        LOGICAL :: dbg, info
 #define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
 #define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
+  LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
+  LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
+  LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+
 
 #define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
 
@@ -3233,7 +3240,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 ! *****************************************************************************
 !> \brief add and scale matrices 
 !>    A = alpha*A + beta*B or 
-!> \param[inout] matrix_a    DBCSR matrix
+!> \param[in,out] matrix_a   DBCSR matrix
 !> \param[in] matrix_b       DBCSR matrix
 !> \param[in] alpha_scalar   (optional) 
 !> \param[in] beta_scalar    (optional)
@@ -3348,7 +3355,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 b_col = matrix_b%m%col_i(b_blk)
                 ! find the a_blk we assume here that the colums are ordered !
                 a_frst_blk = a_blk
-                CALL dbcsr_find_column(b_col,a_frst_blk,a_last_blk,matrix_a%m%col_i,a_blk,found)
+                CALL dbcsr_find_column(b_col,a_frst_blk,a_last_blk,&
+                     matrix_a%m%col_i,matrix_a%m%blk_p,a_blk,found)
                 IF(found) THEN
                    !
                    b_col_size = b_col_blk_size(b_col)
@@ -3377,6 +3385,95 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_add
+
+! *****************************************************************************
+!> \brief Replaces blocks with blocks from another matrix.
+!>
+!> Every block in matrix B is copied over to matrix A, replacing any possibly
+!> pre-existing blocks.
+!> \param[in,out] matrix_a   replace blocks in this DBCSR matrix
+!> \param[in] matrix_b       replace blocks taken from the DBCSR matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_replace_blocks(matrix_a, matrix_b)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replace_blocks', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: a_data_z, b_data_z
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: a_data_c, b_data_c
+    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
+                                                a_row_blk_size, &
+                                                b_col_blk_size, b_row_blk_size
+    LOGICAL                                  :: tr
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data_d, b_data_d
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: a_data_r, b_data_r
+    TYPE(dbcsr_iterator)                     :: iter
+
+!real(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
+!complex(KIND=sp), DIMENSION(:, :), POINTER  :: data_z
+!complex(KIND=dp), DIMENSION(:, :), POINTER  :: data_c
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    a_row_blk_size => array_data (matrix_a%m%row_blk_size)
+    a_col_blk_size => array_data (matrix_a%m%col_blk_size)
+    b_row_blk_size => array_data (matrix_b%m%row_blk_size)
+    b_col_blk_size => array_data (matrix_b%m%col_blk_size)
+
+    IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b)) &
+         CALL stop_program(routineN,"data types not consistent")
+
+    SELECT CASE (dbcsr_get_data_type(matrix_a))
+    CASE (dbcsr_type_real_4)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
+    CASE (dbcsr_type_complex_4)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
+    CASE (dbcsr_type_complex_8)
+       CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
+       CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
+    END SELECT
+    !
+    ! let's go
+    IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total) THEN
+       CALL stop_program(routineN,"matrices not consistent")
+    ENDIF
+
+    CALL dbcsr_iterator_start(iter, matrix_b)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       SELECT CASE (dbcsr_get_data_type(matrix_a))
+          !CASE (dbcsr_type_real_4)
+          !   CALL dbcsr_iterator_next_block(iter, row, col, data_r, blk)
+          !   CALL dbcsr_put_block(matrix_a, row, col, data_r)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
+               summation=.FALSE.)
+          !CASE (dbcsr_type_complex_4)
+          !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
+          !   CALL dbcsr_put_block(matrix_a, row, col, data_c)
+          !CASE (dbcsr_type_complex_8)
+          !   CALL dbcsr_iterator_next_block(iter, row, col, data_z, blk)
+          !   CALL dbcsr_put_block(matrix_a, row, col, data_z)
+       CASE DEFAULT
+          CALL cp_unimplemented_error (routineN,&
+               "Only real double precision")
+       END SELECT
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_finalize (matrix_a)
+    !
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_replace_blocks
 
 ! *****************************************************************************
 !> \brief add a constant to the diagonal of a matrix
@@ -3425,7 +3522,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        blk = matrix%m%row_p(row)+1
        frst_blk = matrix%m%row_p(row)+1
        last_blk = matrix%m%row_p(row+1)
-       CALL dbcsr_find_column(row,frst_blk,last_blk,matrix%m%col_i,blk,found)
+       CALL dbcsr_find_column(row,frst_blk,last_blk,matrix%m%col_i,&
+            matrix%m%blk_p,blk,found)
        IF(found) THEN
           offset = ABS(matrix%m%blk_p(blk))
           nze = row_size**2
@@ -3825,6 +3923,385 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_norm
+
+
+! *****************************************************************************
+!> \brief Replicates a DBCSR on all processors.
+!> \param[in,out] matrix      matrix to replicate
+! *****************************************************************************
+  SUBROUTINE dbcsr_replicate_all(matrix)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replicate_all', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
+
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
+    INTEGER :: blk, blk_l, blk_ps, blks, col, dst_p, mp_group, numnodes, nze, &
+      row, src_p, stored_col, stored_row, timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
+                                                sd_disp, sdp, send_meta, &
+                                                sm_disp, smp
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count, &
+                                                total_recv_count, &
+                                                total_send_count
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
+                                                row_blk_size, row_dist, &
+                                                tmp_index
+    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
+    LOGICAL                                  :: tr
+    REAL(KIND=dp)                            :: tstart, tstop
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
+    TYPE(dbcsr_data_obj)                     :: tmp_data
+    TYPE(dbcsr_distribution_obj)             :: target_dist
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_mp_obj)                       :: mp_obj
+    TYPE(dbcsr_obj)                          :: replicated
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
+    tstart = m_walltime ()
+    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
+         routineN, "Matrix does not exist.")
+    CALL cp_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
+         cp_warning_level, cp_caller_error, routineN,&
+         "Replicating a non-distributed matrix makes no sense.")
+    SELECT CASE (matrix%m%data_type)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_get_data (matrix%m%data_area, r_dp)
+    CASE (dbcsr_type_real_4)
+       CALL dbcsr_get_data (matrix%m%data_area, r_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE (dbcsr_type_complex_8)
+       CALL dbcsr_get_data (matrix%m%data_area, c_dp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE (dbcsr_type_complex_4)
+       CALL dbcsr_get_data (matrix%m%data_area, c_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    END SELECT
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
+    target_dist = matrix%m%dist
+    row_dist => array_data (dbcsr_distribution_row_dist (target_dist))
+    col_dist => array_data (dbcsr_distribution_col_dist (target_dist))
+    mp_obj = dbcsr_distribution_mp (target_dist)
+    blacs2mpi => dbcsr_mp_pgrid (mp_obj)
+    numnodes = dbcsr_mp_numnodes (mp_obj)
+    mp_group = dbcsr_mp_group (mp_obj)
+    DBGV 'row_dist', row_dist
+    DBGV 'col_dist', col_dist
+    DBG 'row, col maxval:', MAXVAL(row_dist), MAXVAL(col_dist)
+    DBG 'blacs2mpi',blacs2mpi
+    DBG 'blacs2mpi LB',LBOUND(blacs2mpi)
+    DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
+    CALL cp_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), cp_failure_level,&
+         cp_wrong_args_error, routineN,&
+         'Row distribution references unexistent processor rows')
+    IF (dbg) THEN
+       CALL cp_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1),&
+            cp_warning_level, cp_wrong_args_error, routineN,&
+            'Range of row distribution not equal to processor rows')
+    ENDIF
+    CALL cp_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), cp_failure_level,&
+         cp_wrong_args_error, routineN,&
+         'Col distribution references unexistent processor cols')
+    IF (dbg) THEN
+       CALL cp_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2),&
+            cp_warning_level, cp_wrong_args_error, routineN,&
+            'Range of col distribution not equal to processor cols')
+    ENDIF
+    ALLOCATE (send_count(2, 0:numnodes-1))
+    ALLOCATE (recv_count(2, 0:numnodes-1))
+    ALLOCATE (total_send_count(2, 0:numnodes-1))
+    ALLOCATE (total_recv_count(2, 0:numnodes-1))
+    ALLOCATE (sdp(0:numnodes-1))
+    ALLOCATE (sd_disp(0:numnodes-1))
+    ALLOCATE (smp(0:numnodes-1))
+    ALLOCATE (sm_disp(0:numnodes-1))
+    ALLOCATE (rd_disp(0:numnodes-1))
+    ALLOCATE (rm_disp(0:numnodes-1))
+    CALL dbcsr_init (replicated)
+    CALL dbcsr_create(replicated, 'Replicated '//matrix%m%name, matrix%m%dist,&
+         'N', matrix%m%row_blk_size, matrix%m%col_blk_size,&
+         0, 0, matrix%m%data_type, special=matrix%m%special_memory)
+    replicated%m%replication_type = dbcsr_repl_full
+    matrix%m%replication_type = dbcsr_repl_full
+    ! Count initial sizes for sending.
+    DBG 'A'
+    send_count(:,:) = 0
+    CALL dbcsr_iterator_start (iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
+       nze = SIZE(r_dp)
+       DO dst_p = 0, numnodes-1
+          send_count(1, dst_p) = send_count(1, dst_p) + 1
+          send_count(2, dst_p) = send_count(2, dst_p) + nze
+       END DO
+    ENDDO
+    CALL dbcsr_iterator_stop (iter)
+    DBG 'B'
+    CALL mp_alltoall(send_count, recv_count, 2, mp_group)
+    DBG 'C'
+    DBG 'send counts',send_count
+    DBG 'recv counts',recv_count
+    ! Allocate data structures needed for data exchange.
+    ALLOCATE (recv_data(SUM(recv_count(2, :))))
+    ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :))))
+    ALLOCATE (send_data(SUM(send_count(2, :))))
+    ALLOCATE (send_meta(metalen*SUM(send_count(1, :))))
+    DBG 'send data len',SIZE (send_data)
+    DBG 'send meta len',SIZE (send_meta)
+    DBG 'recv data len',SIZE (recv_data)
+    DBG 'recv meta len',SIZE (recv_meta)
+    ! Fill in the meta data structures and copy the data.
+    DO dst_p = 0, numnodes-1
+       total_send_count(1, dst_p) = send_count (1, dst_p)
+       total_send_count(2, dst_p) = send_count (2, dst_p)
+       total_recv_count(1, dst_p) = recv_count (1, dst_p)
+       total_recv_count(2, dst_p) = recv_count (2, dst_p)
+    ENDDO
+    sd_disp = -1 ; sm_disp = -1
+    rd_disp = -1 ; rm_disp = -1
+    sd_disp(0) = 1 ; sm_disp(0) = 1
+    rd_disp(0) = 1 ; rm_disp(0) = 1
+    DO dst_p = 1, numnodes-1
+       sm_disp(dst_p) = sm_disp(dst_p-1)&
+                        + metalen*total_send_count(1, dst_p-1)
+       sd_disp(dst_p) = sd_disp(dst_p-1)&
+                        + total_send_count(2, dst_p-1)
+       rm_disp(dst_p) = rm_disp(dst_p-1)&
+                        + metalen*total_recv_count(1, dst_p-1)
+       rd_disp(dst_p) = rd_disp(dst_p-1)&
+                        + total_recv_count(2, dst_p-1)
+    ENDDO
+    !DO dst_p = 0, numnodes-1
+    !      sm_disp (dst_p) = sm_disp (dst_p) + metalen*send_count(1, dst_p)
+    !      sd_disp (dst_p) = sd_disp (dst_p) + send_count(2, dst_p)
+    !      rm_disp (dst_p) = rm_disp (dst_p) + metalen*recv_count(1, dst_p)
+    !      rd_disp (dst_p) = rd_disp (dst_p) + recv_count(2, dst_p)
+    !ENDDO
+    sdp(:) = sd_disp
+    smp(:) = sm_disp
+    DBG 'send disps data',sd_disp
+    DBG 'send disps meta',sm_disp
+    DBG 'recv disps data',rd_disp
+    DBG 'recv disps meta',rm_disp
+    DBG 'D'
+    CALL dbcsr_iterator_start (iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
+       nze = SIZE(r_dp)
+       DO dst_p = 0, numnodes-1
+          send_meta(smp(dst_p)+1) = col
+          IF (tr) THEN
+             send_meta(smp(dst_p)) = row
+             send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+                  r_dp(:)
+          ELSE
+             send_meta(smp(dst_p)) = -row ! Mark block transposed
+             send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
+                  r_dp(:)
+          ENDIF
+          smp(dst_p) = smp(dst_p) + metalen
+          sdp(dst_p) = sdp(dst_p) + nze
+       END DO
+    ENDDO
+    CALL dbcsr_iterator_stop (iter)
+    ! Exchange the data and metadata structures.
+    DBG 'E'
+    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
+         recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
+    DBG 'F'
+    DBG 'send_meta',send_meta
+    CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
+         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
+    DBG 'recv_meta',recv_meta
+    DBG 'G'
+    ! Now fill in the data.
+    CALL dbcsr_work_create(replicated,&
+            SUM(recv_count(1,:)),&
+            SUM(recv_count(2,:)))
+    !DBG 'send disps data',sd_disp
+    !DBG 'send disps meta',sm_disp
+    !DBG 'recv disps data',rd_disp
+    !DBG 'recv disps meta',rm_disp
+    !blk_p = 1
+    !blk = 1
+    blk_ps = 1
+    blks = 1
+    DO src_p = 0, numnodes-1
+       nze = recv_count(2, src_p)
+       CALL dbcsr_data_set (replicated%m%wms(1)%data_area, blk_ps, nze,&
+            recv_data, rd_disp(src_p))
+       DO blk_l = 1, recv_count(1, src_p)
+          stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
+          stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
+          DBG 'blk: p',blks,src_p,'; row, col',&
+               stored_row,stored_col,&
+               '; blk_ps',blk_ps
+          replicated%m%wms(1)%row_i(blks) = ABS(stored_row)
+          replicated%m%wms(1)%col_i(blks) = stored_col
+          replicated%m%wms(1)%blk_p(blks) = SIGN(blk_ps, stored_row)
+          nze = row_blk_size(ABS(stored_row))&
+               * col_blk_size(stored_col)
+          blk_ps = blk_ps + nze
+          blks = blks + 1
+       ENDDO
+    ENDDO
+    !
+    replicated%m%wms(1)%lastblk = blks - 1
+    replicated%m%wms(1)%datasize = blk_ps - 1
+    DBG 'Finalizing normalization'
+    CALL dbcsr_finalize(replicated, resort=.TRUE., reshuffle=.TRUE.)
+    tstop = m_walltime ()
+    DBG 'time:',tstop-tstart
+    DEALLOCATE(send_count)
+    DEALLOCATE(recv_count)
+    DEALLOCATE(sdp); DEALLOCATE(sd_disp)
+    DEALLOCATE(smp); DEALLOCATE(sm_disp)
+    DEALLOCATE(rd_disp)
+    DEALLOCATE(rm_disp)
+    DEALLOCATE(recv_data)
+    DEALLOCATE(recv_meta)
+    DEALLOCATE(send_data)
+    DEALLOCATE(send_meta)
+    ! Now replace the data and index
+    tmp_data = matrix%m%data_area
+    matrix%m%data_area = replicated%m%data_area
+    replicated%m%data_area = tmp_data
+    tmp_index => matrix%m%index
+    matrix%m%index => replicated%m%index
+    replicated%m%index => tmp_index
+    CALL dbcsr_repoint_index (matrix%m)
+    matrix%m%nze = replicated%m%nze
+    matrix%m%nblks = replicated%m%nblks
+    CALL dbcsr_release (replicated)
+    DBG 'Done replicating'
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_replicate_all
+
+
+! *****************************************************************************
+!> \brief Distributes a matrix that is currently replicated.
+!> \param[in,out] matrix      matrix to replicate
+!> \param[in] fast            change just the index, don't touch the data
+! *****************************************************************************
+  SUBROUTINE dbcsr_distribute(matrix, fast)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    LOGICAL, INTENT(in), OPTIONAL            :: fast
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribute', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
+
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
+    INTEGER                                  :: blk, col, mp_group, mynode, &
+                                                numnodes, nze, p, row
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
+                                                row_blk_size, row_dist, &
+                                                tmp_index
+    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
+    LOGICAL                                  :: mini, tr
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
+    TYPE(dbcsr_data_obj)                     :: tmp_data
+    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_mp_obj)                       :: mp_obj
+    TYPE(dbcsr_obj)                          :: distributed
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
+         routineN, "Matrix does not exist.")
+    CALL cp_assert (matrix%m%replication_type .NE. dbcsr_repl_none,&
+         cp_warning_level, cp_caller_error, routineN,&
+         "Distributing a non-replicated matrix makes no sense.")
+    IF (PRESENT (fast)) THEN
+       mini=fast
+    ELSE
+       mini=.FALSE.
+    ENDIF
+    SELECT CASE (matrix%m%data_type)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_get_data (matrix%m%data_area, r_dp)
+    CASE (dbcsr_type_real_4)
+       CALL dbcsr_get_data (matrix%m%data_area, r_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE (dbcsr_type_complex_8)
+       CALL dbcsr_get_data (matrix%m%data_area, c_dp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE (dbcsr_type_complex_4)
+       CALL dbcsr_get_data (matrix%m%data_area, c_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    END SELECT
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
+    dist = dbcsr_distribution (matrix)
+    row_dist => array_data (dbcsr_distribution_row_dist (dist))
+    col_dist => array_data (dbcsr_distribution_col_dist (dist))
+    mp_obj = dbcsr_distribution_mp (dist)
+    numnodes = dbcsr_mp_numnodes (mp_obj)
+    mp_group = dbcsr_mp_group (mp_obj)
+    mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dist))
+    pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (dist))
+
+    !
+    IF (mini) THEN
+       ! We just mark the blocks as deleted.
+       CALL dbcsr_iterator_start (iter, matrix)
+       DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
+          tr = .FALSE.
+          CALL dbcsr_get_stored_coordinates (matrix%m, row, col, tr, p)
+          IF (mynode .EQ. p) THEN
+             matrix%m%blk_p(blk) = 0
+          ENDIF
+       ENDDO
+       CALL dbcsr_iterator_stop (iter)
+       matrix%m%replication_type = dbcsr_repl_none
+    ELSE
+       CALL dbcsr_init(distributed)
+       CALL dbcsr_create(distributed, 'Distributed '//matrix%m%name,&
+            matrix%m%dist,&
+            'N', matrix%m%row_blk_size, matrix%m%col_blk_size,&
+            0, 0, matrix%m%data_type, special=matrix%m%special_memory)
+       CALL dbcsr_work_create(distributed)
+       distributed%m%replication_type = dbcsr_repl_none
+       CALL dbcsr_iterator_start (iter, matrix)
+       DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
+          tr = .FALSE.
+          CALL dbcsr_get_stored_coordinates (matrix%m, row, col, tr, p)
+          IF (mynode .EQ. p) THEN
+             CALL dbcsr_put_block (distributed, row, col, r_dp, tr)
+          ENDIF
+       ENDDO
+       CALL dbcsr_iterator_stop (iter)
+       CALL dbcsr_finalize (distributed)
+       ! Now replace the data and index
+       tmp_data = matrix%m%data_area
+       matrix%m%data_area = distributed%m%data_area
+       distributed%m%data_area = tmp_data
+       tmp_index => matrix%m%index
+       matrix%m%index => distributed%m%index
+       distributed%m%index => tmp_index
+       CALL dbcsr_repoint_index (matrix%m)
+       matrix%m%nze = distributed%m%nze
+       matrix%m%nblks = distributed%m%nblks
+       CALL dbcsr_release (distributed)
+    ENDIF
+    DBG 'Done replicating'
+  END SUBROUTINE dbcsr_distribute
 
 
 ! *****************************************************************************
