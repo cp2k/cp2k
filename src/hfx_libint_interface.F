@@ -366,7 +366,7 @@ MODULE hfx_libint_interface
         DO n = 1,12
           tmp_max = 0.0_dp
           DO i = 1,mysize
-            tmp_max = MAX(tmp_max_all, ABS(work(i,n)))
+            tmp_max = MAX(tmp_max, ABS(work(i,n)))
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
@@ -425,7 +425,7 @@ MODULE hfx_libint_interface
         DO n = 1,12
           tmp_max = 0.0_dp
           DO i = 1,mysize
-            tmp_max = MAX(tmp_max_all, ABS(work(i,n)))
+            tmp_max = MAX(tmp_max, ABS(work(i,n)))
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
@@ -484,7 +484,7 @@ MODULE hfx_libint_interface
         DO n = 1,12
           tmp_max = 0.0_dp
           DO i = 1,mysize
-            tmp_max = MAX(tmp_max_all, ABS(work(i,n)))
+            tmp_max = MAX(tmp_max, ABS(work(i,n)))
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
@@ -543,7 +543,7 @@ MODULE hfx_libint_interface
         DO n = 1,12
           tmp_max = 0.0_dp
           DO i = 1,mysize
-            tmp_max = MAX(tmp_max_all, ABS(work(i,n)))
+            tmp_max = MAX(tmp_max, ABS(work(i,n)))
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
@@ -602,7 +602,7 @@ MODULE hfx_libint_interface
         DO n = 1,12
           tmp_max = 0.0_dp
           DO i = 1,mysize
-            tmp_max = MAX(tmp_max_all, ABS(work(i,n)))
+            tmp_max = MAX(tmp_max, ABS(work(i,n)))
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
@@ -661,7 +661,7 @@ MODULE hfx_libint_interface
         DO n = 1,12
           tmp_max = 0.0_dp
           DO i = 1,mysize
-            tmp_max = MAX(tmp_max_all, ABS(work(i,n)))
+            tmp_max = MAX(tmp_max, ABS(work(i,n)))
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
@@ -720,7 +720,7 @@ MODULE hfx_libint_interface
         DO n = 1,12
           tmp_max = 0.0_dp
           DO i = 1,mysize
-            tmp_max = MAX(tmp_max_all, ABS(work(i,n)))
+            tmp_max = MAX(tmp_max, ABS(work(i,n)))
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
@@ -779,7 +779,7 @@ MODULE hfx_libint_interface
         DO n = 1,12
           tmp_max = 0.0_dp
           DO i = 1,mysize
-            tmp_max = MAX(tmp_max_all, ABS(work(i,n)))
+            tmp_max = MAX(tmp_max, ABS(work(i,n)))
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
@@ -801,7 +801,7 @@ MODULE hfx_libint_interface
         END DO
     END SELECT
 
-    IF( tmp_max_all < eps_schwarz ) RETURN
+    IF( tmp_max < eps_schwarz ) RETURN
 
     DO i = 1,12
       primitives_tmp(:,:,:,:,i) = 0.0_dp
