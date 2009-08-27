@@ -4030,9 +4030,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_init (replicated)
     CALL dbcsr_create(replicated, 'Replicated '//matrix%m%name, matrix%m%dist,&
          'N', matrix%m%row_blk_size, matrix%m%col_blk_size,&
-         0, 0, matrix%m%data_type, special=matrix%m%special_memory)
-    replicated%m%replication_type = dbcsr_repl_full
-    matrix%m%replication_type = dbcsr_repl_full
+         0, 0, matrix%m%data_type, special=matrix%m%special_memory,&
+         replication_type=dbcsr_repl_full)
     ! Count initial sizes for sending.
     DBG 'A'
     send_count(:,:) = 0
@@ -4172,6 +4171,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
+    matrix%m%replication_type = dbcsr_repl_full
     ! Now replace the data and index
     tmp_data = matrix%m%data_area
     matrix%m%data_area = replicated%m%data_area

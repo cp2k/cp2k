@@ -698,11 +698,13 @@ END SUBROUTINE cp_sm_scale_and_add
 !>          a distribution_2d compatible shape
 !> \author  MK
 !> \date    16.06.2000
-!> \version 1.0
+!> \version 1.1
+!> \par History
+!>      2009-08-27 UB Adds flag to prevent repointing the matrix pointer
 ! *****************************************************************************
   SUBROUTINE allocate_real_matrix(matrix,nrow,ncol,nblock_row,nblock_col,&
        first_row,last_row,first_col,last_col,matrix_name,matrix_symmetry,&
-       sparsity_id,distribution_2d,error)
+       sparsity_id,distribution_2d,error,keep_pointer)
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: nrow, ncol, nblock_row, &
                                                 nblock_col
@@ -715,19 +717,31 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(in), OPTIONAL            :: keep_pointer
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_real_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: irow, istat
+    LOGICAL                                  :: existed, kp
 
+    IF (PRESENT (keep_pointer)) THEN
+       kp = .TRUE.
+    ELSE
+       kp = .FALSE.
+    ENDIF
+    existed = ASSOCIATED (matrix)
 !   *** Deallocate the old matrix ***
 
-    IF (ASSOCIATED(matrix)) CALL deallocate_matrix(matrix,error=error)
-!   *** Allocate a set of block lists ***
+    IF (existed) THEN
+       CALL deallocate_matrix(matrix,error=error,keep_pointer=kp)
+    ENDIF
+    IF (.NOT. (existed .AND. kp)) THEN
+       ALLOCATE (matrix,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineP,matrix%name,0)
+    ENDIF
 
-    ALLOCATE (matrix,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,matrix%name,0)
+!   *** Allocate a set of block lists ***
 
     NULLIFY(matrix%distribution_2d)
     IF (PRESENT(distribution_2d)) matrix%distribution_2d=>distribution_2d
@@ -1266,12 +1280,15 @@ END SUBROUTINE cp_sm_scale_and_add
 !> \brief  Deallocate a real matrix at the real_matrix_type level. 
 !> \author MK 
 !> \date   11.07.2000 
-!> \version 1.0
+!> \version 1.1
+!> \par History
+!>      2009-08-27 UB Adds flag to prevent deallocating pointer
 ! *****************************************************************************
-  SUBROUTINE deallocate_real_matrix(matrix,error)
+  SUBROUTINE deallocate_real_matrix(matrix,error,keep_pointer)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(in), OPTIONAL            :: keep_pointer
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_real_matrix', &
       routineP = moduleN//':'//routineN
@@ -1301,7 +1318,11 @@ END SUBROUTINE cp_sm_scale_and_add
 
     CALL distribution_2d_release(matrix%distribution_2d,error=error)
 
+    IF (PRESENT (keep_pointer)) THEN
+       IF (keep_pointer) RETURN
+    ENDIF
     DEALLOCATE (matrix,STAT=istat)
+    NULLIFY (matrix)
     IF (istat /= 0) CALL stop_memory(routineP,matrix%name)
 
   END SUBROUTINE deallocate_real_matrix

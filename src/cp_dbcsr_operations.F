@@ -336,6 +336,15 @@ CONTAINS
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"  SM2 S  checksum", checksum
     ENDIF
+    ! Check that pointer reuse works.
+    CALL sm_from_dbcsr (matrix_s2, matrix_a, dist2d, error)
+    checksum = checksum_matrix(matrix_s2,&
+                               matrix_s2%distribution_2d%blacs_env%para_env)
+    !WRITE(*,*)'BCSR S checksum',checksum
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"  SM2 S2 checksum", checksum
+    ENDIF
+    
     CALL deallocate_matrix (matrix_s2, error)
     !
     ! test the scale and trace routines on a square matrix
@@ -671,7 +680,6 @@ CONTAINS
     walltime2 = m_walltime()
     newtime = 0.0_dp
     newtime = MAX (walltime2-walltime1, 1.0_dp)
-    CALL dbcsr_release (matrix_bt)
     !
     CALL dbcsr_verify_matrix(matrix_c, error)
     !
@@ -688,6 +696,9 @@ CONTAINS
     ENDIF
     !
     ! check trace(c'*s*c)
+    CALL dbcsr_release (matrix_bt)
+    !call dbcsr_replicate_all (matrix_b)
+    !call dbcsr_replicate_all (matrix_c)
     CALL dbcsr_trace(matrix_b, matrix_c, trace, error=error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4,A,I4)')"DBCSR trace(C'*S*C)", trace," should be equal to ",k
@@ -2630,7 +2641,8 @@ CONTAINS
                          matrix_name=TRIM(name),&
                          matrix_symmetry=sm_symmetry,&
                          sparsity_id=matrix%m%sparsity_id,&
-                         distribution_2d=dist2d, error=error)
+                         distribution_2d=dist2d, error=error,&
+                         keep_pointer=.TRUE.)
     DEALLOCATE (sm_first_row, sm_last_row, sm_first_col, sm_last_col)
     !
     CALL distribution_2d_get (dist2d, row_distribution=prow_dist,&

@@ -53,13 +53,13 @@ MODULE dbcsr_util
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_meta_size, &
-       dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, dbcsr_repl_none, &
-       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
-       dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_normal, dbcsr_type_real_4, dbcsr_type_real_8, &
-       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_type_transposed, &
-       dbcsr_work_type
+       dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, dbcsr_repl_col, &
+       dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, &
+       dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, &
+       dbcsr_slot_size, dbcsr_type, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_normal, &
+       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, &
+       dbcsr_type_symmetric, dbcsr_type_transposed, dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
                                              distribution_2d_type,&
@@ -635,11 +635,14 @@ CONTAINS
 !>                            is to create a fresh one
 !> \param[in] mutable_work    uses the mutable data for working and not the
 !>                            append-only data; default is append-only
+!> \param[in] replication_type     replication to be used for this matrix;
+!>                                 default is dbcsr_repl_none
+!>                                 \see dbcsr_types.F
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_create(matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
-       mutable_work, error)
+       mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
@@ -648,6 +651,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nblks, nze
     CHARACTER, INTENT(IN), OPTIONAL          :: data_type
     LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
+    CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -741,11 +745,29 @@ CONTAINS
     matrix%m%nblks = 0
     !matrix%m%nze = nze
     matrix%m%nze = 0
-    matrix%m%special_memory = .FALSE.
-    matrix%m%replication_type = dbcsr_repl_none
+    IF (PRESENT (special)) THEN
+       matrix%m%special_memory = special
+    ELSE
+       matrix%m%special_memory = .FALSE.
+    ENDIF
+    IF (PRESENT (replication_type)) THEN
+       CALL cp_assert (replication_type .EQ. dbcsr_repl_none&
+            .OR. replication_type .EQ. dbcsr_repl_full&
+            .OR. replication_type .EQ. dbcsr_repl_row&
+            .OR. replication_type .EQ. dbcsr_repl_col,&
+            cp_failure_level, cp_wrong_args_error, routineN,&
+            "Invalid replication type '"//replication_type//"'")
+       CALL cp_assert (replication_type .NE. dbcsr_repl_row&
+            .AND. replication_type .NE. dbcsr_repl_col,&
+            cp_warning_level, cp_unimplemented_error_nr, routineN,&
+            "Row and column replication not fully supported")
+       matrix%m%replication_type = replication_type
+    ELSE
+       matrix%m%replication_type = dbcsr_repl_none
+    ENDIF
+    ! CP2K SM compatibility
     NULLIFY(matrix%m%dist2d)
     NULLIFY(matrix%m%block_node)
-    IF (PRESENT (special)) matrix%m%special_memory = special
     !
     IF (.NOT. hijack) THEN
        CALL dbcsr_data_new (matrix%m%data_area, matrix%m%data_type, nze,&
