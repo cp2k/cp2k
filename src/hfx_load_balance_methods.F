@@ -268,7 +268,7 @@ MODULE hfx_load_balance_methods
           IF(tmp_blocks2(atom_block)%cost > 1.5_dp * self_cost_per_block .AND. iatom_end-iatom_start > 0) THEN
             changed = .TRUE.
             new_iatom_start = iatom_start
-            new_iatom_end  = (iatom_end - iatom_start+1) /2 + iatom_start
+            new_iatom_end  = (iatom_end - iatom_start+1) /2 + iatom_start - 1
             new_jatom_start = new_iatom_end + 1
             new_jatom_end = iatom_end
             tmp_blocks(current_block_id)%istart = new_iatom_start
