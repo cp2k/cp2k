@@ -17,6 +17,7 @@
 ! *****************************************************************************
 MODULE neb_io
   USE cell_types,                      ONLY: cell_type
+  USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -540,6 +541,9 @@ CONTAINS
                "*******************************************************************************"
           WRITE (UNIT=output_unit,FMT='(/)')
        END IF
+       ! update runtime info before printing the footer
+       CALL get_runtime_info()
+       ! print footer
        CALL cp2k_footer(output_unit)        
        CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)

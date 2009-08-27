@@ -16,8 +16,8 @@ MODULE environment
                                              cite_reference
   USE cp2k_info,                       ONLY: &
        compile_arch, compile_date, compile_host, compile_lastcvs, cp2k_home, &
-       cp2k_version, cp2k_year, id_cp2k_version, r_host_name, r_pid, &
-       r_user_name
+       cp2k_version, cp2k_year, get_runtime_info, id_cp2k_version, &
+       r_host_name, r_pid, r_user_name
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -907,6 +907,9 @@ CONTAINS
           CALL open_file(file_name=TRIM(logger%iter_info%project_name)//".EXIT",unit_number=unit_exit)
           CALL close_file(unit_number=unit_exit,file_status="DELETE")
        END IF
+
+       ! update the runtime enviroment variables
+       CALL get_runtime_info()
 
        ! Just a choice, do not print the CP2K footer if there is a failure
        IF (.NOT.failure) THEN
