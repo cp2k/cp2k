@@ -22,10 +22,10 @@ MODULE qs_overlap
   USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix,&
                                              dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_replicate_matrix_struct,&
-                                             sm_from_dbcsr
+                                             dbcsr_write_matrix_distribution,&
+                                             dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -50,10 +50,6 @@ MODULE qs_overlap
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE sparse_matrix_output,            ONLY: write_matrix_distribution,&
-                                             write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             real_matrix_p_type
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE termination,                     ONLY: stop_memory
@@ -98,15 +94,15 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_overlap_matrix(qs_env,para_env,nderivative,matrix_s_sm,matrix_name,&
+  SUBROUTINE build_overlap_matrix(qs_env,para_env,nderivative,matrix_s,matrix_name,&
                                   basis_set_id_a, basis_set_id_b, neighbor_list_sab, &
                                   error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
     INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
     TYPE(neighbor_list_set_p_type), &
@@ -147,8 +143,6 @@ CONTAINS
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: sint
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
@@ -161,7 +155,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY ( atomic_kind_set,particle_set,distribution_2d, matrix_s)
+    NULLIFY ( atomic_kind_set,particle_set,distribution_2d )
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -543,16 +537,9 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sint")
 
-    CALL allocate_matrix_set(matrix_s_sm,SIZE(matrix_s),error=error)
-    DO i = 1,SIZE(matrix_s)
-       CALL sm_from_dbcsr ( matrix_s_sm(i)%matrix, matrix_s(i)%matrix, distribution_2d, error=error )
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set ( matrix_s, error=error )
-
-
 !   *** Print the overlap matrix distribution ***
 
-    CALL write_matrix_distribution(matrix_s_sm(1)%matrix,qs_env%input,para_env,error)
+    CALL dbcsr_write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
 
 !   *** Print the overlap matrix, if requested ***
 
@@ -560,11 +547,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_s_sm(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
           DO i=2,maxder
-             CALL write_sparse_matrix(matrix_s_sm(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             CALL dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
           END DO
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&

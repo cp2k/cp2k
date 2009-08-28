@@ -4,7 +4,10 @@
 !-----------------------------------------------------------------------------!
 
 MODULE se_fock_matrix_dbg
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_set,&
+                                             dbcsr_trace
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_energy_types,                 ONLY: init_qs_energy,&
@@ -12,9 +15,6 @@ MODULE se_fock_matrix_dbg
   USE qs_environment_types,            ONLY: qs_environment_type
   USE se_fock_matrix_coulomb,          ONLY: build_fock_matrix_coulomb_lr
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
-  USE sparse_matrix_types,             ONLY: cp_sm_sm_trace,&
-                                             real_matrix_p_type,&
-                                             set_matrix
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -34,11 +34,11 @@ CONTAINS
   SUBROUTINE dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p,&
        calculate_forces, para_env, store_int_env, error)
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -53,7 +53,7 @@ CONTAINS
     ! Zero structures only for debugging purpose
     CALL init_qs_energy(energy)
     DO ispin = 1, nspins
-       CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
+       CALL dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
     END DO
 
     ! Evaluate Coulomb Long-Range
@@ -62,8 +62,8 @@ CONTAINS
 
     ! Compute the Hartree energy
     DO ispin=1,nspins
-       CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
-            para_env=para_env,error=error)
+       CALL dbcsr_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
+            error=error)
        energy%hartree = energy%hartree + ecoul
 
        WRITE(*,*)ispin,"ECOUL ",ecoul

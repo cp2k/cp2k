@@ -14,11 +14,15 @@ MODULE qmmm_se_energy
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
@@ -99,7 +103,10 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_b
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -114,13 +121,19 @@ CONTAINS
     NULLIFY (matrix_s, atomic_kind_set)
     NULLIFY (se_kind_a, se_kind_mm, se_taper)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-    CALL build_overlap_matrix(qs_env,para_env,matrix_s_sm=matrix_s,&
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, distribution_2d=distribution_2d, error=error)
+    NULLIFY(matrix_s_b)!sm->dbcsr
+    CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s_b,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
                               neighbor_list_sab=qs_env%sab_orb,&
                               error=error)
+    CALL allocate_matrix_set(matrix_s,SIZE(matrix_s_b),error)!sm->dbcsr
+    DO i=1,SIZE(matrix_s_b)!sm->dbcsr
+       CALL sm_from_dbcsr( matrix_s(i)%matrix, matrix_s_b(i)%matrix, distribution_2d, error=error )!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_s_b, error=error )!sm->dbcsr
     CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
     CALL get_qs_env(qs_env=qs_env,&
                     se_taper=se_taper,&

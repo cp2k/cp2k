@@ -1595,9 +1595,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
+!CALL dbcsr_release (iterator%matrix)
 
-    CALL dbcsr_data_release (iterator%data_area)
-    !CALL dbcsr_release (iterator%matrix)
     iterator%row = 0
     iterator%pos = 0
     SELECT CASE (iterator%data_area%d%data_type)
@@ -1629,6 +1628,7 @@ CONTAINS
        CALL cp_assert(.FALSE., cp_warning_level, cp_internal_error,&
             routineN, "Invalid data type.")
     END SELECT
+    CALL dbcsr_data_release (iterator%data_area)
     NULLIFY (iterator%buffer_r_sp, iterator%buffer_r_dp,&
          iterator%buffer_c_sp, iterator%buffer_c_dp, iterator%rbs, iterator%cbs)
   END SUBROUTINE dbcsr_iterator_stop

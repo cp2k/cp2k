@@ -377,3 +377,7 @@ h2o_gks.inp
 # initial tests
 ice-scp-ewald.inp
 ice-scp-ewald_gks.inp
+# substitution sm -> dbcsr
+h2op_2.inp
+# substitution sm -> dbcsr
+dimer3.inp

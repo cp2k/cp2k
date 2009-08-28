@@ -13,11 +13,28 @@ MODULE se_core_matrix
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_write_sparse_matrix,&
+                                             sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_distribute,&
+                                             dbcsr_get_block_diag,&
+                                             dbcsr_replicate_all,&
+                                             dbcsr_set,&
+                                             dbcsr_sum_replicated
+  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
@@ -40,15 +57,8 @@ MODULE se_core_matrix
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             cp_sm_scale_and_add,&
-                                             create_dbm_from_sm,&
-                                             deallocate_dbm_from_sm,&
-                                             get_block_node,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix_structure
+                                             real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
@@ -92,7 +102,11 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj), POINTER                 :: diagmat_h, diagmat_p
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
@@ -104,56 +118,84 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s
-    TYPE(real_matrix_type), POINTER          :: diagmat_h, diagmat_p
+      POINTER                                :: matrix_h_sm, matrix_p_sm, &
+                                                matrix_s_sm
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-     NULLIFY ( matrix_h,matrix_s,matrix_p,rho,force,atomic_kind_set,sab_orb,&
-               diagmat_h,diagmat_p,particle_set )
+     NULLIFY ( matrix_h_sm,matrix_s_sm,matrix_p_sm,rho,force,atomic_kind_set,sab_orb,&
+               diagmat_h,diagmat_p,particle_set, matrix_p )
 
      ! calculate overlap matrix
      IF(calculate_forces) THEN
-        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-        CALL build_overlap_matrix(qs_env,para_env,nderivative=1, matrix_s_sm=matrix_s,&
+        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm, distribution_2d=distribution_2d, error=error)
+        NULLIFY(matrix_s)!sm->dbcsr
+        CALL build_overlap_matrix(qs_env,para_env,nderivative=1, matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
                               neighbor_list_sab=qs_env%sab_orb,&
                               error=error)
-        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+        CALL allocate_matrix_set(matrix_s_sm,SIZE(matrix_s),error)!sm->dbcsr
+        DO i=1,SIZE(matrix_s)!sm->dbcsr
+           CALL sm_from_dbcsr( matrix_s_sm(i)%matrix, matrix_s(i)%matrix, &
+                distribution_2d, error=error )!sm->dbcsr
+        ENDDO!sm->dbcsr
+        CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
+        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s_sm,error=error)
         CALL get_qs_env(qs_env=qs_env, virial=virial, error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      ELSE
-        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-        CALL build_overlap_matrix(qs_env,para_env,matrix_s_sm=matrix_s,&
+        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm, distribution_2d=distribution_2d, error=error)
+        NULLIFY(matrix_s)!sm->dbcsr
+        CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
                               neighbor_list_sab=qs_env%sab_orb,&
                               error=error)
-        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+        CALL allocate_matrix_set(matrix_s_sm,SIZE(matrix_s),error)!sm->dbcsr
+        DO i=1,SIZE(matrix_s)!sm->dbcsr
+           CALL sm_from_dbcsr( matrix_s_sm(i)%matrix, matrix_s(i)%matrix, &
+                distribution_2d, error=error )!sm->dbcsr
+        ENDDO!sm->dbcsr
+        CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
+        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s_sm,error=error)
         use_virial = .FALSE.
      END IF
 
      CALL get_qs_env(qs_env=qs_env,&
-                     matrix_h=matrix_h,&
-                     matrix_s=matrix_s,&
+                     matrix_h=matrix_h_sm,&
+                     matrix_s=matrix_s_sm,&
                      atomic_kind_set=atomic_kind_set,&
                      dft_control=dft_control,error=error)
+
+     NULLIFY(matrix_s)!sm->dbcsr
+     CALL dbcsr_allocate_matrix_set(matrix_s,SIZE(matrix_s_sm),error)!sm->dbcsr
+     DO i=1,SIZE(matrix_s)!sm->dbcsr
+        ALLOCATE(matrix_s(i)%matrix)
+        CALL dbcsr_from_sm( matrix_s(i)%matrix, matrix_s_sm(i)%matrix, error=error )!sm->dbcsr
+     ENDDO!sm->dbcsr
 
      IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,&
                        particle_set=particle_set,&
                        rho=rho,&
                        force=force,error=error)
-       matrix_p => rho%rho_ao
+       matrix_p_sm => rho%rho_ao
+
+       NULLIFY(matrix_p)!sm->dbcsr
+       CALL dbcsr_allocate_matrix_set(matrix_p,SIZE(matrix_p_sm),error)!sm->dbcsr
+       DO i=1,SIZE(matrix_p)!sm->dbcsr
+          ALLOCATE(matrix_p(i)%matrix)
+          CALL dbcsr_from_sm( matrix_p(i)%matrix, matrix_p_sm(i)%matrix, error=error )!sm->dbcsr
+       ENDDO!sm->dbcsr
+
        IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
-               matrix_p(2)%matrix, 1.0_dp, error=error)
+          CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, alpha_scalar=1.0_dp, beta_scalar=1.0_dp, error=error)
        END IF
        natom = SIZE (particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -161,19 +203,27 @@ CONTAINS
        delta = dft_control%qs_control%se_control%delta
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
-       CALL create_dbm_from_sm(diagmat_p,matrix_p(1)%matrix,&
-                               "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
+       ALLOCATE(diagmat_p)!sm->dbcsr
+       CALL dbcsr_get_block_diag(matrix_p(1)%matrix, diagmat_p, error=error)
+       CALL dbcsr_replicate_all(diagmat_p)
      END IF
 
      ! Allocate the core Hamiltonian matrix
-     CALL allocate_matrix_set(matrix_h,1,error=error)
-     CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                    TARGET=matrix_h(1)%matrix,&
-                    target_name="CORE HAMILTONIAN MATRIX",error=error)
+     NULLIFY(matrix_h)!sm->dbcsr
+     CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)
+     ALLOCATE(matrix_h(1)%matrix)
+     CALL dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX",error=error)
+     matrix_h(1)%matrix%m%sparsity_id=matrix_s(1)%matrix%m%sparsity_id !sm->dbcsr !this hack should be done in copy!
+     CALL dbcsr_set(matrix_h(1)%matrix,0.0_dp,error=error)
+     !CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
+     !               TARGET=matrix_h(1)%matrix,&
+     !               target_name="CORE HAMILTONIAN MATRIX",error=error)
 
      ! Allocate a diagonal block matrix
-     CALL create_dbm_from_sm(diagmat_h,matrix_s(1)%matrix,&
-                             "DIAGONAL BLOCK H MATRIX",.FALSE.,error=error)
+     ALLOCATE(diagmat_h)!sm->dbcsr
+     CALL dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h, error=error)
+     CALL dbcsr_set(diagmat_h, 0.0_dp, error=error)
+     CALL dbcsr_replicate_all(diagmat_h)
 
      CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
 
@@ -253,13 +303,13 @@ CONTAINS
                CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
                      do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
                  NULLIFY(h_blocka)
-                 CALL get_block_node(matrix=diagmat_h,&
+                 CALL dbcsr_get_block_node(matrix=diagmat_h,&
                                      block_row=iatom,&
                                      block_col=iatom,&
                                      BLOCK=h_blocka)
                  CPPostcondition(ASSOCIATED(h_blocka),cp_failure_level,routineP,error,failure)
                  IF(calculate_forces) THEN
-                   CALL get_block_node(matrix=diagmat_p,&
+                   CALL dbcsr_get_block_node(matrix=diagmat_p,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=pamat)
@@ -295,15 +345,14 @@ CONTAINS
                    icol = iatom
                  END IF
                  NULLIFY (h_block)
-                 CALL get_block_node(matrix=matrix_h(1)%matrix,&
+                 CALL dbcsr_get_block_node(matrix=matrix_h(1)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      BLOCK=h_block)
                  CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
-
                  ! two-centre one-electron term
                  NULLIFY(s_block)
-                 CALL get_block_node(matrix=matrix_s(1)%matrix,&
+                 CALL dbcsr_get_block_node(matrix=matrix_s(1)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      BLOCK=s_block)
@@ -324,14 +373,14 @@ CONTAINS
                  IF(calculate_forces) THEN
                    atom_a = atom_of_kind(iatom)
                    atom_b = atom_of_kind(jatom)
-                   CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
                                        block_row=irow,&
                                        block_col=icol,&
                                        BLOCK=pabmat)
                    CPPostcondition(ASSOCIATED(pabmat),cp_failure_level,routineP,error,failure)
                    DO icor=1,3
                      force_ab(icor) = 0._dp
-                     CALL get_block_node(matrix=matrix_s(icor+1)%matrix,&
+                     CALL dbcsr_get_block_node(matrix=matrix_s(icor+1)%matrix,&
                                          block_row=irow,&
                                          block_col=icol,&
                                          BLOCK=dsmat)
@@ -376,9 +425,13 @@ CONTAINS
 
      END DO ! ikind
 
-     CALL deallocate_dbm_from_sm(diagmat_h,matrix_h(1)%matrix,.TRUE.,para_env,error=error)
+     CALL dbcsr_sum_replicated(diagmat_h)
+     CALL dbcsr_distribute(diagmat_h)
+     CALL dbcsr_add(matrix_h(1)%matrix, diagmat_h,error=error)
 
-     CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
+     CALL allocate_matrix_set(qs_env%matrix_h, 1, error=error)!sm->dbcsr
+     CALL sm_from_dbcsr( qs_env%matrix_h(1)%matrix, matrix_h(1)%matrix, distribution_2d, error=error )!sm->dbcsr
+     !CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
 
      qs_env%energy%core_self    = econst
 
@@ -386,7 +439,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
+       CALL dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
              scale=evolt,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
@@ -394,12 +447,16 @@ CONTAINS
 
      IF(calculate_forces) THEN
        IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p(1)%matrix,1.0_dp,&
-               matrix_p(2)%matrix,-1.0_dp,error=error)
+          CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
        END IF
        DEALLOCATE(atom_of_kind)
-       CALL deallocate_dbm_from_sm(diagmat_p,matrix_p(1)%matrix,.FALSE.,error=error)
+       CALL dbcsr_deallocate_matrix(diagmat_p,error=error)
      END IF
+
+     CALL dbcsr_deallocate_matrix_set(matrix_h,error=error)!sm->dbcsr
+     CALL dbcsr_deallocate_matrix_set(matrix_s,error=error)!sm->dbcsr
+     CALL dbcsr_deallocate_matrix(diagmat_h,error=error)!sm->dbcsr
+     CALL dbcsr_deallocate_matrix_set(matrix_p,error=error)!sm->dbcsr
 
   END SUBROUTINE build_se_core_matrix
 

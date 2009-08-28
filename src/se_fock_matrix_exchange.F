@@ -18,7 +18,10 @@ MODULE se_fock_matrix_exchange
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: do_multipole_none,&
                                              do_se_IS_kdso,&
@@ -44,8 +47,6 @@ MODULE se_fock_matrix_exchange
                                              setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: finalize_se_taper,&
                                              initialize_se_taper
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -71,7 +72,7 @@ CONTAINS
        store_int_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -98,6 +99,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
@@ -115,9 +117,10 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
+
     NULLIFY(dft_control,cell,force,particle_set,se_control,se_taper)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,se_taper=se_taper,&
-         para_env=para_env,virial=virial,error=error)
+         para_env=para_env,virial=virial,distribution_2d=distribution_2d,error=error)
 
     CALL initialize_se_taper(se_taper,exchange=.TRUE.,error=error)
     se_control => dft_control%qs_control%se_control
@@ -190,12 +193,12 @@ CONTAINS
                       switch = .TRUE.
                    END IF
                    ! Retrieve blocks for KS and P
-                   CALL get_block_node(matrix=ks_matrix(1)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=ks_matrix(1)%matrix,&
                                        block_row=irow,&
                                        block_col=icol,&
                                        BLOCK=ks_block_a)
                    CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
-                   CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
                                        block_row=irow,&
                                        block_col=icol,&
                                        BLOCK=p_block_a)
@@ -206,12 +209,12 @@ CONTAINS
                    
                    ! Handle more configurations
                    IF ( nspins == 2 ) THEN
-                      CALL get_block_node(matrix=ks_matrix(2)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=ks_matrix(2)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=ks_block_b)
                       CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
-                      CALL get_block_node(matrix=matrix_p(2)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=matrix_p(2)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=p_block_b)
@@ -293,6 +296,7 @@ CONTAINS
        END IF
     END IF
     CALL finalize_se_taper(se_taper,error=error)
+
     CALL timestop(handle)
     
   END SUBROUTINE build_fock_matrix_exchange

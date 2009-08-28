@@ -2755,7 +2755,8 @@ CONTAINS
              !WRITE(*,*)routineP//' chksum for (',br,',',bc,') at',&
              !     blk_p,'l',mn,'= ', blk_cs,'size',m,n
              WRITE(*,'(A,I6,",",I6,A,I7,A,I6,I6,"=",I7,A,E12.3)')&
-                  " Checksum for (",br,bc,") at ",blk_p," size ",m,n,mn,&
+                  !" Checksum for (",br,bc,") at ",blk_p," size ",m,n,mn,&
+                  " Checksum for (",br,bc,") at ",matrix%m%blk_p(blk)," size ",m,n,mn,&
                   " checksum=",blk_cs
              IF (yesprint) THEN
                 SELECT CASE (matrix%m%data_type)

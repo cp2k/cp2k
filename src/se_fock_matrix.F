@@ -16,6 +16,12 @@ MODULE se_fock_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_type
@@ -23,6 +29,11 @@ MODULE se_fock_matrix
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_trace
+  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_mndo,&
@@ -54,12 +65,10 @@ MODULE se_fock_matrix
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_finalize,&
                                              semi_empirical_si_initialize,&
                                              semi_empirical_si_type
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-                                             cp_sm_sm_trace,&
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             set_matrix,&
-                                             transfer_matrix
+                                             set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -81,13 +90,13 @@ CONTAINS
 !> \par History
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
 ! *****************************************************************************
-  SUBROUTINE build_se_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
+  SUBROUTINE build_se_fock_matrix (ks_env,qs_env,ks_matrix_sm,rho,energy,&
        calculate_forces,just_energy,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+      POINTER                                :: ks_matrix_sm
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -109,12 +118,16 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: ks_scp, matrix_tmp, pscp
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, matrix_h, matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p
-    TYPE(real_matrix_type), POINTER          :: ks_scp, pscp
+      POINTER                                :: matrix_h_sm, matrix_p_sm
+    TYPE(real_matrix_type), POINTER          :: ks_scp_sm, pscp_sm
     TYPE(scp_energy_type), POINTER           :: energy_scp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -124,16 +137,29 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
-    NULLIFY(scp_env, pscp, ks_scp, ascp_diag, energy_scp,atomic_kind_set)
+    NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control, matrix_tmp)
+    NULLIFY(scp_env, pscp, ks_scp_sm, ascp_diag, energy_scp,atomic_kind_set, pscp, ks_scp)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h_sm,&
          para_env=para_env, se_store_int_env=store_int_env, scp_env=scp_env,&
-         atomic_kind_set=atomic_kind_set, error=error)
-    
+         atomic_kind_set=atomic_kind_set, distribution_2d=distribution_2d,&
+         error=error)
+
+    NULLIFY(ks_matrix,matrix_h)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( ks_matrix, SIZE(ks_matrix_sm), error )!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( matrix_h, SIZE(matrix_h_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(ks_matrix)!sm->dbcsr
+       ALLOCATE(ks_matrix(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(ks_matrix(ispin)%matrix, ks_matrix_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    DO ispin=1,SIZE(matrix_h)!sm->dbcsr
+       ALLOCATE(matrix_h(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_h(ispin)%matrix, matrix_h_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
     SELECT CASE (dft_control%qs_control%method_id)
     CASE DEFAULT
        ! Abort if the parameterization is an unknown one..
@@ -154,19 +180,32 @@ CONTAINS
        se_control  => dft_control%qs_control%se_control
        scp_nddo    =  se_control%scp
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
-       matrix_p       => rho%rho_ao
+       matrix_p_sm => rho%rho_ao
+
+       NULLIFY(matrix_p)
+       CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
+       DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+          ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_from_sm(matrix_p(ispin)%matrix, matrix_p_sm(ispin)%matrix, error)!sm->dbcsr
+       ENDDO!sm->dbcsr
+
        energy%qmmm_el = 0.0_dp
 
+       CALL dbcsr_deallocate_matrix_set( ks_matrix, error )!sm->dbcsr !needed a soft copy!
+       CALL dbcsr_allocate_matrix_set( ks_matrix, nspins, error )!sm->dbcsr
        DO ispin=1,nspins
+          ALLOCATE(ks_matrix(ispin)%matrix)!sm->dbcsr
           ! Copy the core matrix into the fock matrix
-          CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
+          CALL dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
        END DO
 
        ! Zero the ks_scp matrix.  Will get info from coulomb routines
        IF (scp_nddo) THEN
-          CALL get_scp_env(scp_env, ks_scp=ks_scp, error=error)
-          CALL set_matrix(ks_scp,0.0_dp)
+          CALL get_scp_env(scp_env, ks_scp=ks_scp_sm, error=error)
+          CALL set_matrix(ks_scp_sm,0.0_dp)
        END IF
+
+
 
        ! Compute Exchange and Coulomb terms
        CALL semi_empirical_si_initialize(store_int_env, ks_env%s_mstruct_changed, error)
@@ -189,31 +228,39 @@ CONTAINS
 
           ! Possibly handle the slowly convergent term 1/R^3
           IF (se_control%do_ewald_r3) THEN
-             CALL build_fock_matrix_coul_lr_r3(qs_env,ks_matrix,matrix_p,energy,&
-                  calculate_forces,error)
+            CALL build_fock_matrix_coul_lr_r3(qs_env,ks_matrix,matrix_p,energy,&
+                 calculate_forces,error)
           END IF
        END IF
        CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
 
 
+
        ! Compute the Hartree energy
        ! NOTE: If we are performing SCP-NDDO, ks_matrix contains coulomb piece from SCP.
        DO ispin=1,nspins
-          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
-               para_env=para_env,error=error)
+          CALL dbcsr_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,error=error)
           energy%hartree = energy%hartree + ecoul
        END DO
-
        ! Compute the SCP Hartree energy and polarization energy and update ks_scp
        IF (scp_nddo) THEN
-          CALL get_scp_env ( scp_env, pscp=pscp, ks_scp=ks_scp, energy=energy_scp, &
+          CALL get_scp_env ( scp_env, pscp=pscp_sm, ks_scp=ks_scp_sm, energy=energy_scp, &
                              ascp_diag= ascp_diag, error = error )
+          ALLOCATE(pscp, ks_scp)!sm->dbcsr
+          CALL dbcsr_from_sm(pscp, pscp_sm, error)!sm->dbcsr
+          CALL dbcsr_from_sm(ks_scp, ks_scp_sm, error)!sm->dbcsr
           ! Get energy
-          CALL cp_sm_sm_trace(ks_scp,pscp,trace=ecoul_scp,error=error)
+          CALL dbcsr_trace(ks_scp,pscp,trace=ecoul_scp,local_sum=.TRUE.,error=error)
           energy_scp%e_scp_hartree = ecoul_scp*0.5_dp
           ! evalulate kernel and forces on the SCP coeffs
           CALL evaluate_scp_force ( atomic_kind_set, pscp, ks_scp, ascp_diag, para_env,&
                                     just_energy, energy_scp%e_scp_kernel, error )
+          CALL deallocate_matrix(scp_env%ks_scp, error=error)!sm->dbcsr
+          CALL sm_from_dbcsr(scp_env%ks_scp, ks_scp, distribution_2d, error=error )!sm->dbcsr
+          CALL get_scp_env ( scp_env, ks_scp=ks_scp_sm, error=error )!sm->dbcsr
+          CALL dbcsr_deallocate_matrix( pscp, error=error )!sm->dbcsr
+          CALL dbcsr_deallocate_matrix( ks_scp, error=error )!sm->dbcsr
+
           ! NOTE: If needed, at this point, forces on P_SCP are up-to-date and stored 
           !       in KS_SCP as a*ks_scp
        END IF
@@ -222,17 +269,16 @@ CONTAINS
        IF (qs_env%qmmm) THEN
           DO ispin = 1, nspins
              ! If QM/MM sumup the 1el Hamiltonian
-             CALL cp_sm_scale_and_add(matrix_a=ks_matrix(ispin)%matrix,&
-                                      matrix_b=qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
-                                      error=error)
+             ALLOCATE(matrix_tmp)!sm->dbcsr
+             CALL dbcsr_from_sm(matrix_tmp, qs_env%ks_qmmm_env%matrix_h(1)%matrix, error)!sm->dbcsr
+             CALL dbcsr_add(ks_matrix(ispin)%matrix,matrix_tmp,error=error)
              ! Compute QM/MM Energy
-             CALL cp_sm_sm_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
-                                 matrix_p(ispin)%matrix,trace=qmmm_el,&
-                                 para_env=para_env,error=error)
+             CALL dbcsr_trace(matrix_tmp,matrix_p(ispin)%matrix,trace=qmmm_el,error=error)
+             CALL dbcsr_deallocate_matrix(matrix_tmp,error=error)!sm->dbcsr
              energy%qmmm_el = energy%qmmm_el + qmmm_el
           END DO
        END IF
-
+10 CONTINUE
        ! Collect all the energy terms
        energy%mulliken = 0.0_dp
        energy%exc      = 0.0_dp
@@ -250,6 +296,7 @@ CONTAINS
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
+
        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
@@ -268,8 +315,14 @@ CONTAINS
                   "SCP dispersion energy:                ",energy_scp%e_scp_disp
           END IF
        END IF
+
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%DETAILED_ENERGY", error=error)
+
+       DO ispin=1,SIZE(ks_matrix)!sm->dbcsr
+          CALL sm_from_dbcsr ( ks_matrix_sm(ispin)%matrix, ks_matrix(ispin)%matrix, &!sm->dbcsr
+               distribution_2d, error=error )!sm->dbcsr
+       ENDDO!sm->dbcsr
 
        ! Here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
@@ -278,11 +331,20 @@ CONTAINS
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
                              occupation_numbers=occupation_numbers )
              CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
-             CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
+             CALL cp_sm_fm_multiply(ks_matrix_sm(ispin)%matrix,mo_coeff,&
                                     mo_derivs(ispin)%matrix, ncol_global,error=error)
           ENDDO
        ENDIF
+
     END SELECT
+
+    CALL dbcsr_deallocate_matrix_set ( matrix_h, error=error )
+    CALL dbcsr_deallocate_matrix_set ( ks_matrix, error=error )
+    CALL dbcsr_deallocate_matrix_set ( matrix_p, error=error )
+    !CALL dbcsr_deallocate_matrix ( matrix_tmp, error=error )
+    !CALL dbcsr_deallocate_matrix ( ks_scp, error=error )
+    !CALL dbcsr_deallocate_matrix ( pscp, error=error )
+
     CALL timestop(handle)
 
   END SUBROUTINE build_se_fock_matrix

@@ -10,15 +10,15 @@
 MODULE scp_nddo_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info
+  USE dbcsr_operations,                ONLY: dbcsr_get_diag,&
+                                             dbcsr_set_diag
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE kinds,                           ONLY: dp
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             get_matrix_diagonal,&
-                                             get_matrix_info,&
-                                             real_matrix_type,&
-                                             set_matrix_diagonal
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -38,7 +38,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(real_matrix_type), POINTER          :: pscp, ks_scp
+    TYPE(dbcsr_obj), POINTER                 :: pscp, ks_scp
     REAL(dp), POINTER                        :: ascp_diag( : )
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: energy_only
@@ -86,21 +86,22 @@ CONTAINS
        DO iparticle=1, SIZE ( atom_list )
           iatom = atom_list ( iparticle )
 
-
-          CALL get_block_node(matrix=pscp,&
+          CALL dbcsr_get_block_node(matrix=pscp,&
                               block_row=iatom,&
                               block_col=iatom,&
                               BLOCK=p_block)
+          CPPrecondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
           DO i=1,SIZE(p_block,1)
              DO j=1,SIZE(p_block,2)
                 escp = escp + p_block(i,j)*p_block (i,j)/a_scp(i,j)
              END DO
           END DO
           IF(.NOT.energy_only) THEN
-             CALL get_block_node(matrix=ks_scp,&
+             CALL dbcsr_get_block_node(matrix=ks_scp,&
                                  block_row=iatom,&
                                  block_col=iatom,&
                                  BLOCK=ks_block)
+             CPPrecondition(ASSOCIATED(ks_block),cp_failure_level,routineP,error,failure)
              DO i=1,SIZE(ks_block,1) 
                 DO j=1,SIZE(ks_block,2) 
                    ks_block(i,j) = a_scp (i,j) * ks_block(i,j)+ p_block(i,j)
@@ -112,21 +113,22 @@ CONTAINS
     escp=escp*0.5_dp
 ! compute constraint force
     IF(.NOT.energy_only) THEN
-      CALL get_matrix_info ( ks_scp, nrow=n_el )
-      ALLOCATE (ksdiag(n_el),STAT=stat)
-      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL dbcsr_get_info ( ks_scp, nfullrows_total=n_el )
+       ALLOCATE (ksdiag(n_el),STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      CALL get_matrix_diagonal ( ks_scp, ksdiag )
+      CALL dbcsr_get_diag ( ks_scp, ksdiag, error=error )
       sum_ksdiag = SUM ( ksdiag )
       sum_adiag = SUM ( ascp_diag )
       ratio = sum_ksdiag/sum_adiag
       DO ii = 1, n_el
          ksdiag ( ii ) = ksdiag ( ii ) - ascp_diag ( ii ) * ratio 
       END DO
-      CALL set_matrix_diagonal ( ks_scp, ksdiag )
+      CALL dbcsr_set_diag ( ks_scp, ksdiag, error=error )
       DEALLOCATE (ksdiag,STAT=stat)
       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
   END SUBROUTINE evaluate_scp_force
 
 ! *****************************************************************************

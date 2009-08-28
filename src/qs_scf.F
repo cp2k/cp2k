@@ -653,6 +653,7 @@ CONTAINS
                      matrix_s, aux_coeff_set=aux_coeff_set, energy_only=energy_only, &
                      has_unit_metric=has_unit_metric,error=error)
              ELSEIF ( scp_nddo ) THEN
+                CALL get_scp_env ( scp_env = scp_env,  ks_scp=ks_scp, error = error )!sm->dbcsr
                 CALL qs_scf_loop_do_ot(scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
                      matrix_s, pscp=pscp, fscp=ks_scp, energy_only=energy_only, &
                      has_unit_metric=has_unit_metric,error=error)

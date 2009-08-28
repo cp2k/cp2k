@@ -2344,7 +2344,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
         ks_env%potential_changed=.FALSE.
         IF ( dft_control%qs_control%semi_empirical ) THEN
           CALL build_se_fock_matrix(ks_env,qs_env=qs_env,&
-               ks_matrix=matrix_ks,rho=rho,energy=energy,&
+               ks_matrix_sm=matrix_ks,rho=rho,energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
                error=error)
         ELSEIF ( dft_control%qs_control%dftb ) THEN

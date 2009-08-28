@@ -75,10 +75,11 @@
 !> \param[in] trans_b            (optional) is matrix_b transposed or not?
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_trace_ab_z(matrix_a, matrix_b, trace, trans_a, trans_b, error)
+  SUBROUTINE dbcsr_trace_ab_z(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: trace
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
+    LOGICAL, INTENT(IN), OPTIONAL            :: local_sum
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_ab_z', &
@@ -90,19 +91,29 @@
     INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
                                                 a_row_blk_size, &
                                                 b_col_blk_size, b_row_blk_size
-    LOGICAL                                  :: found
+    COMPLEX(kind=real_8)                                  :: sym_fac, fac
+    LOGICAL                                  :: found, my_local_sum
     COMPLEX(kind=real_8), EXTERNAL                        :: ZDOTU
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: a_data_p, b_data_p
-
-
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
-    CALL cp_assert (matrix_a%m%replication_type .EQ. dbcsr_repl_none&
-         .AND. matrix_b%m%replication_type .EQ. dbcsr_repl_none,&
-         cp_failure_level, cp_unimplemented_error_nr, routineN,&
-         "Trace of product of replicated matrices not yet possible.")
+    my_local_sum = .FALSE.
+    IF(PRESENT(local_sum)) my_local_sum=local_sum
+    IF(.NOT.my_local_sum) THEN!fixme
+       CALL cp_assert (matrix_a%m%replication_type .EQ. dbcsr_repl_none&
+            .AND. matrix_b%m%replication_type .EQ. dbcsr_repl_none,&
+            cp_failure_level, cp_unimplemented_error_nr, routineN,&
+            "Trace of product of replicated matrices not yet possible.")
+    ENDIF
+
+    sym_fac = 1.0_dp
+    IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
+        dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).AND.&
+       (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
+        dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) sym_fac = 2.0_dp
+
     a_row_blk_size => array_data (matrix_a%m%row_blk_size)
     a_col_blk_size => array_data (matrix_a%m%col_blk_size)
     b_row_blk_size => array_data (matrix_b%m%row_blk_size)
@@ -143,7 +154,9 @@
              !
              ! let's trace the blocks
              !trace = trace + DOT_PRODUCT(a_data,b_data)
-                trace = trace + ZDOTU (nze,&
+             fac = 1.0_dp
+             IF(row.NE.a_col) fac = sym_fac
+             trace = trace + fac * ZDOTU (nze,&
                      a_data_p(ABS(matrix_a%m%blk_p(a_blk))),1,&
                      b_data_p(ABS(matrix_b%m%blk_p(b_blk))),1)
              !trace = trace + ddot(nze,matrix_a%m%data(ABS(matrix_a%m%blk_p(a_blk))),1,&
@@ -153,7 +166,8 @@
     ENDDO ! a_row
     !
     ! summe
-    CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
+    IF(.NOT.my_local_sum) &
+         & CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
 
     CALL timestop(timing_handle)
 

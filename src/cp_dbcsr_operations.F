@@ -73,6 +73,7 @@ MODULE cp_dbcsr_operations
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -84,7 +85,8 @@ MODULE cp_dbcsr_operations
                                              mp_sync
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
+  USE sparse_matrix_output,            ONLY: write_matrix_distribution,&
+                                             write_sparse_matrix
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, checksum_matrix, deallocate_matrix, &
        first_block_node, get_block_node, next_block_node, &
@@ -112,7 +114,8 @@ MODULE cp_dbcsr_operations
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
             dbcsr_obj_p_type, dbcsr_block_node_type, test_sm,&
             dbcsr_from_fm, dbcsr_from_sm,&
-            sm_from_dbcsr, dbcsr_type_from_sm_symmetry, dbcsr_write_sparse_matrix
+            sm_from_dbcsr, dbcsr_type_from_sm_symmetry, dbcsr_write_sparse_matrix, &
+            dbcsr_write_matrix_distribution
 
   INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
@@ -2765,7 +2768,7 @@ CONTAINS
              !     routineN, "Should not need to transpose")
              CALL dbcsr_block_transpose (&
                   send_data(sdp(dst_p):sdp(dst_p)+nze-1),&
-                  data_p(blk_p:blk_p+nze-1), nrows, ncols)
+                  data_p(ABS(blk_p):ABS(blk_p)+nze-1), nrows, ncols)
              IF (dbcsr_matrix_type .EQ. dbcsr_type_antisymmetric)&
                   send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
                   -1.0_dp * send_data(sdp(dst_p):sdp(dst_p)+nze-1)
@@ -2861,6 +2864,8 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(real_matrix_type), POINTER          :: sparse_matrix_sm
 
+    NULLIFY(sparse_matrix_sm,distribution_2d)
+
     CALL get_qs_env(qs_env=qs_env,distribution_2d=distribution_2d,error=error)
 
     CALL sm_from_dbcsr ( sparse_matrix_sm, sparse_matrix, distribution_2d, error=error )
@@ -2872,6 +2877,28 @@ CONTAINS
     CALL deallocate_matrix(sparse_matrix_sm, error)
 
   END SUBROUTINE dbcsr_write_sparse_matrix
+
+  SUBROUTINE dbcsr_write_matrix_distribution(matrix,force_env_section,para_env,error)
+    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'dbcsr_write_matrix_distribution', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(real_matrix_type), POINTER          :: matrix_sm
+
+    NULLIFY(matrix_sm)
+
+    CALL sm_from_dbcsr ( matrix_sm, matrix, matrix%m%dist2d, error=error )
+
+    CALL write_matrix_distribution(matrix_sm,force_env_section,para_env,error)
+
+    CALL deallocate_matrix(matrix_sm, error)
+
+  END SUBROUTINE dbcsr_write_matrix_distribution
 
   SUBROUTINE test_sm(sm, error)
     TYPE(real_matrix_type), POINTER          :: sm

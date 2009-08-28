@@ -57,10 +57,10 @@ MODULE dbcsr_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
   PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_trace, dbcsr_add_on_diag,&
-            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag,&
-            dbcsr_replace_blocks,&
-            dbcsr_get_block,&
+            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, &
+            dbcsr_set_diag, dbcsr_get_block, dbcsr_get_block_diag,&
             dbcsr_put_block, dbcsr_filter,&
+            dbcsr_replace_blocks,&
             dbcsr_btriu, block_add_on_diag,&
             block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm,&
             dbcsr_replicate_all, dbcsr_distribute,&
@@ -3555,13 +3555,13 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[inout] diag   the diagonal
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_diag(matrix, diag, error)
+  SUBROUTINE dbcsr_get_block_diag(matrix, diag, error)
 
     TYPE(dbcsr_obj), INTENT(IN), TARGET      :: matrix
     TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: diag
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_diag', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, row, timing_handle
@@ -3583,9 +3583,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        SELECT CASE (dbcsr_get_data_type(matrix))
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
-          IF(row.EQ.col) THEN
-             CALL dbcsr_put_block(diag, row, col, data_d, tr)
-          ENDIF
+          IF(row.EQ.col) CALL dbcsr_put_block(diag, row, col, data_d, tr)
        CASE DEFAULT
           CALL cp_unimplemented_error (routineN,&
                "Only real double precision")
@@ -3596,7 +3594,120 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timestop(timing_handle)
 
+  END SUBROUTINE dbcsr_get_block_diag
+
+! *****************************************************************************
+!> \brief get the diagonal of a dbcsr matrix
+!> \param[in] matrix    the matrix
+!> \param[inout] diag   diagonal
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_diag(matrix, diag, error)
+
+    TYPE(dbcsr_obj), INTENT(IN), TARGET      :: matrix
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: diag
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, i, row, &
+                                                timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
+    LOGICAL                                  :: tr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    !> this should be precomputed somewhere else
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    ALLOCATE(offset(matrix%m%nblkrows_total))
+    offset(1) = 1
+    DO row = 2,matrix%m%nblkrows_total
+       offset(row) = offset(row-1) + row_blk_size(row-1)
+    ENDDO
+    !<
+    IF(SUM(row_blk_size).GT.SIZE(diag)) CALL stop_program(routineN,"SIZE(diag) too small") 
+
+    diag(:) = HUGE(0.0_dp)
+    IF(dbcsr_get_data_type(matrix).NE.dbcsr_type_real_8) &
+         CALL cp_unimplemented_error (routineN,"Only real double precision")
+
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+       IF(row.EQ.col) THEN
+          DO i = 1,SIZE(data_d,1)
+             diag(offset(row)+i-1) = data_d(i,i)
+          ENDDO
+       ENDIF
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+
+    DEALLOCATE(offset)
+
+    CALL timestop(timing_handle)
+
   END SUBROUTINE dbcsr_get_diag
+
+! *****************************************************************************
+!> \brief set the diagonal of a dbcsr matrix
+!> \param[in] matrix    the matrix
+!> \param[inout] diag   diagonal
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_set_diag(matrix, diag, error)
+
+    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: diag
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, i, row, &
+                                                timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
+    LOGICAL                                  :: tr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    !> this should be precomputed somewhere else
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    ALLOCATE(offset(matrix%m%nblkrows_total))
+    offset(1) = 1
+    DO row = 2,matrix%m%nblkrows_total
+       offset(row) = offset(row-1) + row_blk_size(row-1)
+    ENDDO
+    !<
+    IF(SUM(row_blk_size).GT.SIZE(diag)) CALL stop_program(routineN,"SIZE(diag) too small")
+
+    IF(dbcsr_get_data_type(matrix).NE.dbcsr_type_real_8) &
+         CALL cp_unimplemented_error (routineN,"Only real double precision")
+
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+       IF(row.EQ.col) THEN
+          DO i = 1,SIZE(data_d,1)
+             data_d(i,i) = diag(offset(row)+i-1)
+          ENDDO
+       ENDIF
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_set_diag
 
 ! *****************************************************************************
 !> \brief copy a matrix 
@@ -4099,7 +4210,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        nze = SIZE(r_dp)
        DO dst_p = 0, numnodes-1
           send_meta(smp(dst_p)+1) = col
-          IF (tr) THEN
+          IF (.NOT. tr) THEN
              send_meta(smp(dst_p)) = row
              send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
                   r_dp(:)
@@ -4317,10 +4428,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     INTEGER                                  :: comm, max_data_size, &
                                                 max_index_size, mynode, &
                                                 numnodes, p
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: send_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_sizes
     INTEGER, DIMENSION(2)                    :: my_sizes
     INTEGER, DIMENSION(:), POINTER           :: recv_index
-    REAL(kind=dp), DIMENSION(:), POINTER     :: recv_dp, send_dp
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: send_dp
+    REAL(kind=dp), DIMENSION(:), POINTER     :: recv_dp
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_mp_obj)                       :: mp
     TYPE(dbcsr_obj)                          :: recv_matrix
@@ -4331,10 +4444,11 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     comm = dbcsr_mp_group (mp)
     numnodes = dbcsr_mp_numnodes (mp)
     mynode = dbcsr_mp_mynode (mp)
-    send_dp => dbcsr_get_data_p (matrix%m%data_area, 0.0_dp)
     ! Count data sizes
     my_sizes(1) = SIZE (matrix%m%index)
-    my_sizes(2) = SIZE (send_dp)
+    recv_dp => dbcsr_get_data_p (matrix%m%data_area, 0.0_dp)
+    my_sizes(2) = SIZE (recv_dp)
+    ! Allocate receive buffers
     ALLOCATE (all_sizes (2, 0:numnodes-1))
     CALL mp_allgather (my_sizes, all_sizes, comm)
     max_index_size = MAXVAL (all_sizes(1,:))
@@ -4346,11 +4460,16 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
          0, 0, dbcsr_get_data_type(matrix), error=error)
     CALL ensure_array_size (recv_matrix%m%index, ub=max_index_size)
     CALL dbcsr_data_ensure_size (recv_matrix%m%data_area, max_data_size)
-    ! Broadcasts a matrix and every processor sums it. Inefficient,
-    ! but it gets the job done.
+    ! Setup data to be sent.
+    ALLOCATE (send_dp(my_sizes(2)))
+    send_dp(:) = recv_dp(:)
+    ALLOCATE (send_index(my_sizes(1)))
+    send_index(:) = matrix%m%index(:)
+    ! Broadcasts a matrix and every processor sums it. Inefficient and
+    ! slow, but it gets the job done with little memory use.
     DO p = 0, numnodes-1
        IF (p .EQ. mynode) THEN
-          CALL mp_bcast (matrix%m%index, p, comm)
+          CALL mp_bcast (send_index, p, comm)
           CALL mp_bcast (send_dp, p, comm)
        ELSE
           recv_index => recv_matrix%m%index(1:all_sizes(1,p))

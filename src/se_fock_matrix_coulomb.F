@@ -21,10 +21,26 @@ MODULE se_fock_matrix_coulomb
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_distribute,&
+                                             dbcsr_get_block_diag,&
+                                             dbcsr_replicate_all,&
+                                             dbcsr_set,&
+                                             dbcsr_sum_replicated
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
@@ -74,10 +90,7 @@ MODULE se_fock_matrix_coulomb
   USE semi_empirical_utils,            ONLY: finalize_se_taper,&
                                              get_se_type,&
                                              initialize_se_taper
-  USE sparse_matrix_types,             ONLY: &
-       allocate_matrix_set, cp_sm_scale_and_add, create_dbm_from_sm, &
-       deallocate_dbm_from_sm, deallocate_matrix, get_block_node, mpsum_dbm, &
-       real_matrix_p_type, real_matrix_type, transfer_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -103,7 +116,7 @@ CONTAINS
        store_int_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
@@ -132,7 +145,11 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(neighbor_list_set_p_type), &
@@ -143,9 +160,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
-    TYPE(real_matrix_type), POINTER          :: ks_scp, pscp
+    TYPE(real_matrix_type), POINTER          :: ks_scp_sm, pscp_sm
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -156,13 +171,14 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
+
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control,cell,force,particle_set,diagmat_ks,diagmat_p,&
-               se_control,se_taper,pscp,ks_scp,scp_env)
+               se_control,se_taper,pscp_sm,pscp,ks_scp_sm,ks_scp,scp_env)
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_2c=sab_2c, atomic_kind_set=atomic_kind_set, &
-            particle_set=particle_set, virial=virial, error=error)
+            particle_set=particle_set, virial=virial, distribution_2d=distribution_2d, error=error)
       
        ! Parameters
        CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
@@ -186,9 +202,6 @@ CONTAINS
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
-       CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
-       CALL allocate_matrix_set(diagmat_p,nspins,error=error)
-       
        nkind = SIZE(atomic_kind_set)
        IF(calculate_forces) THEN
           CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -200,17 +213,25 @@ CONTAINS
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
 
+       CALL dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
+       CALL dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
+
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
-          CALL create_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,&
-                                  "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
-          CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
-                                  "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
+          ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
+          CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
+          CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
+          CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
+          CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
        END DO
 
        IF (scp_nddo)  THEN 
           CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
-          CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
+          CALL get_scp_env(scp_env=scp_env, pscp=pscp_sm, ks_scp=ks_scp_sm, error=error)
+          ALLOCATE(pscp)!sm->dbcsr
+          CALL dbcsr_from_sm(pscp,pscp_sm,error=error)!sm->dbcsr
+          !call dbcsr_from_sm(ks_scp,ks_scp_sm,error=error)!sm->dbcsr
        END IF
        
        ecore2   = 0.0_dp
@@ -243,14 +264,14 @@ CONTAINS
                 CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom, nnode=nnode)
                 sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
  
-                CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                CALL dbcsr_get_block_node(matrix=diagmat_p(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=pa_block_a)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
                 check = (SIZE(pa_block_a,1)==natorb_a).AND.(SIZE(pa_block_a,2)==natorb_a)
                 CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                CALL dbcsr_get_block_node(matrix=diagmat_ks(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=ksa_block_a)
@@ -258,14 +279,14 @@ CONTAINS
                 p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
                 pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
                 IF ( nspins == 2 ) THEN
-                   CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=diagmat_p(2)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=pa_block_b)
                    CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
                    check = (SIZE(pa_block_b,1)==natorb_a).AND.(SIZE(pa_block_b,2)==natorb_a)
                    CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                   CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=diagmat_ks(2)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=ksa_block_b)
@@ -275,7 +296,7 @@ CONTAINS
                 END IF
 
                 IF (scp_nddo) THEN
-                   CALL get_block_node(matrix=pscp,&
+                   CALL dbcsr_get_block_node(matrix=pscp,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=pscpa_block)
@@ -302,14 +323,14 @@ CONTAINS
                          switch = .TRUE.
                       END IF
                       ! Retrieve blocks for KS and P
-                      CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=diagmat_p(1)%matrix,&
                                           block_row=jatom,&
                                           block_col=jatom,&
                                           BLOCK=pb_block_a)
                       CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
                       check = (SIZE(pb_block_a,1)==natorb_b).AND.(SIZE(pb_block_a,2)==natorb_b)
                       CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                      CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=diagmat_ks(1)%matrix,&
                                           block_row=jatom,&
                                           block_col=jatom,&
                                           BLOCK=ksb_block_a)
@@ -318,14 +339,14 @@ CONTAINS
                       pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
                       ! Handle more than one configuration
                       IF ( nspins == 2 ) THEN
-                         CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                         CALL dbcsr_get_block_node(matrix=diagmat_p(2)%matrix,&
                                              block_row=jatom,&
                                              block_col=jatom,&
                                              BLOCK=pb_block_b)
                          CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_b,1)==natorb_b).AND.(SIZE(pb_block_b,2)==natorb_b)
                          CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                         CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                         CALL dbcsr_get_block_node(matrix=diagmat_ks(2)%matrix,&
                                              block_row=jatom,&
                                              block_col=jatom,&
                                              BLOCK=ksb_block_b)
@@ -337,7 +358,7 @@ CONTAINS
                       END IF
 
                       IF (scp_nddo) THEN
-                         CALL get_block_node(matrix=pscp,&
+                         CALL dbcsr_get_block_node(matrix=pscp,&
                                              block_row=jatom,&
                                              block_col=jatom,&
                                              BLOCK=pscpb_block)
@@ -493,21 +514,22 @@ CONTAINS
 
        IF ( scp_nddo ) THEN
           ! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
-          CALL transfer_matrix ( diagmat_ks(1)%matrix, ks_scp, error )
+          ALLOCATE(ks_scp)!sm->dbcsr ! need a soft copy !
+          CALL dbcsr_copy ( ks_scp, diagmat_ks(1)%matrix, 'ks_scp', error )
           ! sum over all procs to get the replicated ks_scp
-          CALL mpsum_dbm ( ks_scp, para_env, error )
-          CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
+          CALL dbcsr_sum_replicated( ks_scp )
+          CALL sm_from_dbcsr ( scp_env%ks_scp, ks_scp, distribution_2d, error=error )!sm->dbcsr
+          !CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp_sm, error = error ) 
        ENDIF 
-       
+
        DO ispin = 1, nspins
-          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,.FALSE.,error=error)
-          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
+          CALL dbcsr_sum_replicated( diagmat_ks(ispin)%matrix )
+          CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+          CALL dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,error=error)
        END DO
-       DEALLOCATE(diagmat_ks,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(diagmat_p,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+       CALL dbcsr_deallocate_matrix_set ( diagmat_p, error=error )
+       CALL dbcsr_deallocate_matrix_set ( diagmat_ks, error=error )
+
        IF (calculate_forces) THEN 
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -516,8 +538,13 @@ CONTAINS
        ! Two-centers one-electron terms
        CALL mp_sum(ecore2,para_env%group)       
        energy%hartree = ecore2 - energy%core
+
+       IF(scp_nddo) CALL dbcsr_deallocate_matrix(pscp,error=error)!sm->dbcsr
+       IF(scp_nddo) CALL dbcsr_deallocate_matrix(ks_scp,error=error)!sm->dbcsr
+
     END IF
     CALL finalize_se_taper(se_taper,error=error)    
+
     CALL timestop(handle)
   END SUBROUTINE build_fock_matrix_coulomb
 
@@ -530,7 +557,7 @@ CONTAINS
        calculate_forces, store_int_env, error)
    
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
@@ -562,8 +589,12 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: dbm, ks_scp, pscp
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: se_nonbond_env
@@ -572,9 +603,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
-    TYPE(real_matrix_type), POINTER          :: dbm, ks_scp, pscp
+    TYPE(real_matrix_type), POINTER          :: ks_scp_sm, pscp_sm
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &
@@ -585,6 +614,7 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
+
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force,particle_set, diagmat_ks, diagmat_p,local_particles,&
             se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env, se_section, mpole,&
@@ -594,7 +624,8 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
             atomic_kind_set=atomic_kind_set, particle_set=particle_set, ewald_env=ewald_env,&
             local_particles=local_particles, ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,&
-            se_nonbond_env=se_nonbond_env, scp_env=scp_env, virial=virial, error=error)
+            se_nonbond_env=se_nonbond_env, scp_env=scp_env, virial=virial, &
+            distribution_2d=distribution_2d, error=error)
        
        nlocal_particles = SUM(local_particles%n_el(:))
        natoms           = SIZE(particle_set)
@@ -619,23 +650,28 @@ CONTAINS
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
-       CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
-       CALL allocate_matrix_set(diagmat_p,nspins,error=error)
+       CALL dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
+       CALL dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
        
        nkind = SIZE(atomic_kind_set)
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
-          CALL create_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,&
-                                  "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
-          CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
-                                  "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
+          ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
+          CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
+          CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
+          CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
+          CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
        END DO
 
        ! Handle the case of SCP-NDDO
        IF (scp_nddo) THEN
-          CALL create_dbm_from_sm(dbm,ks_matrix(1)%matrix,&
-                                  "DUMMY BLOCK KS MATRIX",.FALSE.,error=error)
-          CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
+          CALL get_scp_env(scp_env=scp_env, pscp=pscp_sm, ks_scp=ks_scp_sm, error=error)
+          ALLOCATE(pscp,ks_scp)!sm->dbcsr
+          CALL dbcsr_from_sm(pscp,pscp_sm,error=error)!sm->dbcsr
+          CALL dbcsr_from_sm(ks_scp,ks_scp_sm,error=error)!sm->dbcsr
+          !CALL dbcsr_copy(dbm,ks_scp,'DUMMY BLOCK KS MATRIX',error)
+          !CALL dbcsr_set(dbm, 0.0_dp, error=error)
        END IF
 
        ! Check for implemented SE methods
@@ -689,13 +725,13 @@ CONTAINS
              nparticle_local = local_particles%n_el(ikind)
              DO ilist=1, nparticle_local
                 iatom = local_particles%list(ikind)%array(ilist)
-                CALL get_block_node(matrix=diagmat_p(ispin)%matrix,&
+                CALL dbcsr_get_block_node(matrix=diagmat_p(ispin)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=pa_block_a)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
                 IF ( scp_nddo ) THEN
-                   CALL get_block_node(matrix=pscp,&
+                   CALL dbcsr_get_block_node(matrix=pscp,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=pscpa_block)
@@ -825,7 +861,7 @@ CONTAINS
              node  = node + 1
              iatom = local_particles%list(ikind)%array(ilist)
              DO ispin = 1, nspins
-                CALL get_block_node(matrix=diagmat_ks(ispin)%matrix,&
+                CALL dbcsr_get_block_node(matrix=diagmat_ks(ispin)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=ksa_block_a)
@@ -881,24 +917,25 @@ CONTAINS
        ! Increment the SCP portion of the Fock matrix with the long-range coulomb portion of the Fock matrix
        IF ( scp_nddo ) THEN
           ! transfer to dummy dbm
-          CALL transfer_matrix ( diagmat_ks(1)%matrix, dbm, error )
+          ALLOCATE(dbm)!sm->dbcsr
+          CALL dbcsr_copy ( dbm, diagmat_ks(1)%matrix, 'dbm', error )
           ! replicate the dbm
-          CALL mpsum_dbm ( dbm, para_env, error )
+          CALL dbcsr_sum_replicated( dbm )
           ! add dbm (which is the long range part of (P+p)C + CZ )to the replicated ks_scp
-          CALL cp_sm_scale_and_add ( ks_scp, 1.0_dp, dbm, 1.0_dp, error )  
-          CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
-          CALL deallocate_matrix ( dbm, error=error )
+          CALL dbcsr_add(ks_scp, dbm, error=error)
+          CALL sm_from_dbcsr ( ks_scp_sm, ks_scp, distribution_2d, error=error )!sm->dbcsr
+          CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp_sm, error = error ) 
+          CALL dbcsr_deallocate_matrix ( dbm, error=error )
        ENDIF
        
-       ! Deallocate diagonal block matrix
        DO ispin = 1, nspins
-          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,.FALSE.,error=error)
-          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
+          CALL dbcsr_sum_replicated( diagmat_ks(ispin)%matrix )
+          CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+          CALL dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,error=error)
        END DO
-       DEALLOCATE(diagmat_ks,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(diagmat_p,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL dbcsr_deallocate_matrix_set ( diagmat_p, error=error )
+       CALL dbcsr_deallocate_matrix_set ( diagmat_ks, error=error )
+
        ! Set the Fock matrix contribution to SCP
        IF (calculate_forces) THEN 
           DEALLOCATE(atom_of_kind,stat=stat)
@@ -908,7 +945,12 @@ CONTAINS
           DEALLOCATE(forces_r,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+
+       IF(scp_nddo) CALL dbcsr_deallocate_matrix(pscp,error=error)!sm->dbcsr
+       IF(scp_nddo) CALL dbcsr_deallocate_matrix(ks_scp,error=error)!sm->dbcsr
+
     END IF
+
     CALL timestop(handle)
   END SUBROUTINE build_fock_matrix_coulomb_lr
 
@@ -923,16 +965,16 @@ CONTAINS
        ks_scp, pscp, virial, pv_glob, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
     LOGICAL, DIMENSION(3), INTENT(IN)        :: task
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_p, diagmat_ks
-    TYPE(real_matrix_type), POINTER          :: ks_scp, pscp
+    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(INOUT)                          :: pv_glob
@@ -1071,14 +1113,15 @@ CONTAINS
                 CALL get_neighbor_list(neighbor_list=sab_lrc_neighbor_list,atom=iatom, nnode=nnode)
                 sab_lrc_neighbor_node => first_node(sab_lrc_neighbor_list)
  
-                CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                CALL dbcsr_get_block_node(matrix=diagmat_p(1)%matrix,&
+                !CALL get_block_node(matrix=diagmat_p(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=pa_block_a)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
                 check = (SIZE(pa_block_a,1)==natorb_a).AND.(SIZE(pa_block_a,2)==natorb_a)
                 CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                CALL dbcsr_get_block_node(matrix=diagmat_ks(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=ksa_block_a)
@@ -1086,14 +1129,14 @@ CONTAINS
                 p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
                 pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
                 IF ( nspins == 2 ) THEN
-                   CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=diagmat_p(2)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=pa_block_b)
                    CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
                    check = (SIZE(pa_block_b,1)==natorb_a).AND.(SIZE(pa_block_b,2)==natorb_a)
                    CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                   CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=diagmat_ks(2)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=ksa_block_b)
@@ -1103,7 +1146,7 @@ CONTAINS
                 END IF
 
                 IF (scp_nddo) THEN
-                   CALL get_block_node(matrix=pscp,&
+                   CALL dbcsr_get_block_node(matrix=pscp,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=pscpa_block)
@@ -1140,14 +1183,14 @@ CONTAINS
                            ptens32=ptens32, ptens33=ptens33, error=error)
                       
                       ! Retrieve blocks for KS and P
-                      CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=diagmat_p(1)%matrix,&
                                           block_row=jatom,&
                                           block_col=jatom,&
                                           BLOCK=pb_block_a)
                       CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
                       check = (SIZE(pb_block_a,1)==natorb_b).AND.(SIZE(pb_block_a,2)==natorb_b)
                       CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                      CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=diagmat_ks(1)%matrix,&
                                           block_row=jatom,&
                                           block_col=jatom,&
                                           BLOCK=ksb_block_a)
@@ -1156,14 +1199,14 @@ CONTAINS
                       pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
                       ! Handle more than one configuration
                       IF ( nspins == 2 ) THEN
-                         CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                         CALL dbcsr_get_block_node(matrix=diagmat_p(2)%matrix,&
                                              block_row=jatom,&
                                              block_col=jatom,&
                                              BLOCK=pb_block_b)
                          CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_b,1)==natorb_b).AND.(SIZE(pb_block_b,2)==natorb_b)
                          CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                         CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                         CALL dbcsr_get_block_node(matrix=diagmat_ks(2)%matrix,&
                                              block_row=jatom,&
                                              block_col=jatom,&
                                              BLOCK=ksb_block_b)
@@ -1176,7 +1219,7 @@ CONTAINS
 
                       ! SCP
                       IF ( scp_nddo ) THEN
-                         CALL get_block_node(matrix=pscp,&
+                         CALL dbcsr_get_block_node(matrix=pscp,&
                                              block_row=jatom,&
                                              block_col=jatom,&
                                              BLOCK=pscpb_block)
@@ -1324,9 +1367,9 @@ CONTAINS
        ! SCP
        IF ( scp_nddo ) THEN
           ! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
-          CALL transfer_matrix ( diagmat_ks(1)%matrix, ks_scp, error )
+          CALL dbcsr_copy ( ks_scp, diagmat_ks(1)%matrix, 'ks_scp', error )
           ! sum over all procs to get the replicated ks_scp
-          CALL mpsum_dbm ( ks_scp, para_env, error )
+          CALL dbcsr_sum_replicated( ks_scp )
        ENDIF 
 
        IF (calculate_forces) THEN 
@@ -1368,7 +1411,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lr_r3(qs_env,ks_matrix,matrix_p,energy,calculate_forces,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
@@ -1396,8 +1439,11 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: se_nonbond_env
@@ -1410,8 +1456,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
@@ -1419,6 +1463,9 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
+
+    CALL get_qs_env(qs_env=qs_env, distribution_2d=distribution_2d, error=error)!sm->dbcsr
+
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force, particle_set, diagmat_ks, &
             diagmat_p, local_particles, se_control, ewald_env, ewald_pw, &
@@ -1451,16 +1498,18 @@ CONTAINS
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
-       CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
-       CALL allocate_matrix_set(diagmat_p,nspins,error=error)
+       CALL dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
+       CALL dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
        
        nkind = SIZE(atomic_kind_set)
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
-          CALL create_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,&
-                                  "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
-          CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
-                                  "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
+          ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
+          CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
+          CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
+          CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
+          CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
        END DO
 
        ! Possibly compute forces
@@ -1502,14 +1551,14 @@ CONTAINS
                 CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,atom=iatom, nnode=nnode)
                 sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
  
-                CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                CALL dbcsr_get_block_node(matrix=diagmat_p(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=pa_block_a)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
                 check = (SIZE(pa_block_a,1)==natorb_a).AND.(SIZE(pa_block_a,2)==natorb_a)
                 CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                CALL dbcsr_get_block_node(matrix=diagmat_ks(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=ksa_block_a)
@@ -1517,14 +1566,14 @@ CONTAINS
                 p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
                 pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
                 IF ( nspins == 2 ) THEN
-                   CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=diagmat_p(2)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=pa_block_b)
                    CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
                    check = (SIZE(pa_block_b,1)==natorb_a).AND.(SIZE(pa_block_b,2)==natorb_a)
                    CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                   CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                   CALL dbcsr_get_block_node(matrix=diagmat_ks(2)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=ksa_block_b)
@@ -1544,14 +1593,14 @@ CONTAINS
                          switch = .TRUE.
                       END IF
                       ! Retrieve blocks for KS and P
-                      CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=diagmat_p(1)%matrix,&
                                           block_row=jatom,&
                                           block_col=jatom,&
                                           BLOCK=pb_block_a)
                       CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
                       check = (SIZE(pb_block_a,1)==natorb_b).AND.(SIZE(pb_block_a,2)==natorb_b)
                       CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                      CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                      CALL dbcsr_get_block_node(matrix=diagmat_ks(1)%matrix,&
                                           block_row=jatom,&
                                           block_col=jatom,&
                                           BLOCK=ksb_block_a)
@@ -1560,14 +1609,14 @@ CONTAINS
                       pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
                       ! Handle more than one configuration
                       IF ( nspins == 2 ) THEN
-                         CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                         CALL dbcsr_get_block_node(matrix=diagmat_p(2)%matrix,&
                                              block_row=jatom,&
                                              block_col=jatom,&
                                              BLOCK=pb_block_b)
                          CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_b,1)==natorb_b).AND.(SIZE(pb_block_b,2)==natorb_b)
                          CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                         CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                         CALL dbcsr_get_block_node(matrix=diagmat_ks(2)%matrix,&
                                              block_row=jatom,&
                                              block_col=jatom,&
                                              BLOCK=ksb_block_b)
@@ -1681,15 +1730,15 @@ CONTAINS
           END DO ! jkind
        END DO ! ikind
        
+
        DO ispin = 1, nspins
-          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,.FALSE.,error=error)
-          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
+          CALL dbcsr_sum_replicated( diagmat_ks(ispin)%matrix )
+          CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+          CALL dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,error=error)
        END DO
-       DEALLOCATE(diagmat_ks,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(diagmat_p,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+       CALL dbcsr_deallocate_matrix_set ( diagmat_p, error=error )
+       CALL dbcsr_deallocate_matrix_set ( diagmat_ks, error=error )
+
        IF (calculate_forces) THEN 
           DEALLOCATE(atom_of_kind,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1699,6 +1748,7 @@ CONTAINS
        CALL mp_sum(ecore2,para_env%group)       
        energy%hartree = energy%hartree + ecore2
     END IF
+
     CALL timestop(handle)
   END SUBROUTINE build_fock_matrix_coul_lr_r3
   

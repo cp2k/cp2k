@@ -124,3 +124,5 @@ water_fixd_excl_qm.inp
 water_g3x3_excl_mm.inp
 water_g3x3_excl_qm.inp
 Si_tersoff_qmmm.inp
+#substitution sm -> dbcsr
+Si_tersoff_qmmm.inp

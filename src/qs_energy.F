@@ -13,9 +13,13 @@ MODULE qs_energy
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_control_utils,                ONLY: read_becke_section,&
                                              read_ddapc_section
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
@@ -60,7 +64,8 @@ MODULE qs_energy
                                              scp_qs_dispersion
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
@@ -131,10 +136,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nder
+    INTEGER                                  :: handle, i, nder
     LOGICAL                                  :: do_et, my_calc_forces
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_aux_fit_b, &
+                                                matrix_s_aux_fit_vs_orb_b
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
@@ -148,7 +157,7 @@ CONTAINS
     para_env=>qs_env%para_env
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
-                    error=error)
+                    distribution_2d=distribution_2d, error=error)
     
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
     qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
@@ -180,20 +189,34 @@ CONTAINS
            nder = 0
          END IF
          CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, error=error)
-         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s_sm=matrix_s_aux_fit,&
+         NULLIFY(matrix_s_aux_fit_b)!sm->dbcsr
+         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit_b,&
                                    matrix_name="AUX_FIT_OVERLAP",&
                                    basis_set_id_a=use_aux_fit_basis_set,&
                                    basis_set_id_b=use_aux_fit_basis_set, &
                                    neighbor_list_sab=qs_env%sab_aux_fit,&
                                    error=error)
+        CALL allocate_matrix_set(matrix_s_aux_fit,SIZE(matrix_s_aux_fit_b),error)!sm->dbcsr
+         DO i=1,SIZE(matrix_s_aux_fit_b)!sm->dbcsr
+            CALL sm_from_dbcsr( matrix_s_aux_fit(i)%matrix, matrix_s_aux_fit_b(i)%matrix, &
+                 distribution_2d, error=error )!sm->dbcsr
+         ENDDO!sm->dbcsr
+         CALL dbcsr_deallocate_matrix_set( matrix_s_aux_fit_b, error=error )!sm->dbcsr
          CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
          CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, error=error)
-         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s_sm=matrix_s_aux_fit_vs_orb,&
+         NULLIFY(matrix_s_aux_fit_vs_orb_b)!sm->dbcsr
+         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit_vs_orb_b,&
                                    matrix_name="MIXED_OVERLAP",&
                                    basis_set_id_a=use_aux_fit_basis_set,&
                                    basis_set_id_b=use_orb_basis_set, &
                                    neighbor_list_sab=qs_env%sab_aux_fit_vs_orb,&
                                    error=error)
+        CALL allocate_matrix_set(matrix_s_aux_fit_vs_orb,SIZE(matrix_s_aux_fit_vs_orb_b),error)!sm->dbcsr
+         DO i=1,SIZE(matrix_s_aux_fit_vs_orb_b)!sm->dbcsr
+            CALL sm_from_dbcsr( matrix_s_aux_fit_vs_orb(i)%matrix, matrix_s_aux_fit_vs_orb_b(i)%matrix, &
+                 distribution_2d, error=error )!sm->dbcsr
+         ENDDO!sm->dbcsr
+         CALL dbcsr_deallocate_matrix_set( matrix_s_aux_fit_vs_orb_b, error=error )!sm->dbcsr
          CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,error=error)
        END IF
 

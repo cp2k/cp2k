@@ -249,3 +249,9 @@ zn_1w_debug.inp
 
 # bug fixes
 H2O-32.inp
+# substitution sm -> dbcsr
+hcl_ot.inp
+# substitution sm -> dbcsr
+ZrF2-PM6.inp
+# substitution sm -> dbcsr
+zn_1w_debug.inp

@@ -491,11 +491,13 @@ END SUBROUTINE cp_sm_scale_and_add
          ! we allow for putting a block at i,j even if we officially only own j,i
          IF ( .NOT. ((rbr.EQ.myprow .AND. cbc.EQ.mypcol) .OR. &
                      (rbc.EQ.myprow .AND. cbr.EQ.mypcol))       ) THEN
-            CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
+            !vw turn off warnings (sm->dbcsr)
+            !vwCPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
          ENDIF
        CASE DEFAULT
          IF ( .NOT. ( rbr.EQ.myprow .AND. cbc.EQ.mypcol) ) THEN
-            CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
+            !vw turn off warnings (sm->dbcsr)
+            !vwCPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
          ENDIF
        END SELECT
     ENDIF
@@ -2652,7 +2654,9 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
                          last_col=sm%last_col,&
                          matrix_name=matrix_name,&
                          matrix_symmetry="symmetric",&
-                         sparsity_id=1111,error=error)
+                         sparsity_id=1111,&
+                         distribution_2d=sm%distribution_2d,&!dirty fix!
+                         error=error)
 
     DO iblock_row = 1, sm%nblock_row
        CALL add_block_node(matrix=dbm,&
