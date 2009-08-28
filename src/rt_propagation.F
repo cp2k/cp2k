@@ -343,7 +343,7 @@ CONTAINS
 
        qs_env%sim_time=REAL(i_step,dp)*rtp%dt
        qs_env%sim_step=i_step
-       rtp%istep=i_step
+       rtp%istep=i_step-rtp%i_start
        CALL calculate_ecore_efield(qs_env,.FALSE.,error)
        CALL cp_iterate(logger%iter_info,last=(i_step==max_steps),iter_nr=i_step,error=error)
        rtp%converged=.FALSE.
@@ -375,7 +375,7 @@ CONTAINS
           time_iter_stop=m_walltime()
           used_time= time_iter_stop - time_iter_start
           time_iter_start=time_iter_stop
-          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter,used_time,error=error)
+          CALL rt_prop_output(qs_env,real_time_propagation,delta_iter=delta_iter,used_time=used_time,error=error)
           CALL rt_write_input_restart(force_env,rtp,error)
           IF (should_stop)EXIT
        ELSE

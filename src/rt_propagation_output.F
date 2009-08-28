@@ -62,7 +62,7 @@ CONTAINS
   SUBROUTINE rt_prop_output(qs_env,run_type,delta_iter,used_time,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER                                  :: run_type
-    REAL(dp)                                 :: delta_iter
+    REAL(dp), OPTIONAL                       :: delta_iter
     REAL(dp), OPTIONAL                       :: used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -122,7 +122,7 @@ CONTAINS
        IF(run_type==real_time_propagation)&
             WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.10))")&
             "Energy difference to initial state:",rtp%energy_new-rtp%energy_old
-
+       IF(PRESENT(delta_iter))&
        WRITE (UNIT=output_unit,FMT="((T3,A,T61,E20.6))")&
             "Convergence:",delta_iter
        IF(rtp%converged)THEN

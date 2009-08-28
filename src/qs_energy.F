@@ -350,7 +350,7 @@ CONTAINS
           IF(rtp%history%mos_or_H==1)&
                CALL  put_data_to_history(qs_env,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
        END IF
-       CALL rt_prop_output(qs_env,ehrenfest,delta_iter,error=error)
+       CALL rt_prop_output(qs_env,ehrenfest,delta_iter=delta_iter,error=error)
        rtp%energy_old=rtp%energy_new       
     END IF
     CALL timestop(handle)

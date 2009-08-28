@@ -379,7 +379,7 @@ CONTAINS
     eps_arnoldi=qs_env%dft_control%rtp_control%eps_exp
     SELECT CASE(qs_env%dft_control%rtp_control%propagator)
     CASE(do_etrs)
-       IF(rtp%iter==1.AND.qs_env%sim_step==1)THEN
+       IF(rtp%iter==1.AND.rtp%istep==1)THEN
           dt=-t/2.0_dp
           DO ispin=1,nspin
              
@@ -404,7 +404,7 @@ CONTAINS
              CALL cp_fm_to_fm(mos_next(i)%matrix,mos_new(i)%matrix,error)
 
           END DO
-       ELSE !IF(rtp%iter==1.AND.qs_env%sim_step.GT.1)THEN
+       ELSE 
           IF(rtp%iter==1)THEN
              DO i=1,SIZE(mos_new)
                 CALL cp_fm_to_fm(mos_next(i)%matrix,mos_old(i)%matrix,error)

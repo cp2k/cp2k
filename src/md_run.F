@@ -40,7 +40,7 @@ MODULE md_run
   USE input_constants,                 ONLY: &
        ehrenfest, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, reftraj_ensemble
+       npt_i_ensemble, reftraj_ensemble, ehrenfest
   USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -74,7 +74,9 @@ MODULE md_run
   USE reftraj_util,                    ONLY: initialize_reftraj,&
                                              write_output_reftraj
   USE rt_propagation,                  ONLY: init_ehrenfest_md,&
-                                             rt_prop_setup
+                                             rt_prop_setup,&
+                                             rt_write_input_restart
+  USE rt_propagation_output,           ONLY: rt_prop_output
   USE simpar_methods,                  ONLY: read_md_section
   USE simpar_types,                    ONLY: create_simpar_type,&
                                              release_simpar_type,&
@@ -443,6 +445,10 @@ CONTAINS
        IF (should_stop) THEN
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
           CALL md_output(md_env,md_section,force_env%root_section,should_stop,error=error)
+          IF(ehrenfest_md)THEN
+             CALL rt_prop_output(force_env%qs_env,ehrenfest,error=error)
+             CALL rt_write_input_restart(force_env,force_env%qs_env%rtp,error)
+          END IF
           EXIT
        END IF
        
