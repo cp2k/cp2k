@@ -62,8 +62,7 @@ CONTAINS
   SUBROUTINE rt_prop_output(qs_env,run_type,delta_iter,used_time,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER                                  :: run_type
-    REAL(dp), OPTIONAL                       :: delta_iter
-    REAL(dp), OPTIONAL                       :: used_time
+    REAL(dp), OPTIONAL                       :: delta_iter, used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_electrons, output_unit

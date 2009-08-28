@@ -651,3 +651,5 @@ H2O-meta_hydro.inp
 #syevd
 NO2-EFG-1.inp
 H2O-meta_hydro.inp
+#
+spin_restraint.inp
