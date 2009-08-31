@@ -491,7 +491,7 @@ MODULE hfx_types
         !! MEMORY section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"MEMORY",i_rep_section=irep, error=error)
         CALL parse_memory_section(actual_x_data%memory_parameter, hf_sub_section, storage_id, i_thread,&
-             n_threads, para_env, irep, skip_disk=.FALSE., error=error)
+             n_threads, para_env, irep, skip_disk=.FALSE., skip_in_core_forces=.FALSE., error=error)
 
         !! PERIODIC section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"PERIODIC", i_rep_section=irep, error=error)
@@ -933,14 +933,14 @@ MODULE hfx_types
 !> \brief - Parses the memory section
 ! *****************************************************************************
   SUBROUTINE parse_memory_section(memory_parameter, hf_sub_section, storage_id,&
-       i_thread, n_threads, para_env, irep, skip_disk, error)
+       i_thread, n_threads, para_env, irep, skip_disk, skip_in_core_forces, error)
     TYPE(hfx_memory_type)                    :: memory_parameter
     TYPE(section_vals_type), POINTER         :: hf_sub_section
     INTEGER, INTENT(OUT), OPTIONAL           :: storage_id
     INTEGER, INTENT(IN), OPTIONAL            :: i_thread, n_threads
     TYPE(cp_para_env_type), OPTIONAL         :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: irep
-    LOGICAL, INTENT(IN)                      :: skip_disk
+    LOGICAL, INTENT(IN)                      :: skip_disk, skip_in_core_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parse_memory_section', &
@@ -973,8 +973,10 @@ MODULE hfx_types
     memory_parameter%cache_size = CACHE_SIZE
     memory_parameter%bits_max_val = BITS_MAX_VAL
     memory_parameter%actual_memory_usage = 1
-    CALL section_vals_val_get(hf_sub_section, "TREAT_FORCES_IN_CORE", l_val=logic_val, error=error)
-    memory_parameter%treat_forces_in_core = logic_val
+    IF( .NOT. skip_in_core_forces) THEN
+      CALL section_vals_val_get(hf_sub_section, "TREAT_FORCES_IN_CORE", l_val=logic_val, error=error)
+      memory_parameter%treat_forces_in_core = logic_val
+    END IF
 
     ! ** IF MAX_MEM == 0 overwrite this flag to false
     IF( memory_parameter%do_all_on_the_fly ) memory_parameter%treat_forces_in_core = .FALSE.
