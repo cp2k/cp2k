@@ -266,7 +266,7 @@ MODULE hfx_libint_interface
                                 ncoa,ncob,ncoc,ncod,&
                                 nsgfa, nsgfb, nsgfc, nsgfd,&
                                 primitives, max_contraction, tmp_max_all, &
-                                eps_schwarz,  &
+                                eps_schwarz, neris, &
                                 Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv,EtaInv, &
                                 s_offset_a, s_offset_b, s_offset_c, s_offset_d,&
                                 nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod,&
@@ -284,6 +284,7 @@ MODULE hfx_libint_interface
       nsgfd, 12)                             :: primitives
     REAL(dp)                                 :: max_contraction, tmp_max_all, &
                                                 eps_schwarz
+    INTEGER(int_8)                           :: neris
     REAL(dp), INTENT(IN)                     :: Zeta_A, Zeta_B, Zeta_C, &
                                                 Zeta_D, ZetaInv, EtaInv
     INTEGER                                  :: s_offset_a, s_offset_b, &
@@ -362,6 +363,7 @@ MODULE hfx_libint_interface
               work(j,k) = work(j,k) + work_forces(j,k)
             END DO
           END DO
+          neris = neris + 12 * mysize
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -421,6 +423,7 @@ MODULE hfx_libint_interface
               work(j,k) = work(j,k) + work_forces(j,k)
             END DO
           END DO
+          neris = neris + 12 * mysize
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -480,6 +483,7 @@ MODULE hfx_libint_interface
               work(j,k) = work(j,k) + work_forces(j,k)
             END DO
           END DO
+          neris = neris + 12 * mysize
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -539,6 +543,7 @@ MODULE hfx_libint_interface
               work(j,k) = work(j,k) + work_forces(j,k)
             END DO
           END DO
+          neris = neris + 12 * mysize
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -598,6 +603,7 @@ MODULE hfx_libint_interface
               work(j,k) = work(j,k) + work_forces(j,k)
             END DO
           END DO
+          neris = neris + 12 * mysize
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -657,6 +663,7 @@ MODULE hfx_libint_interface
               work(j,k) = work(j,k) + work_forces(j,k)
             END DO
           END DO
+          neris = neris + 12 * mysize
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -716,6 +723,7 @@ MODULE hfx_libint_interface
               work(j,k) = work(j,k) + work_forces(j,k)
             END DO
           END DO
+          neris = neris + 12 * mysize
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -775,6 +783,7 @@ MODULE hfx_libint_interface
               work(j,k) = work(j,k) + work_forces(j,k)
             END DO
           END DO
+          neris = neris + 12 * mysize
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
