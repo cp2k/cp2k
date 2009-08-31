@@ -12,3 +12,5 @@ H2O_pw.inp           22
 4H2O-mix-disk-ram-on-the-fly.inp 1
 H2O-geminal-1.inp     1
 He-ri.inp             1
+H2O-hfx-emd.inp       2
+H2O-hfx-emd-restart.inp  2 
