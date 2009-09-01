@@ -2295,7 +2295,7 @@ CONTAINS
                                                 metalen = 2
 
     INTEGER :: absrow, blk, block_col, mypcol, myprow, nblkcols_local, &
-      nblkcols_total, nblkrows_local, nblkrows_total, nblks, nfullcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, nfullcols_local, &
       nfullcols_total, nfullrows_local, nfullrows_total, npcols, nprows, nze, &
       row_l, stat, timing_handle
     INTEGER, DIMENSION(:), POINTER :: blkcols_local, blkrows_local, &
@@ -2384,7 +2384,7 @@ CONTAINS
     matrix%m%dist2d => dist2d
     ! Count
     nze = 0
-    nblks = 0
+    blk = 0
     DO absrow = 1, nblkrows_total
        sm_block_node => first_block_node(sm, absrow)
        DO WHILE (ASSOCIATED(sm_block_node))
@@ -2393,7 +2393,7 @@ CONTAINS
           ! Only add data if the block is associated
           IF (ASSOCIATED (blkdata_2d)) THEN
              nze = nze + SIZE(blkdata_2d)
-             nblks = nblks + 1
+             blk = blk + 1
           ENDIF
           sm_block_node => next_block_node(sm_block_node)
        END DO
@@ -2419,6 +2419,8 @@ CONTAINS
     !
     CALL dbcsr_finalize (matrix)
     CALL dbcsr_distribution_release (dist)
+    CALL array_release (rbs_array)
+    CALL array_release (cbs_array)
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_from_sm
 
