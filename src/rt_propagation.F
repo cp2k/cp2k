@@ -573,7 +573,7 @@ CONTAINS
     root_section => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
     rt_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error=error)
-    CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=force_env%qs_env%sim_step,error=error) 
+    CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=rtp%istep,error=error) 
     CALL section_vals_val_set(rt_section,"INITIAL_WFN",i_val=use_rt_restart,error=error) 
 
     CALL write_restart(root_section=root_section,error=error)
