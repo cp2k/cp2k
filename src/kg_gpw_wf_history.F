@@ -294,7 +294,7 @@ CONTAINS
                mos = mos_l)
   
           ! Copy the right block of ov_b into the temporary space
-          CALL copy_sparse2mol_block(matrix=ov_b, mol_block=mol_block_b,&
+          CALL copy_sparse2mol_block(matrix_sm=ov_b, mol_block=mol_block_b,&
                matrix_mol_block=ov_b_mol, natom=natom, nrow=n_ao, ncol=n_ao, error=error)
 
           DO ispin=1,nspins

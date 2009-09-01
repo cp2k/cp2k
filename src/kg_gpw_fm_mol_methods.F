@@ -22,6 +22,12 @@
 MODULE kg_gpw_fm_mol_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             sm_from_dbcsr
+  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_util,                      ONLY: dbcsr_init
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kg_gpw_fm_mol_types,             ONLY: &
        allocate_fm_mol_blocks, allocate_mol_mo_set, fm_mol_blocks_type, &
@@ -36,13 +42,13 @@ MODULE kg_gpw_fm_mol_methods
                                              dp_size,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE qs_mo_types,                     ONLY: set_mo_occupation_old
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -247,12 +253,12 @@ CONTAINS
   END SUBROUTINE build_local_fm_mol
 
 ! *****************************************************************************
-  SUBROUTINE calculate_mol_density_matrix(mo_set,mol_block,natom,p_ispin,error)
+  SUBROUTINE calculate_mol_density_matrix(mo_set,mol_block,natom,p_ispin_sm,error)
 
     TYPE(mol_mo_set_type), POINTER           :: mo_set
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     INTEGER                                  :: natom
-    TYPE(real_matrix_type), POINTER          :: p_ispin
+    TYPE(real_matrix_type), POINTER          :: p_ispin_sm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mol_density_matrix', &
@@ -267,6 +273,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: fmo_coeff, mo_coeff, mol_p, &
                                                 p_block
+    TYPE(dbcsr_obj), POINTER                 :: p_ispin
 
     CALL timeset(routineN,handle)
 
@@ -274,6 +281,10 @@ CONTAINS
     smear = .FALSE.
 
     NULLIFY(i_atom,ifirst_ao,ilast_ao,mol_p)
+
+    ALLOCATE(p_ispin)!sm->dbcsr
+    CALL dbcsr_init(p_ispin, error)
+    CALL dbcsr_from_sm(p_ispin, p_ispin_sm, error)!sm->dbcsr
 
     CALL get_fm_mol_block(fm_mol_block = mol_block,&
                           index_atom = i_atom,&
@@ -332,7 +343,7 @@ CONTAINS
 
         NULLIFY(p_block)
         IF (iatom <= jatom) THEN
-          CALL get_block_node(matrix=p_ispin,&
+          CALL dbcsr_get_block_node(matrix=p_ispin,&
                               block_row=iatom,&
                               block_col=jatom,&
                               BLOCK=p_block)
@@ -346,7 +357,7 @@ CONTAINS
             icol = icol + 1
           END DO   ! icol_mol_p
         ELSE
-          CALL get_block_node(matrix=p_ispin,&
+          CALL dbcsr_get_block_node(matrix=p_ispin,&
                               block_row=jatom,&
                               block_col=iatom,&
                               BLOCK=p_block)
@@ -362,6 +373,9 @@ CONTAINS
         END IF
       END DO  ! jat
     END DO  ! iat
+
+    CALL sm_from_dbcsr ( p_ispin_sm, p_ispin, p_ispin%m%dist2d, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix ( p_ispin, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -789,10 +803,10 @@ CONTAINS
   END SUBROUTINE mol_make_basis
 
 ! *****************************************************************************
-  SUBROUTINE multiply_sparse_mol_mo(matrix,mol_block,natom,vectors,&
+  SUBROUTINE multiply_sparse_mol_mo(matrix_sm,mol_block,natom,vectors,&
                                     nmo,mat_x_vec,error)
 
-    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(real_matrix_type), POINTER          :: matrix_sm
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     INTEGER, INTENT(IN)                      :: natom
     REAL(dp), DIMENSION(:, :), POINTER       :: vectors
@@ -808,10 +822,15 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: mol_s, s_block
+    TYPE(dbcsr_obj), POINTER                 :: matrix
 
     failure = .FALSE.
 
     NULLIFY(i_atom,ifirst_ao,ilast_ao,mol_s)
+
+    ALLOCATE(matrix)!sm->dbcsr
+    CALL dbcsr_from_sm(matrix, matrix_sm, error)!sm->dbcsr
+
 
     CALL get_fm_mol_block(fm_mol_block = mol_block,&
                           index_atom = i_atom,&
@@ -841,7 +860,7 @@ CONTAINS
 
         NULLIFY(s_block)
         IF (iatom <= jatom) THEN
-          CALL get_block_node(matrix=matrix,&
+          CALL dbcsr_get_block_node(matrix=matrix,&
                               block_row=iatom,&
                               block_col=jatom,&
                               BLOCK=s_block)
@@ -855,7 +874,7 @@ CONTAINS
             icol = icol + 1
           END DO   ! icol_mol_s
         ELSE
-          CALL get_block_node(matrix=matrix,&
+          CALL dbcsr_get_block_node(matrix=matrix,&
                               block_row=jatom,&
                               block_col=iatom,&
                               BLOCK=s_block)
@@ -874,6 +893,8 @@ CONTAINS
 
     CALL DGEMM('N','N',nrow,nmo,nrow,1.0_dp,mol_s,nrow,vectors,ldb,&
                 0.0_dp,mat_x_vec,ldc)
+
+    CALL dbcsr_deallocate_matrix ( matrix, error=error )!sm->dbcsr
 
   END SUBROUTINE multiply_sparse_mol_mo
 

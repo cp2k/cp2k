@@ -352,16 +352,16 @@ CONTAINS
                  ! Initialize the forces
                  forces_mol(1:3,1:nat_mol) = 0.0_dp
                  CALL integrate_mol_potential(qs_env=qs_env,vxc_mol=vxc_rho(ispin),&
-                                             matrix_p=p_global(ispin),&
-                                             matrix_h=ks_global(ispin),&
+                                             matrix_p_sm=p_global(ispin),&
+                                             matrix_h_sm=ks_global(ispin),&
                                              pw_env=pw_env_mol,&
                                              atom=i_atom, kind=i_kind, ratom=r_mbox,&
                                              forces_mol=forces_mol,&
                                              error=error)
                ELSE
                  CALL integrate_mol_potential(qs_env=qs_env,vxc_mol=vxc_rho(ispin),&
-                                             matrix_p=p_global(ispin),&
-                                             matrix_h=ks_global(ispin),&
+                                             matrix_p_sm=p_global(ispin),&
+                                             matrix_h_sm=ks_global(ispin),&
                                              pw_env=pw_env_mol,&
                                              atom=i_atom, kind=i_kind, ratom=r_mbox,&
                                              error=error)
@@ -380,16 +380,16 @@ CONTAINS
 
                  IF(my_calculate_forces) THEN
                    CALL integrate_mol_potential(qs_env=qs_env,vxc_mol=vxc_tau(ispin),&
-                                               matrix_p=p_global(ispin),&
-                                               matrix_h=ks_global(ispin),&
+                                               matrix_p_sm=p_global(ispin),&
+                                               matrix_h_sm=ks_global(ispin),&
                                                pw_env=pw_env_mol,&
                                                atom=i_atom, kind=i_kind, ratom=r_mbox,&
                                                forces_mol=forces_mol,&
                                                compute_tau=.TRUE.,error=error)
                  ELSE
                    CALL integrate_mol_potential(qs_env=qs_env,vxc_mol=vxc_rho(ispin),&
-                                               matrix_p=p_global(ispin),&
-                                               matrix_h=ks_global(ispin),&
+                                               matrix_p_sm=p_global(ispin),&
+                                               matrix_h_sm=ks_global(ispin),&
                                                pw_env=pw_env_mol,&
                                                atom=i_atom, kind=i_kind, ratom=r_mbox,&
                                                compute_tau=.TRUE.,error=error)

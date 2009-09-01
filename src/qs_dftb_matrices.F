@@ -13,8 +13,14 @@ MODULE qs_dftb_matrices
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
                                              is_hydrogen
+  USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
+  USE cp_dbcsr_operations,             ONLY: &
+       dbcsr_add_block_node, dbcsr_allocate_matrix, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
+       dbcsr_get_block_node, dbcsr_obj_p_type, dbcsr_replicate_matrix_struct, &
+       dbcsr_write_sparse_matrix, sm_from_dbcsr
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_type
@@ -24,6 +30,8 @@ MODULE qs_dftb_matrices
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_operations,                ONLY: dbcsr_add
+  USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -50,12 +58,8 @@ MODULE qs_dftb_matrices
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix,&
                                              allocate_matrix_set,&
-                                             cp_sm_scale_and_add,&
-                                             get_block_node,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              transfer_matrix
@@ -118,13 +122,17 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(20)             :: skabij, skabji
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_rr, force_w, &
                                                 rij, srep
-    REAL(KIND=dp), DIMENSION(:, :), POINTER :: dfblock, dgblock, dsblock, &
-      dsblock_i, fblock, fmatij, fmatji, gblock, pblock, sblock, scoeff, &
-      smatij, smatji, spxr, wblock
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: dfblock, dsblock, fblock, &
+      fmatij, fmatji, gblock, pblock, sblock, scoeff, smatij, smatji, spxr, &
+      wblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), DIMENSION(2:4)       :: dgblocks, dsblocks
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: gamma_matrix, matrix_h, &
+                                                matrix_p, matrix_s, matrix_w
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -144,8 +152,9 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: gamma_matrix, matrix_h, &
-                                                matrix_p, matrix_s, matrix_w
+      POINTER                                :: gamma_matrix_sm, matrix_h_sm, &
+                                                matrix_p_sm, matrix_s_sm, &
+                                                matrix_w_sm
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -172,13 +181,27 @@ CONTAINS
     ! Allocate the overlap and Hamiltonian matrix
     CALL setup_matrices(qs_env,calculate_forces,error)
 
-    NULLIFY (matrix_h,matrix_s,matrix_p,atomic_kind_set,sab_orb)
+    NULLIFY (matrix_h_sm,matrix_s_sm,matrix_p_sm,matrix_p,matrix_w,gamma_matrix,atomic_kind_set,sab_orb)
 
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
-                    matrix_h=matrix_h,matrix_s=matrix_s,&
+                    matrix_h=matrix_h_sm,matrix_s=matrix_s_sm,&
                     dft_control=dft_control,error=error)
+
+    NULLIFY(matrix_s)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
+    DO i=1,SIZE(matrix_s)!sm->dbcsr
+       ALLOCATE(matrix_s(i)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_s(i)%matrix, matrix_s_sm(i)%matrix, error)!sm->dbcsr
+    END DO!sm->dbcsr
+
+    NULLIFY(matrix_h)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( matrix_h, SIZE(matrix_h_sm), error )!sm->dbcsr
+    DO i=1,SIZE(matrix_h)!sm->dbcsr
+       ALLOCATE(matrix_h(i)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_h(i)%matrix, matrix_h_sm(i)%matrix, error)!sm->dbcsr
+    END DO!sm->dbcsr
 
     dftb_control => dft_control%qs_control%dftb_control
 
@@ -193,10 +216,7 @@ CONTAINS
       ELSE
         nmat=1
       END IF
-      NULLIFY(gamma_matrix)
-      CALL get_qs_env(qs_env=qs_env,&
-                      gamma_matrix=gamma_matrix,error=error)
-      CALL allocate_matrix_set(gamma_matrix,nmat,error=error)
+      NULLIFY(gamma_matrix_sm)
       NULLIFY(distribution_2d)
       CALL get_qs_env(qs_env=qs_env,&
           particle_set=particle_set,&
@@ -211,7 +231,11 @@ CONTAINS
         felem(iatom) = iatom
         lelem(iatom) = iatom
       ENDDO
-      CALL allocate_matrix(matrix=gamma_matrix(1)%matrix,&
+      CALL get_qs_env(qs_env=qs_env,&
+                      gamma_matrix=gamma_matrix_sm,error=error)
+      NULLIFY(gamma_matrix)
+      CALL dbcsr_allocate_matrix_set(gamma_matrix,nmat,error=error)
+      CALL dbcsr_allocate_matrix(matrix=gamma_matrix(1)%matrix,&
                 nblock_row=natom,nblock_col=natom,&
                 nrow=nrow,ncol=ncol,&
                 first_row=felem,last_row=lelem,&
@@ -221,12 +245,11 @@ CONTAINS
                 sparsity_id=neighbor_list_id, &
                 distribution_2d=distribution_2d,error=error)
       DO i=2,nmat
-        CALL replicate_matrix_structure(source=gamma_matrix(1)%matrix,&
+         CALL dbcsr_replicate_matrix_struct(source=gamma_matrix(1)%matrix,&
                                     TARGET=gamma_matrix(i)%matrix,&
                                     target_name="DERIVATIVE GAMMA MATRIX",&
                                     target_symmetry="antisymmetric",error=error)
       END DO
-      CALL set_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,error=error)
       DEALLOCATE (felem,lelem,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -235,15 +258,27 @@ CONTAINS
       NULLIFY (rho,force,particle_set,matrix_w)
       CALL get_qs_env(qs_env=qs_env,&
                       particle_set=particle_set,&
-                      rho=rho,matrix_w=matrix_w,&
+                      rho=rho,matrix_w=matrix_w_sm,&
                       virial=virial,&
                       force=force,error=error)
-      matrix_p => rho%rho_ao
+      matrix_p_sm => rho%rho_ao
+
+      NULLIFY(matrix_p)!sm->dbcsr
+      CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
+      DO i=1,SIZE(matrix_p)!sm->dbcsr
+         ALLOCATE(matrix_p(i)%matrix)!sm->dbcsr
+         CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_sm(i)%matrix, error)!sm->dbcsr
+      END DO!sm->dbcsr
+      NULLIFY(matrix_w)!sm->dbcsr
+      CALL dbcsr_allocate_matrix_set( matrix_w, SIZE(matrix_w_sm), error )!sm->dbcsr
+      DO i=1,SIZE(matrix_w)!sm->dbcsr
+         ALLOCATE(matrix_w(i)%matrix)!sm->dbcsr
+         CALL dbcsr_from_sm(matrix_w(i)%matrix, matrix_w_sm(i)%matrix, error)!sm->dbcsr
+      END DO!sm->dbcsr
+
       IF (SIZE(matrix_p) == 2) THEN
-         CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
-              matrix_p(2)%matrix,1.0_dp,error=error)
-         CALL cp_sm_scale_and_add(matrix_w(1)%matrix, 1.0_dp,&
-              matrix_w(2)%matrix,1.0_dp,error=error)
+         CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+         CALL dbcsr_add(matrix_w(1)%matrix,matrix_w(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
       END IF
       natom = SIZE (particle_set)
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -343,47 +378,47 @@ CONTAINS
                    icol = MAX(iatom,jatom)
                    irow = MIN(iatom,jatom)
                    NULLIFY (sblock)
-                   CALL add_block_node(matrix=matrix_s(1)%matrix,&
+                   CALL dbcsr_add_block_node(matrix=matrix_s(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=sblock,error=error)
                    NULLIFY (fblock)
-                   CALL add_block_node(matrix=matrix_h(1)%matrix,&
+                   CALL dbcsr_add_block_node(matrix=matrix_h(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=fblock,error=error)
                    IF ( dftb_control%self_consistent ) THEN
                      NULLIFY (gblock)
-                     CALL add_block_node(matrix=gamma_matrix(1)%matrix,&
+                     CALL dbcsr_add_block_node(matrix=gamma_matrix(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=gblock,error=error)
                    END IF
                    IF (calculate_forces) THEN
                      NULLIFY (pblock)
-                     CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                     CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
                                          block_row=irow,&
                                          block_col=icol,&
                                          block=pblock)
                      CPPrecondition(ASSOCIATED(pblock),cp_failure_level,routineP,error,failure)
                      NULLIFY (wblock)
-                     CALL get_block_node(matrix=matrix_w(1)%matrix,&
+                     CALL dbcsr_get_block_node(matrix=matrix_w(1)%matrix,&
                                          block_row=irow,&
                                          block_col=icol,&
                                          block=wblock)
                      CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,error,failure)
                      IF ( dftb_control%self_consistent ) THEN
                        DO i=2,4
-                         NULLIFY (dsblock)
-                         CALL add_block_node(matrix=matrix_s(i)%matrix,&
+                          NULLIFY(dsblocks(i)%block)
+                          CALL dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
+                                     block_row=irow,&
+                                     block_col=icol,&
+                                     BLOCK=dsblocks(i)%block,error=error)
+                         NULLIFY (dgblocks(i)%block)
+                         CALL dbcsr_add_block_node(matrix=gamma_matrix(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    BLOCK=dsblock,error=error)
-                         NULLIFY (dgblock)
-                         CALL add_block_node(matrix=gamma_matrix(i)%matrix,&
-                                    block_row=irow,&
-                                    block_col=icol,&
-                                    BLOCK=dgblock,error=error)
+                                    BLOCK=dgblocks(i)%block,error=error)
                        END DO
                      END IF
                    END IF
@@ -473,13 +508,8 @@ CONTAINS
                        force_ab(i) = force_ab(i) + foab
                        force_w(i) = force_w(i) + fow
                        IF ( dftb_control%self_consistent ) THEN
-                         NULLIFY (dsblock_i)
-                         CALL get_block_node(matrix=matrix_s(1+i)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         block=dsblock_i)
-                         CPPrecondition(ASSOCIATED(dsblock),cp_failure_level,routineP,error,failure)
-                         dsblock_i = dsblock_i + dsblock
+                          CPPrecondition(ASSOCIATED(dsblocks(i+1)%block),cp_failure_level,routineP,error,failure)
+                          dsblocks(i+1)%block = dsblocks(i+1)%block + dsblock
                        END IF
                      ENDDO
                      IF ( use_virial ) THEN
@@ -529,16 +559,11 @@ CONTAINS
                        drm = dr - ddr
                        dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb,hb_sr_damp)-gamma_rab_sr(drm,ga,gb,hb_sr_damp))/ddr
                        DO i=1,3
-                          NULLIFY (dgblock)
-                          CALL get_block_node(matrix=gamma_matrix(1+i)%matrix,&
-                                              block_row=irow,&
-                                              block_col=icol,&
-                                              BLOCK=dgblock)
-                          CPPrecondition(ASSOCIATED(dgblock),cp_failure_level,routineP,error,failure)
+                          CPPrecondition(ASSOCIATED(dgblocks(i+1)%block),cp_failure_level,routineP,error,failure)
                           IF ( irow == iatom ) THEN
-                             dgblock(1,1)= dgblock(1,1) + dgam*rij(i)/dr
+                             dgblocks(i+1)%block(1,1)= dgblocks(i+1)%block(1,1) + dgam*rij(i)/dr
                           ELSE
-                             dgblock(1,1)= dgblock(1,1) - dgam*rij(i)/dr
+                             dgblocks(i+1)%block(1,1)= dgblocks(i+1)%block(1,1) - dgam*rij(i)/dr
                           END IF
                        END DO
                     END IF
@@ -574,6 +599,18 @@ CONTAINS
 
      END DO ! ikind
 
+     IF ( dftb_control%self_consistent ) THEN
+        DO i=1,SIZE(gamma_matrix)
+           CALL dbcsr_finalize(gamma_matrix(i)%matrix,error=error)
+        ENDDO
+     ENDIF
+     DO i=1,SIZE(matrix_s)
+        CALL dbcsr_finalize(matrix_s(i)%matrix,error=error)
+     ENDDO
+     DO i=1,SIZE(matrix_h)
+        CALL dbcsr_finalize(matrix_h(i)%matrix,error=error)
+     ENDDO
+
      ! set repulsive energy
      CALL mp_sum(erep,para_env%group)
      energy%repulsive = erep
@@ -582,7 +619,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
+       CALL dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
              output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
@@ -592,7 +629,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,&
+       CALL dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,&
              output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
@@ -600,12 +637,32 @@ CONTAINS
 
      IF(calculate_forces) THEN
        IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_sm_scale_and_add(matrix_p(1)%matrix,1.0_dp,&
-               matrix_p(2)%matrix,-1.0_dp,error=error)
+          CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,&
+               beta_scalar=-1.0_dp,error=error)
        END IF
        DEALLOCATE(atom_of_kind,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      END IF
+
+    CALL get_qs_env(qs_env=qs_env,distribution_2d=distribution_2d,error=error)!sm->dbcsr
+    IF ( dftb_control%self_consistent ) THEN!sm->dbcsr
+       CALL allocate_matrix_set(qs_env%gamma_matrix,SIZE(gamma_matrix),error=error)!sm->dbcsr
+       DO i=1,SIZE(gamma_matrix)!sm->dbcsr
+          CALL sm_from_dbcsr ( qs_env%gamma_matrix(i)%matrix, gamma_matrix(i)%matrix, distribution_2d, error=error )!sm->dbcsr
+       ENDDO!sm->dbcsr
+    ENDIF!sm->dbcsr
+    DO i=1,SIZE(matrix_s)!sm->dbcsr
+       CALL sm_from_dbcsr ( qs_env%matrix_s(i)%matrix, matrix_s(i)%matrix, distribution_2d, error=error )!sm->dbcsr
+    ENDDO!sm->dbcsr
+    DO i=1,SIZE(matrix_h)!sm->dbcsr
+       CALL sm_from_dbcsr ( qs_env%matrix_h(i)%matrix, matrix_h(i)%matrix, distribution_2d, error=error )!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_p, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_w, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_h, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( gamma_matrix, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

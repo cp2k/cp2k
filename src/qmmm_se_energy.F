@@ -14,14 +14,20 @@ MODULE qmmm_se_energy
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
+                                             dbcsr_write_sparse_matrix,&
                                              sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
+  USE dbcsr_util,                      ONLY: dbcsr_init
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -54,12 +60,8 @@ MODULE qmmm_se_energy
                                              setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             get_block_node,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix
+                                             real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -104,7 +106,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_b
+      POINTER                                :: matrix_h, matrix_s_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
@@ -133,7 +135,7 @@ CONTAINS
     DO i=1,SIZE(matrix_s_b)!sm->dbcsr
        CALL sm_from_dbcsr( matrix_s(i)%matrix, matrix_s_b(i)%matrix, distribution_2d, error=error )!sm->dbcsr
     ENDDO!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_s_b, error=error )!sm->dbcsr
+
     CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
     CALL get_qs_env(qs_env=qs_env,&
                     se_taper=se_taper,&
@@ -157,10 +159,15 @@ CONTAINS
          max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
 
     ! Allocate the core Hamiltonian matrix
-    CALL allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)
-    CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                    TARGET=ks_qmmm_env_loc%matrix_h(1)%matrix,&
-                                    target_name="QMMM HAMILTONIAN MATRIX",error=error)
+    NULLIFY(matrix_h)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)!sm->dbcsr
+    ALLOCATE(matrix_h(1)%matrix)!sm->dbcsr
+    CALL dbcsr_init(matrix_h(1)%matrix,error)!sm->dbcsr
+    !CALL allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)
+    CALL dbcsr_copy(matrix_h(1)%matrix,matrix_s_b(1)%matrix,&
+                    name="QMMM HAMILTONIAN MATRIX",error=error)
+    CALL dbcsr_set(matrix_h(1)%matrix,0.0_dp,error)
+
     SELECT CASE(qmmm_env%qmmm_coupl_type)
     CASE(do_qmmm_coulomb,do_qmmm_gauss,do_qmmm_swave)
        ! Create a fake semi-empirical type to handle the classical atom
@@ -183,7 +190,8 @@ CONTAINS
              iatom = list(i)
              ! Give back block
              NULLIFY(h_block_a)
-             CALL get_block_node(matrix=ks_qmmm_env_loc%matrix_h(1)%matrix,&
+             CALL dbcsr_get_block_node(matrix=matrix_h(1)%matrix,&
+             !CALL dbcsr_get_block_node(matrix=ks_qmmm_env_loc%matrix_h(1)%matrix,&
                                  block_row=iatom,&
                                  block_col=iatom,&
                                  BLOCK=h_block_a)
@@ -238,17 +246,25 @@ CONTAINS
        CALL semi_empirical_release(se_kind_mm,error)
     CASE(do_qmmm_none)
        ! Zero Matrix 
-       CALL set_matrix(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp)
+       CALL dbcsr_set(matrix_h(1)%matrix,0.0_dp,error=error)
     END SELECT
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"QMMM%PRINT%QMMM_MATRIX",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"QMMM%PRINT%QMMM_MATRIX",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(ks_qmmm_env_loc%matrix_h(1)%matrix,4,6,qs_env,para_env,&
+       CALL dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
             scale=1.0_dp,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "QMMM%PRINT%QMMM_MATRIX", error=error)
     END IF
+
+    CALL allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)!sm->dbcsr
+    CALL sm_from_dbcsr( ks_qmmm_env_loc%matrix_h(1)%matrix, matrix_h(1)%matrix, &!sm->dbcsr
+         distribution_2d, error=error )!sm->dbcsr
+
+    CALL dbcsr_deallocate_matrix_set( matrix_h, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_s_b, error=error )!sm->dbcsr
+
     CALL timestop(handle)
 
   END SUBROUTINE build_se_qmmm_matrix

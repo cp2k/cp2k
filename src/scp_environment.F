@@ -11,7 +11,18 @@ MODULE scp_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_deallocate_matrix,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_get_diag,&
+                                             dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_obj,&
+                                             dbcsr_repl_full
+  USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -36,10 +47,6 @@ MODULE scp_environment
                                              scp_force_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
-  USE sparse_matrix_types,             ONLY: &
-       allocate_matrix, create_dbm_from_sm, deallocate_matrix, &
-       get_block_node, get_matrix_diagonal, get_matrix_info, &
-       real_matrix_type, replicate_matrix, set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -159,10 +166,10 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_type), POINTER          :: ascp, ks_scp, pscp, sm
     TYPE(scp_energy_type), POINTER           :: energy
     TYPE(semi_empirical_type), POINTER       :: se_kind
 
@@ -170,12 +177,12 @@ CONTAINS
 
     failure = .FALSE.
     ! Nullifying  pointers
-    NULLIFY ( energy, ascp)
+    NULLIFY ( energy )
     NULLIFY ( particle_set )
     NULLIFY ( para_env )
     NULLIFY ( atomic_kind_set, atomic_kind )
     NULLIFY ( distribution_2d )
-    NULLIFY ( sm, pscp, ks_scp, block, ascp_diag, se_kind, ascp_diag, atom_list )
+    NULLIFY ( pscp, ks_scp, block, ascp_diag, se_kind, ascp_diag, atom_list )
 
     CALL get_qs_env (qs_env, para_env = para_env, &
                      atomic_kind_set = atomic_kind_set, &
@@ -212,32 +219,22 @@ CONTAINS
                           last_sgf=last_sgf_b,&
                           error=error)
 
-   ! XXXXXXX, sparsity_id, does this result in the same overlap matrix
-   ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have
-   ! XXXXXXX, the code duplication,if not, this sparsity_id is wrong.
-    CALL allocate_matrix(matrix=sm,&
-                         nblock_row=natom,&
-                         nblock_col=natom,&
-                         nrow=nsgf_a,&
-                         ncol=nsgf_b,&
-                         first_row=first_sgf_a,&
-                         last_row=last_sgf_a,&
-                         first_col=first_sgf_b,&
-                         last_col=last_sgf_b,&
-                         matrix_name="DUMMY",&
-                         matrix_symmetry="SYMMETRIC",&
-                         sparsity_id=neighbor_list_id, &
-                         distribution_2d=distribution_2d,error=error)
+    CALL dbcsr_allocate_matrix(matrix=pscp,&
+                               nblock_row=natom,&
+                               nblock_col=natom,&
+                               nrow=nsgf_a,&
+                               ncol=nsgf_b,&
+                               first_row=first_sgf_a,&
+                               last_row=last_sgf_a,&
+                               first_col=first_sgf_b,&
+                               last_col=last_sgf_b,&
+                               matrix_name="PSCP",&
+                               matrix_symmetry="symmetric",&
+                               sparsity_id=neighbor_list_id, &
+                               distribution_2d=distribution_2d,&
+                               replication_type=dbcsr_repl_full,&
+                               error=error)
 
-    CALL create_dbm_from_sm ( pscp, sm, "PSCP", .FALSE., para_env, error )
-    CALL set_matrix ( pscp, 0.0_dp )
-    CALL replicate_matrix ( pscp, ks_scp, "KS_SCP", error=error )
-
-
-    CALL set_scp_env ( scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
-    ! Now create the vector of diagonal elements of the polarization coefficients
-    CALL create_dbm_from_sm ( ascp, sm, "ASCP", .FALSE., para_env, error )
-    
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -254,15 +251,15 @@ CONTAINS
        a_scp( 2:4,  1) = asp
        a_scp( 2:4,2:4) = app
 
-
        ! Loop over the replicated list of particles, filling the sparse matrix structure to exploit
        DO ilist=1,SIZE ( atom_list )
           iatom = atom_list ( ilist )
 
-          CALL get_block_node(matrix=ascp,&
-                              block_row=iatom,&
-                              block_col=iatom,&
-                              BLOCK=BLOCK)
+          NULLIFY(block)
+          CALL dbcsr_add_block_node(matrix=pscp,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=BLOCK)
           DO ii=1,SIZE(block,1)
              DO jj=1,SIZE(block,2)
                 block(ii,jj) = a_scp (ii,jj) 
@@ -271,11 +268,22 @@ CONTAINS
        END DO ! ilist
     END DO ! ikind 
 
-    CALL get_matrix_info ( ascp, nrow=nrow )
+    CALL dbcsr_finalize(pscp,error=error)
+
+    CALL dbcsr_get_info ( pscp, nfullrows_total=nrow )
     ALLOCATE (ascp_diag(nrow),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL get_matrix_diagonal ( ascp, ascp_diag )
+    CALL dbcsr_get_diag( pscp, ascp_diag, error=error )
     CALL set_scp_env ( scp_env=scp_env, ascp_diag=ascp_diag, error = error )
+
+    CALL dbcsr_set(pscp,0.0_dp,error=error)
+    ALLOCATE(ks_scp)!sm->dbcsr
+    CALL dbcsr_copy(ks_scp,pscp,'KS_SCP',error=error)
+
+    CALL sm_from_dbcsr ( scp_env%pscp, pscp, distribution_2d, error=error )!sm->dbcsr
+    CALL sm_from_dbcsr ( scp_env%ks_scp, ks_scp, distribution_2d, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix ( ks_scp, error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix ( pscp, error )!sm->dbcsr
 
     DEALLOCATE (first_sgf_a,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -286,8 +294,6 @@ CONTAINS
     DEALLOCATE (last_sgf_b,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL deallocate_matrix ( ascp, error )
-    CALL deallocate_matrix ( sm, error )
     CALL timestop(handle)
 
   END SUBROUTINE scp_nddo_init

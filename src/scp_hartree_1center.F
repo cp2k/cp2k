@@ -16,8 +16,21 @@ MODULE  scp_hartree_1center
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_distribute,&
+                                             dbcsr_get_block_diag,&
+                                             dbcsr_replicate_all,&
+                                             dbcsr_set,&
+                                             dbcsr_sum_replicated
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE memory_utilities,                ONLY: reallocate
@@ -33,11 +46,7 @@ MODULE  scp_hartree_1center
   USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             create_dbm_from_sm,&
-                                             deallocate_dbm_from_sm,&
-                                             get_block_node,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -62,13 +71,13 @@ CONTAINS
 !>      for SCP.   
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE integrate_a_vhscp_b (qs_env,h_mat,p_mat, just_energy, error, debug)
+  SUBROUTINE integrate_a_vhscp_b (qs_env,h_mat_sm,p_mat_sm, just_energy, error, debug)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: h_mat
+      INTENT(INOUT)                          :: h_mat_sm
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(IN)                             :: p_mat
+      INTENT(IN)                             :: p_mat_sm
     LOGICAL, INTENT(IN)                      :: just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
@@ -103,10 +112,12 @@ CONTAINS
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_ks, diagmat_p, h_mat, &
+                                                p_mat
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: aux_basis, orb_basis
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(scp_energy_type), POINTER           :: energy
     TYPE(scp_environment_type), POINTER      :: scp_env
 
@@ -115,6 +126,15 @@ CONTAINS
 
     my_debug = .FALSE.
     IF ( PRESENT ( debug ) ) my_debug = debug
+
+    NULLIFY(h_mat,p_mat)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( h_mat, SIZE(h_mat_sm), error )!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( p_mat, SIZE(p_mat_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(h_mat)!sm->dbcsr
+       ALLOCATE(h_mat(ispin)%matrix,p_mat(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(h_mat(ispin)%matrix, h_mat_sm(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(p_mat(ispin)%matrix, p_mat_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     ! Zero energy
     e_hartree_1c = 0._dp
@@ -140,10 +160,6 @@ CONTAINS
          maxsgf_set=maxsgf_set)
 
     CALL timeset(routineN,handle)
-
-    !   Allocated diagonal matricies
-    CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
-    CALL allocate_matrix_set(diagmat_p,nspins,error=error)
 
     !   Allocate the work array for the orbitals
     ALLOCATE(work(maxco_global,maxsgf_set),STAT=istat)
@@ -191,12 +207,18 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "ff",(1+maxlgto+maxlgto+maxlgto)*dp_size)
 
+    !   Allocated diagonal matricies
+    CALL dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
+    CALL dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
+
     DO ispin=1,nspins
        ! Allocate diagonal block matrices
-       CALL create_dbm_from_sm(diagmat_p(ispin)%matrix,p_mat(ispin)%matrix,&
-            "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
-       CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,h_mat(ispin)%matrix,&
-            "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
+       ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_get_block_diag(p_mat(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
+       CALL dbcsr_get_block_diag(h_mat(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
+       CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
+       CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
+       CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
     END DO
 
     DO ikind=1,nkind
@@ -252,23 +274,23 @@ CONTAINS
 
           ! Retrieve KS and density matrix block for this atom
           NULLIFY ( p_block, p_block2, h_block, h_block2 )
-          CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+          CALL dbcsr_get_block_node(matrix=diagmat_ks(1)%matrix,&
                block_row=iatom,&
                block_col=iatom,&
                BLOCK=h_block)
 
-          CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+          CALL dbcsr_get_block_node(matrix=diagmat_p(1)%matrix,&
                block_row=iatom,&
                block_col=iatom,&
                BLOCK=p_block)
 
           IF(nspins == 2) THEN
-             CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+             CALL dbcsr_get_block_node(matrix=diagmat_ks(2)%matrix,&
                   block_row=iatom,&
                   block_col=iatom,&
                   BLOCK=h_block2)
 
-             CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+             CALL dbcsr_get_block_node(matrix=diagmat_p(2)%matrix,&
                   block_row=iatom,&
                   block_col=iatom,&
                   BLOCK=p_block2)
@@ -491,12 +513,10 @@ CONTAINS
     END DO ! ikind
 
     DO ispin = 1, nspins
-       CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,&
-            p_mat(1)%matrix,.FALSE.,error=error)
-       CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,&
-            h_mat(ispin)%matrix,.TRUE.,para_env,error=error)
+       CALL dbcsr_sum_replicated( diagmat_ks(ispin)%matrix )
+       CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+       CALL dbcsr_add(h_mat(ispin)%matrix, diagmat_ks(ispin)%matrix,error=error)
     END DO
-    DEALLOCATE(diagmat_ks,diagmat_p)
 
     !   IF PARALLEL sum up the contributions to e_scp_hartree_1c from
     !   ab pairs handled by different processors
@@ -546,6 +566,16 @@ CONTAINS
        CALL stop_memory(routineN,moduleN,__LINE__,&
             "int_tmp,vv,ff")
     END IF
+
+    NULLIFY(distribution_2d)!sm->dbcsr
+    CALL get_qs_env(qs_env=qs_env, distribution_2d=distribution_2d, error=error)
+    DO ispin=1,SIZE(h_mat)!sm->dbcsr
+       CALL sm_from_dbcsr(h_mat_sm(ispin)%matrix, h_mat(ispin)%matrix, distribution_2d, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( h_mat, error )
+    CALL dbcsr_deallocate_matrix_set( p_mat, error )
+    CALL dbcsr_deallocate_matrix_set( diagmat_ks, error )
+    CALL dbcsr_deallocate_matrix_set( diagmat_p, error )
 
     CALL timestop(handle)
 

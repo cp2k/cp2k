@@ -1114,7 +1114,6 @@ CONTAINS
                 sab_lrc_neighbor_node => first_node(sab_lrc_neighbor_list)
  
                 CALL dbcsr_get_block_node(matrix=diagmat_p(1)%matrix,&
-                !CALL get_block_node(matrix=diagmat_p(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=pa_block_a)

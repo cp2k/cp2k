@@ -14,6 +14,11 @@ MODULE qmmm_se_forces
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -43,8 +48,7 @@ MODULE qmmm_se_forces
                                              setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -92,11 +96,13 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p
+      POINTER                                :: matrix_p_sm
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -137,7 +143,15 @@ CONTAINS
        nkind    = SIZE(atomic_kind_set)
        enuclear = 0.0_dp
        Forces_QM= 0.0_dp
-       matrix_p => rho%rho_ao
+       matrix_p_sm => rho%rho_ao
+
+       NULLIFY(matrix_p)!sm->dbcsr
+       CALL dbcsr_allocate_matrix_set(matrix_p,SIZE(matrix_p_sm),error=error)!sm->dbcsr
+       DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+          ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_from_sm(matrix_p(ispin)%matrix, matrix_p_sm(ispin)%matrix, error)!sm->dbcsr
+       ENDDO!sm->dbcsr
+
        DO ispin = 1, dft_control%nspins
           iqm = 0
           Kinds: DO ikind=1,nkind
@@ -155,7 +169,7 @@ CONTAINS
                 iatom = list(i)
                 ! Give back block
                 NULLIFY(p_block_a)
-                CALL get_block_node(matrix=matrix_p(ispin)%matrix,&
+                CALL dbcsr_get_block_node(matrix=matrix_p(ispin)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=p_block_a)
@@ -235,6 +249,9 @@ CONTAINS
        DEALLOCATE(Forces_QM,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL semi_empirical_release(se_kind_mm,error)
+
+       CALL dbcsr_deallocate_matrix_set( matrix_p, error )!sm->dbcsr
+
     END IF
     CALL timestop(handle)
   END SUBROUTINE deriv_se_qmmm_matrix

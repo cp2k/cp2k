@@ -98,7 +98,7 @@ MODULE cp_dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
 
-  PUBLIC :: dbcsr_sm_sm_multiply, dbcsr_check
+  PUBLIC :: dbcsr_sm_sm_multiply, dbcsr_check, dbcsr_multiply_local
   PUBLIC :: cp_dbcsr_add_dist2d, cp_dbcsr_get_dist2d, cp_dbcsr_remove_dist2d
   PUBLIC :: dbcsr_multiply_vec, dbcsr_pack_vec,&
        packed_vec_scale, dbcsr_unpack_vec,&
@@ -460,7 +460,7 @@ CONTAINS
          matrix_s%first_row, matrix_s%last_row,&
          matrix_s%first_col, matrix_s%last_col,&
          matrix_s%name, matrix_s%symmetry,&
-         0, matrix_s%distribution_2d, error)
+         0, matrix_s%distribution_2d, error=error)
     !write(*,*)'zeroing..., second time around'
     rbs => array_data (dbcsr_row_block_sizes (matrix_a2))
     cbs => array_data (dbcsr_col_block_sizes (matrix_a2))
@@ -903,6 +903,90 @@ CONTAINS
 
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_mult_pack_vec
+
+
+
+
+
+! *****************************************************************************
+!> \brief multiply a dbcsr with a replicated array
+!>        c = alpha_scalar * A (dbscr) * b + c 
+!> \param[in]  matrix       DBCSR matrix
+!> \param[in]  vec_b        vectors b
+!> \param[inout] vec_c      vectors c
+!> \param[in]  ncol         nbr of columns
+!> \param[in]  alpha        alpha
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_multiply_local(matrix_a, vec_b, vec_c, ncol, alpha, error)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: vec_b
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: vec_c
+    INTEGER, INTENT(in), OPTIONAL            :: ncol
+    REAL(dp), INTENT(IN), OPTIONAL           :: alpha
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_local', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, my_ncol, row, &
+                                                timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
+    LOGICAL                                  :: tr
+    REAL(dp)                                 :: my_alpha, my_alpha2
+    REAL(dp), DIMENSION(:, :), POINTER       :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+    CALL timeset(routineN, timing_handle)
+    
+    my_alpha = 1.0_dp
+    IF (PRESENT(alpha)) my_alpha = alpha
+
+    my_ncol = SIZE(vec_b,2)
+    IF(PRESENT(ncol)) my_ncol = ncol
+
+    my_alpha2 = 0.0_dp
+    IF(dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric) my_alpha2 = my_alpha
+    IF(dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) my_alpha2 = -my_alpha
+
+    !> this should be precomputed somewhere else
+    row_blk_size => array_data (matrix_a%m%row_blk_size)
+    ALLOCATE(offset(matrix_a%m%nblkrows_total))
+    offset(1) = 1
+    DO row = 2,matrix_a%m%nblkrows_total
+       offset(row) = offset(row-1) + row_blk_size(row-1)
+    ENDDO
+    !<
+
+    CALL dbcsr_iterator_start(iter, matrix_a)
+
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+
+       CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+
+       CALL dgemm('N','N',SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
+                  my_alpha,data_d(1,1),SIZE(data_d,1),&
+                  vec_b(offset(col),1),SIZE(vec_b,1),&
+                  1.0_dp,vec_c(offset(row),1),SIZE(vec_c,1))
+
+       IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
+          dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric)) THEN
+          IF(row.NE.col) THEN
+             CALL dgemm('T','N',SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
+                  my_alpha2,data_d(1,1),SIZE(data_d,1),&
+                  vec_b(offset(row),1),SIZE(vec_b,1),&
+                  1.0_dp,vec_c(offset(col),1),SIZE(vec_c,1))
+          ENDIF
+       ENDIF
+    ENDDO
+
+    CALL dbcsr_iterator_stop(iter)
+
+    DEALLOCATE(offset)
+
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_multiply_local
 
 ! *****************************************************************************
 !> \brief pack a row or column of a dbcsr
@@ -1649,9 +1733,9 @@ CONTAINS
     LOGICAL                                  :: existed, is_there
 
 !   ---------------------------------------------------------------------------
+!    CALL cp_assert (matrix%m%work_mutable, cp_warning_level, cp_caller_error,&
+!         routineN, "Mutable not defined upon DBCSR creation, forcing its use.")
 
-    CALL cp_assert (matrix%m%work_mutable, cp_warning_level, cp_caller_error,&
-         routineN, "Mutable not defined upon DBCSR creation, forcing its use.")
     IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_work_create (matrix)
        matrix%m%valid = .FALSE.
@@ -1790,7 +1874,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_allocate_matrix (matrix,nrow,ncol,nblock_row,nblock_col,&
        first_row,last_row,first_col,last_col,matrix_name,matrix_symmetry,&
-       sparsity_id,distribution_2d,error)
+       sparsity_id,distribution_2d,replication_type,error)
     TYPE(dbcsr_obj), POINTER                 :: matrix
     INTEGER, INTENT(IN)                      :: nrow, ncol, nblock_row, &
                                                 nblock_col
@@ -1801,6 +1885,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name, matrix_symmetry
     INTEGER, INTENT(IN)                      :: sparsity_id
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_allocate_matrix', &
@@ -1858,7 +1943,7 @@ CONTAINS
     ! Create the matrix
     CALL dbcsr_create (matrix, matrix_name, dbcsr_dist, dbcsr_matrix_type,&
          row_blk_sizes, col_blk_sizes, 0, 0, dbcsr_type_real_default,&
-         mutable_work=.TRUE., error=error)
+         mutable_work=.TRUE., replication_type=replication_type, error=error)
     CALL cp_dbcsr_add_dist2d (matrix%m, distribution_2d, error)
     matrix%m%sparsity_id = sparsity_id
     ! Clean up

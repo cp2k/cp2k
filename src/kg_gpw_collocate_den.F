@@ -22,7 +22,13 @@ MODULE kg_gpw_collocate_den
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             sm_from_dbcsr
   USE cube_utils,                      ONLY: cube_info_type
+  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_util,                      ONLY: dbcsr_init
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -48,8 +54,7 @@ MODULE kg_gpw_collocate_den
                                              rs_grid_create,&
                                              rs_grid_release,&
                                              rs_grid_zero
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type,&
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -98,11 +103,11 @@ CONTAINS
 !>      in the global box
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_mol(qs_env,matrix_p,rho_r,rho_g,total_rho,pw_env,&
+  SUBROUTINE calculate_rho_mol(qs_env,matrix_p_sm,rho_r,rho_g,total_rho,pw_env,&
                                atom,kind,ratom,compute_tau,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_type), POINTER          :: matrix_p
+    TYPE(real_matrix_type), POINTER          :: matrix_p_sm
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_r, rho_g
     REAL(dp), INTENT(OUT)                    :: total_rho
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -144,6 +149,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
+    TYPE(dbcsr_obj), POINTER                 :: matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
@@ -157,6 +163,11 @@ CONTAINS
 !$  INTEGER                                  :: omp_get_max_threads, omp_get_thread_num
 
     failure=.FALSE.
+
+    ALLOCATE(matrix_p)!sm->dbcsr
+    CALL dbcsr_init(matrix_p, error)!sm->dbcsr
+    CALL dbcsr_from_sm(matrix_p, matrix_p_sm, error)!sm->dbcsr
+
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referencing to rho are actually tau
     IF (PRESENT(compute_tau)) THEN
@@ -314,7 +325,7 @@ CONTAINS
 
           ! bad, should do better loop ordering XXXXXXXXXX
           NULLIFY(p_block)
-          CALL get_block_node(matrix=matrix_p,&
+          CALL dbcsr_get_block_node(matrix=matrix_p,&
                               block_row=brow,&
                               block_col=bcol,&
                               BLOCK=p_block)
@@ -575,6 +586,8 @@ CONTAINS
 
     total_rho = pw_integrate_function(rho_r%pw,isign=-1,error=error)
 
+    CALL dbcsr_deallocate_matrix ( matrix_p, error=error )!sm->dbcsr
+
     CALL timestop(handle)
 
   END SUBROUTINE calculate_rho_mol
@@ -607,14 +620,14 @@ CONTAINS
 !>      At this level, it should not be necessary to have the atomic positions in the global box
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE integrate_mol_potential(qs_env,vxc_mol,matrix_p,&
-                                    matrix_h,pw_env,atom, kind, ratom,&
+  SUBROUTINE integrate_mol_potential(qs_env,vxc_mol,matrix_p_sm,&
+                                    matrix_h_sm,pw_env,atom, kind, ratom,&
                                     forces_mol,compute_tau,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), INTENT(IN)              :: vxc_mol
-    TYPE(real_matrix_p_type), INTENT(IN)     :: matrix_p
-    TYPE(real_matrix_p_type), INTENT(INOUT)  :: matrix_h
+    TYPE(real_matrix_p_type), INTENT(IN)     :: matrix_p_sm
+    TYPE(real_matrix_p_type), INTENT(INOUT)  :: matrix_h_sm
     TYPE(pw_env_type), POINTER               :: pw_env
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom, kind
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ratom
@@ -654,6 +667,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
+    TYPE(dbcsr_obj), POINTER                 :: matrix_h, matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
@@ -666,6 +680,12 @@ CONTAINS
 !$  INTEGER                                  :: omp_get_max_threads, omp_get_thread_num
 
     failure=.FALSE.
+
+    ALLOCATE(matrix_p,matrix_h)!sm->dbcsr
+    CALL dbcsr_init(matrix_p, error)!sm->dbcsr
+    CALL dbcsr_init(matrix_h, error)!sm->dbcsr
+    CALL dbcsr_from_sm(matrix_p, matrix_p_sm%matrix, error)!sm->dbcsr
+    CALL dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error)!sm->dbcsr
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
@@ -818,14 +838,14 @@ CONTAINS
           END IF
 
           NULLIFY(h_block)
-          CALL get_block_node(matrix=matrix_h%matrix,&
+          CALL dbcsr_get_block_node(matrix=matrix_h,&
                               block_row=brow,&
                               block_col=bcol,&
                               BLOCK=h_block)
           CPPrecondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
 
           NULLIFY(p_block)
-          CALL get_block_node(matrix=matrix_p%matrix,&
+          CALL dbcsr_get_block_node(matrix=matrix_p,&
                               block_row=brow,&
                               block_col=bcol,&
                               BLOCK=p_block)
@@ -1080,6 +1100,10 @@ CONTAINS
       DEALLOCATE(rs_v, STAT=istat)
       CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     END IF
+
+    CALL sm_from_dbcsr ( matrix_h_sm%matrix, matrix_h, matrix_h%m%dist2d, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix ( matrix_h, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix ( matrix_p, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

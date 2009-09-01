@@ -23,6 +23,13 @@ MODULE dft_plus_u
                                              Dudarev1998,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_ger,&
                                              cp_fm_upper_to_full
@@ -35,6 +42,17 @@ MODULE dft_plus_u
   USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
                                              copy_sm_to_fm,&
                                              cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_diag,&
+                                             dbcsr_replicate_all,&
+                                             dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
+                                             dbcsr_obj
+  USE dbcsr_util,                      ONLY: dbcsr_init
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: plus_u_lowdin,&
                                              plus_u_mulliken,&
@@ -48,10 +66,12 @@ MODULE dft_plus_u
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE sparse_matrix_types,             ONLY: &
-       create_dbm_from_sm, deallocate_matrix, first_block_node, &
-       get_block_node, next_block_node, real_block_node_type, &
-       real_matrix_p_type, real_matrix_type, set_matrix
+  USE sparse_matrix_types,             ONLY: create_dbm_from_sm,&
+                                             deallocate_matrix,&
+                                             get_block_node,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -717,12 +737,12 @@ CONTAINS
 !> \date          03.07.2008
 !> \version       1.0
 ! *****************************************************************************
-  SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+  SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h_sm,matrix_w_sm,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h, matrix_w
+      OPTIONAL, POINTER                      :: matrix_h_sm, matrix_w_sm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken', &
@@ -744,16 +764,20 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind, kind_a
+    TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_q, sm_s, sm_v, &
+                                                sm_w
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p, matrix_s, &
+                                                matrix_w
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_s
-    TYPE(real_matrix_type), POINTER          :: sm_h, sm_p, sm_q, sm_s, sm_v, &
-                                                sm_w
+      POINTER                                :: matrix_p_sm, matrix_s_sm
 
     CALL timeset(routineN,handle)
 
@@ -783,6 +807,24 @@ CONTAINS
     NULLIFY (sm_w)
     NULLIFY (v_block)
     NULLIFY (w_block)
+    NULLIFY (matrix_w,matrix_h)
+
+    IF(PRESENT(matrix_h_sm)) THEN!sm->dbcsr
+       NULLIFY(matrix_h)!sm->dbcsr
+       CALL dbcsr_allocate_matrix_set( matrix_h, SIZE(matrix_h_sm), error )!sm->dbcsr
+       DO ispin=1,SIZE(matrix_h)!sm->dbcsr
+          ALLOCATE(matrix_h(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_from_sm(matrix_h(ispin)%matrix, matrix_h_sm(ispin)%matrix, error)!sm->dbcsr
+       ENDDO!sm->dbcsr
+    ENDIF
+    IF(PRESENT(matrix_w_sm)) THEN!sm->dbcsr
+       NULLIFY(matrix_w)!sm->dbcsr
+       CALL dbcsr_allocate_matrix_set( matrix_w, SIZE(matrix_w_sm), error )!sm->dbcsr
+       DO ispin=1,SIZE(matrix_w)!sm->dbcsr
+          ALLOCATE(matrix_w(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_from_sm(matrix_w(ispin)%matrix, matrix_w_sm(ispin)%matrix, error)!sm->dbcsr
+       ENDDO!sm->dbcsr
+    ENDIF
 
     failure = .FALSE.
 
@@ -792,6 +834,7 @@ CONTAINS
                     energy=energy,&
                     particle_set=particle_set,&
                     rho=rho,&
+                    distribution_2d=distribution_2d,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -805,15 +848,26 @@ CONTAINS
     ELSE
       ! Get overlap matrix in sparse format
       CALL get_qs_env(qs_env=qs_env,&
-                      matrix_s=matrix_s,&
+                      matrix_s=matrix_s_sm,&
                       error=error)
-      CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(matrix_s_sm),cp_failure_level,routineP,error,failure)
+      CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
+      DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+         ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
+         CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
+      ENDDO!sm->dbcsr
       sm_s => matrix_s(1)%matrix
     END IF
 
     ! Get density matrices in sparse format
 
-    matrix_p => rho%rho_ao
+    matrix_p_sm => rho%rho_ao
+
+    CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_p(ispin)%matrix, matrix_p_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     energy%dft_plus_u = 0.0_dp
 
@@ -840,7 +894,7 @@ CONTAINS
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     is_plus_u_kind(:) = .FALSE.
 
-    IF (PRESENT(matrix_h).OR.PRESENT(matrix_w)) THEN
+    IF (PRESENT(matrix_h_sm).OR.PRESENT(matrix_w_sm)) THEN
       just_energy = .FALSE.
     ELSE
       just_energy = .TRUE.
@@ -850,14 +904,14 @@ CONTAINS
 
     DO ispin=1,nspin
 
-      IF (PRESENT(matrix_h)) THEN
+      IF (PRESENT(matrix_h_sm)) THEN
         ! Hamiltonian matrix for spin ispin in sparse format
         sm_h => matrix_h(ispin)%matrix
       ELSE
         NULLIFY (sm_h)
       END IF
 
-      IF (PRESENT(matrix_w)) THEN
+      IF (PRESENT(matrix_w_sm)) THEN
         ! Energy weighted density matrix for spin ispin in sparse format
         sm_w => matrix_w(ispin)%matrix
       ELSE
@@ -868,33 +922,31 @@ CONTAINS
       sm_p => matrix_p(ispin)%matrix
 
       IF (.NOT.ASSOCIATED(sm_q)) THEN
-        CALL create_dbm_from_sm(dbm=sm_q,&
-                                sm=sm_p,&
-                                matrix_name="SPARSE Q MATRIX",&
-                                copy_in=.FALSE.,&
-                                error=error)
+         ALLOCATE(sm_q)
+         CALL dbcsr_init(sm_q,error=error)
+         CALL dbcsr_get_block_diag(sm_p, sm_q, error=error)
+         CALL dbcsr_replicate_all(sm_q)
       END IF
-      CALL set_matrix(matrix=sm_q,value=0.0_dp)
+      CALL dbcsr_set(sm_q, 0.0_dp, error=error)
 
       IF (.NOT.ASSOCIATED(sm_v)) THEN
-        CALL create_dbm_from_sm(dbm=sm_v,&
-                                sm=sm_p,&
-                                matrix_name="SPARSE V MATRIX",&
-                                copy_in=.FALSE.,&
-                                error=error)
+         ALLOCATE(sm_v)
+         CALL dbcsr_init(sm_v,error=error)
+         CALL dbcsr_get_block_diag(sm_p, sm_v, error=error)
+         CALL dbcsr_replicate_all(sm_v)
       END IF
-      CALL set_matrix(matrix=sm_v,value=0.0_dp)
+      CALL dbcsr_set(sm_v, 0.0_dp, error=error)
 
       DO iatom=1,natom
 
-        CALL get_block_node(matrix=sm_p,&
+        CALL dbcsr_get_block_node(matrix=sm_p,&
                             block_row=iatom,&
                             block_col=iatom,&
                             block=p_block)
 
         IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
-        CALL get_block_node(matrix=sm_q,&
+        CALL dbcsr_get_block_node(matrix=sm_q,&
                             block_row=iatom,&
                             block_col=iatom,&
                             block=q_block)
@@ -905,7 +957,7 @@ CONTAINS
             q_block(isgf,isgf) = p_block(isgf,isgf)
           END DO
         ELSE
-          CALL get_block_node(matrix=sm_s,&
+          CALL dbcsr_get_block_node(matrix=sm_s,&
                               block_row=iatom,&
                               block_col=iatom,&
                               block=s_block)
@@ -984,7 +1036,7 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL get_block_node(matrix=sm_q,&
+          CALL dbcsr_get_block_node(matrix=sm_q,&
                               block_row=atom_a,&
                               block_col=atom_a,&
                               block=q_block)
@@ -1039,7 +1091,7 @@ CONTAINS
 
           IF (.NOT.just_energy) THEN
 
-            CALL get_block_node(matrix=sm_v,&
+            CALL dbcsr_get_block_node(matrix=sm_v,&
                                 block_row=atom_a,&
                                 block_col=atom_a,&
                                 block=v_block)
@@ -1144,14 +1196,14 @@ CONTAINS
 
             atom_a = atom_list(iatom)
 
-            CALL get_block_node(matrix=sm_h,&
+            CALL dbcsr_get_block_node(matrix=sm_h,&
                                 block_row=atom_a,&
                                 block_col=atom_a,&
                                 block=h_block)
 
             IF (.NOT.ASSOCIATED(h_block)) CYCLE
 
-            CALL get_block_node(matrix=sm_v,&
+            CALL dbcsr_get_block_node(matrix=sm_v,&
                                 block_row=atom_a,&
                                 block_col=atom_a,&
                                 block=v_block)
@@ -1162,7 +1214,7 @@ CONTAINS
                 h_block(isgf,isgf) = h_block(isgf,isgf) + v_block(isgf,isgf)
               END DO
             ELSE
-              CALL get_block_node(matrix=sm_s,&
+              CALL dbcsr_get_block_node(matrix=sm_s,&
                                   block_row=atom_a,&
                                   block_col=atom_a,&
                                   block=s_block)
@@ -1200,20 +1252,20 @@ CONTAINS
 
             atom_a = atom_list(iatom)
 
-            CALL get_block_node(matrix=sm_p,&
+            CALL dbcsr_get_block_node(matrix=sm_p,&
                                 block_row=atom_a,&
                                 block_col=atom_a,&
                                 block=p_block)
 
             IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
-            CALL get_block_node(matrix=sm_v,&
+            CALL dbcsr_get_block_node(matrix=sm_v,&
                                 block_row=atom_a,&
                                 block_col=atom_a,&
                                 block=v_block)
             CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
-            CALL get_block_node(matrix=sm_w,&
+            CALL dbcsr_get_block_node(matrix=sm_w,&
                                 block_row=atom_a,&
                                 block_col=atom_a,&
                                 block=w_block)
@@ -1244,8 +1296,27 @@ CONTAINS
                    "if this warning persists or try a different method!",&
                    only_ionode=.TRUE.)
 
-    CALL deallocate_matrix(matrix=sm_q,error=error)
-    CALL deallocate_matrix(matrix=sm_v,error=error)
+    CALL dbcsr_deallocate_matrix(sm_q,error=error)
+    CALL dbcsr_deallocate_matrix(sm_v,error=error)
+
+
+    IF(PRESENT(matrix_h_sm)) THEN
+       DO ispin=1,SIZE(matrix_h)!sm->dbcsr
+          CALL sm_from_dbcsr ( matrix_h_sm(ispin)%matrix, matrix_h(ispin)%matrix, &
+               distribution_2d, error=error )
+       ENDDO!sm->dbcsr
+    ENDIF
+    IF(PRESENT(matrix_w_sm)) THEN
+       DO ispin=1,SIZE(matrix_w)!sm->dbcsr
+          CALL sm_from_dbcsr ( matrix_w_sm(ispin)%matrix, matrix_w(ispin)%matrix, &
+               distribution_2d, error=error )
+       ENDDO!sm->dbcsr
+    ENDIF
+
+    CALL dbcsr_deallocate_matrix_set ( matrix_p, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set ( matrix_w, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set ( matrix_h, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set ( matrix_s, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -1284,25 +1355,25 @@ CONTAINS
 !> \note          The use of any full matrices was avoided. Thus no ScaLAPACK
 !>                calls are performed
 ! *****************************************************************************
-  SUBROUTINE mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+  SUBROUTINE mulliken_charges(qs_env,orthonormal_basis,matrix_h_sm,matrix_w_sm,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h, matrix_w
+      OPTIONAL, POINTER                      :: matrix_h_sm, matrix_w_sm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_charges', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, handle, iatom, ikind, iset, isgf, ishell, ispin, &
-      jatom, jsgf, katom, l_of_dft_plus_u, natom, natom_of_kind, nkind, nset, &
-      nsgf, nspin, sgf, stat
+    INTEGER :: atom_a, blk, handle, iatom, ikind, iset, isgf, ishell, ispin, &
+      jatom, jsgf, l_of_dft_plus_u, natom, natom_of_kind, nkind, nset, nsgf, &
+      nspin, sgf, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: dft_plus_u_atom, failure, &
-                                                just_energy
+                                                just_energy, tr
     REAL(KIND=dp)                            :: fspin, q, u_minus_j, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dEdq, trps
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, s_block, &
@@ -1310,17 +1381,20 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_s, sm_w
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p, matrix_s, &
+                                                matrix_w
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_block_node_type), POINTER      :: h_block_node, p_block_node, &
-                                                s_block_node, w_block_node
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_s
-    TYPE(real_matrix_type), POINTER          :: sm_h, sm_p, sm_s, sm_w
+      POINTER                                :: matrix_p_sm, matrix_s_sm
 
     CALL timeset(routineN,handle)
 
@@ -1331,7 +1405,6 @@ CONTAINS
     NULLIFY (energy)
     NULLIFY (first_sgf)
     NULLIFY (h_block)
-    NULLIFY (h_block_node)
     NULLIFY (matrix_p)
     NULLIFY (matrix_s)
     NULLIFY (l)
@@ -1339,16 +1412,14 @@ CONTAINS
     NULLIFY (nshell)
     NULLIFY (orb_basis_set)
     NULLIFY (p_block)
-    NULLIFY (p_block_node)
     NULLIFY (particle_set)
     NULLIFY (rho)
     NULLIFY (s_block)
-    NULLIFY (s_block_node)
     NULLIFY (sm_h)
     NULLIFY (sm_p)
     NULLIFY (sm_s)
     NULLIFY (w_block)
-    NULLIFY (w_block_node)
+    NULLIFY (matrix_w,matrix_h)
 
     failure = .FALSE.
 
@@ -1358,6 +1429,7 @@ CONTAINS
                     energy=energy,&
                     particle_set=particle_set,&
                     rho=rho,&
+                    distribution_2d=distribution_2d,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -1371,15 +1443,27 @@ CONTAINS
     ELSE
       ! Get overlap matrix in sparse format
       CALL get_qs_env(qs_env=qs_env,&
-                      matrix_s=matrix_s,&
+                      matrix_s=matrix_s_sm,&
                       error=error)
-      CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(matrix_s_sm),cp_failure_level,routineP,error,failure)
+
+      CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
+      DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+         ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
+         CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
+      ENDDO!sm->dbcsr
       sm_s => matrix_s(1)%matrix
     END IF
 
     ! Get density matrices in sparse format
 
-    matrix_p => rho%rho_ao
+    matrix_p_sm => rho%rho_ao
+
+    CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_p(ispin)%matrix, matrix_p_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     energy%dft_plus_u = 0.0_dp
 
@@ -1411,7 +1495,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     trps(:) = 0.0_dp
 
-    IF (PRESENT(matrix_h).OR.PRESENT(matrix_w)) THEN
+    IF (PRESENT(matrix_h_sm).OR.PRESENT(matrix_w_sm)) THEN
       ALLOCATE (dEdq(nsgf),STAT=stat)
       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
       just_energy  = .FALSE.
@@ -1419,19 +1503,36 @@ CONTAINS
       just_energy = .TRUE.
     END IF
 
+    IF(PRESENT(matrix_h_sm)) THEN!sm->dbcsr
+       NULLIFY(matrix_h)!sm->dbcsr
+       CALL dbcsr_allocate_matrix_set( matrix_h, SIZE(matrix_h_sm), error )!sm->dbcsr
+       DO ispin=1,SIZE(matrix_h)!sm->dbcsr
+          ALLOCATE(matrix_h(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_from_sm(matrix_h(ispin)%matrix, matrix_h_sm(ispin)%matrix, error)!sm->dbcsr
+       ENDDO!sm->dbcsr
+    ENDIF
+    IF(PRESENT(matrix_w_sm)) THEN!sm->dbcsr
+       NULLIFY(matrix_w)!sm->dbcsr
+       CALL dbcsr_allocate_matrix_set( matrix_w, SIZE(matrix_w_sm), error )!sm->dbcsr
+       DO ispin=1,SIZE(matrix_w)!sm->dbcsr
+          ALLOCATE(matrix_w(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_from_sm(matrix_w(ispin)%matrix, matrix_w_sm(ispin)%matrix, error)!sm->dbcsr
+       ENDDO!sm->dbcsr
+    ENDIF
+
     ! Loop over all spins
 
     DO ispin=1,nspin
 
-      IF (PRESENT(matrix_h)) THEN
+      IF (PRESENT(matrix_h_sm)) THEN
         ! Hamiltonian matrix for spin ispin in sparse format
-        sm_h => matrix_h(ispin)%matrix
-        dEdq(:) = 0.0_dp
+         sm_h => matrix_h(ispin)%matrix
+         dEdq(:) = 0.0_dp
       ELSE
         NULLIFY (sm_h)
       END IF
 
-      IF (PRESENT(matrix_w)) THEN
+      IF (PRESENT(matrix_w_sm)) THEN
         ! Energy weighted density matrix for spin ispin in sparse format
         sm_w => matrix_w(ispin)%matrix
         dEdq(:) = 0.0_dp
@@ -1445,70 +1546,52 @@ CONTAINS
 
       trps(:) = 0.0_dp
 
-      DO iatom=1,natom
+      CALL dbcsr_iterator_start(iter,sm_p)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block, tr, blk)
 
-        IF (orthonormal_basis) THEN
+         IF (orthonormal_basis) THEN
 
-          ! Just retrieve the diagonal elements of the orthonormal density matrix P
+            IF(iatom.NE.jatom) CYCLE
 
-          CALL get_block_node(matrix=sm_p,&
-                              block_row=iatom,&
-                              block_col=iatom,&
-                              block=p_block)
+            IF (ASSOCIATED(p_block)) THEN
+               sgf = first_sgf_atom(iatom)
+               DO isgf=1,SIZE(p_block,1)
+                  trps(sgf) = trps(sgf) + p_block(isgf,isgf)
+                  sgf = sgf + 1
+               END DO
+            END IF
 
-          IF (ASSOCIATED(p_block)) THEN
-            sgf = first_sgf_atom(iatom)
-            DO isgf=1,SIZE(p_block,1)
-              trps(sgf) = trps(sgf) + p_block(isgf,isgf)
-              sgf = sgf + 1
-            END DO
-          END IF
+         ELSE
 
-        ELSE
-
-          p_block_node => first_block_node(matrix=sm_p,block_row=iatom)
-          s_block_node => first_block_node(matrix=sm_s,block_row=iatom)
-
-          DO WHILE (ASSOCIATED(p_block_node).AND.ASSOCIATED(s_block_node))
-
-            CALL get_block_node(block_node=p_block_node,&
-                                block_col=jatom,&
-                                block=p_block)
-            CPPostcondition((jatom >= iatom),cp_failure_level,routineP,error,failure)
-
-            ! Request katom just to check for a consistent sparse matrix pattern
-
-            CALL get_block_node(block_node=s_block_node,&
-                                block_col=katom,&
-                                block=s_block)
-            CPPostcondition((katom == jatom),cp_failure_level,routineP,error,failure)
+            CALL dbcsr_get_block_node(matrix=sm_s,&
+                                      block_row=iatom,&
+                                      block_col=jatom,&
+                                      block=s_block)
+            CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
             sgf = first_sgf_atom(jatom)
             DO jsgf=1,SIZE(p_block,2)
-              DO isgf=1,SIZE(p_block,1)
-                trps(sgf) = trps(sgf) + p_block(isgf,jsgf)*s_block(isgf,jsgf)
-              END DO
-              sgf = sgf + 1
+               DO isgf=1,SIZE(p_block,1)
+                  trps(sgf) = trps(sgf) + p_block(isgf,jsgf)*s_block(isgf,jsgf)
+               END DO
+               sgf = sgf + 1
             END DO
 
             IF (iatom /= jatom) THEN
-              sgf = first_sgf_atom(iatom)
-              DO isgf=1,SIZE(p_block,1)
-                DO jsgf=1,SIZE(p_block,2)
-                  trps(sgf) = trps(sgf) + p_block(isgf,jsgf)*s_block(isgf,jsgf)
-                END DO
-                sgf = sgf + 1
-              END DO
+               sgf = first_sgf_atom(iatom)
+               DO isgf=1,SIZE(p_block,1)
+                  DO jsgf=1,SIZE(p_block,2)
+                     trps(sgf) = trps(sgf) + p_block(isgf,jsgf)*s_block(isgf,jsgf)
+                  END DO
+                  sgf = sgf + 1
+               END DO
             END IF
 
-            p_block_node => next_block_node(p_block_node)
-            s_block_node => next_block_node(s_block_node)
-
-          END DO ! next block node -> "jatom"
-
-        END IF ! orthonormal basis set
+         END IF ! orthonormal basis set
 
       END DO ! next atom "iatom"
+      CALL dbcsr_iterator_stop(iter)
 
       CALL mp_sum(trps,qs_env%para_env%group)
 
@@ -1525,7 +1608,7 @@ CONTAINS
 
       DO ikind=1,nkind
 
-        atomic_kind => atomic_kind_set(ikind)
+         atomic_kind => atomic_kind_set(ikind)
 
         ! Load the required atomic kind data
 
@@ -1561,7 +1644,7 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL get_block_node(matrix=sm_p,&
+          CALL dbcsr_get_block_node(matrix=sm_p,&
                               block_row=atom_a,&
                               block_col=atom_a,&
                               block=p_block)
@@ -1604,78 +1687,62 @@ CONTAINS
 
       IF (ASSOCIATED(sm_h)) THEN
 
-        DO iatom=1,natom
+         CALL dbcsr_iterator_start(iter, sm_h)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, h_block, tr, blk)
 
-          IF (orthonormal_basis) THEN
+            IF (orthonormal_basis) THEN
 
-            ! Only the diagonal elements of the Hamiltonian matrix have to be updated
+               IF(iatom.NE.jatom) CYCLE
 
-            CALL get_block_node(matrix=sm_h,&
-                                block_row=iatom,&
-                                block_col=iatom,&
-                                block=h_block)
-
-            IF (ASSOCIATED(h_block)) THEN
-              sgf = first_sgf_atom(iatom)
-              DO isgf=1,SIZE(h_block,1)
-                h_block(isgf,isgf) = h_block(isgf,isgf) + dEdq(sgf)
-                sgf = sgf + 1
-              END DO
-            END IF
-
-          ELSE
-
-            h_block_node => first_block_node(matrix=sm_h,block_row=iatom)
-            s_block_node => first_block_node(matrix=sm_s,block_row=iatom)
-
-            DO WHILE (ASSOCIATED(h_block_node).AND.ASSOCIATED(s_block_node))
-
-              CALL get_block_node(block_node=h_block_node,&
-                                  block_col=jatom,&
-                                  block=h_block)
-              CPPostcondition((jatom >= iatom),cp_failure_level,routineP,error,failure)
-
-              ! Request katom just to check for consistent sparse matrix pattern
-
-              CALL get_block_node(block_node=s_block_node,&
-                                  block_col=katom,&
-                                  block=s_block)
-              CPPostcondition((katom == jatom),cp_failure_level,routineP,error,failure)
-
-              ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
-
-              sgf = first_sgf_atom(iatom)
-
-              DO isgf=1,SIZE(h_block,1)
-                IF (dEdq(sgf) /= 0.0_dp) THEN
-                  v = 0.5_dp*dEdq(sgf)
-                  DO jsgf=1,SIZE(h_block,2)
-                    h_block(isgf,jsgf) = h_block(isgf,jsgf) + v*s_block(isgf,jsgf)
-                  END DO
-                END IF
-                sgf = sgf + 1
-              END DO
-
-              sgf = first_sgf_atom(jatom)
-
-              DO jsgf=1,SIZE(h_block,2)
-                IF (dEdq(sgf) /= 0.0_dp) THEN
-                  v = 0.5_dp*dEdq(sgf)
+               IF (ASSOCIATED(h_block)) THEN
+                  sgf = first_sgf_atom(iatom)
                   DO isgf=1,SIZE(h_block,1)
-                    h_block(isgf,jsgf) = h_block(isgf,jsgf) + v*s_block(isgf,jsgf)
+                     h_block(isgf,isgf) = h_block(isgf,isgf) + dEdq(sgf)
+                     sgf = sgf + 1
                   END DO
-                END IF
-                sgf = sgf + 1
-              END DO
+               END IF
 
-              h_block_node => next_block_node(h_block_node)
-              s_block_node => next_block_node(s_block_node)
+            ELSE
 
-            END DO ! next block node -> "jatom"
+               ! Request katom just to check for consistent sparse matrix pattern
 
-          END IF ! orthonormal basis set
+               CALL dbcsr_get_block_node(matrix=sm_s,&
+                                         block_row=iatom,&
+                                         block_col=jatom,&
+                                         block=s_block)
+               CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
-        END DO ! Next atom "iatom"
+               ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
+
+               sgf = first_sgf_atom(iatom)
+
+               DO isgf=1,SIZE(h_block,1)
+                  IF (dEdq(sgf) /= 0.0_dp) THEN
+                     v = 0.5_dp*dEdq(sgf)
+                     DO jsgf=1,SIZE(h_block,2)
+                        h_block(isgf,jsgf) = h_block(isgf,jsgf) + v*s_block(isgf,jsgf)
+                     END DO
+                  END IF
+                  sgf = sgf + 1
+               END DO
+
+               sgf = first_sgf_atom(jatom)
+
+               DO jsgf=1,SIZE(h_block,2)
+                  IF (dEdq(sgf) /= 0.0_dp) THEN
+                     v = 0.5_dp*dEdq(sgf)
+                     DO isgf=1,SIZE(h_block,1)
+                        h_block(isgf,jsgf) = h_block(isgf,jsgf) + v*s_block(isgf,jsgf)
+                     END DO
+                  END IF
+                  sgf = sgf + 1
+               END DO
+
+            END IF ! orthonormal basis set
+
+         END DO ! Next atom "iatom"
+         CALL dbcsr_iterator_stop(iter)
 
       END IF ! An update of the Hamiltonian matrix is requested
 
@@ -1685,24 +1752,18 @@ CONTAINS
 
       IF (ASSOCIATED(sm_w).AND.(.NOT.orthonormal_basis)) THEN
 
-        DO iatom=1,natom
 
-          p_block_node => first_block_node(matrix=sm_p,block_row=iatom)
-          w_block_node => first_block_node(matrix=sm_w,block_row=iatom)
-
-          DO WHILE (ASSOCIATED(p_block_node).AND.ASSOCIATED(w_block_node))
-
-            CALL get_block_node(block_node=p_block_node,&
-                                block_col=jatom,&
-                                block=p_block)
-            CPPostcondition((jatom >= iatom),cp_failure_level,routineP,error,failure)
+         CALL dbcsr_iterator_start(iter, sm_p)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block, tr, blk)
 
             ! Request katom just to check for consistent sparse matrix patterns
 
-            CALL get_block_node(block_node=w_block_node,&
-                                block_col=katom,&
+            CALL dbcsr_get_block_node(matrix=sm_w,&
+                                block_row=iatom,&
+                                block_col=jatom,&
                                 block=w_block)
-            CPPostcondition((katom == jatom),cp_failure_level,routineP,error,failure)
+            CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
 
             ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
 
@@ -1730,16 +1791,12 @@ CONTAINS
               sgf = sgf + 1
             END DO
 
-            p_block_node => next_block_node(p_block_node)
-            w_block_node => next_block_node(w_block_node)
-
-          END DO ! next block node -> "jatom"
-
-        END DO ! next atom "iatom"
+         END DO ! next block node -> "jatom"
+         CALL dbcsr_iterator_stop(iter)
 
       END IF ! W matrix update requested
 
-    END DO ! next spin "ispin"
+   END DO ! next spin "ispin"
 
     ! Collect the energy contributions from all processes
 
@@ -1768,6 +1825,25 @@ CONTAINS
       DEALLOCATE (dEdq,STAT=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
+
+
+    IF(PRESENT(matrix_h_sm)) THEN
+       DO ispin=1,SIZE(matrix_h)!sm->dbcsr
+          CALL sm_from_dbcsr ( matrix_h_sm(ispin)%matrix, matrix_h(ispin)%matrix, &
+               distribution_2d, error=error )
+       ENDDO!sm->dbcsr
+    ENDIF
+    IF(PRESENT(matrix_w_sm)) THEN
+       DO ispin=1,SIZE(matrix_w)!sm->dbcsr
+          CALL sm_from_dbcsr ( matrix_w_sm(ispin)%matrix, matrix_w(ispin)%matrix, &
+               distribution_2d, error=error )
+       ENDDO!sm->dbcsr
+    ENDIF
+
+    CALL dbcsr_deallocate_matrix_set ( matrix_p, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set ( matrix_w, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set ( matrix_h, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set ( matrix_s, error=error )!sm->dbcsr
 
    CALL timestop(handle)
 

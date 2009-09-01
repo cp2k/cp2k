@@ -16,8 +16,10 @@ MODULE kg_scf
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
                                              sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -29,6 +31,8 @@ MODULE kg_scf
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
+  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_util,                      ONLY: dbcsr_init
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
@@ -109,7 +113,6 @@ MODULE kg_scf
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
-                                             get_block_node,&
                                              get_matrix_diagonal,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -981,12 +984,12 @@ CONTAINS
 !>      fully activated 12-04 MI
 !> \author jgh (adapted from QS)
 ! *****************************************************************************
-  SUBROUTINE calculate_ortho_per_molecule(kg_fm_mol_set,s,ndep,scf_control,&
+  SUBROUTINE calculate_ortho_per_molecule(kg_fm_mol_set,s_sm,ndep,scf_control,&
                                           do_orthogonalization,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
-    TYPE(real_matrix_type), POINTER          :: s
+    TYPE(real_matrix_type), POINTER          :: s_sm
     INTEGER, INTENT(OUT)                     :: ndep
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL, INTENT(IN)                      :: do_orthogonalization
@@ -1001,12 +1004,17 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: ortho, s_block, work
+    TYPE(dbcsr_obj), POINTER                 :: s
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
 
     CALL timeset(routineN,handle)
+
+    ALLOCATE(s)!sm->dbcsr
+    CALL dbcsr_init(s, error)
+    CALL dbcsr_from_sm(s, s_sm, error)!sm->dbcsr
 
     failure = .FALSE.
     nmol_kind = SIZE(kg_fm_mol_set,1)
@@ -1046,7 +1054,7 @@ CONTAINS
 
              NULLIFY(s_block)
              IF (iatom <= jatom) THEN
-               CALL get_block_node(matrix=s,&
+                CALL dbcsr_get_block_node(matrix=s,&
                                    block_row=iatom,&
                                    block_col=jatom,&
                                    BLOCK=s_block)
@@ -1060,7 +1068,7 @@ CONTAINS
                   icol = icol + 1
                END DO   ! icol_ortho
              ELSE
-               CALL get_block_node(matrix=s,&
+               CALL dbcsr_get_block_node(matrix=s,&
                                    block_row=jatom,&
                                    block_col=iatom,&
                                    BLOCK=s_block)
@@ -1099,6 +1107,8 @@ CONTAINS
 
       END DO  ! imol
     END DO  ! imol_kind
+
+    CALL dbcsr_deallocate_matrix ( s, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

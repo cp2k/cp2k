@@ -14,11 +14,25 @@ MODULE qs_dftb_coulomb
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_multiply_local,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_operations,                ONLY: dbcsr_add
+  USE dbcsr_types,                     ONLY: dbcsr_iterator
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_1d,&
                                              dg_sum_patch_force_3d
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -68,13 +82,7 @@ MODULE qs_dftb_coulomb
        pw2rs, realspace_grid_desc_type, realspace_grid_p_type, &
        realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, &
        rs_grid_set_box, rs_grid_zero, rs_pw_transfer
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-                                             first_block_node,&
-                                             get_block_node,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type,&
-                                             sparse_times_local
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE spme,                            ONLY: get_patch
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -93,13 +101,13 @@ MODULE qs_dftb_coulomb
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE build_dftb_coulomb(ks_env,qs_env,ks_matrix,rho,mcharge,energy,&
+  SUBROUTINE build_dftb_coulomb(ks_env,qs_env,ks_matrix_sm,rho,mcharge,energy,&
                calculate_forces,just_energy,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+      POINTER                                :: ks_matrix_sm
     TYPE(qs_rho_type), POINTER               :: rho
     REAL(dp), DIMENSION(:)                   :: mcharge
     TYPE(qs_energy_type), POINTER            :: energy
@@ -109,13 +117,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_i, atom_j, ewald_type, &
-                                                handle, i, ia, iatom, ikind, &
-                                                istat, jatom, jkind, natom, &
-                                                nmat
+    INTEGER                                  :: atom_i, atom_j, blk, &
+                                                ewald_type, handle, i, ia, &
+                                                iatom, ikind, istat, jatom, &
+                                                jkind, natom, nmat
     INTEGER, DIMENSION(3)                    :: periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
-    LOGICAL                                  :: do_ewald, failure, use_virial
+    LOGICAL                                  :: do_ewald, failure, tr, &
+                                                use_virial
     REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, gblock, gmcharge, &
@@ -125,7 +134,12 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: gamma_matrix, ks_matrix, &
+                                                matrix_p, matrix_s
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(neighbor_list_set_p_type), &
@@ -134,13 +148,14 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_block_node_type), POINTER      :: block_node, block_node_2
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: gamma_matrix, matrix_p, &
-                                                matrix_s
+      POINTER                                :: gamma_matrix_sm, matrix_p_sm, &
+                                                matrix_s_sm
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
+
+    NULLIFY(distribution_2d,gamma_matrix,matrix_p,matrix_s,ks_matrix)
 
     failure=.FALSE.
     use_virial=.FALSE.
@@ -156,42 +171,59 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     gmcharge = 0._dp
 
-    CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,&
+    CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix_sm,&
                     particle_set=particle_set,cell=cell,&
                     virial=virial,error=error)
+
+    NULLIFY(ks_matrix)
+    CALL dbcsr_allocate_matrix_set( ks_matrix, SIZE(ks_matrix_sm), error )!sm->dbcsr
+    DO i=1,SIZE(ks_matrix)!sm->dbcsr
+       ALLOCATE(ks_matrix(i)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(ks_matrix(i)%matrix, ks_matrix_sm(i)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(gamma_matrix)
+    CALL dbcsr_allocate_matrix_set( gamma_matrix, SIZE(gamma_matrix_sm), error )!sm->dbcsr
+    DO i=1,SIZE(gamma_matrix)!sm->dbcsr
+       ALLOCATE(gamma_matrix(i)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(gamma_matrix(i)%matrix,gamma_matrix_sm(i)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
     IF ( calculate_forces ) THEN
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
 
-    ALLOCATE(mcin(1,natom),mcout(1,natom),STAT=istat)
+    ALLOCATE(mcin(natom,1),mcout(natom,1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    mcin(1,:) = mcharge(:)
+    mcin(:,1) = mcharge(:)
+
     DO i=1,nmat
       mcout = 0._dp
-      CALL sparse_times_local(gamma_matrix(i)%matrix,mcin,mcout,1,1)
-      gmcharge(:,i) = mcout(1,:)
+      CALL dbcsr_multiply_local(gamma_matrix(i)%matrix,mcin,mcout,ncol=1,error=error)
+      gmcharge(:,i) = mcout(:,1)
     END DO
+
     DEALLOCATE(mcin,mcout,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF ( calculate_forces .AND. use_virial ) THEN
-      DO iatom=1,natom
-        NULLIFY(block_node)
-        block_node => first_block_node(gamma_matrix(1)%matrix,iatom)
-        DO WHILE (ASSOCIATED(block_node))
-          CALL get_block_node(block_node=block_node,block_col=jatom)
+       CALL dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+          NULLIFY(gblock)
+          CALL dbcsr_iterator_next_block(iter, iatom, jatom, gblock, tr, blk)
           DO i=1,3
-            NULLIFY(gblock)
-            CALL get_block_node(matrix=gamma_matrix(i+1)%matrix,block_row=iatom,&
-                 block_col=jatom,block=gblock)
-            fij(i) = gblock(1,1)*mcharge(iatom)*mcharge(jatom)
+             NULLIFY(gblock)
+             CALL dbcsr_get_block_node(matrix=gamma_matrix(i+1)%matrix,&
+                                       block_row=iatom,&
+                                       block_col=jatom,&
+                                       block=gblock)
+             fij(i) = gblock(1,1)*mcharge(iatom)*mcharge(jatom)
           END DO
           rij = particle_set(iatom)%r - particle_set(jatom)%r
           rij = pbc(rij,cell)
           CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij, error)
-          block_node => next_block_node(block_node)
-        END DO
-      END DO
+       ENDDO
+       CALL dbcsr_iterator_stop(iter)
     END IF
 
     ! 1/R contribution
@@ -285,61 +317,80 @@ CONTAINS
 
     IF ( .NOT. just_energy ) THEN
       CALL get_qs_env(qs_env=qs_env,&
-                      matrix_s=matrix_s,error=error)
-      matrix_p => rho%rho_ao
+                      matrix_s=matrix_s_sm,error=error)
+      matrix_p_sm => rho%rho_ao
+
+      NULLIFY(matrix_p)
+      CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
+      DO i=1,SIZE(matrix_p)!sm->dbcsr
+         ALLOCATE(matrix_p(i)%matrix)!sm->dbcsr
+         CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_sm(i)%matrix, error)!sm->dbcsr
+      ENDDO!sm->dbcsr
+
+      NULLIFY(matrix_s)
+      CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
+      DO i=1,SIZE(matrix_s)!sm->dbcsr
+         ALLOCATE(matrix_s(i)%matrix)!sm->dbcsr
+         CALL dbcsr_from_sm(matrix_s(i)%matrix, matrix_s_sm(i)%matrix, error)!sm->dbcsr
+      ENDDO!sm->dbcsr
+
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
-        CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
-                matrix_p(2)%matrix,1.0_dp,error=error)
+        CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+             alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
       END IF
 
-      DO iatom=1,natom
-        NULLIFY(block_node)
-        block_node => first_block_node(ks_matrix(1)%matrix,iatom)
-        IF (SIZE(ks_matrix,1)>1) block_node_2 => first_block_node(ks_matrix(2)%matrix,iatom)
-        DO WHILE (ASSOCIATED(block_node))
-          NULLIFY(ksblock,sblock,ksblock_2)
-          CALL get_block_node(block_node=block_node,block_col=jatom,block=ksblock)
-          IF (SIZE(ks_matrix,1)>1) CALL get_block_node(block_node=block_node_2,block_col=jatom,block=ksblock_2)
-          CALL get_block_node(matrix=matrix_s(1)%matrix,block_row=iatom,&
-                 block_col=jatom,block=sblock)
-          gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
-          ksblock = ksblock - gmij*sblock
-          IF (SIZE(ks_matrix,1)>1) ksblock_2 = ksblock_2 - gmij*sblock
-          IF ( calculate_forces ) THEN
+      CALL dbcsr_iterator_start(iter, ks_matrix(1)%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, ksblock, tr, blk)
+         NULLIFY(sblock,ksblock_2)
+         IF (SIZE(ks_matrix,1)>1) CALL dbcsr_get_block_node(matrix=ks_matrix(2)%matrix,&
+                                                            block_row=iatom,&
+                                                            block_col=jatom, &
+                                                            block=ksblock_2)
+         CALL dbcsr_get_block_node(matrix=matrix_s(1)%matrix,&
+                                   block_row=iatom,&
+                                   block_col=jatom,&
+                                   block=sblock)
+         gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
+         ksblock = ksblock - gmij*sblock
+         IF (SIZE(ks_matrix,1)>1) ksblock_2 = ksblock_2 - gmij*sblock
+         IF ( calculate_forces ) THEN
             ikind  = kind_of(iatom)
             atom_i = atom_of_kind(iatom)
             jkind  = kind_of(jatom)
             atom_j = atom_of_kind(jatom)
             NULLIFY(pblock)
-            CALL get_block_node(matrix=matrix_p(1)%matrix,block_row=iatom,&
-                 block_col=jatom,block=pblock)
+            CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
+                                      block_row=iatom,&
+                                      block_col=jatom,&
+                                      block=pblock)
             DO i=1,3
-              NULLIFY(dsblock)
-              CALL get_block_node(matrix=matrix_s(1+i)%matrix,block_row=iatom,&
-                   block_col=jatom,block=dsblock)
-              fi = -gmij*SUM(pblock*dsblock)
-              force(ikind)%rho_elec(i,atom_i) =&
-                  force(ikind)%rho_elec(i,atom_i) + fi
-              force(jkind)%rho_elec(i,atom_j) =&
-                  force(jkind)%rho_elec(i,atom_j) - fi
-              fij(i) = fi
+               NULLIFY(dsblock)
+               CALL dbcsr_get_block_node(matrix=matrix_s(1+i)%matrix,&
+                                         block_row=iatom,&
+                                         block_col=jatom,&
+                                         block=dsblock)
+               fi = -gmij*SUM(pblock*dsblock)
+               force(ikind)%rho_elec(i,atom_i) =&
+                    force(ikind)%rho_elec(i,atom_i) + fi
+               force(jkind)%rho_elec(i,atom_j) =&
+                    force(jkind)%rho_elec(i,atom_j) - fi
+               fij(i) = fi
             END DO
             IF (use_virial) THEN
-              rij = particle_set(iatom)%r - particle_set(jatom)%r
-              rij = pbc(rij,cell)
-              CALL virial_pair_force ( virial%pv_virial, 1._dp, &
-                                       fij, rij, error)
+               rij = particle_set(iatom)%r - particle_set(jatom)%r
+               rij = pbc(rij,cell)
+               CALL virial_pair_force ( virial%pv_virial, 1._dp, &
+                                        fij, rij, error)
             END IF
-          END IF
-          block_node => next_block_node(block_node)
-          IF (SIZE(ks_matrix,1)>1) block_node_2 => next_block_node(block_node_2)
-        END DO
+         END IF
       END DO
+      CALL dbcsr_iterator_stop(iter)
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
-        CALL cp_sm_scale_and_add(matrix_p(1)%matrix,1.0_dp,&
-               matrix_p(2)%matrix,-1.0_dp,error=error)
+         CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                        alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
       END IF
-    END IF
+   END IF
 
     IF ( calculate_forces ) THEN
       DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
@@ -347,7 +398,21 @@ CONTAINS
     END IF
     DEALLOCATE(gmcharge,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(gamma_matrix)
+
+    CALL get_qs_env(qs_env=qs_env,distribution_2d=distribution_2d,error=error)    
+    DO i=1,SIZE(ks_matrix)!sm->dbcsr
+       CALL sm_from_dbcsr(ks_matrix_sm(i)%matrix, ks_matrix(i)%matrix, &
+                          distribution_2d, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    DO i=1,SIZE(gamma_matrix)!sm->dbcsr
+       CALL sm_from_dbcsr(qs_env%gamma_matrix(i)%matrix,gamma_matrix(i)%matrix, &
+                          distribution_2d, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    CALL dbcsr_deallocate_matrix_set( matrix_p, error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_s, error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( gamma_matrix, error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( ks_matrix, error )!sm->dbcsr
 
     CALL timestop(handle)
 

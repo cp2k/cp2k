@@ -12,6 +12,10 @@
 ! *****************************************************************************
 MODULE kg_gpw_fm_mol_utils
 
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             sm_from_dbcsr
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -19,6 +23,9 @@ MODULE kg_gpw_fm_mol_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_util,                      ONLY: dbcsr_init
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
@@ -37,9 +44,7 @@ MODULE kg_gpw_fm_mol_utils
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE qs_mo_types,                     ONLY: wfn_restart_file_name
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_type,&
-                                             set_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -73,11 +78,11 @@ CONTAINS
 !> \param erro r
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE calculate_w_matrix_per_molecule(fm_mol_set,w_matrix,ispin,error)
+  SUBROUTINE calculate_w_matrix_per_molecule(fm_mol_set,w_matrix_sm,ispin,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: fm_mol_set
-    TYPE(real_matrix_type), POINTER          :: w_matrix
+    TYPE(real_matrix_type), POINTER          :: w_matrix_sm
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -93,6 +98,7 @@ CONTAINS
     REAL(dp)                                 :: eigocc
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: mo, w_block, wmo, wmo_x_mot
+    TYPE(dbcsr_obj), POINTER                 :: w_matrix
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -102,6 +108,11 @@ CONTAINS
     TYPE(mol_mo_set_type), POINTER           :: mo_set
 
     failure = .FALSE.
+
+    ALLOCATE(w_matrix)!sm->dbcsr
+    CALL dbcsr_init(w_matrix, error)!sm->dbcsr
+    CALL dbcsr_from_sm(w_matrix, w_matrix_sm, error)!sm->dbcsr
+
     nmolecule_kind = SIZE(fm_mol_set,1)
     NULLIFY(wmo_x_mot,mo,wmo)
     ldmo = 1
@@ -109,7 +120,7 @@ CONTAINS
     ALLOCATE(wmo(ldao,ldmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     wmo = 0.0_dp
-    CALL set_matrix(w_matrix,0.0_dp)
+    CALL dbcsr_set(w_matrix,0.0_dp,error=error)
 
     DO imolecule_kind = 1, nmolecule_kind
 
@@ -165,7 +176,7 @@ CONTAINS
             NULLIFY(w_block)
             IF(iatom <= jatom) THEN
 
-              CALL get_block_node(matrix=w_matrix,&
+              CALL dbcsr_get_block_node(matrix=w_matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
                                   block=w_block)
@@ -181,7 +192,7 @@ CONTAINS
 
             ELSE
 
-              CALL get_block_node(matrix=w_matrix,&
+              CALL dbcsr_get_block_node(matrix=w_matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
                                   block=w_block)
@@ -205,6 +216,9 @@ CONTAINS
 
     DEALLOCATE(wmo,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL sm_from_dbcsr ( w_matrix_sm, w_matrix, w_matrix%m%dist2d, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix ( w_matrix, error=error )!sm->dbcsr
 
   END SUBROUTINE calculate_w_matrix_per_molecule
 
@@ -534,10 +548,10 @@ CONTAINS
 !> \param erro r
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE copy_sparse2mol_block(matrix, mol_block, matrix_mol_block, &
+  SUBROUTINE copy_sparse2mol_block(matrix_sm, mol_block, matrix_mol_block, &
                                    natom, nrow, ncol, error)
 
-    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(real_matrix_type), POINTER          :: matrix_sm
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     REAL(dp), DIMENSION(:, :)                :: matrix_mol_block
     INTEGER, INTENT(IN)                      :: natom, nrow, ncol
@@ -551,8 +565,13 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: s_block
+    TYPE(dbcsr_obj), POINTER                 :: matrix
 
     failure = .FALSE.
+
+    ALLOCATE(matrix)!sm->dbcsr
+    CALL dbcsr_init(matrix, error)!sm->dbcsr
+    CALL dbcsr_from_sm(matrix, matrix_sm, error)!sm->dbcsr
 
     NULLIFY(i_atom,ifirst_ao,ilast_ao)
 
@@ -576,7 +595,7 @@ CONTAINS
 
         NULLIFY(s_block)
         IF (iatom <= jatom) THEN
-          CALL get_block_node(matrix=matrix,&
+           CALL dbcsr_get_block_node(matrix=matrix,&
                               block_row=iatom,&
                               block_col=jatom,&
                               BLOCK=s_block)
@@ -590,7 +609,7 @@ CONTAINS
             icol = icol + 1
           END DO   ! icol_mol_s
         ELSE
-          CALL get_block_node(matrix=matrix,&
+          CALL dbcsr_get_block_node(matrix=matrix,&
                               block_row=jatom,&
                               block_col=iatom,&
                               BLOCK=s_block)
@@ -606,6 +625,8 @@ CONTAINS
         END IF
       END DO  ! jat
     END DO  ! iat
+
+    CALL dbcsr_deallocate_matrix ( matrix, error=error )!sm->dbcsr
 
   END SUBROUTINE copy_sparse2mol_block
 
