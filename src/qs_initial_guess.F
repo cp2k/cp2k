@@ -33,7 +33,7 @@ MODULE qs_initial_guess
        dbcsr_distribution, dbcsr_distribution_col_dist, &
        dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_num_blocks, dbcsr_release, dbcsr_row_block_sizes
+       dbcsr_get_num_blocks, dbcsr_init, dbcsr_release, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: dbcsr_filter,&
                                              dbcsr_put_block,&
                                              dbcsr_scale,&
@@ -44,7 +44,6 @@ MODULE qs_initial_guess
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
                                              dbcsr_finalize,&
-                                             dbcsr_init,&
                                              dbcsr_verify_matrix
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&

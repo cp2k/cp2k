@@ -40,13 +40,13 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_type, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
+       dbcsr_get_matrix_type, dbcsr_init, dbcsr_iterator_blocks_left, &
        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_mutable_new, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_uses_special_memory
+       dbcsr_row_block_sizes, dbcsr_uses_special_memory, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_copy, dbcsr_distribute, dbcsr_filter, &
        dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_norm, dbcsr_put_block, &
@@ -63,10 +63,10 @@ MODULE cp_dbcsr_operations
        dbcsr_checksum, dbcsr_create, dbcsr_create_col_image_dist, &
        dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
        dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, &
-       dbcsr_finalize, dbcsr_find_column, dbcsr_get_block_index, dbcsr_init, &
+       dbcsr_finalize, dbcsr_find_column, dbcsr_get_block_index, &
        dbcsr_make_col_images, dbcsr_new_transposed, dbcsr_set_debug, &
-       dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_work_create, &
-       ensure_array_size, pointer_set, pointer_view, swap
+       dbcsr_verify_matrix, dbcsr_work_create, ensure_array_size, &
+       pointer_set, pointer_view, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -196,11 +196,6 @@ CONTAINS
     ! Create & initialize the final & working matrix.
     IF (dbg) WRITE(*,*)routineP//'Creating 2-d distribution...'
     IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
-    ! We don't recycle yet.
-    IF (ASSOCIATED (matrix_c%m)) THEN
-       CALL dbcsr_release (matrix_c)
-    ENDIF
-    CALL dbcsr_init (matrix_c, error)
     CALL dbcsr_create(matrix_c, "C", distribution, 'N',&
          matrix_a%m%row_blk_size, matrix_b%m%col_blk_size,&
          0, 0, error=error)
@@ -310,7 +305,6 @@ CONTAINS
     !Do the new multiplication
     CALL dbcsr_init (matrix_a, error)
     CALL dbcsr_from_sm(matrix_a, matrix_s, error)
-    WRITE(*,*)"refcount=", matrix_a%m%data_area%d%refcount
     CALL dbcsr_verify_matrix(matrix_a, error)
     !WRITE(*,*)'S checksum=',&
     !     checksum_matrix(matrix_s, matrix_s%distribution_2d%blacs_env%para_env)
@@ -378,7 +372,7 @@ CONTAINS
     !
     ! Replace blocks
     CALL dbcsr_replace_blocks(matrix_a2, matrix_a)
-    CALL dbcsr_verify_matrix(matrix_a, error)
+    CALL dbcsr_verify_matrix(matrix_a2, error)
     checksum = dbcsr_checksum(matrix_a2, error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR replace=S checksum", checksum
@@ -613,6 +607,13 @@ CONTAINS
        DEALLOCATE (block2d_2)
     ENDIF
     CALL dbcsr_iterator_stop (iter)
+    CALL dbcsr_verify_matrix (matrix_b, error=error)
+    checksum = dbcsr_checksum(matrix_b, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksm4g", checksum
+    ENDIF
+    CALL dbcsr_finalize (matrix_b)
+    CALL dbcsr_verify_matrix (matrix_b, error=error)
     checksum = dbcsr_checksum(matrix_b, error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum4", checksum
@@ -1970,13 +1971,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CALL dbcsr_release (matrix)
-    CALL cp_assert (.NOT. ASSOCIATED (matrix%m), cp_warning_level,&
+    CALL cp_assert (.NOT. dbcsr_valid_index(matrix), cp_warning_level,&
          cp_caller_error, routineN,&
          'You should not "deallocate" a referenced matrix. '//&
          'Avoid pointers to DBCSR matrices.')
-    CALL cp_assert (.NOT. ASSOCIATED (matrix%m), cp_fatal_level,&
-         cp_caller_error, routineN,&
-         'Expect crashes.')
     DEALLOCATE (matrix)
     NULLIFY (matrix)
   END SUBROUTINE dbcsr_deallocate_matrix
@@ -2365,6 +2363,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Create a DBCSR matrix from a real_matrix_type
+!> \par Limitations
+!>      Data is never moved among processes, so it is more efficient
+!>      and gracefully handles any misuse of distribution_2d.
 !> \param[out] matrix         bcsr matrix
 !> \param[in] sm    cp2k sparse matrix
 !> \param[in,out] error     cp2k error
@@ -2512,6 +2513,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Create a DBCSR matrix from a real_matrix_type
+!> \par Limitations
+!>      Data is never moved among processes, so it is more efficient
+!>      and gracefully handles any misuse of distribution_2d.
 !> \param[out] sm             cp2k sparse matrix
 !> \param[in] matrix          DBCSR matrix
 !> \param[dist] distribution_2d  distribution_2d for the sparse matrix
@@ -2532,24 +2536,15 @@ CONTAINS
     CHARACTER                                :: dbcsr_matrix_type
     CHARACTER(LEN=40)                        :: sm_symmetry
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: blk, block_col, mp_group, mynode, mypcol, myprow, &
-      nblkcols_total, nblkrows_local, nblkrows_total, nfullcols_total, &
-      nfullrows_total, npcols, nprows, numproc, stored_col, stored_row, &
-      timing_handle
+    INTEGER :: blk, block_col, nblkcols_total, nblkrows_total, &
+      nfullcols_total, nfullrows_total, stored_col, stored_row, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sm_first_col, sm_first_row, &
                                                 sm_last_col, sm_last_row
     INTEGER, DIMENSION(4)                    :: ver
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, local_rows, &
-                                                pcol_dist, prow_dist, &
-                                                row_blk_size
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: symmetric, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d, buff2d
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_mp_obj)                       :: mp
     TYPE(distribution_2d_type), POINTER      :: dist2d
 
     DEBUG_HEADER
@@ -2557,8 +2552,6 @@ CONTAINS
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     ! Sanity checks.
-    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix does not exist.")
     CALL cp_assert (dbcsr_valid_index (matrix), cp_warning_level,&
          cp_caller_error, routineN,&
          "DBCSR Matrix is declared invalid; expect problems.", error=error)
@@ -2581,8 +2574,7 @@ CONTAINS
        dist2d => matrix%m%dist2d
     ENDIF
     ! Get info and verify.
-    CALL distribution_2d_get(dist2d, row_distribution=prow_dist,&
-         col_distribution=pcol_dist, error=error, blacs_env=blacs_env,&
+    CALL distribution_2d_get(dist2d, error=error, blacs_env=blacs_env,&
          n_row_distribution=ver(3), n_col_distribution=ver(4))
     CALL cp_assert (nblkrows_total.EQ.ver(3).AND.nblkcols_total.EQ.ver(4),&
          cp_warning_level, cp_internal_error, routineN,&
@@ -2625,26 +2617,6 @@ CONTAINS
                          distribution_2d=dist2d, error=error,&
                          keep_pointer=.TRUE.)
     DEALLOCATE (sm_first_row, sm_last_row, sm_first_col, sm_last_col)
-    !
-    CALL distribution_2d_get (dist2d, row_distribution=prow_dist,&
-         col_distribution=pcol_dist, blacs_env=blacs_env, error=error)
-    !
-    dist = dbcsr_distribution (matrix)
-    mp = dbcsr_distribution_mp (dist)
-    mynode = dbcsr_mp_mynode (mp)
-    numproc = dbcsr_mp_numnodes (mp)
-    mp_group = dbcsr_mp_group (mp)
-    row_blk_size => array_data (dbcsr_row_block_sizes (matrix))
-    col_blk_size => array_data (dbcsr_col_block_sizes (matrix))
-    nblkrows_local = dbcsr_distribution_nlocal_rows (dist)
-    nblkrows_total = dbcsr_distribution_nrows (dist)
-    local_rows => array_data (dbcsr_distribution_local_rows (dist))
-    ! Assume the DBCSR matrix and the new one have a compatible
-    ! parallel environment (i.e., number of nodes), but the
-    ! distribution can be different (untested).
-    CALL get_blacs_info(blacs_env, para_env=para_env, blacs2mpi=blacs2mpi,&
-         my_process_row=myprow, my_process_column=mypcol,&
-         number_of_process_rows=nprows, number_of_process_columns=npcols)
     !
     NULLIFY (buff2d)
     CALL dbcsr_iterator_start(iter, matrix)

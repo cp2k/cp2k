@@ -23,9 +23,9 @@ MODULE kg_gpw_fm_mol_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_init
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&

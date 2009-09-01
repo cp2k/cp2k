@@ -25,9 +25,9 @@ MODULE qmmm_se_energy
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_set
-  USE dbcsr_util,                      ONLY: dbcsr_init
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &

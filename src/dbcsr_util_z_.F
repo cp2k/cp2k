@@ -22,8 +22,9 @@
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix does not exist.")
+    CALL cp_assert (dbcsr_valid_index (matrix),&
+         cp_fatal_level, cp_caller_error,&
+         routineN, "Matrix not initialized.")
     CALL cp_assert(matrix%m%nblkrows_total .EQ. matrix%m%nblkcols_total,&
          cp_failure_level, cp_caller_error, routineP,&
          "Can not set diagonal of non-square matrix.", error=error)
@@ -168,7 +169,6 @@
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
 !> \param[in] rows, columns   input matrix size
-!> \param error     cp2k error
 ! *****************************************************************************
   PURE SUBROUTINE block_transpose_copy_z(extent_out, extent_in,&
        rows, columns)
@@ -184,6 +184,48 @@
     extent_out = RESHAPE(TRANSPOSE(&
          RESHAPE(extent_in, (/rows, columns/))), (/rows*columns/))
   END SUBROUTINE block_transpose_copy_z
+
+
+! *****************************************************************************
+!> \brief Copy and transpose block.
+!> \param[out] extent_out     output matrix in the form of a 1-d array
+!> \param[in] extent_in       input matrix in the form of a 1-d array
+!> \param[in] rows, columns   input matrix size
+! *****************************************************************************
+  PURE SUBROUTINE block_transpose_copy_2d1d_z(extent_out, extent_in,&
+       rows, columns)
+    INTEGER, INTENT(IN)                           :: rows, columns
+    COMPLEX(kind=real_8), DIMENSION(columns,rows), INTENT(OUT) :: extent_out
+    COMPLEX(kind=real_8), DIMENSION(:), INTENT(IN)             :: extent_in
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_copy_z', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    extent_out = TRANSPOSE(RESHAPE(extent_in, (/rows, columns/)))
+  END SUBROUTINE block_transpose_copy_2d1d_z
+
+! *****************************************************************************
+!> \brief Copy and transpose block.
+!> \param[out] extent_out     output matrix in the form of a 1-d array
+!> \param[in] extent_in       input matrix in the form of a 1-d array
+!> \param[in] rows, columns   input matrix size
+! *****************************************************************************
+  PURE SUBROUTINE block_transpose_copy_1d2d_z(extent_out, extent_in,&
+       rows, columns)
+    COMPLEX(kind=real_8), DIMENSION(:), INTENT(OUT)            :: extent_out
+    INTEGER, INTENT(IN)                           :: rows, columns
+    COMPLEX(kind=real_8), DIMENSION(rows,columns), INTENT(IN)  :: extent_in
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_copy_z', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    extent_out = RESHAPE(TRANSPOSE(extent_in), (/rows*columns/))
+  END SUBROUTINE block_transpose_copy_1d2d_z
+
 
 
 ! *****************************************************************************

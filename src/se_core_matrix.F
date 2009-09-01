@@ -26,6 +26,7 @@ MODULE se_core_matrix
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
                                              dbcsr_distribute,&
@@ -204,6 +205,7 @@ CONTAINS
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
        ALLOCATE(diagmat_p)!sm->dbcsr
+       CALL dbcsr_init (diagmat_p)
        CALL dbcsr_get_block_diag(matrix_p(1)%matrix, diagmat_p, error=error)
        CALL dbcsr_replicate_all(diagmat_p)
      END IF
@@ -212,6 +214,7 @@ CONTAINS
      NULLIFY(matrix_h)!sm->dbcsr
      CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)
      ALLOCATE(matrix_h(1)%matrix)
+     CALL dbcsr_init(matrix_h(1)%matrix)
      CALL dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX",error=error)
      matrix_h(1)%matrix%m%sparsity_id=matrix_s(1)%matrix%m%sparsity_id !sm->dbcsr !this hack should be done in copy!
      CALL dbcsr_set(matrix_h(1)%matrix,0.0_dp,error=error)
@@ -221,6 +224,7 @@ CONTAINS
 
      ! Allocate a diagonal block matrix
      ALLOCATE(diagmat_h)!sm->dbcsr
+     CALL dbcsr_init(diagmat_h)
      CALL dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h, error=error)
      CALL dbcsr_set(diagmat_h, 0.0_dp, error=error)
      CALL dbcsr_replicate_all(diagmat_h)

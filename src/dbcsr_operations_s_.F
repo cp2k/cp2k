@@ -140,6 +140,7 @@
        b_frst_blk = matrix_b%m%row_p(row)+1
        b_last_blk = matrix_b%m%row_p(row+1)
        DO a_blk = matrix_a%m%row_p(row)+1,matrix_a%m%row_p(row+1)
+          IF (matrix_a%m%blk_p(a_blk) .EQ. 0) CYCLE ! Deleted block
           a_col = matrix_a%m%col_i(a_blk)
           a_col_size = a_col_blk_size(a_col)
           !
@@ -180,12 +181,14 @@
 !> \param[in]  row    the row
 !> \param[in]  col    the column
 !> \param[out] block  the block to get (rank-2 array)
+!> \param[out] tr     whether the data is transposed
 !> \param[out] found  whether the block exists in the matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_2d_block_s(matrix,row,col,block,found)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+  SUBROUTINE dbcsr_get_2d_block_s(matrix,row,col,block,tr,found)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:,:), INTENT(OUT)     :: block
+    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_s', &
       routineP = moduleN//':'//routineN
@@ -193,31 +196,56 @@
     REAL(kind=real_4), DIMENSION(:), POINTER           :: block_1d
     INTEGER                                  :: row_size, col_size,&
                                                 blk, last_blk, nze, offset,&
-                                                frst_blk
+                                                frst_blk, stored_row,&
+                                                stored_col
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-
+    TYPE(btree_2d_data_s)          :: data_block
+    LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
-    row_blk_size => array_data (matrix%m%row_blk_size)
-    col_blk_size => array_data (matrix%m%col_blk_size)
     CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_real_4,&
          cp_fatal_level, cp_caller_error,&
          routineN, "Data type mismatch for requested block.")
-    row_size = row_blk_size(row)
-    col_size = col_blk_size(col)
-    blk = matrix%m%row_p(row)+1
-    frst_blk = matrix%m%row_p(row)+1
-    last_blk = matrix%m%row_p(row+1)
-    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,&
-         matrix%m%blk_p,blk,found)
+
+    CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
+         stored_tr, found, blk, offset)
+
     IF(found) THEN
+       row_size = dbcsr_blk_row_size (matrix%m, stored_row)
+       col_size = dbcsr_blk_column_size (matrix%m, stored_col)
        nze = row_size*col_size
        !
        ! let's copy the block
-       offset = ABS(matrix%m%blk_p(blk))
-       block_1d = pointer_view ( dbcsr_get_data_p (&
-                     matrix%m%data_area, 0.0_real_4), offset, offset)
-       block(1:row_size, 1:col_size)&
-            = RESHAPE (block_1d, (/row_size, col_size/))
+       IF (tr .EQV. stored_tr) THEN
+          CALL scopy(nze,&
+               pointer_view (&
+               dbcsr_get_data_p (matrix%m%data_area, 0.0_real_4), offset, offset&
+               ), 1, block(1,1), 1)
+       ELSE
+          IF (stored_tr) CALL swap (row_size, col_size)
+          CALL dbcsr_block_transpose (block,&
+               pointer_view (dbcsr_get_data_p (&
+               matrix%m%data_area, 0.0_real_4), offset, offset+nze-1),&
+               row_size, col_size)
+       ENDIF
+    ELSE
+       CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
+            cp_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.")
+       IF (dbcsr_use_mutable (matrix%m)) THEN
+          CALL btree_get_s (&
+               matrix%m%wms(1)%mutable%m%btree_s,&
+               make_coordinate_tuple(stored_row, stored_col),&
+               data_block, found)
+          IF (found) THEN
+             IF (tr .EQV. data_block%tr) THEN
+                CALL scopy(nze,&
+                     data_block%p(1,1), 1, block(1,1), 1)
+             ELSE
+                IF (data_block%tr) CALL swap (row_size, col_size)
+                block(:,:) = TRANSPOSE (data_block%p)
+             ENDIF
+          ENDIF
+       ENDIF
     ENDIF
   END SUBROUTINE dbcsr_get_2d_block_s
 
@@ -227,12 +255,14 @@
 !> \param[in]  row    the row
 !> \param[in]  col    the column
 !> \param[out] block  the block to get (rank-1 array)
+!> \param[out] tr     whether the data is transposed
 !> \param[out] found  whether the block exists in the matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_block_s(matrix,row,col,block,found)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+  SUBROUTINE dbcsr_get_block_s(matrix,row,col,block,tr,found)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:), INTENT(OUT)       :: block
+    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_s', &
@@ -240,32 +270,59 @@
 
     INTEGER                                  :: blk, col_size, frst_blk, &
                                                 last_blk, nze, offset, &
-                                                row_size
+                                                row_size, stored_row,&
+                                                stored_col
+    LOGICAL                                  :: stored_tr
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    TYPE(btree_2d_data_s)          :: data_block
 !   ---------------------------------------------------------------------------
-    row_blk_size => array_data (matrix%m%row_blk_size)
-    col_blk_size => array_data (matrix%m%col_blk_size)
     CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_real_4,&
          cp_fatal_level, cp_caller_error,&
          routineN, "Data type mismatch for requested block.")
 
-    row_size = row_blk_size(row)
-    col_size = col_blk_size(col)
-    blk = matrix%m%row_p(row)+1
-    frst_blk = matrix%m%row_p(row)+1
-    last_blk = matrix%m%row_p(row+1)
-    CALL dbcsr_find_column(col,frst_blk,last_blk,matrix%m%col_i,&
-         matrix%m%blk_p,blk,found)
+    CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
+         stored_tr, found, blk, offset)
+
     IF(found) THEN
+       row_size = dbcsr_blk_row_size (matrix%m, stored_row)
+       col_size = dbcsr_blk_column_size (matrix%m, stored_col)
        nze = row_size*col_size
        !
        ! let's copy the block
-       offset = ABS(matrix%m%blk_p(blk))
-       CALL scopy(nze,&
-            pointer_view (&
+       IF (tr .EQV. stored_tr) THEN
+          CALL scopy(nze,&
+               pointer_view (&
                dbcsr_get_data_p (matrix%m%data_area, 0.0_real_4), offset, offset&
-            ), 1, block(1), 1)
-       !CALL dcopy(nze,matrix%m%data(offset),1,block(1),1)
+               ), 1, block(1), 1)
+       ELSE
+          IF (stored_tr) CALL swap (row_size, col_size)
+          CALL dbcsr_block_transpose (block,&
+               pointer_view (dbcsr_get_data_p (&
+               matrix%m%data_area, 0.0_real_4), offset, offset+nze-1),&
+               row_size, col_size)
+       ENDIF
+    ELSE
+       CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
+            cp_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.")
+       IF (dbcsr_use_mutable (matrix%m)) THEN
+          CALL btree_get_s (&
+               matrix%m%wms(1)%mutable%m%btree_s,&
+               make_coordinate_tuple(stored_row, stored_col),&
+               data_block, found)
+          IF (found) THEN
+             IF (tr .EQV. data_block%tr) THEN
+                !CALL scopy(nze,&
+                !     data_block%p(1,1) 1, block(1), 1)
+                block(:) = RESHAPE (data_block%p(:,:), (/SIZE(data_block%p)/))
+             ELSE
+                IF (data_block%tr) CALL swap (row_size, col_size)
+                CALL dbcsr_block_transpose (block,&
+                     data_block%p,&
+                     row_size, col_size)
+             ENDIF
+          ENDIF
+       ENDIF
     ENDIF
   END SUBROUTINE dbcsr_get_block_s
 
@@ -457,7 +514,7 @@
 !> \param[in]  row            the logical row
 !> \param[in]  col            the logical column
 !> \param[in]  block          the block to put
-!> \param[in]  transposed     the block is transposed
+!> \param[in]  transposed     (optional) the block is transposed
 !> \param[in]  summation      (optional) if block exists, then sum the new
 !>                            block to the old one instead of replacing it
 !> \param[in]  scale          (optional) scale the block being added
@@ -478,10 +535,9 @@
                                                 last_blk, nze, offset, &
                                                 row_size, blk_p,&
                                                 stored_row, stored_col
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: found, tr, do_sum
 
-! IN PARALLEL WE SHOULD ENSURE THAT THE BLOCK GOES TO THE RIGHT PLACE !
+!   ---------------------------------------------------------------------------
 
     IF (PRESENT (transposed)) THEN
        tr = transposed
@@ -493,23 +549,23 @@
     ELSE
        do_sum = .FALSE.
     ENDIF
-    row_blk_size => array_data (matrix%m%row_blk_size)
-    col_blk_size => array_data (matrix%m%col_blk_size)
-
-    row_size = row_blk_size(row)
-    col_size = col_blk_size(col)
+    row_size = dbcsr_blk_row_size(matrix, row)
+    col_size = dbcsr_blk_column_size(matrix, col)
     IF (tr) CALL swap (row_size, col_size)
-    CALL cp_assert (SIZE(block) .GE. row_size*col_size, cp_fatal_level,&
-         cp_caller_error, routineN, "Invalid block dimensions")
+
     stored_row = row ; stored_col = col
     CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col, tr)
+    nze = row_size*col_size
+    CALL cp_assert (SIZE(block) .GE. nze, cp_fatal_level,&
+         cp_caller_error, routineN, "Invalid block dimensions")
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
          found, blk, offset)
     IF(found) THEN
-       nze = row_size*col_size
        !
        ! let's copy the block
        offset = ABS (offset)
+       ! Fix the index if the new block's transpose flag is different
+       ! from the old one.
        IF (matrix%m%blk_p(blk).LT.0 .NEQV. tr) THEN
           matrix%m%blk_p(blk) = -matrix%m%blk_p(blk)
        ENDIF
@@ -536,7 +592,6 @@
        ENDIF
     ELSE
        IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
-          !WRITE(*,*)routineN//" Creating new work matrix to hold new data"
           CALL dbcsr_work_create (matrix, nblks_guess=1,&
                sizedata_guess=SIZE(block))
        ENDIF

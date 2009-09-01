@@ -23,6 +23,7 @@ MODULE  scp_hartree_1center
                                              dbcsr_obj_p_type,&
                                              sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_distribute,&
                                              dbcsr_get_block_diag,&
@@ -214,6 +215,8 @@ CONTAINS
     DO ispin=1,nspins
        ! Allocate diagonal block matrices
        ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init (diagmat_p(ispin)%matrix)
+       CALL dbcsr_init (diagmat_ks(ispin)%matrix)
        CALL dbcsr_get_block_diag(p_mat(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
        CALL dbcsr_get_block_diag(h_mat(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
        CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)

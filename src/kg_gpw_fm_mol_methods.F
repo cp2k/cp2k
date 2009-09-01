@@ -26,8 +26,8 @@ MODULE kg_gpw_fm_mol_methods
                                              dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
                                              sm_from_dbcsr
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_init
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kg_gpw_fm_mol_types,             ONLY: &
        allocate_fm_mol_blocks, allocate_mol_mo_set, fm_mol_blocks_type, &

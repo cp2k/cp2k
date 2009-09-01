@@ -46,6 +46,7 @@ MODULE preconditioner
                                              dbcsr_distribution_nlocal_rows,&
                                              dbcsr_distribution_release,&
                                              dbcsr_get_info,&
+                                             dbcsr_init,&
                                              dbcsr_release,&
                                              dbcsr_row_block_sizes
   USE dbcsr_operations
@@ -55,7 +56,6 @@ MODULE preconditioner
                                              dbcsr_type
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
-                                             dbcsr_init,&
                                              dbcsr_verify_matrix
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: &
@@ -1790,7 +1790,7 @@ END SUBROUTINE make_full_all_ortho
        !v(k,k)=v(k,k)-s;
        ! WE COULD AVOID MANY COPIES (bcsr <-> vector), BY PASSING 
        ! THE BLK POINTER AND DOING THE OPERATION DIRECTLY ON DATA(BLK)
-       CALL dbcsr_get_block(mat_v, k, k, blk, found)!PARA local get
+       CALL dbcsr_get_block(mat_v, k, k, blk, .FALSE., found)!PARA local get
        CALL block_add_on_diag_d(row_blk_size(k), blk, -s)
        CALL dbcsr_put_block(mat_v, k, k, blk)!PARA local put
        !
@@ -1854,7 +1854,7 @@ END SUBROUTINE make_full_all_ortho
        ! build d and inv(d)
        !
        ! d(k,k) = v(k,k) / s + eye(k);
-       CALL dbcsr_get_block(mat_v, k, k, blk, found) !PARA local
+       CALL dbcsr_get_block(mat_v, k, k, blk, .FALSE., found) !PARA local
        CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)          !PARA local
        CALL block_add_on_diag_d(row_blk_size(k), blk, 1.0_dp)      !PARA local
        CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_d(d_offset), 1)!PARA local

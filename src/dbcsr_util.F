@@ -43,23 +43,24 @@ MODULE dbcsr_util
        dbcsr_distribution_nrows, dbcsr_distribution_processor, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_num_blocks, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
-       dbcsr_mp_new, dbcsr_mp_new_transposed, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
-       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
-       dbcsr_mutable_release
+       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_init, &
+       dbcsr_is_initialized, dbcsr_iterator_blocks_left, &
+       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
+       dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_new_transposed, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_mp_release, dbcsr_mutable_destroy, dbcsr_mutable_init, &
+       dbcsr_mutable_instantiated, dbcsr_mutable_release, dbcsr_valid_index
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
-       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_meta_size, &
-       dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, dbcsr_repl_col, &
-       dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, &
-       dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, &
-       dbcsr_slot_size, dbcsr_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_normal, &
-       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, &
-       dbcsr_type_symmetric, dbcsr_type_transposed, dbcsr_work_type
+       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_magic_number, &
+       dbcsr_meta_size, dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, &
+       dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
+       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
+       dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_normal, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_type_transposed, &
+       dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
                                              distribution_2d_release,&
@@ -98,14 +99,6 @@ MODULE dbcsr_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_util'
 
-  INTERFACE dbcsr_init
-     MODULE PROCEDURE dbcsr_init_type, dbcsr_init_obj
-  END INTERFACE
-
-   INTERFACE dbcsr_valid_index
-     MODULE PROCEDURE dbcsr_valid_index_type, dbcsr_valid_index_obj
-  END INTERFACE
-  
   INTERFACE dbcsr_get_stored_block_info
      MODULE PROCEDURE get_stored_block_info_type, get_stored_block_info_obj
   END INTERFACE
@@ -116,6 +109,14 @@ MODULE dbcsr_util
 
   INTERFACE dbcsr_get_block_index
      MODULE PROCEDURE get_block_index_type, get_block_index_obj
+  END INTERFACE
+
+  INTERFACE dbcsr_blk_row_size
+     MODULE PROCEDURE dbcsr_blk_row_size_type, dbcsr_blk_row_size_obj
+  END INTERFACE
+
+  INTERFACE dbcsr_blk_column_size
+     MODULE PROCEDURE dbcsr_blk_column_size_type, dbcsr_blk_column_size_obj
   END INTERFACE
 
   INTERFACE swap
@@ -141,6 +142,10 @@ MODULE dbcsr_util
      MODULE PROCEDURE block_transpose_inplace,&
           block_transpose_copy_d, block_transpose_copy_s,&
           block_transpose_copy_z, block_transpose_copy_c,&
+          block_transpose_copy_2d1d_d, block_transpose_copy_2d1d_s,&
+          block_transpose_copy_2d1d_z, block_transpose_copy_2d1d_c,&
+          block_transpose_copy_1d2d_d, block_transpose_copy_1d2d_s,&
+          block_transpose_copy_1d2d_z, block_transpose_copy_1d2d_c,&
           dbcsr_block_transpose_aa
   END INTERFACE
 
@@ -180,10 +185,9 @@ MODULE dbcsr_util
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize,&
        dbcsr_checksum, dbcsr_verify_matrix,&
        dbcsr_repoint_index,&
-       dbcsr_init,&
        dbcsr_new_transposed,&
        dbcsr_desymmetrize_deep,&
-       dbcsr_work_destroy, dbcsr_print, dbcsr_valid_index,&
+       dbcsr_work_destroy, dbcsr_print,&
        dbcsr_get_block_index, checker_square_proc
   ! Distributions
   PUBLIC :: dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot,&
@@ -213,8 +217,9 @@ MODULE dbcsr_util
        dbcsr_unpack_i8_2i4,&
        pointer_view, pointer_set, pointer_replace, dbcsr_data_ensure_size,&
        dbcsr_data_set,&
-       dbcsr_wm_use_mutable,&
-       convert_sizes_to_offsets, convert_offsets_to_sizes
+       dbcsr_use_mutable, dbcsr_wm_use_mutable,&
+       convert_sizes_to_offsets, convert_offsets_to_sizes,&
+       dbcsr_blk_row_size, dbcsr_blk_column_size
   ! Some higher-level operations
   PUBLIC :: dbcsr_set_diagonal
 
@@ -230,8 +235,6 @@ MODULE dbcsr_util
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
-
-  INTEGER, PARAMETER :: dbcsr_magic_number = 879546213
 
 CONTAINS
 
@@ -356,7 +359,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF(.NOT.ASSOCIATED(matrix%m)) CALL stop_program (routineP, 'matrix%m not associated') 
+    IF(.NOT.matrix%m%initialized.EQ.dbcsr_magic_number)&
+         CALL stop_program (routineP, 'matrix%m not associated') 
 
     IF (PRESENT (processor)) THEN
        CALL dbcsr_get_stored_coordinates (matrix%m, row, column, transpose, processor)
@@ -552,6 +556,24 @@ CONTAINS
   END SUBROUTINE get_stored_block_info_obj
 
 
+! *****************************************************************************
+!> \brief Finds the block that has the given column.
+!>
+!>        If the block having the queried column is found, the blk parameter
+!>        is set to this block number and the found parameter is true.
+!>        Otherwise found is false and the block number is invalid.
+!> \par Index validity
+!>      The blk_p array of block pointers is a required parameter to enable
+!>      the detection of deleted blocks.
+!> \param[in] find_col        column to find
+!> \param[in] frst_blk        first block number in row
+!> \param[in] last_blk        last block number in row
+!> \param[in] col_i           col indices
+!> \param[in] blk_p           block pointers
+!> \param[out] blk            block number with searched-for column
+!> \param[out] found          flag specified whether a block that has the
+!>                            correct column was found
+! *****************************************************************************
   PURE SUBROUTINE dbcsr_find_column(find_col,frst_blk,last_blk,col_i,blk_p,&
        blk,found)
     INTEGER, INTENT(IN)                      :: find_col, frst_blk, last_blk
@@ -576,51 +598,50 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Initializes a DBCSR matrix but does not create it.
-!> \param[out] matrix         uninitialized matrix
-!> \param[in,out] error       cp2k error
+!> \brief Returns the blocked row size of a row
+!>
+!> This routine is optimized for speed and no checks are performed.
+!> \param[in] matrix          DBCSR matrix
+!> \param[in] row             row number  
+!> \retval row_size           blocked row size
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_type (matrix, error)
-    TYPE(dbcsr_type), INTENT(OUT)            :: matrix
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+  PURE FUNCTION dbcsr_blk_row_size_type (matrix, row) RESULT (row_size)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER, INTENT(IN)                      :: row
+    INTEGER                                  :: row_size
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_type', &
-      routineP = moduleN//':'//routineN
+    row_size = matrix%row_blk_size%low%data(row)
+  END FUNCTION dbcsr_blk_row_size_type
+  PURE FUNCTION dbcsr_blk_row_size_obj (matrix, row) RESULT (row_size)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER, INTENT(IN)                      :: row
+    INTEGER                                  :: row_size
 
-!   ---------------------------------------------------------------------------
-
-    matrix%initialized = dbcsr_magic_number
-    matrix%valid = .FALSE.
-    ! Nullifies all pointers.
-    NULLIFY (matrix%index, matrix%row_p, matrix%col_i,&
-         matrix%blk_p)
-    CALL dbcsr_data_init (matrix%data_area)
-    CALL dbcsr_distribution_init (matrix%dist)
-    CALL array_nullify (matrix%row_blk_size)
-    CALL array_nullify (matrix%col_blk_size)
-    NULLIFY (matrix%wms)
-    NULLIFY (matrix%dist2d)
-    NULLIFY (matrix%block_node)
-  END SUBROUTINE dbcsr_init_type
+    row_size = matrix%m%row_blk_size%low%data(row)
+  END FUNCTION dbcsr_blk_row_size_obj
 
 ! *****************************************************************************
-!> \brief Initializes a DBCSR matrix but does not allocate any memory.
-!> \param[out] matrix         uninitialized matrix
-!> \param[in,out] error       cp2k error
+!> \brief Returns the blocked column size of a column
+!>
+!> This routine is optimized for speed and no checks are performed.
+!> \param[in] matrix          DBCSR matrix
+!> \param[in] column          column number  
+!> \retval column_size        blocked row size
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_obj (matrix, error)
-    TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+  PURE FUNCTION dbcsr_blk_column_size_type (matrix, column) RESULT (column_size)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER, INTENT(IN)                      :: column
+    INTEGER                                  :: column_size
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj', &
-      routineP = moduleN//':'//routineN
+    column_size = matrix%col_blk_size%low%data(column)
+  END FUNCTION dbcsr_blk_column_size_type
+  PURE FUNCTION dbcsr_blk_column_size_obj (matrix, column) RESULT (column_size)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER, INTENT(IN)                      :: column
+    INTEGER                                  :: column_size
 
-!   ---------------------------------------------------------------------------
-
-    NULLIFY (matrix%m)
-  END SUBROUTINE dbcsr_init_obj
+    column_size = matrix%m%col_blk_size%low%data(column)
+  END FUNCTION dbcsr_blk_column_size_obj
 
 
 ! *****************************************************************************
@@ -676,24 +697,24 @@ CONTAINS
     IF (PRESENT (reuse)) THEN
        hijack = reuse
     ELSE
-       IF (ASSOCIATED (matrix%m)) THEN
-          CALL cp_assert (matrix%m%initialized .EQ. dbcsr_magic_number,&
-               cp_warning_level, cp_caller_error, routineN,&
-               "Matrix may not have been initialized with dbcsr_init")
-          hijack = .TRUE.
+       IF (matrix%m%initialized.EQ.dbcsr_magic_number) THEN
+          ! Reuse matrix only if has actually been allocated.
+          IF (ASSOCIATED (matrix%m%index)) THEN
+             hijack = .TRUE.
+          ELSE
+             hijack = .FALSE.
+          ENDIF
        ELSE
+          CALL cp_assert (matrix%m%initialized .EQ. 0,&
+               cp_fatal_level, cp_caller_error, routineN,&
+               "Matrix may not have been initialized with dbcsr_init")
           hijack = .FALSE.
        ENDIF
     ENDIF
     IF (.NOT.hijack) THEN
-       ALLOCATE (matrix%m)
        CALL dbcsr_init (matrix%m)
        matrix%m%refcount = 1
     ENDIF
-    !! Why would you want to not reuse an existing matrix?
-    !CALL cp_assert (hijack .EQV. matrix%m%valid, cp_warning_level,&
-    !     cp_caller_error, routineP, "Reuse and matrix validity do not match.")
-    !
     ! Mark matrix index as having an invalid index.
     matrix%m%valid = .FALSE.
     matrix%m%name = name
@@ -914,7 +935,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
+    CALL cp_assert (matrix%m%initialized.EQ.dbcsr_magic_number,&
+         cp_fatal_level, cp_caller_error,&
          routineN, "Can not create work matrix for nonexisting matrix object.")
     IF (PRESENT (n)) THEN
        nw = n
@@ -974,11 +996,17 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not finalize nonexisting matrix object.")
-    IF (matrix%m%valid) THEN
+    CALL cp_assert (dbcsr_is_initialized (matrix),&
+         cp_fatal_level, cp_caller_error,&
+         routineN, "Can not finalize uninitialized matrix.")
+    IF (dbcsr_valid_index(matrix)) THEN
        IF (dbg) WRITE(*,'(2(1X,A))')&
             "No need to finalize a valid matrix, skipping."
+       CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms), cp_warning_level,&
+            cp_internal_error, routineN,&
+            "Valid matrix should not contain work data")
+       IF (ASSOCIATED (matrix%m%wms)) &
+            CALL dbcsr_work_destroy_all(matrix%m)
        RETURN
     ENDIF
     CALL timeset(routineN, timing_handle)
@@ -1132,7 +1160,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_fill_wm_from_matrix(wm, matrix)
     TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm
-    TYPE(dbcsr_type), INTENT(INOUT), TARGET  :: matrix
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_fill_wm_from_matrix', &
       routineP = moduleN//':'//routineN
@@ -1147,7 +1175,7 @@ CONTAINS
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     nblks = matrix%nblks
-    m%m => matrix
+    m%m = matrix
     CALL dbcsr_iterator_start (iter, m)
     IF (dbg) WRITE(*,*)routineN//" There are",nblks,"blocks."
     i = 1
@@ -1225,6 +1253,7 @@ CONTAINS
           CALL dbcsr_work_destroy (m%wms(i))
        ENDDO
        DEALLOCATE (m%wms)
+       NULLIFY (m%wms)
     ENDIF
   END SUBROUTINE dbcsr_work_destroy_all
 
@@ -1347,7 +1376,7 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL cp_assert (ASSOCIATED (normal%m), cp_fatal_level, cp_caller_error,&
+    CALL cp_assert (dbcsr_valid_index(normal), cp_fatal_level, cp_caller_error,&
          routineN, "Matrix does not exist.")
     ! Internalize options
     shuffle = .TRUE.
@@ -2665,8 +2694,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
-    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix does not exist.")
+    CALL cp_assert (dbcsr_valid_index(matrix),&
+         cp_warning_level, cp_caller_error,&
+         routineN, "Invalid matrix.")
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
     e = error
@@ -2750,8 +2780,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
-    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix does not exist.")
+    CALL cp_assert (dbcsr_valid_index (matrix),&
+         cp_fatal_level, cp_caller_error,&
+         routineN, "Can not print invalid matrix.")
     yesprint = .TRUE.
     IF (PRESENT (nodata)) yesprint = .NOT. nodata
     WRITE(*,*)routineP//' Contents of matrix named ', matrix%m%name
@@ -2853,7 +2884,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (m%m), cp_fatal_level, cp_caller_error,&
+    CALL cp_assert (m%m%initialized .EQ. dbcsr_magic_number,&
+         cp_fatal_level, cp_caller_error,&
          routineN, "Can not verify non-existing matrix object.")
     dbg = 2
     nocomm = .FALSE.
@@ -3334,28 +3366,30 @@ CONTAINS
     DO row = 1, nrows
        row_size = rbs (row)
        DO blk = row_p(row)+1, row_p(row+1)
-          col_size = cbs(col_i(blk))
-          nze = row_size * col_size
-          IF (blk .GT. 1) THEN
-             blk_p(blk) = SGN(ABS(blk_p(blk-1)) + nze_prev, old_blk_p(blk),&
-                  mark)
-          ENDIF
-          IF (.NOT. trb) THEN
-             CALL dbcsr_data_set (dst, ABS(blk_p(blk)), nze,&
-                  src, source_lb=ABS(old_blk_p(blk)))
-             !dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1) =&
-             !     src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1)
-          ELSE
-             CALL dbcsr_block_transpose (dst, src, ABS(blk_p(blk)),&
-                  row_size, col_size, ABS(old_blk_p(blk)))
-             !CALL dbcsr_block_transpose (&
-             !     dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1),&
-             !     src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1),&
-             !     row_size, col_size)
-          ENDIF
-          nze_prev = nze
-       ENDDO
-    ENDDO
+          IF (old_blk_p(blk) .NE. 0) THEN
+             col_size = cbs(col_i(blk))
+             nze = row_size * col_size
+             IF (blk .GT. 1) THEN
+                blk_p(blk) = SGN(ABS(blk_p(blk-1)) + nze_prev, old_blk_p(blk),&
+                     mark)
+             ENDIF
+             IF (.NOT. trb) THEN
+                CALL dbcsr_data_set (dst, ABS(blk_p(blk)), nze,&
+                     src, source_lb=ABS(old_blk_p(blk)))
+                !dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1) =&
+                !     src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1)
+             ELSE
+                CALL dbcsr_block_transpose (dst, src, ABS(blk_p(blk)),&
+                     row_size, col_size, ABS(old_blk_p(blk)))
+                !CALL dbcsr_block_transpose (&
+                !     dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1),&
+                !     src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1),&
+                !     row_size, col_size)
+             ENDIF
+             nze_prev = nze
+          ENDIF ! blk exists
+       ENDDO ! blk
+    ENDDO ! row
   END SUBROUTINE dbcsr_copy_sort_data
 
 
@@ -3556,8 +3590,8 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL cp_assert (ASSOCIATED (source%m), cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix does not exist.")
+    CALL cp_assert (dbcsr_valid_index(source),&
+         cp_fatal_level, cp_caller_error, routineN, "Matrix not initialized.")
     DBG 'Make images for matrix', source%m%matrix_type, source%m%name
     normalized%image_dist = target_image_dist
     SELECT CASE (source%m%matrix_type)
@@ -3934,8 +3968,9 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL cp_assert (ASSOCIATED (source%m), cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix does not exist.")
+    CALL cp_assert (dbcsr_valid_index (source),&
+         cp_fatal_level, cp_caller_error, routineN,&
+         "Matrix not initialized.")
     DBG 'Make images for matrix', source%m%matrix_type, source%m%name
     normalized%image_dist = target_image_dist
     SELECT CASE (source%m%matrix_type)
@@ -4414,8 +4449,9 @@ CONTAINS
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     tstart = m_walltime ()
-    CALL cp_assert (ASSOCIATED (sm%m), cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix does not exist.")
+    CALL cp_assert (dbcsr_valid_index (sm),&
+         cp_fatal_level, cp_caller_error, routineN,&
+         "Matrix not initialized.")
     nsymmetries = 1
     IF (sm%m%matrix_type .EQ. 'S' .OR. sm%m%matrix_type .EQ. 'A') THEN
        nsymmetries = 2
@@ -6155,46 +6191,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Returns whether the index structure of the matrix is valid.
-!> \param[in] matrix          verify index validity of this matrix
-!> \param[out] valid_index    index validity
-! *****************************************************************************
-  PURE FUNCTION dbcsr_valid_index_type (matrix) RESULT (valid_index)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
-    LOGICAL                                  :: valid_index
-
-!   ---------------------------------------------------------------------------
-
-    valid_index = .FALSE.
-    IF (ASSOCIATED (matrix%row_p)) THEN
-       valid_index = SIZE (matrix%row_p) .GT. 0
-    ENDIF
-  END FUNCTION dbcsr_valid_index_type
-
-
-! *****************************************************************************
-!> \brief Returns whether the index structure of the matrix is valid.
-!> \param[in] matrix          verify index validity of this matrix
-!> \param[out] valid_index    index validity
-! *****************************************************************************
-  PURE FUNCTION dbcsr_valid_index_obj (matrix) RESULT (valid_index)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL                                  :: valid_index
-
-!   ---------------------------------------------------------------------------
-
-    valid_index = .FALSE.
-    IF (ASSOCIATED (matrix%m)) THEN
-       IF (ASSOCIATED (matrix%m%row_p)) THEN
-          valid_index = SIZE (matrix%m%row_p) .GT. 0
-       ENDIF
-    ELSE
-       valid_index = .FALSE.
-    ENDIF
-  END FUNCTION dbcsr_valid_index_obj
-
-! *****************************************************************************
-!> \brief Returns whether the index structure of the matrix is valid.
+!> \brief Returns whether this work matrix uses the mutable type
 !> \param[in] wm              work matrix
 !> \param[out] use_mutable    use the mutable and not append-only working
 !>                            structures
@@ -6207,6 +6204,21 @@ CONTAINS
 
     use_mutable = dbcsr_mutable_instantiated (wm%mutable)
   END FUNCTION dbcsr_wm_use_mutable
+
+! *****************************************************************************
+!> \brief Returns whether work matrices should use the mutable data type
+!> \param[in] matrix          matrix
+!> \param[out] use_mutable    use the mutable and not append-only working
+!>                            structures
+! *****************************************************************************
+  PURE FUNCTION dbcsr_use_mutable (matrix) RESULT (use_mutable)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    LOGICAL                                  :: use_mutable
+
+!   ---------------------------------------------------------------------------
+
+    use_mutable = matrix%work_mutable
+  END FUNCTION dbcsr_use_mutable
 
 ! *****************************************************************************
 !> \brief Calls the functions that are called in the included files but not

@@ -749,9 +749,9 @@ MODULE hfx_load_balance_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_update_load_balance', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: data_from, dest, end_idx, i, ibin, icpu, iprocess, j, &
+    INTEGER :: data_from, dest, end_idx, handle, i, ibin, icpu, iprocess, j, &
       my_bin_size, my_global_start_idx, my_process_id, nbins, req(2), source, &
-      start_idx, stat, handle
+      start_idx, stat
     INTEGER(int_8)                           :: mepos, n_processes, ncpu
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer

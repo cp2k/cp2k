@@ -50,9 +50,9 @@ MODULE qs_moments
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy
   USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_init
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: default_string_length,&

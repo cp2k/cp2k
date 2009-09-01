@@ -42,7 +42,8 @@ MODULE dft_plus_u
   USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
                                              copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
+  USE dbcsr_methods,                   ONLY: dbcsr_init,&
+                                             dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
@@ -51,7 +52,6 @@ MODULE dft_plus_u
                                              dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_init
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: plus_u_lowdin,&

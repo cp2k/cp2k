@@ -27,8 +27,8 @@ MODULE kg_gpw_collocate_den
                                              dbcsr_get_block_node,&
                                              sm_from_dbcsr
   USE cube_utils,                      ONLY: cube_info_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_init
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

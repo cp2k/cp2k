@@ -29,6 +29,7 @@ MODULE se_fock_matrix
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
                                              dbcsr_trace
@@ -196,6 +197,7 @@ CONTAINS
        DO ispin=1,nspins
           ALLOCATE(ks_matrix(ispin)%matrix)!sm->dbcsr
           ! Copy the core matrix into the fock matrix
+          CALL dbcsr_init(ks_matrix(ispin)%matrix)
           CALL dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
        END DO
 

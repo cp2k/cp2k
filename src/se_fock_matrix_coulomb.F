@@ -31,6 +31,7 @@ MODULE se_fock_matrix_coulomb
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
                                              dbcsr_distribute,&
@@ -219,6 +220,8 @@ CONTAINS
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
           ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_init(diagmat_p(ispin)%matrix)
+          CALL dbcsr_init(diagmat_ks(ispin)%matrix)
           CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
           CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
           CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
@@ -515,6 +518,7 @@ CONTAINS
        IF ( scp_nddo ) THEN
           ! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
           ALLOCATE(ks_scp)!sm->dbcsr ! need a soft copy !
+          CALL dbcsr_init(ks_scp)
           CALL dbcsr_copy ( ks_scp, diagmat_ks(1)%matrix, 'ks_scp', error )
           ! sum over all procs to get the replicated ks_scp
           CALL dbcsr_sum_replicated( ks_scp )
@@ -657,6 +661,8 @@ CONTAINS
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
           ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_init(diagmat_p(ispin)%matrix)
+          CALL dbcsr_init(diagmat_ks(ispin)%matrix)
           CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
           CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
           CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
@@ -668,6 +674,8 @@ CONTAINS
        IF (scp_nddo) THEN
           CALL get_scp_env(scp_env=scp_env, pscp=pscp_sm, ks_scp=ks_scp_sm, error=error)
           ALLOCATE(pscp,ks_scp)!sm->dbcsr
+          CALL dbcsr_init(pscp)
+          CALL dbcsr_init(ks_scp)
           CALL dbcsr_from_sm(pscp,pscp_sm,error=error)!sm->dbcsr
           CALL dbcsr_from_sm(ks_scp,ks_scp_sm,error=error)!sm->dbcsr
           !CALL dbcsr_copy(dbm,ks_scp,'DUMMY BLOCK KS MATRIX',error)
@@ -918,6 +926,7 @@ CONTAINS
        IF ( scp_nddo ) THEN
           ! transfer to dummy dbm
           ALLOCATE(dbm)!sm->dbcsr
+          CALL dbcsr_init(dbm)
           CALL dbcsr_copy ( dbm, diagmat_ks(1)%matrix, 'dbm', error )
           ! replicate the dbm
           CALL dbcsr_sum_replicated( dbm )
@@ -1504,6 +1513,8 @@ CONTAINS
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
           ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
+          CALL dbcsr_init(diagmat_p(ispin)%matrix)
+          CALL dbcsr_init(diagmat_ks(ispin)%matrix)
           CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
           CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
           CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)

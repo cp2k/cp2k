@@ -30,9 +30,10 @@ MODULE dbcsr_methods
                                              btree_new_z => btree_new
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_data_obj, &
-       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
-       dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_complex_4, &
-       dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_magic_number, &
+       dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
+       dbcsr_type_real_8
   USE distribution_2d_types,           ONLY: distribution_2d_release
   USE f77_blas
   USE f77_blas_generic,                ONLY: bl_copy
@@ -48,7 +49,8 @@ MODULE dbcsr_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
 
-  PUBLIC :: dbcsr_hold, dbcsr_release, dbcsr_destroy
+  PUBLIC :: dbcsr_init, dbcsr_hold, dbcsr_release, dbcsr_destroy,&
+            dbcsr_valid_index, dbcsr_is_initialized
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release
   PUBLIC :: dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&
             dbcsr_mp_new_transposed, dbcsr_mp_nprows, dbcsr_mp_npcols,&
@@ -96,6 +98,19 @@ MODULE dbcsr_methods
 #define DEBUG_HEADER        LOGICAL :: dbg, info
 #define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
 #define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
+
+
+  INTERFACE dbcsr_init
+     MODULE PROCEDURE dbcsr_init_type, dbcsr_init_obj
+  END INTERFACE
+
+  INTERFACE dbcsr_valid_index
+     MODULE PROCEDURE dbcsr_valid_index_type, dbcsr_valid_index_obj
+  END INTERFACE
+  
+  INTERFACE dbcsr_is_initialized
+     MODULE PROCEDURE dbcsr_is_initialized_type, dbcsr_is_initialized_obj
+  END INTERFACE
 
   INTERFACE dbcsr_get_data
      MODULE PROCEDURE get_data_s, get_data_d, get_data_c, get_data_z,&
@@ -154,6 +169,124 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Initializes a DBCSR matrix but does not create it.
+!> \param[out] matrix         uninitialized matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_init_type (matrix, error)
+    TYPE(dbcsr_type), INTENT(OUT)            :: matrix
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_type', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    matrix%initialized = dbcsr_magic_number
+    matrix%valid = .FALSE.
+    ! Nullifies all pointers.
+    NULLIFY (matrix%index, matrix%row_p, matrix%col_i,&
+         matrix%blk_p)
+    CALL dbcsr_data_init (matrix%data_area)
+    CALL dbcsr_distribution_init (matrix%dist)
+    CALL array_nullify (matrix%row_blk_size)
+    CALL array_nullify (matrix%col_blk_size)
+    NULLIFY (matrix%wms)
+    NULLIFY (matrix%dist2d)
+    NULLIFY (matrix%block_node)
+  END SUBROUTINE dbcsr_init_type
+
+! *****************************************************************************
+!> \brief Initializes a DBCSR matrix but does not allocate any memory.
+!> \param[out] matrix         uninitialized matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_init_obj (matrix, error)
+    TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    matrix%m%initialized = 0
+  END SUBROUTINE dbcsr_init_obj
+
+
+
+! *****************************************************************************
+!> \brief Returns whether the index structure of the matrix is valid.
+!> \param[in] matrix          verify index validity of this matrix
+!> \retval valid_index        index validity
+! *****************************************************************************
+  PURE FUNCTION dbcsr_valid_index_type (matrix) RESULT (valid_index)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    LOGICAL                                  :: valid_index
+
+!   ---------------------------------------------------------------------------
+!valid_index = .FALSE.
+!IF (ASSOCIATED (matrix%row_p)) THEN
+!   valid_index = SIZE (matrix%row_p) .GT. 0
+!ENDIF
+
+    valid_index = matrix%valid
+  END FUNCTION dbcsr_valid_index_type
+
+! *****************************************************************************
+!> \brief Returns whether the index structure of the matrix is valid.
+!> \param[in] matrix          verify index validity of this matrix
+!> \retval valid_index        index validity
+! *****************************************************************************
+  PURE FUNCTION dbcsr_valid_index_obj (matrix) RESULT (valid_index)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    LOGICAL                                  :: valid_index
+
+!   ---------------------------------------------------------------------------
+
+    valid_index = dbcsr_valid_index_type (matrix%m)
+    !valid_index = .FALSE.
+    !IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
+    !   IF (ASSOCIATED (matrix%m%row_p)) THEN
+    !      valid_index = SIZE (matrix%m%row_p) .GT. 0
+    !   ENDIF
+    !ELSE
+    !   valid_index = .FALSE.
+    !ENDIF
+  END FUNCTION dbcsr_valid_index_obj
+
+! *****************************************************************************
+!> \brief Returns whether the index structure of the matrix is valid.
+!> \param[in] matrix          verify index validity of this matrix
+!> \retval initialized        the matrix is initialized
+! *****************************************************************************
+  PURE FUNCTION dbcsr_is_initialized_type (matrix) RESULT (initialized)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    LOGICAL                                  :: initialized
+
+!   ---------------------------------------------------------------------------
+
+    initialized = matrix%initialized .EQ. dbcsr_magic_number
+  END FUNCTION dbcsr_is_initialized_type
+
+! *****************************************************************************
+!> \brief Returns whether the index structure of the matrix is valid.
+!> \param[in] matrix          verify index validity of this matrix
+!> \retval initialized        the matrix is initialized
+! *****************************************************************************
+  PURE FUNCTION dbcsr_is_initialized_obj (matrix) RESULT (initialized)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    LOGICAL                                  :: initialized
+
+!   ---------------------------------------------------------------------------
+
+    initialized = dbcsr_is_initialized_type (matrix%m)
+  END FUNCTION dbcsr_is_initialized_obj
+
+
+! *****************************************************************************
 !> \brief Registers another reference for a DBCSR matrix
 !> \param[in,out] matrix    DBCSR matrix
 ! *****************************************************************************
@@ -165,9 +298,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (matrix%m),&
+    CALL cp_assert (matrix%m%initialized .EQ. dbcsr_magic_number,&
          cp_failure_level, cp_caller_error, routineN,&
-         "Matrix not instantiated")
+         "Matrix not initialized")
     matrix%m%refcount = matrix%m%refcount + 1
   END SUBROUTINE dbcsr_hold
 
@@ -186,10 +319,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (matrix%m),&
+    CALL cp_assert (dbcsr_is_initialized (matrix),&
          cp_warning_level, cp_caller_error, routineN,&
-         "Matrix not instantiated")
-    IF (ASSOCIATED (matrix%m)) THEN
+         "Matrix not initialized")
+    IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
        matrix%m%refcount = matrix%m%refcount - 1
        IF (matrix%m%refcount .EQ. 0) THEN
           CALL dbcsr_destroy (matrix)
@@ -218,11 +351,12 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (matrix%m), cp_warning_level, cp_caller_error,&
-         routineN, "Can not destroy nonexisting matrix object.")
+    CALL cp_assert (dbcsr_is_initialized (matrix),&
+         cp_warning_level, cp_caller_error, routineN,&
+         "Can not destroy uninitialized matrix object.")
     force_all = .FALSE.
     IF (PRESENT (force)) force_all = force
-    IF (ASSOCIATED (matrix%m)) THEN
+    IF (dbcsr_is_initialized (matrix)) THEN
        CALL cp_assert (force_all .OR. matrix%m%refcount.EQ.0,&
             cp_warning_level, cp_caller_error,&
             routineN, "You should not destroy referenced matrix.")
@@ -237,11 +371,6 @@ CONTAINS
           ELSE
              DEALLOCATE(matrix%m%index)
           ENDIF
-          !IF (matrix%m%special_memory) THEN
-          !   CALL MP_DEALLOCATE(matrix%m%data)
-          !ELSE
-          !   DEALLOCATE(matrix%m%data)
-          !ENDIF
           CALL cp_error_init(my_error)
           IF (ASSOCIATED (matrix%m%dist2d)) &
                CALL distribution_2d_release(matrix%m%dist2d,my_error)
@@ -255,8 +384,7 @@ CONTAINS
           CALL array_release (matrix%m%col_blk_size)
           CALL dbcsr_distribution_release(matrix%m%dist)
           matrix%m%valid = .FALSE.
-          matrix%m%initialized = 0
-          DEALLOCATE (matrix%m)
+          CALL dbcsr_init (matrix%m)
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_destroy
@@ -789,8 +917,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (matrix%m), cp_fatal_level, cp_caller_error,&
-         routineP,"Nonexisting matrix")
+    CALL cp_assert (matrix%m%initialized.EQ.dbcsr_magic_number,&
+         cp_fatal_level, cp_caller_error, routineP,&
+         "Matrix not initialized")
     CALL cp_assert (matrix%m%valid, cp_warning_level, cp_caller_error,&
          routineP,"Invalid matrix")
     IF (PRESENT (nblkrows_total)) nblkrows_total = matrix%m%nblkrows_total
@@ -1573,7 +1702,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_iterator_start (iterator, matrix, contiguous_pointers)
     TYPE(dbcsr_iterator), INTENT(OUT)        :: iterator
-    TYPE(dbcsr_obj)                          :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: contiguous_pointers
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_start', &

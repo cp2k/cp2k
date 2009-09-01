@@ -43,7 +43,8 @@ MODULE dbcsr_types
             dbcsr_iterator,&
             dbcsr_1d_array_obj,&
             dbcsr_2d_array_obj,&
-            dbcsr_mutable_obj, dbcsr_mutable_type
+            dbcsr_mutable_obj, dbcsr_mutable_type,&
+            dbcsr_magic_number
   ! CP2K compatibility
   PUBLIC :: dbcsr_block_node_type
   PUBLIC :: dbcsr_meta_size
@@ -341,6 +342,8 @@ MODULE dbcsr_types
      TYPE(dbcsr_block_node_type), POINTER :: block_node
   END TYPE dbcsr_type
 
+  INTEGER, PARAMETER :: dbcsr_magic_number = 879546213
+
   CHARACTER, PARAMETER        :: dbcsr_type_normal = 'N'
   CHARACTER, PARAMETER        :: dbcsr_type_symmetric = 'S'
   CHARACTER, PARAMETER        :: dbcsr_type_antisymmetric = 'A'
@@ -371,7 +374,7 @@ MODULE dbcsr_types
 !> \var m  The DBCSR array.
 ! *****************************************************************************
   TYPE dbcsr_obj
-     TYPE(dbcsr_type), POINTER :: m => NULL()
+     TYPE(dbcsr_type) :: m
   END TYPE dbcsr_obj
 
 ! *****************************************************************************

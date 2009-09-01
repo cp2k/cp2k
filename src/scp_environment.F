@@ -16,7 +16,8 @@ MODULE scp_environment
                                              dbcsr_deallocate_matrix,&
                                              sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
+                                             dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_get_diag,&
                                              dbcsr_set
@@ -278,6 +279,7 @@ CONTAINS
 
     CALL dbcsr_set(pscp,0.0_dp,error=error)
     ALLOCATE(ks_scp)!sm->dbcsr
+    CALL dbcsr_init(ks_scp)
     CALL dbcsr_copy(ks_scp,pscp,'KS_SCP',error=error)
 
     CALL sm_from_dbcsr ( scp_env%pscp, pscp, distribution_2d, error=error )!sm->dbcsr
