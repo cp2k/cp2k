@@ -30,10 +30,10 @@ MODULE qs_initial_guess
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_destroy, dbcsr_distribution, dbcsr_distribution_col_dist, &
+       dbcsr_distribution, dbcsr_distribution_col_dist, &
        dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_num_blocks, dbcsr_row_block_sizes
+       dbcsr_get_num_blocks, dbcsr_release, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: dbcsr_filter,&
                                              dbcsr_put_block,&
                                              dbcsr_scale,&
@@ -783,7 +783,7 @@ CPSourceFileRef,&
              !
              ! P*SC
              ! the destroy is needed for the moment to avoid memory leaks !
-             CALL dbcsr_destroy(mo_dbcsr, error=error)
+             CALL dbcsr_release(mo_dbcsr)
              ! This one is not needed because _destroy takes care of zeroing.
              !CALL dbcsr_init(mo_dbcsr, error=error)
              CALL dbcsr_sm_sm_multiply(p_dbcsr, mo_tmp_dbcsr, mo_dbcsr,&
@@ -798,8 +798,8 @@ CPSourceFileRef,&
              i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
              IF(output_unit>0)WRITE(output_unit,*) 'P*SC nblks',i,' checksum',checksum
              !
-             CALL dbcsr_destroy(mo_dbcsr, error=error)
-             CALL dbcsr_destroy(mo_tmp_dbcsr, error=error)
+             CALL dbcsr_release(mo_dbcsr)
+             CALL dbcsr_release(mo_tmp_dbcsr)
              CALL dbcsr_distribution_release(product_dist)
              CALL dbcsr_distribution_release(dist)
              CALL array_release(col_blk_size)
@@ -817,7 +817,7 @@ CPSourceFileRef,&
              CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
           END IF
 
-          CALL dbcsr_destroy(p_dbcsr, error=error)
+          CALL dbcsr_release(p_dbcsr)
 
           CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
                                  smear=qs_env%scf_control%smear,&
@@ -828,7 +828,7 @@ CPSourceFileRef,&
                                         error=error)
        END DO
 
-       CALL dbcsr_destroy(s_dbcsr, error=error)
+       CALL dbcsr_release(s_dbcsr)
 
        DO ikind=1,SIZE(atomic_kind_set)
           IF(ASSOCIATED(pmat(ikind)%mat)) THEN

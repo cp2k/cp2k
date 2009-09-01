@@ -102,6 +102,10 @@ MODULE dbcsr_methods
           get_data_m_s, get_data_m_d, get_data_m_c, get_data_m_z
   END INTERFACE
 
+  INTERFACE dbcsr_get_data_size
+     MODULE PROCEDURE get_data_size_area, get_data_size_matrix
+  END INTERFACE
+
   INTERFACE dbcsr_data_set_pointer
      MODULE PROCEDURE set_data_p_s, set_data_p_d, set_data_p_c, set_data_p_z
   END INTERFACE
@@ -186,10 +190,10 @@ CONTAINS
          cp_warning_level, cp_caller_error, routineN,&
          "Matrix not instantiated")
     IF (ASSOCIATED (matrix%m)) THEN
-       !matrix%m%refcount = matrix%m%refcount - 1
-       !IF (matrix%m%refcount .EQ. 0) THEN
+       matrix%m%refcount = matrix%m%refcount - 1
+       IF (matrix%m%refcount .EQ. 0) THEN
           CALL dbcsr_destroy (matrix)
-       !ENDIF
+       ENDIF
     ENDIF
   END SUBROUTINE dbcsr_release
 
@@ -198,24 +202,36 @@ CONTAINS
 !> \brief Deallocates and destroys a matrix.
 !> \param[in,out] matrix      matrix
 !> \param[in,out] error       cp2k error
+!> \param[in] force           (optional) force deallocation
 ! *****************************************************************************
-  SUBROUTINE dbcsr_destroy(matrix, error)
+  SUBROUTINE dbcsr_destroy(matrix, error, force)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: force
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: force_all
     TYPE(cp_error_type)                      :: my_error
 
 !   ---------------------------------------------------------------------------
 
     CALL cp_assert (ASSOCIATED (matrix%m), cp_warning_level, cp_caller_error,&
          routineN, "Can not destroy nonexisting matrix object.")
+    force_all = .FALSE.
+    IF (PRESENT (force)) force_all = force
     IF (ASSOCIATED (matrix%m)) THEN
-       matrix%m%refcount = matrix%m%refcount - 1
-       IF (matrix%m%refcount .EQ. 0) THEN
+       CALL cp_assert (force_all .OR. matrix%m%refcount.EQ.0,&
+            cp_warning_level, cp_caller_error,&
+            routineN, "You should not destroy referenced matrix.")
+       CALL cp_assert (.NOT.force_all .OR. matrix%m%refcount.LE.1,&
+            cp_warning_level, cp_caller_error,&
+            routineN, "You should not destroy referenced matrix.")
+       IF (force_all .OR. matrix%m%refcount .EQ. 0) THEN
+          CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms), cp_warning_level,&
+               cp_caller_error, routineN, "Destroying unfinalized matrix")
           IF (matrix%m%special_memory) THEN
              CALL MP_DEALLOCATE(matrix%m%index)
           ELSE
@@ -239,7 +255,7 @@ CONTAINS
           CALL array_release (matrix%m%col_blk_size)
           CALL dbcsr_distribution_release(matrix%m%dist)
           matrix%m%valid = .FALSE.
-          matrix%m%initialized = .TRUE.
+          matrix%m%initialized = 0
           DEALLOCATE (matrix%m)
        ENDIF
     ENDIF
@@ -895,13 +911,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (area%d), cp_caller_error, cp_warning_level,&
-         routineN, "Can't release empty data area.")
     IF (.NOT. ASSOCIATED (area%d)) THEN
        RETURN
     ENDIF
-    CALL cp_assert (area%d%refcount .GT. 0, cp_caller_error, cp_warning_level,&
-         routineN, "Can't release unreferenced data area.")
+    CALL cp_assert (area%d%refcount .GT. 0, cp_warning_level, cp_caller_error,&
+         routineN, "Data seems to be unreferenced.")
     IF (area%d%refcount .GT. 0) THEN
        area%d%refcount = area%d%refcount - 1
     ELSE
@@ -1308,16 +1322,17 @@ CONTAINS
     uses_special = matrix%m%special_memory
   END FUNCTION dbcsr_uses_special_memory
 
+
 ! *****************************************************************************
 !> \brief Returns the allocated data size
 !> \param[in] area       data area
-!> \param data_size      size of data
+!> \retval data_size      size of data
 ! *****************************************************************************
-  FUNCTION dbcsr_get_data_size (area) RESULT (data_size)
+  FUNCTION get_data_size_area (area) RESULT (data_size)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
     INTEGER                                  :: data_size
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_data_size_area', &
       routineP = moduleN//':'//routineN
 
     data_size = 0
@@ -1344,7 +1359,47 @@ CONTAINS
             "Uninitialized data area")
        data_size = 0
     ENDIF
-  END FUNCTION dbcsr_get_data_size
+  END FUNCTION get_data_size_area
+
+
+! *****************************************************************************
+!> \brief Returns the allocated data size of a DBCSR matrix
+!> \param[in] matrix      matrix
+!> \retval data_size      size of data
+! *****************************************************************************
+  FUNCTION get_data_size_matrix (matrix) RESULT (data_size)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER                                  :: data_size
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_data_size_matrix', &
+      routineP = moduleN//':'//routineN
+
+    data_size = 0
+    IF (ASSOCIATED (matrix%m%data_area%d)) THEN
+       SELECT CASE (matrix%m%data_area%d%data_type)
+          CASE (dbcsr_type_real_8)
+             IF (ASSOCIATED (matrix%m%data_area%d%r_dp))&
+                  data_size = SIZE (matrix%m%data_area%d%r_dp)
+          CASE (dbcsr_type_real_4)
+             IF (ASSOCIATED (matrix%m%data_area%d%r_sp))&
+                  data_size = SIZE (matrix%m%data_area%d%r_sp)
+          CASE (dbcsr_type_complex_8)
+             IF (ASSOCIATED (matrix%m%data_area%d%c_dp))&
+                  data_size = SIZE (matrix%m%data_area%d%c_dp)
+          CASE (dbcsr_type_complex_4)
+             IF (ASSOCIATED (matrix%m%data_area%d%c_sp))&
+                  data_size = SIZE (matrix%m%data_area%d%c_sp)
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
+                  routineN, "Incorrect data type")
+          END SELECT
+    ELSE
+       CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
+            "Uninitialized data area")
+       data_size = 0
+    ENDIF
+  END FUNCTION get_data_size_matrix
+
 
 ! *****************************************************************************
 !> \brief Copies a data area, deep by default.
@@ -1628,9 +1683,10 @@ CONTAINS
        CALL cp_assert(.FALSE., cp_warning_level, cp_internal_error,&
             routineN, "Invalid data type.")
     END SELECT
-    CALL dbcsr_data_release (iterator%data_area)
     NULLIFY (iterator%buffer_r_sp, iterator%buffer_r_dp,&
          iterator%buffer_c_sp, iterator%buffer_c_dp, iterator%rbs, iterator%cbs)
+    !CALL dbcsr_release (iterator%matrix)
+    CALL dbcsr_data_release (iterator%data_area)
   END SUBROUTINE dbcsr_iterator_stop
 
 
@@ -1877,7 +1933,7 @@ CONTAINS
 !> \param[in] iterator       the iterator
 !> \param[in]
 ! *****************************************************************************
-  FUNCTION dbcsr_iterator_blocks_left (iterator) RESULT (blocks_left)
+  PURE FUNCTION dbcsr_iterator_blocks_left (iterator) RESULT (blocks_left)
     TYPE(dbcsr_iterator), INTENT(IN)         :: iterator
     LOGICAL                                  :: blocks_left
 

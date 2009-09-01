@@ -362,28 +362,35 @@
 !> \param[in]  row            the row
 !> \param[in]  col            the column
 !> \param[in]  block          pointer to data block
-!> \param[out] existed        block was found
+!> \param[out] tr             block is transposed
+!> \param[out] found          block was found
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_tmp_block2d_d(matrix, row, col, block, found)
+  SUBROUTINE dbcsr_get_tmp_block2d_d(matrix, row, col, block, tr,&
+       found)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:,:), POINTER         :: block
-    LOGICAL, INTENT(OUT)                     :: found
+    LOGICAL, INTENT(OUT)                     :: tr, found
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_tmp_block2d_d', &
       routineP = moduleN//':'//routineN
 
     TYPE(btree_2d_data_d)          :: data_block
+    INTEGER                                  :: stored_row, stored_col
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
        found = .FALSE.
        NULLIFY (block)
+       RETURN
     ENDIF
 
+    stored_row = row ; stored_col = col
+    tr = .FALSE.
+    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
     CALL btree_get_d (matrix%m%wms(1)%mutable%m%btree_d,&
-         make_coordinate_tuple(row, col),&
+         make_coordinate_tuple(stored_row, stored_col),&
          data_block, found)
 
     IF (.NOT. found) THEN
@@ -393,6 +400,7 @@
     ELSE
        !WRITE(*,*)routineN//" Found block", ASSOCIATED (data_block%p)
        block => data_block%p
+       tr = data_block%tr
     ENDIF
   END SUBROUTINE dbcsr_get_tmp_block2d_d
 

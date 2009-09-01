@@ -62,6 +62,7 @@ MODULE dbcsr_util
        dbcsr_type_symmetric, dbcsr_type_transposed, dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
+                                             distribution_2d_release,&
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE f77_blas
@@ -229,6 +230,8 @@ MODULE dbcsr_util
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+
+  INTEGER, PARAMETER :: dbcsr_magic_number = 879546213
 
 CONTAINS
 
@@ -587,14 +590,18 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    matrix%initialized = .TRUE.
+    matrix%initialized = dbcsr_magic_number
     matrix%valid = .FALSE.
     ! Nullifies all pointers.
     NULLIFY (matrix%index, matrix%row_p, matrix%col_i,&
          matrix%blk_p)
     CALL dbcsr_data_init (matrix%data_area)
     CALL dbcsr_distribution_init (matrix%dist)
+    CALL array_nullify (matrix%row_blk_size)
+    CALL array_nullify (matrix%col_blk_size)
     NULLIFY (matrix%wms)
+    NULLIFY (matrix%dist2d)
+    NULLIFY (matrix%block_node)
   END SUBROUTINE dbcsr_init_type
 
 ! *****************************************************************************
@@ -666,25 +673,37 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     hijack = .FALSE.
-    IF (PRESENT (reuse)) hijack = reuse
-    IF (ASSOCIATED (matrix%m)) THEN
-       hijack = .TRUE.
+    IF (PRESENT (reuse)) THEN
+       hijack = reuse
     ELSE
-       hijack = .FALSE.
+       IF (ASSOCIATED (matrix%m)) THEN
+          CALL cp_assert (matrix%m%initialized .EQ. dbcsr_magic_number,&
+               cp_warning_level, cp_caller_error, routineN,&
+               "Matrix may not have been initialized with dbcsr_init")
+          hijack = .TRUE.
+       ELSE
+          hijack = .FALSE.
+       ENDIF
+    ENDIF
+    IF (.NOT.hijack) THEN
        ALLOCATE (matrix%m)
        CALL dbcsr_init (matrix%m)
        matrix%m%refcount = 1
     ENDIF
-    ! Why would you want to not reuse an existing matrix?
-    CALL cp_assert (hijack .EQV. matrix%m%valid, cp_warning_level,&
-         cp_caller_error, routineP, "Reuse and matrix validity do not match.")
+    !! Why would you want to not reuse an existing matrix?
+    !CALL cp_assert (hijack .EQV. matrix%m%valid, cp_warning_level,&
+    !     cp_caller_error, routineP, "Reuse and matrix validity do not match.")
+    !
+    ! Mark matrix index as having an invalid index.
     matrix%m%valid = .FALSE.
+    matrix%m%name = name
+    ! Sets the type of matrix building/modifying work structures.
     IF (PRESENT (mutable_work)) THEN
        matrix%m%work_mutable = mutable_work
     ELSE
        matrix%m%work_mutable = .FALSE.
     ENDIF
-    matrix%m%name = name
+    ! Sets the correct data type.
     IF (PRESENT (data_type)) THEN
        SELECT CASE (data_type)
        CASE (dbcsr_type_real_4)
@@ -711,10 +730,30 @@ CONTAINS
     ELSE
        matrix%m%data_type = dbcsr_type_real_default
     ENDIF
-    IF (.NOT. hijack) THEN
+    IF (hijack) THEN
+       ! Release/deallocate elements that are replaced or not needed
+       ! by the new matrix. This is similar to what dbcsr_destroy
+       ! does, except that it keeps the index and data.
+       CALL array_release (matrix%m%row_blk_size)
+       CALL array_release (matrix%m%col_blk_size)
+       CALL dbcsr_distribution_release (matrix%m%dist)
+       IF (ASSOCIATED (matrix%m%dist2d)) &
+            CALL distribution_2d_release (matrix%m%dist2d, error)
+       IF (ASSOCIATED (matrix%m%wms)) THEN
+          CALL dbcsr_work_destroy_all(matrix%m)
+       ENDIF
+       IF (ASSOCIATED (matrix%m%block_node)) THEN
+          CALL dbcsr_iterator_stop (matrix%m%block_node%iter)
+          DEALLOCATE (matrix%m%block_node)
+          NULLIFY (matrix%m%block_node)
+       ENDIF
+    ELSE
+       ! Invalidate index
        NULLIFY(matrix%m%index)
+       ! Invalidate data
        CALL dbcsr_data_init (matrix%m%data_area)
     ENDIF
+    ! These are always invalidated.
     NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p)
     matrix%m%row_blk_size = row_blk_size
     CALL array_hold (matrix%m%row_blk_size)
@@ -732,6 +771,7 @@ CONTAINS
     ENDIF
     matrix%m%dist = dist
     CALL dbcsr_distribution_hold (matrix%m%dist)
+    ! Set up some data.
     CALL meta_from_dist (new_meta, dist, row_blk_size, col_blk_size)
     matrix%m%nblkrows_total  = new_meta(3)
     matrix%m%nblkcols_total  = new_meta(4)
@@ -769,6 +809,7 @@ CONTAINS
     NULLIFY(matrix%m%dist2d)
     NULLIFY(matrix%m%block_node)
     !
+    ! Setup the data
     IF (.NOT. hijack) THEN
        CALL dbcsr_data_new (matrix%m%data_area, matrix%m%data_type, nze,&
             matrix%m%special_memory)
@@ -780,7 +821,11 @@ CONTAINS
           IF (stat /= 0) CALL stop_memory (routineP, 'matrix%m%index', nze)
        ENDIF
     ENDIF
-    matrix%m%index(:) = 0
+    CALL cp_assert (LBOUND (matrix%m%index, 1) .LE. 1&
+         .AND. UBOUND (matrix%m%index, 1) .GE. dbcsr_num_slots,&
+         cp_fatal_level, cp_internal_error, routineN,&
+         "Index is not large enough")
+    matrix%m%index(1:dbcsr_num_slots) = 0
     matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
     !
     SELECT CASE (matrix_type)
@@ -876,6 +921,8 @@ CONTAINS
     ELSE
        nw = 1
     ENDIF
+    CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms), cp_warning_level,&
+         cp_caller_error, routineN, "Work matrices already exist")
     ALLOCATE (matrix%m%wms(nw))
     DO iw = 1, nw
        IF (PRESENT (nblks_guess)) THEN
@@ -908,13 +955,11 @@ CONTAINS
 !>                            is true
 !> \param[in] reshuffle       whether the data should be reshuffled,
 !>                            default is false
-!> \param[in] keepdata        whether to deallocate the data or not, default
-!>                            is false
 !> \param error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_finalize(matrix, resort, reshuffle, keepdata, error)
+  SUBROUTINE dbcsr_finalize(matrix, resort, reshuffle, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: resort, reshuffle, keepdata
+    LOGICAL, INTENT(IN), OPTIONAL            :: resort, reshuffle
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -923,7 +968,8 @@ CONTAINS
 
     INTEGER                                  :: all_nblks, all_nze, i, j, &
                                                 timing_handle
-    LOGICAL                                  :: lkeepdata, multidata, srt
+    LOGICAL                                  :: multidata, sort_data, &
+                                                sort_index
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -941,12 +987,17 @@ CONTAINS
     !CALL cp_assert (matrix%m%nze.EQ.0 .EQV. matrix%m%nblks.EQ.0,&
     !     cp_warning_level, cp_unimplemented_error_nr, routineN,&
     !     "Matrix data size not consistent with number of blocks.")
+    ! If there is data in the matrix proper, create a work matrix from it.
     IF (matrix%m%nze .GT. 0) THEN
        CALL dbcsr_add_wm_from_matrix (matrix)
     ENDIF
-    srt = .TRUE.
-    lkeepdata = .FALSE.
-    IF (PRESENT (keepdata)) lkeepdata = keepdata
+    IF (PRESENT (reshuffle)) THEN
+       sort_data = reshuffle
+    ELSE
+       sort_data = .FALSE.
+    ENDIF
+    sort_index = .TRUE.
+    IF (PRESENT (resort)) sort_index = resort
     IF (ASSOCIATED (matrix%m%wms)) THEN
        multidata = SIZE (matrix%m%wms) .GT. 1
     ELSE
@@ -966,12 +1017,12 @@ CONTAINS
     CALL cp_assert (SIZE (matrix%m%wms) .GT. 0, cp_failure_level,&
          cp_caller_error, routineN,&
          "Can not finalize matrix containing no work matrices.")
-    IF (PRESENT (resort)) srt = resort
     ! If there are multiple work matrices, the indices have to be sorted to
     ! enable merging the index.
-    IF (srt .OR. multidata) THEN
+    IF (sort_index .OR. multidata) THEN
        IF (multidata) THEN
           CALL dbcsr_sort_many_indices (matrix%m)
+          sort_data = .TRUE.
        ELSE
           IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(1))&
                .AND. matrix%m%wms(1)%lastblk .GT. 0) THEN
@@ -1018,9 +1069,11 @@ CONTAINS
          reservation=all_nblks)
     CALL dbcsr_repoint_index(matrix%m)
     matrix%m%row_p(1) = 0
-    CALL dbcsr_data_ensure_size (matrix%m%data_area, all_nze)
+    !CALL dbcsr_data_ensure_size (matrix%m%data_area, all_nze)
     ! Now merge the index and data.
-    CALL dbcsr_merge_data (matrix%m)
+    matrix%m%nze = all_nze ! Specifies size of data array to be allocated
+    CALL dbcsr_merge_data (matrix%m, sort_data)
+    !
     ! Clean up.
     CALL dbcsr_work_destroy_all(matrix%m)
     matrix%m%valid = .TRUE.
@@ -1112,7 +1165,7 @@ CONTAINS
          dbcsr_get_data_size (matrix%data_area))
     CALL dbcsr_data_copyall (wm%data_area, matrix%data_area)
     wm%datasize = dbcsr_get_data_size (wm%data_area)
-    IF (dbg) WRITE(*,*)routineN//" Size is",wm%datasize
+    IF (dbg) WRITE(*,*)routineN//" Size is",wm%datasize, wm%lastblk
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_fill_wm_from_matrix
 
@@ -1268,8 +1321,6 @@ CONTAINS
 !> \brief Transposes a DBCSR matrix.
 !> \param[out] transposed     transposed DBCSR matrix
 !> \param[in] normal          input DBCSR matrix
-!> \param[in] reuse           (optional) reuse an existing matrix for the
-!>                            transpose, default is False
 !> \param[in] reshuffle       (optional) reshuffle data, default is True
 !> \param[in] transpose_data  (optional) transpose data blocks, default is True
 !> \param[in] transpose_distribution    (optional) transpose the distribution
@@ -1277,11 +1328,11 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_new_transposed (transposed, normal, reshuffle,&
-       transpose_data, transpose_distribution, reuse, error)
+       transpose_data, transpose_distribution, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: transposed
     TYPE(dbcsr_obj), INTENT(IN)              :: normal
     LOGICAL, INTENT(IN), OPTIONAL            :: reshuffle, transpose_data, &
-                                                transpose_distribution, reuse
+                                                transpose_distribution
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_transposed', &
@@ -1290,8 +1341,7 @@ CONTAINS
     CHARACTER                                :: new_type
     INTEGER                                  :: stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
-    LOGICAL                                  :: hijack, shuffle, tr_blocks, &
-                                                tr_dist
+    LOGICAL                                  :: shuffle, tr_blocks, tr_dist
     TYPE(dbcsr_distribution_obj)             :: new_dist
 
     DEBUG_HEADER
@@ -1300,8 +1350,6 @@ CONTAINS
     CALL cp_assert (ASSOCIATED (normal%m), cp_fatal_level, cp_caller_error,&
          routineN, "Matrix does not exist.")
     ! Internalize options
-    hijack = .FALSE.
-    IF (PRESENT (reuse)) hijack = reuse
     shuffle = .TRUE.
     IF (PRESENT (reshuffle)) shuffle = reshuffle
     tr_blocks = .TRUE.
@@ -1321,12 +1369,11 @@ CONTAINS
        new_dist = normal%m%dist
     ENDIF
     ! Create the transposed matrix
-    IF (.NOT. hijack) CALL dbcsr_init (transposed, error)
     !CALL dbcsr_transposed_type (new_type, normal%m%matrix_type)
     new_type = normal%m%matrix_type
     CALL dbcsr_create (transposed, "transposed "//normal%m%name, new_dist,&
          new_type, normal%m%col_blk_size, normal%m%row_blk_size, normal%m%nblks,&
-         normal%m%nze, dbcsr_type_real_8, normal%m%special_memory, reuse=hijack)
+         normal%m%nze, dbcsr_type_real_8, normal%m%special_memory)
     ! Reserve the space for the new indices.
     CALL dbcsr_addto_index_array (transposed%m, dbcsr_slot_row_p,&
          reservation=transposed%m%nblkrows_total+1, extra=transposed%m%nblks*2)
@@ -2880,7 +2927,7 @@ CONTAINS
             dbcsr_get_data_size(m%m%data_area)
     ENDIF
     CALL bcsr_assert(dbg,dbcsr_get_data_size(m%m%data_area).GE.m%m%nze, r,&
-         'Data storage too small')
+         'Data storage may be too small.')
     IF (dbg.GE.5) THEN
        WRITE (*,'(1X,A,I7,A)') r//' size=',SIZE(m%m%row_p),' row_p='
        WRITE (*,2047) m%m%row_p(1:m%m%nblkrows_total+1)
@@ -3017,10 +3064,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Sorts the rows & columns of a work matrix
-!> \par Sorts the row and column indices so that the rows monotonically
+!> \par Description
+!>      Sorts the row and column indices so that the rows monotonically
 !>      increase and the columns monotonically increase within each row.
 !>      Passing the blk_p array rearranges the block pointers accordingly.
-!> \param[in] n     number of blocks (elements) to sort
+!>      This must be done if they are pointing to valid data, otherwise
+!>      they become invalid.
+!> \param[in] n               number of blocks (elements) to sort
 !> \param[in,out] row_i       row indices
 !> \param[in,out] col_i       column indices
 !> \param[in,out] blk_p       (optional) block pointers
@@ -3028,8 +3078,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_sort_indices(n, row_i, col_i, blk_p, blk_d)
     INTEGER, INTENT(IN)                      :: n
-    INTEGER, DIMENSION(:), INTENT(INOUT)     :: row_i, col_i
-    INTEGER, DIMENSION(:), INTENT(INOUT), &
+    INTEGER, DIMENSION(1:n), INTENT(INOUT)   :: row_i, col_i
+    INTEGER, DIMENSION(1:n), INTENT(INOUT), &
       OPTIONAL                               :: blk_p, blk_d
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_indices', &
@@ -3313,9 +3363,11 @@ CONTAINS
 !> \brief Merge data from sorted work matrices indices into the final matrix.
 !>
 !> \param[in,out] matrix      matrix to work on
+!> \param[in] sort_data       (optional) whether to sort data or copy/move
 ! *****************************************************************************
-  SUBROUTINE dbcsr_merge_data(matrix)
+  SUBROUTINE dbcsr_merge_data(matrix, sort_data)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    LOGICAL, INTENT(IN), OPTIONAL            :: sort_data
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_merge_data', &
       routineP = moduleN//':'//routineN
@@ -3328,6 +3380,7 @@ CONTAINS
       DIMENSION(:)                           :: keys
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wm_blk_p
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
+    LOGICAL                                  :: srt
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: finished, tree_based
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_2d
     TYPE(btree_2d_data_d), ALLOCATABLE, &
@@ -3336,6 +3389,8 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
+    srt = .FALSE.
+    IF (PRESENT (sort_data)) srt = sort_data
     rbs => array_data (matrix%row_blk_size)
     cbs => array_data (matrix%col_blk_size)
     nwms = SIZE (matrix%wms)
@@ -3344,9 +3399,11 @@ CONTAINS
     FORALL (i = 1:nwms)
        finished(i) = wm_blk_p(i) .GT. matrix%wms(i)%lastblk
     END FORALL
+    ! Convert mutable data type into standard work arrays
     DO i = 1, nwms
        tree_based(i) = dbcsr_wm_use_mutable (matrix%wms(i))
        IF (tree_based(i)) THEN
+          ! srt = .TRUE. ! Not needed because of the copy
           treesize = btree_size_d(matrix%wms(i)%mutable%m%btree_d)
           ALLOCATE (keys(treesize), values_d(treesize))
           CALL btree_destroy_d (matrix%wms(i)%mutable%m%btree_d, keys, values_d)
@@ -3386,6 +3443,15 @@ CONTAINS
           !dbcsr_get_data_p (matrix%wms(i)%data_area, 0.0_dp)
        ENDIF
     ENDDO
+    IF (nwms .GT. 1) srt = .TRUE.
+    IF (matrix%special_memory) srt = .TRUE.
+    IF (.NOT. srt) THEN
+       CALL dbcsr_data_release (matrix%data_area)
+       matrix%data_area = matrix%wms(1)%data_area
+       CALL dbcsr_data_hold (matrix%data_area)
+    ELSE
+       CALL dbcsr_data_ensure_size (matrix%data_area, matrix%nze)
+    ENDIF
     IF (dbg) THEN
        DO i = 1, nwms
           WRITE(*,'(A,1X,I4,1X,A,3(1X,I7))')routineN//" size of wm",i,"is",&
@@ -3393,11 +3459,14 @@ CONTAINS
                matrix%wms(i)%datasize,&
                dbcsr_get_data_size (matrix%wms(i)%data_area)
           WRITE(*,'(A)')routineP//'row_i='
-          WRITE(*,'(10(1X,I7))')matrix%wms(i)%row_i(:)
+          IF (ASSOCIATED (matrix%wms(i)%row_i))&
+               WRITE(*,'(10(1X,I7))')matrix%wms(i)%row_i(:)
           WRITE(*,'(A)')routineP//'col_i='
-          WRITE(*,'(10(1X,I7))')matrix%wms(i)%col_i(:)
+          IF (ASSOCIATED (matrix%wms(i)%col_i))&
+               WRITE(*,'(10(1X,I7))')matrix%wms(i)%col_i(:)
           WRITE(*,'(A)')routineP//'blk_p='
-          WRITE(*,'(10(1X,I7))')matrix%wms(i)%blk_p(:)
+          IF (ASSOCIATED (matrix%wms(i)%blk_p))&
+               WRITE(*,'(10(1X,I7))')matrix%wms(i)%blk_p(:)
        ENDDO
     ENDIF
     matrix%row_p(:) = -1
@@ -3438,9 +3507,11 @@ CONTAINS
                smallest_row, smallest_col, blk_p, "from",smallest, o_blk_p,&
                "size", nze
        END IF
-       matrix%blk_p(blk) = SIGN (blk_p, o_blk_p)
-       CALL dbcsr_data_set (matrix%data_area, ABS(blk_p), nze,&
-            matrix%wms(smallest)%data_area, ABS(o_blk_p))
+       IF (srt) THEN
+          matrix%blk_p(blk) = SIGN (blk_p, o_blk_p)
+          CALL dbcsr_data_set (matrix%data_area, ABS(blk_p), nze,&
+               matrix%wms(smallest)%data_area, ABS(o_blk_p))
+       ENDIF
        IF (smallest_row .GT. prev_row) THEN
           matrix%row_p(prev_row+1:smallest_row) = blk-1
           IF (dbg) WRITE(*,'(15(1X,I4))')matrix%row_p(:)
@@ -3452,6 +3523,10 @@ CONTAINS
        finished(smallest) = wm_blk_p(smallest) .GT. matrix%wms(smallest)%lastblk
     ENDDO
     matrix%row_p(smallest_row+1:matrix%nblkrows_total+1) = blk-1
+    IF (.NOT. srt .AND. ASSOCIATED (matrix%wms(1)%blk_p)) THEN
+       matrix%blk_p(1:matrix%wms(1)%lastblk)&
+            = matrix%wms(1)%blk_p(1:matrix%wms(1)%lastblk)
+    ENDIF
     IF (dbg) WRITE(*,*)routineP//'row_p=',matrix%row_p(:)
     IF (dbg) WRITE(*,*)routineP//'col_i=',matrix%col_i(:)
     IF (dbg) WRITE(*,*)routineP//'blk_p=',matrix%blk_p(:)
@@ -4159,7 +4234,8 @@ CONTAINS
     CALL cp_assert (sm%data_type .EQ. dbcsr_type_real_8, cp_fatal_level,&
          cp_unimplemented_error_nr, routineN, "Only real double support.")
     CALL dbcsr_data_init (received_data_area)
-    CALL dbcsr_data_new (received_data_area, sm%data_type)
+    CALL dbcsr_data_new (received_data_area, sm%data_type,&
+         special_memory=.FALSE.)
     ! This is an ugly cuckoo.
     CALL dbcsr_data_set_pointer (received_data_area, recv_data)
     !received_data_area%d%r_dp => recv_data
@@ -4264,9 +4340,11 @@ CONTAINS
     DO col_img = 1, col_images
        ums%mats(col_img)%m%wms(1)%lastblk = blks(col_img) - 1
        ums%mats(col_img)%m%wms(1)%datasize = blk_ps(col_img) - 1
-       CALL dbcsr_finalize(ums%mats(col_img),&
-            resort=.TRUE., reshuffle=.TRUE., keepdata=.TRUE.,&
-            error=error)
+       IF (col_images.EQ.1) THEN
+          CALL dbcsr_finalize(ums%mats(col_img),reshuffle=.FALSE.)
+       ELSE
+          CALL dbcsr_finalize(ums%mats(col_img),reshuffle=.TRUE.)
+       ENDIF
     ENDDO
     !$OMP END DO nowait
     !$OMP END PARALLEL
@@ -4276,12 +4354,12 @@ CONTAINS
     DEALLOCATE(smp); DEALLOCATE(sm_disp)
     DEALLOCATE(rd_disp)
     DEALLOCATE(rm_disp)
-    DEALLOCATE(recv_data)
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
     ! Get rid of the cuckoo.
-    NULLIFY (received_data_area%d%r_dp)
+    !DEALLOCATE(recv_data)
+    !NULLIFY (received_data_area%d%r_dp)
     CALL dbcsr_data_release (received_data_area)
     tstop = m_walltime ()
     !WRITE(*,'(1X,A,1X,EN12.4)')'make_column_images time:',tstop-tstart
@@ -4397,7 +4475,6 @@ CONTAINS
     ALLOCATE (sm_disp(0:numproc-1))
     ALLOCATE (rd_disp(0:numproc-1))
     ALLOCATE (rm_disp(0:numproc-1))
-    CALL dbcsr_init (desm, error)
     CALL dbcsr_create(desm, 'desym '//sm%m%name, sm%m%dist,&
          'N', sm%m%row_blk_size, sm%m%col_blk_size,&
          0, 0, dbcsr_type_real_8, error=error, special=sm%m%special_memory)
@@ -4459,14 +4536,14 @@ CONTAINS
        rd_disp(dst_p) = rd_disp(dst_p-1)&
                         + total_recv_count(2, dst_p-1)
     ENDDO
-    DO dst_p = 0, numproc-1
-          sm_disp (dst_p) = sm_disp (dst_p) + metalen*send_count(1, dst_p)
-          sd_disp (dst_p) = sd_disp (dst_p) + send_count(2, dst_p)
-          rm_disp (dst_p) = rm_disp (dst_p) + metalen*recv_count(1, dst_p)
-          rd_disp (dst_p) = rd_disp (dst_p) + recv_count(2, dst_p)
-    ENDDO
-    sdp = sd_disp
-    smp = sm_disp
+    !DO dst_p = 0, numproc-1
+    !      sm_disp (dst_p) = sm_disp (dst_p) + metalen*send_count(1, dst_p)
+    !      sd_disp (dst_p) = sd_disp (dst_p) + send_count(2, dst_p)
+    !      rm_disp (dst_p) = rm_disp (dst_p) + metalen*recv_count(1, dst_p)
+    !      rd_disp (dst_p) = rd_disp (dst_p) + recv_count(2, dst_p)
+    !ENDDO
+    sdp(:) = sd_disp
+    smp(:) = sm_disp
     DBG 'send disps data',sd_disp
     DBG 'send disps meta',sm_disp
     DBG 'recv disps data',rd_disp
@@ -4565,7 +4642,7 @@ CONTAINS
     desm%m%wms(1)%lastblk = blks - 1
     desm%m%wms(1)%datasize = blk_ps - 1
     DBG 'Finalizing normalization'
-    CALL dbcsr_finalize(desm, resort=.TRUE., reshuffle=.TRUE., error=error)
+    CALL dbcsr_finalize(desm)
     tstop = m_walltime ()
     DBG 'time:',tstop-tstart
     DEALLOCATE(send_count)
@@ -5991,7 +6068,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     DO i = LBOUND(marray%mats,1), UBOUND (marray%mats,1)
-       CALL dbcsr_destroy (marray%mats(i))
+       CALL dbcsr_destroy (marray%mats(i), force=.TRUE.)
     ENDDO
     DEALLOCATE (marray%mats)
     !CALL dbcsr_destroy_image_dist(marray%image_dist)

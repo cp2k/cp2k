@@ -93,7 +93,7 @@ CONTAINS
       CALL section_vals_val_get(se_mem_section,"COMPRESS",l_val=store_int_env%compress,error=error)
     END IF
     CALL parse_memory_section(store_int_env%memory_parameter, se_mem_section, skip_disk=.TRUE.,&
-         skip_in_core_forces =.TRUE., error=error)
+         error=error)
     store_int_env%memory_parameter%ram_counter = 0
     ! If we don't compress there's no cache
     IF (.NOT.store_int_env%compress) THEN

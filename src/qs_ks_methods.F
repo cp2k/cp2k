@@ -719,7 +719,7 @@ CONTAINS
                END IF
                IF( calculate_forces ) THEN
                  CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-                 CALL derivatives_four_center(qs_env, rho, hfx_sections, &
+                 CALL derivatives_four_center(qs_env, rho, &
                                               para_env, irep, error=error)
                END IF
              ELSE
@@ -775,9 +775,9 @@ CONTAINS
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                !! we also have to scale the forces!!!!
-               CALL derivatives_four_center(qs_env, rho, hfx_sections, &
+               CALL derivatives_four_center(qs_env, rho, &
                                             para_env, 1, adiabatic_rescale_factor=scale_dEx1, error=error)
-               CALL derivatives_four_center(qs_env, rho, hfx_sections, &
+               CALL derivatives_four_center(qs_env, rho, &
                                             para_env, 2, adiabatic_rescale_factor=scale_dEx2, error=error)
              END IF
 

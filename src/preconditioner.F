@@ -41,12 +41,12 @@ MODULE preconditioner
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE dbcsr_methods,                   ONLY: dbcsr_destroy,&
-                                             dbcsr_distribution,&
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
                                              dbcsr_distribution_nlocal_rows,&
                                              dbcsr_distribution_release,&
                                              dbcsr_get_info,&
+                                             dbcsr_release,&
                                              dbcsr_row_block_sizes
   USE dbcsr_operations
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
@@ -1769,9 +1769,11 @@ END SUBROUTINE make_full_all_ortho
     !blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     !mp_group = dbcsr_mp_group (mp_obj)
 
+    CALL dbcsr_init (mat_li)
     CALL dbcsr_copy(mat_li, mat_t, name='matrix u', error=error)
     CALL dbcsr_scale(mat_li, 0.0_dp, error=error)
     CALL dbcsr_verify_matrix(mat_li, error=error)
+    CALL dbcsr_init (mat_v)
     CALL dbcsr_copy(mat_v, mat_t, name='matrix v', error=error)
     CALL dbcsr_scale(mat_v, 0.0_dp, error=error)
     CALL dbcsr_verify_matrix(mat_v, error)
@@ -1869,6 +1871,7 @@ END SUBROUTINE make_full_all_ortho
     ! D=d;
     ! Linv=u;
     ! Lt=inv(D)*triu(v+s*I);
+    CALL dbcsr_init (mat_lt)
     CALL dbcsr_btriu(mat_lt, mat_v, error=error)
     CALL dbcsr_add_on_diag(mat_lt, s, error=error)
     CALL dbcsr_scale(mat_lt, alpha_matrix=pkd_inv_d, side='left', error=error)
@@ -1884,6 +1887,7 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_trace(mat_li, mat_lt, trace, error=error)
     WRITE(*,*) 'trace(Li^t*Lt)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
+    CALL dbcsr_init (mat_li_scaled)
     CALL dbcsr_copy(mat_li_scaled, mat_li, error=error)
     CALL dbcsr_scale(mat_li_scaled, alpha_matrix=pkd_inv_d, side='left', error=error)
     CALL dbcsr_init(mat_tmp, error=error)
@@ -1896,13 +1900,13 @@ END SUBROUTINE make_full_all_ortho
     DEALLOCATE(pkd_u, pkd_v, pkd_v_fac, pkd_u_fac, pkd_d, pkd_inv_d, blk, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL dbcsr_destroy(mat_t, error)
-    CALL dbcsr_destroy(mat_s, error)
-    CALL dbcsr_destroy(mat_v, error)
-    CALL dbcsr_destroy(mat_lt, error)
-    CALL dbcsr_destroy(mat_li, error)
-    CALL dbcsr_destroy(mat_li_scaled, error)
-    CALL dbcsr_destroy(mat_tmp, error)
+    CALL dbcsr_release(mat_t)
+    CALL dbcsr_release(mat_s)
+    CALL dbcsr_release(mat_v)
+    CALL dbcsr_release(mat_lt)
+    CALL dbcsr_release(mat_li)
+    CALL dbcsr_release(mat_li_scaled)
+    CALL dbcsr_release(mat_tmp)
 
     CALL cp_fm_release(fm_work1,error=error)
     CALL cp_fm_release(fm_work2,error=error)
@@ -1943,9 +1947,9 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_sm_sm_multiply (preconditioner_env%dbcsr_matrix,&
          matrix_right, matrix_result, dist_result, 0, error)
     CALL dbcsr_distribution_release (dist_result)
-    CALL dbcsr_destroy (matrix_right, error)
+    CALL dbcsr_release (matrix_right)
     WRITE(*,*)'Post checksum:',dbcsr_checksum (matrix_result, error)
-    CALL dbcsr_destroy (matrix_result, error)
+    CALL dbcsr_release (matrix_result)
     WRITE(*,*)' DONE'
   END SUBROUTINE apply_sparse_single
 

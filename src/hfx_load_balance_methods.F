@@ -254,7 +254,7 @@ MODULE hfx_load_balance_methods
         tmp_blocks2(i) = blocks_guess(i)
         max_block_cost = MAX(max_block_cost, blocks_guess(i)%cost)
       END DO
-
+  
       optimized = .FALSE.
       i = 0 
       DO WHILE( .NOT. optimized) 
@@ -311,6 +311,7 @@ MODULE hfx_load_balance_methods
           max_block_cost = MAX(max_block_cost, tmp_blocks2(atom_block)%cost)
         END DO
       END DO
+  
       ! ** Set nblocks in structure
       load_balance_parameter%nblocks = nblocks
   
@@ -751,7 +752,7 @@ MODULE hfx_load_balance_methods
 
     INTEGER :: data_from, dest, end_idx, i, ibin, icpu, iprocess, j, &
       my_bin_size, my_global_start_idx, my_process_id, nbins, req(2), source, &
-      start_idx, stat, handle
+      start_idx, stat
     INTEGER(int_8)                           :: mepos, n_processes, ncpu
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
@@ -772,12 +773,6 @@ MODULE hfx_load_balance_methods
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
     failure=.FALSE.
-
-!$OMP BARRIER
-!$OMP MASTER
-    CALL timeset(routineN,handle)
-!$OMP END MASTER
-!$OMP BARRIER
 
     ncpu = para_env%num_pe
     n_processes = ncpu * n_threads
@@ -1033,12 +1028,6 @@ MODULE hfx_load_balance_methods
       DEALLOCATE(binned_dist, local_cost_matrix, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-!$OMP BARRIER
-!$OMP MASTER
-    CALL timestop(handle)
-!$OMP END MASTER
-!$OMP BARRIER
-
   END SUBROUTINE hfx_update_load_balance
 
 ! *****************************************************************************

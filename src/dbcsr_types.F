@@ -310,7 +310,8 @@ MODULE dbcsr_types
 !>                            append-only data
 ! *****************************************************************************
   TYPE dbcsr_type
-     LOGICAL                            :: valid, initialized
+     LOGICAL                            :: valid
+     INTEGER                            :: initialized
      CHARACTER(LEN=default_string_length) :: name
      !REAL(kind=dp), DIMENSION(:), POINTER :: DATA
      TYPE(dbcsr_data_obj)               :: data_area

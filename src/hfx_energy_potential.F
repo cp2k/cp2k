@@ -273,6 +273,7 @@ MODULE hfx_energy_potential
 
     CALL cite_reference(Guidon2008)
 
+
     ! ** This is not very clean, but effective. ispin can only be 2 if we do the beta spin part in core
     IF( ispin == 2 ) geometry_did_change = .FALSE.
 
@@ -284,7 +285,7 @@ MODULE hfx_energy_potential
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
                                 extension=".scfLog",error=error)
       IF (iw>0) THEN
-        WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I20))")&
               "HFX_MEM_INFO| Est. max. program size before HFX [MB's]:", memsize_before/(1024*1024)
       END IF
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
@@ -597,12 +598,6 @@ MODULE hfx_energy_potential
     IF(do_p_screening) THEN 
       subtr_size_mb = subtr_size_mb + memory_parameter%size_p_screen
     END IF
-    ! ** In core forces require their own initial P
-    IF(screening_parameter%do_p_screening_forces) THEN
-      IF( memory_parameter%treat_forces_in_core) THEN
-        subtr_size_mb = subtr_size_mb + memory_parameter%size_p_screen
-      END IF
-    END IF
     ! ** primitive buffer (not shared by the threads)
     subtr_size_mb = subtr_size_mb + nsgf_max**4*n_threads
     ! ** density + fock buffers
@@ -636,13 +631,9 @@ MODULE hfx_energy_potential
     IF(geometry_did_change) THEN
      memory_parameter%ram_counter = HUGE(memory_parameter%ram_counter) 
     END IF
-
-    IF( geometry_did_change) THEN
-      memory_parameter%recalc_forces = .TRUE.
-    ELSE
-      IF( .NOT. memory_parameter%treat_forces_in_core ) memory_parameter%recalc_forces = .TRUE.
-    END IF
    
+
+
     !! Get screening parameter
     eps_schwarz = screening_parameter%eps_schwarz
     IF( eps_schwarz < 0.0_dp) THEN
@@ -893,8 +884,8 @@ MODULE hfx_energy_potential
     IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
       !! IF new md step -> reinitialize containers
       IF(geometry_did_change) THEN
-        CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
-        CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
+        CALL dealloc_containers(actual_x_data, error)
+        CALL alloc_containers(actual_x_data, my_bin_size, error)
     
         DO bin = 1,my_bin_size
           maxval_container => actual_x_data%maxval_container(bin)
@@ -1094,7 +1085,6 @@ MODULE hfx_energy_potential
         katom_end =   actual_x_data%blocks(katom_block)%iend
         latom_start = actual_x_data%blocks(latom_block)%istart
         latom_end =   actual_x_data%blocks(latom_block)%iend
-
 
         CALL build_pair_list(list_ij,set_list_ij,iatom_start, iatom_end, &
                              jatom_start, jatom_end, &
@@ -1373,7 +1363,6 @@ MODULE hfx_energy_potential
                 max_val2 = max_val2 + log10_pmax
                 IF(max_val2<log10_eps_schwarz) CYCLE
                 pmax_entry = EXP(log10_pmax*ln_10)
-
                 !! store current number of integrals, update total number and number of integrals in buffer
                 current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                 IF(buffer_overflow) THEN
@@ -1419,7 +1408,7 @@ MODULE hfx_energy_potential
                     END IF
                     buffer_left = buffer_left - buffer_size
                     buffer_start = buffer_start + buffer_size
-                  END DO
+                  END DO 
                 END IF
                 !! Calculate integrals if we run out of buffer or the geometry did change
                 IF(geometry_did_change .OR. buffer_overflow) THEN
@@ -1488,7 +1477,6 @@ MODULE hfx_energy_potential
                   DO i=1,nints
                     spherical_estimate = MAX(spherical_estimate,ABS(primitive_integrals(i)))
                   END DO
-
                   IF(spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate)
                   estimate_to_store_int = EXPONENT(spherical_estimate)
                   estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
@@ -1635,21 +1623,6 @@ MODULE hfx_energy_potential
 !$OMP ATOMIC
     shm_stor_count_max_val = shm_stor_count_max_val + stor_count_max_val
 !$OMP BARRIER
-
-
-    ! ** Calculate how much memory has already been used (might be needed for in-core forces
-!$OMP MASTER
-    mem_compression_counter = 0
-    DO i=1,n_threads
-      mem_compression_counter = mem_compression_counter + &
-                                qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage *&
-                                memory_parameter%cache_size
-    END DO
-!$OMP END MASTER
-!$OMP BARRIER
-    actual_x_data%memory_parameter%final_compression_counter_energy = mem_compression_counter
-
-
 
 !$OMP MASTER   
     !! Calculate the exchange energies from the Kohn-Sham matrix. Before we can go on, we have to symmetrize.
@@ -1812,49 +1785,49 @@ MODULE hfx_energy_potential
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
            extension=".scfLog",error=error)
       IF (iw>0) THEN
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Number of cart. primitive ERI's calculated:      ",shm_nprim_ints
 
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Number of sph. ERI's calculated:           ",shm_neris_total
 
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Number of sph. ERI's stored in-core:        ",shm_neris_incore
 
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Number of sph. ERI's stored on disk:        ",shm_neris_disk
   
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Number of sph. ERI's calculated on the fly: ",shm_neris_onthefly
   
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Total memory consumption ERI's RAM [MB's]:            ",mem_eris
         
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Whereof max-vals [MB's]:            ",mem_max_val
       
-        WRITE (UNIT=iw,FMT="((T3,A,T60,F21.2))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2))")&
                  "HFX_MEM_INFO| Total compression factor ERI's RAM:                  ",compression_factor
              
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Total memory consumption ERI's disk [MB's]:       ",mem_eris_disk
 
-        WRITE (UNIT=iw,FMT="((T3,A,T60,F21.2))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2))")&
                  "HFX_MEM_INFO| Total compression factor ERI's disk:             ",compression_factor_disk
 
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Size of density/Fock matrix [MB's]:             ", 2_int_8*mb_size_p
 
         IF( do_periodic) THEN
-          WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+          WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
-          WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+          WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Number of periodic image cells considered: ", SIZE(shm_master_x_data%neighbor_cells)
         ELSE
-           WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
+           WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
         END IF
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21),/)")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
                  "HFX_MEM_INFO| Est. max. program size after HFX  [MB's]:", memsize_after/(1024*1024)
 
       END IF
@@ -2016,10 +1989,10 @@ MODULE hfx_energy_potential
   SUBROUTINE coulomb4(lib, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
                       la_min, la_max, lb_min, lb_max,&
                       lc_min, lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd,&
-                      sphi_a_u1,sphi_a_u2,sphi_a_u3,&
-                      sphi_b_u1,sphi_b_u2,sphi_b_u3,&
-                      sphi_c_u1,sphi_c_u2,sphi_c_u3,&
-                      sphi_d_u1,sphi_d_u2,sphi_d_u3,&
+                                sphi_a_u1,sphi_a_u2,sphi_a_u3,&
+                                sphi_b_u1,sphi_b_u2,sphi_b_u3,&
+                                sphi_c_u1,sphi_c_u2,sphi_c_u3,&
+                                sphi_d_u1,sphi_d_u2,sphi_d_u3,&
                       zeta, zetb, zetc, zetd,&
                       primitive_integrals,&
                       potential_parameter, neighbor_cells,&

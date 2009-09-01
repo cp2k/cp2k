@@ -18,7 +18,7 @@ MODULE preconditioner_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_destroy
+  USE dbcsr_methods,                   ONLY: dbcsr_release
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_constants,                 ONLY: ot_precond_solver_default
   USE kinds,                           ONLY: dp
@@ -108,7 +108,7 @@ CONTAINS
        CALL cp_fm_release(preconditioner_env%fm,error=error)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
-       CALL dbcsr_destroy (preconditioner_env%dbcsr_matrix, error)
+       CALL dbcsr_release (preconditioner_env%dbcsr_matrix)
        DEALLOCATE (preconditioner_env%dbcsr_matrix)
        NULLIFY (preconditioner_env%dbcsr_matrix)
     ENDIF

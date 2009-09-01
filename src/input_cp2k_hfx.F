@@ -515,14 +515,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="TREAT_FORCES_IN_CORE",&
-            description="Determines whether the derivative ERI's should be stored to RAM or not. "//&
-                        "Only meaningful when performing Ehrenfest MD. "//&
-                        "Memory usage is defined via MAX_MEMORY, i.e. the memory is shared wit the energy ERI's.",&
-            usage="TREAT_FORCES_IN_CORE TRUE", default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+ 
     END IF
  
   END SUBROUTINE create_hf_memory_section

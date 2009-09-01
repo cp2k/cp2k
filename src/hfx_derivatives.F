@@ -16,18 +16,9 @@ MODULE hfx_derivatives
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_files,                        ONLY: get_unit_number
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: get_full_density
-  USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
-                                             hfx_add_single_cache_element,&
-                                             hfx_decompress_first_cache,&
-                                             hfx_flush_last_cache,&
-                                             hfx_get_mult_cache_elements,&
-                                             hfx_get_single_cache_element,&
-                                             hfx_reset_cache_and_container
   USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
   USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
                                              lib_deriv
@@ -38,21 +29,17 @@ MODULE hfx_derivatives
                                              build_pgf_product_list
   USE hfx_screening_methods,           ONLY: update_pmax_mat
   USE hfx_types,                       ONLY: &
-       alloc_containers, dealloc_containers, hfx_basis_info_type, &
-       hfx_basis_type, hfx_cache_type, hfx_cell_type, hfx_container_type, &
-       hfx_distribution, hfx_general_type, hfx_init_container, &
-       hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, &
+       hfx_basis_info_type, hfx_basis_type, hfx_cell_type, hfx_distribution, &
+       hfx_general_type, hfx_load_balance_type, hfx_p_kind, hfx_pgf_list, &
        hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
        hfx_screening_type, hfx_task_list_type, hfx_type, log_zero, &
        pair_list_type, pair_set_list_type
   USE input_constants,                 ONLY: do_hfx_potential_truncated,&
                                              hfx_do_eval_forces
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_walltime
   USE mathconstants
-  USE message_passing,                 ONLY: mp_sum_i8
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -98,12 +85,11 @@ MODULE hfx_derivatives
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE derivatives_four_center(qs_env,rho, hfx_section, para_env, & 
+  SUBROUTINE derivatives_four_center(qs_env,rho,para_env,& 
                                      irep, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: irep
     REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
@@ -112,11 +98,11 @@ MODULE hfx_derivatives
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bin, coord, forces_map(4,2), handle, handle_bin, handle_getP, &
-      handle_load, handle_main, i, i_atom, i_thread, iatom, ikind, iset, &
-      j_atom, jatom, jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, &
-      lkind, lset, max_am, max_set, my_bin_size, n_threads, natom, ncob, &
-      ncos_max, nseta, nsetb, nspins, sgfb, stat
+    INTEGER :: bin, coord, forces_map(4,2), handle, handle_getP, handle_load, &
+      handle_main, i, i_atom, i_thread, iatom, ikind, iset, j_atom, jatom, &
+      jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, lkind, lset, &
+      max_am, max_set, my_bin_size, n_threads, natom, ncob, ncos_max, nseta, &
+      nsetb, nspins, sgfb, stat
     INTEGER(int_8)                           :: my_current_counter, &
                                                 my_istart, n_processes, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
@@ -219,28 +205,8 @@ MODULE hfx_derivatives
     INTEGER                                  :: sphi_a_u1,sphi_a_u2,sphi_a_u3
     INTEGER                                  :: iatom_start, iatom_end, jatom_start, jatom_end, katom_start,&
                                                 katom_end, latom_start, latom_end, my_process_id
-    TYPE(hfx_cache_type), DIMENSION(:), &
-      POINTER                                :: integral_caches
-    TYPE(hfx_cache_type), POINTER            :: maxval_cache
-    TYPE(hfx_container_type), DIMENSION(:), &
-      POINTER                                :: integral_containers
-    TYPE(hfx_container_type), POINTER        :: maxval_container
-    INTEGER                                  :: cache_size, bits_max_val, current_counter, nints, &
-                                                nbits, buffer_left, buffer_start, buffer_size, iw
-    TYPE(hfx_memory_type), POINTER           :: memory_parameter
-    INTEGER(int_8)                           :: mem_compression_counter, counter, neris_onthefly, &
-                                                estimate_to_store_int, neris_total, nprim_ints, neris_tmp,&
-                                                max_val_memory, neris_incore
-    LOGICAL                                  :: buffer_overflow, use_disk_storage
-    REAL(dp)                                 :: spherical_estimate, eps_storage
-    INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
-                                                shm_storage_counter_integrals, shm_neris_incore, &
-                                                shm_neris_disk, shm_stor_count_int_disk, shm_stor_count_max_val,&
-                                                tmp_i8(6), mem_eris, mem_max_val, shm_nprim_ints, stor_count_max_val,&
-                                                storage_counter_integrals
-    REAL(dp)                                 :: compression_factor, cartesian_estimate_orig
-    TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL                                  :: treat_forces_in_core
+
+
 
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
@@ -251,6 +217,7 @@ MODULE hfx_derivatives
     END IF
 
     CALL timeset(routineN,handle)
+
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
     nkind = SIZE(atomic_kind_set,1)
     l_max = 0
@@ -273,14 +240,6 @@ MODULE hfx_derivatives
 
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
-
-    shm_neris_total = 0 
-    shm_nprim_ints = 0
-    shm_neris_onthefly = 0
-    shm_storage_counter_integrals = 0
-    shm_neris_incore = 0
-    shm_stor_count_max_val = 0
-
     
     !! get force array
     CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -290,10 +249,8 @@ MODULE hfx_derivatives
       my_adiabatic_rescale_factor = adiabatic_rescale_factor
     END IF
 
-
 !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(qs_env,&
 !$OMP                                  rho,&
-!$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  irep,&
 !$OMP                                  error,&
@@ -308,12 +265,6 @@ MODULE hfx_derivatives
 !$OMP                                  shm_number_of_p_entries,&
 !$OMP                                  force,&
 !$OMP                                  my_adiabatic_rescale_factor,&
-!$OMP                                  shm_neris_total,&
-!$OMP                                  shm_neris_onthefly,&
-!$OMP                                  shm_storage_counter_integrals,&
-!$OMP                                  shm_neris_incore,&
-!$OMP                                  shm_nprim_ints,&
-!$OMP                                  shm_stor_count_max_val,&
 !$OMP                                  cell,&
 !$OMP                                  screen_coeffs_set,&
 !$OMP                                  screen_coeffs_kind,&
@@ -343,13 +294,6 @@ MODULE hfx_derivatives
 
     load_balance_parameter => actual_x_data%load_balance_parameter
     basis_parameter        => actual_x_data%basis_parameter
-
-    memory_parameter       => actual_x_data%memory_parameter
-
-    cache_size = memory_parameter%cache_size
-    bits_max_val = memory_parameter%bits_max_val
-
-    use_disk_storage = .FALSE.
    
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -360,7 +304,6 @@ MODULE hfx_derivatives
     max_am = basis_info%max_am 
     natom = SIZE(particle_set,1)
 
-    treat_forces_in_core = memory_parameter%treat_forces_in_core
 
     hf_fraction = general_parameter%fraction
     hf_fraction = hf_fraction * my_adiabatic_rescale_factor
@@ -371,9 +314,6 @@ MODULE hfx_derivatives
       log10_eps_schwarz = LOG10(eps_schwarz) 
     END IF
     screen_pmat_forces =  screening_parameter%do_p_screening_forces
-    eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
-
-    counter = 0_int_8
 
     !! Initialize memory for libint
     CALL initialize_libderiv(private_deriv, max_am, error)
@@ -430,18 +370,6 @@ MODULE hfx_derivatives
     ncpu = para_env%num_pe
     n_processes = ncpu * n_threads
 
-    !! initalize some counters
-    neris_total = 0_int_8
-    neris_incore = 0_int_8
-    neris_onthefly = 0_int_8
-    mem_eris = 0_int_8
-    mem_max_val = 0_int_8
-    compression_factor = 0.0_dp
-    nprim_ints = 0_int_8
-    neris_tmp = 0_int_8
-    max_val_memory = 1_int_8
-
-
 
 !$OMP MASTER
     !! Set pointer for is_assoc helper
@@ -478,19 +406,17 @@ MODULE hfx_derivatives
     IF ( screen_pmat_forces ) THEN
       NULLIFY(shm_initial_p)
       shm_initial_p => actual_x_data%initial_p
-      IF( memory_parameter%treat_forces_in_core) &
-          shm_initial_p => actual_x_data%initial_p_forces
-      IF( memory_parameter%recalc_forces ) THEN
-        CALL update_pmax_mat(shm_initial_p, &
-                             actual_x_data%map_atom_to_kind_atom, &
-                             actual_x_data%set_offset, &
-                             actual_x_data%atomic_block_offset, &
-                             full_density,full_density_beta,&
-                             natom, kind_of, basis_parameter, &
-                             last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block)
-      END IF
+      CALL update_pmax_mat(actual_x_data%initial_p, &
+                           actual_x_data%map_atom_to_kind_atom, &
+                           actual_x_data%set_offset, &
+                           actual_x_data%atomic_block_offset, &
+                           full_density,full_density_beta,&
+                           natom, kind_of, basis_parameter, &
+                           last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block)
     END IF 
 
+    !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
+    !! in memory
 
     screen_coeffs_set   => actual_x_data%screen_funct_coeffs_set
     screen_coeffs_kind  => actual_x_data%screen_funct_coeffs_kind
@@ -504,21 +430,19 @@ MODULE hfx_derivatives
     CALL timeset(routineN//"_load",handle_load)
 !$OMP END MASTER
     !! Load balance the work
-    IF( actual_x_data%memory_parameter%recalc_forces ) THEN
-      IF( actual_x_data%b_first_load_balance_forces ) THEN
-        CALL hfx_load_balance(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
-                              screen_coeffs_set,screen_coeffs_kind,&
-                              shm_is_assoc_atomic_block, do_periodic,&
-                              load_balance_parameter, kind_of, basis_parameter,shm_initial_p, i_thread, n_threads,&
-                              cell, screen_pmat_forces, actual_x_data%map_atom_to_kind_atom, &
-                              nkind, hfx_do_eval_forces, error)
-        actual_x_data%b_first_load_balance_forces = .FALSE.
-      ELSE
-        CALL hfx_update_load_balance(actual_x_data, para_env, &
-                                     load_balance_parameter, &
-                                     i_thread, n_threads, hfx_do_eval_forces, &
-                                     error)
-      END IF
+    IF( actual_x_data%b_first_load_balance_forces ) THEN
+      CALL hfx_load_balance(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
+                        screen_coeffs_set,screen_coeffs_kind,&
+                        shm_is_assoc_atomic_block, do_periodic,&
+                        load_balance_parameter, kind_of, basis_parameter,shm_initial_p, i_thread, n_threads,&
+                        cell, screen_pmat_forces, actual_x_data%map_atom_to_kind_atom, &
+                        nkind, hfx_do_eval_forces, error)
+      actual_x_data%b_first_load_balance_forces = .FALSE.
+    ELSE
+      CALL hfx_update_load_balance(actual_x_data, para_env, &
+                               load_balance_parameter, &
+                               i_thread, n_threads, hfx_do_eval_forces, &
+                               error)
     END IF
 !$OMP MASTER
     CALL timestop(handle_load)
@@ -644,59 +568,10 @@ MODULE hfx_derivatives
 
 !$OMP BARRIER
 
-    IF(actual_x_data%memory_parameter%recalc_forces) THEN
-     actual_x_data%distribution_forces%ram_counter = HUGE(distribution_forces%ram_counter)
-     memory_parameter%ram_counter_forces = HUGE(memory_parameter%ram_counter_forces) 
-    END IF
-
-    IF(treat_forces_in_core) THEN
-      buffer_overflow = .FALSE. 
-    ELSE
-      buffer_overflow = .TRUE.
-    END IF
 
     do_dynamic_load_balancing = .TRUE.
     IF( n_threads == 1 ) do_dynamic_load_balancing = .FALSE.
-
-    IF( do_dynamic_load_balancing ) THEN
-      my_bin_size = SIZE(actual_x_data%distribution_forces)
-    ELSE
-      my_bin_size = 1
-    END IF
-    !! We do not need the containers if MAX_MEM = 0
-    IF( treat_forces_in_core ) THEN
-      !! IF new md step -> reinitialize containers
-      IF(actual_x_data%memory_parameter%recalc_forces) THEN
-        CALL dealloc_containers(actual_x_data, hfx_do_eval_forces, error)
-        CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_forces, error)
-    
-        DO bin = 1,my_bin_size
-          maxval_container => actual_x_data%maxval_container_forces(bin)
-          integral_containers => actual_x_data%integral_containers_forces(:,bin)
-          CALL hfx_init_container(maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
-          DO i=1,64
-            CALL hfx_init_container(integral_containers(i),memory_parameter%actual_memory_usage, .FALSE., error)
-          END DO
-        END DO
-      END IF
-  
-      !! Decompress the first cache for maxvals and integrals
-      IF( .NOT. actual_x_data%memory_parameter%recalc_forces) THEN
-        DO bin = 1,my_bin_size
-          maxval_cache => actual_x_data%maxval_cache_forces(bin)
-          maxval_container => actual_x_data%maxval_container_forces(bin)
-          integral_caches => actual_x_data%integral_caches_forces(:,bin)
-          integral_containers => actual_x_data%integral_containers_forces(:,bin)
-          CALL hfx_decompress_first_cache(bits_max_val, maxval_cache, maxval_container, &
-                                          memory_parameter%actual_memory_usage, .FALSE.)
-          DO i=1,64
-            CALL hfx_decompress_first_cache(i, integral_caches(i), integral_containers(i), &
-                                            memory_parameter%actual_memory_usage,.FALSE.)
-          END DO
-        END DO
-      END IF
-    END IF
-
+ 
 !$OMP BARRIER
 !$OMP MASTER
     IF( do_dynamic_load_balancing ) THEN
@@ -745,15 +620,6 @@ MODULE hfx_derivatives
 !$OMP END MASTER
 !$OMP BARRIER
 
-    IF(treat_forces_in_core) THEN
-      maxval_container       => actual_x_data%maxval_container_forces(1)
-      maxval_cache           => actual_x_data%maxval_cache_forces(1)
-
-      integral_containers    => actual_x_data%integral_containers_forces(:,1)
-      integral_caches        => actual_x_data%integral_caches_forces(:,1)
-    END IF
-
-
     coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
     ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -765,6 +631,7 @@ MODULE hfx_derivatives
        actual_x_data%distribution_forces(bin)%time_forces=0.0_dp
     ENDDO
     nblocks = load_balance_parameter%nblocks
+    !! outer loop will be cycled if actual work_load done
 
     bins_left = .TRUE.
     do_it = .TRUE.
@@ -779,26 +646,16 @@ MODULE hfx_derivatives
           do_it = .TRUE.
           bins_left = .TRUE.
           distribution_forces => actual_x_data%distribution_forces(bin)
-         END IF
+        END IF
       ELSE
 !$OMP CRITICAL
         shm_task_counter = shm_task_counter + 1
         IF( shm_task_counter <= shm_total_bins) THEN
           my_thread_id = shm_task_list(shm_task_counter)%thread_id
           my_bin_id = shm_task_list(shm_task_counter)%bin_id
-          IF( treat_forces_in_core) THEN
-            maxval_cache => qs_env%x_data(irep,my_thread_id)%maxval_cache_forces(my_bin_id)
-            maxval_container => qs_env%x_data(irep,my_thread_id)%maxval_container_forces(my_bin_id)
-            integral_caches => qs_env%x_data(irep,my_thread_id)%integral_caches_forces(:,my_bin_id)
-            integral_containers => qs_env%x_data(irep,my_thread_id)%integral_containers_forces(:,my_bin_id)
-          END IF
           distribution_forces => qs_env%x_data(irep,my_thread_id)%distribution_forces(my_bin_id) 
           do_it = .TRUE.
           bins_left = .TRUE.
-          IF( actual_x_data%memory_parameter%recalc_forces) THEN
-            distribution_forces%ram_counter = HUGE(distribution_forces%ram_counter)
-          END IF
-          counter = 0_Int_8
         ELSE
           do_it = .FALSE.
           bins_left = .FALSE.
@@ -807,9 +664,7 @@ MODULE hfx_derivatives
       END IF
 
       IF( .NOT. do_it ) CYCLE
-!$OMP MASTER
-      CALL timeset(routineN//"_bin",handle_bin)
-!$OMP END MASTER
+
       bintime_start=m_walltime()
       my_istart = distribution_forces%istart
       my_current_counter = 0
@@ -936,7 +791,7 @@ MODULE hfx_derivatives
             IF(katom==latom) symm_fac = symm_fac*2.0_dp
             IF(iatom==katom .AND. jatom==latom .AND. iatom/=jatom .AND. katom/=latom) symm_fac = symm_fac*2.0_dp
             IF(iatom==katom .AND. iatom==jatom .AND. katom==latom) symm_fac = symm_fac*2.0_dp
-
+    
             symm_fac = 1.0_dp/symm_fac
             fac = fac * symm_fac             
 
@@ -1037,56 +892,6 @@ MODULE hfx_derivatives
               END IF
             END IF
 
-            !! At this stage, check for memory used in compression
-
-            IF(actual_x_data%memory_parameter%recalc_forces ) THEN
-              IF(treat_forces_in_core) THEN
-                ! ** We know the maximum amount of integrals that we can store per MPI-process
-                ! ** Now we need to sum the current memory usage among all openMP threads
-                ! ** We can just read what is currently stored on the corresponding x_data type
-                ! ** If this is thread i and it tries to read the data from thread j, that is 
-                ! ** currently writing that data, we just dont care, because the possible error
-                ! ** is of the order of CACHE_SIZE
-                mem_compression_counter = 0
-                DO i=1,n_threads
-                  mem_compression_counter = mem_compression_counter + &
-                                            qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage *&
-                                            memory_parameter%cache_size
-                END DO
-                IF(mem_compression_counter + memory_parameter%final_compression_counter_energy &
-                                      > memory_parameter%max_compression_counter) THEN
-                  buffer_overflow = .TRUE.
-                  IF( do_dynamic_load_balancing ) THEN
-                    distribution_forces%ram_counter = counter
-                  ELSE
-                    memory_parameter%ram_counter_forces = counter
-                  END IF
-                ELSE
-                  counter = counter + 1
-                  buffer_overflow = .FALSE.
-                END IF 
-              END IF
-            ELSE
-              IF(treat_forces_in_core ) THEN
-                IF( do_dynamic_load_balancing) THEN
-                  IF(distribution_forces%ram_counter == counter) THEN
-                    buffer_overflow = .TRUE.
-                  ELSE
-                    counter = counter + 1
-                    buffer_overflow = .FALSE.
-                  END IF
-                ELSE
-                  IF(memory_parameter%ram_counter_forces == counter) THEN
-                    buffer_overflow = .TRUE.
-                  ELSE
-                    counter = counter + 1
-                    buffer_overflow = .FALSE.
-                  END IF
-                END IF
-              END IF
-            END IF
-
-
             DO i_set_list_ij=i_set_list_ij_start, i_set_list_ij_stop
               iset=set_list_ij(i_set_list_ij)%pair(1)
               jset=set_list_ij(i_set_list_ij)%pair(2)
@@ -1128,139 +933,42 @@ MODULE hfx_derivatives
                 IF(max_val2<log10_eps_schwarz)  CYCLE
 
                 pmax_entry = EXP(log10_pmax*ln_10) 
-                !! store current number of integrals, update total number and number of integrals in buffer
-                current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)*12
-                IF(buffer_overflow) THEN
-                  neris_onthefly = neris_onthefly + current_counter 
-                END IF
-  
-                !! Get integrals from buffer and update Kohn-Sham matrix
-                IF(.NOT.buffer_overflow .AND. .NOT.actual_x_data%memory_parameter%recalc_forces) THEN
-                  nints = current_counter
-                  CALL hfx_get_single_cache_element(estimate_to_store_int, 6,&
-                                             maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                             use_disk_storage)
-                  spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
-                  IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
-                  nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1                         
-                  buffer_left = nints
-                  buffer_start = 1
-                  DO WHILE (buffer_left > 0 )
-                    buffer_size = MIN(buffer_left, cache_size)
-                    CALL hfx_get_mult_cache_elements(primitive_forces(buffer_start), &
-                                                     buffer_size, nbits, &
-                                                     integral_caches(nbits), &
-                                                     integral_containers(nbits), &
-                                                     eps_storage, pmax_entry, &
-                                                     memory_parameter%actual_memory_usage, &
-                                                     use_disk_storage)
-                    buffer_left = buffer_left - buffer_size
-                    buffer_start = buffer_start + buffer_size
-                  END DO 
-                END IF
-                !! Calculate integrals if we run out of buffer or the geometry did change
-                IF(actual_x_data%memory_parameter%recalc_forces .OR. buffer_overflow) THEN
-                  max_contraction_val =  max_contraction(iset,iatom) * &
+                max_contraction_val =  max_contraction(iset,iatom) * &
                                          max_contraction(jset,jatom) * &
                                          max_contraction(kset,katom) * &
                                          max_contraction(lset,latom) * &
                                          pmax_entry
-                  tmp_R_1 => radii_pgf(:,:,jset,iset,jkind,ikind)
-                  tmp_R_2 => radii_pgf(:,:,lset,kset,lkind,kkind)
-                  tmp_screen_pgf1 => screen_coeffs_pgf(:,:,jset,iset,jkind,ikind)
-                  tmp_screen_pgf2 => screen_coeffs_pgf(:,:,lset,kset,lkind,kkind)
+                tmp_R_1 => radii_pgf(:,:,jset,iset,jkind,ikind)
+                tmp_R_2 => radii_pgf(:,:,lset,kset,lkind,kkind)
+                tmp_screen_pgf1 => screen_coeffs_pgf(:,:,jset,iset,jkind,ikind)
+                tmp_screen_pgf2 => screen_coeffs_pgf(:,:,lset,kset,lkind,kkind)
+
+                CALL forces4(private_deriv, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                             la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                             lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                             nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset),&
+                             sphi_a_u1,sphi_a_u2,sphi_a_u3,&
+                             sphi_b_u1,sphi_b_u2,sphi_b_u3,&
+                             sphi_c_u1,sphi_c_u2,sphi_c_u3,&
+                             sphi_d_u1,sphi_d_u2,sphi_d_u3,&
+                             zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset),&
+                             zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
+                             primitive_forces,&
+                             potential_parameter, &
+                             actual_x_data%neighbor_cells, screen_coeffs_set(jset,iset,jkind,ikind)%x,&
+                             screen_coeffs_set(lset,kset,lkind,kkind)%x, eps_schwarz, &
+                             max_contraction_val, cartesian_estimate,  cell,&
+                             log10_pmax, log10_eps_schwarz, &
+                             tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2,&
+                             pgf_list_ij, pgf_list_kl, pgf_product_list, &
+                             nsgfl_a(:,iset), nsgfl_b(:,jset),&
+                             nsgfl_c(:,kset), nsgfl_d(:,lset),&
+                             sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set,&
+                             ede_work,ede_work2,ede_work_forces, &
+                             ede_buffer1,ede_buffer2,ede_primitives_tmp, &
+                             nimages,do_periodic)
   
-                  CALL forces4(private_deriv, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
-                               la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
-                               lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                               nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset),&
-                               sphi_a_u1,sphi_a_u2,sphi_a_u3,&
-                               sphi_b_u1,sphi_b_u2,sphi_b_u3,&
-                               sphi_c_u1,sphi_c_u2,sphi_c_u3,&
-                               sphi_d_u1,sphi_d_u2,sphi_d_u3,&
-                               zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset),&
-                               zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
-                               primitive_forces,&
-                               potential_parameter, &
-                               actual_x_data%neighbor_cells, screen_coeffs_set(jset,iset,jkind,ikind)%x,&
-                               screen_coeffs_set(lset,kset,lkind,kkind)%x, eps_schwarz, &
-                               max_contraction_val, cartesian_estimate,  cell, neris_tmp, &
-                               log10_pmax, log10_eps_schwarz, &
-                               tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2,&
-                               pgf_list_ij, pgf_list_kl, pgf_product_list, &
-                               nsgfl_a(:,iset), nsgfl_b(:,jset),&
-                               nsgfl_c(:,kset), nsgfl_d(:,lset),&
-                               sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set,&
-                               ede_work,ede_work2,ede_work_forces, &
-                               ede_buffer1,ede_buffer2,ede_primitives_tmp, &
-                               nimages,do_periodic)
-    
-                  nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)*12
-                  neris_total = neris_total + nints
-                  nprim_ints = nprim_ints + neris_tmp
-                  IF(cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate)
-                  estimate_to_store_int = EXPONENT(cartesian_estimate)
-                  estimate_to_store_int = MAX(estimate_to_store_int,-15_int_8)
-                  cartesian_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
-                  IF(.NOT.buffer_overflow .AND. actual_x_data%memory_parameter%recalc_forces) THEN
-                    IF(cartesian_estimate < eps_schwarz ) THEN
-                      CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
-                                        maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                        use_disk_storage, max_val_memory, error)
-                    END IF
-                  END IF
-
-                  IF(cartesian_estimate<eps_schwarz) CYCLE 
-
-                  !! Compress the array for storage
-                  spherical_estimate = 0.0_dp
-                  DO i=1,nints
-                    spherical_estimate = MAX(spherical_estimate,ABS(primitive_forces(i)))
-                  END DO
-                  IF(spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate)
-                  estimate_to_store_int = EXPONENT(spherical_estimate)
-                  estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
-                  IF(.NOT. buffer_overflow .AND. actual_x_data%memory_parameter%recalc_forces) THEN
-                    CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
-                                                      maxval_cache, maxval_container, &
-                                                      memory_parameter%actual_memory_usage, &
-                                                      use_disk_storage, max_val_memory, error)
-                  END IF
-                  spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
-                  IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE 
-                  IF(.NOT.buffer_overflow) THEN
-                    nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1 
-                    buffer_left = nints
-                    buffer_start = 1
-                    neris_incore = neris_incore + nints
-
-                    DO WHILE (buffer_left > 0 )
-                      buffer_size = MIN(buffer_left, CACHE_SIZE)
-                      CALL hfx_add_mult_cache_elements(primitive_forces(buffer_start),&
-                                                       buffer_size, nbits, &
-                                                       integral_caches(nbits), &
-                                                       integral_containers(nbits), &
-                                                       eps_storage, pmax_entry, &
-                                                       memory_parameter%actual_memory_usage, &
-                                                       use_disk_storage, error)
-                      buffer_left = buffer_left - buffer_size
-                      buffer_start = buffer_start + buffer_size
-                    END DO
-                  ELSE
-                    !! In order to be consistent with in-core part, round all the eris wrt. eps_schwarz
-                    !! but only if we treat forces in-core
-                    IF( treat_forces_in_core ) THEN
-                      DO i=1,nints
-                        primitive_forces(i) = primitive_forces(i)*pmax_entry
-                        IF(ABS(primitive_forces(i)) > eps_storage) THEN
-                          primitive_forces(i) = ANINT(primitive_forces(i)/eps_storage, dp)*eps_storage/pmax_entry
-                        ELSE
-                          primitive_forces(i) = 0.0_dp
-                        END IF
-                      END DO
-                    END IF
-                  END IF
-                END IF
+                IF(cartesian_estimate<eps_schwarz) CYCLE
                 CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), & 
                                              full_density, pbd_buf, pbc_buf, pad_buf, pac_buf, &
                                              iatom, jatom, katom, latom, &
@@ -1275,6 +983,7 @@ MODULE hfx_derivatives
                                                offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
                                                atomic_offset_ad, atomic_offset_ac)
                 END IF
+
                 DO coord = 1,12
                   T2 => primitive_forces((coord-1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)+1:&
                                           coord*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
@@ -1295,130 +1004,7 @@ MODULE hfx_derivatives
       END DO atomic_blocks
       bintime_stop=m_walltime()
       distribution_forces%time_forces=bintime_stop-bintime_start
-!$OMP MASTER
-      CALL timestop(handle_bin)
-!$OMP END MASTER
     END DO  !bin
-
-
-!$OMP BARRIER
-    !! Get some number about ERIS
-!$OMP ATOMIC
-    shm_neris_total = shm_neris_total + neris_total
-!$OMP ATOMIC
-    shm_neris_onthefly = shm_neris_onthefly + neris_onthefly
-!$OMP ATOMIC
-    shm_nprim_ints = shm_nprim_ints + nprim_ints
-
-    storage_counter_integrals = memory_parameter%actual_memory_usage * &
-                                memory_parameter%cache_size
-    stor_count_max_val = max_val_memory * memory_parameter%cache_size
-!$OMP ATOMIC
-    shm_storage_counter_integrals = shm_storage_counter_integrals + storage_counter_integrals
-!$OMP ATOMIC
-    shm_neris_incore = shm_neris_incore + neris_incore
-!$OMP ATOMIC
-    shm_stor_count_max_val = shm_stor_count_max_val + stor_count_max_val
-!$OMP BARRIER
-
-
-!$OMP MASTER
-    !! Print some memeory information if this is the first step
-    IF( actual_x_data%memory_parameter%recalc_forces ) THEN
-      tmp_i8(1:6)=(/shm_storage_counter_integrals,shm_neris_onthefly,shm_neris_incore,&
-                    shm_neris_total,shm_nprim_ints,shm_stor_count_max_val/)
-      CALL mp_sum_i8(tmp_i8,para_env%group)
-      shm_storage_counter_integrals=tmp_i8(1)
-      shm_neris_onthefly=tmp_i8(2)
-      shm_neris_incore=tmp_i8(3)
-      shm_neris_total=tmp_i8(4)
-      shm_nprim_ints=tmp_i8(5)
-      shm_stor_count_max_val=tmp_i8(6)
-      mem_eris = (shm_storage_counter_integrals+128*1024-1)/1024/128
-      compression_factor = REAL(shm_neris_incore,dp)/REAL(shm_storage_counter_integrals,dp)
-      mem_max_val = (shm_stor_count_max_val+128*1024-1)/1024/128
-
-      IF( shm_neris_incore == 0 ) THEN
-        mem_eris = 0
-        compression_factor = 0.0_dp
-      END IF
-
-      logger => cp_error_get_logger(error)
-
-      iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-           extension=".scfLog",error=error)
-      IF (iw>0) THEN
-        WRITE (UNIT=iw,FMT="(/,(T3,A,T65,I16))")&
-                 "HFX_MEM_INFO| Number of cart. primitive DERIV's calculated:      ",shm_nprim_ints
-
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Number of sph. DERIV's calculated:           ",shm_neris_total
-
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Number of sph. DERIV's stored in-core:        ",shm_neris_incore
-
-        WRITE (UNIT=iw,FMT="((T3,A,T62,I19))")&
-                 "HFX_MEM_INFO| Number of sph. DERIV's calculated on the fly: ",shm_neris_onthefly
-
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Total memory consumption DERIV's RAM [MB's]:            ",mem_eris
-
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Whereof max-vals [MB's]:            ",mem_max_val
-
-        WRITE (UNIT=iw,FMT="((T3,A,T60,F21.2),/)")&
-                 "HFX_MEM_INFO| Total compression factor DERIV's RAM:                  ",compression_factor
-      END IF
-
-      CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                      "HF_INFO", error=error)
-    END IF
-!$OMP END MASTER
-
-    !! flush caches if the geometry changed 
-    IF( do_dynamic_load_balancing ) THEN
-      my_bin_size = SIZE(actual_x_data%distribution_forces)
-    ELSE
-      my_bin_size = 1
-    END IF
-
-    IF(actual_x_data%memory_parameter%recalc_forces ) THEN
-      IF(treat_forces_in_core) THEN
-        DO bin = 1,my_bin_size
-          maxval_cache => actual_x_data%maxval_cache_forces(bin)
-          maxval_container => actual_x_data%maxval_container_forces(bin)
-          integral_caches => actual_x_data%integral_caches_forces(:,bin)
-          integral_containers => actual_x_data%integral_containers_forces(:,bin)
-          CALL hfx_flush_last_cache(bits_max_val, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, & 
-                                    .FALSE., error)
-          DO i=1,64
-            CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
-                                      memory_parameter%actual_memory_usage, .FALSE., error)
-          END DO
-        END DO
-      END IF
-    END IF
-    !! reset all caches except we calculate all on the fly
-    IF(treat_forces_in_core) THEN
-      DO bin = 1,my_bin_size
-        maxval_cache => actual_x_data%maxval_cache_forces(bin)
-        maxval_container => actual_x_data%maxval_container_forces(bin)
-        integral_caches => actual_x_data%integral_caches_forces(:,bin)
-        integral_containers => actual_x_data%integral_containers_forces(:,bin)
-
-        CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
-        DO i=1,64
-          CALL hfx_reset_cache_and_container(integral_caches(i), integral_containers(i), &
-                                             memory_parameter%actual_memory_usage, &
-                                             .FALSE.)
-        END DO
-      END DO
-    END IF
-
-    IF( actual_x_data%memory_parameter%recalc_forces ) THEN
-      actual_x_data%memory_parameter%recalc_forces = .FALSE.
-    END IF
-
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1502,7 +1088,7 @@ MODULE hfx_derivatives
                      primitive_integrals,&
                      potential_parameter, neighbor_cells,&
                      screen1, screen2, eps_schwarz, max_contraction_val,&
-                     cart_estimate, cell, neris_tmp, log10_pmax,&
+                     cart_estimate, cell, log10_pmax,&
                      log10_eps_schwarz,R1_pgf, R2_pgf, pgf1, pgf2,&
                      pgf_list_ij, pgf_list_kl,&
                      pgf_product_list,&
@@ -1534,7 +1120,6 @@ MODULE hfx_derivatives
                                                 max_contraction_val
     REAL(dp)                                 :: cart_estimate
     TYPE(cell_type), POINTER                 :: cell
-    INTEGER(int_8)                           :: neris_tmp
     REAL(dp), INTENT(IN)                     :: log10_pmax, log10_eps_schwarz
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: R1_pgf, R2_pgf, pgf1, pgf2
@@ -1573,7 +1158,6 @@ MODULE hfx_derivatives
 
     cart_estimate = 0.0_dp
     primitive_integrals = 0.0_dp
-    neris_tmp = 0_int_8
     max_l = la_max + lb_max + lc_max + ld_max + 1
     DO list_ij = 1,nelements_ij
       Zeta_A = pgf_list_ij(list_ij)%zeta
@@ -1623,7 +1207,7 @@ MODULE hfx_derivatives
                                         ncoa,ncob,ncoc,ncod,&
                                         nsgfa, nsgfb, nsgfc, nsgfd,&
                                         primitive_integrals, &
-                                        max_contraction_val, tmp_max, eps_schwarz, neris_tmp,&
+                                        max_contraction_val, tmp_max, eps_schwarz,&
                                         Zeta_A, Zeta_B, Zeta_C, Zeta_D, ZetaInv,EtaInv,&
                                         s_offset_a, s_offset_b, s_offset_c, s_offset_d,&
                                         nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
@@ -1633,6 +1217,7 @@ MODULE hfx_derivatives
                                         sphi_d_ext(1,ld+1,lpgf), &
                                         ede_work,ede_work2,ede_work_forces, &
                                         ede_buffer1,ede_buffer2,ede_primitives_tmp)
+
                 cart_estimate = MAX(tmp_max,cart_estimate)
                 s_offset_d = s_offset_d + nsod*nsgfld
               END DO !ld
@@ -1851,7 +1436,6 @@ MODULE hfx_derivatives
     force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1, &
           forces_map((coord-1)/3 + 1,2)) - &
           temp4
-
   END SUBROUTINE update_forces
 
 #include "hfx_get_pmax_val.h"

@@ -33,6 +33,7 @@ MODULE dbcsr_operations
   USE dbcsr_methods
   USE dbcsr_types
   USE dbcsr_util
+  USE distribution_2d_types,           ONLY: distribution_2d_retain
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8,&
@@ -623,15 +624,15 @@ CONTAINS
     ENDIF
     !ENDIF
     !
-    CALL dbcsr_destroy (rbuffer_1)
-    CALL dbcsr_destroy (rbuffer_2)
+    CALL dbcsr_destroy (rbuffer_1, force=.TRUE.)
+    CALL dbcsr_destroy (rbuffer_2, force=.TRUE.)
     CALL dbcsr_destroy_array (lbuffer_1)
     CALL dbcsr_destroy_array (lbuffer_2)
     DEALLOCATE (my_sizes)
     !
     !$OMP END MASTER
     !!$OMP END PARALLEL
-    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error=error)
+    CALL dbcsr_finalize(product_matrix)
     !
     IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
@@ -983,8 +984,8 @@ CONTAINS
     CALL mp_window_destroy (right_data_window)
     CALL mp_window_destroy (right_index_window)
     !
-    CALL dbcsr_destroy (rbuffer_1)
-    CALL dbcsr_destroy (rbuffer_2)
+    CALL dbcsr_destroy (rbuffer_1, force=.TRUE.)
+    CALL dbcsr_destroy (rbuffer_2, force=.TRUE.)
     CALL dbcsr_destroy_array (lbuffer_1)
     CALL dbcsr_destroy_array (lbuffer_2)
     DEALLOCATE (my_sizes)
@@ -3731,7 +3732,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
 
-    CALL dbcsr_init(matrix_b, error)
     IF(PRESENT(name)) THEN
        CALL dbcsr_create(matrix_b, name, &
             matrix_a%m%dist, matrix_a%m%matrix_type, matrix_a%m%row_blk_size,&
@@ -3747,7 +3747,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_data_ensure_size (matrix_b%m%data_area, matrix_a%m%nze)
     !
     ! copy index and data
-    matrix_b%m%index(:) = matrix_a%m%index(:)
+    matrix_b%m%index(1:SIZE(matrix_a%m%index)) = matrix_a%m%index(:)
     CALL dbcsr_data_copyall (matrix_b%m%data_area, matrix_a%m%data_area)
     !
     ! the row_p, col_i and blk_p ...
@@ -3755,6 +3755,13 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     matrix_b%m%nze = matrix_a%m%nze
     matrix_b%m%nblks = matrix_b%m%nblks
     matrix_b%m%valid = .TRUE.
+
+    ! Now do cp2k special stuff
+    IF (ASSOCIATED (matrix_a%m%dist2d)) THEN
+       matrix_b%m%dist2d => matrix_a%m%dist2d
+       CALL distribution_2d_retain (matrix_b%m%dist2d, error)
+    ENDIF
+    matrix_b%m%sparsity_id = matrix_a%m%sparsity_id
 
     CALL timestop(timing_handle)
 
@@ -4481,7 +4488,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CALL dbcsr_add (matrix, recv_matrix, 1.0_dp, 1.0_dp, error)
         ENDIF
     ENDDO
-    CALL dbcsr_destroy (recv_matrix)
+    CALL dbcsr_destroy (recv_matrix, force=.TRUE.)
   END SUBROUTINE dbcsr_sum_replicated
 
 ! *****************************************************************************
