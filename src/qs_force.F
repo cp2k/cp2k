@@ -350,9 +350,11 @@ CONTAINS
        IF ( dft_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
 
        ! Compute grid-based forces
-       CALL qs_ks_update_qs_env(ks_env=ks_env,&
-            qs_env=qs_env,&
-            calculate_forces=.TRUE.,error=error)
+       
+       IF (.NOT.qs_env%run_rtp)&
+           CALL qs_ks_update_qs_env(ks_env=ks_env,&
+                     qs_env=qs_env,&
+                     calculate_forces=.TRUE.,error=error)
 
        ! Add forces resulting from wavefunction fitting
 

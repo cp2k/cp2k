@@ -119,6 +119,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: aspc_order, handle, i
+    LOGICAL                                  :: my_force
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, exp_H_new
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -131,6 +132,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(matrix_ks,rho,mos,ks_env,rtp)
+    my_force=.TRUE.    
 
     CALL get_qs_env(qs_env,&
          matrix_ks=matrix_ks,&
@@ -192,7 +194,8 @@ CONTAINS
 
     CALL rt_convergence(qs_env,delta_mos,delta_iter,error)
     CALL cp_fm_vect_dealloc(delta_mos,error)
-    CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+    IF(qs_env%dft_control%rtp_control%fixed_ions)my_force=.FALSE.
+    CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=my_force,&
          error=error)
     CALL timestop(handle)
 
