@@ -2127,7 +2127,6 @@ MODULE hfx_energy_potential
       s_offset_a, s_offset_b, s_offset_c, s_offset_d
     REAL(dp)                                 :: EtaInv, tmp_max, ZetaInv
 
-    nneighbors3 = SIZE(neighbor_cells)**3
     CALL build_pair_list_pgf(npgfa, npgfb, pgf_list_ij, zeta, zetb, screen1, screen2,&
                              pgf1, R1_pgf, log10_pmax, log10_eps_schwarz, ra, rb,&
                              nelements_ij, &
@@ -2151,7 +2150,7 @@ MODULE hfx_energy_potential
         kpgf = pgf_list_kl(list_kl)%ipgf
         lpgf = pgf_list_kl(list_kl)%jpgf
 
-
+        nneighbors3 = SIZE(neighbor_cells)*pgf_list_ij(list_ij)%nimages*pgf_list_kl(list_kl)%nimages
         CALL build_pgf_product_list(nneighbors3, pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
                                     nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
                                     potential_parameter, max_l, do_periodic)
