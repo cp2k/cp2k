@@ -241,6 +241,7 @@ MODULE hfx_derivatives
     REAL(dp)                                 :: compression_factor, cartesian_estimate_orig
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL                                  :: treat_forces_in_core
+    REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
 
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
@@ -325,7 +326,8 @@ MODULE hfx_derivatives
 !$OMP                                  shm_block_offset,&
 !$OMP                                  shm_task_counter,&
 !$OMP                                  shm_task_list,&
-!$OMP                                  shm_total_bins)
+!$OMP                                  shm_total_bins,&
+!$OMP                                  shm_pmax_atom)
 
     i_thread = 0
 !$  i_thread = omp_get_thread_num()
@@ -478,13 +480,18 @@ MODULE hfx_derivatives
     IF ( screen_pmat_forces ) THEN
       NULLIFY(shm_initial_p)
       shm_initial_p => actual_x_data%initial_p
-      IF( memory_parameter%treat_forces_in_core) &
-          shm_initial_p => actual_x_data%initial_p_forces
+      shm_pmax_atom => actual_x_data%pmax_atom
+    
+      IF( memory_parameter%treat_forces_in_core) THEN
+        shm_initial_p => actual_x_data%initial_p_forces
+        shm_pmax_atom => actual_x_data%pmax_atom_forces  
+      END IF
       IF( memory_parameter%recalc_forces ) THEN
         CALL update_pmax_mat(shm_initial_p, &
                              actual_x_data%map_atom_to_kind_atom, &
                              actual_x_data%set_offset, &
                              actual_x_data%atomic_block_offset, &
+                             shm_pmax_atom,&
                              full_density,full_density_beta,&
                              natom, kind_of, basis_parameter, &
                              last_sgf_global, nkind, actual_x_data%is_assoc_atomic_block)
@@ -509,7 +516,8 @@ MODULE hfx_derivatives
         CALL hfx_load_balance(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
                               screen_coeffs_set,screen_coeffs_kind,&
                               shm_is_assoc_atomic_block, do_periodic,&
-                              load_balance_parameter, kind_of, basis_parameter,shm_initial_p, i_thread, n_threads,&
+                              load_balance_parameter, kind_of, basis_parameter,shm_initial_p, &
+                              shm_pmax_atom, i_thread, n_threads,&
                               cell, screen_pmat_forces, actual_x_data%map_atom_to_kind_atom, &
                               nkind, hfx_do_eval_forces, error)
         actual_x_data%b_first_load_balance_forces = .FALSE.

@@ -117,7 +117,7 @@ MODULE hfx_screening_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, set_offset, atomic_block_offset, &
-                             full_density, full_density_beta, natom, &
+                             pmax_atom, full_density, full_density_beta, natom, &
                              kind_of,basis_parameter, last_sgf_global,&
                              nkind, is_assoc_atomic_block)
 
@@ -125,6 +125,7 @@ MODULE hfx_screening_methods
     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
     INTEGER, DIMENSION(:, :, :, :), POINTER  :: set_offset
     INTEGER, DIMENSION(:, :), POINTER        :: atomic_block_offset
+    REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom
     REAL(dp), DIMENSION(:), POINTER          :: full_density, &
                                                 full_density_beta
     INTEGER, INTENT(IN)                      :: natom
@@ -149,6 +150,8 @@ MODULE hfx_screening_methods
     DO i = 1,SIZE(pmax_set)
       pmax_set(i)%p_kind = 0.0_dp
     END DO
+
+    pmax_atom = log_zero
 
     DO jatom=1,natom
       jkind = kind_of(jatom)
@@ -213,6 +216,30 @@ MODULE hfx_screening_methods
             END IF
           END DO
         END DO
+      END DO
+    END DO
+
+
+    DO jatom=1,natom
+      jkind = kind_of(jatom)
+      nsetb = basis_parameter(jkind)%nset
+      DO katom = 1,natom
+        IF( .NOT. is_assoc_atomic_block(jatom,katom) >=1 ) CYCLE
+        kkind = kind_of(katom)
+        IF( kkind < jkind ) CYCLE
+        nsetc = basis_parameter(kkind)%nset
+        pmax_tmp = log_zero
+        DO jset = 1,nsetb
+          DO kset = 1,nsetc
+            kind_kind_idx = INT(get_1D_idx(jkind,kkind,INT(nkind,int_8)))
+            pmax_tmp = MAX(pmax_set(kind_kind_idx)%p_kind(jset, &
+                           kset, &
+                           map_atom_to_kind_atom(jatom), &
+                           map_atom_to_kind_atom(katom)), pmax_tmp)
+          END DO
+        END DO
+        pmax_atom(jatom,katom) = pmax_tmp
+        pmax_atom(katom,jatom) = pmax_tmp
       END DO
     END DO
 

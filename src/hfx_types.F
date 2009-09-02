@@ -408,8 +408,9 @@ MODULE hfx_types
      INTEGER, DIMENSION(:), POINTER           :: block_offset
      TYPE(hfx_block_range_type), DIMENSION(:), &
                                  POINTER      :: blocks
-      TYPE(hfx_task_list_type), DIMENSION(:), &
+     TYPE(hfx_task_list_type), DIMENSION(:), &
                                POINTER        :: task_list
+     REAL(dp), DIMENSION(:,:), POINTER        :: pmax_atom, pmax_atom_forces
   END TYPE hfx_type
 
   CONTAINS
@@ -810,6 +811,9 @@ MODULE hfx_types
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           !! ** This guy is allocated on the master thread only 
           IF (i_thread == 1 ) THEN
+            ALLOCATE(actual_x_data%pmax_atom(natom,natom),STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
             ALLOCATE(actual_x_data%initial_p(nkind*(nkind+1)/2),STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
             i = 1
@@ -833,6 +837,9 @@ MODULE hfx_types
               END DO
             END DO
             IF( actual_x_data%memory_parameter%treat_forces_in_core ) THEN
+              ALLOCATE(actual_x_data%pmax_atom_forces(natom,natom),STAT=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
               ALLOCATE(actual_x_data%initial_p_forces(nkind*(nkind+1)/2),STAT=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
               i = 1
@@ -1076,6 +1083,8 @@ MODULE hfx_types
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           IF( i_thread == 1 ) THEN
+            DEALLOCATE(actual_x_data%pmax_atom, STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
             DO i=1,SIZE(actual_x_data%initial_p)
                DEALLOCATE(actual_x_data%initial_p(i)%p_kind,STAT=stat)
                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1083,6 +1092,8 @@ MODULE hfx_types
             DEALLOCATE(actual_x_data%initial_p,STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
             IF( actual_x_data%memory_parameter%treat_forces_in_core) THEN
+              DEALLOCATE(actual_x_data%pmax_atom_forces, STAT=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
               DO i=1,SIZE(actual_x_data%initial_p_forces)
                  DEALLOCATE(actual_x_data%initial_p_forces(i)%p_kind,STAT=stat)
                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

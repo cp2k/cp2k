@@ -123,7 +123,7 @@ MODULE hfx_load_balance_methods
                           coeffs_set, coeffs_kind, &
                           is_assoc_atomic_block_global, do_periodic,&
                           load_balance_parameter, kind_of, basis_parameter, pmax_set, &
-                          i_thread, n_threads, cell, &
+                          pmax_atom, i_thread, n_threads, cell, &
                           do_p_screening, map_atom_to_kind_atom, nkind, eval_type, error)
     TYPE(hfx_type), POINTER                  :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz
@@ -142,6 +142,7 @@ MODULE hfx_load_balance_methods
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN)                      :: do_p_screening
@@ -233,7 +234,7 @@ MODULE hfx_load_balance_methods
                        particle_set,&
                        coeffs_set, coeffs_kind, &
                        is_assoc_atomic_block_global, do_periodic,&
-                       kind_of, basis_parameter, pmax_set, &
+                       kind_of, basis_parameter, pmax_set, pmax_atom, &
                        cell, &
                        do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
                        log10_eps_schwarz, log_2, coeffs_kind_max0)
@@ -279,7 +280,7 @@ MODULE hfx_load_balance_methods
                                                 particle_set,&
                                                 coeffs_set, coeffs_kind, &
                                                 is_assoc_atomic_block_global, do_periodic,&
-                                                kind_of, basis_parameter, pmax_set, &
+                                                kind_of, basis_parameter, pmax_set, pmax_atom, &
                                                 cell, &
                                                 do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
                                                 log10_eps_schwarz, log_2, coeffs_kind_max0)
@@ -292,7 +293,7 @@ MODULE hfx_load_balance_methods
                                                 particle_set,&
                                                 coeffs_set, coeffs_kind, &
                                                 is_assoc_atomic_block_global, do_periodic,&
-                                                kind_of, basis_parameter, pmax_set, &
+                                                kind_of, basis_parameter, pmax_set, pmax_atom, &
                                                 cell, &
                                                 do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
                                                 log10_eps_schwarz, log_2, coeffs_kind_max0)
@@ -386,7 +387,7 @@ MODULE hfx_load_balance_methods
                                               particle_set,&
                                               coeffs_set, coeffs_kind, &
                                               is_assoc_atomic_block_global, do_periodic,&
-                                              kind_of, basis_parameter, pmax_set, &
+                                              kind_of, basis_parameter, pmax_set, pmax_atom, &
                                               cell, &
                                               do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
                                               log10_eps_schwarz, log_2, coeffs_kind_max0)
@@ -453,7 +454,7 @@ MODULE hfx_load_balance_methods
                                               particle_set,&
                                               coeffs_set, coeffs_kind, &
                                               is_assoc_atomic_block_global, do_periodic,&
-                                              kind_of, basis_parameter, pmax_set, &
+                                              kind_of, basis_parameter, pmax_set, pmax_atom, &
                                               cell, &
                                               do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
                                               log10_eps_schwarz, log_2, coeffs_kind_max0)
@@ -1188,7 +1189,7 @@ MODULE hfx_load_balance_methods
                                particle_set,&
                                coeffs_set, coeffs_kind, &
                                is_assoc_atomic_block_global, do_periodic,&
-                               kind_of, basis_parameter, pmax_set, &
+                               kind_of, basis_parameter, pmax_set, pmax_atom,&
                                cell, &
                                do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
                                log10_eps_schwarz, log_2, coeffs_kind_max0)
@@ -1209,6 +1210,7 @@ MODULE hfx_load_balance_methods
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN)                      :: do_p_screening
     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
@@ -1223,8 +1225,8 @@ MODULE hfx_load_balance_methods
       kind_kind_idx, kkind, kset, latom, lkind, lset, swap_id
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, npgfc, npgfd, &
                                                 nsgfa, nsgfb, nsgfc, nsgfd
-    REAL(dp)                                 :: max_val1, max_val2, &
-                                                pmax_entry, rab2, rcd2
+    REAL(dp) :: actual_pmax_atom, max_val1, max_val2, pmax_entry, rab2, rcd2, &
+      screen_kind_ij, screen_kind_kl
     REAL(dp), DIMENSION(:, :), POINTER       :: ptr_p_1, ptr_p_2, ptr_p_3, &
                                                 ptr_p_4
 
@@ -1276,10 +1278,20 @@ MODULE hfx_load_balance_methods
         npgfc => basis_parameter(kkind)%npgf
         npgfd => basis_parameter(lkind)%npgf
 
-        IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
-             coeffs_kind(jkind,ikind)%x(2) ) + &
-            (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-             coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+        IF( do_p_screening) THEN 
+          actual_pmax_atom = MAX(pmax_atom(katom,iatom), &
+                                 pmax_atom(latom,jatom), &
+                                 pmax_atom(latom,iatom), &
+                                 pmax_atom(katom,jatom) )
+        ELSE
+          actual_pmax_atom = 0.0_dp
+        END IF
+
+        screen_kind_ij = coeffs_kind(jkind,ikind)%x(1)*rab2+&
+                         coeffs_kind(jkind,ikind)%x(2)
+        screen_kind_kl = coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+                         coeffs_kind(lkind,kkind)%x(2)
+        IF( screen_kind_ij + screen_kind_kl + actual_pmax_atom < log10_eps_schwarz) CYCLE
 
         IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
                   is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
@@ -1389,9 +1401,8 @@ MODULE hfx_load_balance_methods
 
           max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
                      coeffs_set(jset,iset,jkind,ikind)%x(2)
-          IF( max_val1 + coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
-                         coeffs_kind(lkind,kkind)%x(2)  <log10_eps_schwarz) CYCLE
 
+          IF( max_val1 + screen_kind_kl + actual_pmax_atom < log10_eps_schwarz) CYCLE
           DO i_set_list_kl=i_set_list_kl_start, i_set_list_kl_stop
             kset=set_list_kl(i_set_list_kl)%pair(1)
             lset=set_list_kl(i_set_list_kl)%pair(2)
@@ -1399,7 +1410,7 @@ MODULE hfx_load_balance_methods
             max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
                                    coeffs_set(lset,kset,lkind,kkind)%x(2) )
 
-            IF(max_val2 <log10_eps_schwarz ) CYCLE
+            IF(max_val2 + actual_pmax_atom <log10_eps_schwarz ) CYCLE
             IF( do_p_screening ) THEN
               CALL get_pmax_val(ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
                                 iset, jset, kset, lset, &
@@ -1436,7 +1447,7 @@ MODULE hfx_load_balance_methods
                          particle_set,&
                          coeffs_set, coeffs_kind, &
                          is_assoc_atomic_block_global, do_periodic,&
-                         kind_of, basis_parameter, pmax_set, &
+                         kind_of, basis_parameter, pmax_set, pmax_atom, &
                          cell, &
                          do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
                          log10_eps_schwarz, log_2, coeffs_kind_max0)
@@ -1458,6 +1469,7 @@ MODULE hfx_load_balance_methods
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: pmax_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN)                      :: do_p_screening
     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
@@ -1485,7 +1497,7 @@ MODULE hfx_load_balance_methods
                                            particle_set,&
                                            coeffs_set, coeffs_kind, &
                                            is_assoc_atomic_block_global, do_periodic,&
-                                           kind_of, basis_parameter, pmax_set, &
+                                           kind_of, basis_parameter, pmax_set, pmax_atom, &
                                            cell, &
                                            do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
                                            log10_eps_schwarz, log_2, coeffs_kind_max0)

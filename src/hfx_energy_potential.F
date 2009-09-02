@@ -262,12 +262,14 @@ MODULE hfx_energy_potential
                                                 ee_buffer1, ee_buffer2, &
                                                 ee_primitives_tmp
     INTEGER, DIMENSION(:), ALLOCATABLE       :: nimages
-    INTEGER                                  :: sphi_d_u1,sphi_d_u2,sphi_d_u3
-    INTEGER                                  :: sphi_c_u1,sphi_c_u2,sphi_c_u3
-    INTEGER                                  :: sphi_b_u1,sphi_b_u2,sphi_b_u3
-    INTEGER                                  :: sphi_a_u1,sphi_a_u2,sphi_a_u3
+    INTEGER                                  :: sphi_d_u1, sphi_d_u2, sphi_d_u3
+    INTEGER                                  :: sphi_c_u1, sphi_c_u2, sphi_c_u3
+    INTEGER                                  :: sphi_b_u1, sphi_b_u2, sphi_b_u3
+    INTEGER                                  :: sphi_a_u1, sphi_a_u2, sphi_a_u3
     INTEGER                                  :: iatom_start, iatom_end, jatom_start, jatom_end, katom_start,&
                                                 katom_end, latom_start, latom_end, my_process_id
+    REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
+    REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl
 
     CALL timeset(routineN,handle)
 
@@ -371,7 +373,8 @@ MODULE hfx_energy_potential
 !$OMP                                  shm_task_counter,&
 !$OMP                                  shm_task_list,&
 !$OMP                                  shm_total_bins,&
-!$OMP                                  shm_master_x_data)
+!$OMP                                  shm_master_x_data,&
+!$OMP                                  shm_pmax_atom)
 
 
     ln_10 = LOG(10.0_dp)
@@ -594,7 +597,7 @@ MODULE hfx_energy_potential
       IF( nspins == 2) subtr_size_mb = subtr_size_mb * 2_int_8
     END IF
     ! ** Initial P only MAX(alpha,beta) (shared)
-    IF(do_p_screening) THEN 
+    IF(do_p_screening .OR. screening_parameter%do_p_screening_forces) THEN 
       subtr_size_mb = subtr_size_mb + memory_parameter%size_p_screen
     END IF
     ! ** In core forces require their own initial P
@@ -619,6 +622,16 @@ MODULE hfx_energy_potential
 
     ! ** is_assoc (shared)
     subtr_size_mb = subtr_size_mb + natom**2
+
+    ! ** pmax_atom (shared)
+    IF( do_p_screening) THEN
+      subtr_size_mb = subtr_size_mb + natom**2
+    END IF
+    IF(screening_parameter%do_p_screening_forces) THEN
+      IF( memory_parameter%treat_forces_in_core) THEN
+        subtr_size_mb = subtr_size_mb + natom**2
+      END IF
+    END IF
 
     ! ** Convert into MB's
     subtr_size_mb = subtr_size_mb * 8_int_8/1024_int_8/1024_int_8
@@ -714,11 +727,13 @@ MODULE hfx_energy_potential
       NULLIFY(shm_initial_p) 
       IF( do_p_screening) THEN
         shm_initial_p => shm_master_x_data%initial_p
+        shm_pmax_atom => shm_master_x_data%pmax_atom
         IF(geometry_did_change ) THEN
           CALL update_pmax_mat(shm_master_x_data%initial_p, &
                                shm_master_x_data%map_atom_to_kind_atom, &
                                shm_master_x_data%set_offset,&
                                shm_master_x_data%atomic_block_offset,&
+                               shm_pmax_atom,&
                                full_density,full_density_beta,&
                                natom, kind_of, basis_parameter, &
                                last_sgf_global, nkind, shm_master_x_data%is_assoc_atomic_block)
@@ -739,11 +754,13 @@ MODULE hfx_energy_potential
         !! a changed geometry 
         NULLIFY(shm_initial_p) 
         shm_initial_p => actual_x_data%initial_p
+        shm_pmax_atom => shm_master_x_data%pmax_atom
         IF(geometry_did_change ) THEN
           CALL update_pmax_mat(shm_master_x_data%initial_p, &
                                shm_master_x_data%map_atom_to_kind_atom, &
                                shm_master_x_data%set_offset,&
                                shm_master_x_data%atomic_block_offset,&
+                               shm_pmax_atom,&
                                full_density,full_density_beta,&
                                natom, kind_of, basis_parameter, &
                                last_sgf_global, nkind, shm_master_x_data%is_assoc_atomic_block)
@@ -822,17 +839,17 @@ MODULE hfx_energy_potential
     IF( geometry_did_change ) THEN
       IF( actual_x_data%b_first_load_balance_energy ) THEN
         CALL hfx_load_balance(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
-                          screen_coeffs_set,screen_coeffs_kind,&
-                          shm_is_assoc_atomic_block,do_periodic,load_balance_parameter, &
-                          kind_of, basis_parameter, shm_initial_p, i_thread, n_threads, &
-                          cell, do_p_screening, actual_x_data%map_atom_to_kind_atom, &
-                          nkind, hfx_do_eval_energy, error)
+                              screen_coeffs_set,screen_coeffs_kind,&
+                              shm_is_assoc_atomic_block,do_periodic,load_balance_parameter, &
+                              kind_of, basis_parameter, shm_initial_p, shm_pmax_atom, i_thread, n_threads, &
+                              cell, do_p_screening, actual_x_data%map_atom_to_kind_atom, &
+                              nkind, hfx_do_eval_energy, error)
         actual_x_data%b_first_load_balance_energy = .FALSE.
       ELSE
         CALL hfx_update_load_balance(actual_x_data,para_env, &
-                                 load_balance_parameter, &
-                                 i_thread, n_threads, hfx_do_eval_energy, &
-                                 error)
+                                     load_balance_parameter, &
+                                     i_thread, n_threads, hfx_do_eval_energy, &
+                                     error)
       END IF
     END IF
 !$OMP BARRIER
@@ -1157,10 +1174,21 @@ MODULE hfx_energy_potential
             rd=list_kl%elements(i_list_kl)%r2
             rcd2=list_kl%elements(i_list_kl)%dist2
 
-            IF( (screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
-                 screen_coeffs_kind(jkind,ikind)%x(2) ) + &
-                (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-                 screen_coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+            IF( do_p_screening) THEN 
+              pmax_atom = MAX(shm_pmax_atom(katom,iatom), &
+                              shm_pmax_atom(latom,jatom), &
+                              shm_pmax_atom(latom,iatom), &
+                              shm_pmax_atom(katom,jatom) )
+            ELSE
+              pmax_atom = 0.0_dp
+            END IF
+
+            screen_kind_ij = screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
+                             screen_coeffs_kind(jkind,ikind)%x(2) 
+            screen_kind_kl = screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+                             screen_coeffs_kind(lkind,kkind)%x(2)
+
+            IF( screen_kind_ij + screen_kind_kl + pmax_atom < log10_eps_schwarz ) CYCLE
 
             !! we want to be consistent with the KS matrix. If none of the atomic indices
             !! is associated cycle
@@ -1344,9 +1372,9 @@ MODULE hfx_energy_potential
               ncob = npgfb(jset)*ncoset(lb_max(jset))
               max_val1 = screen_coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
                          screen_coeffs_set(jset,iset,jkind,ikind)%x(2)
-              !! Near field screening
-              IF (max_val1 + (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
-                              screen_coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
+
+              IF( max_val1 + screen_kind_kl + pmax_atom < log10_eps_schwarz) CYCLE
+
               sphi_a_ext_set => sphi_a_ext(:,:,:,iset)
               sphi_b_ext_set => sphi_b_ext(:,:,:,jset)
               DO i_set_list_kl=i_set_list_kl_start, i_set_list_kl_stop
@@ -1354,11 +1382,11 @@ MODULE hfx_energy_potential
                 lset=set_list_kl(i_set_list_kl)%pair(2)
 
                 max_val2_set = (screen_coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
-                                       screen_coeffs_set(lset,kset,lkind,kkind)%x(2) )
+                                screen_coeffs_set(lset,kset,lkind,kkind)%x(2) )
                 max_val2 = max_val1 + max_val2_set
                                        
                 !! Near field screening
-                IF(max_val2<log10_eps_schwarz) CYCLE  
+                IF(max_val2 + pmax_atom <log10_eps_schwarz) CYCLE  
                 sphi_c_ext_set => sphi_c_ext(:,:,:,kset)
                 sphi_d_ext_set => sphi_d_ext(:,:,:,lset)
                 !! get max_vals if we screen on initial density
@@ -1676,6 +1704,26 @@ MODULE hfx_energy_potential
                                       + max_pgf**2*max_set**2*nkind**2
     !! is_assoc (shared)
     mb_size_buffers = mb_size_buffers+natom**2
+    ! ** pmax_atom (shared)
+    IF( do_p_screening) THEN
+      mb_size_buffers = mb_size_buffers + natom**2
+    END IF
+    IF(screening_parameter%do_p_screening_forces) THEN
+      IF( memory_parameter%treat_forces_in_core) THEN
+        mb_size_buffers = mb_size_buffers + natom**2
+      END IF
+    END IF
+    ! ** Initial P only MAX(alpha,beta) (shared)
+    IF(do_p_screening .OR. screening_parameter%do_p_screening_forces) THEN 
+      mb_size_buffers = mb_size_buffers + memory_parameter%size_p_screen
+    END IF
+    ! ** In core forces require their own initial P
+    IF(screening_parameter%do_p_screening_forces) THEN
+      IF( memory_parameter%treat_forces_in_core) THEN
+        mb_size_buffers = mb_size_buffers + memory_parameter%size_p_screen
+      END IF
+    END IF
+
     !! mb
     mb_size_buffers = mb_size_buffers /1024/128
 
