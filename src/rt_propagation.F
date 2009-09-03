@@ -88,8 +88,6 @@ CONTAINS
     LOGICAL                                  :: extrapolate_H, failure
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control

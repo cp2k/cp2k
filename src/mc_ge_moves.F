@@ -129,12 +129,12 @@ CONTAINS
                                                 last_bias_energy
     INTEGER, INTENT(IN)                      :: nboxes
     INTEGER, DIMENSION(:), INTENT(IN)        :: box_flag
-    REAL(KIND=dp),INTENT(IN)                 :: unit_conv
     TYPE(cp_subsys_p_type), DIMENSION(:), &
       POINTER                                :: subsys
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles
     TYPE(rng_stream_type), POINTER           :: rng_stream
+    REAL(KIND=dp), INTENT(IN)                :: unit_conv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_Quickstep_move', &

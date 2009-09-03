@@ -16,11 +16,11 @@ MODULE mc_ensembles
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_p_type,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
@@ -144,9 +144,9 @@ CONTAINS
       molecule_type, molecule_type_swap, molecule_type_target, nchain_total, &
       nmol_types, nmoves, nnstep, nstart, nstep, print_level, source, &
       start_atom, start_atom_swap, start_atom_target, start_mol
+    CHARACTER(LEN=default_string_length)     :: unit_str
     CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
       data_file, displacement_file, energy_file, molecules_file, moves_file
-    CHARACTER(LEN=default_string_length)     :: unit_str
     LOGICAL                                  :: ionode, lbias, ldiscrete, &
                                                 lnew_bias_env, loverlap, &
                                                 lreject, lstop, should_stop
@@ -156,7 +156,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: conf_prob, mass
     REAL(KIND=dp)                            :: discrete_step, pmavbmc, &
                                                 pmswap, pmtraion, pmtrans, &
-                                                pmvolume, rand, test_energy,&
+                                                pmvolume, rand, test_energy, &
                                                 unit_conv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_temp
@@ -185,7 +185,7 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
     TYPE(particle_list_type), POINTER        :: particles_bias
-    TYPE(section_vals_type),POINTER          :: root_section
+    TYPE(section_vals_type), POINTER         :: root_section
 
 ! begin the timing of the subroutine
 
