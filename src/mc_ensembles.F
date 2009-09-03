@@ -16,6 +16,7 @@ MODULE mc_ensembles
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_p_type,&
@@ -27,7 +28,9 @@ MODULE mc_ensembles
                                              force_env_release
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_release
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size
@@ -143,6 +146,7 @@ CONTAINS
       start_atom, start_atom_swap, start_atom_target, start_mol
     CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
       data_file, displacement_file, energy_file, molecules_file, moves_file
+    CHARACTER(LEN=default_string_length)     :: unit_str
     LOGICAL                                  :: ionode, lbias, ldiscrete, &
                                                 lnew_bias_env, loverlap, &
                                                 lreject, lstop, should_stop
@@ -152,7 +156,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: conf_prob, mass
     REAL(KIND=dp)                            :: discrete_step, pmavbmc, &
                                                 pmswap, pmtraion, pmtrans, &
-                                                pmvolume, rand, test_energy
+                                                pmvolume, rand, test_energy,&
+                                                unit_conv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_temp
     REAL(KIND=dp), ALLOCATABLE, &
@@ -180,13 +185,14 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
     TYPE(particle_list_type), POINTER        :: particles_bias
+    TYPE(section_vals_type),POINTER          :: root_section
 
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
 
 ! nullify some pointers
-      NULLIFY(moves,move_updates,test_moves)
+      NULLIFY(moves,move_updates,test_moves,root_section)
 
 ! allocate a whole bunch of stuff based on how many boxes we have
       ALLOCATE (force_env(1:nboxes),STAT=istat)
@@ -219,6 +225,12 @@ CONTAINS
             mc_par = mc_par(ibox)%mc_par,&
             force_env=force_env(ibox)%force_env)
       ENDDO
+
+! Gather units of measure for output (if available)
+      root_section => force_env(1)%force_env%root_section
+      CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%UNIT",&
+           c_val=unit_str,error=error)
+      unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
 ! get some data out of mc_par
       CALL get_mc_par(mc_par(1)%mc_par,&
@@ -412,7 +424,7 @@ CONTAINS
             ELSE
                CALL write_particle_coordinates(particles_old(ibox)%list%els,&
                   com_crd,dump_xmol,'POS','INITIAL BOX ' // TRIM(ADJUSTL(cbox)),&
-                  error=error)
+                  unit_conv=unit_conv,error=error)
             ENDIF
             CALL open_file(file_name=data_file(ibox),&
                unit_number=data_unit(ibox),file_position='APPEND',&
@@ -827,7 +839,7 @@ CONTAINS
                moves,lreject,move_updates,energy_check(:),r_old(:,:,:),&
                nnstep,old_energy(:),bias_energy(:),last_bias_energy(:),&
                nboxes,box_flag(:),oldsys,particles_old,&
-               rng_stream,error=error)
+               rng_stream,unit_conv,error=error)
 
          ENDIF
 
@@ -877,7 +889,8 @@ CONTAINS
                           particles_old(ibox)%list%els,&
                           com_crd,dump_xmol,'POS',&
                           'BOX ' // TRIM(ADJUSTL(cbox))// &
-                          ',  STEP ' // TRIM(ADJUSTL(cstep)),error=error)
+                          ',  STEP ' // TRIM(ADJUSTL(cstep)),&
+                          unit_conv=unit_conv,error=error)
                   ENDIF
                ENDDO
             ENDIF  ! end the things we only do every iprint moves
@@ -1065,7 +1078,8 @@ CONTAINS
                CALL write_particle_coordinates(&
                particles_old(ibox)%list%els,&
                com_crd,dump_xmol,'POS',&
-               'FINAL BOX ' // TRIM(ADJUSTL(cbox)),error=error)
+               'FINAL BOX ' // TRIM(ADJUSTL(cbox)),unit_conv=unit_conv,&
+               error=error)
             ENDIF
 
 ! write a bunch of data to the screen

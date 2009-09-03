@@ -107,7 +107,8 @@ CONTAINS
   SUBROUTINE mc_Quickstep_move(mc_par,force_env,bias_env,moves,&
                         lreject,move_updates,energy_check,r_old,&
                         nnstep,old_energy,bias_energy_new,last_bias_energy,&
-                        nboxes,box_flag,subsys,particles,rng_stream,error)
+                        nboxes,box_flag,subsys,particles,rng_stream,&
+                        unit_conv,error)
 
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
@@ -128,6 +129,7 @@ CONTAINS
                                                 last_bias_energy
     INTEGER, INTENT(IN)                      :: nboxes
     INTEGER, DIMENSION(:), INTENT(IN)        :: box_flag
+    REAL(KIND=dp),INTENT(IN)                 :: unit_conv
     TYPE(cp_subsys_p_type), DIMENSION(:), &
       POINTER                                :: subsys
     TYPE(particle_list_p_type), &
@@ -240,7 +242,8 @@ CONTAINS
                   WRITE(diff(ibox),*) nnstep
                   CALL write_particle_coordinates(&
                      particles(ibox)%list%els,&
-                     diff(ibox),dump_xmol,'POS','TRIAL',error=error)
+                     diff(ibox),dump_xmol,'POS','TRIAL',&
+                     unit_conv=unit_conv,error=error)
                ENDIF
             ENDDO
          ENDIF
