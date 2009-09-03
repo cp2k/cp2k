@@ -24,8 +24,7 @@ MODULE qs_energy
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_cn,&
-                                             do_diag,&
+  USE input_constants,                 ONLY: do_diag,&
                                              ehrenfest,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -47,12 +46,10 @@ MODULE qs_energy
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
-  USE rt_propagation_methods,          ONLY: calc_update_rho,&
-                                             propagation_step,&
+  USE rt_propagation_methods,          ONLY: propagation_step,&
                                              put_data_to_history,&
                                              s_matrices_create,&
                                              update_core_and_matrices
@@ -60,6 +57,7 @@ MODULE qs_energy
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
+  USE rt_propagator_init,              ONLY: init_emd_propagators
   USE scp_dispersion,                  ONLY: scp_nddo_dispersion,&
                                              scp_qs_dispersion
   USE se_core_core,                    ONLY: se_core_core_interaction
@@ -322,7 +320,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 mos_new, mos_old
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -331,11 +328,8 @@ CONTAINS
 
     eps_ener=qs_env%dft_control%rtp_control%eps_ener
     aspc_order=qs_env%dft_control%rtp_control%aspc_order
-    IF(qs_env%dft_control%rtp_control%calc_restart)THEN
-       CALL calc_update_rho(qs_env,error)
-       CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,error=error)
-       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-            error=error)
+    IF(qs_env%dft_control%rtp_control%initial_step)THEN
+       CALL init_emd_propagators(qs_env,error)
     ELSE
        IF(qs_env%rtp%iter==1)THEN
           CALL update_core_and_matrices(qs_env,globenv,error)
@@ -344,8 +338,6 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
 
        diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
-       IF(qs_env%dft_control%rtp_control%propagator==do_cn)diagonalize=.FALSE.
-
        CALL s_matrices_create (s_mat,rtp,diagonalize,error)
        CALL calc_S_derivs(qs_env,error)
 

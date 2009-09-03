@@ -73,8 +73,7 @@ MODULE md_run
                                              release_reftraj
   USE reftraj_util,                    ONLY: initialize_reftraj,&
                                              write_output_reftraj
-  USE rt_propagation,                  ONLY: init_ehrenfest_md,&
-                                             rt_prop_setup,&
+  USE rt_propagation,                  ONLY: rt_prop_setup,&
                                              rt_write_input_restart
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE simpar_methods,                  ONLY: read_md_section
@@ -348,14 +347,11 @@ CONTAINS
        
        IF(ehrenfest_md)THEN
           CALL rt_prop_setup(force_env,error)
+          force_env%qs_env%rtp%dt=simpar%dt
        ELSE
           CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., error=error)
        END IF
 
-       IF(ehrenfest_md)THEN
-          force_env%qs_env%rtp%dt=simpar%dt
-          CALL init_ehrenfest_md(force_env%qs_env,error)
-       END IF
        IF(ASSOCIATED(force_env%qs_env))THEN
           force_env%qs_env%sim_time=time
           force_env%qs_env%sim_step=itimes

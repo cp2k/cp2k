@@ -55,7 +55,7 @@ MODULE cp_control_types
      LOGICAL                              :: fixed_ions
      INTEGER                              :: initial_wfn
      REAL(dp)                             :: eps_exp
-     LOGICAL                              :: calc_restart
+     LOGICAL                              :: initial_step
      LOGICAL                              :: hfx_redistribute
      INTEGER                              :: aspc_order
      INTEGER                              :: extrapolation

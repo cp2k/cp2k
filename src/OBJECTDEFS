@@ -574,6 +574,7 @@ OBJECTS_GENERIC =\
  rt_propagation_methods.o\
  rt_propagation_output.o\
  rt_propagation_utils.o\
+ rt_propagator_init.o\
  s_square_methods.o\
  sap_kind_types.o\
  scf_control_types.o\

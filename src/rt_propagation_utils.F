@@ -641,11 +641,11 @@ MODULE  rt_propagation_utils
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
             scp=scp, scp_env=scp_env, error=error)
        DO i=1,SIZE(qs_env%mos)
-          CALL cp_fm_to_fm(qs_env%mos(i)%mo_set%mo_coeff,qs_env%rtp%mos_new(2*i-1)%matrix,error)
+          CALL cp_fm_to_fm(qs_env%mos(i)%mo_set%mo_coeff,qs_env%rtp%mos_old(2*i-1)%matrix,error)
           CALL cp_fm_set_all(qs_env%rtp%mos_new(2*i)%matrix,zero,zero,error)
        END DO
     CASE(use_rt_restart)
-       CALL read_rt_mos_from_restart(mo_array,qs_env%rtp%mos_new,atomic_kind_set,particle_set,qs_env%para_env,&
+       CALL read_rt_mos_from_restart(mo_array,qs_env%rtp%mos_old,atomic_kind_set,particle_set,qs_env%para_env,&
             id_nr,dft_control%multiplicity,dft_section,&
             scp, scp_env, error)
     END SELECT
