@@ -2418,8 +2418,9 @@ CONTAINS
          ncol_local,npcol,npe,nprow,nblkrows_total,nrow_local, nblock_col,&
          nblkrows_local, nblkcols_local, row_l, col_l, nrow_block, ncol_block
 
-    INTEGER, DIMENSION(:), POINTER    :: first_col,first_row,last_col,last_row,&
-         row_blk_sizes, col_blk_sizes, local_rows, local_cols
+    INTEGER, DIMENSION(:), POINTER    :: row_blk_sizes, col_blk_sizes, local_rows, local_cols
+    INTEGER, DIMENSION(:), ALLOCATABLE :: first_col,first_row,last_col,last_row
+         
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: fm_block, real_matrix_block
     TYPE(cp_blacs_env_type), POINTER  :: context
     REAL(kind=dp) :: my_alpha,my_beta
