@@ -59,7 +59,8 @@ MODULE dbcsr_operations
 
   PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_trace, dbcsr_add_on_diag,&
             dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, &
-            dbcsr_set_diag, dbcsr_get_block, dbcsr_get_block_diag,&
+            dbcsr_set_diag, dbcsr_get_block, dbcsr_get_block_p,&
+            dbcsr_get_block_diag,&
             dbcsr_put_block, dbcsr_filter,&
             dbcsr_replace_blocks,&
             dbcsr_btriu, block_add_on_diag,&
@@ -92,7 +93,16 @@ MODULE dbcsr_operations
 
   INTERFACE dbcsr_get_block
      MODULE PROCEDURE dbcsr_get_block_d, dbcsr_get_block_s,&
-          dbcsr_get_block_z, dbcsr_get_block_c
+                      dbcsr_get_block_z, dbcsr_get_block_c
+     MODULE PROCEDURE dbcsr_get_2d_block_d, dbcsr_get_2d_block_s,&
+                      dbcsr_get_2d_block_z, dbcsr_get_2d_block_c
+  END INTERFACE
+
+  INTERFACE dbcsr_get_block_p
+     MODULE PROCEDURE dbcsr_get_block_p_d, dbcsr_get_block_p_s,&
+                      dbcsr_get_block_p_z, dbcsr_get_block_p_c
+     MODULE PROCEDURE dbcsr_get_2d_block_p_d, dbcsr_get_2d_block_p_s,&
+                      dbcsr_get_2d_block_p_z, dbcsr_get_2d_block_p_c
   END INTERFACE
 
   INTERFACE dbcsr_put_block

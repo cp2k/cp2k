@@ -919,14 +919,17 @@ CONTAINS
 !> \param[in] sizedata_guess  (optional) estimated size of data
 !> \param[in] n               (optional) number work matrices to create,
 !>                            default is 1
+!> \param[in] work_mutable    (optional) use mutable work type, default is
+!>                            what was specified in create
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n,&
-       error)
+       error, work_mutable)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess, n
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    LOGICAL, INTENT(in), OPTIONAL            :: work_mutable
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_create', &
       routineP = moduleN//':'//routineN
@@ -945,6 +948,9 @@ CONTAINS
     ENDIF
     CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms), cp_warning_level,&
          cp_caller_error, routineN, "Work matrices already exist")
+    IF (PRESENT (work_mutable)) THEN
+       matrix%m%work_mutable = work_mutable
+    ENDIF
     ALLOCATE (matrix%m%wms(nw))
     DO iw = 1, nw
        IF (PRESENT (nblks_guess)) THEN
@@ -2341,8 +2347,7 @@ CONTAINS
     CALL create_bl_distribution (right_col_dist,&
          right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env))
     CALL dbcsr_distribution_new (dist_right, right_mp_env,&
-         dbcsr_distribution_col_dist (dist_left), right_col_dist,&
-         local_rows=dbcsr_distribution_local_rows (dist_left))
+         dbcsr_distribution_col_dist (dist_left), right_col_dist)
     CALL array_release (right_col_dist)
   END SUBROUTINE dbcsr_create_dist_r_unrot
 
@@ -3430,9 +3435,6 @@ CONTAINS
     nwms = SIZE (matrix%wms)
     ALLOCATE (wm_blk_p(nwms), finished(nwms), tree_based(nwms))
     wm_blk_p(:) = 1
-    FORALL (i = 1:nwms)
-       finished(i) = wm_blk_p(i) .GT. matrix%wms(i)%lastblk
-    END FORALL
     ! Convert mutable data type into standard work arrays
     DO i = 1, nwms
        tree_based(i) = dbcsr_wm_use_mutable (matrix%wms(i))
@@ -3477,6 +3479,9 @@ CONTAINS
           !dbcsr_get_data_p (matrix%wms(i)%data_area, 0.0_dp)
        ENDIF
     ENDDO
+    FORALL (i = 1:nwms)
+       finished(i) = wm_blk_p(i) .GT. matrix%wms(i)%lastblk
+    END FORALL
     IF (nwms .GT. 1) srt = .TRUE.
     IF (matrix%special_memory) srt = .TRUE.
     IF (.NOT. srt) THEN

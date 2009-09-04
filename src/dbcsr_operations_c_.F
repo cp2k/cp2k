@@ -181,7 +181,7 @@
 !> \param[in]  row    the row
 !> \param[in]  col    the column
 !> \param[out] block  the block to get (rank-2 array)
-!> \param[out] tr     whether the data is transposed
+!> \param[in] tr      whether the data is transposed
 !> \param[out] found  whether the block exists in the matrix
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_2d_block_c(matrix,row,col,block,tr,found)
@@ -190,7 +190,7 @@
     COMPLEX(kind=real_4), DIMENSION(:,:), INTENT(OUT)     :: block
     LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_c', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_2d_block_c', &
       routineP = moduleN//':'//routineN
     
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block_1d
@@ -232,6 +232,10 @@
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
        IF (dbcsr_use_mutable (matrix%m)) THEN
+          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(1)%mutable)) THEN
+             CALL dbcsr_mutable_new(matrix%m%wms(1)%mutable,&
+                  dbcsr_get_data_type(matrix))
+          ENDIF
           CALL btree_get_c (&
                matrix%m%wms(1)%mutable%m%btree_c,&
                make_coordinate_tuple(stored_row, stored_col),&
@@ -254,8 +258,82 @@
 !> \param[in]  matrix DBCSR matrix
 !> \param[in]  row    the row
 !> \param[in]  col    the column
-!> \param[out] block  the block to get (rank-1 array)
+!> \param[out] block  the block to get (rank-2 array)
 !> \param[out] tr     whether the data is transposed
+!> \param[out] found  whether the block exists in the matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_2d_block_p_c(matrix,row,col,block,tr,found)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    COMPLEX(kind=real_4), DIMENSION(:,:), POINTER         :: block
+    LOGICAL, INTENT(OUT)                     :: tr
+    LOGICAL, INTENT(OUT)                     :: found
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_2d_block_p_c', &
+      routineP = moduleN//':'//routineN
+    
+    COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block_1d
+    INTEGER                                  :: row_size, col_size,&
+                                                blk, last_blk, nze, offset,&
+                                                frst_blk, stored_row,&
+                                                stored_col
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    TYPE(btree_2d_data_c)          :: data_block
+    LOGICAL                                  :: stored_tr
+!   ---------------------------------------------------------------------------
+    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_complex_4,&
+         cp_fatal_level, cp_caller_error,&
+         routineN, "Data type mismatch for requested block.")
+
+    CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
+         stored_tr, found, blk, offset)
+    tr = stored_tr
+
+    NULLIFY (block)
+    IF(found) THEN
+       row_size = dbcsr_blk_row_size (matrix%m, stored_row)
+       col_size = dbcsr_blk_column_size (matrix%m, stored_col)
+       nze = row_size*col_size
+       !
+#if defined(__PTR_RANK_REMAP)
+       block(1:row_size, 1:col_size) => pointer_view (&
+            dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
+            )
+#elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+       block_1d => pointer_view (&
+            dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
+            )
+       CALL pointer_c_rank_remap2 (block, row_size, col_size, block_1d)
+#endif
+    ELSE
+       CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
+            cp_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.")
+       IF (dbcsr_use_mutable (matrix%m)) THEN
+          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(1)%mutable)) THEN
+             CALL dbcsr_mutable_new(matrix%m%wms(1)%mutable,&
+                  dbcsr_get_data_type(matrix))
+          ENDIF
+          CALL btree_get_c (&
+               matrix%m%wms(1)%mutable%m%btree_c,&
+               make_coordinate_tuple(stored_row, stored_col),&
+               data_block, found)
+          IF (found) THEN
+             block => data_block%p
+                CALL ccopy(nze,&
+                     data_block%p(1,1), 1, block(1,1), 1)
+          ENDIF
+       ENDIF
+    ENDIF
+  END SUBROUTINE dbcsr_get_2d_block_p_c
+
+
+! *****************************************************************************
+!> \brief Gets a 2-d block from a dbcsr matrix
+!> \param[in]  matrix DBCSR matrix
+!> \param[in]  row    the row
+!> \param[in]  col    the column
+!> \param[out] block  the block to get (rank-1 array)
+!> \param[in] tr      whether the data is transposed
 !> \param[out] found  whether the block exists in the matrix
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_block_c(matrix,row,col,block,tr,found)
@@ -325,6 +403,60 @@
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_get_block_c
+
+! *****************************************************************************
+!> \brief Gets a 2-d block from a dbcsr matrix
+!> \param[in]  matrix DBCSR matrix
+!> \param[in]  row    the row
+!> \param[in]  col    the column
+!> \param[out] block  the block to get (rank-1 array)
+!> \param[out] tr     whether the data is transposed
+!> \param[out] found  whether the block exists in the matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_block_p_c(matrix,row,col,block,tr,found)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block
+    LOGICAL, INTENT(OUT)                     :: tr
+    LOGICAL, INTENT(OUT)                     :: found
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_p_c', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col_size, frst_blk, &
+                                                last_blk, nze, offset, &
+                                                row_size, stored_row,&
+                                                stored_col
+    LOGICAL                                  :: stored_tr
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    TYPE(btree_2d_data_c)          :: data_block
+!   ---------------------------------------------------------------------------
+    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_complex_4,&
+         cp_fatal_level, cp_caller_error,&
+         routineN, "Data type mismatch for requested block.")
+
+    CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
+         stored_tr, found, blk, offset)
+    tr = stored_tr
+
+    NULLIFY (block)
+    IF(found) THEN
+       row_size = dbcsr_blk_row_size (matrix%m, stored_row)
+       col_size = dbcsr_blk_column_size (matrix%m, stored_col)
+       nze = row_size*col_size
+       !
+       block => pointer_view (&
+            dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
+            )
+    ELSE
+       CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
+            cp_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.")
+       CALL cp_assert (.NOT.dbcsr_use_mutable (matrix%m), cp_failure_level,&
+            cp_caller_error, routineN,&
+            "Can not retrieve rank-1 block pointers from mutable work matrices.")
+    ENDIF
+  END SUBROUTINE dbcsr_get_block_p_c
 
 
 ! *****************************************************************************
@@ -538,7 +670,6 @@
     LOGICAL                                  :: found, tr, do_sum
 
 !   ---------------------------------------------------------------------------
-
     IF (PRESENT (transposed)) THEN
        tr = transposed
     ELSE
@@ -606,6 +737,10 @@
           ALLOCATE (data_block%p (row_size, col_size))
           data_block%p(:,:) = RESHAPE (block, (/row_size, col_size/))
           data_block%tr = tr
+          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(1)%mutable)) THEN
+             CALL dbcsr_mutable_new(matrix%m%wms(1)%mutable,&
+                  dbcsr_get_data_type(matrix))
+          ENDIF
           IF (.NOT. do_sum) THEN
              CALL btree_add_c (&
                   matrix%m%wms(1)%mutable%m%btree_c,&
@@ -627,8 +762,14 @@
                      data_block2%p(1,1), 1)
              ENDIF
           ENDIF
+          IF (.NOT. found) THEN
+             matrix%m%wms(1)%lastblk = matrix%m%wms(1)%lastblk + 1
+          ENDIF
        ENDIF
-       matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + SIZE (block)
+       IF (.NOT. found) THEN
+          matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + SIZE (block)
+       ELSE
+       ENDIF
        matrix%m%valid = .FALSE.
     ENDIF
   END SUBROUTINE dbcsr_put_block_c
@@ -759,3 +900,17 @@
        ENDDO
     ENDDO
   END SUBROUTINE block_chol_inv_c
+
+
+#if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+! *****************************************************************************
+!> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
+! *****************************************************************************
+  SUBROUTINE pointer_c_rank_remap2 (r2p, d1, d2, r1p)
+    COMPLEX(kind=real_4), DIMENSION(:,:), POINTER :: r2p
+    INTEGER, INTENT(IN)              :: d1, d2
+    COMPLEX(kind=real_4), DIMENSION(d1,*), TARGET :: r1p
+    r2p => r1p(1:d1, 1:d2)
+  END SUBROUTINE pointer_c_rank_remap2
+#endif
+
