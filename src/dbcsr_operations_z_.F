@@ -295,9 +295,9 @@
        nze = row_size*col_size
        !
 #if defined(__PTR_RANK_REMAP)
-       block(1:row_size, 1:col_size) => pointer_view (&
-            dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_8)), offset, offset&
-            )
+       block_1d => pointer_view (&
+            dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_8)), offset, offset)
+       block(1:row_size, 1:col_size) => block_1d
 #elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
        block_1d => pointer_view (&
             dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_8)), offset, offset&
