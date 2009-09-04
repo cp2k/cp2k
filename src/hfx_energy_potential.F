@@ -1675,7 +1675,7 @@ MODULE hfx_energy_potential
     END DO
 !$OMP END MASTER
 !$OMP BARRIER
-    actual_x_data%memory_parameter%final_compression_counter_energy = mem_compression_counter
+    actual_x_data%memory_parameter%final_comp_counter_energy = mem_compression_counter
 
 
 

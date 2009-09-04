@@ -118,7 +118,7 @@ MODULE hfx_types
   TYPE hfx_memory_type
     INTEGER                                  :: max_memory              !! user def max memory MB
     INTEGER(int_8)                           :: max_compression_counter !! corresponding number of reals 
-    INTEGER(int_8)                           :: final_compression_counter_energy
+    INTEGER(int_8)                           :: final_comp_counter_energy
     LOGICAL                                  :: do_all_on_the_fly       !! max mem == 0 ?
     REAL(dp)                                 :: eps_storage_scaling
     INTEGER                                  :: cache_size

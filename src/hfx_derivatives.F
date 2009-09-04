@@ -1061,7 +1061,7 @@ MODULE hfx_derivatives
                                             qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage *&
                                             memory_parameter%cache_size
                 END DO
-                IF(mem_compression_counter + memory_parameter%final_compression_counter_energy &
+                IF(mem_compression_counter + memory_parameter%final_comp_counter_energy &
                                       > memory_parameter%max_compression_counter) THEN
                   buffer_overflow = .TRUE.
                   IF( do_dynamic_load_balancing ) THEN
