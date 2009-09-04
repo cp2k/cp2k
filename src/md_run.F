@@ -443,7 +443,7 @@ CONTAINS
           CALL md_output(md_env,md_section,force_env%root_section,should_stop,error=error)
           IF(ehrenfest_md)THEN
              CALL rt_prop_output(force_env%qs_env,ehrenfest,error=error)
-             CALL rt_write_input_restart(force_env,force_env%qs_env%rtp,error)
+             CALL rt_write_input_restart(md_env,force_env,force_env%qs_env%rtp,error)
           END IF
           EXIT
        END IF

@@ -8,7 +8,6 @@
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 MODULE rt_propagation
-
   USE cp_control_types,                ONLY: rtp_control_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_set_all,&
@@ -34,6 +33,7 @@ MODULE rt_propagation
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
+  USE md_environment_types,            ONLY: md_environment_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -343,7 +343,7 @@ CONTAINS
           used_time= time_iter_stop - time_iter_start
           time_iter_start=time_iter_stop
           CALL rt_prop_output(qs_env,real_time_propagation,delta_iter=delta_iter,used_time=used_time,error=error)
-          CALL rt_write_input_restart(force_env,rtp,error)
+          CALL rt_write_input_restart(force_env=force_env,rtp=rtp,error=error)
           IF (should_stop)EXIT
        ELSE
           EXIT
@@ -360,7 +360,9 @@ CONTAINS
 
   END SUBROUTINE run_propagation
 
-  SUBROUTINE rt_write_input_restart(force_env,rtp,error)
+  SUBROUTINE rt_write_input_restart(md_env,force_env,rtp,error)
+    TYPE(md_environment_type), OPTIONAL, &
+      POINTER                                :: md_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -374,10 +376,13 @@ CONTAINS
     root_section => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
     rt_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error=error)
-    CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=force_env%qs_env%sim_step,error=error) 
     CALL section_vals_val_set(rt_section,"INITIAL_WFN",i_val=use_rt_restart,error=error) 
+    ! coming from RTP
+    IF (.NOT. PRESENT(md_env)) THEN
+     CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=force_env%qs_env%sim_step,error=error) 
+    ENDIF
 
-    CALL write_restart(root_section=root_section,error=error)
+    CALL write_restart(md_env=md_env,root_section=root_section,error=error)
 
   END SUBROUTINE rt_write_input_restart
 
