@@ -52,7 +52,7 @@ MODULE cp_dbcsr_operations
        block_set_d, dbcsr_add, dbcsr_copy, dbcsr_distribute, dbcsr_filter, &
        dbcsr_get_block_p, dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, &
        dbcsr_norm, dbcsr_put_block, dbcsr_remove_block, dbcsr_replace_blocks, &
-       dbcsr_replicate_all, dbcsr_reserve_block2d, dbcsr_scale, &
+       dbcsr_replicate_all, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, &
        dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_block_node_type, dbcsr_distribution_obj, &
@@ -112,9 +112,9 @@ MODULE cp_dbcsr_operations
             dbcsr_allocate_matrix, dbcsr_deallocate_matrix,&
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
             dbcsr_obj_p_type, dbcsr_block_node_type, test_sm,&
-            dbcsr_from_fm, dbcsr_from_sm,&
+            dbcsr_from_fm, dbcsr_from_sm, &!copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
             sm_from_dbcsr, dbcsr_type_from_sm_symmetry, dbcsr_write_sparse_matrix, &
-            dbcsr_write_matrix_distribution
+            dbcsr_write_matrix_distribution, dbcsr_multiply_sm_fm
 
   INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
@@ -763,6 +763,14 @@ CONTAINS
          row_blk_size=matrix_a%m%row_blk_size,&
          col_blk_size=col_blk_size_right,&
          error=error)
+    
+    CALL dbcsr_multiply_sm_fm(matrix_a, matrix_x, fmout, k, error=error)
+    CALL cp_fm_frobenius_norm(fmout, checksum, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')" dbcsr_SM_FM Sx checksum",&
+            checksum*checksum
+    ENDIF
+
     CALL array_release (col_blk_size_right)
     CALL dbcsr_release (matrix_a)
     CALL dbcsr_release (matrix_b)
@@ -1012,6 +1020,80 @@ CONTAINS
 
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_multiply_local
+
+! *****************************************************************************
+!> \brief multiply a dbcsr with a fm matrix
+!> \param[in]  matrix         DBCSR matrix
+!> \param[]    fm_in, fm_out  fm matrices
+!> \param[in]  ncol           nbr of columns
+!> \param[in]  alpha          alpha
+!> \param[in]  beta           beta
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_multiply_sm_fm(matrix, fm_in, fm_out, ncol, alpha, beta, error)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(cp_fm_type), POINTER                :: fm_in, fm_out
+    INTEGER, INTENT(IN)                      :: ncol
+    REAL(dp), INTENT(IN), OPTIONAL           :: alpha, beta
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_sm_fm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: k, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
+    TYPE(dbcsr_obj)                          :: in, out
+    TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist
+    TYPE(array_i1d_obj)                      :: col_blk_size_right
+    REAL(dp)                                 :: my_alpha, my_beta
+
+    CALL timeset(routineN, timing_handle)
+    
+    my_alpha=1.0_dp
+    my_beta=0.0_dp
+    IF (PRESENT(alpha)) my_alpha=alpha
+    IF (PRESENT(beta)) my_beta=beta
+    IF(my_alpha.NE.1.0_dp.OR.my_beta.NE.0.0_dp) &
+         CALL stop_program(routineN,"NYI alpha, beta") 
+
+    CALL cp_fm_get_info(fm_in, ncol_global=k, error=error)
+    IF(k.NE.ncol) CALL stop_program(routineN,"NYI ncol")
+
+    CALL dbcsr_create_dist_r_unrot (dist_right, matrix%m%dist, ncol, col_blk_size_right)
+    
+    CALL dbcsr_init(in,error)
+    CALL dbcsr_create(in, "D", dist_right, 'N', &
+         matrix%m%row_blk_size, col_blk_size_right,&
+         0, 0, error=error)
+    CALL copy_fm_to_dbcsr(fm_in, in)
+
+    CALL dbcsr_init(out,error)
+    CALL dbcsr_create(out, "D", dist_right, 'N', &
+         matrix%m%row_blk_size, col_blk_size_right,&
+         0, 0, error=error)
+    CALL copy_fm_to_dbcsr(fm_out, out)
+
+    CALL dbcsr_set(out,0.0_dp,error=error)
+
+    CALL dbcsr_distribution_new (product_dist,&
+         dbcsr_distribution_mp (matrix%m%dist),&
+         dbcsr_distribution_row_dist (matrix%m%dist),&
+         dbcsr_distribution_col_dist (in%m%dist))
+
+    !this scaling should be done in dbcsr_sm_sm_multiply
+    CALL dbcsr_scale(in,alpha_scalar=my_alpha,error=error)
+    CALL dbcsr_sm_sm_multiply(matrix, in, out, product_dist, 1, error)
+
+    !CALL copy_dbcsr_to_fm(out, fm_out)
+
+    CALL dbcsr_release(in)
+    CALL dbcsr_release(out)
+    CALL array_release(col_blk_size_right)
+    CALL dbcsr_distribution_release(dist_right)
+    CALL dbcsr_distribution_release(product_dist)
+
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_multiply_sm_fm
 
 ! *****************************************************************************
 !> \brief pack a row or column of a dbcsr
