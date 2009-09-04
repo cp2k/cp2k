@@ -18,6 +18,7 @@ MODULE cp_dbcsr_operations
                                              array_new,&
                                              array_nullify,&
                                              array_release
+  USE cp_blacs_calls,                  ONLY: cp_blacs_pnum
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                              cp_blacs_env_write,&
                                              get_blacs_info
@@ -49,9 +50,10 @@ MODULE cp_dbcsr_operations
        dbcsr_row_block_sizes, dbcsr_uses_special_memory, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_copy, dbcsr_distribute, dbcsr_filter, &
-       dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_norm, dbcsr_put_block, &
-       dbcsr_remove_block, dbcsr_replace_blocks, dbcsr_replicate_all, &
-       dbcsr_reserve_block2d, dbcsr_scale, dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_get_block_p, dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, &
+       dbcsr_norm, dbcsr_put_block, dbcsr_remove_block, dbcsr_replace_blocks, &
+       dbcsr_replicate_all, dbcsr_reserve_block2d, dbcsr_scale, &
+       dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_block_node_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
@@ -706,8 +708,30 @@ CONTAINS
        !WRITE(output_unit,'(A,I30,5X,EN12.4)')'FLOP=',flop, REAL (flop, dp)
     ENDIF
     !
-    ! check trace(c'*s*c)
+    ! Verify copy_dbcsr_to_fm
+    CALL dbcsr_copy(matrix_bt, matrix_b, error=error)
+    CALL dbcsr_iterator_start(iter,matrix_bt)
+    DO WHILE(dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter,row,col,k)
+       !write(*,*)'i have',row,col
+       IF (MOD(row+col,3) .EQ. 0) &
+            CALL dbcsr_remove_block(matrix_bt,row,col,k)
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    !call dbcsr_remove_block(matrix_bt, 1, 1)
+    !call dbcsr_finalize(matrix_bt)
+    CALL dbcsr_finalize(matrix_bt)
+    CALL dbcsr_verify_matrix(matrix_bt)
+    CALL copy_fm_to_dbcsr(matrix_x, matrix_bt)
+    CALL dbcsr_verify_matrix (matrix_bt)
+    checksum = dbcsr_checksum(matrix_bt, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"copy fm2dbcsr chksm", checksum
+    ENDIF
+
     CALL dbcsr_release (matrix_bt)
+
+    ! check trace(c'*s*c)
     !call dbcsr_replicate_all (matrix_b)
     !call dbcsr_replicate_all (matrix_c)
     CALL dbcsr_trace(matrix_b, matrix_c, trace, error=error)
@@ -2359,6 +2383,206 @@ CONTAINS
     CALL dbcsr_finalize(matrix, error=error)
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_from_fm
+
+
+! *****************************************************************************
+!> \brief   Copy a BLACS matrix to a dbcsr matrix.
+!>
+!>          real_matrix=beta*real_matrix+alpha*fm
+!>          beta defaults to 0, alpha to 1
+!> \author  Matthias Krack
+!> \date    06.06.2001
+!> \par History
+!>          08.2002 adapted to local_data, could be optimized
+!>          08.2003 imported form qs_blacs
+!>          2009-09-01 adapted for DBCSR
+!> \version 1.0
+!> \param[in] fm              full matrix
+!> \param[out] matrix         DBCSR matrix
+!> \param[in] alpha           (optional) scaling of FM
+!> \param[in] beta            (optional) scalinig of existing SM
+! *****************************************************************************
+  SUBROUTINE copy_fm_to_dbcsr(fm,matrix,alpha,beta)
+    TYPE(cp_fm_type), POINTER           :: fm
+    TYPE(dbcsr_obj), INTENT(INOUT)      :: matrix
+    REAL(kind=dp), INTENT(in), OPTIONAL :: alpha,beta
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_fm_to_dbcsr', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: group,handle,iblock_col,iblock_row,icol,icol_global,&
+         icol_local,ipcol,ipe,iprow,irow,irow_global,irow_local,istat,&
+         jpcol,jprow,mypcol,mype,myprow,nblock_row,nblkcols_total,&
+         ncol_local,npcol,npe,nprow,nblkrows_total,nrow_local, nblock_col,&
+         nblkrows_local, nblkcols_local, row_l, col_l, nrow_block, ncol_block
+
+    INTEGER, DIMENSION(:), POINTER    :: first_col,first_row,last_col,last_row,&
+         row_blk_sizes, col_blk_sizes, local_rows, local_cols
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: fm_block, real_matrix_block
+    TYPE(cp_blacs_env_type), POINTER  :: context
+    REAL(kind=dp) :: my_alpha,my_beta
+    LOGICAL :: tr, found
+    TYPE(array_i1d_obj) :: rbs, cbs
+
+#if defined(__SCALAPACK)
+    INTEGER, EXTERNAL :: indxg2l,indxg2p
+
+#endif
+
+    CALL timeset(routineN,handle)
+
+    my_beta=0._dp
+    my_alpha=1._dp
+    IF (PRESENT(alpha)) my_alpha=alpha
+    IF (PRESENT(beta)) my_beta=beta
+    group = fm%matrix_struct%para_env%group
+    context => fm%matrix_struct%context
+
+    CALL dbcsr_get_info(matrix,&
+         nblkrows_total=nblkrows_total,&
+         nblkcols_total=nblkcols_total,&
+         nblkrows_local=nblkrows_local,&
+         nblkcols_local=nblkcols_local,&
+         local_rows=local_rows,&
+         local_cols=local_cols,&
+         row_blk_size=rbs,&
+         col_blk_size=cbs)
+    !write(*,*)'blk size',nblkrows_total, nblkcols_total
+    !write(*,*)'blk local size',nblkrows_local, nblkcols_local
+    row_blk_sizes => array_data (rbs)
+    col_blk_sizes => array_data (cbs)
+    ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))
+    ALLOCATE (first_col(nblkcols_total),last_col(nblkcols_total))
+    CALL convert_sizes_to_offsets (row_blk_sizes, first_row, last_row)
+    CALL convert_sizes_to_offsets (col_blk_sizes, first_col, last_col)
+    mype=context%my_pid
+    npe=context%n_pid
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+    nrow_block = fm%matrix_struct%nrow_block
+    ncol_block = fm%matrix_struct%ncol_block
+
+    CALL dbcsr_work_create(matrix, nblks_guess=nblkrows_local*nblkcols_local,&
+         work_mutable=.TRUE.)
+
+#if defined(__SCALAPACK)
+    prow_loop: DO iprow=0,nprow-1
+       pcol_loop: DO ipcol=0,npcol-1
+          ipe = cp_blacs_pnum(context%group,iprow,ipcol)
+          nrow_local = fm%matrix_struct%nrow_locals(iprow)
+          ncol_local = fm%matrix_struct%ncol_locals(ipcol)
+          IF (ipe /= mype) THEN
+             ALLOCATE (fm_block(nrow_local,ncol_local), STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineP,"fm_block",nrow_local*ncol_local)
+          ELSE
+             fm_block => fm%local_data
+          END IF
+          IF (nrow_local*ncol_local.NE.0) CALL mp_bcast(fm_block,ipe,group)
+          mat_rows: DO row_l = 1, nblkrows_local
+             iblock_row = local_rows(row_l)
+             mat_cols: DO col_l = 1, nblkcols_local
+                iblock_col = local_cols(col_l)
+                IF (dbcsr_get_matrix_type(matrix)&
+                           .EQ. dbcsr_type_symmetric&
+                     .OR. dbcsr_get_matrix_type(matrix)&
+                           .EQ. dbcsr_type_antisymmetric&
+                     .AND. iblock_row .GT. iblock_col) CYCLE
+                CALL dbcsr_get_block_p(matrix, iblock_row, iblock_col,&
+                     real_matrix_block, tr, found)
+                IF (.NOT. found) THEN
+                   ALLOCATE (real_matrix_block(row_blk_sizes(iblock_row),&
+                        col_blk_sizes(iblock_col)))
+                   real_matrix_block(:,:) = 0.0_dp
+                ENDIF
+                icol = 1
+                bcol_loop: DO icol_global=first_col(iblock_col),last_col(iblock_col)
+                   jpcol = indxg2p(icol_global,ncol_block,mypcol,&
+                        fm%matrix_struct%first_p_pos(2),npcol)
+                   IF (jpcol == ipcol) THEN
+                      icol_local = indxg2l(icol_global,ncol_block,mypcol,&
+                           fm%matrix_struct%first_p_pos(2),npcol)
+                      irow = 1
+                      DO irow_global=first_row(iblock_row),last_row(iblock_row)
+                         jprow = indxg2p(irow_global,nrow_block,myprow,&
+                              fm%matrix_struct%first_p_pos(1),nprow)
+                         IF (jprow == iprow) THEN
+                            irow_local = indxg2l(irow_global,nrow_block,myprow,&
+                                 fm%matrix_struct%first_p_pos(1),nprow)
+                            !write(*,*)irow,icol
+                            IF (found) THEN
+                               real_matrix_block(irow,icol)&
+                                    = my_beta*real_matrix_block(irow,icol)+&
+                                    my_alpha*fm_block(irow_local,icol_local)
+                            ELSE
+                               real_matrix_block(irow,icol)&
+                                    = my_alpha*fm_block(irow_local,icol_local)
+                            ENDIF
+                         END IF
+                         irow = irow + 1
+                      END DO
+                   END IF
+                   icol = icol + 1
+                END DO bcol_loop
+                IF (.NOT. found) THEN
+                   CALL dbcsr_put_block(matrix,&
+                        iblock_row, iblock_col,&
+                        real_matrix_block, tr)
+                   DEALLOCATE (real_matrix_block)
+                ENDIF
+             END DO mat_cols
+          END DO mat_rows
+          IF (ipe /= mype) THEN
+             DEALLOCATE (fm_block,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineP,"fm_block")
+          END IF
+       END DO pcol_loop
+    END DO prow_loop
+
+#else
+    fm_block => fm%local_data
+    DO iblock_row = 1, nblkrows_total
+       icol = 1
+       DO iblock_col = 1, nblkcols_total
+          CALL dbcsr_get_block_p(matrix, iblock_row, iblock_col,&
+               real_matrix_block, tr, found)
+          IF (.NOT. found) THEN
+             ALLOCATE (real_matrix_block(row_blk_sizes(iblock_row),&
+                  col_blk_sizes(iblock_col)))
+          ENDIF
+          DO icol_global=first_col(iblock_col),last_col(iblock_col)
+             irow = 1
+             DO irow_global=first_row(iblock_row),last_row(iblock_row)
+                IF (found) THEN
+                   real_matrix_block(irow,icol)&
+                        = my_beta*real_matrix_block(irow,icol)+&
+                        my_alpha*fm_block(irow_global,icol_global)
+                ELSE
+                   real_matrix_block(irow,icol)&
+                        = my_alpha*fm_block(irow_global,icol_global)
+                ENDIF
+                irow = irow + 1
+             END DO
+             icol = icol + 1
+          END DO
+          IF (.NOT. found) THEN
+             CALL dbcsr_put_block(matrix,&
+                  iblock_row, iblock_col,&
+                  real_matrix_block, tr)
+             DEALLOCATE (real_matrix_block)
+          ENDIF
+       ENDDO
+    END DO
+
+#endif
+
+    CALL dbcsr_finalize (matrix)
+    CALL timestop(handle)
+  END SUBROUTINE copy_fm_to_dbcsr
+
 
 
 ! *****************************************************************************
