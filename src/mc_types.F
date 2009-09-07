@@ -656,10 +656,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 !> \param nmol_types the number of molecule types in the system
 !> \author MJM
 ! *****************************************************************************
-  SUBROUTINE mc_sim_par_create ( mc_par ,nmol_types,nboxes)
+  SUBROUTINE mc_sim_par_create ( mc_par ,nmol_types)
 
     TYPE(mc_simpar_type), POINTER            :: mc_par
-    INTEGER, INTENT(IN)                      :: nmol_types, nboxes
+    INTEGER, INTENT(IN)                      :: nmol_types
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_create', &
       routineP = moduleN//':'//routineN

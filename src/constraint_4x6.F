@@ -110,7 +110,7 @@ CONTAINS
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     ! Real Shake
     CALL shake_roll_4x6_low(fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma,&
+       particle_set, pos, vel, r_shake, dt, ishake, max_sigma,&
        error)
 
   END SUBROUTINE shake_roll_4x6_int
@@ -141,7 +141,7 @@ CONTAINS
          fixd_list=fixd_list, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     ! Real Rattle
-    CALL rattle_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+    CALL rattle_4x6_low( fixd_list, g4x6_list, lg4x6, first_atom, &
        particle_set, vel, dt, error)
 
   END SUBROUTINE rattle_4x6_int
@@ -176,7 +176,7 @@ CONTAINS
          fixd_list=fixd_list, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     ! Real Rattle
-    CALL rattle_roll_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+    CALL rattle_roll_4x6_low( fixd_list, g4x6_list, lg4x6, first_atom, &
        particle_set, vel, r_rattle, dt, veps, error )
 
   END SUBROUTINE rattle_roll_4x6_int
@@ -247,7 +247,7 @@ CONTAINS
     lg4x6     => gci%lg4x6
     ! Real Shake
     CALL shake_roll_4x6_low(fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma,&
+       particle_set, pos, vel, r_shake, dt, ishake, max_sigma,&
        error)
 
   END SUBROUTINE shake_roll_4x6_ext
@@ -278,7 +278,7 @@ CONTAINS
     g4x6_list => gci%g4x6_list
     lg4x6     => gci%lg4x6
     ! Real Rattle
-    CALL rattle_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+    CALL rattle_4x6_low( fixd_list, g4x6_list, lg4x6, first_atom, &
        particle_set, vel, dt, error)
 
   END SUBROUTINE rattle_4x6_ext
@@ -313,7 +313,7 @@ CONTAINS
     g4x6_list => gci%g4x6_list
     lg4x6     => gci%lg4x6
     ! Real Rattle
-    CALL rattle_roll_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+    CALL rattle_roll_4x6_low( fixd_list, g4x6_list, lg4x6, first_atom, &
        particle_set, vel, r_rattle, dt, veps, error )
 
   END SUBROUTINE rattle_roll_4x6_ext
@@ -577,7 +577,7 @@ CONTAINS
 !>      none
 ! *****************************************************************************
   SUBROUTINE shake_roll_4x6_low(fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma,&
+       particle_set, pos, vel, r_shake, dt, ishake, max_sigma,&
        error)
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -588,7 +588,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: r_shake, v_shake
+      INTENT(IN)                             :: r_shake
     REAL(kind=dp), INTENT(in)                :: dt
     INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -863,7 +863,7 @@ CONTAINS
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE rattle_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+  SUBROUTINE rattle_4x6_low( fixd_list, g4x6_list, lg4x6, first_atom, &
        particle_set, vel, dt, error)
 
     TYPE(fixd_constraint_type), &
@@ -871,7 +871,7 @@ CONTAINS
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
     TYPE(local_g4x6_constraint_type), &
       POINTER                                :: lg4x6( : )
-    INTEGER, INTENT(IN)                      :: ng4x6, first_atom
+    INTEGER, INTENT(IN)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
@@ -1009,7 +1009,7 @@ CONTAINS
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE rattle_roll_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+  SUBROUTINE rattle_roll_4x6_low( fixd_list, g4x6_list, lg4x6, first_atom, &
        particle_set, vel, r_rattle, dt, veps, error )
 
     TYPE(fixd_constraint_type), &
@@ -1017,7 +1017,7 @@ CONTAINS
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
     TYPE(local_g4x6_constraint_type), &
       POINTER                                :: lg4x6( : )
-    INTEGER, INTENT(IN)                      :: ng4x6, first_atom
+    INTEGER, INTENT(IN)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), DIMENSION(:, :), &

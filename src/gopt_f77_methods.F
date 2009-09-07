@@ -83,7 +83,7 @@
 
     INTEGER                                  :: ensemble, handle, idg, idir, ip, shell_index, stat
     LOGICAL                                  :: failure, explicit, is_shell
-    REAL(KIND=dp)                            :: f_ts, mass, massc, masss, potential_energy
+    REAL(KIND=dp)                            :: f_ts, mass, potential_energy
     REAL(KIND=dp), DIMENSION(3)              :: r, s
     REAL(KIND=dp), DIMENSION(3,3)            :: av_ptens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient_ts

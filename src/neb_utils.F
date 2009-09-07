@@ -129,13 +129,13 @@ CONTAINS
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   SUBROUTINE build_replica_coords(neb_section, particle_set,&
-       coords, vels, neb_env, ndim, iw, globenv, para_env, error)
+       coords, vels, neb_env, iw, globenv, para_env, error)
     TYPE(section_vals_type), POINTER         :: neb_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(neb_var_type), POINTER              :: coords, vels
     TYPE(neb_type), POINTER                  :: neb_env
-    INTEGER, INTENT(IN)                      :: ndim, iw
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -790,7 +790,7 @@ CPSourceFileRef,&
        CALL cite_reference(Jonsson1998)
        wrk = (coords%wrk(:,i+1)-2.0_dp*coords%wrk(:,i)+coords%wrk(:,i-1))
        tmp = neb_env%k * DOT_PRODUCT(wrk,tangent)
-       wrk = forces%wrk(:,i)-DOT_PRODUCT_BAND(neb_env,i,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
+       wrk = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
        forces%wrk(:,i) = wrk + tmp * tangent
     CASE(do_it_neb)
        ! Improved tangent NEB
@@ -800,7 +800,7 @@ CPSourceFileRef,&
        CALL neb_replica_distance(coords=coords,i0=i-1,i=i,distance=distance2,iw=iw,&
             rotate=.FALSE.,error=error)
        tmp = neb_env%k * (distance1-distance2)
-       wrk = forces%wrk(:,i)-DOT_PRODUCT_BAND(neb_env,i,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
+       wrk = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
        forces%wrk(:,i) = wrk + tmp * tangent       
     CASE(do_ci_neb)
        ! Climbing Image NEB
@@ -809,7 +809,7 @@ CPSourceFileRef,&
           CALL get_neb_force(neb_env, tangent, coords, i, forces, do_it_neb, Mmatrix, iw, error)
        ELSE
           wrk = forces%wrk(:,i) 
-          tmp = -2.0_dp*DOT_PRODUCT_BAND(neb_env,i,wrk,tangent,Mmatrix,error=error)
+          tmp = -2.0_dp*dot_product_band(neb_env,wrk,tangent,Mmatrix,error=error)
           forces%wrk(:,i) = wrk + tmp * tangent
        END IF
     CASE(do_d_neb)
@@ -817,7 +817,7 @@ CPSourceFileRef,&
        CALL cite_reference(Wales2004)
        ALLOCATE(dtmp1(nsize_wrk),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       dtmp1       = forces%wrk(:,i)-DOT_PRODUCT_BAND(neb_env,i,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
+       dtmp1       = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
        forces%wrk(:,i) = dtmp1
        dtmp1 = dtmp1 / SQRT(DOT_PRODUCT(dtmp1,dtmp1))
        ! Project out only the spring component interfering with the 
@@ -838,9 +838,8 @@ CPSourceFileRef,&
 !>         tensor
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  FUNCTION dot_product_band(neb_env, ind, array1, array2, array3, error) RESULT(value)
+  FUNCTION dot_product_band(neb_env, array1, array2, array3, error) RESULT(value)
     TYPE(neb_type), POINTER                  :: neb_env
-    INTEGER, INTENT(IN)                      :: ind
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: array1, array2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: array3
@@ -927,14 +926,13 @@ CPSourceFileRef,&
 !> \author Teodoro Laino - Rodolphe Vuilleumier 09.2008
 ! *****************************************************************************
   SUBROUTINE reparametrize_images(reparametrize_frames, spline_order, smoothing,&
-       coords, sline, distances, output_unit, error)
+       coords, sline, distances, error)
 
     LOGICAL, INTENT(IN)                      :: reparametrize_frames
     INTEGER, INTENT(IN)                      :: spline_order
     REAL(KIND=dp), INTENT(IN)                :: smoothing
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, sline
     REAL(KIND=dp), DIMENSION(:)              :: distances
-    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reparametrize_images', &

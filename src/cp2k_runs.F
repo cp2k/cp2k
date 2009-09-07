@@ -442,7 +442,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: slave_status_done = -3, &
                                                 slave_status_wait = -4 
 
-    CHARACTER(len=5)                         :: label
+    CHARACTER(len=7)                         :: label
     CHARACTER(LEN=default_path_length)       :: output_file
     CHARACTER(LEN=default_string_length)     :: str
     INTEGER :: dest, handle, i, i_job_to_restart, ierr, ijob, ijob_current, &

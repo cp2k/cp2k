@@ -99,17 +99,16 @@ CONTAINS
     ! create the t_env !
     !------------------!
     CALL tddfpt_env_allocate(t_env, p_env, qs_env,error=error)
-    CALL tddfpt_env_init(t_env, p_env, qs_env,error=error)
+    CALL tddfpt_env_init(t_env, qs_env,error=error)
 
   END SUBROUTINE tddfpt_init
 
 ! *****************************************************************************
 !> \brief Initialize t_env with meaningfull values.
 ! *****************************************************************************
-  SUBROUTINE tddfpt_env_init(t_env, p_env, qs_env,error)
+  SUBROUTINE tddfpt_env_init(t_env, qs_env,error)
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
-    TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -149,14 +148,13 @@ CONTAINS
   END SUBROUTINE tddfpt_cleanup
 
 ! *****************************************************************************
-  SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env, p_env, error)
+  SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env, error)
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: matrices
     REAL(kind=DP), DIMENSION(:), INTENT(OUT) :: energies
     INTEGER, INTENT(IN)                      :: n_v
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'co_initial_guess', &

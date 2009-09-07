@@ -998,13 +998,12 @@ END SUBROUTINE mc_conformation_change
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
-                        nnstep,old_energy,box_number,&
+                        old_energy,box_number,&
                         energy_check,r_old,iw,discrete_array,rng_stream,error)
 
     TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep
     REAL(KIND=dp), INTENT(INOUT)             :: old_energy
     INTEGER, INTENT(IN)                      :: box_number
     REAL(KIND=dp), INTENT(INOUT)             :: energy_check

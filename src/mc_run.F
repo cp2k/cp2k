@@ -214,7 +214,7 @@ CONTAINS
 
 ! now read in the values of the mc_pars
 ! creating the mc_par
-         CALL mc_sim_par_create(mc_par(ibox)%mc_par,nmol_types,nboxes)
+         CALL mc_sim_par_create(mc_par(ibox)%mc_par,nmol_types)
 
 ! attach molecule information to all mc_par structures, so we know what we have to read in
          CALL set_mc_par(mc_par(ibox)%mc_par,mc_molecule_info=mc_molecule_info)

@@ -479,7 +479,7 @@ CPSourceFileRef,&
        CALL qs_scf_post_xray(input, dft_section, logger, qs_env, ionode, output_unit, error)
        
        ! Calculation of Electric Field Gradients
-       CALL qs_scf_post_efg(input, logger, qs_env, error)
+       CALL qs_scf_post_efg(input, logger, error)
 
        ! Calculation of ET
        CALL qs_scf_post_et(input, qs_env, dft_control, error)
@@ -502,10 +502,9 @@ CPSourceFileRef,&
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_efg(input, logger, qs_env, error)
+  SUBROUTINE qs_scf_post_efg(input, logger, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_efg', &

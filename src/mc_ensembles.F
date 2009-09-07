@@ -494,7 +494,7 @@ CONTAINS
                CALL mc_volume_move( mc_par(1)%mc_par,&
                     force_env(1)%force_env,&
                     moves(1,1)%moves,move_updates(1,1)%moves,&
-                    nnstep,old_energy(1),1,&
+                    old_energy(1),1,&
                     energy_check(1),r_old(:,:,1),iw,discrete_array(:,:),&
                     rng_stream,error=error)
             CASE("GEMC_NVT")
@@ -517,7 +517,7 @@ CONTAINS
                     force_env(box_number)%force_env,&
                     moves(1,box_number)%moves,&
                     move_updates(1,box_number)%moves,&
-                    nnstep,old_energy(box_number),box_number,&
+                    old_energy(box_number),box_number,&
                     energy_check(box_number),r_old(:,:,box_number),iw,&
                     discrete_array(:,:),&
                     rng_stream,error=error)

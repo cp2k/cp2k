@@ -397,8 +397,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'handle_band_file_names', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: output_file_path
-    CHARACTER(LEN=default_string_length)     :: replica_proj_name
+    CHARACTER(LEN=default_path_length)       :: output_file_path, &
+                                                replica_proj_name
     INTEGER                                  :: handle, handle2, ierr, j, lp
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: new_error
@@ -462,7 +462,7 @@ CONTAINS
   FUNCTION get_replica_project_name(rep_env, n_rep, j) RESULT(replica_proj_name)
     TYPE(replica_env_type), POINTER          :: rep_env
     INTEGER, INTENT(IN)                      :: n_rep, j
-    CHARACTER(LEN=default_string_length)     :: replica_proj_name
+    CHARACTER(LEN=default_path_length)       :: replica_proj_name
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_replica_project_name', &
       routineP = moduleN//':'//routineN
@@ -500,7 +500,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_rep_env_map_info', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: replica_proj_name
+    CHARACTER(LEN=default_path_length)       :: replica_proj_name
     INTEGER                                  :: handle2, ierr, irep, n_rep, &
                                                 n_rep_neb, output_unit
     LOGICAL                                  :: failure

@@ -1088,7 +1088,7 @@ CONTAINS
       IF(BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
         "PRINT%CLS_FUNCTION_CUBES",error=error),cp_p_file)) THEN
         append_cube= section_get_lval(xas_section,"PRINT%CLS_FUNCTION_CUBES%APPEND",error=error)
-        CALL xas_print_cubes(xas_control,qs_env,xas_section,mos,all_vectors,iter,&
+        CALL xas_print_cubes(xas_control,qs_env,xas_section,mos,all_vectors,&
              iatom,append_cube,error=error)
       END IF
 
@@ -1205,7 +1205,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE  xas_print_cubes(xas_control,qs_env,xas_section,&
-              mos,all_vectors,iter,iatom,append_cube, error)
+              mos,all_vectors,iatom,append_cube, error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1213,7 +1213,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: all_vectors
-    INTEGER, INTENT(IN)                      :: iter, iatom
+    INTEGER, INTENT(IN)                      :: iatom
     LOGICAL, INTENT(IN)                      :: append_cube
     TYPE(cp_error_type), INTENT(inout)       :: error
 

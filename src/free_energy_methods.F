@@ -282,7 +282,7 @@ CONTAINS
        WRITE(output_unit,*)"Kendall test passed:",trend_free
     END IF
     ! Release storage
-    CALL destroy_tmp_data(fe_env,wrk,ng_points,ncolvar,error)
+    CALL destroy_tmp_data(fe_env,wrk,ng_points,error)
     CALL timestop(handle)
   END SUBROUTINE ui_check_trend
 
@@ -326,11 +326,11 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE destroy_tmp_data(fe_env,wrk,ng_points,ncolvar,error)
+  SUBROUTINE destroy_tmp_data(fe_env,wrk,ng_points,error)
     TYPE(free_energy_type), POINTER          :: fe_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: wrk
-    INTEGER, INTENT(IN)                      :: ng_points, ncolvar
+    INTEGER, INTENT(IN)                      :: ng_points
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_tmp_data', &
@@ -503,9 +503,9 @@ CONTAINS
              END IF
           END DO
        END DO
-       CALL destroy_tmp_data(fe_env,wrk,ng_points,ncolvar,error)
+       CALL destroy_tmp_data(fe_env,wrk,ng_points,error)
     ELSE
-       CALL destroy_tmp_data(fe_env,wrk,ng_points,ncolvar,error)
+       CALL destroy_tmp_data(fe_env,wrk,ng_points,error)
     END IF
     CALL timestop(handle)
   END SUBROUTINE ui_check_norm_sc_low
@@ -593,7 +593,7 @@ CONTAINS
           WRITE(output_unit,'(T2,"CV",I8,21X,7X,E12.6,14X,E12.6)')&
                (ic,avgmx(ic),SQRT(ABS(avg_std(ic))),ic=1,ncolvar)
        END IF
-       CALL destroy_tmp_data(fe_env,ng_points=ng_points,ncolvar=ncolvar,error=error)
+       CALL destroy_tmp_data(fe_env,ng_points=ng_points,error=error)
        DEALLOCATE(covmx,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(avgmx,stat=stat)

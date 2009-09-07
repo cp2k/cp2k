@@ -755,7 +755,7 @@ CONTAINS
     ! resetting
     CALL set ( old, atomic_kind_set, particle_set, vel, local_particles, cell , npt, 'B' )
     CALL rattle_roll_control( gci, local_molecules, molecule_set, molecule_kind_set, &
-         particle_set, vel, dt, simpar, virial, vector_v, npt_loc%v, roll_tol, iroll,&
+         particle_set, vel, dt, simpar, vector_v, npt_loc%v, roll_tol, iroll,&
          para_env, u, cell, local_particles, error=error )
 
   END SUBROUTINE rattle_roll_setup

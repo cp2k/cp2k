@@ -272,7 +272,6 @@ CONTAINS
                                     mm_particles=mm_particles,&
                                     mm_atom_index=qmmm_env%mm_atom_index,&
                                     num_mm_atoms=qmmm_env%num_mm_atoms,&
-                                    Potentials=qmmm_env%Potentials,&
                                     interp_section=interp_section,&
                                     mm_cell=mm_cell,&
                                     error=error)
@@ -613,7 +612,6 @@ CONTAINS
                 CALL debug_integrate_gf_rspace_NoPBC(ilevel=ilevel,&
                                                      zetp=alpha,&
                                                      rp=ra,&
-                                                     scale=1.0_dp,&
                                                      W=W,&
                                                      pwgrid=grids(ilevel)%pw,&
                                                      cube_info=cube_info(ilevel),&
@@ -1261,7 +1259,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qmmm_debug_forces(rho,qs_env,qmmm_env,Analytical_Forces,&
                                mm_particles,mm_atom_index,num_mm_atoms,&
-                               Potentials,interp_section,mm_cell,error)
+                               interp_section,mm_cell,error)
     TYPE(pw_type), POINTER                   :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
@@ -1270,8 +1268,6 @@ CONTAINS
       POINTER                                :: mm_particles
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
-    TYPE(qmmm_pot_p_type), DIMENSION(:), &
-      POINTER                                :: Potentials
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1401,13 +1397,13 @@ CONTAINS
 !>      08.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE debug_integrate_gf_rspace_NoPBC(ilevel, zetp, rp, scale, W, pwgrid, cube_info,&
+  SUBROUTINE debug_integrate_gf_rspace_NoPBC(ilevel, zetp, rp, W, pwgrid, cube_info,&
                                              eps_mm_rspace, aug_pools, debug_force,&
                                              mm_cell,auxbas_grid, n_rep_real, iw, error)
     INTEGER, INTENT(IN)                      :: ilevel
     REAL(KIND=dp), INTENT(IN)                :: zetp
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rp
-    REAL(KIND=dp), INTENT(IN)                :: scale, W
+    REAL(KIND=dp), INTENT(IN)                :: W
     TYPE(pw_type), POINTER                   :: pwgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
@@ -1577,7 +1573,6 @@ CONTAINS
                                                  mm_charges=mm_charges,&
                                                  mm_atom_index=mm_atom_index,&
                                                  mm_particles=mm_particles,&
-                                                 mm_el_pot_radius=mm_el_pot_radius,&
                                                  para_env=para_env,&
                                                  coarser_grid_level=coarser_grid_level,&
                                                  per_potentials=per_potentials,&

@@ -343,7 +343,7 @@ CONTAINS
           used_time= time_iter_stop - time_iter_start
           time_iter_start=time_iter_stop
           CALL rt_prop_output(qs_env,real_time_propagation,delta_iter=delta_iter,used_time=used_time,error=error)
-          CALL rt_write_input_restart(force_env=force_env,rtp=rtp,error=error)
+          CALL rt_write_input_restart(force_env=force_env,error=error)
           IF (should_stop)EXIT
        ELSE
           EXIT
@@ -360,11 +360,10 @@ CONTAINS
 
   END SUBROUTINE run_propagation
 
-  SUBROUTINE rt_write_input_restart(md_env,force_env,rtp,error)
+  SUBROUTINE rt_write_input_restart(md_env,force_env,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_write_input_restart', &

@@ -102,7 +102,7 @@ CONTAINS
        WRITE (out_unit,*)
     END IF
     IF (ASSOCIATED(qs_env%dft_control%tddfpt_control%lumos)) THEN
-       CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env, p_env,error=error)
+       CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env, error=error)
     ELSE
        IF (ionode) WRITE (out_unit,*) "LUMOS are needed in TDDFPT!"
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)

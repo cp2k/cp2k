@@ -141,7 +141,7 @@ CONTAINS
     CALL mol_new_list_release ( mols, error = error )
     CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
-    CALL mixed_init_subsys ( mixed_env, subsys, cell, cell_ref, use_ref_cell, &
+    CALL mixed_init_subsys ( mixed_env, subsys, cell, cell_ref,  &
          force_env_section, subsys_section, error )
 
     CALL cell_release(cell,error=error)
@@ -159,13 +159,12 @@ CONTAINS
 !> \date    11.06
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE mixed_init_subsys ( mixed_env, subsys, cell, cell_ref, use_ref_cell, &
+  SUBROUTINE mixed_init_subsys ( mixed_env, subsys, cell, cell_ref,  &
        force_env_section, subsys_section, error )
 
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    LOGICAL, INTENT(IN)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error

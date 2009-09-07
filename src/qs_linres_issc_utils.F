@@ -88,12 +88,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialize the issc environment
 ! *****************************************************************************
-  SUBROUTINE issc_response(issc_env,p_env,qs_env,iatom,error)
+  SUBROUTINE issc_response(issc_env,p_env,qs_env,error)
     !
     TYPE(issc_env_type)                      :: issc_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: iatom
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_response', &

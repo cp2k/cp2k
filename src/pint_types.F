@@ -2326,9 +2326,8 @@ END SUBROUTINE pint_start
 !>      11.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE pint_write_restart(pint_env,force,error)
+SUBROUTINE pint_write_restart(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    LOGICAL, INTENT(in), OPTIONAL            :: force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_restart', &

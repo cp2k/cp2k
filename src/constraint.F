@@ -59,7 +59,6 @@ MODULE constraint
   USE simpar_types,                    ONLY: simpar_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -431,7 +430,7 @@ CONTAINS
 !>      Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
 ! *****************************************************************************
   SUBROUTINE rattle_roll_control( gci, local_molecules, molecule_set, &
-       molecule_kind_set, particle_set, vel, dt, simpar, virial, vector,&
+       molecule_kind_set, particle_set, vel, dt, simpar, vector,&
        veps, roll_tol, iroll, para_env, u, cell, local_particles, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
@@ -442,7 +441,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: dt
     TYPE(simpar_type), INTENT(IN)            :: simpar
-    TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: veps

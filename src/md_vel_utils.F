@@ -503,7 +503,7 @@ CONTAINS
 !>      - 2007-11-09: Added angvel_zero feature
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! *****************************************************************************
-  SUBROUTINE initialize_velocities(simpar, part, force_env, para_env, globenv, md_env, &
+  SUBROUTINE initialize_velocities(simpar, part, force_env, globenv, md_env, &
        molecule_kinds, label, print_section, subsys_section, shell_present, shell_part, &
        core_part, force_rescaling, error)
 
@@ -511,7 +511,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -1453,7 +1452,7 @@ CONTAINS
     END IF
 
     CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
-       force_env=force_env, para_env=para_env, globenv=globenv, md_env=md_env,&
+       force_env=force_env, globenv=globenv, md_env=md_env,&
        label="Velocities initialization",print_section=print_section, &
        subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
        shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
@@ -1484,7 +1483,7 @@ CONTAINS
           CALL update_subsys(subsys_section,force_env,.FALSE.,error)
 
           CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
-             force_env=force_env, para_env=para_env, globenv=globenv, md_env=md_env,&
+             force_env=force_env, globenv=globenv, md_env=md_env,&
              label="Re-Initializing velocities after applying constraints",print_section=print_section, &
              subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
              shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.TRUE., &

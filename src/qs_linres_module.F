@@ -275,7 +275,7 @@ CONTAINS
           ! Loop over atoms
           DO iatom = 1,issc_env%issc_natms
              CALL issc_operators(issc_env,qs_env,iatom,error)
-             CALL issc_response(issc_env,p_env,qs_env,iatom,error)
+             CALL issc_response(issc_env,p_env,qs_env,error)
              CALL issc_issc(issc_env,qs_env,iatom,error=error)
           ENDDO
           !

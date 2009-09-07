@@ -302,10 +302,6 @@ CONTAINS
 1003 FORMAT(/,"DIHEDRALS",/,"!",/,"!V(dihedral) = Kchi(1 + cos(n(chi) - delta))",/,       &
          "!",/,"!Kchi: kcal/mole",/,"!n: multiplicity",/,"!delta: degrees",/,        &
          "!",/,"!     atom types                    Kchi       n       delta",/,"!")
-1004 FORMAT(/,"IMPROPER",/,"!",/,"!V(improper) = Kpsi(psi - psi0)**2",/,"!",/,            &
-         "!Kpsi: kcal/mole/rad**2",/,"!psi0: degrees",/,                             &
-         "!note that the second column of numbers (0) is ignored",/,"!",/,           &
-         "!     atom types              Kpsi                   psi0",/,"!")
 1005 FORMAT(/,"NONBONDED",/,"!",/,                                                        &
          "!V(Lennard-Jones) = Eps,i,j[(Rmin,i,j/ri,j)**12 - 2(Rmin,i,j/ri,j)**6]",/, &
          "!",/,"!epsilon: kcal/mole, Eps,i,j = sqrt(eps,i * eps,j)",/,               &
@@ -316,7 +312,6 @@ CONTAINS
 2001 FORMAT(A6,1X,A6,1X,2F15.9)                     ! bond
 2002 FORMAT(A6,1X,A6,1X,A6,1X,2F15.9)               ! angle
 2003 FORMAT(A6,1X,A6,1X,A6,1X,A6,1X,F15.9,I5,F15.9) ! torsion
-2004 FORMAT(A6,1X,A6,1X,A6,1X,A6,1X,F15.9,I5,F15.9) ! improper
 2005 FORMAT(A6,1X,"    0.000000000",2F15.9)         ! nonbond
   END SUBROUTINE print_pot_parameter_file
 
