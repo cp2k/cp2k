@@ -1228,7 +1228,7 @@ CPSourceFileRef,&
            INQUIRE (FILE=TRIM(filename),EXIST=exists)
            CALL cp_assert(.NOT.exists,cp_warning_level,cp_assertion_failed,&
                 routineP,"file "//TRIM(filename)//" exists, overwriting",error)
-9           CALL open_file(TRIM(filename),file_status="unknown",&
+           CALL open_file(TRIM(filename),file_status="unknown",&
                 file_action="WRITE",&
                 unit_number=data_unit)
         END IF

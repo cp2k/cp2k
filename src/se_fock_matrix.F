@@ -280,7 +280,7 @@ CONTAINS
              energy%qmmm_el = energy%qmmm_el + qmmm_el
           END DO
        END IF
-10 CONTINUE
+
        ! Collect all the energy terms
        energy%mulliken = 0.0_dp
        energy%exc      = 0.0_dp

@@ -1434,7 +1434,7 @@ CONTAINS
     !     the given D and S are nearly parallel.                            
     !                                                                       
     mainloop : DO
-80     iterc=iterc+1 
+       iterc=iterc+1 
        dd=zero 
        sp=zero 
        ss=zero 

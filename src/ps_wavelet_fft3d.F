@@ -208,11 +208,6 @@ CONTAINS
         after(i)=after(i-1)*now(i-1)
 22      before(ic-i+1)=before(ic-i+2)*now(ic-i+2)
 
-12        FORMAT(6(i3))
-!        write(6,12) (after(i),i=1,ic)
-!        write(6,12) (now(i),i=1,ic)
-!        write(6,12) (before(i),i=1,ic)
-
         twopi=6.283185307179586_dp
         angle=isign*twopi/n
         IF (MOD(n,2).eq.0) THEN
