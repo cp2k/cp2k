@@ -1041,7 +1041,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k, timing_handle
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     TYPE(dbcsr_obj)                          :: in, out
     TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist
     TYPE(array_i1d_obj)                      :: col_blk_size_right
