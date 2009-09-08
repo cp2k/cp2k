@@ -48,7 +48,7 @@ CONTAINS
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE cg_linmin(gopt_env, xvec, xi, g, opt_energy, output_unit, gopt_param,&
+  RECURSIVE SUBROUTINE cg_linmin(gopt_env, xvec, xi, g, opt_energy, output_unit, gopt_param,&
        globenv, error)
 
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -136,7 +136,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Teodoro Laino - created [tlaino] - 03.2008
 ! *****************************************************************************
-  SUBROUTINE linmin_2pnt(gopt_env, x0, ls_vec, g, opt_energy, gopt_param, use_only_grad,&
+  RECURSIVE SUBROUTINE linmin_2pnt(gopt_env, x0, ls_vec, g, opt_energy, gopt_param, use_only_grad,&
        output_unit, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, ls_vec, g
@@ -194,7 +194,8 @@ CONTAINS
           !                    a*dx**2            = c - (opt_energy2-norm_grad2*dx)
           a = (c - (opt_energy2-norm_grad2*dx))/dx**2
           b = norm_grad2 - 2.0_dp*a*dx
-          dx_min = -b/(2.0_dp*a)
+          dx_min = 0.0_dp
+          IF (a/=0.0_dp) dx_min = -b/(2.0_dp*a)
           opt_energy = opt_energy2
        END IF
        dx_min_save = dx_min
