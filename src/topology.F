@@ -12,6 +12,7 @@ MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE cell_types,                      ONLY: cell_create,&
+                                             cell_release,&
                                              cell_retain,&
                                              cell_type,&
                                              get_cell_param,&
@@ -605,6 +606,7 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: abc, angles
+    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_ref, rot_matrix
 
     failure = .FALSE.
     CPPostcondition(.NOT.ASSOCIATED(cell_muc),cp_failure_level,routineP,error,failure)       
@@ -614,11 +616,21 @@ CPSourceFileRef,&
     IF (ANY(multiple_unit_cell/=1)) THEN
        ! Allocate the original cell
        CALL get_cell_param(cell,abc,angles,cp_units_rad,error=error)
-       abc = abc / REAL(multiple_unit_cell,KIND=dp)
-       
-       ! Create cell
+       ! Compute the rotation matrix..
+       hmat_ref = cell%hmat
        CALL cell_create(cell_muc,periodic=cell%perd,orthorhombic=cell%orthorhombic,error=error)
        CALL set_cell_param(cell_muc,abc,angles,do_init_cell=.TRUE.,error=error)
+       rot_matrix = MATMUL(hmat_ref, cell_muc%h_inv) 
+
+       ! Evaluate the hmat of the MUC cell (cell_muc is used as a temp storage)
+       abc = abc / REAL(multiple_unit_cell,KIND=dp)
+       CALL set_cell_param(cell_muc,abc,angles,do_init_cell=.TRUE.,error=error)
+       hmat_ref = MATMUL(rot_matrix,cell_muc%hmat)
+       CALL cell_release(cell_muc,error=error)
+      
+       ! Create the MUC cell
+       CALL cell_create(cell_muc,hmat=hmat_ref,periodic=cell%perd,&
+                        orthorhombic=cell%orthorhombic,error=error)
        CALL write_cell(cell_muc,subsys_section,label="CELL_UC|",error=error)
     ELSE
        ! If a multiple_unit_cell was not requested just point to the original cell

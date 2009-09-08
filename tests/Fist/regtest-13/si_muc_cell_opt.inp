@@ -1,0 +1,82 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &SPLINE
+       EPS_SPLINE 1.E-6
+      &END
+      &NONBONDED
+        &TERSOFF
+          ATOMS Si Si
+          A        1.8308E3
+          B        4.7118E2
+          lambda1  2.4799
+          lambda2  1.7322
+          alpha    0.00
+          beta     1.0999E-6
+          n        7.8734E-1
+          c        1.0039E5
+          d        1.6218E1
+          h       -5.9826E-1
+          lambda3  1.7322
+          bigR     2.85
+          bigD     0.15
+          RCUT    10.0
+        &END TERSOFF
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+   &CELL
+       PERIODIC XYZ
+       A 2.7 0.0 2.7
+       B 0.0 2.7 2.7
+       C 2.7 2.7 0.0
+       MULTIPLE_UNIT_CELL 2 2 2
+    &END CELL
+    &TOPOLOGY
+       MULTIPLE_UNIT_CELL 2 2 2
+       CONNECTIVITY OFF
+    &END TOPOLOGY
+    &COORD
+    Si                   0.00 0.00 0.00
+    Si                   1.35 1.35 1.35
+    &END COORD
+    &PRINT
+      &ATOMIC_COORDINATES
+      &END
+      &CELL
+      &END
+    &END
+  &END SUBSYS
+  STRESS_TENSOR ANALYTICAL
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT cell_opt
+  RUN_TYPE CELL_OPT
+&END GLOBAL
+&MOTION
+  &CELL_OPT
+    OPTIMIZER CG
+    KEEP_ANGLES .TRUE.
+    &CG
+      &LINE_SEARCH
+        TYPE 2PNT
+      &END LINE_SEARCH
+    &END CG
+  &END CELL_OPT
+  &GEO_OPT
+  OPTIMIZER CG
+   &CG
+     &LINE_SEARCH
+       TYPE 2PNT
+     &END LINE_SEARCH
+   &END CG
+  &END GEO_OPT
+&END MOTION
