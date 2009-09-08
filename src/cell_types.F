@@ -642,27 +642,19 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(3)              :: abc, angles
-    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_ref, rot_matrix
 
     failure = .FALSE.
-    ! Store the hmat_ref (we will compute soon the rotation matrix to restore the
-    ! correct orientation)
-    hmat_ref = cell%hmat
 
     ! Fail is one of the value is set to zero..
     CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
          "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
          "A value of 0 or negative is meaningless!"//&
 CPSourceFileRef)
-    CALL get_cell_param(cell,abc,angles,cp_units_rad,error)
-    CALL set_cell_param(cell,abc,angles,do_init_cell=.FALSE.,error=error)
-    rot_matrix = MATMUL(hmat_ref, inv_3x3(cell%hmat))
 
-    ! scale abc accordingly user requests and restore the correct orientation
-    abc = abc * REAL(multiple_unit_cell,KIND=dp)
-    CALL set_cell_param(cell,abc,angles,do_init_cell=.FALSE.,error=error)
-    cell%hmat = MATMUL(rot_matrix, cell%hmat)
+    ! scale abc accordingly user request
+    cell%hmat(:,1) = cell%hmat(:,1)*multiple_unit_cell(1)
+    cell%hmat(:,2) = cell%hmat(:,2)*multiple_unit_cell(2)
+    cell%hmat(:,3) = cell%hmat(:,3)*multiple_unit_cell(3)
 
   END SUBROUTINE set_multiple_unit_cell
 

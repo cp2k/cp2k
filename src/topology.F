@@ -12,19 +12,15 @@ MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE cell_types,                      ONLY: cell_create,&
-                                             cell_release,&
                                              cell_retain,&
                                              cell_type,&
-                                             get_cell_param,&
                                              read_cell,&
-                                             set_cell_param,&
                                              write_cell
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              post_process_colvar
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_units,                        ONLY: cp_units_rad
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
@@ -605,8 +601,7 @@ CPSourceFileRef,&
 
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(3)              :: abc, angles
-    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_ref, rot_matrix
+    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_ref
 
     failure = .FALSE.
     CPPostcondition(.NOT.ASSOCIATED(cell_muc),cp_failure_level,routineP,error,failure)       
@@ -614,19 +609,10 @@ CPSourceFileRef,&
     CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&
                               i_vals=multiple_unit_cell, error=error)
     IF (ANY(multiple_unit_cell/=1)) THEN
-       ! Allocate the original cell
-       CALL get_cell_param(cell,abc,angles,cp_units_rad,error=error)
-       ! Compute the rotation matrix..
-       hmat_ref = cell%hmat
-       CALL cell_create(cell_muc,periodic=cell%perd,orthorhombic=cell%orthorhombic,error=error)
-       CALL set_cell_param(cell_muc,abc,angles,do_init_cell=.TRUE.,error=error)
-       rot_matrix = MATMUL(hmat_ref, cell_muc%h_inv) 
-
-       ! Evaluate the hmat of the MUC cell (cell_muc is used as a temp storage)
-       abc = abc / REAL(multiple_unit_cell,KIND=dp)
-       CALL set_cell_param(cell_muc,abc,angles,do_init_cell=.TRUE.,error=error)
-       hmat_ref = MATMUL(rot_matrix,cell_muc%hmat)
-       CALL cell_release(cell_muc,error=error)
+       ! Restore the original cell
+       hmat_ref(:,1) = cell%hmat(:,1)/multiple_unit_cell(1)
+       hmat_ref(:,2) = cell%hmat(:,2)/multiple_unit_cell(2)
+       hmat_ref(:,3) = cell%hmat(:,3)/multiple_unit_cell(3)
       
        ! Create the MUC cell
        CALL cell_create(cell_muc,hmat=hmat_ref,periodic=cell%perd,&
