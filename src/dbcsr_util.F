@@ -192,7 +192,8 @@ MODULE dbcsr_util
   ! Distributions
   PUBLIC :: dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot,&
        dbcsr_create_dist_l_rot, dbcsr_create_dist_l_unrot,&
-       dbcsr_transpose_distribution
+       dbcsr_transpose_distribution, dbcsr_create_dist_elemental,&
+       dbcsr_create_dist_fullest
   ! Images and their distributions
   PUBLIC ::&
        dbcsr_create_col_image_dist,&
@@ -1696,6 +1697,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Distributes elements into blocks and into bins
+!>
+!> \par Term clarification
+!>      An example: blocks are atom blocks and bins are process rows/colums.
 !> \param[out] block_distribution       block distribution to bins
 !> \param[out] block_size       sizes of blocks
 !> \param[in] elements          number of elements to bin
@@ -2463,6 +2467,109 @@ CONTAINS
     CALL dbcsr_mp_release (left_mp_env)
     CALL array_release (left_row_dist)
   END SUBROUTINE dbcsr_create_dist_l_rot
+
+! *****************************************************************************
+!> \brief Creates a distribution where all block sizes are 1.
+!> \param[out] dist           the elemental distribution
+!> \param[in] nrows           number of full rows
+!> \param[in] ncolumns        number of full columns
+!> \param[in] mp_env          mp environment
+!> \param[out] row_blk_sizes  (optional) row block sizes (all 1)
+!> \param[out] col_blk_sizes  (optional) column block sizes (all 1)
+! *****************************************************************************
+  SUBROUTINE dbcsr_create_dist_elemental(dist, nrows, ncolumns,&
+       mp_env, row_blk_sizes, col_blk_sizes)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist
+    INTEGER, INTENT(IN)                      :: nrows, ncolumns
+    TYPE(dbcsr_mp_obj)                       :: mp_env
+    TYPE(array_i1d_obj), INTENT(OUT), &
+      OPTIONAL                               :: row_blk_sizes, col_blk_sizes
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_elemental', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: npdims, pdim, sz
+    INTEGER, DIMENSION(:), POINTER           :: cbs_data, cd_data, rbs_data, &
+                                                rd_data
+    TYPE(array_i1d_obj)                      :: cbs, col_dist, rbs, row_dist
+
+!   ---------------------------------------------------------------------------
+
+    ALLOCATE (rbs_data(nrows), cbs_data(ncolumns))
+    rbs_data(:) = 1
+    cbs_data(:) = 1
+    CALL array_new (rbs, rbs_data, gift=.TRUE.)
+    CALL array_new (cbs, cbs_data, gift=.TRUE.)
+    ALLOCATE (rd_data(nrows), cd_data(ncolumns))
+    ! Calclate process row distribution
+    npdims = dbcsr_mp_nprows (mp_env)
+    sz = CEILING (REAL(nrows) / REAL(npdims))
+    FORALL (pdim = 0 : npdims-1)
+       rd_data(pdim*sz+1 : MIN((pdim+1)*sz, nrows)) = pdim
+    END FORALL
+    CALL array_new (row_dist, rd_data, gift=.TRUE.)
+    ! Calclate process column distribution
+    npdims = dbcsr_mp_npcols (mp_env)
+    sz = CEILING (REAL(ncolumns) / REAL(npdims))
+    FORALL (pdim = 0 : npdims-1)
+       cd_data(pdim*sz+1 : MIN((pdim+1)*sz, ncolumns)) = pdim
+    END FORALL
+    CALL array_new (col_dist, cd_data, gift=.TRUE.)
+    !
+    CALL dbcsr_distribution_new (dist, mp_env,&
+         row_dist, col_dist)
+    CALL array_release (row_dist)
+    CALL array_release (col_dist)
+    IF (PRESENT (row_blk_sizes)) THEN
+       row_blk_sizes = rbs
+    ELSE
+       CALL array_release (rbs)
+    ENDIF
+    IF (PRESENT (col_blk_sizes)) THEN
+       col_blk_sizes = cbs
+    ELSE
+       CALL array_release (cbs)
+    ENDIF
+  END SUBROUTINE dbcsr_create_dist_elemental
+
+
+! *****************************************************************************
+!> \brief Creates a distribution where all block sizes are as large as
+!>        possible for the given distribution.
+!> \param[out] dist           the elemental distribution
+!> \param[in] nrows           number of full rows
+!> \param[in] ncolumns        number of full columns
+!> \param[in] mp_env          mp environment
+!> \param[out] row_blk_sizes  row block sizes
+!> \param[out] col_blk_sizes  column block sizes
+! *****************************************************************************
+  SUBROUTINE dbcsr_create_dist_fullest(dist, nrows, ncolumns,&
+       mp_env, row_blk_sizes, col_blk_sizes)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist
+    INTEGER, INTENT(IN)                      :: nrows, ncolumns
+    TYPE(dbcsr_mp_obj)                       :: mp_env
+    TYPE(array_i1d_obj), INTENT(OUT)         :: row_blk_sizes, col_blk_sizes
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_fullest', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(array_i1d_obj)                      :: col_dist, row_dist
+
+!   ---------------------------------------------------------------------------
+
+    CALL create_bl_distribution(row_dist, row_blk_sizes,&
+         nrows, dbcsr_mp_nprows (mp_env))
+    CALL create_bl_distribution(col_dist, col_blk_sizes,&
+         ncolumns, dbcsr_mp_npcols (mp_env))
+    !
+    CALL dbcsr_distribution_new (dist, mp_env,&
+         row_dist, col_dist)
+    !
+    CALL array_release (row_dist)
+    CALL array_release (col_dist)
+  END SUBROUTINE dbcsr_create_dist_fullest
 
 
 ! *****************************************************************************
@@ -3439,8 +3546,14 @@ CONTAINS
     DO i = 1, nwms
        tree_based(i) = dbcsr_wm_use_mutable (matrix%wms(i))
        IF (tree_based(i)) THEN
+          IF (dbg) WRITE(*,'(1X,A,I5,A)')"Work matrix",i,"has mutable data"
           ! srt = .TRUE. ! Not needed because of the copy
           treesize = btree_size_d(matrix%wms(i)%mutable%m%btree_d)
+          IF (dbg) WRITE(*,*)routineN//" Declared size",matrix%wms(i)%lastblk,&
+               "present blocks",treesize
+          CALL cp_assert(matrix%wms(i)%lastblk .EQ. treesize,&
+               cp_fatal_level, cp_internal_error, routineN,&
+               "Mismatch in number of blocks")
           ALLOCATE (keys(treesize), values_d(treesize))
           CALL btree_destroy_d (matrix%wms(i)%mutable%m%btree_d, keys, values_d)
           CALL ensure_array_size (matrix%wms(i)%row_i, ub=treesize)
@@ -3497,13 +3610,13 @@ CONTAINS
                matrix%wms(i)%lastblk,&
                matrix%wms(i)%datasize,&
                dbcsr_get_data_size (matrix%wms(i)%data_area)
-          WRITE(*,'(A)')routineP//'row_i='
+          WRITE(*,'(A)')routineP//' row_i='
           IF (ASSOCIATED (matrix%wms(i)%row_i))&
                WRITE(*,'(10(1X,I7))')matrix%wms(i)%row_i(:)
-          WRITE(*,'(A)')routineP//'col_i='
+          WRITE(*,'(A)')routineP//' col_i='
           IF (ASSOCIATED (matrix%wms(i)%col_i))&
                WRITE(*,'(10(1X,I7))')matrix%wms(i)%col_i(:)
-          WRITE(*,'(A)')routineP//'blk_p='
+          WRITE(*,'(A)')routineP//' blk_p='
           IF (ASSOCIATED (matrix%wms(i)%blk_p))&
                WRITE(*,'(10(1X,I7))')matrix%wms(i)%blk_p(:)
        ENDDO

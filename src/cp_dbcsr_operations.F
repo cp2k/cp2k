@@ -46,14 +46,16 @@ MODULE cp_dbcsr_operations
        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_mutable_new, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_uses_special_memory, dbcsr_valid_index
+       dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
+       dbcsr_uses_special_memory, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
-       block_set_d, dbcsr_add, dbcsr_copy, dbcsr_distribute, dbcsr_filter, &
-       dbcsr_get_block_p, dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, &
-       dbcsr_norm, dbcsr_put_block, dbcsr_remove_block, dbcsr_replace_blocks, &
-       dbcsr_replicate_all, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, &
-       dbcsr_sum_replicated, dbcsr_trace
+       block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, &
+       dbcsr_distribute, dbcsr_filter, dbcsr_get_block_p, &
+       dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_norm, dbcsr_put_block, &
+       dbcsr_remove_block, dbcsr_replace_blocks, dbcsr_replicate_all, &
+       dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_sum_replicated, &
+       dbcsr_trace
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_block_node_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
@@ -63,6 +65,7 @@ MODULE cp_dbcsr_operations
   USE dbcsr_util,                      ONLY: &
        addto_array, convert_offsets_to_sizes, convert_sizes_to_offsets, &
        dbcsr_checksum, dbcsr_create, dbcsr_create_col_image_dist, &
+       dbcsr_create_dist_elemental, dbcsr_create_dist_fullest, &
        dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
        dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, &
        dbcsr_finalize, dbcsr_find_column, dbcsr_get_block_index, &
@@ -285,10 +288,13 @@ CONTAINS
                                                 trace, walltime1, walltime2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: block1d
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block2d, block2d_2
-    TYPE(array_i1d_obj)                      :: col_blk_size_right
+    TYPE(array_i1d_obj)                      :: col_blk_size, &
+                                                col_blk_size_right, &
+                                                row_blk_size
     TYPE(cp_fm_type), POINTER                :: fmout
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist
+    TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist, &
+                                                weird_dist
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_obj)                          :: matrix_a, matrix_b, &
                                                 matrix_bt, matrix_c
@@ -730,7 +736,6 @@ CONTAINS
     ENDIF
 
     CALL dbcsr_release (matrix_bt)
-
     ! check trace(c'*s*c)
     !call dbcsr_replicate_all (matrix_b)
     !call dbcsr_replicate_all (matrix_c)
@@ -739,9 +744,48 @@ CONTAINS
        WRITE(output_unit, '(T2,A,F12.4,A,I4)')"DBCSR trace(C'*S*C)", trace," should be equal to ",k
     ENDIF
 
-    CALL dbcsr_release (matrix_b)
-    CALL dbcsr_init (matrix_b, error)
     CALL dbcsr_release (matrix_c)
+
+    ! Test redistribution
+    CALL dbcsr_create_dist_elemental (weird_dist,&
+         dbcsr_nfullrows_total(matrix_b),&
+         dbcsr_nfullcols_total(matrix_b),&
+         dbcsr_distribution_mp(dist_right),&
+         row_blk_size, col_blk_size)
+    CALL dbcsr_create (matrix_bt, "Elemental", weird_dist, 'N',&
+         row_blk_size, col_blk_size, 0, 0)
+    CALL dbcsr_distribution_release (weird_dist)
+    CALL array_release (row_blk_size)
+    CALL array_release (col_blk_size)
+
+    CALL dbcsr_complete_redistribute (matrix_b, matrix_bt)
+    CALL dbcsr_verify_matrix (matrix_bt)
+    checksum = dbcsr_checksum(matrix_bt, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')"Elemental B chcksum", checksum
+    ENDIF
+    !
+    CALL dbcsr_create_dist_fullest (weird_dist,&
+         dbcsr_nfullrows_total(matrix_b),&
+         dbcsr_nfullcols_total(matrix_b),&
+         dbcsr_distribution_mp(dist_right),&
+         row_blk_size, col_blk_size)
+    CALL dbcsr_create (matrix_bt, "Fullest", weird_dist, 'N',&
+         row_blk_size, col_blk_size, 0, 0)
+    CALL dbcsr_distribution_release (weird_dist)
+    CALL array_release (row_blk_size)
+    CALL array_release (col_blk_size)
+    CALL dbcsr_complete_redistribute (matrix_b, matrix_bt)
+    CALL dbcsr_verify_matrix (matrix_bt)
+    checksum = dbcsr_checksum(matrix_bt, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4)')" Fullest B checksum", checksum
+    ENDIF
+    CALL dbcsr_release (matrix_b)
+    CALL dbcsr_init (matrix_b)
+
+    CALL dbcsr_release (matrix_bt)
+    CALL dbcsr_init (matrix_bt)
 
     CALL timestop(handle)
 

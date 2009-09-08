@@ -66,7 +66,7 @@ MODULE dbcsr_operations
             dbcsr_btriu, block_add_on_diag,&
             block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm,&
             dbcsr_replicate_all, dbcsr_distribute,&
-            dbcsr_sum_replicated
+            dbcsr_sum_replicated, dbcsr_complete_redistribute
   ! Direct access to the variants because array reshaping and
   ! typematching is incompatible.
   PUBLIC :: block_add_on_diag_d, block_add_on_diag_s,&
@@ -4213,6 +4213,450 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DBG 'Done replicating'
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_replicate_all
+
+
+! *****************************************************************************
+!> \brief Finds block to which a full element belongs.
+!> \par Assumptions
+!>        It is assumed that block_start and block_end are sorted and
+!>        that hint is in the range [0, nblocks].
+!> \param[in] full            full element
+!> \param[out] block          block to which full belongs
+!> \param[in] block_start     starting full elements of blocks
+!> \param[out] block_end      ending full elements of blocks
+!> \param[in] hint            where to start looking; ignored if 0
+! *****************************************************************************
+  SUBROUTINE find_block_of_element(full, block, nblocks,&
+       block_start, block_end, hint)
+    INTEGER, INTENT(in)                      :: full
+    INTEGER, INTENT(out)                     :: block
+    INTEGER, INTENT(in)                      :: nblocks
+    INTEGER, DIMENSION(1:nblocks), &
+      INTENT(in)                             :: block_start, block_end
+    INTEGER, INTENT(in)                      :: hint
+
+    INTEGER                                  :: count
+
+    IF (hint .NE. 0) THEN
+       block = hint
+    ELSE
+       block = MAX(1,(nblocks+1)/2)
+    ENDIF
+    count = 0
+    DO WHILE (block_start(block) .GT. full .OR. block_end(block) .LT. full)
+       IF (block_start(block) .GT. full) THEN
+          block = block-1
+       ELSEIF (block_end(block) .LT. full) THEN
+          block = block+1
+       ENDIF
+       count = count+1
+       IF (count .GT. nblocks .OR. block .LT. 1 .OR. block .GT. nblocks) THEN
+          WRITE(*,*)nblocks,block
+          CALL cp_assert (count .LE. nblocks, cp_failure_level,&
+               cp_internal_error, "find_block_of_element",&
+               "Too many searches")
+       ENDIF
+    ENDDO
+  END SUBROUTINE find_block_of_element
+
+
+! *****************************************************************************
+!> \brief Fully redistributes a DBCSR matrix.
+!>
+!>        The new distribution may be arbitrary as long as the total
+!>        number full rows and columns matches that of the existing
+!>        matrix.
+!> \param[in] matrix          matrix to redistribute
+!> \param[in,out] redist      redistributed matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_complete_redistribute(matrix, redist)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: redist
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_complete_redistribute', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 7
+
+    CHARACTER(len=80)                        :: ifmt
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
+    INTEGER :: blk, blk_col_new, blk_col_prev_new, blk_ps, blk_row_new, &
+      blk_row_prev_new, blks, col, col_offset_old, col_rle, data_offset_l, &
+      dst_p, full_col, full_row, i, meta_l, mp_group, nblkcols_total_new, &
+      nblkrows_total_new, numnodes, rel_full_col_new, rel_full_row_new, row, &
+      row_offset_old, row_prev, row_rle, src_p, stored_col_new, &
+      stored_row_new, timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: col_end_new, col_end_old, &
+      col_start_new, col_start_old, rd_disp, recv_meta, rm_disp, row_end_new, &
+      row_end_old, row_start_new, row_start_old, sd_disp, sdp, send_meta, &
+      sm_disp, smp
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count, &
+                                                total_recv_count, &
+                                                total_send_count
+    INTEGER, DIMENSION(:), POINTER :: col_blk_size_new, col_blk_size_old, &
+      col_dist_new, col_dist_old, row_blk_size_new, row_blk_size_old, &
+      row_dist_new, row_dist_old
+    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
+    LOGICAL                                  :: found, new_meta, tr
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r2_dp
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
+    TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_mp_obj)                       :: mp_obj_new
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
+    CALL cp_assert (dbcsr_valid_index(matrix%m),&
+         cp_fatal_level, cp_caller_error,&
+         routineN, "Input not valid.")
+    CALL cp_assert (dbcsr_is_initialized(redist%m),&
+         cp_fatal_level, cp_caller_error,&
+         routineN, "Output matrix not initialized.")
+    CALL cp_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
+         cp_warning_level, cp_caller_error, routineN,&
+         "Can not redistribute replicated matrix.")
+    SELECT CASE (matrix%m%data_type)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_get_data (matrix%m%data_area, r_dp)
+    CASE (dbcsr_type_real_4)
+       CALL dbcsr_get_data (matrix%m%data_area, r_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE (dbcsr_type_complex_8)
+       CALL dbcsr_get_data (matrix%m%data_area, c_dp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    CASE (dbcsr_type_complex_4)
+       CALL dbcsr_get_data (matrix%m%data_area, c_sp)
+       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+    END SELECT
+    ! Get row and column start and end positions
+    ! Old matrix
+    dist_old = dbcsr_distribution (matrix)
+    row_blk_size_old => array_data (matrix%m%row_blk_size)
+    col_blk_size_old => array_data (matrix%m%col_blk_size)
+    ALLOCATE (row_start_old (dbcsr_nblkrows_total (matrix)),&
+         row_end_old (dbcsr_nblkrows_total (matrix)),&
+         col_start_old (dbcsr_nblkcols_total (matrix)),&
+         col_end_old (dbcsr_nblkcols_total (matrix)))
+    CALL convert_sizes_to_offsets (row_blk_size_old,&
+         row_start_old, row_end_old)
+    CALL convert_sizes_to_offsets (col_blk_size_old,&
+         col_start_old, col_end_old)
+    row_dist_old => array_data (dbcsr_distribution_row_dist (dist_old))
+    col_dist_old => array_data (dbcsr_distribution_col_dist (dist_old))
+    ! New matrix
+    dist_new = dbcsr_distribution (redist)
+    row_blk_size_new => array_data (redist%m%row_blk_size)
+    col_blk_size_new => array_data (redist%m%col_blk_size)
+    ALLOCATE (row_start_new (dbcsr_nblkrows_total (redist)),&
+         row_end_new (dbcsr_nblkrows_total (redist)),&
+         col_start_new (dbcsr_nblkcols_total (redist)),&
+         col_end_new (dbcsr_nblkcols_total (redist)))
+    CALL convert_sizes_to_offsets (row_blk_size_new,&
+         row_start_new, row_end_new)
+    CALL convert_sizes_to_offsets (col_blk_size_new,&
+         col_start_new, col_end_new)
+    row_dist_new => array_data (dbcsr_distribution_row_dist (dist_new))
+    col_dist_new => array_data (dbcsr_distribution_col_dist (dist_new))
+    nblkrows_total_new = dbcsr_nblkrows_total (redist)
+    nblkcols_total_new = dbcsr_nblkcols_total (redist)
+    !
+    mp_obj_new = dbcsr_distribution_mp (dist_new)
+    pgrid => dbcsr_mp_pgrid (mp_obj_new)
+    numnodes = dbcsr_mp_numnodes (mp_obj_new)
+    mp_group = dbcsr_mp_group (mp_obj_new)
+    !
+    CALL cp_assert(MAXVAL(row_dist_new).LE.UBOUND(pgrid,1), cp_failure_level,&
+         cp_wrong_args_error, routineN,&
+         'Row distribution references unexistent processor rows')
+    IF (dbg) THEN
+       CALL cp_assert(MAXVAL(row_dist_new).EQ.UBOUND(pgrid,1),&
+            cp_warning_level, cp_wrong_args_error, routineN,&
+            'Range of row distribution not equal to processor rows')
+    ENDIF
+    CALL cp_assert(MAXVAL(col_dist_new).LE.UBOUND(pgrid,2), cp_failure_level,&
+         cp_wrong_args_error, routineN,&
+         'Col distribution references unexistent processor cols')
+    IF (dbg) THEN
+       CALL cp_assert(MAXVAL(col_dist_new).EQ.UBOUND(pgrid,2),&
+            cp_warning_level, cp_wrong_args_error, routineN,&
+            'Range of col distribution not equal to processor cols')
+    ENDIF
+    ALLOCATE (send_count(2, 0:numnodes-1))
+    ALLOCATE (recv_count(2, 0:numnodes-1))
+    ALLOCATE (total_send_count(2, 0:numnodes-1))
+    ALLOCATE (total_recv_count(2, 0:numnodes-1))
+    ALLOCATE (sdp(0:numnodes-1))
+    ALLOCATE (sd_disp(0:numnodes-1))
+    ALLOCATE (smp(0:numnodes-1))
+    ALLOCATE (sm_disp(0:numnodes-1))
+    ALLOCATE (rd_disp(0:numnodes-1))
+    ALLOCATE (rm_disp(0:numnodes-1))
+    ! Count initial sizes for sending.
+    !
+    ! We go through every element of every local block and determine
+    ! to which processor it must be sent. It could be more efficient,
+    ! but at least the index data are run-length encoded.
+    DBG 'A'
+    send_count(:,:) = 0
+    CALL dbcsr_iterator_start (iter, matrix)
+    blk_col_prev_new = 0
+    blk_row_prev_new = 0
+    row_prev = 0
+    dst_p = -1
+    new_meta = .TRUE.
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block (iter, row, col, blk)
+       IF (row .NE. row_prev) blk_col_prev_new = 0 ! Reset the "hint"
+       ! For all new blocked columns that overlap the old block colum,
+       ! count the data that should be sent to that column.
+       DO full_col = col_start_old(col), col_end_old(col)
+          CALL find_block_of_element(full_col, blk_col_new, nblkcols_total_new,&
+               col_start_new, col_end_new, blk_col_prev_new)
+          DO full_row = row_start_old(row), row_end_old(row)
+             CALL find_block_of_element(full_row, blk_row_new,&
+                  nblkrows_total_new,&
+                  row_start_new, row_end_new, blk_row_prev_new)
+             IF (blk_col_new .NE. blk_col_prev_new&
+                  .OR. blk_row_new .NE. blk_row_prev_new .OR. new_meta) THEN
+                CALL dbcsr_get_stored_coordinates (redist%m,&
+                     blk_row_new, blk_col_new, tr, dst_p)
+                send_count(1, dst_p) = send_count(1, dst_p) + 1
+             ENDIF
+             send_count(2, dst_p) = send_count(2, dst_p) + 1
+          ENDDO
+          new_meta = .TRUE.
+       ENDDO
+    ENDDO
+    CALL dbcsr_iterator_stop (iter)
+    DBG 'B'
+    CALL mp_alltoall(send_count, recv_count, 2, mp_group)
+    DBG 'C'
+    DBG 'send counts',send_count
+    DBG 'recv counts',recv_count
+    ! Allocate data structures needed for data exchange.
+    ALLOCATE (recv_data(SUM(recv_count(2, :))))
+    ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :))))
+    ALLOCATE (send_data(SUM(send_count(2, :))))
+    ALLOCATE (send_meta(metalen*SUM(send_count(1, :))))
+    DBG 'send data len',SIZE (send_data)
+    DBG 'send meta len',SIZE (send_meta)
+    DBG 'recv data len',SIZE (recv_data)
+    DBG 'recv meta len',SIZE (recv_meta)
+    ! Fill in the meta data structures and copy the data.
+    DO dst_p = 0, numnodes-1
+       total_send_count(1, dst_p) = send_count (1, dst_p)
+       total_send_count(2, dst_p) = send_count (2, dst_p)
+       total_recv_count(1, dst_p) = recv_count (1, dst_p)
+       total_recv_count(2, dst_p) = recv_count (2, dst_p)
+    ENDDO
+    sd_disp = -1 ; sm_disp = -1
+    rd_disp = -1 ; rm_disp = -1
+    sd_disp(0) = 1 ; sm_disp(0) = 1
+    rd_disp(0) = 1 ; rm_disp(0) = 1
+    DO dst_p = 1, numnodes-1
+       sm_disp(dst_p) = sm_disp(dst_p-1)&
+                        + metalen*total_send_count(1, dst_p-1)
+       sd_disp(dst_p) = sd_disp(dst_p-1)&
+                        + total_send_count(2, dst_p-1)
+       rm_disp(dst_p) = rm_disp(dst_p-1)&
+                        + metalen*total_recv_count(1, dst_p-1)
+       rd_disp(dst_p) = rd_disp(dst_p-1)&
+                        + total_recv_count(2, dst_p-1)
+    ENDDO
+    sdp(:) = sd_disp     ! sdp points to the the next place to store
+                         ! data. It is postincremented.
+    smp(:) = sm_disp - metalen  ! But smp points to the "working" data, not
+                                ! the next. It is pre-incremented, so we must
+                                ! first rewind it.
+    DBG 'send disps data',sd_disp
+    DBG 'send disps meta',sm_disp
+    DBG 'recv disps data',rd_disp
+    DBG 'recv disps meta',rm_disp
+    DBG 'D'
+    IF (dbg) THEN
+       WRITE(*,*)'row_start_old',row_start_old
+       WRITE(*,*)'row_start_new',row_start_new
+       WRITE(*,*)'row_blk_size_new',row_blk_size_new
+    ENDIF
+    CALL dbcsr_iterator_start (iter, matrix)
+    blk_col_prev_new = 0
+    blk_row_prev_new = 0
+    row_prev = 0
+    dst_p = -1
+    new_meta = .TRUE.
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block (iter, row, col, r2_dp, tr, blk)
+       IF (row .NE. row_prev) blk_col_prev_new = 0 ! Reset the "hint"
+       IF (tr) WRITE(*,*)"block at",row,col," is transposed"
+       col_offset_old = col_start_old(col) - 1
+       DO full_col = col_start_old(col), col_end_old(col)
+          CALL find_block_of_element(full_col, blk_col_new, nblkcols_total_new,&
+               col_start_new, col_end_new, blk_col_prev_new)
+          row_offset_old = row_start_old(row) - 1
+          IF (dbg) THEN
+             WRITE(*,*)'col',full_col,'of',&
+                  col_start_old(col),col_end_old(col),'/',SIZE(r2_dp,2)
+             WRITE(*,*)'rows',0,'of',&
+                  row_start_old(row),row_end_old(row),'/',SIZE(r2_dp,1)
+             DO i = 1, SIZE(r2_dp,1)
+                WRITE(ifmt,'("(",I2,"(1X,F5.2))")')SIZE(r2_dp,2)
+                WRITE(*,ifmt)r2_dp(i,:)
+             ENDDO
+          ENDIF
+          DO full_row = row_start_old(row), row_end_old(row)
+             CALL find_block_of_element(full_row, blk_row_new,&
+                  nblkrows_total_new,&
+                  row_start_new, row_end_new, blk_row_prev_new)
+             IF (dbg) &
+                  WRITE(*,*)'using block',blk_row_new,'x',blk_col_new
+             IF (blk_col_new .NE. blk_col_prev_new&
+                  .OR. blk_row_new .NE. blk_row_prev_new .OR. new_meta) THEN
+                ! Start a new RLE run
+                CALL dbcsr_get_stored_coordinates (redist%m,&
+                     blk_row_new, blk_col_new, tr, dst_p)
+                send_count(1, dst_p) = send_count(1, dst_p) + 1
+                rel_full_row_new = full_row - row_start_new (blk_row_new)+1
+                rel_full_col_new = full_col - col_start_new (blk_col_new)+1
+                smp(dst_p) = smp(dst_p) + metalen
+                send_meta(smp(dst_p)) = blk_row_new   ! new blocked row
+                send_meta(smp(dst_p)+1) = blk_col_new ! new blocked column
+                send_meta(smp(dst_p)+2) = rel_full_row_new  ! row in new block
+                send_meta(smp(dst_p)+3) = rel_full_col_new  ! col in new block
+                send_meta(smp(dst_p)+4) = 1           ! RLE rows
+                send_meta(smp(dst_p)+5) = 1           ! RLE columns
+                send_meta(smp(dst_p)+6) = -7          ! Debugging marker
+             ELSE
+                ! We are continuing the RLE run
+                IF (blk_row_new .EQ. blk_row_prev_new) THEN
+                   send_meta(smp(dst_p)+2) = send_meta(smp(dst_p)+2) + 1
+                ELSEIF (blk_col_new .EQ. blk_col_prev_new) THEN
+                   send_meta(smp(dst_p)+3) = send_meta(smp(dst_p)+3) + 1
+                ELSE
+                   CALL cp_assert(.FALSE., cp_failure_level, cp_internal_error,&
+                        routineN, "logic error")
+                ENDIF
+             ENDIF
+             IF (.NOT. tr) THEN
+                send_data(sdp(dst_p))&
+                     = r2_dp(full_row-row_offset_old, full_col-col_offset_old)
+             ELSE
+                send_data(sdp(dst_p))&
+                     = r2_dp(full_col-col_offset_old, full_row-row_offset_old)
+             ENDIF
+             sdp(dst_p) = sdp(dst_p)+1
+             send_count(2, dst_p) = send_count(2, dst_p) + 1
+          ENDDO
+          new_meta = .TRUE.
+       ENDDO
+    ENDDO
+    CALL dbcsr_iterator_stop (iter)
+    ! Exchange the data and metadata structures.
+    DBG 'E'
+    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
+         recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
+    DBG 'F'
+    DBG 'send_meta'
+    WRITE(ifmt,'("(",I2,"(1X,I5))")') metalen
+    IF (dbg) WRITE(*,ifmt) send_meta
+    DBG 'send_data'
+    IF (dbg) WRITE(*,'(10(1X,F5.2))') send_data
+    CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
+         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
+    DBG 'recv_meta'
+    IF (dbg) WRITE(*,ifmt) recv_meta
+    DBG 'recv_data'
+    IF (dbg) WRITE(*,'(10(1X,F5.2))') recv_data
+    DBG 'G'
+    ! Now fill in the data.
+    CALL dbcsr_work_create(redist,&
+            SUM(recv_count(1,:)),&
+            SUM(recv_count(2,:)), work_mutable=.TRUE.)
+    DBG 'send disps data',sd_disp
+    DBG 'send disps meta',sm_disp
+    DBG 'recv disps data',rd_disp
+    DBG 'recv disps meta',rm_disp
+    !blk_p = 1
+    !blk = 1
+    blk_ps = 0
+    blks = 0
+    DO src_p = 0, numnodes-1
+       data_offset_l = rd_disp(src_p)
+       DO meta_l = 1, recv_count(1, src_p)
+          stored_row_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1))
+          stored_col_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+1)
+          rel_full_row_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+2)
+          rel_full_col_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+3)
+          row_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+4)
+          col_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+5)
+          DBG 'blk: p',blks,src_p,'; row, col',&
+               stored_row_new,stored_col_new,&
+               '; blk_ps',blk_ps
+          NULLIFY (r2_dp)
+          CALL dbcsr_get_block_p(redist, stored_row_new, stored_col_new,&
+               r2_dp, tr, found)
+          IF (.NOT. found) THEN
+             ALLOCATE (r2_dp(row_blk_size_new (stored_row_new),&
+                  col_blk_size_new (stored_col_new)))
+             tr = .FALSE.
+             !redist%m%wms(1)%lastblk = redist%m%wms(1)%lastblk+1
+             !redist%m%wms(1)%datasize = redist%m%wms(1)%datasize&
+             !     + row_rle + col+col_rle
+             blks = blks + 1
+             blk_ps = blk_ps + row_rle + col_rle
+          ENDIF
+          DO col = rel_full_col_new, rel_full_col_new + col_rle - 1
+             DO row = rel_full_row_new, rel_full_row_new + row_rle - 1
+                IF (dbg) &
+                     WRITE(*,*)'adding point',row,col,&
+                     data_offset_l,recv_data(data_offset_l)
+                IF (.NOT. tr) THEN
+                   r2_dp(row, col) = recv_data(data_offset_l)
+                ELSE
+                   r2_dp(col, row) = recv_data(data_offset_l)
+                ENDIF
+                data_offset_l = data_offset_l + 1
+             ENDDO
+          ENDDO
+          IF (.NOT. found) THEN
+             IF (dbg) WRITE(*,*)routineN//" Adding new block at",&
+                  stored_row_new, stored_col_new
+             CALL dbcsr_put_block(redist, stored_row_new, stored_col_new,&
+                  r2_dp, tr)
+             DEALLOCATE (r2_dp)
+          ELSE
+             IF (dbg) WRITE(*,*)routineN//" Reusing block at",&
+                  stored_row_new, stored_col_new
+          ENDIF
+       ENDDO
+    ENDDO
+    !
+    IF (dbg) THEN
+       WRITE(*,*)routineN//" Declared blocks=",redist%m%wms(1)%lastblk,&
+            "actual=",blks
+       WRITE(*,*)routineN//" Declared data size=",redist%m%wms(1)%datasize,&
+            "actual=",blk_ps
+    ENDIF
+    DBG 'Finalizing redistribution'
+    CALL dbcsr_finalize(redist)
+    DEALLOCATE(send_count)
+    DEALLOCATE(recv_count)
+    DEALLOCATE(sdp); DEALLOCATE(sd_disp)
+    DEALLOCATE(smp); DEALLOCATE(sm_disp)
+    DEALLOCATE(rd_disp)
+    DEALLOCATE(rm_disp)
+    DEALLOCATE(recv_data)
+    DEALLOCATE(recv_meta)
+    DEALLOCATE(send_data)
+    DEALLOCATE(send_meta)
+    DBG 'Done redistributing'
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_complete_redistribute
 
 
 ! *****************************************************************************
