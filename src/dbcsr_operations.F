@@ -3101,11 +3101,14 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        IF(PRESENT(alpha_scalar)) THEN
           !a_data = a_data * alpha_scalar
           SELECT CASE (dbcsr_get_data_type(matrix_a))
+          !CASE (dbcsr_type_real_4)
           CASE (dbcsr_type_real_8)
              CALL dscal(a_nze,alpha_scalar,data_d(a_offset),1)
+          !CASE (dbcsr_type_complex_4)
+          !CASE (dbcsr_type_complex_8)
           CASE default
              CALL cp_unimplemented_error (routineN,&
-                  "Only real double precision")
+                  "unknown precision")
           END SELECT
        ELSEIF(PRESENT(alpha_vector)) THEN
           CALL stop_program(routineN,"NYI")
@@ -3126,12 +3129,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           IF(right) THEN
              !A = A * alpha
              SELECT CASE (dbcsr_get_data_type(matrix_a))
+             !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
                 CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
                      &     1.0_dp,data_d(a_offset),a_row_size,&
                      &            alpha_matrix(m_offset(a_col)),a_col_size,&
                      &     0.0_dp,buff,a_row_size)
                 CALL dcopy(a_nze,buff,1,data_d(a_offset),1)
+             !CASE (dbcsr_type_complex_4)
+             !CASE (dbcsr_type_complex_8)
              CASE default
                 CALL cp_unimplemented_error (routineN,&
                      "Only real double precision")
@@ -3139,12 +3145,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           ELSE
              !A = alpha * A
              SELECT CASE (dbcsr_get_data_type(matrix_a))
+             !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
                 CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
                      &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
                      &            data_d(a_offset),a_row_size,&
                      &     0.0_dp,buff,a_row_size)
                 CALL dcopy(a_nze,buff,1,data_d(a_offset),1)
+             !CASE (dbcsr_type_complex_4)
+             !CASE (dbcsr_type_complex_8)
              CASE default
                 CALL cp_unimplemented_error (routineN,&
                      "Only real double precision")
@@ -3192,9 +3201,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_get_data_type(matrix))
+       !CASE (dbcsr_type_real_4)
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
           data_d(:,:) = alpha
+       !CASE (dbcsr_type_complex_4)
+       !CASE (dbcsr_type_complex_8)
        CASE DEFAULT
           CALL cp_unimplemented_error (routineN,"Only real double precision")
        END SELECT
@@ -3311,9 +3323,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        DO WHILE (dbcsr_iterator_blocks_left(iter))
 
           SELECT CASE (dbcsr_get_data_type(matrix_a))
-             !CASE (dbcsr_type_real_4)
-             !   CALL dbcsr_iterator_next_block(iter, row, col, data_r, blk)
-             !   CALL dbcsr_put_block(matrix_a, row, col, data_r)
+          !CASE (dbcsr_type_real_4)
+             !CALL dbcsr_iterator_next_block(iter, row, col, data_r, blk)
+             !CALL dbcsr_put_block(matrix_a, row, col, data_r)
           CASE (dbcsr_type_real_8)
              CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
              !
@@ -3361,14 +3373,16 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replace_blocks', &
       routineP = moduleN//':'//routineN
 
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: data_c
+    COMPLEX(KIND=sp), DIMENSION(:, :), &
+      POINTER                                :: data_z
     INTEGER                                  :: blk, col, row, timing_handle
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
     TYPE(dbcsr_iterator)                     :: iter
 
-!real(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
-!complex(KIND=sp), DIMENSION(:, :), POINTER  :: data_z
-!complex(KIND=dp), DIMENSION(:, :), POINTER  :: data_c
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
@@ -3383,26 +3397,29 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ENDIF
 
     CALL dbcsr_iterator_start(iter, matrix_b)
+
     DO WHILE (dbcsr_iterator_blocks_left(iter))
+
        SELECT CASE (dbcsr_get_data_type(matrix_a))
-          !CASE (dbcsr_type_real_4)
-          !   CALL dbcsr_iterator_next_block(iter, row, col, data_r, blk)
-          !   CALL dbcsr_put_block(matrix_a, row, col, data_r)
+       CASE (dbcsr_type_real_4)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_r, tr, blk)
+          CALL dbcsr_put_block(matrix_a, row, col, data_r)
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
           CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
                summation=.FALSE.)
-          !CASE (dbcsr_type_complex_4)
-          !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
-          !   CALL dbcsr_put_block(matrix_a, row, col, data_c)
-          !CASE (dbcsr_type_complex_8)
-          !   CALL dbcsr_iterator_next_block(iter, row, col, data_z, blk)
-          !   CALL dbcsr_put_block(matrix_a, row, col, data_z)
+       CASE (dbcsr_type_complex_4)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk)
+          CALL dbcsr_put_block(matrix_a, row, col, data_c)
+       CASE (dbcsr_type_complex_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
+          CALL dbcsr_put_block(matrix_a, row, col, data_z)
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,&
-               "Only real double precision")
+          CALL cp_unimplemented_error (routineN,"Unkown precision")
        END SELECT
+
     ENDDO
+
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_finalize (matrix_a)
     !
@@ -3490,9 +3507,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_get_data_type(matrix))
+          !CASE (dbcsr_type_real_4)
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
           IF(row.EQ.col) CALL dbcsr_put_block(diag, row, col, data_d, tr)
+          !CASE (dbcsr_type_complex_4)
+          !CASE (dbcsr_type_complex_8)
        CASE DEFAULT
           CALL cp_unimplemented_error (routineN,&
                "Only real double precision")
@@ -3543,18 +3563,31 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     IF(SUM(row_blk_size).GT.SIZE(diag)) CALL stop_program(routineN,"SIZE(diag) too small") 
 
     diag(:) = HUGE(0.0_dp)
-    IF(dbcsr_get_data_type(matrix).NE.dbcsr_type_real_8) &
-         CALL cp_unimplemented_error (routineN,"Only real double precision")
 
     CALL dbcsr_iterator_start(iter, matrix)
+
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
-       IF(row.EQ.col) THEN
-          DO i = 1,SIZE(data_d,1)
-             diag(offset(row)+i-1) = data_d(i,i)
-          ENDDO
-       ENDIF
+
+       SELECT CASE (dbcsr_get_data_type(matrix))
+          !CASE (dbcsr_type_real_4)
+          !CALL dbcsr_iterator_next_block(iter, row, col, data_r, tr, blk)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          IF(row.EQ.col) THEN
+             DO i = 1,SIZE(data_d,1)
+                diag(offset(row)+i-1) = data_d(i,i)
+             ENDDO
+          ENDIF
+          !CASE (dbcsr_type_complex_4)
+          !CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk)
+          !CASE (dbcsr_type_complex_8)
+          !CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
+       CASE DEFAULT
+          CALL cp_unimplemented_error (routineN,"Only real double precision")
+       END SELECT
+
     ENDDO
+
     CALL dbcsr_iterator_stop(iter)
 
     DEALLOCATE(offset)
@@ -3600,17 +3633,25 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     !<
     IF(SUM(row_blk_size).GT.SIZE(diag)) CALL stop_program(routineN,"SIZE(diag) too small")
 
-    IF(dbcsr_get_data_type(matrix).NE.dbcsr_type_real_8) &
-         CALL cp_unimplemented_error (routineN,"Only real double precision")
-
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
-       IF(row.EQ.col) THEN
-          DO i = 1,SIZE(data_d,1)
-             data_d(i,i) = diag(offset(row)+i-1)
-          ENDDO
-       ENDIF
+       SELECT CASE (dbcsr_get_data_type(matrix))
+          !CASE (dbcsr_type_real_4)
+          !CALL dbcsr_iterator_next_block(iter, row, col, data_s, tr, blk)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          IF(row.EQ.col) THEN
+             DO i = 1,SIZE(data_d,1)
+                data_d(i,i) = diag(offset(row)+i-1)
+             ENDDO
+          ENDIF
+          !CASE (dbcsr_type_complex_4)
+          !CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk)
+          !CASE (dbcsr_type_complex_8)
+          !CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
+       CASE DEFAULT
+          CALL cp_unimplemented_error (routineN,"Only real double precision")
+       END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
 
@@ -3639,6 +3680,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
+
 
     IF(PRESENT(name)) THEN
        CALL dbcsr_create(matrix_b, name, &
@@ -3701,10 +3743,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_copy(matrix_b, matrix_a, name="triu of "//matrix_a%m%name, error=error)
 
     CALL dbcsr_iterator_start(iter, matrix_b)
+
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, row, col, blk)
        IF(row.GT.col) CALL dbcsr_remove_block(matrix_b, row, col, blk)
     ENDDO
+
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_finalize (matrix_b, error=error)
 
@@ -3746,6 +3790,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_get_data_type(matrix))
+          !CASE (dbcsr_type_real_4)
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
           SELECT CASE(my_method)
@@ -3758,6 +3803,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              CALL cp_unimplemented_error (routineN,&
                   "Only Frobenius based filtering")
           END SELECT
+          !CASE (dbcsr_type_complex_4)
+          !CASE (dbcsr_type_complex_8)
        CASE DEFAULT
           CALL cp_unimplemented_error (routineN,&
                "Only real double precision")
@@ -3829,6 +3876,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CALL dbcsr_iterator_start(iter, matrix)
           DO WHILE (dbcsr_iterator_blocks_left(iter))
              SELECT CASE (dbcsr_get_data_type(matrix))
+                !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
                 CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
                 fac = 1.0_dp
@@ -3836,6 +3884,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                     dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric).AND.&
                     row.NE.col) fac = 2.0_dp
                 norm_scalar = norm_scalar + fac * SUM(data_d**2)
+                !CASE (dbcsr_type_complex_4)
+                !CASE (dbcsr_type_complex_8)
              CASE DEFAULT
                 CALL cp_unimplemented_error (routineN,"Only real double precision")
              END SELECT
@@ -3852,9 +3902,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CALL dbcsr_iterator_start(iter, matrix)
           DO WHILE (dbcsr_iterator_blocks_left(iter))
              SELECT CASE (dbcsr_get_data_type(matrix))
+                !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
                 CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
                 norm_scalar = MAX(norm_scalar,MAXVAL(ABS(data_d)))
+                !CASE (dbcsr_type_complex_4)
+                !CASE (dbcsr_type_complex_8)
              CASE DEFAULT
                 CALL cp_unimplemented_error (routineN,"Only real double precision")
              END SELECT
@@ -3873,6 +3926,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CALL dbcsr_iterator_start(iter, matrix)
           DO WHILE (dbcsr_iterator_blocks_left(iter))
              SELECT CASE (dbcsr_get_data_type(matrix))
+             !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
                 CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
                 IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
@@ -3891,6 +3945,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                    ENDDO
                    ENDDO
                 ENDIF
+             !CASE (dbcsr_type_complex_4)
+             !CASE (dbcsr_type_complex_8)
              CASE DEFAULT
                 CALL cp_unimplemented_error (routineN,"Only real double precision")
              END SELECT
@@ -3908,6 +3964,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CALL dbcsr_iterator_start(iter, matrix)
           DO WHILE (dbcsr_iterator_blocks_left(iter))
              SELECT CASE (dbcsr_get_data_type(matrix))
+             !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
                 CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
                 IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
@@ -3929,6 +3986,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                    ENDDO
                    ENDDO
                 ENDIF
+             !CASE (dbcsr_type_complex_4)
+             !CASE (dbcsr_type_complex_8)
              CASE DEFAULT
                 CALL cp_unimplemented_error (routineN,"Only real double precision")
              END SELECT
