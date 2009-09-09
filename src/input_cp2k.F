@@ -451,9 +451,9 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="FLUSH_SHOULD_FLUSH",&
-         description="Flush output regularly, enabling this option might degrade performance significantly.",&
+         description="Flush output regularly, enabling this option might degrade performance significantly on certain machines.",&
          usage="FLUSH_SHOULD_FLUSH",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
