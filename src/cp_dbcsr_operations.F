@@ -33,18 +33,21 @@ MODULE cp_dbcsr_operations
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_nrows, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_type, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_init, dbcsr_iterator_blocks_left, &
-       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mutable_new, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
-       dbcsr_uses_special_memory, dbcsr_valid_index
+       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
+       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
+       dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mutable_new, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_local, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes, dbcsr_uses_special_memory, &
+       dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, &
        dbcsr_distribute, dbcsr_filter, dbcsr_get_block_p, &
@@ -61,12 +64,13 @@ MODULE cp_dbcsr_operations
   USE dbcsr_util,                      ONLY: &
        convert_offsets_to_sizes, convert_sizes_to_offsets, dbcsr_checksum, &
        dbcsr_create, dbcsr_create_col_image_dist, &
-       dbcsr_create_dist_elemental, dbcsr_create_dist_fullest, &
-       dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
-       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, &
-       dbcsr_finalize, dbcsr_find_column, dbcsr_get_block_index, &
-       dbcsr_make_col_images, dbcsr_new_transposed, dbcsr_set_debug, &
-       dbcsr_verify_matrix, dbcsr_work_create, pointer_set, pointer_view, swap
+       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_elemental, &
+       dbcsr_create_dist_fullest, dbcsr_create_dist_r_rot, &
+       dbcsr_create_dist_r_unrot, dbcsr_destroy_array, &
+       dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, dbcsr_finalize, &
+       dbcsr_find_column, dbcsr_get_block_index, dbcsr_make_col_images, &
+       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix, &
+       dbcsr_work_create, pointer_set, pointer_view, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -286,7 +290,7 @@ CONTAINS
     TYPE(array_i1d_obj)                      :: col_blk_size, &
                                                 col_blk_size_right, &
                                                 row_blk_size
-    TYPE(cp_fm_type), POINTER                :: fmout
+    TYPE(cp_fm_type), POINTER                :: fmout, matrix_x2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist, &
                                                 weird_dist
@@ -776,9 +780,26 @@ CONTAINS
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')" Fullest B checksum", checksum
     ENDIF
+
+    ! Test dbcsr->fm conversion
+    CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
+    CALL cp_fm_create(matrix_x2, matrix_x%matrix_struct,&
+         "x reconversion", error=error)
+    CALL cp_fm_create(fmout, matrix_x%matrix_struct, "FMout", error=error)
+    CALL copy_dbcsr_to_fm (matrix_b, matrix_x2)
+    CALL cp_sm_fm_multiply(matrix_s, matrix_x2, fmout, k, error=error)
+    CALL cp_fm_frobenius_norm(fmout, checksum, error)
+    IF (ldbg.AND.ionode) THEN
+       WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')" Conv Sx checksum",&
+            checksum*checksum
+    ENDIF
+    CALL cp_fm_release (fmout, error)
+    CALL cp_fm_release (matrix_x2, error)
+    
+    
+
     CALL dbcsr_release (matrix_b)
     CALL dbcsr_init (matrix_b)
-
     CALL dbcsr_release (matrix_bt)
     CALL dbcsr_init (matrix_bt)
 
@@ -2709,6 +2730,148 @@ CONTAINS
     CALL dbcsr_finalize (matrix)
     CALL timestop(handle)
   END SUBROUTINE copy_fm_to_dbcsr
+
+
+! *****************************************************************************
+!> \brief   Copy a DBCSR matrix to a BLACS matrix
+!> \param[in] matrix          DBCSR matrix
+!> \param[out] fm             full matrix
+! *****************************************************************************
+  SUBROUTINE copy_dbcsr_to_fm(matrix, fm)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(cp_fm_type), POINTER                :: fm
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_dbcsr_to_fm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: col, group, handle, mypcol, mype, myprow, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_total, nfullrows_total, npcol, npe, nprow, &
+      nrow_block, nrow_global, row
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
+                                                last_col, last_row, &
+                                                local_col_sizes, &
+                                                local_row_sizes
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, local_cols, &
+                                                local_rows, row_blk_sizes
+    LOGICAL                                  :: tr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blk_2d, fm_block
+    TYPE(array_i1d_obj)                      :: cbs, rbs
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(dbcsr_distribution_obj)             :: bc_dist
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj)                          :: bc_mat
+
+!#if defined(__SCALAPACK)
+!    INTEGER, EXTERNAL :: indxg2l,indxg2p
+!
+!#endif
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+
+    CALL timeset(routineN,handle)
+
+    ! info about the full matrix
+    group = fm%matrix_struct%para_env%group
+    context => fm%matrix_struct%context
+    mype=context%my_pid
+    npe=context%n_pid
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+    nrow_block = fm%matrix_struct%nrow_block
+    ncol_block = fm%matrix_struct%ncol_block
+    nrow_global = fm%matrix_struct%nrow_global
+    ncol_global = fm%matrix_struct%ncol_global
+
+    CALL dbcsr_get_info(matrix,&
+         nfullrows_total=nfullrows_total,&
+         nfullcols_total=nfullcols_total)
+
+    ! Convert DBCSR to a block-cyclic one
+    CALL dbcsr_distribution_init (bc_dist)
+    CALL dbcsr_create_dist_block_cyclic (bc_dist,&
+         nfullrows_total, nfullcols_total,&
+         nrow_block, ncol_block,&
+         dbcsr_distribution_mp (dbcsr_distribution(matrix)),&
+         rbs, cbs)
+    CALL dbcsr_init (bc_mat)
+    CALL dbcsr_create (bc_mat, "Block-cyclic"//matrix%m%name, bc_dist,&
+         dbcsr_get_matrix_type(matrix), rbs, cbs, 0, 0)
+    CALL dbcsr_distribution_release (bc_dist)
+    CALL array_release (rbs)
+    CALL array_release (cbs)
+    CALL dbcsr_complete_redistribute (matrix, bc_mat)
+
+    ! Find the local extents of the local blocked rows so that index lookups
+    ! into the FM matrix work correctly.
+    row_blk_sizes => array_data (rbs)
+    col_blk_sizes => array_data (cbs)
+    local_rows => array_data (dbcsr_distribution_local_rows (bc_dist))
+    local_cols => array_data (dbcsr_distribution_local_cols (bc_dist))
+    ALLOCATE (local_row_sizes (dbcsr_distribution_nrows (bc_dist)))
+    ALLOCATE (local_col_sizes (dbcsr_distribution_ncols (bc_dist)))
+    nblkrows_local = dbcsr_distribution_nlocal_rows (bc_dist)
+    nblkcols_local = dbcsr_distribution_nlocal_cols (bc_dist)
+    local_row_sizes(:) = 0
+    IF (nblkrows_local .GE. 1) THEN
+       FORALL (row = 1 : nblkrows_local)
+          local_row_sizes(local_rows(row)) = row_blk_sizes(local_rows(row))
+       END FORALL
+    ENDIF
+    IF (dbg) WRITE(*,*)routineN//" local row sizes",local_row_sizes
+    local_col_sizes(:) = 0
+    IF (nblkcols_local .GE. 1) THEN
+       FORALL (col = 1 : nblkcols_local)
+          local_col_sizes(local_cols(col)) = col_blk_sizes(local_cols(col))
+       END FORALL
+    ENDIF
+    IF (dbg) WRITE(*,*)routineN//" local col sizes",local_col_sizes
+    nblkrows_total = dbcsr_distribution_nrows (bc_dist)
+    nblkcols_total = dbcsr_distribution_ncols (bc_dist)
+    ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))
+    ALLOCATE (first_col(nblkcols_total),last_col(nblkcols_total))
+    CALL convert_sizes_to_offsets (local_row_sizes, first_row, last_row)
+    CALL convert_sizes_to_offsets (local_col_sizes, first_col, last_col)
+    !
+    ! Now copy data to the FM matrix
+    fm_block => fm%local_data
+    IF(dbg) THEN
+       WRITE(*,*)routineN//" FM data size is", UBOUND(fm_block)
+       WRITE(*,*)routineN//" dbcsr data size is", dbcsr_get_data_size(bc_mat)
+       WRITE(*,*)routineN//" FM block sizes are",nrow_block,'/',nfullrows_total
+       WRITE(*,*)routineN//" FM block sizes are",ncol_block,'/',nfullcols_total
+       WRITE(*,*)routineN//" dbcsr row sizes are",bc_mat%m%row_blk_size%low%data
+       WRITE(*,*)routineN//" dbcsr col sizes are",bc_mat%m%col_blk_size%low%data
+    ENDIF
+    !
+    CALL dbcsr_iterator_start(iter, bc_mat)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block (iter, row, col, blk_2d, tr)
+       ! Convert absolute coordinates to FM-local coordinates
+       IF (.NOT. tr) THEN
+          IF (dbg) THEN
+             WRITE(*,*)routineN//" blk2d size",UBOUND(blk_2d)
+             WRITE(*,*)routineN//" want to set coor.",row,col
+             WRITE(*,*)routineN//" local extents",&
+                  first_row(row),last_row(row),first_col(col),last_col(col)
+          ENDIF
+          fm_block(first_row(row):last_row(row),first_col(col):last_col(col))&
+               = blk_2d(:,:)
+       ELSE
+          WRITE(*,*)'transposing...'
+          fm_block(first_col(col):last_col(col),first_row(row):last_row(row))&
+               = TRANSPOSE(blk_2d(:,:))
+       ENDIF
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+
+    CALL dbcsr_release (bc_mat)
+    CALL timestop(handle)
+  END SUBROUTINE copy_dbcsr_to_fm
 
 
 

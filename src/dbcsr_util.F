@@ -193,7 +193,7 @@ MODULE dbcsr_util
   PUBLIC :: dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot,&
        dbcsr_create_dist_l_rot, dbcsr_create_dist_l_unrot,&
        dbcsr_transpose_distribution, dbcsr_create_dist_elemental,&
-       dbcsr_create_dist_fullest
+       dbcsr_create_dist_fullest, dbcsr_create_dist_block_cyclic
   ! Images and their distributions
   PUBLIC ::&
        dbcsr_create_col_image_dist,&
@@ -2570,6 +2570,94 @@ CONTAINS
     CALL array_release (row_dist)
     CALL array_release (col_dist)
   END SUBROUTINE dbcsr_create_dist_fullest
+
+! *****************************************************************************
+!> \brief Creates a block-cyclic compatible distribution
+!>
+!>        All blocks in a dimension, except for possibly the last
+!>        block, have the same size.
+!> \param[out] dist           the elemental distribution
+!> \param[in] nrows           number of full rows
+!> \param[in] ncolumns        number of full columns
+!> \param[in] nrow_block      size of row blocks
+!> \param[in] ncol_block      size of column blocks
+!> \param[in] mp_env          multiprocess environment
+!> \param[out] row_blk_sizes  row block sizes
+!> \param[out] col_blk_sizes  column block sizes
+! *****************************************************************************
+  SUBROUTINE dbcsr_create_dist_block_cyclic (dist, nrows, ncolumns,&
+       nrow_block, ncol_block, mp_env, row_blk_sizes, col_blk_sizes)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist
+    INTEGER, INTENT(IN)                      :: nrows, ncolumns, nrow_block, &
+                                                ncol_block
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
+    TYPE(array_i1d_obj), INTENT(OUT)         :: row_blk_sizes, col_blk_sizes
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_create_dist_block_cyclic', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nblkcols, nblkrows, npcols, &
+                                                nprows, pdim, sz
+    INTEGER, DIMENSION(:), POINTER           :: cbs_data, cd_data, rbs_data, &
+                                                rd_data
+    TYPE(array_i1d_obj)                      :: col_dist, row_dist
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+
+    ! Row sizes
+    nblkrows = nrows / nrow_block
+    sz = MOD(nrows, nrow_block)
+    IF (sz .GT. 0) nblkrows = nblkrows + 1
+    ALLOCATE (rbs_data(nblkrows), rd_data(nblkrows))
+    rbs_data(1:nblkrows) = nrow_block
+    IF (sz .NE. 0) rbs_data(nblkrows) = sz
+    ! Column sizes
+    nblkcols = ncolumns / ncol_block
+    sz = MOD(ncolumns, ncol_block)
+    IF (sz .GT. 0) nblkcols = nblkcols + 1
+    ALLOCATE (cbs_data(nblkcols), cd_data(nblkcols))
+    cbs_data(1:nblkcols) = ncol_block
+    IF (sz .NE. 0) cbs_data(nblkcols) = sz
+    CALL array_new (row_blk_sizes, rbs_data, gift=.TRUE.)
+    CALL array_new (col_blk_sizes, cbs_data, gift=.TRUE.)
+    !
+    IF(dbg) THEN
+       WRITE(*,*)routineN//" nrows,nrow_block,nblkrows=",&
+            nrows,nrow_block,nblkrows
+       WRITE(*,*)routineN//" ncols,ncol_block,nblkcols=",&
+            ncolumns,ncol_block,nblkcols
+    ENDIF
+    ! Calculate process row distribution
+    nprows = dbcsr_mp_nprows (mp_env)
+    FORALL (pdim = 0 : nprows-1)
+       rd_data(1+pdim:nblkrows:nprows) = pdim
+    END FORALL
+    CALL array_new (row_dist, rd_data, gift=.TRUE.)
+    ! Calculate process column distribution
+    npcols = dbcsr_mp_npcols (mp_env)
+    FORALL (pdim = 0 : npcols-1)
+       cd_data(1+pdim:nblkcols:npcols) = pdim
+    END FORALL
+    CALL array_new (col_dist, cd_data, gift=.TRUE.)
+    !
+    IF(dbg) THEN
+       WRITE(*,*)routineN//" row_dist",&
+            rd_data
+       WRITE(*,*)routineN//" col_dist",&
+            cd_data
+    ENDIF
+    !
+    CALL dbcsr_distribution_new (dist, mp_env,&
+         row_dist, col_dist)
+    !
+    CALL array_release (row_dist)
+    CALL array_release (col_dist)
+  END SUBROUTINE dbcsr_create_dist_block_cyclic
+
 
 
 ! *****************************************************************************

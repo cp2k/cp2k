@@ -4310,7 +4310,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ENDIF
        count = count+1
        IF (count .GT. nblocks .OR. block .LT. 1 .OR. block .GT. nblocks) THEN
-          WRITE(*,*)nblocks,block
+          WRITE(*,'(1X,A,I9,A,I9,A)')"Want to find block",&
+               block," of",nblocks," blocks"
           CALL cp_assert (count .LE. nblocks, cp_failure_level,&
                cp_internal_error, "find_block_of_element",&
                "Too many searches")
