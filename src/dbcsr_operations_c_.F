@@ -319,8 +319,6 @@
                data_block, found)
           IF (found) THEN
              block => data_block%p
-                CALL ccopy(nze,&
-                     data_block%p(1,1), 1, block(1,1), 1)
           ENDIF
        ENDIF
     ENDIF
