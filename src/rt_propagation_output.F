@@ -32,6 +32,7 @@ MODULE rt_propagation_output
                                              section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -140,6 +141,7 @@ CONTAINS
             "Max deviation from orthonormalization:",orthonormality  
     END IF
 
+    CALL m_flush(output_unit)
     CALL cp_print_key_finished_output(output_unit,logger,rtp_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
     
