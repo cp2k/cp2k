@@ -33,8 +33,7 @@ MODULE hfx_energy_potential
                                              hfx_reset_cache_and_container
   USE hfx_contract_block,              ONLY: contract_block
   USE hfx_libint_interface,            ONLY: evaluate_eri
-  USE hfx_libint_wrapper,              ONLY: initialize_libint,&
-                                             lib_int
+  USE hfx_libint_wrapper,              ONLY: lib_int
   USE hfx_load_balance_methods,        ONLY: hfx_load_balance,&
                                              hfx_update_load_balance
   USE hfx_pair_list_methods,           ONLY: build_pair_list,&
@@ -686,8 +685,8 @@ MODULE hfx_energy_potential
    
 
     max_am = basis_info%max_am
-    !! Initialize memory used by libint
-    CALL initialize_libint(private_lib, max_am, error)
+    !! Copy the lib_int guy
+    private_lib = actual_x_data%lib
 
     !! Helper array to map local basis function indeces to global ones 
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)

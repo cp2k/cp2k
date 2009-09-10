@@ -29,8 +29,7 @@ MODULE hfx_derivatives
                                              hfx_get_single_cache_element,&
                                              hfx_reset_cache_and_container
   USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
-  USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
-                                             lib_deriv
+  USE hfx_libint_wrapper,              ONLY: lib_deriv
   USE hfx_load_balance_methods,        ONLY: hfx_load_balance,&
                                              hfx_update_load_balance
   USE hfx_pair_list_methods,           ONLY: build_pair_list,&
@@ -377,8 +376,8 @@ MODULE hfx_derivatives
 
     counter = 0_int_8
 
-    !! Initialize memory for libint
-    CALL initialize_libderiv(private_deriv, max_am, error)
+    !! Copy the libint_guy
+    private_deriv = actual_x_data%lib_deriv
 
     !! Get screening parameter
 

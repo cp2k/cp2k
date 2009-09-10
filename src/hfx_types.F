@@ -31,7 +31,10 @@ MODULE hfx_types
   USE f77_blas
   USE hfx_helpers,                     ONLY: count_cells_perd,&
                                              next_image_cell_perd
-  USE hfx_libint_wrapper,              ONLY: lib_int,&
+  USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
+                                             initialize_libint,&
+                                             lib_deriv,&
+                                             lib_int,&
                                              prim_data_f_size
   USE input_constants,                 ONLY: &
        do_hfx_auto_shells, do_hfx_potential_coulomb, &
@@ -411,6 +414,8 @@ MODULE hfx_types
      TYPE(hfx_task_list_type), DIMENSION(:), &
                                POINTER        :: task_list
      REAL(dp), DIMENSION(:,:), POINTER        :: pmax_atom, pmax_atom_forces
+     TYPE(lib_int)                            :: lib_int
+     TYPE(lib_deriv)                          :: lib_deriv
   END TYPE hfx_type
 
   CONTAINS
@@ -882,6 +887,10 @@ MODULE hfx_types
           DEALLOCATE(kind_of, atom2kind, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
+
+        ! ** Initialize libint type
+        CALL initialize_libint(actual_x_data%lib, actual_x_data%basis_info%max_am, error)
+        CALL initialize_libderiv(actual_x_data%lib_deriv, actual_x_data%basis_info%max_am, error)
 
         CALL alloc_containers(actual_x_data, 1, hfx_do_eval_energy, error)
         CALL alloc_containers(actual_x_data, 1, hfx_do_eval_forces, error)
