@@ -1686,6 +1686,7 @@ CONTAINS
     DO i = 1, rpt
        CALL RANDOM_NUMBER (rn)
        elements = INT(rn * 500)
+       IF (i .EQ. 1) elements = 0
        CALL RANDOM_NUMBER (rn)
        bins = MAX(1, INT(rn*8))
        CALL create_bl_distribution (block_distribution,&
@@ -1724,59 +1725,68 @@ CONTAINS
     CALL array_nullify (block_distribution)
     CALL array_nullify (block_size)
     ! Define the sizes on which we build the distribution.
-    max_elements_per_bin = CEILING (REAL(nelements)/REAL(nbins))
-    max_elements_per_block = MIN (max_elements_per_bin, max_block_size)
-    max_blocks_per_bin = CEILING (REAL(max_elements_per_bin)/REAL(max_elements_per_block))
-    IF (dbg) bin = max_elements_per_block
-    max_elements_per_block = CEILING (REAL(max_elements_per_bin)/REAL(max_blocks_per_bin))
-    IF (max_elements_per_block*max_blocks_per_bin*(nbins-1) .GE. nelements) THEN
-       max_elements_per_block = MIN(1, max_elements_per_block-1)
-       max_blocks_per_bin = max_blocks_per_bin+1
-       DBG " small number FIX"
-    ENDIF
-    IF (dbg) THEN
-       WRITE(*,'(1X,A,1X,A,I7,A,I7,A)')routineP,"For",nelements,&
-            " elements and",nbins," bins"
-       WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
-            max_elements_per_bin," max elements/bin"
-       WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
-            bin," true max elements/block"
-       WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
-            max_blocks_per_bin," max blocks/bin"
-       WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
-            max_elements_per_block," max elements/block"
-    ENDIF
-    ! Prepare block distribution and sizes array, which may be
-    ! oversized at this point.
-    estimated_blocks = max_blocks_per_bin * nbins
-    ALLOCATE (blk_dist (estimated_blocks), stat=stat)
-    IF (stat /= 0) CALL stop_memory (routineP, "blk_dist", estimated_blocks)
-    ALLOCATE (blk_sizes (estimated_blocks), stat=stat)
-    IF (stat /= 0) CALL stop_memory (routineP, "blk_sizes", estimated_blocks)
-    !
-    element_stack = 0
-    nblks = 0
-    DO blk_layer = 1, max_blocks_per_bin
-       DO bin = 0, nbins-1
-          els = MIN (max_elements_per_block, nelements-element_stack)
-          IF (els .GT. 0) THEN
-             element_stack = element_stack + els
-             nblks = nblks + 1
-             blk_dist(nblks) = bin
-             blk_sizes(nblks) = els
-             IF (dbg) WRITE(*,'(1X,A,I5,A,I5,A,I5)')routineP//" Assigning",&
-                  els," elements as block",nblks," to bin",bin
-          ENDIF
+    IF (nelements .GT. 0) THEN
+       max_elements_per_bin = CEILING (REAL(nelements)/REAL(nbins))
+       max_elements_per_block = MIN (max_elements_per_bin, max_block_size)
+       max_blocks_per_bin = CEILING (REAL(max_elements_per_bin)/REAL(max_elements_per_block))
+       IF (dbg) bin = max_elements_per_block
+       max_elements_per_block = CEILING (REAL(max_elements_per_bin)/REAL(max_blocks_per_bin))
+       IF (max_elements_per_block*max_blocks_per_bin*(nbins-1) .GE. nelements) THEN
+          max_elements_per_block = MIN(1, max_elements_per_block-1)
+          max_blocks_per_bin = max_blocks_per_bin+1
+          DBG " small number FIX"
+       ENDIF
+       IF (dbg) THEN
+          WRITE(*,'(1X,A,1X,A,I7,A,I7,A)')routineP,"For",nelements,&
+               " elements and",nbins," bins"
+          WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
+               max_elements_per_bin," max elements/bin"
+          WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
+               bin," true max elements/block"
+          WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
+               max_blocks_per_bin," max blocks/bin"
+          WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
+               max_elements_per_block," max elements/block"
+       ENDIF
+       ! Prepare block distribution and sizes array, which may be
+       ! oversized at this point.
+       estimated_blocks = max_blocks_per_bin * nbins
+       ALLOCATE (blk_dist (estimated_blocks), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineP, "blk_dist", estimated_blocks)
+       ALLOCATE (blk_sizes (estimated_blocks), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineP, "blk_sizes", estimated_blocks)
+       !
+       element_stack = 0
+       nblks = 0
+       DO blk_layer = 1, max_blocks_per_bin
+          DO bin = 0, nbins-1
+             els = MIN (max_elements_per_block, nelements-element_stack)
+             IF (els .GT. 0) THEN
+                element_stack = element_stack + els
+                nblks = nblks + 1
+                blk_dist(nblks) = bin
+                blk_sizes(nblks) = els
+                IF (dbg) WRITE(*,'(1X,A,I5,A,I5,A,I5)')routineP//" Assigning",&
+                     els," elements as block",nblks," to bin",bin
+             ENDIF
+          ENDDO
        ENDDO
-    ENDDO
-    ! Create the output arrays.
-    DBG "Wound up with",nblks,'blocks instead of',estimated_blocks
-    IF (nblks .EQ. estimated_blocks) THEN
+       ! Create the output arrays.
+       DBG "Wound up with",nblks,'blocks instead of',estimated_blocks
+       IF (nblks .EQ. estimated_blocks) THEN
+          CALL array_new (block_distribution, blk_dist, gift=.TRUE.)
+          CALL array_new (block_size, blk_sizes, gift=.TRUE.)
+       ELSE
+          CALL array_new (block_distribution, blk_dist(1:nblks), lb=1)
+          CALL array_new (block_size, blk_sizes(1:nblks), lb=1)
+       ENDIF
+    ELSE
+       ALLOCATE (blk_dist (0), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineP, "blk_dist", estimated_blocks)
+       ALLOCATE (blk_sizes (0), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineP, "blk_sizes", estimated_blocks)
        CALL array_new (block_distribution, blk_dist, gift=.TRUE.)
        CALL array_new (block_size, blk_sizes, gift=.TRUE.)
-    ELSE
-       CALL array_new (block_distribution, blk_dist(1:nblks), lb=1)
-       CALL array_new (block_size, blk_sizes(1:nblks), lb=1)
     ENDIF
 1579 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
     IF (dbg) THEN
