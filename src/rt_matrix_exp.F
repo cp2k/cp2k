@@ -868,7 +868,7 @@ CONTAINS
       POINTER                                :: V_mats
     TYPE(cp_cfm_type), POINTER               :: myH, mymos, tmp_mat
     TYPE(cp_fm_struct_type), POINTER         :: newstruct
-    TYPE(cp_fm_type), POINTER                :: work, work1
+    TYPE(cp_fm_type), POINTER                :: work, work1, work2
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure=.FALSE.
@@ -899,6 +899,25 @@ CONTAINS
        DO i=1,ldim
           myH%local_data(:,i)=CMPLX(Hre%local_data(:,i),Him%local_data(:,i),KIND=dp)
        END DO
+       double_col=.TRUE.
+       double_row=.FALSE.
+       CALL cp_fm_struct_double(newstruct,&
+                                mos_old(1)%matrix%matrix_struct,&
+                                mos_old(1)%matrix%matrix_struct%context,&
+                                double_col,&
+                                double_row,&
+                                error)
+       CALL cp_fm_create(work,&
+            matrix_struct=newstruct,&
+            error=error)
+       CALL cp_fm_create(work1,&
+            matrix_struct=newstruct,&
+            error=error)
+       CALL cp_fm_create(work2,&
+            matrix_struct=Hre%matrix_struct,&
+            error=error)
+       CALL cp_fm_get_info(work,ncol_global=newdim,error=error)
+       CALL cp_fm_set_all(work,0.0_dp,0.0_dp,error)
     ELSE
        CALL cp_fm_get_info(Him,ncol_local=ldim,nrow_global=nao,error=error)
 
@@ -975,9 +994,31 @@ CONTAINS
     H_approx_save=zero
     
     DO i=2,narnoldi+1
-       IF(PRESENT(Hre))THEN          
-          CALL cp_cfm_gemm("N","N",nao,nmo,nao,one,myH,&
-               V_mats(i-1)%matrix,zero,V_mats(i)%matrix,error)
+       IF(PRESENT(Hre))THEN         
+          DO icol_local=1,ncol_local
+             work%local_data(:,icol_local)=REAL( V_mats(i-1)%matrix%local_data(:,icol_local),dp)
+             work%local_data(:,ncol_local+icol_local)=AIMAG( V_mats(i-1)%matrix%local_data(:,icol_local))
+          END DO
+          DO icol_local=1,ldim
+             work2%local_data(:,icol_local)=REAL(myH%local_data(:,icol_local),dp)
+          END DO
+          CALL cp_fm_gemm("N","N",nao,newdim,nao,1.0_dp,work2,&
+               work,0.0_dp,work1,error)
+          DO icol_local=1,ncol_local
+             V_mats(i)%matrix%local_data(:,icol_local)=CMPLX(work1%local_data(:,icol_local),&
+                                                       work1%local_data(:,icol_local+ncol_local),dp)
+          END DO
+          DO icol_local=1,ldim
+             work2%local_data(:,icol_local)=AIMAG(myH%local_data(:,icol_local))
+          END DO
+          CALL cp_fm_gemm("N","N",nao,newdim,nao,1.0_dp,work2,&
+               work,0.0_dp,work1,error)
+          DO icol_local=1,ncol_local
+             V_mats(i)%matrix%local_data(:,icol_local)=V_mats(i)%matrix%local_data(:,icol_local)+&
+                                                       CMPLX(-work1%local_data(:,icol_local+ncol_local),&
+                                                       work1%local_data(:,icol_local),dp)
+          END DO
+
        ELSE
           DO icol_local=1,ncol_local
              work%local_data(:,icol_local)=REAL( V_mats(i-1)%matrix%local_data(:,icol_local),dp)
@@ -1187,11 +1228,11 @@ CONTAINS
     CALL cp_cfm_release(mymos,error)
     IF(PRESENT(Hre))THEN
        CALL cp_cfm_release(myH,error)
-    ELSE
-       CALL cp_fm_struct_release(newstruct,error)
-       CALL cp_fm_release(work,error)
-       CALL cp_fm_release(work1,error)
+       CALL cp_fm_release(work2,error)
     END IF
+    CALL cp_fm_struct_release(newstruct,error)
+    CALL cp_fm_release(work,error)
+    CALL cp_fm_release(work1,error)
 
     CALL cp_cfm_release(tmp_mat,error)
     DEALLOCATE(V_mats,stat=stat)
