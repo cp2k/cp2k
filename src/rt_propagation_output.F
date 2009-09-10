@@ -140,8 +140,8 @@ CONTAINS
             WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
             "Max deviation from orthonormalization:",orthonormality  
     END IF
-
-    CALL m_flush(output_unit)
+    IF(output_unit>0)&
+       CALL m_flush(output_unit)
     CALL cp_print_key_finished_output(output_unit,logger,rtp_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
     
