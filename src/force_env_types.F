@@ -289,7 +289,7 @@ CONTAINS
           END SELECT
           CALL cp_result_release(results=force_env%results,error=error)
           CALL cpot_release(force_env%cpot_env,error=error)
-          CALL globenv_release(force_env%globenv,force_env%para_env,error=error)
+          CALL globenv_release(force_env%globenv,error=error)
           CALL cp_para_env_release(force_env%para_env,error=error)
           ! Not deallocated
           CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)

@@ -18,7 +18,6 @@
 ! *****************************************************************************
 MODULE global_types
 
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: BLACS_GRID_SQUARE
   USE kinds,                           ONLY: default_path_length,&
@@ -162,9 +161,8 @@ END SUBROUTINE globenv_retain
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE globenv_release(globenv, para_env, error)
+SUBROUTINE globenv_release(globenv, error)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_release', &

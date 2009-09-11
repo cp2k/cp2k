@@ -426,7 +426,7 @@ CONTAINS
     IF(PRESENT(globenv_new))THEN
        globenv_new => globenv
     ELSE
-       CALL globenv_release(globenv,para_env,error)
+       CALL globenv_release(globenv,error)
     ENDIF
 
   END SUBROUTINE mc_create_force_env

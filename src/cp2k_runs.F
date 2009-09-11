@@ -394,21 +394,21 @@ CONTAINS
           IF (prog_name_id==do_cp2k) THEN
              f_env%force_env => force_env ! for mc
              CALL globenv_retain(globenv,error=error)!mc
-             CALL globenv_release(force_env%globenv,para_env,error=error) !mc
+             CALL globenv_release(force_env%globenv,error=error) !mc
              force_env%globenv => globenv !mc
              CALL f_env_rm_defaults(f_env,error=suberror,ierr=ierr,&
                   handle=f_env_handle)
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
              CALL destroy_force_env(new_env_id,ierr=ierr)
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-             CALL globenv_release(globenv,para_env,error=error)
+             CALL globenv_release(globenv,error=error)
           ELSE
              CALL cp_error_dealloc_ref(suberror)
              I_was_ionode=para_env%ionode
              CALL cp2k_finalize(root_section,para_env,globenv,error=error)
              CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
              CALL section_vals_release(root_section,error=error)
-             CALL globenv_release(globenv,para_env,error=error)
+             CALL globenv_release(globenv,error=error)
           END IF
        END IF
 

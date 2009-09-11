@@ -349,7 +349,7 @@ CONTAINS
 
          IF (ibox == 2) THEN
             CALL force_env_release(force_env(ibox)%force_env,error=error)           
-            CALL globenv_release(globenv_2,para_env, error)
+            CALL globenv_release(globenv_2,error)
          ELSE
             force_env_1 => force_env(1)%force_env
          ENDIF

@@ -816,7 +816,7 @@ CPSourceFileRef,&
          timer_env=timer_env,mp_perf_env=mp_perf_env,force_env=force_env,&
          id_nr=last_f_env_id,error=error,old_dir=old_dir)
     CALL force_env_release(force_env,error=error)
-    CALL globenv_release(globenv,para_env,error=error)
+    CALL globenv_release(globenv,error=error)
     CALL section_vals_release(root_section,error)
     CALL cp_para_env_release(para_env,error=error)
     CALL f_env_rm_defaults(f_envs(n_f_envs)%f_env,error=error,ierr=ierr)
@@ -873,7 +873,7 @@ CPSourceFileRef,&
           CALL f_env_dealloc(f_env,error=error)
           CALL cp2k_finalize(root_section,para_env,globenv,f_env%old_path,error)
           CALL section_vals_release(root_section,error=error)
-          CALL globenv_release(globenv,para_env,error=error)
+          CALL globenv_release(globenv,error=error)
           CALL cp_error_check(error,failure)
 
           DEALLOCATE(f_env,stat=stat)

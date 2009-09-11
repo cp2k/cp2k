@@ -247,7 +247,7 @@ CONTAINS
              DEALLOCATE(ep_env%at2sub,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
-          CALL globenv_release(ep_env%globenv,ep_env%para_env,error=error)
+          CALL globenv_release(ep_env%globenv,error=error)
           CALL cp_para_env_release(ep_env%para_env,error=error)
           CALL section_vals_release(ep_env%input,error=error)
           CALL section_vals_release(ep_env%root_section,error=error)
