@@ -925,7 +925,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'print_message', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=12)                        :: fmtstr1
+    CHARACTER(LEN=15)                        :: fmtstr1
     CHARACTER(LEN=25)                        :: fmtstr2
     INTEGER :: blank_lines_after, blank_lines_before, decoration_level, i, &
       ibreak, ipos1, ipos2, maxrowlen, msglen, nrow, rowlen
