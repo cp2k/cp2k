@@ -347,7 +347,7 @@ CONTAINS
           CALL fist_pol_evaluate(atomic_kind_set, multipoles, ewald_env, ewald_pw,&
                fist_nonbond_env, cell, particle_set, local_particles, thermo, vg_coulomb,&
                pot_nonbond, f_nonbond, fg_coulomb, use_virial, pv_g, pv_nonbond, mm_section,&
-               para_env, error)
+               error)
        ELSE
           ! Non-Polarizable force-field
           SELECT CASE ( ewald_type )

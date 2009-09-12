@@ -17,7 +17,6 @@ MODULE fist_pol_scf
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -50,7 +49,7 @@ CONTAINS
   SUBROUTINE fist_pol_evaluate (atomic_kind_set, multipoles, ewald_env, ewald_pw,&
        fist_nonbond_env, cell, particle_set, local_particles, thermo, vg_coulomb,&
        pot_nonbond, f_nonbond, fg_coulomb,use_virial, pv_g, pv_nonbond, mm_section,&
-       para_env, error)
+       error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -68,7 +67,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_g, pv_nonbond
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_pol_evaluate', &

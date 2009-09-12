@@ -19,7 +19,6 @@ MODULE qs_ot_scf
        cp_fm_release, cp_fm_set_all, cp_fm_set_diag, cp_fm_to_fm, cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
@@ -67,9 +66,8 @@ MODULE qs_ot_scf
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE ot_scf_read_input(qs_ot_env,para_env,scf_section,error)
+  SUBROUTINE ot_scf_read_input(qs_ot_env,scf_section,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 

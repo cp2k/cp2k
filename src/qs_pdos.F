@@ -577,7 +577,7 @@ CONTAINS
          size_ortho_space=nmo,error=error)
 
     CALL calculate_subspace_eigenvalues(mo_virt,ks_matrix(ispin)%matrix,&
-         evals_virt, para_env=para_env, error=error)
+         evals_virt, error=error)
 
 
   END SUBROUTINE generate_virtual_mo

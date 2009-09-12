@@ -60,10 +60,9 @@ CONTAINS
 ! *****************************************************************************
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE initialize_npt ( simpar, para_env, globenv, npt_info, cell, work_section, error)
+  SUBROUTINE initialize_npt ( simpar, globenv, npt_info, cell, work_section, error)
 
     TYPE(simpar_type), POINTER               :: simpar
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(npt_info_type), DIMENSION(:, :), &
       POINTER                                :: npt_info
@@ -175,7 +174,7 @@ CONTAINS
 
     failure = .FALSE.
     restart = .FALSE.
-    CALL nhc_to_barostat_mapping ( simpar, nhc, para_env, error)
+    CALL nhc_to_barostat_mapping ( simpar, nhc, error)
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )

@@ -259,7 +259,6 @@ CONTAINS
              eigenvalues=eigenvalues,homo=homo)
         CALL calculate_subspace_eigenvalues(mo_coeff,&
              matrix_ks(ispin)%matrix,eigenvalues, &
-             para_env=para_env, &
              do_rotation=.TRUE.,error=error)
       END DO
     END IF

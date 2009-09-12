@@ -86,7 +86,7 @@ CONTAINS
        ENDIF
 
        CALL init_baro_map_info(map_info, ndeg, csvr%loc_num_csvr, error)
-       CALL csvr_thermo_create(csvr, para_env, error)
+       CALL csvr_thermo_create(csvr, error)
 
        ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
@@ -232,7 +232,7 @@ CONTAINS
     ! This is the local number of available thermostats
     csvr%loc_num_csvr  = number
     csvr%glob_num_csvr = sum_of_thermostats
-    CALL csvr_thermo_create(csvr, para_env, error=error)
+    CALL csvr_thermo_create(csvr, error=error)
 
   END SUBROUTINE setup_csvr_thermostat
 
@@ -305,7 +305,7 @@ CONTAINS
        END IF
        
        CALL init_coeff_map_info(map_info, number, csvr%region, ncoef_local, error)
-       CALL csvr_thermo_create(csvr, para_env, error)
+       CALL csvr_thermo_create(csvr, error)
 
        ! Find the number of degrees of freedom on each thermostat
        map_info%s_kin = 0.0_dp

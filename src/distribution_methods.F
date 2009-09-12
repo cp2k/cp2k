@@ -22,8 +22,7 @@ MODULE distribution_methods
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
@@ -570,8 +569,7 @@ CONTAINS
        output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
                                                             extension=".Log",error=error)
        CALL distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
-                                     molecule_kind_set,molecule_set,output_unit,blacs_env%para_env,&
-                                     error=error)
+                                     molecule_kind_set,molecule_set,output_unit, error=error)
        CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
                                              "PRINT%DISTRIBUTION",error=error)
 
@@ -763,8 +761,7 @@ CONTAINS
 !>      04.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
-                                      molecule_kind_set,molecule_set,output_unit,para_env,&
-                                      error)
+                                      molecule_kind_set,molecule_set,output_unit, error)
 
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: cost_ele_pair
     TYPE(section_vals_type), POINTER         :: distribution_section
@@ -777,7 +774,6 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_2d_cost_model', &

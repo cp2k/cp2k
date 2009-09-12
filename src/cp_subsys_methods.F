@@ -214,14 +214,14 @@ CONTAINS
        ! 5. Pack everything into the molecular types
        !-----------------------------------------------------------------------------
        CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
-            topology,para_env,subsys_section=subsys_section,error=error)
+            topology,subsys_section=subsys_section,error=error)
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------
        ! 6. Pack everything into the atomic types
        !-----------------------------------------------------------------------------
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
-            molecule_kind_set,molecule_set,topology,para_env,subsys_section=subsys_section,&
+            molecule_kind_set,molecule_set,topology,subsys_section=subsys_section,&
             force_env_section=force_env_section,error=error)
 
        !-----------------------------------------------------------------------------

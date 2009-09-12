@@ -774,7 +774,6 @@ CONTAINS
                eigenvalues=eigenvalues,homo=homo)
           CALL calculate_subspace_eigenvalues(mo_coeff,&
                matrix_ks(ispin)%matrix,eigenvalues, &
-               para_env=qs_env%para_env, &
                do_rotation=.TRUE.,error=error)
        END DO  ! ispin
 
@@ -813,7 +812,7 @@ CONTAINS
             iter_max=uno_iter,size_ortho_space=nmo,error=error)
 
        CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
-            uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.,error=error)
+            uno_evals,do_rotation=.TRUE.,error=error)
        CALL destroy_preconditioner(local_preconditioner,error=error)
 
        DEALLOCATE(local_preconditioner,STAT=istat)
@@ -941,7 +940,6 @@ CONTAINS
                   eigenvalues=eigenvalues,homo=homo)
              CALL calculate_subspace_eigenvalues(mo_coeff,&
                   matrix_ks(ispin)%matrix,eigenvalues, &
-                  para_env=para_env, &
                   do_rotation=.TRUE.,error=error)
           END DO
        END IF

@@ -273,7 +273,7 @@ CONTAINS
           SELECT CASE (prog_name_id)
           CASE (do_atom)
              globenv%run_type_id = none_run
-             CALL atom_code(root_section,para_env,suberror)
+             CALL atom_code(root_section,suberror)
           CASE (do_farming)
              CALL farming_run ( root_section, para_env, suberror )
           CASE(do_cp2k)

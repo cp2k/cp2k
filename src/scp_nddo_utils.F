@@ -11,7 +11,6 @@ MODULE scp_nddo_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_info
   USE dbcsr_operations,                ONLY: dbcsr_get_diag,&
                                              dbcsr_set_diag
@@ -34,13 +33,12 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE evaluate_scp_force( atomic_kind_set, pscp, &
-       ks_scp, ascp_diag, para_env, energy_only, escp, error )
+       ks_scp, ascp_diag, energy_only, escp, error )
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dbcsr_obj), POINTER                 :: pscp, ks_scp
     REAL(dp), POINTER                        :: ascp_diag( : )
-    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: energy_only
     REAL(dp), INTENT(out)                    :: escp
     TYPE(cp_error_type), INTENT(inout)       :: error

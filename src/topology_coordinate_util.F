@@ -15,7 +15,6 @@ MODULE topology_coordinate_util
                                              set_atomic_kind
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE external_potential_types,        ONLY: allocate_potential,&
                                              elp_potential_type,&
                                              get_potential,&
@@ -67,7 +66,7 @@ CONTAINS
 !>                      to build the exclusion lists
 ! *****************************************************************************
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
-       molecule_kind_set,molecule_set,topology,para_env,qmmm,qmmm_env,&
+       molecule_kind_set,molecule_set,topology,qmmm,qmmm_env,&
        subsys_section,force_env_section,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -79,7 +78,6 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env

@@ -10,7 +10,6 @@
 MODULE csvr_system_types
   USE bibliography,                    ONLY: Bussi2007,&
                                              cite_reference
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: create_map_info_type,&
                                              map_info_type,&
                                              release_map_info_type
@@ -94,9 +93,8 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
-  SUBROUTINE csvr_thermo_create(csvr, para_env, error)
+  SUBROUTINE csvr_thermo_create(csvr, error)
     TYPE(csvr_system_type), POINTER          :: csvr
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_thermo_create', &

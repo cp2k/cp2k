@@ -218,11 +218,10 @@ CONTAINS
   END SUBROUTINE read_coordinate_pdb
 
 ! *****************************************************************************
-  SUBROUTINE write_coordinate_pdb (file_unit,topology,para_env,subsys_section,error)
+  SUBROUTINE write_coordinate_pdb (file_unit,topology,subsys_section,error)
   
     INTEGER, INTENT(IN)                      :: file_unit
     TYPE(topology_parameters_type)           :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 

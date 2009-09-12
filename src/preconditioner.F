@@ -157,8 +157,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
   ! one flaw is that not all SCF methods (i.e. that go over mo_derivs directly)
   ! have a 'valid' matrix_h... (we even don't know what evals are in that case)
   CALL calculate_subspace_eigenvalues(mo_coeff,matrix_h,&
-          eigenvalues_ot,para_env=preconditioner_env%para_env, &
-                         do_rotation = .FALSE.,error=error)
+          eigenvalues_ot, do_rotation = .FALSE.,error=error)
 
   ! deal with zero occupied orbitals
   IF (k>0) THEN

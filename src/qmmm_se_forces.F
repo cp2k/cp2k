@@ -188,7 +188,6 @@ CONTAINS
                                                  mm_cell,&
                                                  qmmm_env%qm_atom_index(iatom),&
                                                  itype,&
-                                                 para_env,&
                                                  Forces,&
                                                  Forces_QM(:,iqm),&
                                                  se_taper,&
@@ -211,7 +210,6 @@ CONTAINS
                                                     mm_cell,&
                                                     qmmm_env%qm_atom_index(iatom),&
                                                     itype,&
-                                                    para_env,&
                                                     Forces_added_charges,&
                                                     Forces_QM(:,iqm),&
                                                     se_taper,&
@@ -263,7 +261,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix_low(p_block_a, se_kind_a, se_kind_mm,&
        potentials, mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
-       num_mm_atoms, mm_cell, IndQM, itype, para_env, forces, forces_qm, se_taper,&
+       num_mm_atoms, mm_cell, IndQM, itype, forces, forces_qm, se_taper,&
        se_int_control, anag, delta, qmmm_spherical_cutoff, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block_a
@@ -277,7 +275,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cell_type), POINTER                 :: mm_cell
     INTEGER, INTENT(IN)                      :: IndQM, itype
-    TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: forces_qm

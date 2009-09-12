@@ -725,7 +725,7 @@ CONTAINS
          wisdom_file=globenv%fftw_wisdom_file_name,&
          plan_style=globenv%fftw_plan_type,&
          arrays_aligned=globenv%fftw_arrays_aligned,&
-         para_env=para_env,error=error)
+         error=error)
 
     !   *** Check for FFT library ***
     CALL fft3d(1,n,zz,status=stat)
@@ -745,7 +745,7 @@ CONTAINS
                wisdom_file=globenv%fftw_wisdom_file_name,&
                plan_style=globenv%fftw_plan_type,&
                arrays_aligned=globenv%fftw_arrays_aligned,&
-               para_env=para_env,error=error)
+               error=error)
 
           CALL fft3d(1,n,zz,status=stat)
        ENDIF
@@ -766,7 +766,7 @@ CONTAINS
                wisdom_file=globenv%fftw_wisdom_file_name,&
                plan_style=globenv%fftw_plan_type,&
                arrays_aligned=globenv%fftw_arrays_aligned,&
-               para_env=para_env,error=error)
+               error=error)
 
           CALL fft3d(1,n,zz,status=stat)
           IF (stat /= 0) THEN

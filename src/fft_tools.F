@@ -158,7 +158,7 @@ CONTAINS
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE init_fft ( fftlib, alltoall, fftsg_sizes, pool_limit, wisdom_file,&
-       plan_style, arrays_aligned, para_env, error )
+       plan_style, arrays_aligned, error )
 
     CHARACTER(LEN=*), INTENT(IN)             :: fftlib
     LOGICAL, INTENT(IN)                      :: alltoall, fftsg_sizes
@@ -166,7 +166,6 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
     INTEGER, INTENT(IN)                      :: plan_style
     LOGICAL, INTENT(IN)                      :: arrays_aligned
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fft', &

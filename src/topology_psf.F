@@ -804,11 +804,10 @@ CPSourceFileRef,&
 !> \brief Teodoro Laino - 01.2006
 !>      Write PSF topology file in the CHARMM31 EXT standard format
 ! *****************************************************************************
-  SUBROUTINE write_topology_psf (file_unit,topology,para_env,subsys_section,force_env_section,error)
+  SUBROUTINE write_topology_psf (file_unit,topology,subsys_section,force_env_section,error)
     INTEGER, INTENT(IN)                      :: file_unit
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section, &
                                                 force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -19,7 +19,6 @@ MODULE topology_constraint_util
        post_process_colvar, torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_constr_atomic, do_constr_molec, use_perd_x, use_perd_xy, &
@@ -69,7 +68,7 @@ CONTAINS
 !> \brief Pack in all the information needed for the constraints
 ! *****************************************************************************
   SUBROUTINE topology_constraint_pack ( molecule_kind_set, molecule_set,&
-       topology,qmmm_env,particle_set,input_file,para_env,subsys_section,gci,&
+       topology,qmmm_env,particle_set,input_file,subsys_section,gci,&
        error)
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -81,9 +80,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: input_file
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(section_vals_type), POINTER         :: input_file, subsys_section
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 

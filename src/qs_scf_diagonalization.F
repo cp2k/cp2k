@@ -339,7 +339,7 @@ CONTAINS
                            error=error)
 
        CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-              para_env=mo_coeff%matrix_struct%para_env, do_rotation = .TRUE., error=error)
+              do_rotation = .TRUE., error=error)
 
        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
        CALL calculate_density_matrix(mos(ispin)%mo_set,scf_env%p_mix_new(ispin)%matrix,error=error)

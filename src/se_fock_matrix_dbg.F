@@ -5,7 +5,6 @@
 
 MODULE se_fock_matrix_dbg
   USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_operations,                ONLY: dbcsr_set,&
                                              dbcsr_trace
   USE f77_blas
@@ -32,7 +31,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 04.2009
 ! *****************************************************************************
   SUBROUTINE dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p,&
-       calculate_forces, para_env, store_int_env, error)
+       calculate_forces, store_int_env, error)
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
@@ -41,7 +40,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 

@@ -10,7 +10,6 @@ MODULE atom
   USE atom_pseudo,                     ONLY: atom_pseudo_opt
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE header,                          ONLY: atom_footer,&
                                              atom_header
@@ -38,9 +37,8 @@ MODULE atom
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE atom_code(root_section,para_env,error)
+  SUBROUTINE atom_code(root_section,error)
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_code', &

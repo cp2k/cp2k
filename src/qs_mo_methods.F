@@ -27,7 +27,6 @@ MODULE qs_mo_methods
                                              cp_fm_retain,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE f77_blas
@@ -412,14 +411,13 @@ CONTAINS
 !>      08.2004 documented and added do_rotation [Joost VandeVondele]
 !>      09.2008 only compute eigenvalues if rotation is not needed
 ! *****************************************************************************
-  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,&
+  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,ionode,scr,&
        do_rotation,co_rotate,error)
 
     TYPE(cp_fm_type), POINTER                :: orbitals
     TYPE(real_matrix_type), POINTER          :: ks_matrix
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: evals_arg
-    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN), OPTIONAL            :: ionode
     INTEGER, INTENT(IN), OPTIONAL            :: scr
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rotation

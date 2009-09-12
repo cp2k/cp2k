@@ -274,7 +274,7 @@ CONTAINS
                    mo_coeff_deriv=>NULL()
                 ENDIF
                 CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
-                  para_env=qs_env%para_env,scr=output_unit, ionode=ionode, do_rotation=.TRUE.,&
+                  scr=output_unit, ionode=ionode, do_rotation=.TRUE.,&
                   co_rotate=mo_coeff_deriv,error=error)
 
                 CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
@@ -350,7 +350,7 @@ CPSourceFileRef,&
                       mo_coeff_deriv=>NULL()
                    ENDIF
                    CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
-                        evals_arg=mo_eigenvalues, para_env=qs_env%para_env,scr=output_unit, &
+                        evals_arg=mo_eigenvalues, scr=output_unit, &
                         ionode=ionode, do_rotation=.TRUE.,error=error)
                 END IF
                 NULLIFY(mo_localized)
@@ -430,7 +430,7 @@ CPSourceFileRef,&
                   size_ortho_space=homo,error=error)
 
              CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
-                  unoccupied_evals(ispin)%array, para_env=qs_env%para_env,scr=output_unit, &
+                  unoccupied_evals(ispin)%array, scr=output_unit, &
                   ionode=ionode,error=error)
 
              ! Prints the cube files of UNOCCUPIED ORBITALS

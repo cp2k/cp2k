@@ -160,13 +160,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Use information from bond list to generate molecule. (ie clustering)
 ! *****************************************************************************
-  SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,para_env,subsys_section,error)
+  SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1458,10 +1457,9 @@ CONTAINS
 !> \brief Using a list of bonds, generate a list of bends
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  SUBROUTINE topology_generate_bend(topology,para_env,subsys_section,error)
+  SUBROUTINE topology_generate_bend(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1718,10 +1716,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief The list of Urey-Bradley is equal to the list of bends
 ! *****************************************************************************
-  SUBROUTINE topology_generate_ub(topology,para_env,subsys_section,error)
+  SUBROUTINE topology_generate_ub(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1771,10 +1768,9 @@ CONTAINS
 !> \brief Generate a list of torsions from bonds    
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  SUBROUTINE topology_generate_dihe(topology,para_env,subsys_section,error)
+  SUBROUTINE topology_generate_dihe(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1873,10 +1869,9 @@ CONTAINS
 !> \brief Using a list of bends, generate a list of impr
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  SUBROUTINE topology_generate_impr(topology,para_env,subsys_section,error)
+  SUBROUTINE topology_generate_impr(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1993,10 +1988,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Using a list of torsion, generate a list of onfo
 ! *****************************************************************************
-  SUBROUTINE topology_generate_onfo(topology,para_env,subsys_section,error)
+  SUBROUTINE topology_generate_onfo(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 

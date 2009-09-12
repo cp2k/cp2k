@@ -11,7 +11,6 @@
 MODULE topology_connectivity_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: do_conn_g87,&
                                              do_conn_g96,&
@@ -52,14 +51,13 @@ CONTAINS
 !> \brief topology connectivity pack
 ! *****************************************************************************
   SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
-       topology,para_env,subsys_section,error)
+       topology,subsys_section,error)
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 

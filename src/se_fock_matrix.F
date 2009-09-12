@@ -219,7 +219,7 @@ CONTAINS
        ! Debug statements for Long-Range
        IF (debug_energy_coulomb_lr.AND.se_control%do_ewald) THEN
           CALL dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p,&
-                                     calculate_forces, para_env, store_int_env, error)
+                                     calculate_forces, store_int_env, error)
        END IF
 
        ! Long Range Electrostatic
@@ -255,7 +255,7 @@ CONTAINS
           CALL dbcsr_trace(ks_scp,pscp,trace=ecoul_scp,local_sum=.TRUE.,error=error)
           energy_scp%e_scp_hartree = ecoul_scp*0.5_dp
           ! evalulate kernel and forces on the SCP coeffs
-          CALL evaluate_scp_force ( atomic_kind_set, pscp, ks_scp, ascp_diag, para_env,&
+          CALL evaluate_scp_force ( atomic_kind_set, pscp, ks_scp, ascp_diag, &
                                     just_energy, energy_scp%e_scp_kernel, error )
           CALL deallocate_matrix(scp_env%ks_scp, error=error)!sm->dbcsr
           CALL sm_from_dbcsr(scp_env%ks_scp, ks_scp, distribution_2d, error=error )!sm->dbcsr

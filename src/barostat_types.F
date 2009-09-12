@@ -101,7 +101,7 @@ CONTAINS
        barostat%temp_ext = simpar%temp_baro_ext
        CALL section_vals_val_get(barostat_section,"TEMP_TOL",r_val=simpar%temp_baro_tol,error=error)
        ! Initialize or possibly restart Barostat
-       CALL initialize_npt (simpar, para_env, globenv, barostat%npt,&
+       CALL initialize_npt (simpar, globenv, barostat%npt,&
             cell, work_section=barostat_section, error=error)
 
        ! If none of the possible barostat has been allocated let's deallocate

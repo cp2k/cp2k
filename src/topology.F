@@ -195,7 +195,7 @@ CONTAINS
     ! 7. Pack everything into the molecular types
     !-----------------------------------------------------------------------------
     CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
-         topology,para_env,subsys_section,error)
+         topology,subsys_section,error)
     !-----------------------------------------------------------------------------
     ! Teo 12.2004:
     ! 
@@ -214,13 +214,13 @@ CONTAINS
     IF (my_qmmm) THEN
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,para_env, my_qmmm, qmmm_env, subsys_section,&
+            topology, my_qmmm, qmmm_env, subsys_section,&
             force_env_section=force_env_section,&
             error=error)
     ELSE 
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,para_env,subsys_section=subsys_section,&
+            topology,subsys_section=subsys_section,&
             force_env_section=force_env_section,&
             error=error)
     END IF
@@ -237,11 +237,11 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,qmmm_env,particle_set,root_section,para_env,subsys_section,&
+            topology,qmmm_env,particle_set,root_section,subsys_section,&
             gci,error)
     ELSE
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,particle_set=particle_set,input_file=root_section, para_env=para_env,&
+            topology,particle_set=particle_set,input_file=root_section, &
             subsys_section=subsys_section,gci=gci,error=error)
     END IF
 
@@ -252,14 +252,14 @@ CONTAINS
     iw2 = cp_print_key_unit_nr(logger,subsys_section,"TOPOLOGY%DUMP_PDB",&
           file_status="REPLACE",extension=".pdb",error=error)
     IF (iw2>0) THEN
-       CALL write_coordinate_pdb(iw2,topology,para_env,subsys_section,error)
+       CALL write_coordinate_pdb(iw2,topology,subsys_section,error)
     END IF
     CALL cp_print_key_finished_output(iw2,logger,subsys_section,&
          "TOPOLOGY%DUMP_PDB",error=error)  
     iw2 = cp_print_key_unit_nr(logger,subsys_section,"TOPOLOGY%DUMP_PSF",&
           file_status="REPLACE",extension=".psf",error=error)
     IF (iw2>0) THEN
-       CALL write_topology_psf(iw2,topology,para_env,subsys_section,force_env_section,error)
+       CALL write_topology_psf(iw2,topology,subsys_section,force_env_section,error)
     END IF
     CALL cp_print_key_finished_output(iw2,logger,subsys_section,&
          "TOPOLOGY%DUMP_PSF",error=error)  
@@ -442,25 +442,25 @@ CONTAINS
           CALL topology_set_atm_mass(topology,subsys_section,error)
           CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
        END IF
-       CALL topology_generate_bend(topology,para_env,subsys_section,error)
-       CALL topology_generate_ub(topology,para_env,subsys_section,error)
-       CALL topology_generate_dihe(topology,para_env,subsys_section,error)
-       CALL topology_generate_impr(topology,para_env,subsys_section,error)
-       CALL topology_generate_onfo(topology,para_env,subsys_section,error)
+       CALL topology_generate_bend(topology,subsys_section,error)
+       CALL topology_generate_ub(topology,subsys_section,error)
+       CALL topology_generate_dihe(topology,subsys_section,error)
+       CALL topology_generate_impr(topology,subsys_section,error)
+       CALL topology_generate_onfo(topology,subsys_section,error)
     CASE (do_conn_off)
        CALL topology_set_atm_mass(topology,subsys_section,error)
-       CALL topology_generate_bend(topology,para_env,subsys_section,error)
-       CALL topology_generate_ub(topology,para_env,subsys_section,error)
-       CALL topology_generate_dihe(topology,para_env,subsys_section,error)
-       CALL topology_generate_impr(topology,para_env,subsys_section,error)
-       CALL topology_generate_onfo(topology,para_env,subsys_section,error)
+       CALL topology_generate_bend(topology,subsys_section,error)
+       CALL topology_generate_ub(topology,subsys_section,error)
+       CALL topology_generate_dihe(topology,subsys_section,error)
+       CALL topology_generate_impr(topology,subsys_section,error)
+       CALL topology_generate_onfo(topology,subsys_section,error)
     CASE DEFAULT
        ! Post-process connectivity information (if read from an external file)
        ! in case of multiple_unit_cell
        CALL topology_conn_multiple(topology, subsys_section, error)
     END SELECT
 
-    CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
+    CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,subsys_section,error)
     IF(topology%molecules_check) CALL topology_molecules_check(topology,subsys_section,error)
 
     IF (my_qmmm) THEN

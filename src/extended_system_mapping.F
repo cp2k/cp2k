@@ -61,10 +61,9 @@ CONTAINS
 !>      JGH (10-Mar-2001) : set nhc variables to zero when not in use
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, para_env, error )
+  SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, error )
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_barostat_mapping', &
