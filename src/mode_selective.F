@@ -415,7 +415,7 @@ CONTAINS
        CASE(ms_guess_bfgs)
 
           ms_vib%initial_guess=2
-          CALL bfgs_guess(ms_vib_section,ms_vib,ionode,particles,mass,para_env,nrep,error)
+          CALL bfgs_guess(ms_vib_section,ms_vib,particles,mass,para_env,nrep,error)
           ms_vib%mat_size=0
 
        CASE(ms_guess_restart_vec)
@@ -434,7 +434,7 @@ CONTAINS
        CASE(ms_guess_molden)          
           ms_vib%initial_guess=5
           ncoord=3*SIZE(particles)
-          CALL molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ionode,ncoord,nrep,error)
+          CALL molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ncoord,nrep,error)
           ms_vib%mat_size=0
        END SELECT
        CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
@@ -452,11 +452,10 @@ CONTAINS
 ! *****************************************************************************
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************  
-  SUBROUTINE bfgs_guess(ms_vib_section,ms_vib,ionode,particles,mass,para_env,nrep,error)
+  SUBROUTINE bfgs_guess(ms_vib_section,ms_vib,particles,mass,para_env,nrep,error)
 
     TYPE(section_vals_type), POINTER         :: ms_vib_section
     TYPE(ms_vib_type)                        :: ms_vib
-    LOGICAL                                  :: ionode
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(Kind=dp), DIMENSION(:)              :: mass
@@ -679,12 +678,11 @@ CONTAINS
 ! *****************************************************************************
 !> \author Florian Schiffmann 11.2007
 ! ***************************************************************************** 
-  SUBROUTINE molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ionode,ncoord,nrep,error)
+  SUBROUTINE molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ncoord,nrep,error)
     TYPE(section_vals_type), POINTER         :: ms_vib_section, input
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(ms_vib_type)                        :: ms_vib
     REAL(Kind=dp), DIMENSION(:)              :: mass
-    LOGICAL                                  :: ionode
     INTEGER                                  :: ncoord, nrep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
