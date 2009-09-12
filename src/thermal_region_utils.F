@@ -146,9 +146,8 @@ CPSourceFileRef,&
 !> \brief create thermal_regions
 !> \author 
 ! *****************************************************************************
-  SUBROUTINE print_thermal_regions(thermal_regions, simpar, itimes, time, pos, act , error)
+  SUBROUTINE print_thermal_regions(thermal_regions, itimes, time, pos, act , error)
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
-    TYPE(simpar_type), POINTER               :: simpar
     INTEGER, INTENT(IN)                      :: itimes
     REAL(KIND=dp), INTENT(IN)                :: time
     CHARACTER(LEN=default_string_length)     :: pos, act

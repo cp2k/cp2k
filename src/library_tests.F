@@ -181,7 +181,7 @@ CONTAINS
     cp_fm_gemm_test_section => section_vals_get_subs_vals(root_section,"TEST%CP_FM_GEMM",error=error)
     CALL section_vals_get(cp_fm_gemm_test_section,explicit=explicit, error=error)
     IF (explicit) THEN
-      CALL cp_fm_gemm_test ( para_env, iw, globenv, cp_fm_gemm_test_section, error )
+      CALL cp_fm_gemm_test ( para_env, iw, cp_fm_gemm_test_section, error )
     ENDIF
 
     CALL cp_print_key_finished_output(iw,logger,root_section,"TEST%PROGRAM_RUN_INFO", error=error)
@@ -1767,11 +1767,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Tests the parallel matrix multiply
 ! *****************************************************************************
-  SUBROUTINE cp_fm_gemm_test(para_env, iw, globenv, cp_fm_gemm_test_section, error )
+  SUBROUTINE cp_fm_gemm_test(para_env, iw, cp_fm_gemm_test_section, error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: cp_fm_gemm_test_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
