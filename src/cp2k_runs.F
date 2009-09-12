@@ -12,6 +12,8 @@ MODULE cp2k_runs
   USE cp2k_debug,                      ONLY: cp2k_debug_energy_and_forces
   USE cp2k_info,                       ONLY: compile_date,&
                                              compile_lastcvs,&
+                                             cp2k_version,&
+                                             cp2k_year,&
                                              enable_color_tags
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
@@ -1015,6 +1017,8 @@ CONTAINS
         "<?xml version=""1.0"" encoding=""ISO-8859-1""?>",&
         "<?xml-stylesheet type=""text/xsl"" href=""cp2k_input.xsl""?>",&
         "<CP2K_INPUT>",&
+        " <CP2K_VERSION>"//TRIM(cp2k_version)//"</CP2K_VERSION>",&
+        " <CP2K_YEAR>"//TRIM(cp2k_year)//"</CP2K_YEAR>",&
         " <COMPILE_DATE>"//TRIM(compile_date)//"</COMPILE_DATE>",&
         " <COMPILE_LASTCVS>"//TRIM(compile_lastcvs)//"</COMPILE_LASTCVS>"
 
