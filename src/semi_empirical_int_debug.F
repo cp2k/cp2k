@@ -252,7 +252,6 @@ SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_tap
   CHARACTER(len=*), PARAMETER :: moduleN='semi_empirical_int_debug',&
        routineN = 'check_dssss_nucint_ana', routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: i, j
   REAL(dp)                                 :: delta, nssss, od, rn, ssssm, ssssp
   LOGICAL                                  :: check_value
 
