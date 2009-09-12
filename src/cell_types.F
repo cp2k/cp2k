@@ -541,7 +541,7 @@ CONTAINS
        cell_read_c     = .FALSE.
        ! Trying to read cell info from file
        CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",explicit=cell_read_file,error=error)
-       IF (cell_read_file) CALL read_cell_from_external_file(cell_section, cell, para_env, error)
+       IF (cell_read_file) CALL read_cell_from_external_file(cell_section, para_env, error)
        
        ! Trying to read cell info from the separate A, B, C vectors
        ! If cell information is provided through file A,B,C contain the file information..
@@ -585,7 +585,7 @@ CPSourceFileRef,&
      
        ! Multiple unit cell
        CALL section_vals_val_get(cell_section,"MULTIPLE_UNIT_CELL",i_vals=multiple_unit_cell,error=error)
-       IF (ANY(multiple_unit_cell/=1)) CALL set_multiple_unit_cell(cell, cell_section, multiple_unit_cell, error)
+       IF (ANY(multiple_unit_cell/=1)) CALL set_multiple_unit_cell(cell, multiple_unit_cell, error)
 
        CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
        SELECT CASE(my_per)
@@ -632,9 +632,8 @@ CPSourceFileRef,&
 !> \date    05.2009
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_multiple_unit_cell(cell, cell_section, multiple_unit_cell, error)
+  SUBROUTINE set_multiple_unit_cell(cell, multiple_unit_cell, error)
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: cell_section
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -664,9 +663,8 @@ CPSourceFileRef)
 !> \date    02.2008
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE read_cell_from_external_file(cell_section, cell, para_env, error)
+  SUBROUTINE read_cell_from_external_file(cell_section, para_env, error)
     TYPE(section_vals_type), POINTER         :: cell_section
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
