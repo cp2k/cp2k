@@ -1,6 +1,6 @@
 #!/bin/sh -v
 rm -rf CP2K_INPUT.html index.html index_javascript.html references.html units.html generate_manual_howto.html CP2K_INPUT/ cp2k_input.xml
-../../exe/Linux-x86-64-g95/cp2k.sopt --xml
+../../exe/Linux-x86-64-g95/cp2k.popt --xml
 ./xml2htm -javascript
 mv index.html index_javascript.html
 ./xml2htm

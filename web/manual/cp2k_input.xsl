@@ -17,7 +17,9 @@
    <h1 align="center">CP2K input reference</h1>
    <h2>Version information</h2>
    <p>
-    This HTML manual was generated automatically from a CP2K executable
+    This HTML manual refers to
+    <xsl:value-of select="CP2K_VERSION"/>
+    and was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
     <big class="tt">--xml</big> command line option (see
     <a href="generate_manual_howto.html">how to generate this manual</a>).
