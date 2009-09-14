@@ -2693,7 +2693,6 @@ CONTAINS
 #else
     fm_block => fm%local_data
     DO iblock_row = 1, nblkrows_total
-       icol = 1
        DO iblock_col = 1, nblkcols_total
           CALL dbcsr_get_block_p(matrix, iblock_row, iblock_col,&
                real_matrix_block, tr, found)
@@ -2701,27 +2700,28 @@ CONTAINS
              ALLOCATE (real_matrix_block(row_blk_sizes(iblock_row),&
                   col_blk_sizes(iblock_col)))
           ENDIF
-          DO icol_global=first_col(iblock_col),last_col(iblock_col)
-             irow = 1
-             DO irow_global=first_row(iblock_row),last_row(iblock_row)
-                IF (found) THEN
-                   real_matrix_block(irow,icol)&
-                        = my_beta*real_matrix_block(irow,icol)+&
-                        my_alpha*fm_block(irow_global,icol_global)
-                ELSE
-                   real_matrix_block(irow,icol)&
-                        = my_alpha*fm_block(irow_global,icol_global)
-                ENDIF
-                irow = irow + 1
-             END DO
-             icol = icol + 1
-          END DO
           IF (.NOT. found) THEN
+             FORALL (icol = 1:col_blk_sizes(iblock_col),&
+                     irow = 1:row_blk_sizes(iblock_row))
+                real_matrix_block(irow,icol)&
+                     = my_beta*real_matrix_block(irow,icol) &
+                       + my_alpha*fm_block(&
+                                           irow+first_row(iblock_row)-1,&
+                                           icol+first_col(iblock_col)-1)
+             END FORALL
              CALL dbcsr_put_block(matrix,&
                   iblock_row, iblock_col,&
                   real_matrix_block, tr)
              DEALLOCATE (real_matrix_block)
-          ENDIF
+          ELSE
+             FORALL (icol = 1:col_blk_sizes(iblock_col),&
+                     irow = 1:row_blk_sizes(iblock_row))
+                real_matrix_block(irow,icol)&
+                     = my_alpha*fm_block(&
+                                         irow+first_row(iblock_row)-1,&
+                                         icol+first_col(iblock_col)-1)
+             END FORALL
+          END IF
        ENDDO
     END DO
 
