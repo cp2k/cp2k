@@ -583,9 +583,9 @@ CONTAINS
     INTEGER                                  :: i, i_hills, ih, iter_nr, iw, &
                                                 n_colvar, n_hills_start, &
                                                 n_step, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, force_gauss
     REAL(KIND=dp)                            :: dfunc, diff_ss, dp2
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ddp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ddp, local_last_hills
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
     TYPE(metavar_type), DIMENSION(:), &
@@ -593,7 +593,7 @@ CONTAINS
     TYPE(multiple_walkers_type), POINTER     :: multiple_walkers
 
     failure   = .FALSE.
-    NULLIFY(hills_env, multiple_walkers, logger, colvars, ddp)
+    NULLIFY(hills_env, multiple_walkers, logger, colvars, ddp, local_last_hills)
     hills_env => meta_env%hills_env
     logger    => cp_error_get_logger(error)
     colvars   => meta_env%metavar
@@ -612,8 +612,41 @@ CONTAINS
             hills_env%ww, hills_env%n_hills, n_colvar, colvars, meta_env%metadyn_section, error)
     END IF
 
-    ! Proceed with normal calculation
-    IF ((MODULO(n_step,hills_env%nt_hills)==0).AND.(.NOT.meta_env%restart)) THEN
+ 
+! Proceed with normal calculation
+!Rachel: Calculate the displacement 
+ 
+    force_gauss=.FALSE.
+    IF ((hills_env%min_disp > 0.0_dp).AND.hills_env%old_hill_number> 0) THEN
+       ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(local_last_hills(meta_env%n_colvar), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+
+       local_last_hills(1:n_colvar)=hills_env%ss_history(1:n_colvar,hills_env%old_hill_number)
+     
+       dp2=0.0_dp
+       DO i = 1, n_colvar
+           ddp(i) = colvars(i)%ss0 - local_last_hills(i)
+          IF (colvars(i)%periodic) THEN
+             ! The difference of a periodic COLVAR is always within [-pi,pi]
+             diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
+          END IF
+          dp2 = dp2 + ddp(i)**2
+       ENDDO
+       dp2=SQRT(dp2)
+ 
+      IF(dp2 > hills_env%min_disp)force_gauss=.TRUE.
+        DEALLOCATE(ddp, stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+        DEALLOCATE(local_last_hills, stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+        IF(force_gauss)WRITE(837,*) 'rachel|  force_gauss is set to true', n_step
+        IF(.not.force_gauss)WRITE(837,*) 'rachel|  force_gauss is set to false', n_step
+    END IF
+
+!Rachel
+    IF (((MODULO(n_step-hills_env%old_hill_step,hills_env%nt_hills)==0).OR.force_gauss).AND.(.NOT.meta_env%restart)) THEN
        IF (meta_env%do_multiple_walkers) multiple_walkers => meta_env%multiple_walkers
 
        n_hills_start = hills_env%n_hills
@@ -621,6 +654,9 @@ CONTAINS
        CALL add_hill_single(hills_env, colvars, hills_env%ww, hills_env%n_hills, n_colvar, error)
        ! Update local n_hills counter
        IF (meta_env%do_multiple_walkers) multiple_walkers%n_hills_local = multiple_walkers%n_hills_local+1
+!Rachel
+       hills_env%old_hill_number=hills_env%n_hills
+       hills_env%old_hill_step=n_step
 
        ! Update iteration level for printing
        CALL get_meta_iter_level(meta_env, iter_nr, error)
@@ -655,7 +691,7 @@ CONTAINS
           CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
                "PRINT%HILLS", error=error)
 
-          ! Check the communicationa buffer of the other walkers
+          ! Check the communication buffer of the other walkers
           CALL synchronize_multiple_walkers(multiple_walkers, hills_env, colvars,&
                n_colvar, meta_env%metadyn_section, error)
        END IF

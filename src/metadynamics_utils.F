@@ -116,6 +116,13 @@ CONTAINS
        CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange,error=error)
        CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww,error=error)
        CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills,error=error)
+!Rachel
+       CALL section_vals_val_get(metadyn_section,"MIN_DISP",r_val=meta_env%hills_env%min_disp,error=error)
+       CALL section_vals_val_get(metadyn_section,"OLD_HILL_NUMBER",i_val=meta_env%hills_env%old_hill_number,&
+                           error=error)
+       CALL section_vals_val_get(metadyn_section,"OLD_HILL_STEP",i_val=meta_env%hills_env%old_hill_step,&
+                           error=error)
+!Rachel
        CALL section_vals_val_get(metadyn_section,"STEP_START_VAL",i_val=meta_env%n_steps,error=error)
        CPPreconditionNoFail(meta_env%n_steps>=0,cp_failure_level,routineP,error)
        CALL section_vals_val_get(metadyn_section,"NHILLS_START_VAL",&
@@ -246,10 +253,16 @@ CPSourceFileRef,&
           WRITE( iw, '(A,T71,F10.4)') ' METADYN| COLVARS restarted average temperature ',&
                meta_env%avg_temp
        END IF
-
        IF (meta_env%do_hills) THEN 
           WRITE (iw,'( A )')' METADYN| Spawning the Hills '
           WRITE (iw,'( A,T71,F10.3)')  ' METADYN| Width of the Spawned Gaussian',meta_env%hills_env%ww
+!Rachel
+          IF (meta_env%hills_env%min_disp.gt.0.0_dp) THEN
+             WRITE (iw,'(A)')    ' METADYN| Adapative meta time step is activated'
+             WRITE( iw, '(A,T71,F10.4)') ' METADYN| Minimum displacement for next hill',&
+             meta_env%hills_env%min_disp
+          END IF
+!Rachel
        END IF
 
        IF (meta_env%do_multiple_walkers) THEN

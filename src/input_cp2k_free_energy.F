@@ -147,6 +147,29 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+!Rachel
+       CALL keyword_create(keyword, name="MIN_DISP",&
+            description="Minimum displacement between hills before placing a new hill.",&
+            usage="MIN_DISP <REAL>",&
+            default_r_val=-1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(keyword, name="OLD_HILL_NUMBER",&
+            description="Index of the last hill spawned for this walker.Needed to calculate MIN_DISP",&
+            usage="OLD_HILL_NUMBER <INT>",&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="OLD_HILL_STEP",&
+            description="Timestep of the last hill spawned for this walker.Needed to calculate MIN_DISP",&
+            usage="OLD_HILL_STEP <INT>",&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+!Rachel
+
        CALL keyword_create(keyword, name="TEMP_TOL",&
             description="If a Lagrangian scheme is used the temperature tolerance for the collective "//&
             "variables is specified.",usage="TEMP_TOL <REAL>",&
