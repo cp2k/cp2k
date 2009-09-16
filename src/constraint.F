@@ -404,7 +404,7 @@ CONTAINS
           ! 4x6
           IF ( gci%ng4x6 /= 0 ) &
                CALL shake_roll_4x6_ext( gci, particle_set, pos, vel, r_shake,&
-               v_shake, dt, ishake_ext, max_sigma, error)
+               dt, ishake_ext, max_sigma, error)
           ! Collective Variables
           IF ( gci%ncolv%ntot /= 0 ) &
                CALL shake_roll_colv_ext( gci, particle_set, pos, vel, r_shake,&

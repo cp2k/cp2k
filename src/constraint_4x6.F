@@ -221,13 +221,13 @@ CONTAINS
 !>      none
 ! *****************************************************************************
   SUBROUTINE shake_roll_4x6_ext( gci, particle_set, pos, vel, r_shake,  &
-       v_shake, dt, ishake, max_sigma, error)
+       dt, ishake, max_sigma, error)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: r_shake, v_shake
+      INTENT(IN)                             :: r_shake
     REAL(kind=dp), INTENT(in)                :: dt
     INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
