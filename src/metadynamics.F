@@ -613,9 +613,7 @@ CONTAINS
     END IF
 
  
-! Proceed with normal calculation
-! Calculate the displacement 
- 
+    ! Proceed with normal calculation
     force_gauss=.FALSE.
     IF ((hills_env%min_disp > 0.0_dp).AND.hills_env%old_hill_number> 0) THEN
        ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
@@ -625,6 +623,7 @@ CONTAINS
 
        local_last_hills(1:n_colvar)=hills_env%ss_history(1:n_colvar,hills_env%old_hill_number)
      
+       !RG Calculate the displacement 
        dp2=0.0_dp
        DO i = 1, n_colvar
            ddp(i) = colvars(i)%ss0 - local_last_hills(i)
@@ -636,15 +635,14 @@ CONTAINS
        ENDDO
        dp2=SQRT(dp2)
  
-      IF(dp2 > hills_env%min_disp)force_gauss=.TRUE.
-        DEALLOCATE(ddp, stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-        DEALLOCATE(local_last_hills, stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-        IF(force_gauss)WRITE(837,*) 'rachel|  force_gauss is set to true', n_step
-        IF(.not.force_gauss)WRITE(837,*) 'rachel|  force_gauss is set to false', n_step
+      IF(dp2 > hills_env%min_disp) force_gauss=.TRUE.
+      DEALLOCATE(ddp, stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+      DEALLOCATE(local_last_hills, stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     END IF
 
+    !RG keep into account adaptive hills
     IF (((MODULO(n_step-hills_env%old_hill_step,hills_env%nt_hills)==0).OR.force_gauss).AND.(.NOT.meta_env%restart)) THEN
        IF (meta_env%do_multiple_walkers) multiple_walkers => meta_env%multiple_walkers
 
@@ -653,6 +651,7 @@ CONTAINS
        CALL add_hill_single(hills_env, colvars, hills_env%ww, hills_env%n_hills, n_colvar, error)
        ! Update local n_hills counter
        IF (meta_env%do_multiple_walkers) multiple_walkers%n_hills_local = multiple_walkers%n_hills_local+1
+
        hills_env%old_hill_number=hills_env%n_hills
        hills_env%old_hill_step=n_step
 

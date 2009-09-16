@@ -147,6 +147,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       !RG Adaptive hills
        CALL keyword_create(keyword, name="MIN_DISP",&
             description="Minimum displacement between hills before placing a new hill.",&
             usage="MIN_DISP <REAL>",&
@@ -167,6 +168,7 @@ CONTAINS
             default_i_val=0,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       !RG Adaptive hills
 
        CALL keyword_create(keyword, name="TEMP_TOL",&
             description="If a Lagrangian scheme is used the temperature tolerance for the collective "//&

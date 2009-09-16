@@ -43,9 +43,11 @@ MODULE metadynamics_types
 ! *****************************************************************************
   TYPE hills_env_type
      LOGICAL                                   :: restart
+     !RG Adaptive hills
      REAL(KIND=dp)                             :: ww, min_disp
      INTEGER                                   :: n_hills, nt_hills 
      INTEGER                                   :: old_hill_number, old_hill_step      
+     !RG Adaptive hills
      REAL(KIND=dp), DIMENSION(:,:), POINTER    :: ss_history
      REAL(KIND=dp), DIMENSION(:,:), POINTER    :: delta_s_history
      REAL(KIND=dp), DIMENSION(:),   POINTER    :: ww_history
