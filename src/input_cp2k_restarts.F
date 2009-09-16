@@ -887,14 +887,12 @@ CONTAINS
             i_val=meta_env%n_steps,error=error)
        CALL section_vals_val_set(meta_env%metadyn_section,"NHILLS_START_VAL",&
             i_val=meta_env%hills_env%n_hills,error=error)
-!Rachel
        CALL section_vals_val_set(meta_env%metadyn_section,"MIN_DISP",&
             r_val=meta_env%hills_env%min_disp,error=error)
        CALL section_vals_val_set(meta_env%metadyn_section,"OLD_HILL_NUMBER",&
             i_val=meta_env%hills_env%old_hill_number,error=error)
        CALL section_vals_val_set(meta_env%metadyn_section,"OLD_HILL_STEP",&
             i_val=meta_env%hills_env%old_hill_step,error=error)
-!Rachel
        IF (meta_env%do_hills.AND.meta_env%hills_env%n_hills/=0) THEN
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_POS",error=error)
           CALL meta_hills_val_set_ss(work_section, meta_env, error=error)

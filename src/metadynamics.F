@@ -614,7 +614,7 @@ CONTAINS
 
  
 ! Proceed with normal calculation
-!Rachel: Calculate the displacement 
+! Calculate the displacement 
  
     force_gauss=.FALSE.
     IF ((hills_env%min_disp > 0.0_dp).AND.hills_env%old_hill_number> 0) THEN
@@ -645,7 +645,6 @@ CONTAINS
         IF(.not.force_gauss)WRITE(837,*) 'rachel|  force_gauss is set to false', n_step
     END IF
 
-!Rachel
     IF (((MODULO(n_step-hills_env%old_hill_step,hills_env%nt_hills)==0).OR.force_gauss).AND.(.NOT.meta_env%restart)) THEN
        IF (meta_env%do_multiple_walkers) multiple_walkers => meta_env%multiple_walkers
 
@@ -654,7 +653,6 @@ CONTAINS
        CALL add_hill_single(hills_env, colvars, hills_env%ww, hills_env%n_hills, n_colvar, error)
        ! Update local n_hills counter
        IF (meta_env%do_multiple_walkers) multiple_walkers%n_hills_local = multiple_walkers%n_hills_local+1
-!Rachel
        hills_env%old_hill_number=hills_env%n_hills
        hills_env%old_hill_step=n_step
 

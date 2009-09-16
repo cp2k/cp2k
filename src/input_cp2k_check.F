@@ -494,7 +494,6 @@ CONTAINS
                      "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
                 CALL section_vals_val_set(input_file,&
                      "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
-!Rachel
                 CALL section_vals_val_get(restart_file,&
                      "MOTION%FREE_ENERGY%METADYN%OLD_HILL_NUMBER",i_val=myi,error=error)
                 CALL section_vals_val_set(input_file,&
@@ -503,7 +502,6 @@ CONTAINS
                      "MOTION%FREE_ENERGY%METADYN%OLD_HILL_STEP",i_val=myi,error=error)
                 CALL section_vals_val_set(input_file,&
                      "MOTION%FREE_ENERGY%METADYN%OLD_HILL_STEP",i_val=myi,error=error)
-!Rachel
                 CALL set_restart_info("METADYNAMIC COUNTERS",restarted_infos,error)
              END IF
           END IF
