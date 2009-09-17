@@ -817,7 +817,7 @@ MODULE qs_rho0_methods
                         la_max(iset),npgfa(iset),zeta(:,iset),&
                         rpgfa(:,iset),la_min(iset),&
                         lmax_0,z0_h,rp0,0,Qlm,&
-                        rab,rab2,rac,rac2,rac,rac2,&
+                        rab,rab2,rac,rac2,rac2,&
                         vabc,int_tmp,vv,ff(0:))
           DO ico0 = 1,nco0
             l0 = indco(1,ico0)+indco(2,ico0)+indco(3,ico0)
@@ -832,7 +832,7 @@ MODULE qs_rho0_methods
                         la_max(iset),npgfa(iset),zeta(:,iset),&
                         rpgfa(:,iset),la_min(iset),&
                         lmax_0,z0_s,rp0,0,Qlm,&
-                        rab,rab2,rac,rac2,rac,rac2,&
+                        rab,rab2,rac,rac2,rac2,&
                         vabc,int_tmp,vv,ff(0:))
           intmax0 = 0.0_dp
           l0 = 0

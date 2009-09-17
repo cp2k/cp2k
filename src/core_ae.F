@@ -319,7 +319,7 @@ CONTAINS
                                        la_max(iset)+nder,npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                        lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
                                        alpha_c,core_radius,zeta_c,core_charge,&
-                                       rab,rab2,rac,rac2,rbc,rbc2,hab(:,:,nij),verf,vnuc,ff(0:),&
+                                       rab,rab2,rac,rac2,rbc2,hab(:,:,nij),verf,vnuc,ff(0:),&
                                        nder,habd)
 
                                ! *** The derivatives w.r.t. atomic center c are    ***
@@ -357,7 +357,7 @@ CONTAINS
                                        la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                        lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
                                        alpha_c,core_radius,zeta_c,core_charge,&
-                                       rab,rab2,rac,rac2,rbc,rbc2,hab(:,:,nij),verf,vnuc,ff(0:))
+                                       rab,rab2,rac,rac2,rbc2,hab(:,:,nij),verf,vnuc,ff(0:))
                             END IF
                          END DO
                       END DO

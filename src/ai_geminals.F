@@ -202,7 +202,7 @@ MODULE ai_geminals
 
 ! *****************************************************************************
 
-  SUBROUTINE gemint2_derivative(iab,iabd,zeta,na,lra,lsa,zetb,nb,lrb,lsb,nder,r_only,error)
+  SUBROUTINE gemint2_derivative(iab,iabd,zeta,na,lra,lsa,nb,lrb,lsb,nder,r_only,error)
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), &
       INTENT(INOUT)                          :: iab
@@ -211,10 +211,8 @@ MODULE ai_geminals
       INTENT(INOUT)                          :: iabd
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: zeta
-    INTEGER, INTENT(IN)                      :: na, lra, lsa
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN)                             :: zetb
-    INTEGER, INTENT(IN)                      :: nb, lrb, lsb, nder
+    INTEGER, INTENT(IN)                      :: na, lra, lsa, nb, lrb, lsb, &
+                                                nder
     LOGICAL, INTENT(IN)                      :: r_only
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -321,19 +319,15 @@ MODULE ai_geminals
   END SUBROUTINE gemint2_derivative
 
 ! *****************************************************************************
-  SUBROUTINE g2gemint(intabc,la_max,npgfa,zeta,la_min,a,lb_max,npgfb,zetb,lb_min,b,&
+  SUBROUTINE g2gemint(intabc,la_max,npgfa,zeta,a,lb_max,npgfb,zetb,b,&
                       lr_max,ls_max,ngemc,zetc,c,nderivative,error)
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :, :), &
       INTENT(INOUT)                          :: intabc
     INTEGER, INTENT(IN)                      :: la_max, npgfa
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta
-    INTEGER, INTENT(IN)                      :: la_min
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, a
     INTEGER, INTENT(IN)                      :: lb_max, npgfb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb
-    INTEGER, INTENT(IN)                      :: lb_min
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, b
     INTEGER, INTENT(IN)                      :: lr_max, ls_max, ngemc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: zetc
@@ -420,7 +414,7 @@ MODULE ai_geminals
       ALLOCATE (iabcd(nc*na*nb,nrab,nsab,nrc,nsc,7),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-      CALL gemint2_derivative(iabc,iabcd,zab,nab,lrab,lsab,zetc,nc,lr_max,ls_max,nderivative,.FALSE.,error)
+      CALL gemint2_derivative(iabc,iabcd,zab,nab,lrab,lsab,nc,lr_max,ls_max,nderivative,.FALSE.,error)
 
       DO k=1,7
         CALL gg_trans1(iabcd(:,:,:,:,:,k),intabc(:,:,:,:,:,k),la_max,lb_max,error)
@@ -445,27 +439,19 @@ MODULE ai_geminals
 
   END SUBROUTINE g2gemint
 ! *****************************************************************************
-  SUBROUTINE g4int(intabcd,la_max,npgfa,zeta,la_min,a,lb_max,npgfb,zetb,lb_min,b,&
-                   lc_max,npgfc,zetc,lc_min,c,ld_max,npgfd,zetd,ld_min,d,error)
+  SUBROUTINE g4int(intabcd,la_max,npgfa,zeta,a,lb_max,npgfb,zetb,b,&
+                   lc_max,npgfc,zetc,c,ld_max,npgfd,zetd,d,error)
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), &
       INTENT(INOUT)                          :: intabcd
     INTEGER, INTENT(IN)                      :: la_max, npgfa
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta
-    INTEGER, INTENT(IN)                      :: la_min
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, a
     INTEGER, INTENT(IN)                      :: lb_max, npgfb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb
-    INTEGER, INTENT(IN)                      :: lb_min
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, b
     INTEGER, INTENT(IN)                      :: lc_max, npgfc
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetc
-    INTEGER, INTENT(IN)                      :: lc_min
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: c
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetc, c
     INTEGER, INTENT(IN)                      :: ld_max, npgfd
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetd
-    INTEGER, INTENT(IN)                      :: ld_min
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: d
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetd, d
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'g4int', &

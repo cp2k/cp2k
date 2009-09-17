@@ -222,7 +222,7 @@ CONTAINS
          iabc=0._dp
          ii = MAX(100/(l+1)**4,1)
          DO i=1,ii
-           CALL g2gemint(iabc,l/2,npgfa,zeta,0,ra,l/2,npgfc,zetc,0,rc,l,l,nb,zb,b,0,error)
+           CALL g2gemint(iabc,l/2,npgfa,zeta,ra,l/2,npgfc,zetc,rc,l,l,nb,zb,b,0,error)
          END DO
          tend = m_walltime ( )
          t = tend - tstart + threshold
@@ -418,7 +418,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     iabcd = 0._dp
 
-    CALL g4int(iabcd,la,1,(/xa/),0,a,lc,1,(/xc/),0,c,lb,1,(/xb/),0,b,ld,1,(/xd/),0,d,error)
+    CALL g4int(iabcd,la,1,(/xa/),a,lc,1,(/xc/),c,lb,1,(/xb/),b,ld,1,(/xd/),d,error)
 
     dmax = 0._dp
     DO ma=0,la
@@ -539,7 +539,7 @@ CONTAINS
     iab=0._dp
 
     CALL gemint2(iab,za,1,lla+1,lla+1,2*lla+1,ra,zb,1,llb,llb,2*llb,rb,error)
-    CALL gemint2_derivative(iab,iabd,za,1,lla,lla,zb,1,llb,llb,1,.FALSE.,error)
+    CALL gemint2_derivative(iab,iabd,za,1,lla,lla,1,llb,llb,1,.FALSE.,error)
 
     dmax = 0._dp
     DO ma=0,la+lc
@@ -684,7 +684,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     iabcd = 0._dp
 
-    CALL g2gemint(iabcd,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,1,zb,rb,1,error)
+    CALL g2gemint(iabcd,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,1,error)
 
     ALLOCATE(iabc1p(1,ncoset(la),ncoset(lc),ncoset(llb),ncoset(llb),1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -709,23 +709,23 @@ CONTAINS
       iabc3m =0._dp
 
       a(k) = a(k) + 0.5_dp*delta
-      CALL g2gemint(iabc1p,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,1,zb,rb,0,error)
+      CALL g2gemint(iabc1p,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       a(k) = a(k) - delta
-      CALL g2gemint(iabc1m,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,1,zb,rb,0,error)
+      CALL g2gemint(iabc1m,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       a(k) = a(k) + 0.5_dp*delta
       iabc1p = (iabc1p-iabc1m)/delta
 
       c(k) = c(k) + 0.5_dp*delta
-      CALL g2gemint(iabc2p,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,1,zb,rb,0,error)
+      CALL g2gemint(iabc2p,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       c(k) = c(k) - delta
-      CALL g2gemint(iabc2m,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,1,zb,rb,0,error)
+      CALL g2gemint(iabc2m,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       c(k) = c(k) + 0.5_dp*delta
       iabc2p = (iabc2p-iabc2m)/delta
 
       rb(k) = rb(k) + 0.5_dp*delta
-      CALL g2gemint(iabc3p,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,1,zb,rb,0,error)
+      CALL g2gemint(iabc3p,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       rb(k) = rb(k) - delta
-      CALL g2gemint(iabc3m,la,1,(/xa/),0,a,lc,1,(/xb/),0,c,llb,llb,1,zb,rb,0,error)
+      CALL g2gemint(iabc3m,la,1,(/xa/),a,lc,1,(/xb/),c,llb,llb,1,zb,rb,0,error)
       rb(k) = rb(k) + 0.5_dp*delta
       iabc3p = (iabc3p-iabc3m)/delta
 

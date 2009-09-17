@@ -408,12 +408,12 @@ MODULE ai_coulomb
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE coulomb2_new(la_max,npgfa,zeta,rpgfa,la_min,lc_max,npgfc,zetc,rpgfc,lc_min,&
+  SUBROUTINE coulomb2_new(la_max,npgfa,zeta,la_min,lc_max,npgfc,zetc,lc_min,&
        rac,rac2,vac,v,f,maxder,vac_plus)
     INTEGER, INTENT(IN)                      :: la_max, npgfa
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta
     INTEGER, INTENT(IN)                      :: la_min, lc_max, npgfc
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetc, rpgfc
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetc
     INTEGER, INTENT(IN)                      :: lc_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac
     REAL(KIND=dp), INTENT(IN)                :: rac2
@@ -746,7 +746,7 @@ MODULE ai_coulomb
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE coulomb3(la_max,npgfa,zeta,rpgfa,la_min,lb_max,npgfb,zetb,rpgfb,lb_min,&
-       lc_max,zetc,rpgfc,lc_min,gccc,rab,rab2,rac,rac2,rbc,rbc2,vabc,int_abc,&
+       lc_max,zetc,rpgfc,lc_min,gccc,rab,rab2,rac,rac2,rbc2,vabc,int_abc,&
        v,f,maxder,vabc_plus)
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -759,9 +759,7 @@ MODULE ai_coulomb
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: rab2
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac
-    REAL(KIND=dp), INTENT(IN)                :: rac2
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rbc
-    REAL(KIND=dp), INTENT(IN)                :: rbc2
+    REAL(KIND=dp), INTENT(IN)                :: rac2, rbc2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vabc
     REAL(KIND=dp), DIMENSION(:, :, :), &

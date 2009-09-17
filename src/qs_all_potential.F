@@ -229,7 +229,7 @@ MODULE qs_all_potential
             CALL verfc(la_max+nder,npgfa,zeta,rpgfa,la_min,&
                    lb_max,npgfb,zetb,rpgfb,lb_min,&
                    zetc,rpgfc,zc,cerf,&
-                   rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
+                   rab,rab2,rac,rac2,rbc2,Int_ab_sum,&
                    vverf,vvnuc,ff(0:),&
                    maxder=nder,vabc_plus=Int_ab_plus,&
                    pVp_sum=int_pVp_sum,vnabc=int_ab_nuc_sum,&
@@ -238,7 +238,7 @@ MODULE qs_all_potential
             CALL verfc(la_max+nder,npgfa,zeta,rpgfa,la_min,&
                        lb_max,npgfb,zetb,rpgfb,lb_min,&
                        zetc,rpgfc,zc,cerf,&
-                       rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
+                       rab,rab2,rac,rac2,rbc2,Int_ab_sum,&
                        vverf,vvnuc,ff(0:),&
                        maxder=nder,vabc_plus=Int_ab_plus)
           END IF
@@ -318,7 +318,7 @@ MODULE qs_all_potential
             CALL verfc(la_max,npgfa,zeta,rpgfa,la_min,&
                        lb_max,npgfb,zetb,rpgfb,lb_min,&
                        zetc,rpgfc,zc,cerf,&
-                       rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
+                       rab,rab2,rac,rac2,rbc2,Int_ab_sum,&
                        vverf,vvnuc,ff(0:),&
                        pVp_sum=int_pVp_sum,vnabc=int_ab_nuc_sum,&
                        pVp=vpVp,dkh_erfc=dkh_erfc)
@@ -326,7 +326,7 @@ MODULE qs_all_potential
             CALL verfc(la_max,npgfa,zeta,rpgfa,la_min,&
                        lb_max,npgfb,zetb,rpgfb,lb_min,&
                        zetc,rpgfc,zc,cerf,&
-                       rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
+                       rab,rab2,rac,rac2,rbc2,Int_ab_sum,&
                        vverf,vvnuc,ff(0:))
           END IF
         END IF
@@ -461,7 +461,7 @@ MODULE qs_all_potential
             CALL verfc(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                        la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                        zetc,rpgfc,zc,cerf,&
-                       rab,rab2,rac,rac2,rac,rac2,int_tmp,vverf,vvnuc,ff(0:))
+                       rab,rab2,rac,rac2,rac2,int_tmp,vverf,vvnuc,ff(0:))
 
             DO ipgf = 1,npgfa(iset)
                n=(ipgf-1)*ncoset(la_max(iset))

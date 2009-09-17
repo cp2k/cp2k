@@ -1556,15 +1556,9 @@ CONTAINS
                       rbc(1:3) = 0.0_dp
                    END IF
 
-!                  rc(1:3) = 0.5_dp
-!                  rac = pbc(rc,ra,cell)
-!!                  rac(1:3) = ra(1:3)-0.5_dp
-!                  rbc = pbc(rc,rb,cell)
-!!                  rbc(1:3) = rb(1:3)-0.5_dp
-
                   CALL angmom(la_max(iset),npgfa(iset),zeta(:,iset),&
                         rpgfa(:,iset),la_min(iset), lb_max(jset),npgfb(jset),&
-                        zetb(:,jset),rpgfb(:,jset),lb_min(jset),rac,rbc,angab)
+                        zetb(:,jset),rpgfb(:,jset),rac,rbc,angab)
 !            *** Contraction ***
                   DO i = 1,3
                      CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
@@ -1910,7 +1904,7 @@ CONTAINS
                   CALL moment(la_max(iset),npgfa(iset),zeta(:,iset),&
                     rpgfa(:,iset),la_min(iset),&
                     lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),&
-                    lb_min(jset), order,rac,rbc,mab)
+                    order,rac,rbc,mab)
 
                   DO imom = 1,M_dim
 !                 *** Contraction ***
@@ -2343,7 +2337,7 @@ CONTAINS
                   CALL moment(la_max(iset)+1,npgfa(iset),zeta(:,iset),&
                        rpgfa(:,iset),lda_min,&
                        lb_max(jset)+1,npgfb(jset),zetb(:,jset),rpgfb(:,jset),&
-                       ldb_min, order,rac,rbc,mab_tmp)
+                       order,rac,rbc,mab_tmp)
 
 !            *** Calculate the derivatives
                   CALL diff_momop(la_max(iset),npgfa(iset),zeta(:,iset),&

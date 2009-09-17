@@ -1277,7 +1277,9 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, my_end
 
     failure = .FALSE.
+#define LOWER_TO_UPPER
 #include "rd_amber_section_1.f90"
+#undef LOWER_TO_UPPER
   END SUBROUTINE rd_amber_section_c1
 
 ! *****************************************************************************

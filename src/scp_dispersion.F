@@ -506,13 +506,13 @@ CONTAINS
                          ALLOCATE(dabdx(ncoa,ncob),dabdy(ncoa,ncob),dabdz(ncoa,ncob),STAT=stat)
                          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                         CALL coulomb2_new( la_max ( iseta )+1, npgfa ( iseta ), z1, r1, 0, &
-                              lb_max ( isetb )+1, npgfb ( isetb ), z2, r2, 0, &
+                         CALL coulomb2_new( la_max ( iseta )+1, npgfa ( iseta ), z1, 0, &
+                              lb_max ( isetb )+1, npgfb ( isetb ), z2, 0, &
                               rab, rab2, vab, vv, ff ( 0: ), maxder, vab_plus )
 
                          ! Use vab_plus integral block to compute derivative
                          CALL dabdr ( la_max ( iseta ), npgfa ( iseta ), z1, r1, 0, &
-                              lb_max ( isetb ), npgfb ( isetb ), z2, r2, 0, &
+                              lb_max ( isetb ), npgfb ( isetb ), r2, 0, &
                               dab, vab_plus, dabdx, dabdy, dabdz )
 
                          ! Contract over the cartesian orbital index to obtain integral
@@ -584,8 +584,8 @@ CONTAINS
                          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
                       ELSE
-                         CALL coulomb2_new( la_max ( iseta )+1, npgfa ( iseta ), z1, r1, 0, &
-                              lb_max ( isetb )+1, npgfb ( isetb ), z2, r2, 0, &
+                         CALL coulomb2_new( la_max ( iseta )+1, npgfa ( iseta ), z1, 0, &
+                              lb_max ( isetb )+1, npgfb ( isetb ), z2, 0, &
                               rab, rab2, vab, vv, ff ( 0: ) )
 
                          CALL dgemm ("N","N", ncoa,nsgf_setb(isetb),ncob, &

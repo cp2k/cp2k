@@ -378,6 +378,8 @@ CONTAINS
        logger%close_local_unit_on_dealloc=.TRUE.
        logger%default_local_unit_nr=-1
     END IF
+    IF (PRESENT(suffix)) logger%suffix=suffix
+
     IF (PRESENT(close_local_unit_on_dealloc)) THEN
        logger%close_local_unit_on_dealloc=close_local_unit_on_dealloc
        IF (PRESENT(default_local_unit_nr).AND.PRESENT(local_filename).AND.&
@@ -477,18 +479,13 @@ CONTAINS
 !> \param logger the logger you want to log in
 !> \param level describes the of the message: cp_fatal_level(3), 
 !>     cp_failure_level(2), cp_warning_level(1), cp_note_level(0).
-!> \param fromWhere is a string of the form module:function or file:lineNr
-!>     that says where the error happend
-!> \param local if the output is local (defaults to false)
 !> \par History
 !>      4.2002 revised [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  FUNCTION cp_logger_would_log(logger, level, fromWhere, local) RESULT(res)
+  FUNCTION cp_logger_would_log(logger, level) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER, INTENT(in)                      :: level
-    CHARACTER(len=*), INTENT(in)             :: fromWhere
-    LOGICAL, INTENT(in), OPTIONAL            :: local
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_would_log', &
@@ -507,10 +504,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the unit nr for the requested kind of log.
 !> \param logger the logger you want to log in
-!> \param level describes the of the message: cp_fatal_level(3), 
-!>     cp_failure_level(2), cp_warning_level(1), cp_note_level(0).
-!> \param fromWhere is a string of the form module:function or file:lineNr
-!>     that says where the error happend
 !> \param local if true returns a local logger (one per task), otherwise
 !>     returns a global logger (only the process with para_env%mepos==
 !>     para_env%source should write to the global logger). Defaults to
@@ -519,10 +512,8 @@ CONTAINS
 !>      4.2002 revised [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  FUNCTION cp_logger_get_unit_nr(logger, level, fromWhere, local) RESULT(res)
+  FUNCTION cp_logger_get_unit_nr(logger, local) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER, INTENT(in)                      :: level
-    CHARACTER(len=*), INTENT(in)             :: fromWhere
     LOGICAL, INTENT(in), OPTIONAL            :: local
     INTEGER                                  :: res
 
@@ -570,7 +561,7 @@ CONTAINS
 
     loc=.TRUE.
     IF (PRESENT(local)) loc=local
-    IF (cp_logger_would_log(lggr,level,fromWhere,local=loc)) THEN
+    IF (cp_logger_would_log(lggr,level)) THEN
        SELECT CASE (level)
        CASE (cp_fatal_level)
           label='ERRORL3'
@@ -583,7 +574,7 @@ CONTAINS
        CASE default
           label='L'//ADJUSTL(cp_int_to_string(level))
        END SELECT
-       unitNr=cp_logger_get_unit_nr(lggr,level,fromWhere,local=loc)
+       unitNr=cp_logger_get_unit_nr(lggr,local=loc)
        IF (loc .OR. lggr%para_env%mepos==lggr%para_env%source) THEN
           CALL m_datum(datx)
           CALL print_message(datx(12:19)//' '//label//' in '//&

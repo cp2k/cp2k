@@ -442,7 +442,7 @@ CONTAINS
                            lscp_max ( iset_scp ), zetc, rpgfc, 0, &
                            gccc(:,1), (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, &   
                            (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, &   
-                           (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, &   
+                           0.0_dp, &   
                            Int_ab_sum, int_tmp, vv, ff )
                       ! update KS-matrix
                       IF ( .NOT. just_energy ) THEN
@@ -464,7 +464,6 @@ CONTAINS
                          END IF
                       END IF ! just_energy
                       ! Compute energy
-                   !   WRITE ( *, * ) 'TRACING', ldcpc1, m1, m2, ldintab1, nco1, nco2
                       DO ispin = 1,nspins
                          trace = trace_r_AxB_new(CPC_ab(:,:,ispin),ldcpc1,m1,m2,&
                               Int_ab_sum,ldintab1,0,0,nco1,nco2)

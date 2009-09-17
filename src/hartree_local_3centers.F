@@ -617,7 +617,6 @@ CONTAINS
                               1.0_dp,work(1,1),maxco_global,&
                               sphi_a(1,ifs2), maxcoa,&
                               0.0_dp,hab(1,1),ldhab1)
-                         !                             0.0_dp,hab(1,1),SIZE(hab,1))
 
                          DO ip1 = 1,npgfb(iset1)
                             ic1 = ic1_min_m1+1
@@ -766,7 +765,7 @@ CONTAINS
                                     rpgfb(:,iset2),zetb(:,iset2),nz2,&
                                     l0_kkind,normhard(0:),ng0_s(0:),r_V0,r_V0,&
                                     QN_h_c,-QN_s,Qlm,zhard,z0_s,&
-                                    rab,rab2,rac,rac2,rbc,rbc2,&
+                                    rab,rab2,rac,rac2,rbc2,&
                                     Int_ab_sum,Int_abc,maxder,&
                                     Int_dab_sum,Int_adb_sum,int_tmpp,vv,ff(0:))
 
@@ -859,7 +858,7 @@ CONTAINS
                                     rpgfa(:,iset2),zeta(:,iset2),nz2,&
                                     l0_kkind,normhard(0:),ng0_s(0:),r_V0,r_V0,&
                                     QN_h_c,-QN_s,Qlm,zhard,z0_s,&
-                                    -rab,rab2,rbc,rbc2,rac,rac2,&
+                                    -rab,rab2,rbc,rbc2,rac2,&
                                     Int_ab_sum,Int_abc,maxder,&
                                     Int_adb_sum,Int_dab_sum,int_tmpp,vv,ff(0:))
 
@@ -1097,7 +1096,7 @@ CONTAINS
   SUBROUTINE sumup_3c_integrals(l1_max,l1_min,nco1,m1,rp1,z1,nz1,&
        l2_max,l2_min,nco2,m2,rp2,z2,nz2,&
        l0_max,ng0_h,ng0_s,rp0_h,rp0_s,QN_h,QN_s,Qlm,z0_h,z0_s,&
-       r12,r122,r13,r132,r23,r232,vabc,Int_abc,maxder,&
+       r12,r122,r13,r132,r232,vabc,Int_abc,maxder,&
        vdabc,vadbc,int_tmp,vv,ff)
 
     INTEGER, INTENT(IN)                      :: l1_max, l1_min, nco1, m1
@@ -1112,9 +1111,7 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r12
     REAL(dp), INTENT(IN)                     :: r122
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r13
-    REAL(dp), INTENT(IN)                     :: r132
-    REAL(dp), DIMENSION(3), INTENT(IN)       :: r23
-    REAL(dp), INTENT(IN)                     :: r232
+    REAL(dp), INTENT(IN)                     :: r132, r232
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: vabc
     REAL(dp), DIMENSION(:, :, :), POINTER    :: Int_abc
     INTEGER, INTENT(IN)                      :: maxder
@@ -1155,14 +1152,14 @@ CONTAINS
        CALL coulomb3(l1_max+maxder,nz1,z1,rp1,l1_min,&
             l2_max,nz2,z2,rp2,l2_min,&
             l0_max,z0_h,rp0_h,0,QN_h,&
-            r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
+            r12,r122,r13,r132,r232,vabc,int_tmp,&
             vv,ff(0:),maxder=maxder,vabc_plus=vabc_plus)
     ELSE
 
        CALL coulomb3(l1_max,nz1,z1,rp1,l1_min,&
             l2_max,nz2,z2,rp2,l2_min,&
             l0_max,z0_h,rp0_h,0,QN_h,&
-            r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
+            r12,r122,r13,r132,r232,vabc,int_tmp,&
             vv,ff(0:))
     END IF
 
@@ -1181,13 +1178,13 @@ CONTAINS
        CALL coulomb3(l1_max+maxder,nz1,z1,rp1,l1_min,&
             l2_max,nz2,z2,rp2,l2_min,&
             l0_max,z0_s,rp0_s,0,QN_s,&
-            r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
+            r12,r122,r13,r132,r232,vabc,int_tmp,&
             vv,ff(0:),maxder=maxder,vabc_plus=vabc_plus)
     ELSE
        CALL coulomb3(l1_max,nz1,z1,rp1,l1_min,&
             l2_max,nz2,z2,rp2,l2_min,&
             l0_max,z0_s,rp0_s,0,QN_s,&
-            r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
+            r12,r122,r13,r132,r232,vabc,int_tmp,&
             vv,ff(0:))
 
     END IF

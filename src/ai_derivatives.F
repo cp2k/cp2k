@@ -61,12 +61,12 @@ CONTAINS
 !> \date    05.10.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE dabdr(la_max,npgfa,zeta,rpgfa,la_min,lb_max,npgfb,zetb,rpgfb,lb_min,&
+  SUBROUTINE dabdr(la_max,npgfa,zeta,rpgfa,la_min,lb_max,npgfb,rpgfb,lb_min,&
        dab,ab,dabdx,dabdy,dabdz)
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), INTENT(IN)                :: dab
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -196,10 +196,10 @@ CONTAINS
 !> \date    05.10.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE adbdr(la_max,npgfa,zeta,rpgfa,la_min,lb_max,npgfb,zetb,rpgfb,lb_min,&
+  SUBROUTINE adbdr(la_max,npgfa,rpgfa,la_min,lb_max,npgfb,zetb,rpgfb,lb_min,&
        dab,ab,adbdx,adbdy,adbdz)
     INTEGER, INTENT(IN)                      :: la_max, npgfa
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min

@@ -933,11 +933,11 @@ CONTAINS
 !> \date    22.11.1999
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE parser_get_integer(parser,object,lower_to_upper,newline,skip_lines,&
+  SUBROUTINE parser_get_integer(parser,object,newline,skip_lines,&
        string_length, at_end, error)
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(OUT)                     :: object
-    LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
+    LOGICAL, INTENT(IN), OPTIONAL            :: newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
     LOGICAL, INTENT(out), OPTIONAL           :: at_end
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1020,13 +1020,12 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_get_logical(parser,object,newline,skip_lines,string_length,&
-       at_end,lower_to_upper,error)
+       at_end,error)
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(OUT)                     :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
     LOGICAL, INTENT(out), OPTIONAL           :: at_end
-    INTEGER, INTENT(IN), OPTIONAL            :: lower_to_upper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_logical', &
@@ -1099,11 +1098,11 @@ CONTAINS
 !> \date    22.11.1999
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE parser_get_real(parser,object,lower_to_upper,newline,skip_lines,&
+  SUBROUTINE parser_get_real(parser,object,newline,skip_lines,&
        string_length,at_end,error)
     TYPE(cp_parser_type), POINTER            :: parser
     REAL(KIND=dp), INTENT(OUT)               :: object
-    LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
+    LOGICAL, INTENT(IN), OPTIONAL            :: newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
     LOGICAL, INTENT(out), OPTIONAL           :: at_end
     TYPE(cp_error_type), INTENT(inout)       :: error

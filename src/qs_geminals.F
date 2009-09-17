@@ -1000,7 +1000,7 @@ MODULE qs_geminals
             ALLOCATE (iabd(nn,nra,nsa,nrb,nsb,nder),STAT=istat)
             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             CALL gemint2_derivative(iab,iabd,zeta(:,:,:,iset),npgfa(iset),lrmaxa(iset),lsa(iset),&
-                 zetb(:,:,:,jset),npgfb(jset),lrmaxb(jset),lsb(jset),nderivative,.TRUE.,error)
+                 npgfb(jset),lrmaxb(jset),lsb(jset),nderivative,.TRUE.,error)
           END IF
 
           ! contraction and storage of requested integrals
@@ -1267,11 +1267,11 @@ MODULE qs_geminals
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           iabc = 0._dp
 
-          CALL g2gemint(iabc,la_max(iset),npgfa(iset),zeta(:,iset),la_min(iset),ra,&
-                        lb_max(jset),npgfb(jset),zetb(:,jset),lb_min(jset),rb,&
+          CALL g2gemint(iabc,la_max(iset),npgfa(iset),zeta(:,iset),ra,&
+                        lb_max(jset),npgfb(jset),zetb(:,jset),rb,&
                         lrmaxc(kset),lsc(kset),npgfc(kset),zetc(:,:,:,kset),rrc,nderivative,error)
-          CALL g2gemint(iabc,la_max(iset),npgfa(iset),zeta(:,iset),la_min(iset),ra,&
-                        lb_max(jset),npgfb(jset),zetb(:,jset),lb_min(jset),rb,&
+          CALL g2gemint(iabc,la_max(iset),npgfa(iset),zeta(:,iset),ra,&
+                        lb_max(jset),npgfb(jset),zetb(:,jset),rb,&
                         lrmaxc(kset),lsc(kset),npgfc(kset),zetch(:,:,:,kset),rrc,nderivative,error)
 
           ! contraction of geminal and reordering of integrals

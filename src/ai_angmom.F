@@ -49,14 +49,12 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE angmom(la_max,npgfa,zeta,rpgfa,la_min,&
-                    lb_max,npgfb,zetb,rpgfb,lb_min,&
-                    rac,rbc,angab)
+                    lb_max,npgfb,zetb,rpgfb, rac,rbc,angab)
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: angab
@@ -932,12 +930,12 @@ CONTAINS
     ALLOCATE(dmab(lds,lds,3,3))
     mab = 0.0_dp
     CALL moment(lb_max+1,npgfb,zetb,rpgfb,ldb_min,&
-                la_max,npgfa,zeta,rpgfa,lda_min,&
+                la_max,npgfa,zeta,rpgfa,&
                 1,rbc,rac,mab)
 
     DO i=1,3
       CALL dabdr(lb_max,npgfb,zetb,rpgfb,lb_min,&
-                 la_max,npgfa,zeta,rpgfa,la_min,&
+                 la_max,npgfa,rpgfa,la_min,&
                  dab,mab(:,:,i),dmab(:,:,1,i),dmab(:,:,2,i),dmab(:,:,3,i))
     END DO
 

@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2009  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!
+
 !-----------------------------------------------------------------------------!
 !   Calculates atomic integrals over unnormalized spherical Gaussian functions
 !-----------------------------------------------------------------------------!
@@ -23,7 +23,6 @@
 !   phi(r) = R(r) Ylm
 !
 !-----------------------------------------------------------------------------!
-
 MODULE ai_onecenter
   USE erf_fn,                          ONLY: erf
   USE f77_blas
@@ -39,16 +38,14 @@ MODULE ai_onecenter
   PRIVATE
   PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot, &
             sg_proj_ol, sg_conf, sg_coulomb, sg_exchange, sg_kinnuc
-  PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear, sto_erf, sto_gpot, &
-            sto_proj_ol, sto_conf, sto_coulomb, sto_exchange
+  PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear, sto_conf
   PUBLIC :: num_overlap, num_kinetic, num_nuclear, num_erf, num_gpot, &
-            num_proj_ol, num_conf, num_coulomb, num_exchange, num_kinnuc
+            num_proj_ol, num_conf, num_kinnuc
 
 !******************************************************************************
 
 CONTAINS
 
-!******************************************************************************
 !------------------------------------------------------------------------------
 ! 
 !  S(l,pq) = pi^(1/2))*(2*l+1)!! / 2^(l+2) / (p+q)^(l+1.5) 
@@ -63,8 +60,6 @@ SUBROUTINE sg_overlap ( smat, l, pa, pb )
 
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: el, spi
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( pa ) 
   m = SIZE ( pb ) 
@@ -97,8 +92,6 @@ SUBROUTINE sg_kinetic ( kmat, l, pa, pb )
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: spi
 
-!------------------------------------------------------------------------------
-
   n = SIZE ( pa ) 
   m = SIZE ( pb ) 
 
@@ -128,8 +121,6 @@ SUBROUTINE sg_nuclear ( umat, l, pa, pb )
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: tld
 
-!------------------------------------------------------------------------------
-
   n = SIZE ( pa ) 
   m = SIZE ( pb ) 
 
@@ -158,8 +149,6 @@ SUBROUTINE sg_kinnuc ( umat, l, pa, pb )
 
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: ppq, pq, tld
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( pa )
   m = SIZE ( pb )
@@ -213,8 +202,6 @@ SUBROUTINE sg_erf ( upmat, l, a, pa, pb )
 
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: a2, fpol, pq, tld, z
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( pa ) 
   m = SIZE ( pb ) 
@@ -293,8 +280,6 @@ SUBROUTINE sg_proj_ol ( spmat, l, p, k, rc )
 
     REAL(KIND=dp)                            :: orc, pf
 
-!------------------------------------------------------------------------------
-
   IF ( SIZE ( spmat ) < SIZE ( p ) ) STOP
 
   pf = 2._dp**(l+k+1) * gamma1(l+k+1) / rc**(l+2*k+1.5_dp) / SQRT(gamma1(l+2*k+1))
@@ -323,8 +308,6 @@ SUBROUTINE sg_gpot ( vpmat, k, rc, l, pa, pb )
 
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: tld
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( pa )
   m = SIZE ( pb )
@@ -357,8 +340,6 @@ SUBROUTINE sg_conf ( gmat, rc, k, l, pa, pb )
 
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: tld
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( pa )
   m = SIZE ( pb )
@@ -395,8 +376,6 @@ SUBROUTINE sg_coulomb ( eri, nu, pa, lab, pc, lcd )
                                                 scd, slab, slcd, ss, vab1, &
                                                 vab2, vab3, vcd1, vcd2, vcd3, &
                                                 xab, xcd
-
-!------------------------------------------------------------------------------
 
     na = SIZE(pa)
     nc = SIZE(pc)
@@ -457,8 +436,6 @@ SUBROUTINE sg_exchange ( eri, nu, pa, lac, pb, lbd )
     REAL(KIND=dp) :: cc1, cc2, cc3, cc4, ee, p, q, r, s, sac, sbd, slac, &
       slbd, ss, v1pr, v1ps, v1qr, v1qs, v2pr, v2ps, v2qr, v2qs, vpq, vrs, &
       xab, xac, xad, xbc, xbd, xcd
-
-!------------------------------------------------------------------------------
 
     eri=0._dp
     na = SIZE(pa)
@@ -543,11 +520,10 @@ END FUNCTION cgau
 !  S(l,pn,qm) = ( V[2n,p]*V[2m,q] )^(-1/2) * V[n+m,(p+q)/2]
 ! 
 !------------------------------------------------------------------------------
-SUBROUTINE sto_overlap ( smat, l, na, pa, nb, pb )
+SUBROUTINE sto_overlap ( smat,  na, pa, nb, pb )
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: smat
-    INTEGER, INTENT(IN)                      :: l
     INTEGER, DIMENSION(:), INTENT(IN)        :: na
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa
     INTEGER, DIMENSION(:), INTENT(IN)        :: nb
@@ -555,8 +531,6 @@ SUBROUTINE sto_overlap ( smat, l, na, pa, nb, pb )
 
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: vp, vpq, vq
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( pa ) 
   m = SIZE ( pb ) 
@@ -595,8 +569,6 @@ SUBROUTINE sto_kinetic ( kmat, l, na, pa, nb, pb )
     REAL(KIND=dp)                            :: vp, vpq, vpq1, vpq2, vq, wp, &
                                                 wq
 
-!------------------------------------------------------------------------------
-
   n = SIZE ( pa ) 
   m = SIZE ( pb ) 
 
@@ -623,11 +595,10 @@ END SUBROUTINE sto_kinetic
 !  U(l,pq) = 2( V[2n,p]*V[2m,q] )^(-1/2) * V[n+m-1,(p+q)/2]
 ! 
 !------------------------------------------------------------------------------
-SUBROUTINE sto_nuclear ( umat, l, na, pa, nb, pb )
+SUBROUTINE sto_nuclear ( umat, na, pa, nb, pb )
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: umat
-    INTEGER, INTENT(IN)                      :: l
     INTEGER, DIMENSION(:), INTENT(IN)        :: na
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa
     INTEGER, DIMENSION(:), INTENT(IN)        :: nb
@@ -635,8 +606,6 @@ SUBROUTINE sto_nuclear ( umat, l, na, pa, nb, pb )
 
     INTEGER                                  :: ip, iq, m, n
     REAL(KIND=dp)                            :: vp, vpq1, vq
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( pa ) 
   m = SIZE ( pb ) 
@@ -655,98 +624,23 @@ SUBROUTINE sto_nuclear ( umat, l, na, pa, nb, pb )
 END SUBROUTINE sto_nuclear
 
 !------------------------------------------------------------------------------
-! 
-!------------------------------------------------------------------------------
-SUBROUTINE sto_erf ( upmat, l, a, na, pa, nb, pb )
-
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: upmat
-    INTEGER, INTENT(IN)                      :: l
-    REAL(KIND=dp), INTENT(IN)                :: a
-    INTEGER, DIMENSION(:), INTENT(IN)        :: na
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa
-    INTEGER, DIMENSION(:), INTENT(IN)        :: nb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pb
-
-!------------------------------------------------------------------------------
-
-    upmat = 0._dp
-    STOP
-
-END SUBROUTINE sto_erf
-
-!------------------------------------------------------------------------------
-! 
-!  Overlap with Projectors P(l,k,rc) for k=0,1,..
-!
-!  P(l,k,rc) = SQRT(2)/SQRT(Gamma[l+2k+1.5])/rc^(l+2k+1.5) r^(l+2k) exp[-0.5(r/rc)^2]
-!
-!------------------------------------------------------------------------------
-SUBROUTINE sto_proj_ol ( spmat, l, n, p, k, rc )
-
-
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: spmat
-    INTEGER, INTENT(IN)                      :: l
-    INTEGER, DIMENSION(:), INTENT(IN)        :: n
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: p
-    INTEGER, INTENT(IN)                      :: k
-    REAL(KIND=dp), INTENT(IN)                :: rc
-
-!------------------------------------------------------------------------------
-
-    spmat = 0._dp
-    STOP
-
-END SUBROUTINE sto_proj_ol
-
-!------------------------------------------------------------------------------
-!
-!  Matrix elements for Gaussian potentials
-!
-!  V(k,rc) = (r/rc)^2k exp[-1/2(r/rc)^2]
-!
-!  VP(l,k,p+q,rc) = <aln|V|blm)
-!
-!------------------------------------------------------------------------------
-SUBROUTINE sto_gpot ( vpmat, k, rc, l, na, pa, nb, pb )
-
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: vpmat
-    INTEGER, INTENT(IN)                      :: k
-    REAL(KIND=dp), INTENT(IN)                :: rc
-    INTEGER, INTENT(IN)                      :: l
-    INTEGER, DIMENSION(:), INTENT(IN)        :: na
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa
-    INTEGER, DIMENSION(:), INTENT(IN)        :: nb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pb
-
-!------------------------------------------------------------------------------
-
-    vpmat = 0._dp
-    STOP  
-
-END SUBROUTINE sto_gpot
-
-!------------------------------------------------------------------------------
 !
 !  G(l,k,pq) = <aln|[r/rc]^2k|blm> 
 !            = N(aln)*N(blm) (a+b)^(-(n+m+2k+1))/rc^2k * GAMMA(n+m+2k+1)
 !
 !------------------------------------------------------------------------------
-SUBROUTINE sto_conf ( gmat, rc, k, l, na, pa, nb, pb )
+SUBROUTINE sto_conf ( gmat, rc, k, na, pa, nb, pb )
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: gmat
     REAL(KIND=dp), INTENT(IN)                :: rc
-    INTEGER, INTENT(IN)                      :: k, l
+    INTEGER, INTENT(IN)                      :: k
     INTEGER, DIMENSION(:), INTENT(IN)        :: na
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa
     INTEGER, DIMENSION(:), INTENT(IN)        :: nb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pb
 
     INTEGER                                  :: ip, iq, m, n
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( pa )
   m = SIZE ( pb )
@@ -763,48 +657,6 @@ SUBROUTINE sto_conf ( gmat, rc, k, l, na, pa, nb, pb )
   END DO
 
 END SUBROUTINE sto_conf
-
-!------------------------------------------------------------------------------
-!
-!  (plql,rl'sl')
-!
-!------------------------------------------------------------------------------
-SUBROUTINE sto_coulomb ( eri, pa, pb, lab, pc, pd, lcd )
-
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      INTENT(OUT)                            :: eri
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
-    INTEGER, INTENT(IN)                      :: lab
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pc, pd
-    INTEGER, INTENT(IN)                      :: lcd
-
-!------------------------------------------------------------------------------
-
-    eri = 0._dp
-    STOP
-
-END SUBROUTINE sto_coulomb
-
-!------------------------------------------------------------------------------
-!
-!  (plql',rlsl')
-!
-!------------------------------------------------------------------------------
-SUBROUTINE sto_exchange ( eri, pa, pb, lab, pc, pd, lcd )
-
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      INTENT(OUT)                            :: eri
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
-    INTEGER, INTENT(IN)                      :: lab
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pc, pd
-    INTEGER, INTENT(IN)                      :: lcd
-
-!------------------------------------------------------------------------------
-
-    eri = 0._dp
-    STOP
-
-END SUBROUTINE sto_exchange
 
 !******************************************************************************
 FUNCTION vsto(n,x) RESULT(v)
@@ -824,24 +676,20 @@ FUNCTION wsto(n,m,x) RESULT(w)
     w = 2._dp*REAL(m-n-1,dp)/x
 
 END FUNCTION wsto
-!******************************************************************************
 !------------------------------------------------------------------------------
 ! 
 !  S(l,pq) = INT(u^2 Ra(u) Rb(u))du
 ! 
 !------------------------------------------------------------------------------
-SUBROUTINE num_overlap ( smat, l, ra, rb, wr )
+SUBROUTINE num_overlap ( smat, ra, rb, wr )
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: smat
-    INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wr
 
     INTEGER                                  :: ip, iq, m, n
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( ra, 2 ) 
   m = SIZE ( rb, 2 ) 
@@ -872,8 +720,6 @@ SUBROUTINE num_kinetic ( kmat, l, ra, dra, rb, drb, r, wr )
 
     INTEGER                                  :: ip, iq, m, n
 
-!------------------------------------------------------------------------------
-
   n = SIZE ( ra, 2 ) 
   m = SIZE ( rb, 2 ) 
 
@@ -893,18 +739,15 @@ END SUBROUTINE num_kinetic
 !  U(l,pq) = INT(u Ra(u) Rb(u))du
 ! 
 !------------------------------------------------------------------------------
-SUBROUTINE num_nuclear ( umat, l, ra, rb, r, wr )
+SUBROUTINE num_nuclear ( umat, ra, rb, r, wr )
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: umat
-    INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
     INTEGER                                  :: ip, iq, m, n
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( ra, 2 ) 
   m = SIZE ( rb, 2 ) 
@@ -935,8 +778,6 @@ SUBROUTINE num_kinnuc ( umat, l, ra, dra, rb, drb, r, wr )
 
     INTEGER                                  :: ip, iq, m, n
 
-!------------------------------------------------------------------------------
-
   n = SIZE ( ra, 2 )
   m = SIZE ( rb, 2 )
 
@@ -956,19 +797,16 @@ END SUBROUTINE num_kinnuc
 !  U(l,pq) = INT(u erf(a*u) Ra(u) Rb(u))du
 ! 
 !------------------------------------------------------------------------------
-SUBROUTINE num_erf ( upmat, l, a, ra, rb, r, wr )
+SUBROUTINE num_erf ( upmat, a, ra, rb, r, wr )
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: upmat
-    INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), INTENT(IN)                :: a
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
     INTEGER                                  :: ip, iq, k, m, n
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( ra, 2 ) 
   m = SIZE ( rb, 2 ) 
@@ -1010,8 +848,6 @@ SUBROUTINE num_proj_ol ( spmat, l, ra, k, rc, r, wr )
     REAL(KIND=dp)                            :: pf
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pro
 
-!------------------------------------------------------------------------------
-
   n =  SIZE ( ra, 2 )
   IF ( SIZE ( spmat ) < n ) STOP
 
@@ -1039,21 +875,18 @@ END SUBROUTINE num_proj_ol
 !  VP(l,k,p+q,rc) = INT(u^2 V(u) Ra(u) Rb(u))du
 !
 !------------------------------------------------------------------------------
-SUBROUTINE num_gpot ( vpmat, k, rc, l, ra, rb, r, wr )
+SUBROUTINE num_gpot ( vpmat, k, rc,  ra, rb, r, wr )
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: vpmat
     INTEGER, INTENT(IN)                      :: k
     REAL(KIND=dp), INTENT(IN)                :: rc
-    INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
     INTEGER                                  :: ierr, ip, iq, m, n
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: op
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( ra, 2 )
   m = SIZE ( rb, 2 )
@@ -1082,20 +915,18 @@ END SUBROUTINE num_gpot
 !            = INT(u^2 [u/rc]^2k Ra(u) Rb(u))du
 !
 !------------------------------------------------------------------------------
-SUBROUTINE num_conf ( gmat, rc, k, l, ra, rb, r, wr )
+SUBROUTINE num_conf ( gmat, rc, k, ra, rb, r, wr )
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: gmat
     REAL(KIND=dp), INTENT(IN)                :: rc
-    INTEGER, INTENT(IN)                      :: k, l
+    INTEGER, INTENT(IN)                      :: k
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: ra, rb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
 
     INTEGER                                  :: ierr, ip, iq, m, n
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: op
-
-!------------------------------------------------------------------------------
 
   n = SIZE ( ra, 2 )
   m = SIZE ( rb, 2 )
@@ -1118,50 +949,4 @@ SUBROUTINE num_conf ( gmat, rc, k, l, ra, rb, r, wr )
 
 END SUBROUTINE num_conf
 
-!------------------------------------------------------------------------------
-!
-!  (plql,rl'sl')
-!
-!------------------------------------------------------------------------------
-SUBROUTINE num_coulomb ( eri, pa, pb, lab, pc, pd, lcd )
-
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      INTENT(OUT)                            :: eri
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
-    INTEGER, INTENT(IN)                      :: lab
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pc, pd
-    INTEGER, INTENT(IN)                      :: lcd
-
-!------------------------------------------------------------------------------
-
-    eri=0._dp
-    STOP
-
-END SUBROUTINE num_coulomb
-
-!------------------------------------------------------------------------------
-!
-!  (plql',rlsl')
-!
-!------------------------------------------------------------------------------
-SUBROUTINE num_exchange ( eri, pa, pb, lab, pc, pd, lcd )
-
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      INTENT(OUT)                            :: eri
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
-    INTEGER, INTENT(IN)                      :: lab
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pc, pd
-    INTEGER, INTENT(IN)                      :: lcd
-
-!------------------------------------------------------------------------------
-
-    eri=0._dp
-    STOP
-
-END SUBROUTINE num_exchange
-
-!******************************************************************************
-
 END MODULE ai_onecenter
-
-!******************************************************************************

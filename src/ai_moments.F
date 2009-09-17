@@ -654,14 +654,14 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE moment(la_max,npgfa,zeta,rpgfa,la_min,&
-                    lb_max,npgfb,zetb,rpgfb,lb_min,&
+                    lb_max,npgfb,zetb,rpgfb,&
                     lc_max,rac,rbc,mab)
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min, lc_max
+    INTEGER, INTENT(IN)                      :: lc_max
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: mab
@@ -1211,7 +1211,7 @@ CONTAINS
                  rab,dab,sab,0,.FALSE.,s,lds)
 
     CALL dabdr(la_max,npgfa,zeta,rpgfa,la_min,&
-               lb_max,npgfb,zetb,rpgfb,lb_min,&
+               lb_max,npgfb,rpgfb,lb_min,&
                dab,sab,difab(:,:,1),difab(:,:,2),difab(:,:,3))
 
     DEALLOCATE(s)
@@ -1272,60 +1272,19 @@ CONTAINS
       mab = 0.0_dp 
 !     *** Calculate the primitive overlap integrals ***
       CALL moment(la_max+1,npgfa,zeta,rpgfa,lda_min,&
-                  lb_max+1,npgfb,zetb,rpgfb,ldb_min, &
+                  lb_max+1,npgfb,zetb,rpgfb, &
                  order,rac,rbc,mab)
 
     END IF
     DO imom = 1,ncoset(order)-1
-!dbg
-! check block
-!    num1 = 2000+100*imom+10+1
-!    write(num1,*) ' lda ', npgfa*ncoset(la_max+1), ' ldb ',npgfb*ncoset(lb_max+1) , ' imom ' , imom
-!      do i = 1,npgfa*ncoset(la_max+1)
-!       write(num1,'(I4,50f12.6)') i,  mab(i,1:npgfb*ncoset(lb_max+1),imom)
-!      end do
-!dbg
-!      difmab_tmp = 0.0_dp
-!      CALL dabdr(la_max,npgfa,zeta,rpgfa,la_min,&
-!                 lb_max,npgfb,zetb,rpgfb,lb_min,&
-!                 dab,mab(:,:,imom), difmab_tmp(:,:,1),&
-!                 difmab_tmp(:,:,2), difmab_tmp(:,:,3))
-!      difmab(1:lda,1:ldb,imom,1) =  difmab_tmp(1:lda,1:ldb,1)
-!      difmab(1:lda,1:ldb,imom,2) =  difmab_tmp(1:lda,1:ldb,2)
-!      difmab(1:lda,1:ldb,imom,3) =  difmab_tmp(1:lda,1:ldb,3)
-!dbg
-! check block
-!    num1 = 1000+100*imom+10+1
-!    num2 = 1000+100*imom+20+1
-!    num3 = 1000+100*imom+30+1
-!    write(num1,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  x' 
-!    write(num2,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  y' 
-!    write(num3,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  z' 
-!      do i = 1,lda
-!       write(num1,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,1)
-!       write(num2,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,2)
-!       write(num3,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,3)
-!      end do
       difmab_tmp = 0.0_dp
-      CALL adbdr(la_max,npgfa,zeta,rpgfa,la_min,&
+      CALL adbdr(la_max,npgfa,rpgfa,la_min,&
                  lb_max,npgfb,zetb,rpgfb,lb_min,&
                  dab,mab(:,:,imom), difmab_tmp(:,:,1),&
                  difmab_tmp(:,:,2), difmab_tmp(:,:,3))
       difmab(1:lda,1:ldb,imom,1) =  difmab_tmp(1:lda,1:ldb,1)
       difmab(1:lda,1:ldb,imom,2) =  difmab_tmp(1:lda,1:ldb,2)
       difmab(1:lda,1:ldb,imom,3) =  difmab_tmp(1:lda,1:ldb,3)
-!    num1 = 1000+100*imom+10+2
-!    num2 = 1000+100*imom+20+2
-!    num3 = 1000+100*imom+30+2
-!    write(num1,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  x' 
-!    write(num2,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  y' 
-!    write(num3,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  z' 
-!      do i = 1,lda
-!       write(num1,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,1)
-!       write(num2,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,2)
-!       write(num3,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,3)
-!      end do
-!dbg
     END DO
 
     IF(PRESENT(mab_ext)) THEN

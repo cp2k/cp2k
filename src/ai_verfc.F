@@ -51,7 +51,6 @@
 !>      -  rab2      : Square of the distance between the atomic centers a and b.
 !>      -  rac       : Distance vector between the atomic centers a and c.
 !>      -  rac2      : Square of the distance between the atomic centers a and c.
-!>      -  rbc       : Distance vector between the atomic centers b and c.
 !>      -  rbc2      : Square of the distance between the atomic centers b and c.
 !>      -  rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
 !>      -  zet{a,b}  : Exponents of the Gaussian-type functions a or b.
@@ -107,7 +106,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE verfc(la_max1,npgfa,zeta,rpgfa,la_min1,lb_max1,npgfb,zetb,rpgfb,lb_min1,&
-       zetc,rpgfc,zc,cerf,rab,rab2,rac,rac2,rbc,rbc2,vabc,verf,vnuc,f,&
+       zetc,rpgfc,zc,cerf,rab,rab2,rac,rac2,rbc2,vabc,verf,vnuc,f,&
        maxder,vabc_plus,vnabc,pVp_sum,pVp,dkh_erfc)                                             !JT
     INTEGER, INTENT(IN)                      :: la_max1, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -118,9 +117,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: rab2
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac
-    REAL(KIND=dp), INTENT(IN)                :: rac2
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rbc
-    REAL(KIND=dp), INTENT(IN)                :: rbc2
+    REAL(KIND=dp), INTENT(IN)                :: rac2, rbc2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vabc
     REAL(KIND=dp), DIMENSION(:, :, :)        :: verf, vnuc

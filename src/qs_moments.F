@@ -337,8 +337,7 @@ CONTAINS
                 CALL moment(la_max(iset),npgfa(iset),zeta(:,iset),&
                             rpgfa(:,iset),la_min(iset),&
                             lb_max(jset),npgfb(jset),zetb(:,jset),&
-                            rpgfb(:,jset),lb_min(jset),&
-                            nmoments,rac,rbc,mab)
+                            rpgfb(:,jset),nmoments,rac,rbc,mab)
 
 !               *** Contraction step ***
 
