@@ -769,7 +769,7 @@ CPSourceFileRef,&
              ! S*C
              CALL dbcsr_init(mo_tmp_dbcsr, error)
              CALL dbcsr_sm_sm_multiply(s_dbcsr, mo_dbcsr, mo_tmp_dbcsr,&
-                                       product_dist, 1, error=error)
+                                       product_dist, hint=1, error=error)
              CALL dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_tmp_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_tmp_dbcsr); CALL mp_sum(i,group)
@@ -786,7 +786,7 @@ CPSourceFileRef,&
              ! This one is not needed because _destroy takes care of zeroing.
              !CALL dbcsr_init(mo_dbcsr, error=error)
              CALL dbcsr_sm_sm_multiply(p_dbcsr, mo_tmp_dbcsr, mo_dbcsr,&
-                                       product_dist, 1, error=error)
+                                       product_dist, hint=1, error=error)
              CALL dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)

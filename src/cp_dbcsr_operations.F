@@ -165,16 +165,22 @@ CONTAINS
 !> \param[in] matrix_b        right BCSR matrix
 !> \param[out] matrix_c       resulting BCSR product matrix.
 !> \param[in] dist            distribution for the product matrix.
-!> \param[in] hint            code path selection
-!> \param error               cp2k error
+!> \param[in] first_row       (optional) first full row of limiting submatrix
+!> \param[in] last_row        (optional) last full row of limiting submatrix
+!> \param[in] first_column    (optional) first full column of limiting submatrix
+!> \param[in] last_column     (optional) last full column of limiting submatrix
+!> \param[in] hint            (optional) code path selection
+!> \param[in,out] error       cp2k error
 !> \param[out] flop           (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c, distribution, &
-       hint, error, flop)
+       first_row, last_row, first_column, last_column, hint, error, flop)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: distribution
-    INTEGER, INTENT(IN)                      :: hint
+    INTEGER, INTENT(in), OPTIONAL            :: first_row, last_row, &
+                                                first_column, last_column, &
+                                                hint
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -182,7 +188,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sm_sm_multiply', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, timing_handle
+    INTEGER                                  :: f_col, f_row, i, l_col, &
+                                                l_row, path, timing_handle
     INTEGER(KIND=int_8)                      :: my_flop
     REAL(KIND=dp)                            :: flops
     TYPE(dbcsr_array_type)                   :: ms_left
@@ -195,6 +202,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
+    IF (PRESENT (hint)) THEN
+       path = hint
+    ELSE
+       path = 1
+    ENDIF
     !> pre The matrices must be valid and they must have compatible shapes.
     ! Assign new dist2d
     ! Create & initialize the final & working matrix.
@@ -203,6 +215,49 @@ CONTAINS
     CALL dbcsr_create(matrix_c, "C", distribution, 'N',&
          matrix_a%m%row_blk_size, matrix_b%m%col_blk_size,&
          0, 0, error=error)
+    ! Submatrix selection
+    f_row = 1
+    l_row = dbcsr_nfullrows_total(matrix_c)
+    f_col = 1
+    l_col = dbcsr_nfullcols_total(matrix_c)
+    IF (PRESENT (first_row)) THEN
+       CALL cp_assert(first_row .GE. 1&
+            .AND. first_row .LE. dbcsr_nfullrows_total(matrix_c),&
+            cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid first row specified")
+       f_row = first_row
+    ENDIF
+    IF (PRESENT (last_row)) THEN
+       CALL cp_assert(last_row .GE. 1&
+            .AND. last_row .LE. dbcsr_nfullrows_total(matrix_c),&
+            cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid last row specified")
+       l_row = last_row
+    ENDIF
+    IF (PRESENT (first_column)) THEN
+       CALL cp_assert(first_column .GE. 1&
+            .AND. first_column .LE. dbcsr_nfullcols_total(matrix_c),&
+            cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid first col specified")
+       f_col = first_column
+    ENDIF
+    IF (PRESENT (last_column)) THEN
+       CALL cp_assert(last_column .GE. 1&
+            .AND. last_column .LE. dbcsr_nfullcols_total(matrix_c),&
+            cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid last column specified")
+       l_col = last_column
+    ENDIF
+    CALL cp_assert (f_row .LE. l_row, cp_fatal_level,&
+         cp_wrong_args_error, routineN, "Last row smaller than first row")
+    CALL cp_assert (f_col .LE. l_col, cp_fatal_level,&
+         cp_wrong_args_error, routineN, "Last col smaller than first col")
+    ! Now optimize the default submatrix selection values away
+    IF (f_row .EQ. 1) f_row = 0
+    IF (l_row .EQ. dbcsr_nfullrows_total(matrix_c)) l_row = 0
+    IF (f_col .EQ. 1) f_col = 0
+    IF (l_col .EQ. dbcsr_nfullcols_total(matrix_c)) l_col = 0
+    !
     IF (dbg) WRITE(*,*)routineP//'Updating new matrix...'
     IF (dbg) CALL mp_sync(dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
     !IF (dbg) WRITE(*,*)routineP//' C initial index is', matrix_c%m%index
@@ -234,11 +289,12 @@ CONTAINS
     DBG 'Multiplying matrices'
     !
     my_flop = 0
-    IF (hint .GE. 0) THEN
+    IF (path .GE. 0) THEN
        !CALL dbcsr_multiply_from_left(ms_left, matrix_b, matrix_c, error,&
        !     flop=my_flop)
-       CALL dbcsr_mult_e_ec_m (ms_left, matrix_b, matrix_c, error,&
-            flop=my_flop)
+       CALL dbcsr_mult_e_ec_m (ms_left, matrix_b, matrix_c,&
+            (/ f_row, l_row, f_col, l_col /),&
+            error, flop=my_flop)
        IF (PRESENT (flop)) flop = my_flop
     ELSE
        IF (PRESENT (flop)) flop = 0
@@ -691,7 +747,7 @@ CONTAINS
     flop = 0
     CALL dbcsr_init (matrix_c, error=error)
     CALL dbcsr_sm_sm_multiply(matrix_a, matrix_b, matrix_c,&
-         product_dist, hint, error, flop=flop)
+         product_dist, hint=hint, error=error, flop=flop)
     !CALL dbcsr_sm_sm_multiply(matrix_bt, matrix_a, matrix_c,&
     !     dist_result, hint, error)
     !CALL dbcsr_distribution_release (dist_result)
@@ -1165,7 +1221,7 @@ CONTAINS
 
     !this scaling should be done in dbcsr_sm_sm_multiply
     CALL dbcsr_scale(in,alpha_scalar=my_alpha,error=error)
-    CALL dbcsr_sm_sm_multiply(matrix, in, out, product_dist, 1, error)
+    CALL dbcsr_sm_sm_multiply(matrix, in, out, product_dist, hint=1, error=error)
 
     !CALL copy_dbcsr_to_fm(out, fm_out)
 

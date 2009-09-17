@@ -174,14 +174,16 @@ CONTAINS
 !> \param[in] left_set             set of left column images
 !> \param[in] right_matrix         right matrix
 !> \param[out] product             DBCSR product matrix
+!> \param[in] submatrix_selection  select submatrix
 !> \param[in,out] error            cp2k error
 !> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_mult_e_ec_m (left_set, right_matrix, product_matrix,&
-       error, flop)
+       submatrix_selection, error, flop)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
     TYPE(dbcsr_obj), INTENT(IN)              :: right_matrix
     TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: product_matrix
+    INTEGER, DIMENSION(4), INTENT(in)        :: submatrix_selection
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -232,7 +234,7 @@ CONTAINS
     IF (dbcsr_mp_nprows (dbcsr_distribution_mp (right_matrix%m%dist)) .NE.&
          dbcsr_mp_npcols (dbcsr_distribution_mp (right_matrix%m%dist))) THEN
        CALL dbcsr_mult_e_ec_m_rma (left_set, right_matrix,&
-            product_matrix, error, flop=flop_total)
+            product_matrix, submatrix_selection, error, flop=flop_total)
        IF (PRESENT (flop)) flop = flop_total
        RETURN
     ENDIF
@@ -587,7 +589,8 @@ CONTAINS
              !$OMP BARRIER
              !WRITE(*,*)ithread,'running local multiply', right_prow_i, myt_mult, nthreads
              CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(myt_mult)%m, rbuffer_calc%m,&
-                  product_matrix_p%m, flop=flop_single,&
+                  product_matrix_p%m, submatrix_box=submatrix_selection,&
+                  flop=flop_single,&
                   t_all=t_all, t_dgemm=t_dgemm)
              !$OMP BARRIER
              !$OMP MASTER
@@ -660,14 +663,16 @@ CONTAINS
 !> \param[in] left_set             set of left column images
 !> \param[in] right_matrix         right matrix
 !> \param[out] product             DBCSR product matrix
+!> \param[in] submatrix_selection  select submatrix
 !> \param[in,out] error            cp2k error
 !> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_mult_e_ec_m_rma (left_set, right_matrix, product_matrix,&
-       error, flop)
+       submatrix_selection, error, flop)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
     TYPE(dbcsr_obj), INTENT(IN)              :: right_matrix
     TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: product_matrix
+    INTEGER, DIMENSION(4), INTENT(in)        :: submatrix_selection
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -952,7 +957,8 @@ CONTAINS
              CALL dbcsr_repoint_index (lbuffer_calc%mats(mult)%m)
              tstart = m_walltime ()
              CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult)%m, rbuffer_calc%m,&
-                  product_matrix_p%m, flop=flop_single,&
+                  product_matrix_p%m, submatrix_box=submatrix_selection,&
+                  flop=flop_single,&
                   t_all=t_all, t_dgemm=t_dgemm)
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
@@ -2144,14 +2150,15 @@ CONTAINS
 !> Attempts to block consecutive columns in rows of the right matrix.
 !> \param[in] left, right     left and right DBCSR matrices
 !> \param[in,out] product     resulting DBCSR product matrix
-!> \param[in,out] wm          DBCSR product working matrix
+!> \param[in] submatrix_box   select submatrix
 !> \param[out] flop           (optional) number of effective double-precision
 !>                            floating point operations performed
 ! *****************************************************************************
-  SUBROUTINE dbcsr_nn_mult_lin(left, right, product, flop,&
+  SUBROUTINE dbcsr_nn_mult_lin(left, right, product, submatrix_box, flop,&
        t_all, t_dgemm)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
+    INTEGER, DIMENSION(4), INTENT(in)        :: submatrix_box
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
     REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_dgemm
@@ -2172,19 +2179,21 @@ CONTAINS
       c_col, c_nze, c_row, datasize, first_row, i, ithread, last_row, &
       lastblk, lda, ldb, new_blk, new_row_blks, nthreads, old_blk, &
       old_row_begin_blk, old_size, prev_b_col, row_begin_blk, row_blk, rpt, &
-      size_c_blk_ps, stat, use_a_col_size_logical, use_a_offset, &
+      size_c_blk_ps, stat, submat_f_col, submat_f_row, submat_l_col, &
+      submat_l_row, use_a_col_size_logical, use_a_offset, &
       use_a_row_size_logical, use_b_col_size, use_b_offset, use_c_offset, &
       use_lda, use_ldb
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate, lflop
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: c_blk_ps, c_blk_ps_p, &
+      left_row_blk_end, left_row_blk_start, right_col_blk_end, &
+      right_col_blk_start
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mt_row_processing, new_index
     INTEGER, DIMENSION(:), POINTER :: left_col_blk_size, left_local_rows, &
       left_row_blk_size, new_blk_p, new_col_i, new_row_i, right_col_blk_size, &
       right_row_blk_size
-    LOGICAL                                  :: block_exists, &
-                                                start_fresh_extent, tr_a, &
-                                                use_accumulated_data
+    LOGICAL :: accumulated_data_valid, block_exists, left_limit_rows, &
+      right_limit_cols, start_fresh_extent, tr_a, use_accumulated_data
     REAL(KIND=dp)                            :: beta, epoch, mt_t_dgemm, &
                                                 use_alpha, use_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_d, right_data_d
@@ -2211,6 +2220,28 @@ CONTAINS
     right_col_blk_size => array_data (right%col_blk_size)
     !left_thread_dist => array_data (dbcsr_distribution_thread_dist (product%dist))
     left_local_rows => array_data (dbcsr_distribution_local_rows (left%dist))
+    ! Submatrix handling
+    left_limit_rows = MAXVAL (submatrix_box(1:2)) .GT. 0
+    right_limit_cols = MAXVAL (submatrix_box(3:4)) .GT. 0
+    IF (left_limit_rows) THEN
+       ALLOCATE (left_row_blk_start (left%nblkrows_total),&
+                 left_row_blk_end (left%nblkrows_total))
+       CALL convert_sizes_to_offsets (left_row_blk_size,&
+            left_row_blk_start, left_row_blk_end)
+       submat_f_row = submatrix_box(1)
+       submat_l_row = submatrix_box(2)
+       !write(*,*)"limiting rows",submatrix_box(1:2)
+    ENDIF
+    IF (right_limit_cols) THEN
+       ALLOCATE (right_col_blk_start (right%nblkcols_total),&
+                 right_col_blk_end (right%nblkcols_total))
+       CALL convert_sizes_to_offsets (right_col_blk_size,&
+            right_col_blk_start, right_col_blk_end)
+       submat_f_col = submatrix_box(3)
+       submat_l_col = submatrix_box(4)
+       !write(*,*)"limiting cols",submatrix_box(3:4)
+    ENDIF
+    !
     SELECT CASE (left%data_type)
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (left%data_area, left_data_r)
@@ -2261,6 +2292,7 @@ CONTAINS
     lflop = 0
     old_blk = 1
     use_accumulated_data = .FALSE.
+    accumulated_data_valid = .FALSE.
     new_blk = 0
     start_fresh_extent = .TRUE.
     !write(*,*)ithread,':',left_thread_dist
@@ -2273,6 +2305,20 @@ CONTAINS
        a_row = left_local_rows (a_row_l)
        !write(*,*)ithread,'testing lrow',a_row_l,a_row
        !DO a_row = 1, left%nblkrows_total
+       IF (left_limit_rows) THEN
+          IF (left_row_blk_start (a_row) .GT. submat_l_row .OR.&
+              left_row_blk_end (a_row) .LT. submat_f_row) THEN
+             !write(*,*)"Skipping row", a_row
+             CYCLE
+          ELSE
+             CALL cp_assert(&
+                    MIN(submat_l_row, left_row_blk_end (a_row))&
+                  - MAX(submat_f_row, left_row_blk_start (a_row))+1&
+                  .EQ. left_row_blk_size (a_row),&
+                  cp_fatal_level, cp_unimplemented_error_nr,&
+                  routineN, "Submatrix must encompass complete block rows")
+          ENDIF
+       ENDIF
        a_row_log = a_row
        DBG '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
        DBG 'A row', a_row,' with #cols=',left%row_p(a_row+1)-left%row_p(a_row)
@@ -2342,6 +2388,13 @@ CONTAINS
           start_fresh_extent = .TRUE.
           DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
              b_col = right%col_i(b_blk)
+             IF (right_limit_cols) THEN
+                IF (right_col_blk_start (b_col) .GT. submat_l_col .OR.&
+                     left_row_blk_end (b_col) .LT. submat_f_col) THEN
+                   !write(*,*)"Skipping column", b_col
+                   CYCLE
+                ENDIF
+             ENDIF
              c_col = b_col
              DBG 'B col', b_col
              b_col_size = right_col_blk_size(b_col)
@@ -2399,6 +2452,12 @@ CONTAINS
                 use_b_type = b_type
                 use_a_row_size_logical = a_row_size_logical
                 use_b_col_size = b_col_size
+                IF (right_limit_cols) THEN
+                   use_b_col_size =&
+                          MIN (right_col_blk_end (b_col), submat_l_col) &
+                        - MAX (right_col_blk_start (b_col), submat_f_col)+1
+                   use_accumulated_data = .TRUE.
+                ENDIF
                 use_a_col_size_logical = a_col_size_logical
                 use_alpha = alpha
                 use_a_offset = ABS (left%blk_p(a_blk))
@@ -2409,6 +2468,7 @@ CONTAINS
                 use_c_offset = offset
                 prev_b_col = b_col
                 start_fresh_extent = .FALSE.
+                accumulated_data_valid = .TRUE.
                 DBG "New extent", a_row_log, b_row, b_col, ';', a_blk, b_blk
              ELSE
                 use_accumulated_data = .TRUE.
@@ -2430,7 +2490,7 @@ CONTAINS
 !vw this doesnt work for right sparse matrix !
 !vw   flush_dgemm: IF (use_accumulated_data) THEN
 !vw reset to true for the moment !
-             flush_dgemm: IF (.TRUE.) THEN
+             flush_dgemm: IF (accumulated_data_valid) THEN
 !vw
 !
                 mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
@@ -2467,15 +2527,47 @@ CONTAINS
                 lflop = lflop + INT(use_a_row_size_logical, int_8)&
                      * INT(use_b_col_size, int_8)&
                      * INT(use_a_col_size_logical, int_8) * INT(2, int_8)
+             ENDIF flush_dgemm
+             reset_accumulation: IF (.TRUE.) THEN
+                accumulated_data_valid = .FALSE.
                 use_accumulated_data = .FALSE.
                 use_b_col_size = 0
                 start_fresh_extent = .TRUE.
-             ENDIF flush_dgemm
+             ENDIF reset_accumulation
           ENDDO ! b
+          row_reset_accumulation: IF (.TRUE.) THEN
+             accumulated_data_valid = .FALSE.
+             use_accumulated_data = .FALSE.
+             use_b_col_size = 0
+             start_fresh_extent = .TRUE.
+          ENDIF row_reset_accumulation
        ENDDO ! a_col
        mt_row_processing(rpslot_owner, a_row) = ithread
        mt_row_processing(rpslot_addblks, a_row) = new_row_blks
     ENDDO ! a_row
+    ! Final flush
+    IF (accumulated_data_valid) THEN
+       mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
+       IF (dbg) WRITE(*,&
+            "(1X,A,A1,1X,A1,A,I6,A,F4.1)")&
+            routineN//' DGEMM ',use_a_type,use_b_type,&
+            ' at',use_c_offset,' beta=', use_beta
+       CALL DGEMM(use_a_type, use_b_type,&
+            use_a_row_size_logical, use_b_col_size,&
+            use_a_col_size_logical,&
+            use_alpha,&
+            left_data_d(use_a_offset), use_lda,&
+            right_data_d(use_b_offset), use_ldb, use_beta,&
+            pointer_view (dbcsr_get_data_p_d (&
+            product%wms(ithread+1)%data_area),&
+            use_c_offset, use_c_offset+c_nze-1),&
+            use_a_row_size_logical)
+       mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
+       lflop = lflop + INT(use_a_row_size_logical, int_8)&
+            * INT(use_b_col_size, int_8)&
+            * INT(use_a_col_size_logical, int_8) * INT(2, int_8)
+    ENDIF
+    !
     DEALLOCATE (c_blk_ps, c_blk_ps_p)
     ! Now merge the new indices with the old index.
     !!CALL accumulate_row_offsets (mt_row_processing, exchange,&

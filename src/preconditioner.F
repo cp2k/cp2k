@@ -1890,7 +1890,7 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_copy(mat_li_scaled, mat_li, error=error)
     CALL dbcsr_scale(mat_li_scaled, alpha_matrix=pkd_inv_d, side='left', error=error)
     CALL dbcsr_init(mat_tmp, error=error)
-    CALL dbcsr_sm_sm_multiply(mat_li_scaled, mat_t, mat_tmp, dbcsr_distribution (mat_t), 1, error=error)
+    CALL dbcsr_sm_sm_multiply(mat_li_scaled, mat_t, mat_tmp, dbcsr_distribution (mat_t), error=error)
 
     CALL dbcsr_trace(mat_li, mat_tmp, trace, error=error)
     WRITE(*,*) 'trace(Li^t*A*Li*D)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
@@ -1944,7 +1944,7 @@ END SUBROUTINE make_full_all_ortho
     WRITE(*,*)'Pre checksum:',dbcsr_checksum (matrix_right, error)
     CALL dbcsr_init (matrix_result, error)
     CALL dbcsr_sm_sm_multiply (preconditioner_env%dbcsr_matrix,&
-         matrix_right, matrix_result, dist_result, 0, error)
+         matrix_right, matrix_result, dist_result, error=error)
     CALL dbcsr_distribution_release (dist_result)
     CALL dbcsr_release (matrix_right)
     WRITE(*,*)'Post checksum:',dbcsr_checksum (matrix_result, error)
