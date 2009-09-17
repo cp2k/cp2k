@@ -156,8 +156,7 @@ CONTAINS
              CALL shake_int_info(log_unit,i,ishake_int,max_sigma,error)
              ! Virtual Site 
              IF ( nvsitecon /= 0 ) &
-                CALL shake_vsite_int( molecule, particle_set, pos, vel, dt, ishake_int,&
-                int_max_sigma, error)
+                CALL shake_vsite_int( molecule, pos, error)
           END DO
        END DO MOL
        ! Intermolecular constraints
@@ -177,8 +176,7 @@ CONTAINS
                cell, imass, max_sigma, error)
           ! Virtual Site 
           IF ( gci%nvsite /= 0 ) &
-               CALL shake_vsite_ext( gci, particle_set, pos, vel, dt, ishake_ext,&
-               max_sigma, error)
+               CALL shake_vsite_ext( gci, pos, error)
           CALL restore_temporary_set( particle_set, local_particles, pos=pos, vel=vel )
        END IF
        CALL shake_ext_info(log_unit,ishake_ext,max_sigma,error)
@@ -378,7 +376,7 @@ CONTAINS
                 ! 4x6
                 IF ( n4x6con /= 0 ) &
                      CALL shake_roll_4x6_int( molecule, particle_set, pos, vel, r_shake,&
-                     v_shake, dt, ishake_int, int_max_sigma, error)
+                     dt, ishake_int, int_max_sigma, error)
                 ! Collective Variables
                 IF ( ncolv%ntot /= 0 ) &
                      CALL shake_roll_colv_int( molecule, particle_set, pos, vel, r_shake,&

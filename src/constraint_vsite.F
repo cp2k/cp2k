@@ -19,8 +19,7 @@ MODULE constraint_vsite
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
-  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
-                                             get_molecule_kind,&
+  USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type,&
                                              vsite_constraint_type
   USE molecule_types_new,              ONLY: get_molecule,&
@@ -50,10 +49,9 @@ CONTAINS
 !> \author Marcel Baer
 !> \date 12.2008
 ! *****************************************************************************
-  SUBROUTINE vsite_force_control( force_env, error,w)
+  SUBROUTINE vsite_force_control( force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: w
 
     INTEGER                                  :: i, ikind, imol, nconstraint, &
                                                 nkind, nmol_per_kind, &
@@ -120,30 +118,20 @@ CONTAINS
 !> \par History
 !>      12.2008 Marcel Baer
 ! *****************************************************************************
-  SUBROUTINE shake_vsite_int( molecule, particle_set, pos, vel, dt, ishake,&
-    max_sigma, error)
+  SUBROUTINE shake_vsite_int( molecule, pos, error)
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(particle_type), POINTER             :: particle_set( : )
-    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
-    REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake
-    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : )
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, nvsite
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(vsite_constraint_type), POINTER     :: vsite_list( : )
 
-    NULLIFY(fixd_list)
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, nvsite = nvsite,&
-         fixd_list=fixd_list, vsite_list = vsite_list )
+    CALL get_molecule_kind ( molecule_kind, nvsite = nvsite, vsite_list = vsite_list )
     CALL get_molecule ( molecule, first_atom = first_atom)
     ! Real Shake
-    CALL shake_vsite_low( fixd_list, vsite_list, nvsite, first_atom, &
-       particle_set, pos, vel, dt, ishake, max_sigma, error)
+    CALL shake_vsite_low( vsite_list, nvsite, first_atom, pos, error)
 
   END SUBROUTINE shake_vsite_int
 
@@ -152,29 +140,20 @@ CONTAINS
 !> \par History
 !>      12.2008 Marcel Baer
 ! *****************************************************************************
-  SUBROUTINE shake_vsite_ext( gci, particle_set, pos, vel, dt, ishake,&
-    max_sigma, error)
+  SUBROUTINE shake_vsite_ext( gci, pos, error)
 
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(particle_type), POINTER             :: particle_set( : )
-    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
-    REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake
-    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : )
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, nvsite
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(vsite_constraint_type), POINTER     :: vsite_list( : )
 
     first_atom = 1
     nvsite = gci%nvsite
-    fixd_list => gci%fixd_list
     vsite_list => gci%vsite_list
     ! Real Shake
-    CALL shake_vsite_low( fixd_list, vsite_list, nvsite, first_atom, &
-       particle_set, pos, vel, dt, ishake, max_sigma, error)
+    CALL shake_vsite_low( vsite_list, nvsite, first_atom, pos, error)
 
   END SUBROUTINE shake_vsite_ext
 
@@ -182,17 +161,10 @@ CONTAINS
 !> \par History
 !>      12.2008 Marcel Bear
 ! *****************************************************************************
-  SUBROUTINE shake_vsite_low(fixd_list, vsite_list, nvsite, first_atom, &
-       particle_set, pos, vel, dt, ishake, max_sigma, error)
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    TYPE(vsite_constraint_type), POINTER     :: vsite_list( : )
+  SUBROUTINE shake_vsite_low(vsite_list, nvsite, first_atom, pos, error)
+    TYPE(vsite_constraint_type)              :: vsite_list( : )
     INTEGER, INTENT(IN)                      :: nvsite, first_atom
-    TYPE(particle_type), POINTER             :: particle_set( : )
-    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
-    REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake
-    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : )
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iconst, index_a, index_b, &

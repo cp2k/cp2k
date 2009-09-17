@@ -131,7 +131,7 @@ CONTAINS
       INTENT(IN)                             :: veps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: first_atom, ng3x3
+    INTEGER                                  :: first_atom
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
@@ -141,11 +141,11 @@ CONTAINS
 
     NULLIFY(fixd_list)
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3,&
+    CALL get_molecule_kind ( molecule_kind, &
          g3x3_list = g3x3_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     ! Real Rattle
-    CALL rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+    CALL rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
        particle_set, vel, r_rattle, dt, veps, error)
 
   END SUBROUTINE rattle_roll_3x3_int
@@ -162,7 +162,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: first_atom, ng3x3
+    INTEGER                                  :: first_atom
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
@@ -172,11 +172,11 @@ CONTAINS
 
     NULLIFY(fixd_list)
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3,&
+    CALL get_molecule_kind ( molecule_kind, &
          g3x3_list = g3x3_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     ! Real Rattle
-    CALL rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+    CALL rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
        particle_set, vel, dt, error)
 
   END SUBROUTINE rattle_3x3_int
@@ -266,7 +266,7 @@ CONTAINS
       INTENT(IN)                             :: veps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: first_atom, ng3x3
+    INTEGER                                  :: first_atom
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
@@ -274,12 +274,11 @@ CONTAINS
       POINTER                                :: lg3x3( : )
 
     first_atom = 1
-    ng3x3 = gci%ng3x3
     g3x3_list => gci%g3x3_list
     fixd_list => gci%fixd_list
     lg3x3     => gci%lg3x3
     ! Real Rattle
-    CALL rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+    CALL rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
        particle_set, vel, r_rattle, dt, veps, error)
 
   END SUBROUTINE rattle_roll_3x3_ext
@@ -296,7 +295,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: first_atom, ng3x3
+    INTEGER                                  :: first_atom
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
@@ -304,12 +303,11 @@ CONTAINS
       POINTER                                :: lg3x3( : )
 
     first_atom = 1
-    ng3x3 = gci%ng3x3
     g3x3_list => gci%g3x3_list
     fixd_list => gci%fixd_list
     lg3x3     => gci%lg3x3
     ! Real Rattle
-    CALL rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+    CALL rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
        particle_set, vel, dt, error)
 
   END SUBROUTINE rattle_3x3_ext
@@ -635,14 +633,14 @@ CONTAINS
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+  SUBROUTINE rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
        particle_set, vel, r_rattle, dt, veps, error)
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
-    INTEGER, INTENT(IN)                      :: first_atom, ng3x3
+    INTEGER, INTENT(IN)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -737,7 +735,7 @@ CONTAINS
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+  SUBROUTINE rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, &
        particle_set, vel, dt, error)
     
     TYPE(fixd_constraint_type), &
@@ -745,7 +743,7 @@ CONTAINS
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
-    INTEGER, INTENT(IN)                      :: first_atom, ng3x3
+    INTEGER, INTENT(IN)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
