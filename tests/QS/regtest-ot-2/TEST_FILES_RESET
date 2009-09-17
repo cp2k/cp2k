@@ -732,3 +732,25 @@ Al_fermi.inp
 #
 Al_fermi.inp
 C_fermi.inp
+# FFTW3 now plans to use SSE by default 
+N3-2.inp
+# FFTW3 now plans to use SSE by default 
+N3-3.inp
+# FFTW3 now plans to use SSE by default 
+N3-4.inp
+# FFTW3 now plans to use SSE by default 
+N3-5.inp
+# FFTW3 now plans to use SSE by default 
+N3-6.inp
+# FFTW3 now plans to use SSE by default 
+N3-7.inp
+# FFTW3 now plans to use SSE by default 
+N3-8.inp
+# FFTW3 now plans to use SSE by default 
+N3-9.inp
+# FFTW3 now plans to use SSE by default 
+N3-10.inp
+# FFTW3 now plans to use SSE by default 
+H2O.inp
+# FFTW3 now plans to use SSE by default 
+H2_trip.inp

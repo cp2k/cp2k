@@ -55,3 +55,5 @@ H2-emd_restart-1.inp
 H2-emd_restart.inp
 H2plus-emd-1.inp
 H2plus-emd.inp
+# FFTW3 now plans to use SSE by default 
+wfn_mix_1.inp

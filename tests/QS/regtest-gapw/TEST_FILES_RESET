@@ -226,3 +226,7 @@ H2O-gapw-all_localize_crazy_noortho.inp
 H2O-gapw-all_localize_noortho.inp
 # forgotten numerics..
 He2-all-md.inp
+# FFTW3 now plans to use SSE by default 
+He2-all-md.inp
+# FFTW3 now plans to use SSE by default 
+Be_GAPW.inp

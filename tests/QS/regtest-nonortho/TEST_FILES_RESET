@@ -100,3 +100,9 @@ graphite2.inp
 graphite3.inp
 # bug fix: symmetric stress tensor
 graphite2.inp
+# FFTW3 now plans to use SSE by default 
+graphite.inp
+# FFTW3 now plans to use SSE by default 
+graphite2.inp
+# FFTW3 now plans to use SSE by default 
+graphite3.inp

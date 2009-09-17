@@ -512,3 +512,19 @@ He2_none_full_all.inp
 He2_none_full_single.inp
 #syevd
 sic_ddapc_rt.inp
+# FFTW3 now plans to use SSE by default 
+He2_ddapc_constraint.inp
+# FFTW3 now plans to use SSE by default 
+He2_ddapc_constraint-2.inp
+# FFTW3 now plans to use SSE by default 
+He2_ddapc_constraint-3.inp
+# FFTW3 now plans to use SSE by default 
+He2_none_full_all.inp
+# FFTW3 now plans to use SSE by default 
+He2_none_full_single.inp
+# FFTW3 now plans to use SSE by default 
+He2_none_full_inverse.inp
+# FFTW3 now plans to use SSE by default 
+sic_ddapc_rt.inp
+# FFTW3 now plans to use SSE by default 
+He2_ddapc_constraint-4.inp

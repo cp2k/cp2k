@@ -653,3 +653,13 @@ NO2-EFG-1.inp
 H2O-meta_hydro.inp
 #
 spin_restraint.inp
+# FFTW3 now plans to use SSE by default 
+spin_restraint.inp
+# FFTW3 now plans to use SSE by default 
+NO2-EFG-1.inp
+# FFTW3 now plans to use SSE by default 
+He3_multi_ddapc.inp
+# FFTW3 now plans to use SSE by default 
+h2o-otdiag.inp
+# FFTW3 now plans to use SSE by default 
+h2o-otdiag-lsd.inp

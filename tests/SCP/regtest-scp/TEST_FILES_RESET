@@ -131,3 +131,9 @@ w2-r2.inp
 # New order of energy calculation
 w2-r2.inp
 argon2.inp
+# FFTW3 now plans to use SSE by default 
+w2.inp
+# FFTW3 now plans to use SSE by default 
+w2-r1.inp
+# FFTW3 now plans to use SSE by default 
+w2-r2.inp

@@ -124,7 +124,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
    STOP "fftw3_create_plan_3d"
   END SELECT
 
-  IF (aligned) THEN
+  IF ( .NOT. aligned ) THEN
     fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
   END IF
 
@@ -248,7 +248,7 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
    STOP "fftw3_create_plan_1dm"
   END SELECT
 
-  IF (aligned) THEN
+  IF ( .NOT. aligned ) THEN
     fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
   END IF
 

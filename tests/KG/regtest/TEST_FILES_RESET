@@ -156,3 +156,7 @@ nai-4.inp
 nai-1.inp
 #  
 nai-4.inp
+# FFTW3 now plans to use SSE by default 
+nai-1.inp
+# FFTW3 now plans to use SSE by default 
+nai-4.inp

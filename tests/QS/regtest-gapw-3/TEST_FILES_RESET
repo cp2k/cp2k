@@ -179,3 +179,9 @@ CO_xastpxhh_loclist.inp
 
 # forgotten numerics..
 CO.inp
+# FFTW3 now plans to use SSE by default 
+CO_xastpxhh.inp
+# FFTW3 now plans to use SSE by default 
+CO_xastpval.inp
+# FFTW3 now plans to use SSE by default 
+CO_xastpxhh_loclist.inp

@@ -26,3 +26,5 @@ no-gapw-issc-1.inp
 nh3-issc-op-1.inp
 # GAPW memory reduction
 no-gapw-issc-1.inp
+# FFTW3 now plans to use SSE by default 
+no-gapw-issc-1.inp

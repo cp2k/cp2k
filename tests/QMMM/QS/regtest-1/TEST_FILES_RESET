@@ -344,3 +344,5 @@ Ar-qmmm.inp
 H2O-qmmm-gauss-11.inp
 H2O-qmmm-gauss-4.inp
 H2O-qmmm-none-1.inp
+# FFTW3 now plans to use SSE by default 
+Ar-qmmm.inp

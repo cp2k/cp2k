@@ -664,3 +664,17 @@ no-gapw-4.inp
 no-gapw-1-distributed.inp
 no-gapw-1-replicated.inp
 
+# FFTW3 now plans to use SSE by default 
+no-gapw-1.inp
+# FFTW3 now plans to use SSE by default 
+no-gapw-2.inp
+# FFTW3 now plans to use SSE by default 
+no-gapw-3.inp
+# FFTW3 now plans to use SSE by default 
+no-gapw-4.inp
+# FFTW3 now plans to use SSE by default 
+no-gapw-1-distributed.inp
+# FFTW3 now plans to use SSE by default 
+no-gapw-1-replicated.inp
+# FFTW3 now plans to use SSE by default 
+no-gapw-gpw-1.inp

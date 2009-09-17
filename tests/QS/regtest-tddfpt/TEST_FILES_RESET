@@ -11,3 +11,9 @@ H2O_tddfpt-t-2.inp
 NO_tddfpt-s-2.inp
 #
 NO_tddfpt-s-2.inp
+# FFTW3 now plans to use SSE by default 
+H2O_tddfpt-s-1.inp
+# FFTW3 now plans to use SSE by default 
+NO_tddfpt-s-1.inp
+# FFTW3 now plans to use SSE by default 
+NO_tddfpt-s-2.inp

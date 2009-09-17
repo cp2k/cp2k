@@ -173,3 +173,5 @@ N3dye_vib_bfgs.inp
 # bug fix for a(zero-cell)-a(non-zero-cell) interaction.
 H2O-1-GENPOT-2.inp
 H2O-1-GENPOT.inp
+# FFTW3 now plans to use SSE by default 
+N3dye_vib_bfgs.inp

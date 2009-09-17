@@ -737,3 +737,15 @@ H2O-solv.inp
 H2O-ata.inp
 # bug fix self-interaction with periodic images
 He2H-bloechl-md.inp
+# FFTW3 now plans to use SSE by default 
+He2H-bloechl-md.inp
+# FFTW3 now plans to use SSE by default 
+He2H-bloechl.inp
+# FFTW3 now plans to use SSE by default 
+H2O-bloechl.inp
+# FFTW3 now plans to use SSE by default 
+H2O-bloechl-Spl.inp
+# FFTW3 now plans to use SSE by default 
+H2O-bloechl-restraint.inp
+# FFTW3 now plans to use SSE by default 
+dynamics.inp

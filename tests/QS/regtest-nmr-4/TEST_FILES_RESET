@@ -284,3 +284,11 @@ no_list-1.inp
 o2-gapw-uks-restart-1.inp
 # Whittaker function
 c2h2_list-1.inp
+# FFTW3 now plans to use SSE by default 
+o2-gapw-uks-1.inp
+# FFTW3 now plans to use SSE by default 
+c2h2_list-1.inp
+# FFTW3 now plans to use SSE by default 
+no_list-1.inp
+# FFTW3 now plans to use SSE by default 
+o2-gapw-uks-restart-1.inp
