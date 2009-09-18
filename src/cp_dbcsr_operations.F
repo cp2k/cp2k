@@ -2755,15 +2755,12 @@ CONTAINS
           IF (.NOT. found) THEN
              ALLOCATE (real_matrix_block(row_blk_sizes(iblock_row),&
                   col_blk_sizes(iblock_col)))
-          ENDIF
-          IF (.NOT. found) THEN
              FORALL (icol = 1:col_blk_sizes(iblock_col),&
                      irow = 1:row_blk_sizes(iblock_row))
                 real_matrix_block(irow,icol)&
-                     = my_beta*real_matrix_block(irow,icol) &
-                       + my_alpha*fm_block(&
-                                           irow+first_row(iblock_row)-1,&
-                                           icol+first_col(iblock_col)-1)
+                     = my_alpha*fm_block(&
+                                         irow+first_row(iblock_row)-1,&
+                                         icol+first_col(iblock_col)-1)
              END FORALL
              CALL dbcsr_put_block(matrix,&
                   iblock_row, iblock_col,&
@@ -2773,9 +2770,10 @@ CONTAINS
              FORALL (icol = 1:col_blk_sizes(iblock_col),&
                      irow = 1:row_blk_sizes(iblock_row))
                 real_matrix_block(irow,icol)&
-                     = my_alpha*fm_block(&
-                                         irow+first_row(iblock_row)-1,&
-                                         icol+first_col(iblock_col)-1)
+                     = my_beta*real_matrix_block(irow,icol) &
+                       + my_alpha*fm_block(&
+                                           irow+first_row(iblock_row)-1,&
+                                           icol+first_col(iblock_col)-1)
              END FORALL
           END IF
        ENDDO
