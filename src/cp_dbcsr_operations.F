@@ -3013,13 +3013,15 @@ CONTAINS
     CALL cp_assert(MAXVAL(prow_dist).LE.UBOUND(blacs2mpi,1), cp_failure_level,&
          cp_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows', error)
-    CALL cp_assert(MAXVAL(prow_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
+    IF (dbg) &
+         CALL cp_assert(MAXVAL(prow_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
          cp_wrong_args_error, routineN,&
          'Range of row distribution not equal to processor rows', error)
     CALL cp_assert(MAXVAL(pcol_dist).LE.UBOUND(blacs2mpi,2), cp_failure_level,&
          cp_wrong_args_error, routineN,&
          'Col distribution references unexistent processor cols', error)
-    CALL cp_assert(MAXVAL(pcol_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
+    IF (dbg) &
+         CALL cp_assert(MAXVAL(pcol_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
          cp_wrong_args_error, routineN,&
          'Range of col distribution not equal to processor cols', error)
     ALLOCATE (row_blk_size (nblkrows_total), stat=stat)
