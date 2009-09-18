@@ -2857,6 +2857,7 @@ CONTAINS
     CALL dbcsr_init (bc_mat)
     CALL dbcsr_create (bc_mat, "Block-cyclic"//matrix%m%name, bc_dist,&
          dbcsr_get_matrix_type(matrix), rbs, cbs, 0, 0)
+    CALL dbcsr_finalize (bc_mat)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (rbs)
     CALL array_release (cbs)

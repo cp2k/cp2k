@@ -4755,12 +4755,14 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           IF (.NOT. found) THEN
              ALLOCATE (r2_dp(row_blk_size_new (stored_row_new),&
                   col_blk_size_new (stored_col_new)))
+             r2_dp(:,:) = 0.0_dp ! Needed for nagging compilers.
              tr = .FALSE.
              !redist%m%wms(1)%lastblk = redist%m%wms(1)%lastblk+1
              !redist%m%wms(1)%datasize = redist%m%wms(1)%datasize&
              !     + row_rle + col+col_rle
              blks = blks + 1
-             blk_ps = blk_ps + row_rle + col_rle
+             blk_ps = blk_ps + row_blk_size_new (stored_row_new) * &
+                               col_blk_size_new (stored_col_new)
           ENDIF
           DO col = rel_full_col_new, rel_full_col_new + col_rle - 1
              DO row = rel_full_row_new, rel_full_row_new + row_rle - 1
