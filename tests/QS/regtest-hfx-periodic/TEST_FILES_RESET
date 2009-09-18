@@ -59,3 +59,6 @@ CH3-coul-0.inp
 #restore screening on forces
 H2O-trunc-auto-md.inp
 CH3-trunc-auto-md.inp
+# bug fix screening on forces
+H2O-trunc-auto-md.inp
+CH3-trunc-auto-md.inp

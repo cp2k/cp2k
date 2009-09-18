@@ -58,3 +58,5 @@ C11H24-qmmmgapw-gauss-0.inp
 H2O-qmmm-hfx.inp
 #restore screening for derivs
 H2O-qmmm-hfx.inp
+#bug fix screening force
+H2O-qmmm-hfx.inp
