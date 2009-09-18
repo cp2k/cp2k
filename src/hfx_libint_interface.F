@@ -810,7 +810,7 @@ MODULE hfx_libint_interface
         END DO
     END SELECT
 
-    IF( tmp_max < eps_schwarz ) RETURN
+    IF( tmp_max_all < eps_schwarz ) RETURN
 
     DO i = 1,12
       primitives_tmp(:,:,:,:,i) = 0.0_dp
