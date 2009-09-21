@@ -213,19 +213,21 @@
        row_size = dbcsr_blk_row_size (matrix%m, stored_row)
        col_size = dbcsr_blk_column_size (matrix%m, stored_col)
        nze = row_size*col_size
-       !
-       ! let's copy the block
-       IF (tr .EQV. stored_tr) THEN
-          CALL ccopy(nze,&
-               pointer_view (&
-               dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
-               ), 1, block(1,1), 1)
-       ELSE
-          IF (stored_tr) CALL swap (row_size, col_size)
-          CALL dbcsr_block_transpose (block,&
-               pointer_view (dbcsr_get_data_p (&
-               matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1),&
-               row_size, col_size)
+       IF (nze .GT. 0) THEN
+          !
+          ! let's copy the block
+          IF (tr .EQV. stored_tr) THEN
+             CALL ccopy(nze,&
+                  pointer_view (dbcsr_get_data_p (&
+                     matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
+                  ), 1, block(1,1), 1)
+          ELSE
+             IF (stored_tr) CALL swap (row_size, col_size)
+             CALL dbcsr_block_transpose (block,&
+                  pointer_view (dbcsr_get_data_p (&
+                  matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1),&
+                  row_size, col_size)
+          ENDIF
        ENDIF
     ELSE
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
@@ -363,19 +365,21 @@
        row_size = dbcsr_blk_row_size (matrix%m, stored_row)
        col_size = dbcsr_blk_column_size (matrix%m, stored_col)
        nze = row_size*col_size
-       !
-       ! let's copy the block
-       IF (tr .EQV. stored_tr) THEN
-          CALL ccopy(nze,&
-               pointer_view (&
-               dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
-               ), 1, block(1), 1)
-       ELSE
-          IF (stored_tr) CALL swap (row_size, col_size)
-          CALL dbcsr_block_transpose (block,&
-               pointer_view (dbcsr_get_data_p (&
-               matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1),&
-               row_size, col_size)
+       IF (nze .GT. 0) THEN
+          !
+          ! let's copy the block
+          IF (tr .EQV. stored_tr) THEN
+             CALL ccopy(nze,&
+                  pointer_view (dbcsr_get_data_p (&
+                     matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
+                  ), 1, block(1), 1)
+          ELSE
+             IF (stored_tr) CALL swap (row_size, col_size)
+             CALL dbcsr_block_transpose (block,&
+                  pointer_view (dbcsr_get_data_p (&
+                  matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1),&
+                  row_size, col_size)
+          ENDIF
        ENDIF
     ELSE
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&

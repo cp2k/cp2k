@@ -50,7 +50,7 @@ MODULE cp_dbcsr_operations
        dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, &
-       dbcsr_distribute, dbcsr_filter, dbcsr_get_block_p, &
+       dbcsr_distribute, dbcsr_filter, dbcsr_get_block, dbcsr_get_block_p, &
        dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_norm, dbcsr_put_block, &
        dbcsr_remove_block, dbcsr_replace_blocks, dbcsr_replicate_all, &
        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_sum_replicated, &
@@ -3094,7 +3094,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE sm_from_dbcsr (sm, matrix, distribution_2d, error)
     TYPE(real_matrix_type), POINTER          :: sm
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -3112,11 +3112,12 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sm_first_col, sm_first_row, &
                                                 sm_last_col, sm_last_row
     INTEGER, DIMENSION(4)                    :: ver
-    LOGICAL                                  :: symmetric, tr
+    LOGICAL                                  :: sm_filled, symmetric, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d, buff2d
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(distribution_2d_type), POINTER      :: dist2d
+    TYPE(real_block_node_type), POINTER      :: sm_block_node
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3173,56 +3174,130 @@ CONTAINS
          sm_first_row, sm_last_row)
     CALL convert_sizes_to_offsets (array_data (dbcsr_col_block_sizes (matrix)),&
          sm_first_col, sm_last_col)
-    CALL allocate_matrix(matrix=sm,&
-                         nblock_row=nblkrows_total,&
-                         nblock_col=nblkcols_total,&
-                         nrow=nfullrows_total,&
-                         ncol=nfullcols_total,&
-                         first_row=sm_first_row,&
-                         last_row=sm_last_row,&
-                         first_col=sm_first_col,&
-                         last_col=sm_last_col,&
-                         matrix_name=TRIM(name),&
-                         matrix_symmetry=sm_symmetry,&
-                         sparsity_id=matrix%m%sparsity_id,&
-                         distribution_2d=dist2d, error=error,&
-                         keep_pointer=.TRUE.)
-    DEALLOCATE (sm_first_row, sm_last_row, sm_first_col, sm_last_col)
     !
-    NULLIFY (buff2d)
-    CALL dbcsr_iterator_start(iter, matrix)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       NULLIFY(blkdata_2d)
-       CALL dbcsr_iterator_next_block(iter, stored_row, stored_col,&
-            blkdata_2d, tr, blk)
-       ! We need to get the upper triangular form for the
-       ! sparse_matrix_type.
-       IF (symmetric .AND. stored_row .GT. stored_col) THEN
-          CALL swap (stored_row, stored_col)
-          tr = .NOT. tr
-       ENDIF
-       IF (.NOT. tr) THEN
-          CALL add_block_node(matrix=sm,&
-               block_row=stored_row, block_col=stored_col,&
-               block=blkdata_2d, error=error)
-       ELSE
-          ! This should never be the case when converting a
-          ! sparse_matrix_type-compatible matrix back to the
-          ! sparse_matrix_type, but can be the case with other
-          ! matrices.
-          !CALL cp_assert (.FALSE., cp_warning_level, cp_internal_error,&
-          !     routineN, "Should not need to transpose")
-          ALLOCATE (buff2d(SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)))
-          buff2d = TRANSPOSE(blkdata_2d)
-          CALL add_block_node(matrix=sm,&
-               block_row=stored_row, block_col=stored_col,&
-               block=buff2d, error=error)
-          DEALLOCATE (buff2d)
-       ENDIF
-    ENDDO
-    CALL dbcsr_iterator_stop(iter)
+    ! Only fill an existing matrix if it seems to have some
+    ! structure. Currently "has structure" == "row 1 has some block".
+    sm_filled = .FALSE.
+    IF (ASSOCIATED(sm) .AND. nblkrows_total .GE. 1) THEN
+       sm_block_node => first_block_node (sm, 1)
+       sm_filled = ASSOCIATED (sm_block_node)
+    ENDIF
+    sm_struct_exists: IF (sm_filled) THEN
+       CALL dbcsr_fill_sm_with_dbcsr(sm, matrix, error)
+    ELSE
+       CALL allocate_matrix(matrix=sm,&
+            nblock_row=nblkrows_total,&
+            nblock_col=nblkcols_total,&
+            nrow=nfullrows_total,&
+            ncol=nfullcols_total,&
+            first_row=sm_first_row,&
+            last_row=sm_last_row,&
+            first_col=sm_first_col,&
+            last_col=sm_last_col,&
+            matrix_name=TRIM(name),&
+            matrix_symmetry=sm_symmetry,&
+            sparsity_id=matrix%m%sparsity_id,&
+            distribution_2d=dist2d, error=error,&
+            keep_pointer=.TRUE.)
+       DEALLOCATE (sm_first_row, sm_last_row, sm_first_col, sm_last_col)
+       !
+       NULLIFY (buff2d)
+       CALL dbcsr_iterator_start(iter, matrix)
+       DO WHILE (dbcsr_iterator_blocks_left (iter))
+          NULLIFY(blkdata_2d)
+          CALL dbcsr_iterator_next_block(iter, stored_row, stored_col,&
+               blkdata_2d, tr, blk)
+          ! We need to get the upper triangular form for the
+          ! sparse_matrix_type.
+          IF (symmetric .AND. stored_row .GT. stored_col) THEN
+             CALL swap (stored_row, stored_col)
+             tr = .NOT. tr
+          ENDIF
+          IF (.NOT. tr) THEN
+             CALL add_block_node(matrix=sm,&
+                  block_row=stored_row, block_col=stored_col,&
+                  block=blkdata_2d, error=error)
+          ELSE
+             ! This should never be the case when converting a
+             ! sparse_matrix_type-compatible matrix back to the
+             ! sparse_matrix_type, but can be the case with other
+             ! matrices.
+             !CALL cp_assert (.FALSE., cp_warning_level, cp_internal_error,&
+             !     routineN, "Should not need to transpose")
+             ALLOCATE (buff2d(SIZE(blkdata_2d,1),SIZE(blkdata_2d,2)))
+             buff2d = TRANSPOSE(blkdata_2d)
+             CALL add_block_node(matrix=sm,&
+                  block_row=stored_row, block_col=stored_col,&
+                  block=buff2d, error=error)
+             DEALLOCATE (buff2d)
+          ENDIF
+       ENDDO
+       CALL dbcsr_iterator_stop(iter)
+    ENDIF sm_struct_exists
     CALL timestop(timing_handle)
   END SUBROUTINE sm_from_dbcsr
+
+
+! *****************************************************************************
+!> \brief Fills an existing real_matrix_type with data from a DBCSR matrix.
+!>
+!>        This routine is for compatibility: when a SM (real_matrix_type) is
+!>        passed to a routine, converted to a DBCSR, which is transformed
+!>        and we want to only update the passed SM.
+!> \param[in,out] sm          cp2k sparse matrix
+!> \param[in] matrix          DBCSR matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_fill_sm_with_dbcsr (sm, matrix, error)
+    TYPE(real_matrix_type), POINTER          :: sm
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_fill_sm_with_dbcsr', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: data_exchange_info_cnt = 3, &
+                                                metalen = 2
+
+    INTEGER                                  :: block_col, sm_col, sm_row, &
+                                                timing_handle
+    LOGICAL                                  :: found
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d
+    TYPE(real_block_node_type), POINTER      :: sm_block_node
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
+    !
+    DO sm_row = 1, dbcsr_nblkrows_total(matrix)
+       sm_block_node => first_block_node(sm, sm_row)
+       DO WHILE (ASSOCIATED (sm_block_node))
+          NULLIFY (blkdata_2d)
+          CALL get_block_node (block_node=sm_block_node, block_col=sm_col,&
+               block=blkdata_2d)
+          ! There are several options now:
+          ! * data exists in both: replace sm with dbcsr
+          ! * data exists in SM but not DBCSR: clear existing block
+          !
+          !write(*,*)routineN//" row,col,assoc",&
+          !     sm_row, sm_col, associated(blkdata_2d)
+          IF (ASSOCIATED (blkdata_2d)) THEN
+             CALL dbcsr_get_block (matrix, sm_row, sm_col, blkdata_2d,&
+                  .FALSE., found)
+             IF (.NOT. found) blkdata_2d(:,:) = 0.0_dp
+          ELSEIF (found) THEN
+             ! * data exists in DBCSR but not SM: add it
+             !CALL add_block_node (matrix=sm, block_row=stored_row,&
+             !     block_col=stored_col, block=buff2d, error=error)
+             CALL cp_assert (.FALSE., cp_failure_level, cp_internal_error,&
+                  routineP, "Block found in DBCSR but not SM.")
+          ENDIF
+          ! * no data exists in either: do nothing
+          sm_block_node => next_block_node(sm_block_node)
+       ENDDO
+    ENDDO
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_fill_sm_with_dbcsr
 
 
   SUBROUTINE dbcsr_write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
