@@ -229,7 +229,7 @@
                   row_size, col_size)
           ENDIF
        ENDIF
-    ELSE
+    ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
@@ -306,7 +306,7 @@
             )
        CALL pointer_c_rank_remap2 (block, row_size, col_size, block_1d)
 #endif
-    ELSE
+    ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
@@ -328,7 +328,7 @@
 
 
 ! *****************************************************************************
-!> \brief Gets a 2-d block from a dbcsr matrix
+!> \brief Gets a 1-d block from a dbcsr matrix
 !> \param[in]  matrix DBCSR matrix
 !> \param[in]  row    the row
 !> \param[in]  col    the column
@@ -381,7 +381,7 @@
                   row_size, col_size)
           ENDIF
        ENDIF
-    ELSE
+    ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
@@ -407,7 +407,7 @@
   END SUBROUTINE dbcsr_get_block_c
 
 ! *****************************************************************************
-!> \brief Gets a 2-d block from a dbcsr matrix
+!> \brief Gets a 1-d block from a dbcsr matrix
 !> \param[in]  matrix DBCSR matrix
 !> \param[in]  row    the row
 !> \param[in]  col    the column
@@ -450,7 +450,7 @@
        block => pointer_view (&
             dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
             )
-    ELSE
+    ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
