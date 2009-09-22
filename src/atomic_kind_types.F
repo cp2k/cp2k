@@ -1465,6 +1465,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
       aux_fit_basis_set_name, geminal_basis_set_name, keyword, &
       orb_basis_set_name, potential_name, potential_type
@@ -1532,13 +1533,13 @@ CONTAINS
     IF (k_rep<1) THEN
        ! If it's not a link atom let's check for the element and map
        ! the KIND section to the element.
-       akind_name = atomic_kind%element_symbol(1:2)
-       CALL uppercase(akind_name)
+       element_symbol = atomic_kind%element_symbol(1:2)
+       CALL uppercase(element_symbol)
        DO i_rep=1,n_rep
           CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
                c_val=keyword,i_rep_section=i_rep,error=error)
           CALL uppercase(keyword)
-          IF (keyword==akind_name) THEN
+          IF (keyword==element_symbol) THEN
              k_rep=i_rep
              EXIT
           END IF

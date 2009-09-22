@@ -150,7 +150,7 @@ CPSourceFileRef,&
                    EXIT
                 END IF
              END DO
-             CALL cp_assert(wrd==4.OR.end_c<LEN(line_att)+1,cp_failure_level,&
+             CALL cp_assert(LEN_TRIM(line_att(start_c:end_c-1))/=0,cp_failure_level,&
                   cp_assertion_failed,routineP,&
                   "incorrectly formatted line in coord section'"//line_att//"'",&
                   error,failure)
@@ -199,7 +199,7 @@ CPSourceFileRef,&
                    EXIT
                 END IF
              END DO
-             CALL cp_assert(wrd==4.OR.end_c<LEN(line_att)+1,cp_failure_level,&
+             CALL cp_assert(LEN_TRIM(line_att(start_c:end_c-1))/=0,cp_failure_level,&
                   cp_assertion_failed,routineP,&
                   "incorrectly formatted line in coord section'"//line_att//"'",&
                   error,failure)
