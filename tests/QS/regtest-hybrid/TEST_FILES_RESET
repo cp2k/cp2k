@@ -369,3 +369,5 @@ Li-hybrid-rcam-b3lyp.inp
 Ne-hybrid-rcam-b3lyp.inp
 # FFTW3 now plans to use SSE by default 
 Ne-hybrid-MCY3.inp
+#
+Li-hybrid-rcam-b3lyp.inp
