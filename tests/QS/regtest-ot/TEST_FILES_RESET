@@ -528,3 +528,9 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 # FFTW3 now plans to use SSE by default 
 He2_ddapc_constraint-4.inp
+# slight change in initial guess atomic
+tests/QS/regtest-ot/He2_ddapc_constraint-3.inp
+tests/QS/regtest-ot/sic_ddapc_rt.inp
+#
+He2_ddapc_constraint-3.inp
+sic_ddapc_rt.inp
