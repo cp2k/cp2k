@@ -1511,10 +1511,11 @@ CONTAINS
        CALL keyword_release(keyword,error=error)   
 
        CALL keyword_create(keyword, name="comvel_tol",&
-            description="The maximum accepted velocity of the center of mass"//&
+            description="The maximum accepted velocity of the center of mass. "//&
             "If it is 0 no subtraction is performed. "//&
             "With Shell-Model, comvel may drift if MD%THERMOSTAT%REGION /= GLOBAL ", &
-            usage="comvel_tol 0.0", default_r_val=0.0_dp, error=error)
+            usage="comvel_tol 0.0", default_r_val=0.0_dp, unit_str="bohr*au_t^-1",&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
