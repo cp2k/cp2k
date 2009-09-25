@@ -53,7 +53,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    my_zero_tails = .TRUE.
+    my_zero_tails = .FALSE.
     IF(PRESENT(zero_tails)) my_zero_tails = zero_tails
     my_stride=1
     IF (PRESENT(stride)) THEN 

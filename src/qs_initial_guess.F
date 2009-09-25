@@ -459,16 +459,24 @@ CPSourceFileRef,&
        
        ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO ikind=1,SIZE(atomic_kind_set)
-          atomic_kind => atomic_kind_set(ikind)
-          NULLIFY(pmat(ikind)%mat)
-          CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,error=error)
-          NULLIFY(atomic_kind)
-       END DO
 
-       scale = 1._dp
-       IF (nspin==2) scale=0.5_dp
+       ionode = logger%para_env%mepos==logger%para_env%source
+       output_unit = -1
+       IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+       IF(output_unit>1) THEN 
+          WRITE(output_unit,'(T2,A)') "  Atomic guess: first density matrix obtained in terms of "
+          WRITE(output_unit,'(T19,A)') " atomic orbitals and  electronic configurations "// &
+                                           "assigned to each atomic kind"
+       END IF
        DO ispin=1,nspin
+          scale = 1._dp
+          IF (nspin==2) scale=0.5_dp
+          DO ikind=1,SIZE(atomic_kind_set)
+            atomic_kind => atomic_kind_set(ikind)
+            NULLIFY(pmat(ikind)%mat)
+            CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,ispin=ispin,nspin=nspin,error=error)
+            NULLIFY(atomic_kind)
+          END DO
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                           maxocc=maxocc,&
                           nelectron=nelectron)
@@ -488,6 +496,14 @@ CPSourceFileRef,&
           CALL cp_sm_sm_trace(p_rmpv(ispin)%matrix,s_sparse(1)%matrix,trps1,qs_env%para_env,error)
           scale=REAL(nelectron,dp)/trps1
           CALL cp_sm_scale_and_add(p_rmpv(ispin)%matrix,alpha=scale,error=error)
+          IF(output_unit>0) THEN
+             IF(nspin>1) WRITE(output_unit,'(T2,A,I6)') "Spin ", ispin
+             WRITE(output_unit,'(T2,A)') " Re-scaling the density matrix to get the right number of electrons"
+             WRITE(output_unit,'(T4,A,T18,A,T32,A)') "# Electrons", "P-trace", "Scaling factor" 
+             WRITE(output_unit,'(T4,I10,T18,F10.3,T32,F10.3)') nelectron, trps1, scale
+             
+          END IF
+
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -529,14 +545,14 @@ CPSourceFileRef,&
                                            p_rmpv(ispin)%matrix,&
                                            error=error)
           END IF
+          DO ikind=1,SIZE(atomic_kind_set)
+            IF(ASSOCIATED(pmat(ikind)%mat)) THEN
+              DEALLOCATE (pmat(ikind)%mat,STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            END IF
+          END DO
        END DO
 
-       DO ikind=1,SIZE(atomic_kind_set)
-          IF(ASSOCIATED(pmat(ikind)%mat)) THEN
-            DEALLOCATE (pmat(ikind)%mat,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          END IF
-       END DO
        DEALLOCATE (pmat,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        
@@ -576,16 +592,16 @@ CPSourceFileRef,&
        
        ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO ikind=1,SIZE(atomic_kind_set)
-          atomic_kind => atomic_kind_set(ikind)
-          NULLIFY(pmat(ikind)%mat)
-          CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,error=error)
-          NULLIFY(atomic_kind)
-       END DO
 
-       scale = 1._dp
-       IF (nspin==2) scale=0.5_dp
        DO ispin=1,nspin
+          scale = 1._dp
+          IF (nspin==2) scale=0.5_dp
+          DO ikind=1,SIZE(atomic_kind_set)
+            atomic_kind => atomic_kind_set(ikind)
+            NULLIFY(pmat(ikind)%mat)
+            CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,ispin=ispin, nspin=nspin,error=error)
+            NULLIFY(atomic_kind)
+          END DO
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                           maxocc=maxocc,&
                           nelectron=nelectron)
@@ -825,16 +841,16 @@ CPSourceFileRef,&
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                         p_rmpv(ispin)%matrix,&
                                         error=error)
+          DO ikind=1,SIZE(atomic_kind_set)
+            IF(ASSOCIATED(pmat(ikind)%mat)) THEN
+              DEALLOCATE (pmat(ikind)%mat,STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            END IF
+          END DO
        END DO
 
        CALL dbcsr_release(s_dbcsr)
 
-       DO ikind=1,SIZE(atomic_kind_set)
-          IF(ASSOCIATED(pmat(ikind)%mat)) THEN
-            DEALLOCATE (pmat(ikind)%mat,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          END IF
-       END DO
        DEALLOCATE (pmat,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        

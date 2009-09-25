@@ -55,11 +55,13 @@ MODULE atom_kind_orbitals
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_atomic_orbitals (atomic_kind,iunit,pmat,error)
+  SUBROUTINE calculate_atomic_orbitals (atomic_kind,iunit,pmat,ispin,nspin,error)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER, INTENT(IN), OPTIONAL            :: iunit
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pmat
+    INTEGER, INTENT(IN)                      :: ispin
+    INTEGER, INTENT(IN)                      :: nspin
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_orbitals', &
@@ -69,12 +71,14 @@ CONTAINS
                                                 k2, l, ll, lm, m, mb, mo, n, &
                                                 ne, ngp, nj, nn, nr, ns, &
                                                 nset, nsgf, quadtype, z
-    INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
+    INTEGER, DIMENSION(0:3, 10)              :: ncore, nelem, ncalc
     INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
     INTEGER, DIMENSION(:), POINTER           :: econf, lmax, lmin, npgf, &
                                                 nppnl, nshell, ppeconf
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, last_sgf, ls
-    LOGICAL                                  :: failure = .FALSE.
+    INTEGER, DIMENSION(:, :), POINTER        :: addel, first_sgf, laddel, &
+                                                last_sgf, ls, naddel
+    LOGICAL                                  :: bs_occupation, &
+                                                failure = .FALSE.
     REAL(KIND=dp)                            :: ac, al, ear, rk, scal, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ap, ce
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
@@ -98,7 +102,9 @@ CONTAINS
     CALL get_atomic_kind(atomic_kind=atomic_kind,&
                          all_potential=all_potential,&
                          gth_potential=gth_potential,&
-                         orb_basis_set=orb_basis_set)
+                         orb_basis_set=orb_basis_set,&
+                         bs_occupation=bs_occupation,&
+                         addel=addel,laddel=laddel,naddel=naddel)
     CPPostcondition(ASSOCIATED(orb_basis_set), cp_failure_level, routineP, error, failure)
 
     atom%z = z
@@ -334,6 +340,40 @@ CONTAINS
       ncalc = nelem - ncore
     END IF
 
+    IF(bs_occupation) THEN
+      ! readjust the occupation number of the atomic orbitals
+      ! according to the changes required from input in order to bias the initial guess
+      DO i=1,SIZE(addel,1)
+        ne=addel(i,ispin)
+        l=laddel(i,ispin)
+        nn=naddel(i,ispin)-l
+        IF(ne/=0) THEN
+          IF(nspin==2 ) ne = ne*2
+          IF(nn==0) THEN
+            DO ii=SIZE(nelem,2),1,-1
+              IF(ncalc(l,ii)>0) THEN
+                 IF((ncalc(l,ii)+ne) < 2*(2*l+1)+1) THEN
+                   ncalc(l,ii) = ncalc(l,ii)+ne
+                   nn = ii
+                 ELSE
+                   ncalc(l,ii+1) = ncalc(l,ii+1)+ne
+                   nn = ii + 1 
+                 END IF
+                 EXIT
+              ELSE IF (ii==1) THEN
+                 ncalc(l,ii)=ncalc(l,ii)+ne
+                 nn = ii 
+              END IF
+            END DO
+          ELSE
+            ncalc(l,nn) = ncalc(l,nn) + ne
+          END IF
+          IF( ncalc(l,nn)<0 ) THEN
+             ncalc(l,nn) = 0
+          END IF
+        END IF
+      END DO
+    END IF
     IF ( atomic_kind%ghost ) THEN
       nelem = 0
       ncore = 0
@@ -351,7 +391,7 @@ CONTAINS
     DO l=0,3
       k = 0
       DO i=1,7
-        IF ( ncalc(l,i) /= 0 ) THEN
+        IF ( ncalc(l,i) > 0 ) THEN
           k = k + 1
           atom%state%occupation(l,k) = REAL(ncalc(l,i),dp)
         END IF

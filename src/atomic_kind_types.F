@@ -134,6 +134,7 @@ MODULE atomic_kind_types
      INTEGER                                :: kind_number,&
           natom,&
           number_of_grid_points
+     INTEGER, DIMENSION(:,:), POINTER       :: addel, laddel, naddel
      INTEGER, DIMENSION(:), POINTER         :: atom_list
      TYPE(harmonics_atom_type), POINTER     :: harmonics
      TYPE(grid_atom_type), POINTER          :: grid_atom
@@ -141,7 +142,7 @@ MODULE atomic_kind_types
      INTEGER                                :: lmax_rho0
      INTEGER, DIMENSION(:), POINTER         :: elec_conf ! used to set up the initial atomic guess
      ! user can specify whatever...
-     LOGICAL                                :: shell_active
+     LOGICAL                                :: shell_active, bs_occupation
      TYPE(shell_kind_type), POINTER         :: shell
      TYPE(dft_plus_u_type), POINTER         :: dft_plus_u
      !
@@ -244,6 +245,10 @@ CONTAINS
        atomic_kind_set(ikind)%lmax_rho0 = 0
        atomic_kind_set(ikind)%ghost = .FALSE.
        atomic_kind_set(ikind)%shell_active=.FALSE.
+       atomic_kind_set(ikind)%bs_occupation=.FALSE.
+       NULLIFY(atomic_kind_set(ikind)%addel)
+       NULLIFY(atomic_kind_set(ikind)%laddel)
+       NULLIFY(atomic_kind_set(ikind)%naddel)
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
@@ -335,6 +340,18 @@ CONTAINS
              DEALLOCATE (atomic_kind_set(ikind)%dispersion,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%addel)) THEN
+             DEALLOCATE (atomic_kind_set(ikind)%addel,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%naddel)) THEN
+             DEALLOCATE (atomic_kind_set(ikind)%naddel,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%laddel)) THEN
+             DEALLOCATE (atomic_kind_set(ikind)%laddel,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
        END DO
        DEALLOCATE (atomic_kind_set,STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -358,7 +375,8 @@ CONTAINS
        soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
        hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
        max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
-       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id,npgf)                        !JT
+       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id,npgf,&
+       bs_occupation, addel,laddel,naddel)                        !JT
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -418,6 +436,9 @@ CONTAINS
       OPTIONAL, POINTER                      :: dispersion
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     INTEGER, INTENT(OUT), OPTIONAL           :: npgf
+    LOGICAL, INTENT(OUT), OPTIONAL           :: bs_occupation
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: addel, laddel, naddel
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -669,7 +690,11 @@ CONTAINS
           END IF
        END IF
 
-       IF (PRESENT(dispersion)) dispersion => atomic_kind%dispersion
+       IF (PRESENT(dispersion))  dispersion  => atomic_kind%dispersion
+       IF (PRESENT(bs_occupation)) bs_occupation=atomic_kind%bs_occupation
+       IF (PRESENT(addel))  addel  => atomic_kind%addel
+       IF (PRESENT(laddel)) laddel => atomic_kind%laddel
+       IF (PRESENT(naddel)) naddel => atomic_kind%naddel
 
     ELSE
 
@@ -1472,16 +1497,13 @@ CONTAINS
     INTEGER                                  :: handle, i, i_rep, ipos, &
                                                 k_rep, n_rep, naux, ngauss, &
                                                 norb, stat, z
-    INTEGER, DIMENSION(:), POINTER           :: elec_conf
-    LOGICAL                                  :: check, explicit_basis, &
-                                                explicit_geminal, &
-                                                explicit_potential, failure, &
-                                                section_enabled
+    INTEGER, DIMENSION(:), POINTER           :: add_el, elec_conf
+    LOGICAL :: check, explicit, explicit_basis, explicit_geminal, &
+      explicit_potential, failure, section_enabled
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(section_vals_type), POINTER         :: basis_section, &
-                                                dft_plus_u_section, &
-                                                dft_section, geminal_section, &
-                                                potential_section
+    TYPE(section_vals_type), POINTER :: basis_section, bs_section, &
+      dft_plus_u_section, dft_section, geminal_section, potential_section, &
+      spin_section
 
     CALL timeset(routineN,handle)
 
@@ -1655,6 +1677,81 @@ CONTAINS
             keyword_name="GPW_TYPE",l_val=atomic_kind%gpw_type_forced,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="GHOST",l_val=atomic_kind%ghost,error=error)
+
+       ! Read the BS subsection of the current atomic kind, if enabled
+       NULLIFY(bs_section)
+       bs_section => section_vals_get_subs_vals(kind_section,"BS",&
+            i_rep_section=k_rep,&
+            error=error)
+       section_enabled = .FALSE.
+       CALL section_vals_val_get(bs_section,"_SECTION_PARAMETERS_",&
+            l_val=section_enabled,&
+            error=error)
+       IF (section_enabled) THEN
+          atomic_kind%bs_occupation = .TRUE.
+          !Alpha spin 
+          NULLIFY(spin_section)
+          spin_section => section_vals_get_subs_vals(bs_section,"ALPHA",error=error)
+          CALL section_vals_get(spin_section, explicit=explicit, error=error)
+          IF(explicit) THEN
+              NULLIFY(add_el)
+              CALL section_vals_val_get(spin_section,&
+                   keyword_name="NEL",i_vals=add_el,error=error)
+              CPPrecondition(ASSOCIATED(add_el),cp_failure_level,routineP,error,failure)
+              ALLOCATE(atomic_kind%addel(SIZE(add_el),2),STAT=stat)
+              atomic_kind%addel =0
+              atomic_kind%addel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
+              NULLIFY(add_el)
+              CALL section_vals_val_get(spin_section,&
+                   keyword_name="L",i_vals=add_el,error=error)
+              CPPrecondition(ASSOCIATED(add_el),cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
+              ALLOCATE(atomic_kind%laddel(SIZE(add_el),2),STAT=stat)
+              atomic_kind%laddel =0
+              atomic_kind%laddel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
+              ALLOCATE(atomic_kind%naddel(SIZE(add_el),2),STAT=stat)
+              atomic_kind%naddel =0
+              NULLIFY(add_el)
+              CALL section_vals_val_get(spin_section,&
+                 keyword_name="N",n_rep_val=i,error=error)
+              IF(i>0) THEN 
+                CALL section_vals_val_get(spin_section,&
+                     keyword_name="N",i_vals=add_el,error=error)
+                IF(SIZE(add_el)==SIZE( atomic_kind%addel,1)) THEN
+                  atomic_kind%naddel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
+                END IF
+              END IF
+          END IF
+          !Beta spin 
+          NULLIFY(spin_section)
+          spin_section => section_vals_get_subs_vals(bs_section,"BETA",error=error)
+          CALL section_vals_get(spin_section, explicit=explicit, error=error)
+          IF(explicit) THEN
+
+            NULLIFY(add_el)
+            CALL section_vals_val_get(spin_section,&
+                 keyword_name="NEL",i_vals=add_el,error=error)
+     CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
+            atomic_kind%addel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
+            atomic_kind%addel(:,:) = atomic_kind%addel(:,:)
+            NULLIFY(add_el)
+            CALL section_vals_val_get(spin_section,&
+                 keyword_name="L",i_vals=add_el,error=error)
+     CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
+            atomic_kind%laddel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
+              
+            CALL section_vals_val_get(spin_section,&
+                keyword_name="N",n_rep_val=i,error=error)
+            IF(i>0) THEN 
+              NULLIFY(add_el)
+              CALL section_vals_val_get(spin_section,&
+                    keyword_name="N",i_vals=add_el,error=error)
+              IF(SIZE(add_el)==SIZE( atomic_kind%addel,1)) THEN
+                atomic_kind%naddel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
+              END IF
+            END IF
+          END IF  
+       END IF
 
        ! Read the DFT+U subsection of the current atomic kind, if enabled
 

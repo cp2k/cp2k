@@ -238,6 +238,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
@@ -249,7 +250,22 @@ CONTAINS
             n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(subsection)
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword,"LAST_CONF",&
+            description="This activates a simplified output of positions and velocities, "//&
+            "not through the restart file but using an additional unformatted output file, LASTCONF",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,"LAST_CONF_RESTART",&
+            description="This activates a simplified input of position and velocities, "//&
+            "not through the restart file but using an additional unformatted output file",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
        CALL create_rng_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -1287,9 +1303,170 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_bs_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_kind_section
+
+! *****************************************************************************
+!> \brief      Create CP2K input section for BS method: imposing atomic orbital occupation
+!>             different from default in initialization of the density  matrix
+!>             it works only with GUESS ATOMIC
+!> \author     MI
+!> \date       05.08.2009
+!> \version    1.0
+! *****************************************************************************
+  SUBROUTINE create_bs_section(section,error)
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_bs_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure = .FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+
+      CALL section_create(section,&
+                          name="BS",&
+                          description="Define the required atomic orbital occupation "//&
+                          "assigned in initialization of the density matrix, by adding or "//&
+                          "subtracting electrons from specific angular momentum channels. "//&
+                          "It works only with GUESS ATOMIC.",&
+                          n_keywords=0,&
+                          n_subsections=2,&
+                          repeats=.FALSE.,&
+                          required=.FALSE.,&
+                          error=error)
+
+      NULLIFY (keyword,subsection)
+
+      CALL keyword_create(keyword,&
+                          name="_SECTION_PARAMETERS_",&
+                          description="controls the activation of the BS section",&
+                          usage="&BS ON",&
+                          default_l_val=.FALSE.,&
+                          lone_keyword_l_val=.TRUE.,&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL section_create(subsection,name="ALPHA",description="alpha spin",&
+                          n_keywords=3,&
+                          n_subsections=0,&
+                          repeats=.FALSE.,&
+                          required=.TRUE.,&
+                          error=error)
+
+      CALL keyword_create(keyword,&
+                          name="NEL",&
+                          description="Orbital ccupation change per angular momentum quantum number."//&
+                          "In unrestricted calculations applied to spin alpha.",&
+                          required=.TRUE.,&
+                          repeats=.FALSE.,&
+                          n_var=-1,&
+                          default_i_val=-1,&
+                          usage="NEL 2",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="L",&
+                          variants=(/"L"/),&
+                          description="Angular momentum quantum number of the"//&
+                                      "orbitals whose occupation is changed",&
+                          required=.TRUE.,&
+                          repeats=.FALSE.,&
+                          n_var=-1,&
+                          default_i_val=-1,&
+                          usage="L 2",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="N",&
+                          variants=(/"N"/),&
+                          description="Principal quantum number of the"//&
+                                      "orbitals whose occupation is changed. "//&
+                                      "Default is the first not occupied",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=-1,&
+                          default_i_val=0,&
+                          usage="N 2",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+      CALL section_add_subsection(section,subsection,error=error)
+      CALL section_release(subsection,error=error)
+
+      CALL section_create(subsection,name="BETA",description="beta spin",&
+                          n_keywords=3,&
+                          n_subsections=0,&
+                          repeats=.FALSE.,&
+                          required=.FALSE.,&
+                          error=error)
+
+      CALL keyword_create(keyword,&
+                          name="NEL",&
+                          description="Orbital ccupation change per angular momentum quantum number."//&
+                          "Applied to spin beta and active only in unrestricted calculations.",&
+                          required=.TRUE.,&
+                          repeats=.FALSE.,&
+                          n_var=-1,&
+                          default_i_val=-1,&
+                          usage="NEL 2",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="L",&
+                          description="Angular momentum quantum number of the"//&
+                                      "orbitals of beta spin whose occupation is changed."//&
+                                      "Active only for unrestricted calculations",&
+                          required=.TRUE.,&
+                          repeats=.FALSE.,&
+                          n_var=-1,&
+                          default_i_val=-1,&
+                          usage="L 2",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="N",&
+                          description="Principal quantum number of the"//&
+                                      "orbitals of beta spin whose occupation is changed. "//&
+                                      "Default is the first not occupied."//&
+                                      "Active only for unrestricted calculations",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=-1,&
+                          default_i_val=0,&
+                          usage="N 2",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL section_add_subsection(section,subsection,error=error)
+      CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_bs_section
 
 ! *****************************************************************************
 !> \brief Create the topology section for FIST.. and the base is running running...
