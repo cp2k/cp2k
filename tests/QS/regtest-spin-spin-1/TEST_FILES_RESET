@@ -28,3 +28,5 @@ nh3-issc-op-1.inp
 no-gapw-issc-1.inp
 # FFTW3 now plans to use SSE by default 
 no-gapw-issc-1.inp
+# slight change in initial guess atomi
+no-gapw-issc-1.inp

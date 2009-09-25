@@ -663,3 +663,7 @@ He3_multi_ddapc.inp
 h2o-otdiag.inp
 # FFTW3 now plans to use SSE by default 
 h2o-otdiag-lsd.inp
+# slight change in initial guess ATOMIC
+spin_restraint.inp
+NO2-EFG-1.inp
+He3_multi_ddapc.inp

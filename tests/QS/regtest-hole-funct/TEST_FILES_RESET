@@ -68,3 +68,6 @@ CH_BeckeRoussel_R_1.0.inp
 CH_LDA_HOLE_T_C_LR_1.0.inp
 # FFTW3 now plans to use SSE by default 
 CH_PBE_HOLE_T_C_LR_1.0.inp
+# slight change in initial guess atomic
+CH_BeckeRoussel_R_1.0.inp
+CH_PBE_HOLE_T_C_LR_1.0.inp
