@@ -165,3 +165,6 @@ O2-uks-chi-gpw-2.inp
 O2-uks-chi-gpw-1.inp
 # FFTW3 now plans to use SSE by default 
 O2-uks-chi-gpw-2.inp
+#
+O2-uks-chi-gpw-1.inp
+O2-uks-chi-gpw-3.inp
