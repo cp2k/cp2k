@@ -60,8 +60,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: iunit
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pmat
-    INTEGER, INTENT(IN)                      :: ispin
-    INTEGER, INTENT(IN)                      :: nspin
+    INTEGER, INTENT(IN)                      :: ispin, nspin
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_orbitals', &
@@ -71,7 +70,7 @@ CONTAINS
                                                 k2, l, ll, lm, m, mb, mo, n, &
                                                 ne, ngp, nj, nn, nr, ns, &
                                                 nset, nsgf, quadtype, z
-    INTEGER, DIMENSION(0:3, 10)              :: ncore, nelem, ncalc
+    INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
     INTEGER, DIMENSION(:), POINTER           :: econf, lmax, lmin, npgf, &
                                                 nppnl, nshell, ppeconf
