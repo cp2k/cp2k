@@ -1678,11 +1678,12 @@ CPSourceFileRef,&
           IF (.NOT.all_equal) THEN
             IF (ionode) WRITE(UNIT=output_unit,FMT="(T3,A)")&
               "WARNING: S**2 computation does not yet treat fractional occupied orbitals"
+          ELSE
+            CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square,&
+                 s_square_ideal=s_square_ideal,error=error)
+            IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
+                 "Ideal and single determinant S**2 : ",s_square_ideal,s_square
           END IF
-          CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square,&
-               s_square_ideal=s_square_ideal,error=error)
-          IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
-               "Ideal and single determinant S**2 : ",s_square_ideal,s_square
        ENDIF
 
        ! Print the total density (electronic + core charge)

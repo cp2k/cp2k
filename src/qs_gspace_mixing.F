@@ -1700,7 +1700,7 @@ CONTAINS
 
     nbuffer = mixing_store%nbuffer
     DO ispin = 1,nspin
-      IF(.NOT. ASSOCIATED(mixing_store%rhoin_buffer(1,1)%cc)) THEN
+      IF(.NOT. ASSOCIATED(mixing_store%rhoin_buffer(1,ispin)%cc)) THEN
          DO ib = 1,nbuffer
             ALLOCATE(mixing_store%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)  
             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
