@@ -17,7 +17,6 @@ MODULE thermostat_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
@@ -28,9 +27,9 @@ MODULE thermostat_utils
   USE input_constants,                 ONLY: &
        do_constr_atomic, do_constr_molec, do_region_defined, &
        do_region_global, do_region_massive, do_region_molecule, &
-       do_thermo_communication, do_thermo_csvr, do_thermo_no_communication, &
-       do_thermo_nose, dyn_coeff_mass_global, isokin_ensemble, &
-       langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       do_thermo_communication, do_thermo_csvr, do_thermo_gle, &
+       do_thermo_no_communication, do_thermo_nose, dyn_coeff_mass_global, &
+       isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
        npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
@@ -75,9 +74,10 @@ MODULE thermostat_utils
             vel_rescale_shells,&
             get_thermostat_energies,&
             get_nhc_energies,&
-            get_csvr_energies,&
+            get_kin_energies,&
             communication_thermo_low2,&
-            print_thermostats_status
+            print_thermostats_status,&
+            momentum_region_particles
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_utils'
 
@@ -721,6 +721,64 @@ CONTAINS
     IF (map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group)
 
   END SUBROUTINE ke_region_particles
+
+! *****************************************************************************
+!> \author 07.2009 MI
+! *****************************************************************************
+  SUBROUTINE momentum_region_particles (map_info, particle_set, molecule_kind_set,&
+         local_molecules, molecule_set, group, vel, error)
+    
+    TYPE(map_info_type), POINTER             :: map_info
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    INTEGER, INTENT(IN)                      :: group
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:)
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'momentum_region_particles', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom, ii, ikind, imol, &
+                                                imol_local, ipart, last_atom, &
+                                                nmol_local
+    LOGICAL                                  :: failure, present_vel
+    REAL(KIND=dp)                            :: mass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_type), POINTER             :: molecule
+
+    failure = .FALSE.
+    map_info%v_scale = 1.0_dp
+    map_info%s_kin   = 0.0_dp
+    present_vel = PRESENT(vel)
+    ii = 0
+    DO ikind = 1, SIZE ( molecule_kind_set )
+       nmol_local = local_molecules % n_el ( ikind )
+       DO imol_local = 1, nmol_local
+          imol = local_molecules % list ( ikind ) % array ( imol_local )
+          molecule => molecule_set ( imol )
+          CALL get_molecule ( molecule, first_atom=first_atom, last_atom=last_atom ) 
+          DO ipart = first_atom, last_atom
+             ii = ii + 1
+             atomic_kind => particle_set ( ipart ) % atomic_kind
+             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+             IF (present_vel) THEN
+                map_info%p_kin(1,ii)%point = map_info%p_kin(1,ii)%point+SQRT(mass)*vel(1,ipart)
+                map_info%p_kin(2,ii)%point = map_info%p_kin(2,ii)%point+SQRT(mass)*vel(2,ipart)
+                map_info%p_kin(3,ii)%point = map_info%p_kin(3,ii)%point+SQRT(mass)*vel(3,ipart)
+             ELSE
+                map_info%p_kin(1,ii)%point=map_info%p_kin(1,ii)%point+SQRT(mass)*particle_set(ipart)%v(1)
+                map_info%p_kin(2,ii)%point=map_info%p_kin(2,ii)%point+SQRT(mass)*particle_set(ipart)%v(2)
+                map_info%p_kin(3,ii)%point=map_info%p_kin(3,ii)%point+SQRT(mass)*particle_set(ipart)%v(3)
+             END IF
+          END DO
+       END DO
+    END DO
+
+    IF (map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group)
+
+  END SUBROUTINE momentum_region_particles
   
 ! *****************************************************************************
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
@@ -1123,18 +1181,23 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates kinetic energy and potential energy
-!>      of the csvr thermostat
-!> \author Teodoro Laino [tlaino] - University of Zurich 10.2007
+!>      of the csvr  and gle thermostats
+!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+!> \history generalized MI [07.2009]
 ! *****************************************************************************
-  SUBROUTINE get_csvr_energies ( csvr, csvr_kin, para_env, array_pot, array_kin, error )
-    TYPE(csvr_system_type), POINTER          :: csvr
-    REAL(KIND=dp), INTENT(OUT)               :: csvr_kin
+  SUBROUTINE get_kin_energies(map_info,loc_num,glob_num,thermo_energy,thermostat_kin, &
+                para_env, array_pot, array_kin, error)
+
+    TYPE(map_info_type), POINTER             :: map_info
+    INTEGER, INTENT(IN)                      :: loc_num, glob_num
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: thermo_energy
+    REAL(KIND=dp), INTENT(OUT)               :: thermostat_kin
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: array_pot, array_kin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_csvr_energies', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kin_energies', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imap, n, number, stat
@@ -1142,22 +1205,22 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin
 
     failure = .FALSE.
-    number = csvr%glob_num_csvr
+    number = glob_num
     ALLOCATE(akin(number),stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
     akin     = 0.0_dp
-    DO n = 1, csvr%loc_num_csvr
-       imap = csvr%map_info%index(n)
-       akin(imap) = csvr%nvt(n)%thermostat_energy
+    DO n = 1, loc_num
+       imap = map_info%index(n)
+       akin(imap) = thermo_energy(n)
     END DO
 
     ! Handle the thermostat distribution
-    IF      (csvr%map_info%dis_type==do_thermo_no_communication) THEN
+    IF      (map_info%dis_type==do_thermo_no_communication) THEN
        CALL mp_sum(akin,para_env%group)
-    ELSE IF (csvr%map_info%dis_type==do_thermo_communication) THEN
+    ELSE IF (map_info%dis_type==do_thermo_communication) THEN
        CALL communication_thermo_low1(akin, number, para_env, error)
     END IF
-    csvr_kin = SUM(akin)
+    thermostat_kin = SUM(akin)
 
     ! Possibly give back kinetic or potential energy arrays
     IF (PRESENT(array_pot)) THEN
@@ -1180,22 +1243,25 @@ CONTAINS
     END IF
     DEALLOCATE(akin,stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-  END SUBROUTINE get_csvr_energies
+  END SUBROUTINE get_kin_energies
 
 ! *****************************************************************************
-!> \brief Calculates the temperatures of the regions when the CSVR thermostat is
+!> \brief Calculates the temperatures of the regions when a thermostat is
 !>        applied
-!> \author Teodoro Laino [tlaino] - University of Zurich 02.2008
+!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+!> \history generalized MI [07.2009]
 ! *****************************************************************************
-  SUBROUTINE get_csvr_temperatures ( csvr, para_env, temp_tot, array_temp, error )
-    TYPE(csvr_system_type), POINTER          :: csvr
+  SUBROUTINE get_temperatures ( map_info, loc_num, glob_num, nkt, dof, para_env, temp_tot, array_temp, error )
+    TYPE(map_info_type), POINTER             :: map_info
+    INTEGER, INTENT(IN)                      :: loc_num, glob_num
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: nkt, dof
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), INTENT(OUT)               :: temp_tot
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: array_temp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_csvr_temperatures', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_temperatures', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imap, imap2, n, number, &
@@ -1205,26 +1271,26 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, deg_of_free
 
     failure = .FALSE.
-    number = csvr%glob_num_csvr
+    number = glob_num
     ALLOCATE(akin(number),stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
     ALLOCATE(deg_of_free(number),stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
     akin         = 0.0_dp
     deg_of_free  = 0.0_dp
-    DO n = 1, csvr%loc_num_csvr
-       imap  = csvr%map_info%index(n)
-       imap2 = csvr%map_info%map_index(n)
-       IF (csvr%nvt(n)%nkt==0.0_dp) CYCLE
-       deg_of_free(imap) = REAL(csvr%nvt(n)%degrees_of_freedom,KIND=dp)
-       akin(imap)        = csvr%map_info%s_kin(imap2)
+    DO n = 1, loc_num
+       imap  = map_info%index(n)
+       imap2 = map_info%map_index(n)
+       IF (nkt(n)==0.0_dp) CYCLE
+       deg_of_free(imap) = REAL(dof(n),KIND=dp)
+       akin(imap)        = map_info%s_kin(imap2)
     END DO
 
     ! Handle the thermostat distribution
-    IF      (csvr%map_info%dis_type==do_thermo_no_communication) THEN
+    IF      (map_info%dis_type==do_thermo_no_communication) THEN
        CALL mp_sum(akin,para_env%group)
        CALL mp_sum(deg_of_free,para_env%group)
-    ELSE IF (csvr%map_info%dis_type==do_thermo_communication) THEN
+    ELSE IF (map_info%dis_type==do_thermo_communication) THEN
        CALL communication_thermo_low1(akin, number, para_env, error)
        CALL communication_thermo_low1(deg_of_free, number, para_env, error)
     END IF
@@ -1250,7 +1316,7 @@ CONTAINS
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
     DEALLOCATE(deg_of_free,stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-  END SUBROUTINE get_csvr_temperatures
+  END SUBROUTINE get_temperatures
 
 ! *****************************************************************************
 !> \brief Calculates energy associated with a thermostat
@@ -1268,7 +1334,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_thermostat_energies', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: thermo_energy
 
     failure = .FALSE.
     
@@ -1283,8 +1351,31 @@ CONTAINS
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Energy associated with the CSVR thermostat
           CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
-          CALL get_csvr_energies(thermostat%csvr, thermostat_kin, para_env, array_pot, &
-                                 array_kin, error=error)
+          ALLOCATE(thermo_energy(thermostat%csvr%loc_num_csvr),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO i = 1,thermostat%csvr%loc_num_csvr
+             thermo_energy(i) = thermostat%csvr%nvt(i)%thermostat_energy
+          END DO
+          CALL get_kin_energies(thermostat%csvr%map_info,thermostat%csvr%loc_num_csvr,&
+               thermostat%csvr%glob_num_csvr,thermo_energy,&
+               thermostat_kin, para_env, array_pot, array_kin, error=error)
+          DEALLOCATE(thermo_energy,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
+          ! Energy associated with the GLE thermostat
+          CPPostcondition(ASSOCIATED(thermostat%gle),cp_failure_level,routineP,error,failure)
+          ALLOCATE(thermo_energy(thermostat%gle%loc_num_gle),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO i = 1,thermostat%gle%loc_num_gle
+             thermo_energy(i) = thermostat%gle%nvt(i)%thermostat_energy
+          END DO
+          CALL get_kin_energies(thermostat%gle%map_info,thermostat%gle%loc_num_gle,&
+               thermostat%gle%glob_num_gle,thermo_energy,&
+               thermostat_kin, para_env, array_pot, array_kin, error=error)
+          DEALLOCATE(thermo_energy,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
        END IF
     END IF
 
@@ -1305,7 +1396,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_region_temperatures', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dof, nkt
 
     failure = .FALSE.
 
@@ -1313,11 +1406,56 @@ CONTAINS
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Energy associated with the Nose-Hoover thermostat
           CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
-          CALL get_nhc_temperatures(thermostat%nhc, para_env, tot_temperature, array_temp, error)
+          ALLOCATE(nkt(thermostat%nhc%loc_num_nhc), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(dof(thermostat%nhc%loc_num_nhc), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO i = 1,thermostat%nhc%loc_num_nhc
+             nkt(i) = thermostat%nhc%nvt(1,i)%nkt
+             dof(i) = REAL(thermostat%nhc%nvt(1,i)%degrees_of_freedom,KIND=dp)
+          END DO
+          CALL get_temperatures ( thermostat%nhc%map_info, thermostat%nhc%loc_num_nhc, &
+          thermostat%nhc%glob_num_nhc, nkt, dof, para_env, tot_temperature, array_temp, error )
+          DEALLOCATE(nkt, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(dof, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Energy associated with the CSVR thermostat
           CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
-          CALL get_csvr_temperatures(thermostat%csvr, para_env, tot_temperature, array_temp, error)
+
+          ALLOCATE(nkt(thermostat%csvr%loc_num_csvr), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(dof(thermostat%csvr%loc_num_csvr), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO i = 1,thermostat%csvr%loc_num_csvr
+             nkt(i) = thermostat%csvr%nvt(i)%nkt
+             dof(i) = REAL(thermostat%csvr%nvt(i)%degrees_of_freedom,KIND=dp)
+          END DO
+          CALL get_temperatures ( thermostat%csvr%map_info, thermostat%csvr%loc_num_csvr, &
+          thermostat%csvr%glob_num_csvr, nkt, dof, para_env, tot_temperature, array_temp, error )
+          DEALLOCATE(nkt, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(dof, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
+          ! Energy associated with the GLE thermostat
+          CPPostcondition(ASSOCIATED(thermostat%gle),cp_failure_level,routineP,error,failure)
+
+          ALLOCATE(nkt(thermostat%gle%loc_num_gle), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(dof(thermostat%gle%loc_num_gle), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO i = 1,thermostat%gle%loc_num_gle
+             nkt(i) = thermostat%gle%nvt(i)%nkt
+             dof(i) = REAL(thermostat%gle%nvt(i)%degrees_of_freedom,KIND=dp)
+          END DO
+          CALL get_temperatures ( thermostat%gle%map_info, thermostat%gle%loc_num_gle, &
+          thermostat%gle%glob_num_gle, nkt, dof, para_env, tot_temperature, array_temp, error )
+          DEALLOCATE(nkt, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(dof, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
 

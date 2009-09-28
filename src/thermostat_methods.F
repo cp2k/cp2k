@@ -40,9 +40,11 @@ MODULE thermostat_methods
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
+  USE gle_system_dynamics,             ONLY: gle_particles,&
+                                             initialize_gle_part
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_region_global, do_thermo_csvr, do_thermo_nose, &
+       do_region_global, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
        do_thermo_same_as_part, npe_f_ensemble, npe_i_ensemble, &
        npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
@@ -191,6 +193,13 @@ CONTAINS
                   molecules_new%els, molecule_kinds_new%els, para_env, &
                   thermostats%thermostat_part%csvr, csvr_section=work_section,&
                   gci=gci, error=error)
+          ELSE IF (thermostats%thermostat_part%type_of_thermostat==do_thermo_gle) THEN
+             ! Initialize or possibly restart GLE thermostat on Particles
+             work_section => section_vals_get_subs_vals(thermo_part_section,"GLE",error=error)
+             CALL initialize_gle_part(thermostats%thermostat_info_part,simpar,local_molecules,&
+                  molecules_new%els, molecule_kinds_new%els, particles%els, para_env, &
+                  thermostats%thermostat_part%gle, gle_section=work_section,&
+                  gci=gci,save_mem=save_mem, error=error)
           END IF
           CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, &
                                simpar, para_env, error)
@@ -574,6 +583,12 @@ CPSourceFileRef,&
           CALL csvr_particles(thermostat%csvr,molecule_kind_set,molecule_set,&
                particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
                core_particle_set, vel, shell_vel, core_vel, error)
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
+         ! Apply GLE Thermostat
+          CPPostcondition(ASSOCIATED(thermostat%gle),cp_failure_level,routineP,error,failure)
+          CALL gle_particles(thermostat%gle,molecule_kind_set,molecule_set,&
+               particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
+               core_particle_set, vel, shell_vel, core_vel, error=error)
        END IF
     END IF
   END SUBROUTINE apply_thermostat_particles

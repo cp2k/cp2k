@@ -44,10 +44,11 @@ MODULE input_cp2k_restarts
                                              force_env_type,&
                                              multiple_fe_list,&
                                              use_qmmm
+  USE gle_system_types,                ONLY: gle_type
   USE input_constants,                 ONLY: &
-       do_band_collective, do_thermo_csvr, do_thermo_no_communication, &
-       do_thermo_nose, ehrenfest, mol_dyn_run, mon_car_run, pint_run, &
-       use_rt_restart
+       do_band_collective, do_thermo_csvr, do_thermo_gle, &
+       do_thermo_no_communication, do_thermo_nose, ehrenfest, mol_dyn_run, &
+       mon_car_run, pint_run, use_rt_restart
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -85,7 +86,7 @@ MODULE input_cp2k_restarts
                                              string_to_ascii
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: communication_thermo_low2,&
-                                             get_csvr_energies
+                                             get_kin_energies
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -686,6 +687,10 @@ CONTAINS
           ! Restart of CSVR Thermostat for Particles
           work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%CSVR",error=error)
           CALL dump_csvr_restart_info(thermostat_part%csvr, para_env, work_section, error)
+       ELSE IF (thermostat_part%type_of_thermostat==do_thermo_gle) THEN
+          ! Restart of GLE Thermostat for Particles
+          work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%GLE",error=error)
+          CALL dump_gle_restart_info(thermostat_part%gle, para_env, work_section, error)
        END IF
     END IF
     CALL timestop(handle2)
@@ -1074,6 +1079,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: dwork
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: thermo_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(section_vals_type), POINTER         :: work_section
 
@@ -1081,7 +1087,17 @@ CONTAINS
     ! Thermostat Energies
     ALLOCATE(work(csvr%glob_num_csvr),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL get_csvr_energies ( csvr, dum, para_env, array_kin=work, error=error )
+
+    ALLOCATE(thermo_energy(csvr%loc_num_csvr),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1,csvr%loc_num_csvr
+       thermo_energy(i) = csvr%nvt(i)%thermostat_energy
+    END DO
+    CALL get_kin_energies (csvr%map_info,csvr%loc_num_csvr,&
+               csvr%glob_num_csvr,thermo_energy,&
+               dum, para_env, array_kin=work, error=error)
+    DEALLOCATE(thermo_energy,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! If check passes then let's dump the info on the restart file
     work_section => section_vals_get_subs_vals(csvr_section,"THERMOSTAT_ENERGY",error=error)
@@ -1115,6 +1131,139 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE dump_csvr_restart_info
+
+! *****************************************************************************
+!> \brief Collect all information needed to dump the restart for GLE
+!>      thermostat
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author MI
+! *****************************************************************************
+  SUBROUTINE dump_gle_restart_info(gle, para_env, gle_section, error)
+    TYPE(gle_type), POINTER                  :: gle
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: gle_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_gle_restart_info', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=rng_record_length)         :: rng_record
+    INTEGER                                  :: counter, glob_num, i, iproc, &
+                                                j, loc_num, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: dwork
+    INTEGER, DIMENSION(:), POINTER           :: gle_per_proc, index
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: dum
+    REAL(dp), DIMENSION(:), POINTER          :: s_tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: thermo_energy
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+    TYPE(section_vals_type), POINTER         :: work_section
+
+    failure = .FALSE.
+
+    ! Thermostat Energies
+    ALLOCATE(work(gle%glob_num_gle),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(thermo_energy(gle%loc_num_gle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1,gle%loc_num_gle
+       thermo_energy(i) = gle%nvt(i)%thermostat_energy
+    END DO
+    CALL get_kin_energies (gle%map_info,gle%loc_num_gle,&
+               gle%glob_num_gle,thermo_energy,&
+               dum, para_env, array_kin=work, error=error)
+    DEALLOCATE(thermo_energy,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! If check passes then let's dump the info on the restart file
+    work_section => section_vals_get_subs_vals(gle_section,"THERMOSTAT_ENERGY",error=error)
+    CALL dump_csvr_energy_info(work, gle%glob_num_gle, work_section, error)
+    DEALLOCATE (work,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! Thermostat Random Number info for restart
+    work_section => section_vals_get_subs_vals(gle_section,"RNG_INIT",error=error)
+    glob_num = 1 ! gle%glob_num_gle
+    loc_num = 1 ! gle%loc_num_gle
+    ALLOCATE (dwork(rng_record_length,glob_num),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    dwork = 0
+    DO i=1,loc_num
+       j = i ! gle%map_info%index(i)
+       CALL dump_rng_stream(rng_stream= gle%gaussian_rng_stream, & !gle%nvt(i)%gaussian_rng_stream,&
+            rng_record=rng_record, error=error)
+       CALL string_to_ascii(rng_record,dwork(:,j))
+    END DO
+
+    !  Collect data if there was no communication in this thermostat
+!    IF (gle%map_info%dis_type==do_thermo_no_communication) THEN
+!       ! Collect data if there was no communication in this thermostat
+!       CALL mp_sum(dwork,para_env%group)
+!    ELSE
+!       ! Perform some check and collect data in case of communicating thermostats 
+!       CALL communication_thermo_low2(dwork, rng_record_length, glob_num, para_env, error)
+!    END IF
+    CALL section_rng_val_set(rng_section=work_section,nsize=glob_num,ascii=dwork,&
+         error=error)
+    DEALLOCATE (dwork,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE ( gle_per_proc(para_env%num_pe),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    gle_per_proc(:) = 0
+    CALL mp_allgather(gle%loc_num_gle,gle_per_proc,para_env%group)
+
+    ! Thermostat S variable info for restart
+    NULLIFY(s_tmp)
+    ALLOCATE (s_tmp((gle%nadd+1)*gle%glob_num_gle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    s_tmp=0.0_dp
+
+    NULLIFY(work,index)
+    DO iproc=1,para_env%num_pe
+       CALL reallocate(work,1,gle_per_proc(iproc)*(gle%nadd+1))
+       CALL reallocate(index,1,gle_per_proc(iproc))
+       IF(para_env%mepos == (iproc-1)) THEN
+          INDEX(:)=0
+          counter=0
+          DO i=1,gle%nadd+1
+             DO j=1,gle%loc_num_gle
+                counter=counter+1
+                work(counter)=gle%nvt(j)%s(i)
+                INDEX(j) = gle%map_info%index(j)
+             END DO
+          END DO
+       ELSE
+          work(:) = 0.0_dp
+       END IF
+       CALL mp_bcast(work,iproc-1,para_env%group)
+       CALL mp_bcast(index,iproc-1,para_env%group)
+       counter=0
+       DO i=1,gle%nadd+1
+          DO j=1,gle_per_proc(iproc)
+             counter = counter+1
+             s_tmp((INDEX(j)-1)*(gle%nadd+1)+i) = work(counter)
+          END DO
+       END DO
+    END DO
+
+    IF(SIZE(s_tmp)>0) THEN
+    work_section => section_vals_get_subs_vals(gle_section,"S",error=error)
+    CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=s_tmp,error=error)
+    ELSE
+      DEALLOCATE(s_tmp,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    DEALLOCATE(gle_per_proc, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( work, STAT = stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( index, STAT = stat )
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE dump_gle_restart_info
 
 ! *****************************************************************************
 !> \brief Collect all information needed to dump the restart for Nose-Hoover
@@ -1656,12 +1805,13 @@ CONTAINS
     CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
     CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
     conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    !    Coordinates and Velocities
     CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
-         cell, error=error)
+           cell, error=error)
 
     work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
     IF (.NOT.skip_vel_section) THEN
-       CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
+      CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
     ELSE
        CALL section_vals_remove_values(work_section, error)
     END IF
@@ -1672,7 +1822,7 @@ CONTAINS
        CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
        conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
        CALL section_coord_val_set(work_section, shell_particles, molecules, &
-            conv_factor, scale, cell, shell=.TRUE., error=error)
+              conv_factor, scale, cell, shell=.TRUE., error=error)
        IF (.NOT.skip_vel_section) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
           CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
@@ -1684,12 +1834,13 @@ CONTAINS
        CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
        conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
        CALL section_coord_val_set(work_section, core_particles, molecules, &
-            conv_factor, scale, cell, shell=.TRUE., error=error)
+              conv_factor, scale, cell, shell=.TRUE., error=error)
        IF (.NOT.skip_vel_section) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
           CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
        END IF
     ENDIF
+    
     ! Updating cell info
     CALL update_cell_section(force_env, subsys_section, error)
     ! Updating multipoles

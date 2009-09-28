@@ -98,7 +98,9 @@ MODULE input_constants
                                            
   INTEGER, PARAMETER, PUBLIC               :: do_thermo_same_as_part=100,&
                                               do_thermo_nose=101,&
-                                              do_thermo_csvr=102
+                                              do_thermo_csvr=102,&
+                                              do_thermo_gle=103
+
                                            
   ! Run Types                              
   INTEGER, PARAMETER, PUBLIC               :: none_run=1,&
@@ -740,11 +742,9 @@ MODULE input_constants
 
   ! Define identifier codes for mixing method
 
-  INTEGER, PARAMETER, PUBLIC               :: no_mix=0,&
-                                              direct_p_mix=1,&
-                                              kerker_mix=2,&
-                                              pulay_mix=3,&
-                                              broy_mix=4,&
+  INTEGER, PARAMETER, PUBLIC               :: no_mix =0, direct_p_mix=1,&
+                                              kerker_mix =2,&
+                                              pulay_mix=3, broy_mix=4,&
                                               broy_mix_new=5,&
                                               multisec_mix=6
 

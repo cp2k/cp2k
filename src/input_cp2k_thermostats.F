@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE input_cp2k_thermostats
   USE bibliography,                    ONLY: Bussi2007,&
+                                             Ceriotti2009,&
                                              Nose1984a,&
                                              Nose1984b
   USE cp_output_handling,              ONLY: cp_print_key_section_create
@@ -64,8 +65,9 @@ CONTAINS
 
     LOGICAL                                  :: failure, my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: csvr_section, nose_section, &
-                                                region_section, subsection
+    TYPE(section_type), POINTER              :: csvr_section, gle_section, &
+                                                nose_section, region_section, &
+                                                subsection
 
     failure=.FALSE.
     
@@ -73,7 +75,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
-       NULLIFY(csvr_section, nose_section, subsection, region_section)
+       NULLIFY(csvr_section, gle_section, nose_section, subsection, region_section)
        
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
@@ -86,11 +88,12 @@ CONTAINS
                description="Specify the thermostat used for the constant temperature ensembles.",&
                usage="thermostat NOSE",&
                default_i_val=do_thermo_nose,&
-               enum_c_vals=s2a("NOSE","CSVR"),&
+               enum_c_vals=s2a("NOSE","CSVR","GLE"),&
                enum_i_vals=(/do_thermo_nose,&
-               do_thermo_csvr/),&
+               do_thermo_csvr,do_thermo_gle/),&
                enum_desc=s2a("Uses the Nose-Hoover thermostat.",&
-               "Uses the canonical sampling through velocity rescaling."),&
+               "Uses the canonical sampling through velocity rescaling.",&
+               "Uses GLE thermostat"),&
                error=error)
           CALL section_add_keyword(section,keyword,error=error)
           CALL keyword_release(keyword,error=error)
@@ -130,6 +133,10 @@ CONTAINS
        CALL create_csvr_section(csvr_section, my_coupled_thermostat, error=error)
        CALL section_add_subsection(section, csvr_section, error=error)
        CALL section_release(csvr_section,error=error)
+
+       CALL create_gle_section(gle_section, my_coupled_thermostat, error=error)
+       CALL section_add_subsection(section, gle_section, error=error)
+       CALL section_release(gle_section,error=error)
 
        ! Print Section
        CALL create_print_section(subsection, error=error)
@@ -338,6 +345,116 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_nose_section
+
+
+! *****************************************************************************
+!> \param 
+!> \author 
+! *****************************************************************************
+  SUBROUTINE create_gle_section(section, coupled_thermostat, error)
+    TYPE(section_type), POINTER              :: section
+    LOGICAL, INTENT(IN)                      :: coupled_thermostat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_gle_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="gle",&
+            description="paramameters of the gle thermostat",&
+            citations=(/Ceriotti2009/),required=.NOT.coupled_thermostat,error=error)
+
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="nadd",&
+            description="size of the gle matrix", usage="nadd integer", &
+            default_i_val=0,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="aunits",&
+            description="aunits", usage="aunits real", &
+            default_r_val=1.0_dp,&
+            unit_str="au_t^-1",& 
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="A_LIST",&
+            description=" matrix", usage="A_LIST real real real", &
+            type_of_var=real_t, &
+            n_var=-1, repeats=.TRUE., required=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="C_LIST",&
+            description=" matrix", usage="C_LIST real real real", &
+            unit_str="K_e",& 
+            type_of_var=real_t, n_var=-1, repeats=.TRUE., required=.FALSE., &
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_thermo_energy_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_rng_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_gles_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+   END IF
+
+  END SUBROUTINE create_gle_section
+
+! *****************************************************************************
+!> \brief Creates the gles section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_gles_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_gles_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="s",&
+            description="The s variable for GLE used for restart",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify s variable for GLE thermostat ",repeats=.FALSE.,&
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_gles_section
 
 ! *****************************************************************************
 !> \param section will contain the ewald section 

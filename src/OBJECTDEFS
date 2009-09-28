@@ -231,6 +231,8 @@ OBJECTS_GENERIC =\
  gauss_colloc.o\
  gaussian_gridlevels.o\
  geo_opt.o\
+ gle_system_dynamics.o\
+ gle_system_types.o\
  glob_matching.o\
  global_types.o\
  gopt_f_types.o\

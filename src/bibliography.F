@@ -54,7 +54,8 @@ MODULE bibliography
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
-             VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003
+             VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
+             Ceriotti2009
 
 CONTAINS
 
@@ -1739,6 +1740,25 @@ CONTAINS
          "UT ISI:000184771500002",&
          "ER"),&
          DOI="10.1140/epjd/e2003-00086-8")
+
+    CALL add_reference(key=Ceriotti2009, ISI_record=s2a(&
+         "AU Ceriotti, M",&
+         "   Bussi, G",&
+         "   Parrinello, M",&
+         "TI Langevin equation with colored noise for constant-temperature molecular dynamics simulations",&
+         "SO PHYSICAL REVIEW LETTERS",&
+         "SN 0031-9007",&
+         "J9 PHYS REV LETT",&
+         "JI Phys. Rev. Lett.",&
+         "PD JAN 16",&
+         "PY 2009",&
+         "VL 102",&
+         "IS 2",&
+         "AR 020601",&
+         "PG 4",&
+         "UT ISI:000244117400046",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.102.020601")
 
   END SUBROUTINE add_all_references
 
