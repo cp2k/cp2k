@@ -381,3 +381,5 @@ ice-scp-ewald_gks.inp
 h2op_2.inp
 # substitution sm -> dbcsr
 dimer3.inp
+# 
+ch4-ot.inp

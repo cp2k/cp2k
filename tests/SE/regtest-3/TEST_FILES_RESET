@@ -55,3 +55,6 @@ O2.inp
 LiH.inp
 # bug fix
 LiH.inp
+# 
+SiO2.inp
+SiO2_lr_quad.inp

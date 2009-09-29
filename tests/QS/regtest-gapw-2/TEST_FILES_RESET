@@ -87,3 +87,5 @@ H2-pbe-restart-rerun.inp
 C-levelshift.inp
 # Whittaker function
 H2-pbe-restart-run.inp
+# 
+C-levelshift.inp

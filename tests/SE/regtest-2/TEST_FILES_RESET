@@ -255,3 +255,5 @@ hcl_ot.inp
 ZrF2-PM6.inp
 # substitution sm -> dbcsr
 zn_1w_debug.inp
+# 
+ch4-ot.inp
