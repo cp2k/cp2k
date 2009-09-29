@@ -30,7 +30,7 @@ PRETTYOBJDIR = $(CP2KHOME)/obj/prettified
 TOOLDIR      = $(OBJDIR)/tools
 TOOLSRC      = $(CP2KHOME)/tools
 SRCDIR       = $(CP2KHOME)/src
-SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(TOOLSRC)/Fist/topology_converter::$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools
+SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools
 MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG         = $(EXEDIR)/cp2k.$(VERSION)
@@ -46,7 +46,6 @@ LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
 LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
-LEAPOBJECTDEFS = $(TOOLSRC)/Fist/topology_converter/OBJECTDEFS
 FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
 DOXYGENDIR   = $(DOCDIR)/doxygen
 
@@ -118,13 +117,11 @@ $(ALL_TARGETS) $(LIB_TARGETS):
 
 include $(OBJECTDEFS)
 include $(LIBOBJECTDEFS)
-include $(LEAPOBJECTDEFS)
 include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
 include $(LIBNVOBJECTDEFS)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
-LEAPOBJS = $(LEAPOBJ) $(OBJECTS_ARCHITECTURE)
 FESOBJS = $(FESOBJ) $(OBJECTS_ARCHITECTURE)
 
 # Cuda specific instructions
