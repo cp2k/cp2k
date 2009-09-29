@@ -35,7 +35,6 @@ MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG         = $(EXEDIR)/cp2k.$(VERSION)
 CP2KSHELL    = $(EXEDIR)/cp2k_shell.$(VERSION)
-LEAP2FIST    = $(EXEDIR)/leap2fist.$(VERSION)
 FES          = $(EXEDIR)/fes.$(VERSION)
 EXEDIR       = $(MAINEXEDIR)/$(ARCH)
 LIBDIR       = $(MAINLIBDIR)/$(ARCH)
@@ -66,17 +65,13 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 # lists the targets that are not files
 #
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
-         $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) leap2fist fes dirs deptool
+         $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) fes dirs deptool
 
 ### Master rules ###
 build: dirs deptool
 	$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
 	$(MAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) lib.dep
 	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
-
-leap2fist: dirs deptool
-	$(MAKE) -C $(TOOLSRC)/Fist/topology_converter/ -f $(MAKEFILE) leap2fist.dep
-	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(LEAP2FIST) 
 
 fes: dirs deptool
 	$(MAKE) -C $(TOOLSRC)/metadyn/  -f $(MAKEFILE) fes.dep
@@ -202,17 +197,14 @@ endif
 lib.dep: $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F)
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/lib.dep || ( rm -f $(OBJDIR)/$(VERSION)/lib.dep ; exit 1 )
 
-# this is kind of a hack, fes and leap2fist depend on files in other directories, hence the -I and the -b.
+# this is kind of a hack, fes depends on files in other directories, hence the -I and the -b.
 fes.dep: $(FESOBJS:.o=.F) 
 	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/fes.dep || ( rm -f $(OBJDIR)/$(VERSION)/fes.dep  ; exit 1 )
-
-leap2fist.dep: $(LEAPOBJS:.o=.F) 
-	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/leap2fist.dep || ( rm -f  $(OBJDIR)/$(VERSION)/leap2fist.dep ; exit 1 )
 
 #
 # and the rules doing the actual work
 #
-_all: $(ALL_LIB) $(PROG) leap2fist fes $(CP2KSHELL)
+_all: $(ALL_LIB) $(PROG) fes $(CP2KSHELL)
 _progr: $(PROG)
 _lib: $(ALL_LIB)
 _cpshell: $(CP2KSHELL)
@@ -260,9 +252,6 @@ $(CP2KSHELL): $(ALL_LIB) cp2k_shell.o
 makedepf90:
 	-test -d $(TOOLDIR)/makedepf90-build || cp -r $(TOOLSRC)/makedepf90 makedepf90-build
 	{ cd makedepf90-build ; ./configure --prefix=$(TOOLDIR) --bindir=$(TOOLDIR) ; $(MAKE) VERSION="2.8.8cp2k" ; $(MAKE) install ; }
-
-$(LEAP2FIST): $(LEAPOBJS)
-	$(LD) $(LDFLAGS) -o $(LEAP2FIST) $(LEAPOBJS)
 
 $(FES): $(FESOBJS)
 	$(LD) $(LDFLAGS) -o $(FES) $(FESOBJS)

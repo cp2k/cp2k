@@ -1,8 +1,0 @@
-LEAPOBJ=machine.o\
- f77_blas.o\
- f77_blas_extra.o\
- f77_blas_generic.o\
- f77_blas_netlib.o\
- f77_blas_poison.o\
- kinds.o\
- leap2fist.o
