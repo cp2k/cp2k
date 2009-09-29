@@ -1110,76 +1110,6 @@ CONTAINS
   END SUBROUTINE get_nhc_energies
 
 ! *****************************************************************************
-!> \brief Calculates the temperatures of the regions when the Nose-Hoover
-!>         thermostat is applied
-!> \author Teodoro Laino [tlaino] - University of Zurich 02.2008
-! *****************************************************************************
-  SUBROUTINE get_nhc_temperatures ( nhc, para_env, temp_tot, array_temp, error )
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(KIND=dp), INTENT(OUT)               :: temp_tot
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: array_temp
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nhc_temperatures', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, imap, imap2, n, number, &
-                                                stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: fdeg_of_free
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, deg_of_free
-
-    failure = .FALSE.
-    number = nhc%glob_num_nhc
-    ALLOCATE(akin(number),stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-    ALLOCATE(deg_of_free(number),stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-    akin         = 0.0_dp
-    deg_of_free  = 0.0_dp
-    DO n = 1, nhc%loc_num_nhc
-       imap  = nhc%map_info%index(n)
-       imap2 = nhc%map_info%map_index(n)
-       IF (nhc%nvt(1,n)%nkt==0.0_dp) CYCLE
-       deg_of_free(imap) = REAL(nhc%nvt(1,n)%degrees_of_freedom,KIND=dp)
-       akin(imap)        = nhc%map_info%s_kin(imap2)
-    END DO
-
-    ! Handle the thermostat distribution
-    IF      (nhc%map_info%dis_type==do_thermo_no_communication) THEN
-       CALL mp_sum(akin, para_env%group)
-       CALL mp_sum(deg_of_free, para_env%group)
-    ELSE IF (nhc%map_info%dis_type==do_thermo_communication) THEN
-       CALL communication_thermo_low1(akin, number, para_env, error)
-       CALL communication_thermo_low1(deg_of_free, number, para_env, error)
-    END IF
-    temp_tot     = SUM(akin)
-    fdeg_of_free = SUM(deg_of_free)
-
-    temp_tot = temp_tot/fdeg_of_free
-    temp_tot = cp_unit_from_cp2k(temp_tot, "K_temp", error=error)
-    ! Possibly give back temperatures of the full set of regions
-    IF (PRESENT(array_temp)) THEN
-       IF (ASSOCIATED(array_temp)) THEN
-          CPPrecondition(SIZE(array_temp)==number,cp_fatal_level,routineP,error,failure)
-       ELSE
-          ALLOCATE(array_temp(number),stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       ENDIF
-       DO i = 1, number
-          array_temp(i) = akin(i)/deg_of_free(i)
-          array_temp(i) = cp_unit_from_cp2k(array_temp(i), "K_temp", error=error)
-       END DO
-    END IF
-    DEALLOCATE(akin,stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-    DEALLOCATE(deg_of_free,stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-  END SUBROUTINE get_nhc_temperatures
-
-! *****************************************************************************
 !> \brief Calculates kinetic energy and potential energy
 !>      of the csvr  and gle thermostats
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
@@ -1251,7 +1181,8 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
 !> \history generalized MI [07.2009]
 ! *****************************************************************************
-  SUBROUTINE get_temperatures ( map_info, loc_num, glob_num, nkt, dof, para_env, temp_tot, array_temp, error )
+  SUBROUTINE get_temperatures ( map_info, loc_num, glob_num, nkt, dof, para_env,&
+                                temp_tot, array_temp, error )
     TYPE(map_info_type), POINTER             :: map_info
     INTEGER, INTENT(IN)                      :: loc_num, glob_num
     REAL(dp), DIMENSION(:), INTENT(IN)       :: nkt, dof
