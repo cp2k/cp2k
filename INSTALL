@@ -19,9 +19,9 @@ How to compile CP2K code
      go to http://www.gnu.org/software/make/make.html 
      download from http://ftp.gnu.org/pub/gnu/make/
 
- 2b) an f95 compiler should be installed on your system. Some compilers (e.g. pgf90) have more bugs than
-     others. g95 can be conveniently used (download the default integer 32 versions!),
-     but native compilers tend to be about 20 percent faster.
+ 2b) an f95 compiler should be installed on your system. We have good experience with gfortran 4.4.X.
+     Be aware that some compilers have bugs that might cause them to fail (internal compiler errors, segfaults),
+     or, worse, that yield to a miscompiled CP2K. Report bugs to compiler vendors, they (and we) have an interest in fixing them.
 
  2c) BLAS and LAPACK should be installed.
      using vendor provided libraries can make a very significant difference (up to 100% use e.g. acml, mkl, essl)
@@ -46,11 +46,15 @@ How to compile CP2K code
      http://www.fftw.org/
      Notice that FFTW must know the Fortran compiler you will use in order to install properly
      (e.g. 'export F77=g95' before configure if you intend to use g95)
+     Notice that on machines and compilers which support sse you can configure FFTW3 with --enable-sse2.
+     Compilers/systems that do not allign memory (NAG f95) should not use '--enable-sse2' or set the flag
+     FFTW_ARRAYS_ALIGNED to false in the CP2K input file. 
 
- 2f) Hartree-Fock exchange (optional) requires the libint package to be installed, and a Fortran compiler that
-     supports ISO_C_BINDING and Fortran procedure pointers (g95, xlf90 ?) (use -D__LIBINT). 
+ 2f) Hartree-Fock exchange (optional use -D__LIBINT) requires the libint package to be installed,
+     and is easiest to install with a Fortran compiler that supports ISO_C_BINDING and
+     Fortran procedure pointers (recent gfortran, g95, xlf90, ifort).
      Additional information can be found in cp2k/tools/hfx_tools/libint_tools/README_LIBINT
-     Tested against libinit-1.1.2, and currently hardcoded to the default angular momentum LIBINT_MAX_AM 5
+     Tested against libinit-1.1.4, and currently hardcoded to the default angular momentum LIBINT_MAX_AM 5
      (check your include/libint/libint.h to see if it matches)
      http://www.chem.vt.edu/chem-dept/valeev/software/libint/libint.html
      Note, do *NOT* use libinit-1.1.3.
@@ -84,7 +88,7 @@ How to compile CP2K code
  3b) The following flags should be present (or not) in the arch file:
      -D__parallel -D__BLACS -D__SCALAPACK: parallel runs
      -D__LIBINT: use libint (needed for HF exchange)
-     various FFTs:
+     various FFTs (use __FFTW3 if possible) :
      -D__FFTSG: Stefan Goedecker FFT (should always be there)
      -D__FFTW3: FFTW version 3
      -D__FFTW2: FFTW version 2
@@ -124,6 +128,9 @@ How to compile CP2K code
     >  cd ~/cp2k/tests/QS/
     > ~/cp2k/exe/YOURMACHINE/cp2k.sopt C.inp
 
+    systematic testing can be done following the description on regtesting:
+    http://cp2k.berlios.de/regtest.html
+
  7) In any case please tell us your comments, praise, criticism, thanks, ...
 
     you can sent email to the people in the team :
@@ -134,9 +141,10 @@ How to compile CP2K code
 
     http://cp2k.berlios.de/input/
 
-    or can be generated using the executable
+    or can be generated using the cp2k executable, see
 
-    ./cp2k.sopt --html-manual
+    http://cp2k.berlios.de/manual/generate_manual_howto.html
+
 
  9) Happy computing!
 
