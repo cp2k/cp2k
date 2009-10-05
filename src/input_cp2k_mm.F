@@ -593,31 +593,31 @@ CONTAINS
 
        CALL keyword_create(keyword, name="R012",&
             description="Mixed bend stretch parameter",&
-            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            usage="R012 {real}", default_r_val=0.0_dp , type_of_var=real_t,&
             n_var=1, unit_str="bohr",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="R032",&
             description="Mixed bend stretch parameter",&
-            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            usage="R032 {real}", default_r_val=0.0_dp , type_of_var=real_t,&
             n_var=1, unit_str="bohr",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="KBS12",&
             description="Mixed bend stretch parameter",&
-            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            usage="KBS12 {real}", default_r_val=0.0_dp , type_of_var=real_t,&
             n_var=1, unit_str="hartree*bohr^-1*rad^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="KBS32",&
             description="Mixed bend stretch parameter",&
-            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            usage="KBS32 {real}", default_r_val=0.0_dp , type_of_var=real_t,&
             n_var=1, unit_str="hartree*bohr^-1*rad^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="KSS",&
             description="Mixed bend stretch parameter",&
-            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            usage="KSS {real}", default_r_val=0.0_dp , type_of_var=real_t,&
             n_var=1, unit_str="hartree*bohr^-2",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
