@@ -423,7 +423,7 @@ CONTAINS
     IF(PRESENT(iunit)) THEN
       CALL calculate_atom(atom,iunit,error=error)
     ELSE
-      CALL calculate_atom(atom,0,error=error)
+      CALL calculate_atom(atom,-1,error=error)
     END IF
 
     IF (PRESENT(pmat)) THEN
