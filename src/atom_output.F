@@ -70,7 +70,7 @@ CONTAINS
                                                 mo
     LOGICAL                                  :: failure = .FALSE.
 
-    WRITE(iw,'(//,A)') " Electronic structure "
+    WRITE(iw,'(/,T2,A)') "Electronic structure"
     WRITE(iw,'(T5,A,T71,F10.2)') "Total number of core electrons",SUM(state%core)
     WRITE(iw,'(T5,A,T71,F10.2)') "Total number of valence electrons",SUM(state%occ)
     WRITE(iw,'(T5,A,T71,F10.2)') "Total number of electrons",SUM(state%occ+state%core)

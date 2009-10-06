@@ -27,6 +27,8 @@ MODULE qs_initial_guess
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
        cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: &
@@ -170,12 +172,10 @@ CONTAINS
     TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(section_vals_type), POINTER         :: dft_section, input
+    TYPE(section_vals_type), POINTER         :: dft_section, input, subsys_section
     TYPE(dbcsr_obj)                          :: p_dbcsr, s_dbcsr, mo_dbcsr, mo_tmp_dbcsr
     TYPE(array_i1d_obj)                      :: col_blk_size
     TYPE(dbcsr_distribution_obj)             :: dist, product_dist
-    TYPE(dbcsr_iterator)                     :: iter
-    REAL(dp), DIMENSION(:,:), POINTER        :: DATA
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
 
     logger => cp_error_get_logger(error)
@@ -184,8 +184,10 @@ CONTAINS
          gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
          ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
          dft_control,h_core_sparse, distribution_2d)
-    NULLIFY(dft_section, input)
+    NULLIFY(dft_section, input, subsys_section)
     NULLIFY(moa,mob)
+    NULLIFY (atom_list,elec_conf,first_sgfa,l,last_sgfa,nshell,scp_env)
+    edftb = 0.0_dp
 
     CALL timeset(routineN,handle)
 
@@ -460,21 +462,33 @@ CPSourceFileRef,&
        ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       ionode = logger%para_env%mepos==logger%para_env%source
-       output_unit = -1
-       IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-       IF(output_unit>1) THEN 
-          WRITE(output_unit,'(T2,A)') "  Atomic guess: first density matrix obtained in terms of "
-          WRITE(output_unit,'(T19,A)') " atomic orbitals and  electronic configurations "// &
-                                           "assigned to each atomic kind"
+       subsys_section => section_vals_get_subs_vals(input,"SUBSYS",error=error)
+       output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",extension=".Log",&
+                                          error=error)
+       IF (output_unit > 0) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
+           "Atomic guess: The first density matrix is obtained in terms of atomic orbitals ",&
+           "              and electronic configurations assigned to each atomic kind"
        END IF
+
        DO ispin=1,nspin
-          scale = 1._dp
-          IF (nspin==2) scale=0.5_dp
+          IF ((output_unit > 0).AND.(nspin > 1)) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T2,A,I0)") "Spin ", ispin
+          END IF
+          scale = 1.0_dp
+          IF (nspin == 2) scale=0.5_dp
           DO ikind=1,SIZE(atomic_kind_set)
             atomic_kind => atomic_kind_set(ikind)
             NULLIFY(pmat(ikind)%mat)
-            CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,ispin=ispin,nspin=nspin,error=error)
+            IF (output_unit > 0) THEN
+              WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+                "Guess for atomic kind: "//TRIM(atomic_kind%name)
+              CALL calculate_atomic_orbitals(atomic_kind,iunit=output_unit,pmat=pmat(ikind)%mat,&
+                                             ispin=ispin,nspin=nspin,error=error)
+            ELSE
+              CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,&
+                                             ispin=ispin,nspin=nspin,error=error)
+            END IF
             NULLIFY(atomic_kind)
           END DO
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
@@ -496,12 +510,16 @@ CPSourceFileRef,&
           CALL cp_sm_sm_trace(p_rmpv(ispin)%matrix,s_sparse(1)%matrix,trps1,qs_env%para_env,error)
           scale=REAL(nelectron,dp)/trps1
           CALL cp_sm_scale_and_add(p_rmpv(ispin)%matrix,alpha=scale,error=error)
-          IF(output_unit>0) THEN
-             IF(nspin>1) WRITE(output_unit,'(T2,A,I6)') "Spin ", ispin
-             WRITE(output_unit,'(T2,A)') " Re-scaling the density matrix to get the right number of electrons"
-             WRITE(output_unit,'(T4,A,T18,A,T32,A)') "# Electrons", "P-trace", "Scaling factor" 
-             WRITE(output_unit,'(T4,I10,T18,F10.3,T32,F10.3)') nelectron, trps1, scale
-             
+          IF (output_unit > 0) THEN
+            IF (nspin > 1) THEN
+              WRITE (UNIT=output_unit,FMT="(T2,A,I0,/)")&
+                "Re-scaling the density matrix to get the right number of electrons for spin ",ispin
+            ELSE 
+              WRITE (UNIT=output_unit,FMT="(T2,A,/)")&
+                "Re-scaling the density matrix to get the right number of electrons"
+            END IF
+            WRITE (output_unit,'(T3,A,T20,A,T35,A)') "# Electrons","Trace(P)","Scaling factor" 
+            WRITE (output_unit,'(T4,I10,T16,F12.3,T35,F14.3)') nelectron,trps1,scale
           END IF
 
 
@@ -552,6 +570,9 @@ CPSourceFileRef,&
             END IF
           END DO
        END DO
+
+       CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+                                         "PRINT%KINDS",error=error)
 
        DEALLOCATE (pmat,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
