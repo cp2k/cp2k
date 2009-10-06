@@ -10,6 +10,14 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE hfx_energy_potential 
+
+!#if defined (__HAS_NO_ISO_C_BINDING)
+!#else
+!#if !defined (__HAS_ISO_C_BINDING)
+!#define __HAS_ISO_C_BINDING
+!#endif
+!#endif
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: cite_reference,&
@@ -33,7 +41,8 @@ MODULE hfx_energy_potential
                                              hfx_reset_cache_and_container
   USE hfx_contract_block,              ONLY: contract_block
   USE hfx_libint_interface,            ONLY: evaluate_eri
-  USE hfx_libint_wrapper,              ONLY: lib_int
+  USE hfx_libint_wrapper_types,        ONLY: has_iso_c_binding,&
+                                             lib_int
   USE hfx_load_balance_methods,        ONLY: hfx_load_balance,&
                                              hfx_update_load_balance
   USE hfx_pair_list_methods,           ONLY: build_pair_list,&
@@ -269,6 +278,7 @@ MODULE hfx_energy_potential
                                                 katom_end, latom_start, latom_end, my_process_id
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
     REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
 
     CALL timeset(routineN,handle)
 
@@ -435,6 +445,8 @@ MODULE hfx_energy_potential
     neris_tmp = 0_int_8
     max_val_memory = 1_int_8
 
+    max_am = basis_info%max_am
+
     do_p_screening = screening_parameter%do_initial_p_screening
     max_set = basis_info%max_set
     CALL get_qs_env(qs_env=qs_env,&
@@ -496,6 +508,10 @@ MODULE hfx_energy_potential
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    IF( .NOT. has_iso_c_binding) THEN
+      ALLOCATE(p_work(nco(max_am)**4), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     nspins = qs_env%dft_control%nspins
 
@@ -684,8 +700,6 @@ MODULE hfx_energy_potential
     logger => cp_error_get_logger(error)
    
 
-    max_am = basis_info%max_am
-    !! Copy the lib_int guy
     private_lib = actual_x_data%lib
 
     !! Helper array to map local basis function indeces to global ones 
@@ -807,7 +821,7 @@ MODULE hfx_energy_potential
                                     shm_master_x_data%screen_funct_coeffs_kind, &
                                     shm_master_x_data%screen_funct_coeffs_pgf, &
                                     shm_master_x_data%pair_dist_radii_pgf,&
-                                    max_set, max_pgf, n_threads, i_thread, error)
+                                    max_set, max_pgf, n_threads, i_thread, p_work, error)
 
       shm_master_x_data%screen_funct_is_initialized = .TRUE.
    END IF
@@ -1484,7 +1498,7 @@ MODULE hfx_energy_potential
                                 sphi_c_ext_set,&
                                 sphi_d_ext_set,&
                                 ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
-                                nimages,do_periodic)
+                                nimages,do_periodic, p_work)
 
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                   neris_total = neris_total + nints
@@ -2017,6 +2031,11 @@ MODULE hfx_energy_potential
     DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    IF( .NOT. has_iso_c_binding) THEN
+      DEALLOCATE(p_work, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
     DEALLOCATE(nimages, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -2079,7 +2098,7 @@ MODULE hfx_energy_potential
                       nsgfl_d,&
                       sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext,&
                       ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
-                      nimages, do_periodic)
+                      nimages, do_periodic, p_work)
    
     TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
@@ -2119,6 +2138,7 @@ MODULE hfx_energy_potential
                                                 ee_primitives_tmp
     INTEGER, DIMENSION(*)                    :: nimages
     LOGICAL, INTENT(IN)                      :: do_periodic
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, &
       max_l, ncoa, ncob, ncoc, ncod, nelements_ij, nelements_kl, nneighbors3, &
@@ -2191,7 +2211,8 @@ MODULE hfx_energy_potential
                                   sphi_b_ext(1,lb+1,jpgf), &
                                   sphi_c_ext(1,lc+1,kpgf), &
                                   sphi_d_ext(1,ld+1,lpgf), &
-                                  ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp)
+                                  ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
+                                  p_work)
                 cart_estimate = MAX(tmp_max,cart_estimate)
                 s_offset_d = s_offset_d + nsod*nsgfld
               END DO !ld

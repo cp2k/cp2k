@@ -18,8 +18,8 @@ MODULE hfx_libint_interface
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE hfx_contraction_methods,         ONLY: contract
   USE hfx_libint_wrapper,              ONLY: get_derivs,&
-                                             get_eris,&
-                                             lib_deriv,&
+                                             get_eris
+  USE hfx_libint_wrapper_types,        ONLY: lib_deriv,&
                                              lib_int,&
                                              prim_data,&
                                              prim_data_f_size
@@ -844,7 +844,8 @@ MODULE hfx_libint_interface
 ! *****************************************************************************
   SUBROUTINE evaluate_eri_screen(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                                  n_a,n_b,n_c,n_d,&
-                                 max_val, potential_parameter,R1, R2)
+                                 max_val, potential_parameter, R1, R2,&
+                                 p_work)
     
     TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: A(3), B(3), C(3), D(3), &
@@ -853,38 +854,16 @@ MODULE hfx_libint_interface
     REAL(dp), INTENT(INOUT)                  :: max_val
     TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp)                                 :: R1, R2
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
 
     INTEGER                                  :: a_mysize(1), i, m_max, &
                                                 mysize, perm_case
-    REAL(dp), DIMENSION(:), POINTER          :: p_work
     TYPE(prim_data), TARGET                  :: prim
-
-!permutation of configuration
 
     m_max = n_a+n_b+n_c+n_d
     mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
     a_mysize = mysize
 
-    !! IF we use a Compiler that does not support whether ISO_C_BINDING nor
-    !! CRAY POINTERS, we have to ALLOCATE work array here
-    !! See comment on __UGLY_BUT_FAST in libint_wrapper
-
-#if defined (__XT3)
-#if defined (__UGLY_BUT_FAST)
-    !! do_nothing
-#else
-    ALLOCATE(p_work(mysize))
-#endif
-#endif
-
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-    !! do_nothing
-#else
-    ALLOCATE(p_work(mysize))
-#endif
-#endif
-   
     IF(m_max/=0) THEN
       perm_case = 1
       IF(n_a<n_b) THEN
@@ -977,26 +956,6 @@ MODULE hfx_libint_interface
       max_val = ABS(prim%F(1))
     END IF
 
-    !! IF we use a Compiler that does not support whether ISO_C_BINDING nor
-    !! CRAY POINTERS, we have to DEALLOCATE work array here
-    !! See comment on __UGLY_BUT_FAST in libint_wrapper
-
-#if defined (__XT3)
-#if defined(__UGLY_BUT_FAST)
-    !! do nothing
-#else
-    DEALLOCATE(p_work)
-#endif
-#endif
-
-#if defined (__PGI) || defined (__AIX)
-#if defined(__UGLY_BUT_FAST)
-    !! do nothing
-#else
-    DEALLOCATE(p_work)
-#endif
-#endif
-
   END SUBROUTINE evaluate_eri_screen
 
 
@@ -1017,7 +976,8 @@ MODULE hfx_libint_interface
                           ZetaInv,EtaInv, &
                           s_offset_a, s_offset_b, s_offset_c, s_offset_d,&
                           nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod,&
-                          sphi_a, sphi_b, sphi_c, sphi_d, work,work2,buffer1,buffer2, primitives_tmp)
+                          sphi_a, sphi_b, sphi_c, sphi_d, work,work2,buffer1,buffer2, &
+                          primitives_tmp, p_work)
     
     TYPE(lib_int)                            :: lib
     INTEGER, INTENT(IN)                      :: nproducts
@@ -1049,6 +1009,7 @@ MODULE hfx_libint_interface
     REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod) :: buffer1, buffer2
     REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b&
       , nsoc*nl_c, nsod*nl_d)                :: primitives_tmp
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
 
     INTEGER                                  :: a_mysize(1), i, j, k, l, &
                                                 m_max, mysize, p1, p2, p3, &
@@ -1056,32 +1017,12 @@ MODULE hfx_libint_interface
     REAL(dp)                                 :: A(3), AB(3), B(3), C(3), &
                                                 CD(3), D(3), P(3), Q(3), Rho, &
                                                 RhoInv, W(3), ZetapEtaInv
-    REAL(dp), DIMENSION(:), POINTER          :: p_work
     TYPE(prim_data), TARGET                  :: prim
 
     m_max = n_a+n_b+n_c+n_d
     mysize = ncoa*ncob*ncoc*ncod
     a_mysize = mysize
 
-    !! IF we use a Compiler that does not support whether ISO_C_BINDING nor
-    !! CRAY POINTERS, we have to ALLOCATE work array here
-    !! See comment on __UGLY_BUT_FAST in libint_wrapper
-
-#if defined (__XT3)
-#if defined (__UGLY_BUT_FAST)
-    !! do_nothing
-#else
-    ALLOCATE(p_work(mysize))
-#endif
-#endif
-
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-    !! do_nothing
-#else
-    ALLOCATE(p_work(mysize))
-#endif
-#endif
     work = 0.0_dp
     IF(m_max/=0) THEN
       perm_case = 1
@@ -1125,13 +1066,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max*max_contraction
           IF(tmp_max<eps_schwarz) THEN
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-          !! do_nothing
-#else
-            DEALLOCATE(p_work)
-#endif
-#endif
             RETURN
           END IF
 
@@ -1178,13 +1112,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max*max_contraction
           IF(tmp_max<eps_schwarz) THEN
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-          !! do_nothing
-#else
-            DEALLOCATE(p_work)
-#endif
-#endif
             RETURN
           END IF
 
@@ -1231,13 +1158,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max*max_contraction
           IF(tmp_max<eps_schwarz) THEN
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-          !! do_nothing
-#else
-            DEALLOCATE(p_work)
-#endif
-#endif
             RETURN
           END IF
 
@@ -1284,13 +1204,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max*max_contraction
           IF(tmp_max<eps_schwarz) THEN
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-          !! do_nothing
-#else
-            DEALLOCATE(p_work)
-#endif
-#endif
             RETURN
           END IF
 
@@ -1337,13 +1250,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max*max_contraction
           IF(tmp_max<eps_schwarz) THEN
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-          !! do_nothing
-#else
-            DEALLOCATE(p_work)
-#endif
-#endif
             RETURN
           END IF
 
@@ -1390,13 +1296,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max*max_contraction
           IF(tmp_max<eps_schwarz) THEN
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-          !! do_nothing
-#else
-            DEALLOCATE(p_work)
-#endif
-#endif
             RETURN
           END IF
 
@@ -1443,13 +1342,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max*max_contraction
           IF(tmp_max<eps_schwarz) THEN
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-          !! do_nothing
-#else
-            DEALLOCATE(p_work)
-#endif
-#endif
             RETURN
           END IF
 
@@ -1496,13 +1388,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max*max_contraction
           IF(tmp_max<eps_schwarz) THEN
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-          !! do_nothing
-#else
-            DEALLOCATE(p_work)
-#endif
-#endif
             RETURN
           END IF
 
@@ -1567,27 +1452,6 @@ MODULE hfx_libint_interface
                  s_offset_b+1:s_offset_b+nsob*nl_b,&
                  s_offset_c+1:s_offset_c+nsoc*nl_c,&
                  s_offset_d+1:s_offset_d+nsod*nl_d) + primitives_tmp(:,:,:,:) 
-
-    !! IF we use a Compiler that does not support whether ISO_C_BINDING nor
-    !! CRAY POINTERS, we have to DEALLOCATE work array here
-    !! See comment on __UGLY_BUT_FAST in libint_wrapper
-
-#if defined (__XT3)
-#if defined (__UGLY_BUT_FAST)
-    !! do_nothing
-#else
-    DEALLOCATE(p_work)
-#endif
-#endif
-
-#if defined (__PGI) || defined (__AIX)
-#if defined (__UGLY_BUT_FAST)
-    !! do_nothing
-#else
-    DEALLOCATE(p_work)
-#endif
-#endif
-
 
   END SUBROUTINE evaluate_eri
 

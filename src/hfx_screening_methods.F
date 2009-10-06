@@ -16,7 +16,7 @@ MODULE hfx_screening_methods
                                              gto_basis_set_type
   USE f77_blas
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen
-  USE hfx_libint_wrapper,              ONLY: lib_int
+  USE hfx_libint_wrapper_types,        ONLY: lib_int
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_p_kind,&
                                              hfx_potential_type,&
@@ -71,7 +71,7 @@ MODULE hfx_screening_methods
                      la_min, la_max, lb_min, lb_max,&
                      npgfa, npgfb, &
                      max_val, potential_parameter, tmp_R_1,&
-                     rab2)
+                     rab2, p_work)
 
     TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3)
@@ -83,6 +83,7 @@ MODULE hfx_screening_methods
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: tmp_R_1
     REAL(dp)                                 :: rab2
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
 
     INTEGER                                  :: ipgf, jpgf, la, lb
     REAL(dp)                                 :: max_val_temp, R1
@@ -97,7 +98,7 @@ MODULE hfx_screening_methods
             CALL evaluate_eri_screen(lib, ra, rb, ra, rb,&
                                      zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
                                      la, lb, la ,lb,&
-                                     max_val_temp, potential_parameter, R1, R1)
+                                     max_val_temp, potential_parameter, R1, R1, p_work)
 
             max_val = MAX(max_val, max_val_temp)
           END DO !lb
@@ -281,7 +282,8 @@ MODULE hfx_screening_methods
 
   SUBROUTINE calc_screening_functions(qs_env, lib, potential_parameter, &
                                       coeffs_set, coeffs_kind, coeffs_pgf, radii_pgf,&
-                                      max_set, max_pgf, n_threads, i_thread, error) 
+                                      max_set, max_pgf, n_threads, i_thread,&
+                                      p_work, error) 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lib_int)                            :: lib
     TYPE(hfx_potential_type)                 :: potential_parameter
@@ -293,6 +295,7 @@ MODULE hfx_screening_methods
       DIMENSION(:, :, :, :, :, :), POINTER   :: coeffs_pgf, radii_pgf
     INTEGER, INTENT(IN)                      :: max_set, max_pgf, n_threads, &
                                                 i_thread
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_screening_functions', &
@@ -410,7 +413,7 @@ MODULE hfx_screening_methods
                       CALL evaluate_eri_screen(lib, ra, rb, ra, rb,&
                                                zeta(ipgf,iset), zetb(jpgf,jset), zeta(ipgf,iset), zetb(jpgf,jset),&
                                                la, lb, la ,lb,&
-                                               max_val_temp, potential_parameter, R1, R1)
+                                               max_val_temp, potential_parameter, R1, R1, p_work)
                       max_val = MAX(max_val, max_val_temp)
                     END DO !lb
                   END DO !la
@@ -501,7 +504,7 @@ MODULE hfx_screening_methods
                            zeta(:,iset), zetb(:,jset), &
                            la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                            npgfa(iset), npgfb(jset), &
-                           max_val, potential_parameter, tmp_R_1, rb(1)**2)
+                           max_val, potential_parameter, tmp_R_1, rb(1)**2, p_work)
               max_val = SQRT(max_val)
               max_val = max_val * max_contraction_a * max_contraction_b
               DATA(1,i) = rb(1)
@@ -584,7 +587,7 @@ MODULE hfx_screening_methods
                            zeta(:,iset), zetb(:,jset), &
                            la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                            npgfa(iset), npgfb(jset), &
-                           max_val, potential_parameter, tmp_R_1, rb(1)**2)
+                           max_val, potential_parameter, tmp_R_1, rb(1)**2, p_work)
               DATA(1,i) = rb(1)
               max_val = SQRT(max_val)
               max_val = max_val * max_contraction_a*max_contraction_b

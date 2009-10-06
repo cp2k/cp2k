@@ -13,7 +13,7 @@ MODULE hfx_pair_list_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE gamma,                           ONLY: fgamma=>fgamma_0
-  USE hfx_libint_wrapper,              ONLY: prim_data_f_size
+  USE hfx_libint_wrapper_types,        ONLY: prim_data_f_size
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_cell_type,&
                                              hfx_pgf_list,&

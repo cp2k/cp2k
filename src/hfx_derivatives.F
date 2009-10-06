@@ -29,7 +29,7 @@ MODULE hfx_derivatives
                                              hfx_get_single_cache_element,&
                                              hfx_reset_cache_and_container
   USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
-  USE hfx_libint_wrapper,              ONLY: lib_deriv
+  USE hfx_libint_wrapper_types,        ONLY: lib_deriv
   USE hfx_load_balance_methods,        ONLY: hfx_load_balance,&
                                              hfx_update_load_balance
   USE hfx_pair_list_methods,           ONLY: build_pair_list,&

@@ -32,8 +32,8 @@ MODULE hfx_types
   USE hfx_helpers,                     ONLY: count_cells_perd,&
                                              next_image_cell_perd
   USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
-                                             initialize_libint,&
-                                             lib_deriv,&
+                                             initialize_libint
+  USE hfx_libint_wrapper_types,        ONLY: lib_deriv,&
                                              lib_int,&
                                              prim_data_f_size
   USE input_constants,                 ONLY: &
