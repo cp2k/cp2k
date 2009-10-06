@@ -482,13 +482,9 @@ CPSourceFileRef,&
             IF (output_unit > 0) THEN
               WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
                 "Guess for atomic kind: "//TRIM(atomic_kind%name)
-              CALL calculate_atomic_orbitals(atomic_kind,iunit=output_unit,pmat=pmat(ikind)%mat,&
-                                             ispin=ispin,nspin=nspin,error=error)
-            ELSE
-              CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,&
-                                             ispin=ispin,nspin=nspin,error=error)
             END IF
-            NULLIFY(atomic_kind)
+            CALL calculate_atomic_orbitals(atomic_kind,iunit=output_unit,pmat=pmat(ikind)%mat,&
+                                           ispin=ispin,nspin=nspin,error=error)
           END DO
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                           maxocc=maxocc,&
