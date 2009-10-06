@@ -41,7 +41,6 @@ MODULE qs_initial_guess
                                              dbcsr_scale,&
                                              dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_iterator,&
                                              dbcsr_obj
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create_dist_r_unrot,&
