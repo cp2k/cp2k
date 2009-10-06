@@ -6,8 +6,8 @@
 ! *****************************************************************************
 !> \brief Interface to the Libint-Library or a c++ wrapper. 
 !> \note
-!>      IMPORTANT NOTE : this file currently is for a libint configured for
-!>                       LIBINT_MAX_AM 5 and LIBINT_MAX_AM1 4
+!>      An appropriate libint configuration is expected. Check the settings
+!>      for the libint paramaters LIBINT_MAX_AM etc. below.
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon 
@@ -42,12 +42,41 @@ MODULE hfx_libint_wrapper
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper'
 
+#if defined (__LIBINT_LARGE_L)
+  ! libint configuration: (check src/bin/libint_config.h)
+  ! LIBINT_MAX_AM 6
+  ! LIBINT_OPT_AM 5
+  ! LIBDERIV_MAX_AM1 5
+  ! LIBDERIV_MAX_AM2 4
+  ! LIBDERIV_MAX_AM12 4
+  ! LIBR12_MAX_AM 5
+  ! LIBR12_OPT_AM 4
+  ! i functions, 1st derivative: h, 2nd derivative: g
+  INTEGER, PARAMETER :: libint_max_am = 7
+  INTEGER, PARAMETER :: build_eri_size = libint_max_am - 1
+  INTEGER, PARAMETER :: prim_data_f_size = 25
+  INTEGER, PARAMETER :: lib_int_vrr_classes_size = 13
+  INTEGER, PARAMETER :: libderiv_max_am1 = 6
+  INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1 - 1
+  INTEGER, PARAMETER :: libderiv_classes_size = 11
+#else
+  ! libint configuration: (check src/bin/libint_config.h)
+  ! LIBINT_MAX_AM 4
+  ! LIBINT_OPT_AM 3
+  ! LIBDERIV_MAX_AM1 3
+  ! LIBDERIV_MAX_AM2 2
+  ! LIBDERIV_MAX_AM12 2
+  ! LIBR12_MAX_AM 3
+  ! LIBR12_OPT_AM 2
+  ! g functions, 1st derivative: f, 2nd derivative: d
   INTEGER, PARAMETER :: libint_max_am = 5
-  INTEGER, PARAMETER :: build_eri_size = libint_max_am-1
+  INTEGER, PARAMETER :: build_eri_size = libint_max_am - 1
   INTEGER, PARAMETER :: prim_data_f_size = 17
   INTEGER, PARAMETER :: lib_int_vrr_classes_size = 9
   INTEGER, PARAMETER :: libderiv_max_am1 = 4
-  INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1 - 1 
+  INTEGER, PARAMETER :: build_deriv1_eri_size = libderiv_max_am1 - 1
+  INTEGER, PARAMETER :: libderiv_classes_size = 7
+#endif
 
 #if defined (__LIBINT)
 !****************************************************************************!
@@ -92,9 +121,9 @@ MODULE hfx_libint_wrapper
     TYPE(C_PTR)     :: ABCD(156)
     REAL(C_DOUBLE)  :: AB(3)
     REAL(C_DOUBLE)  :: CD(3)
-    TYPE(C_PTR)     :: deriv_classes(12,7,7)
-    TYPE(C_PTR)     :: deriv2_classes(144,7,7)
-    TYPE(C_PTR)     :: dvrr_classes(7,7)
+    TYPE(C_PTR)     :: deriv_classes(12,libderiv_classes_size,libderiv_classes_size)
+    TYPE(C_PTR)     :: deriv2_classes(144,libderiv_classes_size,libderiv_classes_size)
+    TYPE(C_PTR)     :: dvrr_classes(libderiv_classes_size,libderiv_classes_size)
     TYPE(C_PTR)     :: dvtt_stack
   END TYPE lib_deriv
 
@@ -325,9 +354,9 @@ MODULE hfx_libint_wrapper
     TYPE(C_PTR)     :: ABCD(156)
     REAL(C_DOUBLE)  :: AB(3)
     REAL(C_DOUBLE)  :: CD(3)
-    TYPE(C_PTR)     :: deriv_classes(12,7,7)
-    TYPE(C_PTR)     :: deriv2_classes(144,7,7)
-    TYPE(C_PTR)     :: dvrr_classes(7,7)
+    TYPE(C_PTR)     :: deriv_classes(12,libderiv_classes_size,libderiv_classes_size)
+    TYPE(C_PTR)     :: deriv2_classes(144,libderiv_classes_size,libderiv_classes_size)
+    TYPE(C_PTR)     :: dvrr_classes(libderiv_classes_size,libderiv_classes_size)
     TYPE(C_PTR)     :: dvtt_stack
   END TYPE lib_deriv
 
@@ -553,9 +582,9 @@ MODULE hfx_libint_wrapper
     TYPE(C_PTR)     :: ABCD(156)
     REAL(C_DOUBLE)  :: AB(3)
     REAL(C_DOUBLE)  :: CD(3)
-    TYPE(C_PTR)     :: deriv_classes(12,7,7)
-    TYPE(C_PTR)     :: deriv2_classes(144,7,7)
-    TYPE(C_PTR)     :: dvrr_classes(7,7)
+    TYPE(C_PTR)     :: deriv_classes(12,libderiv_classes_size,libderiv_classes_size)
+    TYPE(C_PTR)     :: deriv2_classes(144,libderiv_classes_size,libderiv_classes_size)
+    TYPE(C_PTR)     :: dvrr_classes(libderiv_classes_size,libderiv_classes_size)
     TYPE(C_PTR)     :: dvtt_stack
   END TYPE lib_deriv
 
@@ -791,9 +820,9 @@ MODULE hfx_libint_wrapper
     REAL(dp)        :: ABCD(156)
     REAL(dp)        :: AB(3)
     REAL(dp)        :: CD(3)
-    INTEGER(int_8)  :: deriv_classes(12,7,7)
-    INTEGER(int_8)  :: deriv2_classes(144,7,7)
-    INTEGER(int_8)  :: dvrr_classes(7,7)
+    INTEGER(int_8)  :: deriv_classes(12,libderiv_classes_size,libderiv_classes_size)
+    INTEGER(int_8)  :: deriv2_classes(144,libderiv_classes_size,libderiv_classes_size)
+    INTEGER(int_8)  :: dvrr_classes(libderiv_classes_size,libderiv_classes_size)
     INTEGER(int_8)  :: dvtt_stack
   END TYPE lib_deriv
 !***
@@ -949,9 +978,9 @@ MODULE hfx_libint_wrapper
     REAL(dp)        :: ABCD(156)
     REAL(dp)        :: AB(3)
     REAL(dp)        :: CD(3)
-    INTEGER(int_8)  :: deriv_classes(12,7,7)
-    INTEGER(int_8)  :: deriv2_classes(144,7,7)
-    INTEGER(int_8)  :: dvrr_classes(7,7)
+    INTEGER(int_8)  :: deriv_classes(12,libderiv_classes_size,libderiv_classes_size)
+    INTEGER(int_8)  :: deriv2_classes(144,libderiv_classes_size,libderiv_classes_size)
+    INTEGER(int_8)  :: dvrr_classes(libderiv_classes_size,libderiv_classes_size)
     INTEGER(int_8)  :: dvtt_stack
   END TYPE lib_deriv
 !***
@@ -1119,9 +1148,9 @@ MODULE hfx_libint_wrapper
     REAL(dp)        :: ABCD(156)
     REAL(dp)        :: AB(3)
     REAL(dp)        :: CD(3)
-    REAL(dp)        :: deriv_classes(12,7,7)
-    REAL(dp)        :: deriv2_classes(144,7,7)
-    REAL(dp)        :: dvrr_classes(7,7)
+    REAL(dp)        :: deriv_classes(12,libderiv_classes_size,libderiv_classes_size)
+    REAL(dp)        :: deriv2_classes(144,libderiv_classes_size,libderiv_classes_size)
+    REAL(dp)        :: dvrr_classes(libderiv_classes_size,libderiv_classes_size)
     REAL(dp)        :: dvtt_stack
   END TYPE lib_deriv
 !***
