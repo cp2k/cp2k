@@ -58,6 +58,7 @@ MODULE qs_mo_types
                                              sgf_symbol
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: evolt
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE scf_control_types,               ONLY: smear_type
@@ -1535,7 +1536,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=2*default_string_length)   :: name
     CHARACTER(LEN=22)                        :: fmtstr2
-    CHARACTER(LEN=25)                        :: fmtstr1
+    CHARACTER(LEN=25)                        :: fmtstr1, fmtstr7
     CHARACTER(LEN=27)                        :: fmtstr4
     CHARACTER(LEN=38)                        :: fmtstr3
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: bsgf_symbol
@@ -1548,6 +1549,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, ionode, my_last, &
                                                 p_cart, p_eval, p_evec, &
                                                 p_occ, should_output
+    REAL(KIND=dp)                            :: gap
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -1894,6 +1896,14 @@ CPSourceFileRef,&
        fmtstr6 = "(A,T17,F24.  ,/)"
        WRITE (UNIT=fmtstr6(12:13),FMT="(I2)") after
        WRITE (UNIT=iw,FMT=fmtstr6) "  Fermi energy:",mo_set%mu
+       IF ((mo_set%uniform_occupation).AND.(last_mo > mo_set%homo)) THEN
+          gap = mo_set%eigenvalues(mo_set%homo+1) -&
+                mo_set%eigenvalues(mo_set%homo)
+          fmtstr7 = "(A,T17,F24.  ,A,F6.2,A,/)"
+          WRITE (UNIT=fmtstr7(12:13),FMT="(I2)") after
+          WRITE (UNIT=iw,FMT=fmtstr7)&
+               "  HOMO-LUMO gap:",gap," = ",gap*evolt," eV"
+       END IF
 
     END IF ! iw
 
