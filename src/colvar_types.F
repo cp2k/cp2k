@@ -176,6 +176,7 @@ MODULE colvar_types
 ! *****************************************************************************
   TYPE dfunct_colvar_type
      INTEGER, DIMENSION(4)         :: i_at_dfunct
+     LOGICAL                       :: pbc
      REAL(KIND=dp)                 :: coeff
   END TYPE dfunct_colvar_type
 
@@ -1205,6 +1206,7 @@ CPSourceFileRef)
     CASE(dfunct_colvar_id)
        colvar_out%dfunct_param%i_at_dfunct   = colvar_in%dfunct_param%i_at_dfunct + my_offset
        colvar_out%dfunct_param%coeff         = colvar_in%dfunct_param%coeff
+       colvar_out%dfunct_param%pbc           = colvar_in%dfunct_param%pbc
     CASE(qparm_colvar_id)
        colvar_out%qparm_param%n_atoms_to   = colvar_in%qparm_param%n_atoms_to  
        colvar_out%qparm_param%n_atoms_from = colvar_in%qparm_param%n_atoms_from

@@ -348,6 +348,7 @@ CONTAINS
        CALL section_vals_val_get(dfunct_section,"ATOMS",i_vals=iatms,error=error)
        colvar%dfunct_param%i_at_dfunct = iatms
        CALL section_vals_val_get(dfunct_section,"COEFFICIENT",r_val=colvar%dfunct_param%coeff,error=error)
+       CALL section_vals_val_get(dfunct_section,"PBC",l_val=colvar%dfunct_param%pbc,error=error)
     ELSE IF (my_subsection(8)) THEN
        ! Q Parameter
        wrk_section => qparm_section
@@ -1618,18 +1619,26 @@ CPSourceFileRef)
     ! First bond
     CALL get_coordinates(colvar, i, xpi, my_particles)
     CALL get_coordinates(colvar, j, xpj, my_particles)
-    ss=MATMUL(cell%h_inv,xpi-xpj)
-    ss=ss-NINT(ss)
-    xij=MATMUL(cell%hmat,ss)
+    IF(colvar%dfunct_param%pbc)THEN
+       ss=MATMUL(cell%h_inv,xpi-xpj)
+       ss=ss-NINT(ss)
+       xij=MATMUL(cell%hmat,ss)
+    ELSE
+       xij=xpi-xpj
+    END IF
     r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
     ! Second bond
     k=colvar%dfunct_param%i_at_dfunct(3)
     l=colvar%dfunct_param%i_at_dfunct(4)
     CALL get_coordinates(colvar, k, xpk, my_particles)
     CALL get_coordinates(colvar, l, xpl, my_particles)
-    ss=MATMUL(cell%h_inv,xpk-xpl)
-    ss=ss-NINT(ss)
-    xkl=MATMUL(cell%hmat,ss)
+    IF(colvar%dfunct_param%pbc)THEN
+       ss=MATMUL(cell%h_inv,xpk-xpl)
+       ss=ss-NINT(ss)
+       xkl=MATMUL(cell%hmat,ss)
+    ELSE
+       xkl=xpk-xpl 
+    END IF
     r34=SQRT(xkl(1)**2+xkl(2)**2+xkl(3)**2)
     !
     colvar%ss=r12+colvar%dfunct_param%coeff*r34

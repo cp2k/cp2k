@@ -521,6 +521,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PBC",&
+            description="Whether periodic boundary conditions should be applied on the distances or not"//&
+            " be used or if single molecule optimizations generate it",&
+            usage="PBC",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! Must be present in each colvar and handled properly
        CALL create_point_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
