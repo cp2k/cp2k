@@ -452,8 +452,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: r_timings
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
 
+    CHARACTER(LEN=80)                        :: fmt
     CHARACTER(LEN=max_clock_name)            :: iclock
-    INTEGER                                  :: i, j, num_timer
+    INTEGER                                  :: decimals, i, j, num_timer
     INTEGER, DIMENSION(max_timer)            :: index
     REAL(KIND=dp)                            :: asd, imax_ewall, imax_iwall, &
                                                 isum_ewall, isum_iwall, &
@@ -529,6 +530,16 @@ CONTAINS
        WRITE (UNIT=iw,FMT="(T45,4A9)")&
             "AVERAGE", "MAXIMUM", "AVERAGE","MAXIMUM"
 
+       ! adjust fmt dynamically based on the max walltime.
+       ! few clocks have more than 3 digits resolution, so stop there
+       IF (num_timer>0) THEN
+          decimals=3
+          IF (max_iwalltime(1)>=1000)   decimals=2
+          IF (max_iwalltime(1)>=10000)  decimals=1
+          IF (max_iwalltime(1)>=100000) decimals=0
+          WRITE (fmt,'(A,I0,A)') '(T2,A,T33,I6,T40,F4.1,T45,4F9.',decimals,')'
+       ENDIF
+
        DO i=num_timer,1,-1
 
           j = INDEX(i)
@@ -539,7 +550,8 @@ CONTAINS
              asd=REAL(timer_env%routine_stack_depth(j),KIND=dp)/ &
                   REAL(MAX(1,timer_env%routine_calls(j)),KIND=dp)
 
-             WRITE (UNIT=iw,FMT="(T2,A,T33,I6,T40,F4.1,T45,4F9.2)") &
+
+             WRITE (UNIT=iw,FMT=fmt) &
                           TRIM(timer_env%clock_name(j)),&
                           timer_env%routine_calls(j),&
                           ASD,&
