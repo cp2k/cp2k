@@ -86,12 +86,6 @@ MODULE preconditioner
   PUBLIC  :: make_preconditioner
   PUBLIC  :: apply_preconditioner
 
-  INTERFACE make_preconditioner
-    MODULE PROCEDURE make_preconditioner_single
-  END INTERFACE
-
-  PRIVATE :: make_sparse_diag, make_full_single, make_local_block
-
 ! *****************************************************************************
 
 CONTAINS
@@ -105,7 +99,7 @@ CONTAINS
 ! might overwrite matrix_h, matrix_t
 
 ! *****************************************************************************
-  SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
+  SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
                                       matrix_t,mo_coeff, energy_gap, mixed_precision, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -118,7 +112,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: mixed_precision
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_single', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, istat, k, &
@@ -283,7 +277,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE make_preconditioner_single
+  END SUBROUTINE make_preconditioner
 
 
 ! applies a previously created preconditioner to a full matrix
