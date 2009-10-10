@@ -525,20 +525,22 @@ CONTAINS
        WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
        WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
 
-       WRITE (UNIT=iw,FMT="(T2,A,T34,A,T40,A,T45,2A18)")&
+       WRITE (UNIT=iw,FMT="(T2,A,T35,A,T41,A,T45,2A18)")&
             "SUBROUTINE","CALLS"," ASD","SELF TIME","TOTAL TIME"
        WRITE (UNIT=iw,FMT="(T45,4A9)")&
             "AVERAGE", "MAXIMUM", "AVERAGE","MAXIMUM"
 
        ! adjust fmt dynamically based on the max walltime.
        ! few clocks have more than 3 digits resolution, so stop there
-       IF (num_timer>0) THEN
-          decimals=3
-          IF (max_iwalltime(1)>=1000)   decimals=2
-          IF (max_iwalltime(1)>=10000)  decimals=1
-          IF (max_iwalltime(1)>=100000) decimals=0
-          WRITE (fmt,'(A,I0,A)') '(T2,A,T33,I6,T40,F4.1,T45,4F9.',decimals,')'
-       ENDIF
+       IF (num_timer > 0) THEN
+         i = num_timer
+         decimals = 3
+         IF (max_iwalltime(i) >= 10000)   decimals = 2
+         IF (max_iwalltime(i) >= 100000)  decimals = 1
+         IF (max_iwalltime(i) >= 1000000) decimals = 0
+         WRITE (UNIT=fmt,FMT="(A,I0,A)")&
+           "(T2,A,T34,I6,1X,F4.1,4(1X,F8.",decimals,"))"
+       END IF
 
        DO i=num_timer,1,-1
 
@@ -549,7 +551,6 @@ CONTAINS
              ! average stack depth
              asd=REAL(timer_env%routine_stack_depth(j),KIND=dp)/ &
                   REAL(MAX(1,timer_env%routine_calls(j)),KIND=dp)
-
 
              WRITE (UNIT=iw,FMT=fmt) &
                           TRIM(timer_env%clock_name(j)),&
