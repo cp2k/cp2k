@@ -192,7 +192,7 @@ MODULE message_passing
   INTERFACE mp_allgather
      MODULE PROCEDURE mp_allgather_i1, mp_allgatherv_rv,&
                       mp_allgather_i12, mp_allgather_i23,&
-                      mp_allgather_r23, mp_allgatherv_iv
+                      mp_allgather_r23, mp_allgatherv_iv, mp_allgatherv_i8v
   END INTERFACE
 
   INTERFACE mp_sum_scatter
@@ -3851,6 +3851,35 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_allgatherv_iv
+
+! *****************************************************************************
+  SUBROUTINE mp_allgatherv_i8v(msgout,msgin,rcount,rdispl,gid)
+    INTEGER(int_8), INTENT(IN)               :: msgout( : )
+    INTEGER(int_8), INTENT(OUT)              :: msgin( : )
+    INTEGER, INTENT(IN)                      :: rcount( : ), rdispl( : ), gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgatherv_i8v', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, scount
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    scount = SIZE ( msgout )
+    CALL MPI_ALLGATHERV(msgout, scount, MPI_INTEGER8, msgin, rcount, &
+                        rdispl, MPI_INTEGER8, gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgatherv @ mp_allgatherv_i8v" )
+#else
+    msgin = msgout
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allgatherv_i8v
 
 
 ! wrapper for MPI_REDUCE_SCATTER subroutine

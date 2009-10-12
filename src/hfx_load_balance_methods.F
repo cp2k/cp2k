@@ -24,7 +24,8 @@ MODULE hfx_load_balance_methods
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
-  USE message_passing,                 ONLY: mp_isendrecv,&
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_isendrecv,&
                                              mp_max,&
                                              mp_sum,&
                                              mp_sum_i8,&
@@ -159,22 +160,25 @@ MODULE hfx_load_balance_methods
       ibin, icpu, j, jatom_block, jatom_end, jatom_start, katom_block, &
       katom_end, katom_start, latom_block, latom_end, latom_start, &
       my_process_id, natom, nbins, new_iatom_end, new_iatom_start, &
-      new_jatom_end, new_jatom_start, objective_block_size, &
-      objective_nblocks, req(2), source, stat
+      new_jatom_end, new_jatom_start, non_empty_blocks, objective_block_size, &
+      objective_nblocks, req(2), source, stat, total_blocks
     INTEGER(int_8) :: atom_block, cost_per_bin, cost_per_core, current_cost, &
       distribution_counter_end, distribution_counter_start, &
-      global_quartet_counter, local_quartet_counter, max_block_cost, mepos, &
-      n_processes, nblocks, ncpu, self_cost_per_block, tmp_block, &
-      total_block_self_cost
+      global_quartet_counter, local_quartet_counter, mepos, n_processes, &
+      nblocks, ncpu, self_cost_per_block, tmp_block, total_block_self_cost
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: buffer_in, buffer_out
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
       SAVE                                   :: cost_matrix
     INTEGER(int_8), SAVE                     :: shm_global_quartet_counter, &
                                                 shm_local_quartet_counter
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, tmp_index, &
+                                                tmp_pos, to_be_sorted
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
+    INTEGER, SAVE                            :: shm_nblocks
     LOGICAL                                  :: changed, failure, &
                                                 last_bin_needs_to_be_filled, &
                                                 optimized
@@ -183,6 +187,8 @@ MODULE hfx_load_balance_methods
     TYPE(hfx_block_range_type), &
       DIMENSION(:), POINTER                  :: blocks_guess, tmp_blocks, &
                                                 tmp_blocks2
+    TYPE(hfx_block_range_type), &
+      DIMENSION(:), POINTER, SAVE            :: shm_blocks
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist, &
                                                 tmp_dist
@@ -217,9 +223,7 @@ MODULE hfx_load_balance_methods
     IF( .NOT. load_balance_parameter%blocks_initialized ) THEN
 !$OMP BARRIER
 !$OMP MASTER
-    CALL timeset(routineN//"_range",handle_range)
-!$OMP END MASTER
-!$OMP BARRIER
+      CALL timeset(routineN//"_range",handle_range)
 
       nblocks = MAX((natom+block_size-1)/block_size,1)
       ALLOCATE(blocks_guess(nblocks),STAT=stat)
@@ -229,7 +233,7 @@ MODULE hfx_load_balance_methods
       ALLOCATE(tmp_blocks2(natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   
-      CALL init_blocks(natom,block_size,INT(nblocks),blocks_guess,&
+      CALL init_blocks(para_env, natom,block_size,INT(nblocks),blocks_guess,&
                        list_ij, list_kl, set_list_ij, set_list_kl, &
                        particle_set,&
                        coeffs_set, coeffs_kind, &
@@ -244,16 +248,16 @@ MODULE hfx_load_balance_methods
       DO i=1,nblocks
          total_block_self_cost = total_block_self_cost + blocks_guess(i)%cost
       END DO
-  
+ 
+      CALL mp_sum_i8(total_block_self_cost, para_env%group)
+ 
       objective_block_size = load_balance_parameter%block_size
       objective_nblocks = MAX((natom+objective_block_size-1)/objective_block_size,1)
   
       self_cost_per_block =  (total_block_self_cost + objective_nblocks -1 ) / (objective_nblocks)
   
-      max_block_cost = 0_int_8
       DO i = 1,nblocks
         tmp_blocks2(i) = blocks_guess(i)
-        max_block_cost = MAX(max_block_cost, blocks_guess(i)%cost)
       END DO
 
       optimized = .FALSE.
@@ -306,29 +310,116 @@ MODULE hfx_load_balance_methods
         IF( .NOT. changed) optimized = .TRUE.
         IF( i> 20) optimized = .TRUE.
         nblocks = current_block_id
-        max_block_cost = 0_int_8
         DO atom_block = 1,nblocks
           tmp_blocks2(atom_block) = tmp_blocks(atom_block)
-          max_block_cost = MAX(max_block_cost, tmp_blocks2(atom_block)%cost)
         END DO
       END DO
-      ! ** Set nblocks in structure
-      load_balance_parameter%nblocks = nblocks
+
+      DEALLOCATE(tmp_blocks2, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      ! ** count number of non empty blocks on each node
+      non_empty_blocks = 0
+      DO atom_block = 1,nblocks
+        IF(tmp_blocks(atom_block)%istart == 0) CYCLE
+        non_empty_blocks = non_empty_blocks + 1
+      END DO
+
+      ALLOCATE(rcount(ncpu), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      rcount = 0
+      rcount(para_env%mepos+1) = non_empty_blocks
+      CALL mp_sum(rcount, para_env%group)
+
+      ! ** sum all non_empty_blocks
+      total_blocks = 0
+      DO i=1,ncpu
+        total_blocks = total_blocks + rcount(i)
+      END DO
+
+      ! ** calculate offsets
+      ALLOCATE(rdispl(ncpu), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      rcount = rcount * 3
+      rdispl(1) = 0
+      DO i = 2,ncpu
+        rdispl(i) = rdispl(i-1) + rcount(i-1)
+      END DO
+
+      ALLOCATE(buffer_in(3*non_empty_blocks), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+
+      non_empty_blocks = 0
+      DO atom_block = 1,nblocks
+        IF(tmp_blocks(atom_block)%istart == 0) CYCLE
+        buffer_in(non_empty_blocks*3+1) = tmp_blocks(atom_block)%istart
+        buffer_in(non_empty_blocks*3+2) = tmp_blocks(atom_block)%iend
+        buffer_in(non_empty_blocks*3+3) = tmp_blocks(atom_block)%cost
+        non_empty_blocks = non_empty_blocks + 1
+      END DO
+     
+      nblocks = total_blocks
+
+      ALLOCATE(tmp_blocks2(nblocks), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+
+      ALLOCATE(buffer_out(3*nblocks), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   
+      ! ** Gather all three arrays 
+      CALL mp_allgather(buffer_in,buffer_out,rcount,rdispl,para_env%group)
+
+      DO i=1,nblocks
+        tmp_blocks2(i)%istart = INT(buffer_out((i-1)*3+1))
+        tmp_blocks2(i)%iend =   INT(buffer_out((i-1)*3+2))
+        tmp_blocks2(i)%cost = buffer_out((i-1)*3+3)
+      END DO
+
+      ! ** Now we sort the blocks
+      ALLOCATE(to_be_sorted(nblocks),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(tmp_index(nblocks),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      DO atom_block = 1,nblocks
+        to_be_sorted(atom_block) = tmp_blocks2(atom_block)%istart
+      END DO
+
+      CALL sort(to_be_sorted,INT(nblocks),tmp_index)
+
       ALLOCATE(x_data%blocks(nblocks), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
       DO atom_block = 1,nblocks
-        x_data%blocks(atom_block) = tmp_blocks(atom_block)
+        x_data%blocks(atom_block) = tmp_blocks2(tmp_index(atom_block))
       END DO
-  
+
+      shm_blocks => x_data%blocks
+      shm_nblocks = nblocks
+
+      ! ** Set nblocks in structure
+      load_balance_parameter%nblocks = nblocks
+
       DEALLOCATE(blocks_guess, tmp_blocks, tmp_blocks2, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+      DEALLOCATE(rcount, rdispl, buffer_in, buffer_out, to_be_sorted, tmp_index, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
       load_balance_parameter%blocks_initialized = .TRUE.
-!$OMP BARRIER
-!$OMP MASTER
-    CALL timestop(handle_range)
+      CALL timestop(handle_range)
 !$OMP END MASTER
+!$OMP BARRIER
+
+      IF( .NOT. load_balance_parameter%blocks_initialized ) THEN
+        ALLOCATE(x_data%blocks(shm_nblocks), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        x_data%blocks = shm_blocks
+        load_balance_parameter%nblocks = shm_nblocks
+        load_balance_parameter%blocks_initialized = .TRUE.
+      END IF
 !$OMP BARRIER
     END IF
 
@@ -1086,7 +1177,6 @@ MODULE hfx_load_balance_methods
     END FUNCTION poly2
      
   END FUNCTION cost_model
-
 ! *****************************************************************************
 !> \brief Minimizes the maximum cost per cpu by shuffling around all bins
 !> \param para_env para_env
@@ -1443,7 +1533,8 @@ MODULE hfx_load_balance_methods
 
   END FUNCTION estimate_block_cost
 
-  SUBROUTINE init_blocks(natom,block_size,nblock,blocks,list_ij, list_kl, set_list_ij, set_list_kl, &
+  SUBROUTINE init_blocks(para_env, natom, block_size, nblock, blocks, &
+                         list_ij, list_kl, set_list_ij, set_list_kl, &
                          particle_set,&
                          coeffs_set, coeffs_kind, &
                          is_assoc_atomic_block_global, do_periodic,&
@@ -1452,6 +1543,7 @@ MODULE hfx_load_balance_methods
                          do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
                          log10_eps_schwarz, log_2, coeffs_kind_max0)
 
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: natom, block_size, nblock
     TYPE(hfx_block_range_type), &
       DIMENSION(1:nblock)                    :: blocks
@@ -1478,7 +1570,8 @@ MODULE hfx_load_balance_methods
                                                 coeffs_kind_max0
 
     INTEGER                                  :: atom_block, i, iatom_block, &
-                                                iatom_end, iatom_start
+                                                iatom_end, iatom_start, &
+                                                my_cpu_rank, ncpus
 
     DO atom_block = 0,nblock-1
       iatom_block = MODULO(atom_block,nblock)+1
@@ -1486,9 +1579,17 @@ MODULE hfx_load_balance_methods
       iatom_end = MIN(iatom_block*block_size,natom)
       blocks(atom_block+1)%istart = iatom_start
       blocks(atom_block+1)%iend   = iatom_end
+      blocks(atom_block+1)%cost   = 0_int_8
     END DO
 
+    ncpus = para_env%num_pe
+    my_cpu_rank = para_env%mepos
     DO i=1,nblock
+      IF( MODULO(i,ncpus) /= my_cpu_rank)  THEN
+        blocks(i)%istart = 0
+        blocks(i)%iend = 0
+        CYCLE
+      END IF
       iatom_start = blocks(i)%istart
       iatom_end = blocks(i)%iend
       blocks(i)%cost = estimate_block_cost(list_ij, list_kl, set_list_ij, set_list_kl, &
