@@ -683,10 +683,10 @@ CONTAINS
     INTEGER :: debug_level, i, img, ithread, left_multiplicity, left_mypcol, &
       left_myprow, left_nimages, left_npcols, left_nprows, left_src_image, &
       left_src_p_calc, left_src_p_comm, left_src_pcol, left_src_prow, &
-      mp_group, mult, mynode, mypcol, myprow, nblks, npcols, nprows, &
-      nthreads, numnodes, nze, output_unit, right_mypcol, right_myprow, &
-      right_npcols, right_nprows, right_prow_i, right_src_p_calc, &
-      right_src_p_comm, right_src_prow, timing_handle
+      left_virt_src_pcol, mp_group, mult, mynode, mypcol, myprow, nblks, &
+      npcols, nprows, nthreads, numnodes, nze, output_unit, right_mypcol, &
+      right_myprow, right_npcols, right_nprows, right_prow_i, &
+      right_src_p_calc, right_src_p_comm, right_src_prow, timing_handle
     INTEGER(KIND=int_8)                      :: flop_single, flop_total
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
@@ -929,10 +929,12 @@ CONTAINS
        my_waits(4, right_prow_i) = m_walltime() - my_waits(4, right_prow_i)
        ENDDO
        left_src_prow = left_myprow
-       left_src_image = 1 + MOD (right_src_prow, left_nimages)
+       !left_src_image = 1 + MOD (right_src_prow, left_nimages)
        xfer_case_left: IF (right_prow_i .LT. nprows) THEN
           DO mult = 1, left_multiplicity
-             left_src_pcol = INT (right_src_prow / left_nimages)
+             left_virt_src_pcol = right_src_prow+(left_nimages*(mult-1))
+             left_src_pcol = INT (left_virt_src_pcol / left_nimages)
+             left_src_image = 1 + MOD (left_virt_src_pcol, left_nimages)
              IF (dbg) WRITE(*,'(1X,A,I3,A,"(",I3,",",I3,")")')&
                   routineN//' Getting LEFT matrix image',left_src_image,&
                   ' pgrid coor ',left_src_prow, left_src_pcol
