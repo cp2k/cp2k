@@ -93,3 +93,7 @@ o2_ot_refine_diis_1.inp
 o2_ot_refine_diis_2.inp
 # New initial guess ATOMIC 
 ethylene_l1_loc.inp
+#  
+o2_ot_refine_2.inp
+#  
+o2_ot_refine_diis_2.inp

@@ -117,7 +117,9 @@ CONTAINS
 
     INTEGER                                  :: handle, istat, k, &
                                                 my_solver_type
-    LOGICAL                                  :: failure, my_mixed_precision
+    LOGICAL                                  :: failure, my_mixed_precision, &
+                                                needs_full_spectrum, &
+                                                needs_homo
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
 
@@ -127,8 +129,6 @@ CONTAINS
 
     CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
 
-    ALLOCATE(eigenvalues_ot(k),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     my_mixed_precision = .FALSE.
     IF(PRESENT(mixed_precision)) my_mixed_precision = mixed_precision
@@ -140,24 +140,44 @@ CONTAINS
           CALL stop_program(routineN,"This precond with mixed precision is not supported yet")
        END SELECT
     ENDIF
+ 
+    needs_full_spectrum=.FALSE.
+    needs_homo=.FALSE.
 
-    ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
-    !                  the case of non-equivalent MOs but also for the derivate
-    ! we could already have all eigenvalues e.g. full_all and we could skip this
-    ! to be optimised later.
-    ! one flaw is that not all SCF methods (i.e. that go over mo_derivs directly)
-    ! have a 'valid' matrix_h... (we even don't know what evals are in that case)
-    CALL calculate_subspace_eigenvalues(mo_coeff,matrix_h,&
-            eigenvalues_ot, do_rotation = .FALSE.,error=error)
+    SELECT CASE(precon_type)
+    CASE (ot_precond_full_single_inverse,ot_precond_full_all)
+       needs_full_spectrum=.TRUE.
+    CASE (ot_precond_sparse_diag,ot_precond_full_single)
+       needs_homo=.TRUE.
+       ! XXXX to be removed if homo estimate only is implemented
+       needs_full_spectrum=.TRUE.
+    CASE (ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_sparse_kinetic)
+       ! these should be happy without an estimate for the homo energy
+       ! preconditioning can  not depend on an absolute eigenvalue, only on eigenvalue differences
+    CASE DEFAULT
+          CALL stop_program(routineN,"The preconditioner is unknown ...")
+    END SELECT
+   
+    energy_homo=0.0_dp
 
-    ! deal with zero occupied orbitals
-    IF (k>0) THEN
-       energy_homo=eigenvalues_ot(k)
+    IF (needs_full_spectrum) THEN
+       ALLOCATE(eigenvalues_ot(k),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
+       !                  the case of non-equivalent MOs but also for the derivate
+       ! we could already have all eigenvalues e.g. full_all and we could skip this
+       ! to be optimised later.
+       ! one flaw is that not all SCF methods (i.e. that go over mo_derivs directly)
+       ! have a 'valid' matrix_h... (we even don't know what evals are in that case)
+       CALL calculate_subspace_eigenvalues(mo_coeff,matrix_h,&
+               eigenvalues_ot, do_rotation = .FALSE.,error=error)
+       IF (k>0) energy_homo=eigenvalues_ot(k)
     ELSE
-       energy_homo=0.0_dp
+       IF (needs_homo) THEN 
+          CALL stop_program(routineN,"Not yet implemented")
+       ENDIF
     ENDIF
-    !
-    !
+
     my_solver_type = solver_type
     SELECT CASE (precon_type)
     CASE (ot_precond_sparse_diag)
@@ -191,8 +211,7 @@ CONTAINS
        !ENDIF
        IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
        IF ( PRESENT(matrix_s) ) THEN
-          CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
-                                   energy_homo, energy_gap ,error=error)
+          CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, error=error)
        ELSE
           CALL stop_program("make preconditioner","Type for S=1 not implemented")
        END IF
@@ -201,7 +220,7 @@ CONTAINS
        IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
        IF ( PRESENT(matrix_s) .AND. PRESENT(matrix_t) ) THEN
           CALL make_full_kinetic(preconditioner_env, preconditioner_env%fm,&
-               &                 matrix_t, matrix_s, energy_homo, energy_gap, &
+               &                 matrix_t, matrix_s, energy_gap, &
                &                 my_mixed_precision, error=error)
        ELSE
           CALL stop_program("make preconditioner","Type for S=1 not implemented")
@@ -235,7 +254,7 @@ CONTAINS
           CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
        ENDIF
        CALL make_sparse_kinetic(preconditioner_env, preconditioner_env%sparse_matrix,&
-                                matrix_t, matrix_s, energy_homo, energy_gap ,error=error)
+                                matrix_t, matrix_s, energy_gap ,error=error)
        CALL make_diag_inner_precond(preconditioner_env, preconditioner_env%sparse_matrix,&
                                     preconditioner_env%sparse_matrix_inner, error=error)
     CASE DEFAULT
@@ -264,7 +283,7 @@ CONTAINS
        ! prepare for the direct solver
        preconditioner_env%solver=ot_precond_solver_direct
        CALL make_full_fact_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
-            &                       energy_homo, energy_gap, error)
+            &                       error)
      CASE (ot_precond_solver_default)
        preconditioner_env%solver=ot_precond_solver_default
     CASE DEFAULT
@@ -272,8 +291,10 @@ CONTAINS
        CALL stop_program("make preconditioner","doesnt know this type of solver")
     END SELECT
 
-    DEALLOCATE(eigenvalues_ot,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF (needs_full_spectrum) THEN
+      DEALLOCATE(eigenvalues_ot,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
 
     CALL timestop(handle)
 
@@ -935,12 +956,10 @@ CONTAINS
 
 ! different types of preconditioner come here
 ! *****************************************************************************
-  SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
-                               energy_homo, energy_gap, error)
+  SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
-    REAL(KIND=dp)                            :: energy_homo, energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n
@@ -965,12 +984,12 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
-                               energy_homo, energy_gap, mixed_precision, error)
+                               energy_gap, mixed_precision, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(real_matrix_type), POINTER          :: matrix_t, matrix_s
-    REAL(KIND=dp)                            :: energy_homo, energy_gap
+    REAL(KIND=dp)                            :: energy_gap
     LOGICAL, INTENT(IN)                      :: mixed_precision
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -999,7 +1018,7 @@ CONTAINS
     CALL cp_fm_create(fm,fm_struct_tmp, name="preconditioner", use_sp=mixed_precision, error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    shift=MAX(-energy_homo,energy_gap)
+    shift=MAX(0.0_dp,energy_gap)
     CALL add_matrices(matrix_t,1.0_dp,matrix_t,shift,matrix_s)
     CALL copy_sm_to_fm(matrix_t,fm,error=error)
 
@@ -1061,14 +1080,12 @@ CONTAINS
 
   END SUBROUTINE make_full_inverse_cholesky
 
-  SUBROUTINE make_full_fact_cholesky(preconditioner_env, fm, matrix_s, &
-                                     energy_homo, energy_gap, error)
+  SUBROUTINE make_full_fact_cholesky(preconditioner_env, fm, matrix_s, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: matrix_s
-    REAL(KIND=dp)                            :: energy_homo, energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_fact_cholesky', &
@@ -1925,10 +1942,10 @@ CONTAINS
 
 
   SUBROUTINE make_sparse_kinetic(preconditioner_env, sm, matrix_t, matrix_s, &
-       &                         energy_homo, energy_gap, error)
+       &                         energy_gap, error)
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(real_matrix_type), POINTER          :: sm, matrix_t, matrix_s
-    REAL(KIND=dp), INTENT(IN)                :: energy_homo, energy_gap
+    REAL(KIND=dp), INTENT(IN)                :: energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_sparse_kinetic', &
@@ -1946,7 +1963,7 @@ CONTAINS
     ! allocate
     CALL Replicate_matrix(matrix_t,sm,"PRECONDITIONER",.TRUE.,error=error)
     ! M = T - epsilon * S
-    shift=MAX(-energy_homo,energy_gap)
+    shift=MAX(0.0_dp,energy_gap)
     CALL add_matrices(sm,1.0_dp,matrix_t,shift,matrix_s)
   END SUBROUTINE make_sparse_kinetic
 

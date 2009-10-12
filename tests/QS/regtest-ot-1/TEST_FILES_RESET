@@ -588,3 +588,17 @@ vib-int-mixed.inp
 H2O-OT-1.inp
 # bug fix for a(zero-cell)-a(non-zero-cell) interaction.
 dip-mixed.inp
+#  
+Ar-15.inp
+#  
+Ar-19.inp
+#  
+H2O-8.inp
+#  
+H2O-9.inp
+#  
+H2O-10.inp
+#  
+vib-mixed.inp
+#  
+vib-int-mixed.inp

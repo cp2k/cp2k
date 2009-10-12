@@ -246,3 +246,7 @@ H2O-hfx-emd-restart.inp
 # 
 CH-hfx-md-2.inp
 CH-hfx-md.inp
+#  
+H2O_pw.inp
+#  
+H2O-hfx-emd-restart.inp
