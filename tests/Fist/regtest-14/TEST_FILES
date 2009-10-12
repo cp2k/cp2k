@@ -1,6 +1,8 @@
 # test of gle thermostat
 argon-nve.inp    2
-argon-nose.inp      2
-argon-csvr.inp      2
-argon-gle.inp      2
-argon-gle_r.inp      2
+argon-nose.inp   2
+argon-csvr.inp   2
+argon-gle.inp    2
+argon-gle_r.inp  2
+#new FF
+water_mm3.inp    2

@@ -557,7 +557,7 @@ CONTAINS
        CALL keyword_create(keyword=keyword, name="KIND",&
             description="Define the kind of bend potential",&
             usage="KIND HARMONIC",&
-            enum_c_vals=s2a("HARMONIC","CHARMM","AMBER","G87","G96","CUBIC","MIXED_BEND_STRETCH"),&
+            enum_c_vals=s2a("HARMONIC","CHARMM","AMBER","G87","G96","CUBIC","MIXED_BEND_STRETCH","MM3"),&
             enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(THETA-THETA0)^2",&
                           "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2",&
                           "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2",&
@@ -565,14 +565,18 @@ CONTAINS
                           "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2",&
                           "Functional Form (CUBIC): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))",&
                           "Functional Form (MIXED_BEND_STRETCH): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))+"//&
-                             " KSS*(R12-R012)*(R32-R032)+KBS12*(R12-R012)*(THETA-THETA0)+KBS32*(R32-R032)*(THETA-THETA0)"),&
+                             " KSS*(R12-R012)*(R32-R032)+KBS12*(R12-R012)*(THETA-THETA0)+KBS32*(R32-R032)*(THETA-THETA0)",&
+                          "Functional Form (MM3): 1/2*K*(THETA-THETA0)**2*(1-0.014*(THETA-THETA0)+5.6E-5*(THETA-THETA0)**2"//&
+                             " -7.0E-7*(THETA-THETA0)**3+9.0E-10*(THETA-THETA0)**4)+KBS12*(R12-R012)*(THETA-THETA0)+"//&
+                             " KBS32*(R32-R032)*(THETA-THETA0)"),&
             enum_i_vals=(/ do_ff_harmonic,&
                            do_ff_charmm,&
                            do_ff_amber,&
                            do_ff_g87,&
                            do_ff_g96,&
                            do_ff_cubic,&
-                           do_ff_mixed_bend_stretch/),&
+                           do_ff_mixed_bend_stretch,&
+                           do_ff_mm3/),&
             default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

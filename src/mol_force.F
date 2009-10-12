@@ -12,7 +12,8 @@ MODULE mol_force
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_g87, do_ff_g96, &
-       do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_morse, do_ff_quartic
+       do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_mm3, do_ff_morse, &
+       do_ff_quartic
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
@@ -137,7 +138,7 @@ CONTAINS
        g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
     CASE (do_ff_mixed_bend_stretch)
 
-       ! cubic term in theta (do_ff_cubic)
+       ! 1) cubic term in theta (do_ff_cubic)
        energy = k * ( theta - theta0 ) ** 2 * (1.0_dp + cb * (theta-theta0 ))
        fscalar = (2.0_dp* k *(theta-theta0)* (1.0_dp + cb * (theta-theta0 ))+k * ( theta - theta0 ) ** 2 *cb)/SIN(theta)
        denom = id12*id12*id32*id32
@@ -145,7 +146,7 @@ CONTAINS
        g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom*fscalar
        g3 = (b12*d12*d32-dist*id32*d12*b32)*denom*fscalar
 
-       ! stretch-stretch term
+       ! 2) stretch-stretch term
        disp12 = d12 - r012
        disp32 = d32 - r032
        energy = energy + kss*disp12*disp32
@@ -154,22 +155,23 @@ CONTAINS
        g3 = g3 - kss*disp12*id32*b32
        g2 = g2 + kss*disp12*id32*b32
 
-       ! bend-stretch term
+       ! 3) bend-stretch term
        energy = energy + kbs12*disp12*(theta-theta0) + kbs32*disp32*(theta-theta0)
-  
-       ! bend part
        fscalar= (kbs12*disp12+kbs32*disp32)/SIN(theta)
        denom = id12*id12*id32*id32
+
+       ! 3a) bend part
        g1 = g1 + (b32*d12*d32-dist*d32*id12*b12)*denom*fscalar
        g2 = g2 + (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom*fscalar
        g3 = g3 + (b12*d12*d32-dist*id32*d12*b32)*denom*fscalar
 
-       ! stretch part
+       ! 3b) stretch part
        g1 = g1 - kbs12*(theta-theta0)*id12*b12
        g2 = g2 + kbs12*(theta-theta0)*id12*b12
        g3 = g3 - kbs32*(theta-theta0)*id32*b32
        g2 = g2 + kbs32*(theta-theta0)*id32*b32
 
+       ! fscalar is already included in g1, g2 and g3
        fscalar=1.0_dp
 
     CASE (do_ff_harmonic,do_ff_g87)
@@ -179,6 +181,46 @@ CONTAINS
        g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
        g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
        g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
+
+    CASE (do_ff_mm3)
+
+       ! 1) up to sixth order in theta
+       energy = k*(theta - theta0)**2*(0.5_dp + (theta - theta0) * &
+                (-0.007_dp + (theta - theta0) * (2.8E-5_dp + (theta - theta0) * &
+                (-3.5E-7_dp + (theta - theta0) * 4.5E-10_dp))))
+
+       fscalar = k*(theta - theta0)*(1.0_dp + (theta - theta0)* &
+                 (-0.021_dp + (theta - theta0)*(1.12E-4_dp + &
+                 (theta - theta0)*(-1.75E-6_dp + (theta - theta0)*2.7E-9_dp))))/&
+                 SIN(theta)
+
+       denom = id12*id12*id32*id32
+       g1 = (b32*d12*d32-dist*d32*id12*b12)*denom*fscalar
+       g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom*fscalar
+       g3 = (b12*d12*d32-dist*id32*d12*b32)*denom*fscalar
+       !print *, energy
+       ! 2) bend-stretch term
+       disp12 = d12 - r012
+       disp32 = d32 - r032
+       energy = energy + kbs12*disp12*(theta-theta0) + kbs32*disp32*(theta-theta0)
+       fscalar= (kbs12*disp12+kbs32*disp32)/SIN(theta)
+       denom = id12*id12*id32*id32
+
+       ! 2a) bend part
+       g1 = g1 + (b32*d12*d32-dist*d32*id12*b12)*denom*fscalar
+       g2 = g2 + (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom*fscalar
+       g3 = g3 + (b12*d12*d32-dist*id32*d12*b32)*denom*fscalar
+
+       ! 2b) stretch part
+       g1 = g1 - kbs12*(theta-theta0)*id12*b12
+       g2 = g2 + kbs12*(theta-theta0)*id12*b12
+       g3 = g3 - kbs32*(theta-theta0)*id32*b32
+       g2 = g2 + kbs32*(theta-theta0)*id32*b32
+
+       ! fscalar is already included in g1, g2 and g3
+       fscalar=1.0_dp
+
+
     CASE DEFAULT
        CALL stop_program (routineP,"unmatched bend kind")
     END SELECT

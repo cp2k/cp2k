@@ -315,7 +315,8 @@ MODULE input_constants
                                               do_ff_morse=6,&
                                               do_ff_cubic=7,&
                                               do_ff_mixed_bend_stretch=8,&
-                                              do_ff_amber=9
+                                              do_ff_amber=9,&
+                                              do_ff_mm3=10
                                            
   INTEGER, PARAMETER, PUBLIC               :: do_stress_none=0,&
                                               do_stress_analytical=1,&
