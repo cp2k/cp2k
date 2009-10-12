@@ -29,7 +29,8 @@ MODULE task_list_methods
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_alltoall,&
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_alltoall,&
                                              mp_gather,&
                                              mp_scatter
   USE particle_types,                  ONLY: particle_type
@@ -1214,7 +1215,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief given a task list, compute the load of each process everywhere
-!>        XXXXXXXXXX should be implemented with scatter / gather 
+!>        giving this function the ability to loop over a (sub)set of rs_grids, and do all the communication in one shot,
+!>        would speed it up
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
@@ -1239,8 +1241,6 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: total_cost_local
     INTEGER(kind=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_disps, recv_sizes, &
-                                                send_disps, send_sizes
     TYPE(realspace_grid_type), POINTER       :: rs
 
     CALL timeset(routineN,handle)
@@ -1249,31 +1249,13 @@ CONTAINS
     rs => rs_rho(grid_level)%rs_grid
 
     ! allocate local arrays
-    ALLOCATE(send_sizes(rs%desc%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
-    ALLOCATE(recv_sizes(rs%desc%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
-    ALLOCATE(send_disps(rs%desc%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
-    ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
     ALLOCATE(send_buf_i(rs%desc%group_size),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
     ALLOCATE(recv_buf_i(rs%desc%group_size),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
 
-    send_sizes = 1
-    recv_sizes = 1
-    send_disps(1)=0
-    recv_disps(1)=0
-    DO i = 2, rs % desc % group_size
-       send_disps(i) = send_disps(i-1) + send_sizes(i-1)
-       recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
-    ENDDO
-
-! communication step 1 : compute the total local cost of the tasks
-!                        each proc needs to know the amount of work he will receive
-
+    ! communication step 1 : compute the total local cost of the tasks
+    !                        each proc needs to know the amount of work he will receive
 
     ! send buffer now contains for each target the cost of the tasks it will receive
     send_buf_i=0
@@ -1290,25 +1272,13 @@ CONTAINS
                    + tasks(5,i)
        END IF
     END DO
-    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
+    CALL mp_alltoall(send_buf_i, recv_buf_i, 1, rs % desc % group)
+
+    ! communication step 2 : compute the global cost of the tasks
     total_cost_local = SUM(recv_buf_i)
 
-! communication step 2 : compute the global cost of the tasks
-
     ! after this step, the recv buffer contains the local cost for each CPU
-    send_buf_i = total_cost_local
-    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
-
-    loads=recv_buf_i
-
-    DEALLOCATE(send_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc % group_size)
-    DEALLOCATE(recv_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc % group_size)
-    DEALLOCATE(send_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc % group_size)
-    DEALLOCATE(recv_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc % group_size)
+    CALL mp_allgather(total_cost_local, loads, rs % desc % group)
 
     CALL timestop(handle)
 

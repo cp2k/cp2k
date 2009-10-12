@@ -190,7 +190,7 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_allgather
-     MODULE PROCEDURE mp_allgather_i1, mp_allgatherv_rv,&
+     MODULE PROCEDURE mp_allgather_i1, mp_allgather_i81, mp_allgatherv_rv,&
                       mp_allgather_i12, mp_allgather_i23,&
                       mp_allgather_r23, mp_allgatherv_iv, mp_allgatherv_i8v
   END INTERFACE
@@ -204,7 +204,7 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_alltoall
-     MODULE PROCEDURE mp_alltoall_c22v, mp_alltoall_i, mp_alltoall_c22v_sgl, &
+     MODULE PROCEDURE mp_alltoall_c22v, mp_alltoall_i, mp_alltoall_i8, mp_alltoall_c22v_sgl, &
                       mp_alltoall_i11v, mp_alltoall_r11v, mp_alltoall_r45,&
                       mp_alltoall_r34,mp_alltoall_r54, mp_alltoall_i8v,&
                       mp_alltoall_z11v, mp_alltoall_i33, mp_alltoall_i22
@@ -1340,7 +1340,6 @@ CONTAINS
 #endif
 
   END SUBROUTINE mp_alltoall_i11v
-
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_i8v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
@@ -1643,7 +1642,43 @@ CONTAINS
 #endif
 
   END SUBROUTINE mp_alltoall_i
+! *****************************************************************************
+  SUBROUTINE mp_alltoall_i8 ( sb, rb, count, group )
 
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      INTENT(IN)                             :: sb
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      INTENT(OUT)                            :: rb
+    INTEGER, INTENT(IN)                      :: count, group
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_i8', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, np
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_alltoall ( sb, count, MPI_INTEGER8, &
+         rb, count, MPI_INTEGER8, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_i" )
+    CALL mpi_comm_size ( group, np, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_i" )
+    msglen = 2 * count * np
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#else
+    rb=sb
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+
+  END SUBROUTINE mp_alltoall_i8
 
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_i22 ( sb, rb, count, group )
@@ -3700,6 +3735,38 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_allgather_i1
+
+! *****************************************************************************
+  SUBROUTINE mp_allgather_i81(msgout,msgin,gid)
+    INTEGER(KIND=int_8), INTENT(IN)          :: msgout
+    INTEGER(KIND=int_8), INTENT(OUT)         :: msgin( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgather_i81', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, rcount, scount
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    scount = 1
+    rcount = 1
+    CALL MPI_ALLGATHER(msgout, scount, MPI_INTEGER8, &
+                       msgin , rcount, MPI_INTEGER8, &
+                       gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_i81" )
+#else
+    msgin = msgout
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_allgather_i81
+
 
 ! *****************************************************************************
   SUBROUTINE mp_allgather_i12(msgout, msgin,gid)
