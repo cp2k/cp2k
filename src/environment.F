@@ -33,10 +33,11 @@ MODULE environment
   USE header,                          ONLY: cp2k_footer,&
                                              cp2k_header
   USE input_constants,                 ONLY: &
-       do_cp2k, do_eip, do_farming, do_fft_acml, do_fft_cu, do_fft_essl, &
-       do_fft_fftw, do_fft_fftw2, do_fft_fftw3, do_fft_mkl, do_fft_sci, &
-       do_fft_sg, do_fist, do_kg, do_qs, do_test, energy_run, &
-       id_development_version, mol_dyn_run, none_run
+       debug_print_level, do_cp2k, do_eip, do_farming, do_fft_acml, &
+       do_fft_cu, do_fft_essl, do_fft_fftw, do_fft_fftw2, do_fft_fftw3, &
+       do_fft_mkl, do_fft_sci, do_fft_sg, do_fist, do_kg, do_qs, do_test, &
+       energy_run, high_print_level, id_development_version, low_print_level, &
+       medium_print_level, mol_dyn_run, none_run, silent_print_level
   USE input_cp2k,                      ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -390,6 +391,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_global_section', &
       routineP = moduleN//':'//routineN, start_section_label = "GLOBAL"
 
+    CHARACTER(len=6)                         :: print_level_string
     CHARACTER(len=default_path_length) :: basis_set_file_name, &
       coord_file_name, geminal_file_name, mm_potential_file_name, &
       potential_file_name
@@ -636,8 +638,25 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="(T2,A,T80,L1)")&
             start_section_label//"| FFTs using library dependent lengths",efl
 
+       SELECT CASE(print_level)
+       CASE(silent_print_level)
+         print_level_string="SILENT"
+       CASE(low_print_level)
+         print_level_string="   LOW"
+       CASE(medium_print_level)
+         print_level_string="MEDIUM"
+       CASE(high_print_level)
+         print_level_string="  HIGH"
+       CASE(debug_print_level)
+         print_level_string=" DEBUG"
+       CASE DEFAULT
+         CALL stop_program(routineN,moduleN,__LINE__,&
+         "unknown print_level",para_env)
+       END SELECT
+
+       WRITE (UNIT=output_unit,FMT="(T2,A,T75,A6)")&
+            start_section_label//"| Global print level",print_level_string
        WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
-            start_section_label//"| Global print level",print_level,&
             start_section_label//"| Total number of message passing processes",&
             para_env%num_pe,&
             start_section_label//"| Number of threads for this process",&
