@@ -3931,13 +3931,15 @@ CONTAINS
     CALL cp_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), cp_failure_level,&
          cp_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows', error)
-    CALL cp_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
+    IF (dbg) &
+         CALL cp_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
          cp_wrong_args_error, routineN,&
          'Range of row distribution not equal to processor rows', error)
     CALL cp_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), cp_failure_level,&
          cp_wrong_args_error, routineN,&
          'Col distribution references unexistent processor cols', error)
-    CALL cp_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
+    IF (dbg) &
+         CALL cp_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
          cp_wrong_args_error, routineN,&
          'Range of col distribution not equal to processor cols', error)
     ALLOCATE (send_count(2, row_images, 0:numproc-1))
@@ -4316,13 +4318,15 @@ CONTAINS
     CALL cp_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), cp_failure_level,&
          cp_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows', error)
-    CALL cp_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
+    IF (dbg) &
+         CALL cp_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
          cp_wrong_args_error, routineN,&
          'Range of row distribution not equal to processor rows', error)
     CALL cp_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), cp_failure_level,&
          cp_wrong_args_error, routineN,&
          'Col distribution references unexistent processor cols', error)
-    CALL cp_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
+    IF (dbg) &
+         CALL cp_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
          cp_wrong_args_error, routineN,&
          'Range of col distribution not equal to processor cols', error)
     ALLOCATE (send_count(2, col_images, 0:numproc-1))
@@ -4716,13 +4720,15 @@ CONTAINS
     CALL cp_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), cp_failure_level,&
          cp_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows', error)
-    CALL cp_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
+    IF (dbg) &
+         CALL cp_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
          cp_wrong_args_error, routineN,&
          'Range of row distribution not equal to processor rows', error)
     CALL cp_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), cp_failure_level,&
          cp_wrong_args_error, routineN,&
          'Col distribution references unexistent processor cols', error)
-    CALL cp_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
+    IF (dbg) &
+         CALL cp_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
          cp_wrong_args_error, routineN,&
          'Range of col distribution not equal to processor cols', error)
     ALLOCATE (send_count(2, 0:numproc-1))

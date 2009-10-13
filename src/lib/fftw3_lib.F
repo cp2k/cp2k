@@ -395,6 +395,7 @@ num_rows = plan%m
 !$omp parallel num_threads(plan%num_threads_needed), &
 !$omp          default(none), &
 !$omp          private(my_id,num_rows,zin_ptr,zout_ptr,zscal_ptr,in_offset,out_offset,scal_offset,fftw_plan), &
+!$omp          shared(zin,zout), &
 !$omp          shared(plan,scale,stat)
 !$ my_id = omp_get_thread_num()
 
