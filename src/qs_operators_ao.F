@@ -30,6 +30,7 @@ MODULE qs_operators_ao
        dbcsr_obj_p_type, sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                              dbcsr_type_antisymmetric
   USE dbcsr_util,                      ONLY: dbcsr_finalize
@@ -2031,7 +2032,9 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, my_minimum_image, &
-                                                my_soft, new_atom_b
+                                                my_soft, new_atom_b, &
+                                                op_der_found, op_der_tr, &
+                                                op_found, op_tr
     REAL(KIND=dp)                            :: alpha, alpha_der, dab, Lxo2, &
                                                 Lyo2, Lzo2, rab2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc
@@ -2226,6 +2229,7 @@ CONTAINS
 !$OMP private(lda_min,mab_tmp,na,nda,nb,ndb,ipgf,jpgf,i,j)&
 !$OMP private(op_dip,op_dip_der,rab,rab2,dab)&
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local,alpha,failure,ldb_min)&
+!$OMP private(op_found, op_tr, op_der_found, op_der_tr) &
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
@@ -2291,18 +2295,28 @@ CONTAINS
 
               DO imom = 1, M_dim
                  NULLIFY(op_dip(imom)%block)
-                 CALL dbcsr_get_block_node(matrix=op(imom)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     block=op_dip(imom)%block)
-                 CPPostcondition(ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
+                 CALL dbcsr_get_block_p (matrix=op(imom)%matrix,&
+                                         row=irow, col=icol,&
+                                         block=op_dip(imom)%block,&
+                                         tr=op_tr, found=op_found)
+CPPostcondition(op_found.and.ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
+                 !CALL dbcsr_get_block_node(matrix=op(imom)%matrix,&
+                 !                    block_row=irow,&
+                 !                    block_col=icol,&
+                 !                    block=op_dip(imom)%block)
+                 !CPPostcondition(ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
                  DO idir = 1,3
                    NULLIFY(op_dip_der(imom,idir)%block)
-                   CALL dbcsr_get_block_node(matrix=op_der(imom,idir)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     block=op_dip_der(imom,idir)%block)
-                   CPPostcondition(ASSOCIATED(op_dip_der(imom,idir)%block),cp_failure_level,routineP,error,failure)
+                   CALL dbcsr_get_block_p (matrix=op_der(imom,idir)%matrix,&
+                                           row=irow, col=icol,&
+                                           block=op_dip_der(imom,idir)%block,&
+                                           tr=op_der_tr, found=op_der_found)
+CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_failure_level,routineP,error,failure)
+                   !CALL dbcsr_get_block_node(matrix=op_der(imom,idir)%matrix,&
+                   !                  block_row=irow,&
+                   !                  block_col=icol,&
+                   !                  block=op_dip_der(imom,idir)%block)
+                   !CPPostcondition(ASSOCIATED(op_dip_der(imom,idir)%block),cp_failure_level,routineP,error,failure)
                 END DO  ! idir
               END DO   ! imom
             END IF  ! new_atom_b
