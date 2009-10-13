@@ -259,3 +259,7 @@ H2O-hfx-emd.inp
 4H2O-mix-disk-ram-on-the-fly.inp
 #
 H2O-hfx-emd-restart.inp
+#
+CH-hfx-md.inp
+#
+CH-hfx-md-2.inp
