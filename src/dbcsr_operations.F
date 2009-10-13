@@ -219,6 +219,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
     TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
+    TYPE(dbcsr_data_obj)                     :: right_matrix_data
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_obj), POINTER                 :: product_matrix_p, &
                                                 rbuffer_calc, rbuffer_comm
@@ -297,6 +298,10 @@ CONTAINS
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
        CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+
+       left_data_rp => dbcsr_get_data_p (product_matrix%m%wms(i)%data_area, 0.0_dp)
+       left_data_rp(:) = 0.0_dp
+
     ENDDO
     DBG 'pgrid shape', SHAPE (pgrid)
     IF (dbg .AND. mynode .EQ. 0) THEN
@@ -329,6 +334,7 @@ CONTAINS
             'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
             left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
             nblks, nze, special=.FALSE., error=error)
+            lbuffer_1%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
        CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
        !CALL ensure_array_size (lbuffer_1%mats(mult)%m%data,&
@@ -343,6 +349,7 @@ CONTAINS
             'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
             left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
             nblks, nze, special=.FALSE., error=error)
+            lbuffer_2%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
        CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
        !CALL ensure_array_size (lbuffer_2%mats(mult)%m%data,&
@@ -357,6 +364,9 @@ CONTAINS
     ! Setup buffers for right matrix
     nblks = MAXVAL (all_sizes (4, 1, :))
     nze = MAXVAL (all_sizes(3, 1, :))
+    right_matrix_data = right_matrix%m%data_area
+    CALL dbcsr_data_ensure_size (right_matrix_data,&
+         MAX(dbcsr_get_data_size(right_matrix_data), 0))
     CALL dbcsr_init (rbuffer_1, error)
     CALL dbcsr_create (rbuffer_1,&
          'rbuffer1'//right_matrix%m%name, right_matrix%m%dist,&
@@ -364,6 +374,7 @@ CONTAINS
          right_matrix%m%row_blk_size,&
          right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
+         rbuffer_1%m%sym_negation = right_matrix%m%sym_negation
     CALL dbcsr_data_ensure_size (rbuffer_1%m%data_area,&
          MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
     !CALL ensure_array_size (rbuffer_1%data,&
@@ -380,6 +391,7 @@ CONTAINS
          right_matrix%m%row_blk_size,&
          right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
+         rbuffer_2%m%sym_negation = right_matrix%m%sym_negation
     CALL dbcsr_data_ensure_size (rbuffer_2%m%data_area,&
          MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
     !CALL ensure_array_size (rbuffer_2%data,&
@@ -692,6 +704,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, pgrid, right_pgrid
     LOGICAL                                  :: ionode
+    REAL(dp), DIMENSION(:), POINTER          :: left_data_rp
     REAL(KIND=dp)                            :: t_all, t_dgemm, trun, trun_t, &
                                                 tstart, tstop
     REAL(KIND=dp), ALLOCATABLE, &
@@ -768,6 +781,10 @@ CONTAINS
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
        CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+
+       left_data_rp => dbcsr_get_data_p (product_matrix%m%wms(i)%data_area, 0.0_dp)
+       left_data_rp(:) = 0.0_dp
+
     ENDDO
     DBG 'pgrid shape', SHAPE (pgrid)
     DBG 'left images, multiplicity', left_nimages, left_multiplicity
@@ -808,6 +825,7 @@ CONTAINS
             'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
             left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
             nblks, nze, special=.FALSE., error=error)
+            lbuffer_1%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
        CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
        !CALL ensure_array_size (lbuffer_1%mats(mult)%m%data,&
@@ -822,6 +840,7 @@ CONTAINS
             'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
             left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
             nblks, nze, special=.FALSE., error=error)
+            lbuffer_2%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
        CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
        !CALL ensure_array_size (lbuffer_2%mats(mult)%m%data,&
@@ -843,6 +862,7 @@ CONTAINS
          right_matrix%m%row_blk_size,&
          right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
+         rbuffer_1%m%sym_negation = right_matrix%m%sym_negation
     CALL dbcsr_data_ensure_size (rbuffer_1%m%data_area,&
          MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
     !CALL ensure_array_size (rbuffer_1%data,&
@@ -859,6 +879,7 @@ CONTAINS
          right_matrix%m%row_blk_size,&
          right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
+         rbuffer_2%m%sym_negation = right_matrix%m%sym_negation
     CALL dbcsr_data_ensure_size (rbuffer_2%m%data_area,&
          MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
     !CALL ensure_array_size (rbuffer_2%data,&
@@ -2392,7 +2413,7 @@ CONTAINS
              b_col = right%col_i(b_blk)
              IF (right_limit_cols) THEN
                 IF (right_col_blk_start (b_col) .GT. submat_l_col .OR.&
-                     left_row_blk_end (b_col) .LT. submat_f_col) THEN
+                    right_col_blk_end (b_col) .LT. submat_f_col) THEN
                    !write(*,*)"Skipping column", b_col
                    CYCLE
                 ENDIF
@@ -2461,7 +2482,11 @@ CONTAINS
                    use_accumulated_data = .TRUE.
                 ENDIF
                 use_a_col_size_logical = a_col_size_logical
-                use_alpha = alpha
+                IF (use_a_type .EQ. 'T' .AND. left%sym_negation) THEN
+                   use_alpha = -alpha
+                ELSE
+                   use_alpha = alpha
+                ENDIF
                 use_a_offset = ABS (left%blk_p(a_blk))
                 use_lda = lda
                 use_b_offset = ABS (right%blk_p(b_blk))
@@ -2500,6 +2525,12 @@ CONTAINS
                      "(1X,A,A1,1X,A1,A,I6,A,F4.1)")&
                      routineN//' DGEMM ',use_a_type,use_b_type,&
                      ' at',use_c_offset,' beta=', use_beta
+!WRITE(*,*) 'sum A',SUM(left_data_d(use_a_offset : use_a_offset + use_a_row_size_logical*use_a_col_size_logical-1))
+!WRITE(*,*) 'sum B',SUM(right_data_d(use_b_offset : use_b_offset + use_a_col_size_logical * use_b_col_size-1))
+!WRITE(*,*) 'sum C',SUM(pointer_view (dbcsr_get_data_p_d (&
+!                            product%wms(ithread+1)%data_area),&
+!                            use_c_offset, use_c_offset+c_nze-1) )
+
                 CALL DGEMM(use_a_type, use_b_type,&
                      use_a_row_size_logical, use_b_col_size,&
                      use_a_col_size_logical,&
@@ -3112,7 +3143,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                                                 a_row_size, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: m_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: right, tr
+    LOGICAL                                  :: do_scale, right, tr
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
     REAL(KIND=sp), DIMENSION(:), POINTER     :: data_r
@@ -3182,82 +3213,90 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ENDIF
     ENDIF
     !
+    ! quick return if possible
+    do_scale = .TRUE.
+    IF(PRESENT(alpha_scalar)) THEN
+       IF(alpha_scalar.EQ.1.0_dp) do_scale = .FALSE.
+    ENDIF
     !
     ! let's go
-    CALL dbcsr_iterator_start(iter, matrix_a)
-    iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block(iter, a_row, a_col, a_blk, tr, a_offset)
-       a_row_size = row_blk_size(a_row)
-       a_col_size = col_blk_size(a_col)
-       a_nze = a_row_size * a_col_size
-       !
-       ! let's scale
-       IF(PRESENT(alpha_scalar)) THEN
-          !a_data = a_data * alpha_scalar
-          SELECT CASE (dbcsr_get_data_type(matrix_a))
-          !CASE (dbcsr_type_real_4)
-          CASE (dbcsr_type_real_8)
-             CALL dscal(a_nze,alpha_scalar,data_d(a_offset),1)
-          !CASE (dbcsr_type_complex_4)
-          !CASE (dbcsr_type_complex_8)
-          CASE default
-             CALL cp_unimplemented_error (routineN,&
-                  "unknown precision")
-          END SELECT
-       ELSEIF(PRESENT(alpha_vector)) THEN
-          CALL stop_program(routineN,"NYI")
-          IF(right) THEN
-             !col_global = ...
-             !DO col = 1,a_col_size
-             !   !a_data(:,col) = a_data(:,col) * alpha_vector(col_global+col)
-             !   CALL dscal(a_row_size,alpha_vector(col_global+col),a_data((col-1)*a_row_size+1),1)
-             !ENDDO
-          ELSE
-             !row_global = ...
-             !DO row = 1,a_row_size
-             !   !a_data(row,:) = a_data(row,:) * alpha_vector(row_global+row)
-             !   CALL dscal(a_col_size,alpha_vector(row_global+row),a_data(row),a_col_size)
-             !ENDDO
-          ENDIF
-       ELSEIF(PRESENT(alpha_matrix)) THEN
-          IF(right) THEN
-             !A = A * alpha
+    IF(do_scale) THEN
+       CALL dbcsr_iterator_start(iter, matrix_a)
+       iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block(iter, a_row, a_col, a_blk, tr, a_offset)
+          a_row_size = row_blk_size(a_row)
+          a_col_size = col_blk_size(a_col)
+          a_nze = a_row_size * a_col_size
+          !
+          ! let's scale
+          IF(PRESENT(alpha_scalar)) THEN
+             !a_data = a_data * alpha_scalar
              SELECT CASE (dbcsr_get_data_type(matrix_a))
-             !CASE (dbcsr_type_real_4)
+                !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
-                CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
-                     &     1.0_dp,data_d(a_offset),a_row_size,&
-                     &            alpha_matrix(m_offset(a_col)),a_col_size,&
-                     &     0.0_dp,buff,a_row_size)
-                CALL dcopy(a_nze,buff,1,data_d(a_offset),1)
-             !CASE (dbcsr_type_complex_4)
-             !CASE (dbcsr_type_complex_8)
+                CALL dscal(a_nze,alpha_scalar,data_d(a_offset),1)
+                !CASE (dbcsr_type_complex_4)
+                !CASE (dbcsr_type_complex_8)
              CASE default
                 CALL cp_unimplemented_error (routineN,&
-                     "Only real double precision")
+                     "unknown precision")
              END SELECT
+          ELSEIF(PRESENT(alpha_vector)) THEN
+             CALL stop_program(routineN,"NYI")
+             IF(right) THEN
+                !col_global = ...
+                !DO col = 1,a_col_size
+                !   !a_data(:,col) = a_data(:,col) * alpha_vector(col_global+col)
+                !   CALL dscal(a_row_size,alpha_vector(col_global+col),a_data((col-1)*a_row_size+1),1)
+                !ENDDO
+             ELSE
+                !row_global = ...
+                !DO row = 1,a_row_size
+                !   !a_data(row,:) = a_data(row,:) * alpha_vector(row_global+row)
+                !   CALL dscal(a_col_size,alpha_vector(row_global+row),a_data(row),a_col_size)
+                !ENDDO
+             ENDIF
+          ELSEIF(PRESENT(alpha_matrix)) THEN
+             IF(right) THEN
+                !A = A * alpha
+                SELECT CASE (dbcsr_get_data_type(matrix_a))
+                   !CASE (dbcsr_type_real_4)
+                CASE (dbcsr_type_real_8)
+                   CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
+                        &     1.0_dp,data_d(a_offset),a_row_size,&
+                        &            alpha_matrix(m_offset(a_col)),a_col_size,&
+                        &     0.0_dp,buff,a_row_size)
+                   CALL dcopy(a_nze,buff,1,data_d(a_offset),1)
+                   !CASE (dbcsr_type_complex_4)
+                   !CASE (dbcsr_type_complex_8)
+                CASE default
+                   CALL cp_unimplemented_error (routineN,&
+                        "Only real double precision")
+                END SELECT
+             ELSE
+                !A = alpha * A
+                SELECT CASE (dbcsr_get_data_type(matrix_a))
+                   !CASE (dbcsr_type_real_4)
+                CASE (dbcsr_type_real_8)
+                   CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
+                        &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
+                        &            data_d(a_offset),a_row_size,&
+                        &     0.0_dp,buff,a_row_size)
+                   CALL dcopy(a_nze,buff,1,data_d(a_offset),1)
+                   !CASE (dbcsr_type_complex_4)
+                   !CASE (dbcsr_type_complex_8)
+                CASE default
+                   CALL cp_unimplemented_error (routineN,&
+                        "Only real double precision")
+                END SELECT
+             ENDIF
           ELSE
-             !A = alpha * A
-             SELECT CASE (dbcsr_get_data_type(matrix_a))
-             !CASE (dbcsr_type_real_4)
-             CASE (dbcsr_type_real_8)
-                CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
-                     &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
-                     &            data_d(a_offset),a_row_size,&
-                     &     0.0_dp,buff,a_row_size)
-                CALL dcopy(a_nze,buff,1,data_d(a_offset),1)
-             !CASE (dbcsr_type_complex_4)
-             !CASE (dbcsr_type_complex_8)
-             CASE default
-                CALL cp_unimplemented_error (routineN,&
-                     "Only real double precision")
-             END SELECT
+             CALL stop_program(routineN,"wrong logic")
           ENDIF
-       ELSE
-          CALL stop_program(routineN,"wrong logic")
-       ENDIF
-    ENDDO iterations
-    CALL dbcsr_iterator_stop(iter)
+       ENDDO iterations
+       CALL dbcsr_iterator_stop(iter)
+
+    ENDIF
 
     IF(PRESENT(alpha_matrix)) THEN
        DEALLOCATE(buff,m_offset)
@@ -3372,20 +3411,27 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[in] beta_scalar    (optional)
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+  SUBROUTINE dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, &
+                       first_column, last_column, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha_scalar, beta_scalar
+    INTEGER, INTENT(IN), OPTIONAL            :: first_column, last_column
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, row, timing_handle
-    LOGICAL                                  :: tr
+    INTEGER                                  :: blk, col, ibeg, iend, &
+                                                my_first_column, &
+                                                my_last_column, row, &
+                                                timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size
+    LOGICAL                                  :: is_allocated, tr
     REAL(dp)                                 :: my_alpha_scalar, &
                                                 my_beta_scalar
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d, data_d_tmp
     TYPE(dbcsr_iterator)                     :: iter
 
 !real(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
@@ -3398,10 +3444,30 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b)) &
          CALL stop_program(routineN,"data types not consistent")
 
+    !> this should be precomputed somewhere else
+    col_blk_size => array_data (matrix_b%m%col_blk_size)
+    ALLOCATE(offset(matrix_a%m%nblkcols_total+1))
+    offset(1) = 1
+    DO col = 2,matrix_a%m%nblkcols_total+1
+       offset(col) = offset(col-1) + col_blk_size(col-1)
+    ENDDO
+    !<
+
+    !
     my_alpha_scalar = 1.0_dp
     IF(PRESENT(alpha_scalar)) my_alpha_scalar = alpha_scalar
     my_beta_scalar = 1.0_dp
     IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
+    !
+    my_first_column = 1
+    IF(PRESENT(first_column)) my_first_column = first_column
+    my_last_column = dbcsr_nfullcols_total(matrix_a)
+    IF(PRESENT(last_column)) my_last_column = last_column
+    IF(dbcsr_nfullcols_total(matrix_a).NE.offset(matrix_a%m%nblkcols_total+1)-1) &
+         CALL stop_program(routineN,"something wrong here 1")
+    IF(my_first_column.LT.1) CALL stop_program(routineN,"first_column less than 1")
+    IF(my_last_column.GT.dbcsr_nfullcols_total(matrix_a)) &
+         CALL stop_program(routineN,"last_column greater than nfullcols_total")
     !
     ! let's go
     IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total) THEN
@@ -3422,15 +3488,50 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              !CALL dbcsr_put_block(matrix_a, row, col, data_r)
           CASE (dbcsr_type_real_8)
              CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+
+             IF(offset(col+1).LT.my_first_column.OR.offset(col).GT.my_last_column) CYCLE
+
+             data_d_tmp => data_d
+             is_allocated = .FALSE.
              !
-             ! here put should be an accumulate or so !
+             IF(offset(col).LT.my_first_column.AND.offset(col+1).GT.my_first_column.AND.&
+                offset(col+1).LT.my_last_column) THEN
+                NULLIFY(data_d_tmp)
+                ALLOCATE(data_d_tmp(SIZE(data_d,1),SIZE(data_d,2)))
+                is_allocated = .TRUE.
+                data_d_tmp = 0.0_dp
+                ibeg = my_first_column - offset(col) + 1
+                iend = SIZE(data_d_tmp,2)
+                data_d_tmp(:,ibeg:iend) = data_d(:,ibeg:iend)
+             ELSEIF(offset(col).LT.my_last_column.AND.offset(col+1).GT.my_last_column.AND.&
+                offset(col).GT.my_first_column) THEN
+                NULLIFY(data_d_tmp)
+                ALLOCATE(data_d_tmp(SIZE(data_d,1),SIZE(data_d,2)))
+                is_allocated = .TRUE.
+                data_d_tmp = 0.0_dp
+                ibeg = 1
+                iend = my_last_column - offset(col) + 1
+                data_d_tmp(:,ibeg:iend) = data_d(:,ibeg:iend)
+             ELSEIF(offset(col).LE.my_first_column.AND.offset(col+1).GT.my_last_column.OR.&
+                offset(col).LT.my_first_column.AND.offset(col+1).GE.my_last_column) THEN
+                NULLIFY(data_d_tmp)
+                ALLOCATE(data_d_tmp(SIZE(data_d,1),SIZE(data_d,2)))
+                is_allocated = .TRUE.
+                data_d_tmp = 0.0_dp
+                ibeg = my_first_column - offset(col) + 1
+                iend = my_last_column - offset(col) + 1
+                data_d_tmp(:,ibeg:iend) = data_d(:,ibeg:iend)
+             ENDIF
+             !
              IF (my_beta_scalar.EQ.1.0_dp) THEN
-                CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
+                CALL dbcsr_put_block(matrix_a, row, col, data_d_tmp, tr,&
                      summation=.TRUE.)
              ELSE
-                CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
+                CALL dbcsr_put_block(matrix_a, row, col, data_d_tmp, tr,&
                      summation=.TRUE., scale=my_beta_scalar)
              ENDIF
+
+             IF(is_allocated) DEALLOCATE(data_d_tmp)
              !CASE (dbcsr_type_complex_4)
              !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
              !   CALL dbcsr_put_block(matrix_a, row, col, data_c)
@@ -3447,6 +3548,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL dbcsr_finalize (matrix_a, error=error)
 
     ENDIF
+
+    DEALLOCATE(offset)
 
     CALL timestop(timing_handle)
 
@@ -3655,8 +3758,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ENDDO
     !<
     IF(SUM(row_blk_size).GT.SIZE(diag)) CALL stop_program(routineN,"SIZE(diag) too small") 
-
-    diag(:) = HUGE(0.0_dp)
 
     CALL dbcsr_iterator_start(iter, matrix)
 
@@ -4996,7 +5097,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CALL mp_bcast (recv_index, p, comm)
           CALL mp_bcast (recv_dp, p, comm)
           CALL dbcsr_repoint_index(recv_matrix%m)
-          CALL dbcsr_add (matrix, recv_matrix, 1.0_dp, 1.0_dp, error)
+          CALL dbcsr_add (matrix, recv_matrix, 1.0_dp, 1.0_dp, error=error)
         ENDIF
     ENDDO
     CALL dbcsr_destroy (recv_matrix, force=.TRUE.)

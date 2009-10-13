@@ -191,3 +191,7 @@ crys_per_qmmm_anal.inp
 acn-qmmm-re.inp
 # FFTW3 now plans to use SSE by default 
 acn-conn-1.inp
+#
+acn-qmmm-re.inp
+#
+acn-conn-1.inp

@@ -13,6 +13,9 @@ MODULE molecular_states
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -29,7 +32,8 @@ MODULE molecular_states
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
@@ -71,14 +75,14 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
-       mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
+       mo_coeff, mo_eigenvalues, Hks_sm, matrix_S_sm, qs_env, wf_r, wf_g,&
        localization_section, particles, error)
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(cp_fm_type), POINTER                :: mo_localized, mo_coeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
+    TYPE(real_matrix_type), POINTER          :: Hks_sm, matrix_S_sm
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), INTENT(INOUT)           :: wf_r, wf_g
     TYPE(section_vals_type), POINTER         :: localization_section
@@ -106,6 +110,7 @@ CONTAINS
                                                 rot_e_vectors, smo
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: Hks, matrix_S
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -114,6 +119,14 @@ CONTAINS
     CALL cite_reference(Hunt2003)
 
     CALL timeset(routineN,handle)
+
+    ALLOCATE(matrix_s)!sm->dbcsr
+    CALL dbcsr_init(matrix_s)!sm->dbcsr
+    CALL dbcsr_from_sm(matrix_s, matrix_s_sm, error)!sm->dbcsr
+
+    ALLOCATE(Hks)!sm->dbcsr
+    CALL dbcsr_init(Hks)!sm->dbcsr
+    CALL dbcsr_from_sm(Hks, Hks_sm, error)!sm->dbcsr
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -158,7 +171,7 @@ CONTAINS
                         nrow_global=nrow_global ,error=error)
     NULLIFY(smo)
     CALL cp_fm_create(smo,mo_coeff%matrix_struct,error=error)
-    CALL cp_sm_fm_multiply(matrix_S,mo_coeff,smo,ncol_global,error=error)
+    CALL dbcsr_sm_fm_multiply(matrix_S,mo_coeff,smo,ncol_global,error=error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -217,7 +230,7 @@ CONTAINS
           CALL cp_fm_to_fm ( mo_localized, b, 1, ind ( i ), i)
        END DO
 
-       CALL cp_sm_fm_multiply(Hks,b,c,ns,error=error)
+       CALL dbcsr_sm_fm_multiply(Hks,b,c,ns,error=error)
 
        CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
             b,c,0.0_dp,d,error=error)
@@ -317,6 +330,9 @@ CONTAINS
     IF (.NOT.explicit) THEN
       DEALLOCATE(eval_range)
     END IF
+
+    CALL dbcsr_deallocate_matrix( matrix_s, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix( Hks, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

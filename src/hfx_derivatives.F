@@ -15,10 +15,15 @@ MODULE hfx_derivatives
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: get_full_density
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
@@ -58,6 +63,7 @@ MODULE hfx_derivatives
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -242,11 +248,25 @@ MODULE hfx_derivatives
     LOGICAL                                  :: treat_forces_in_core
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
 
+    TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)::rho_ao
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao_sm
+    INTEGER::ii
+
+    rho_ao_sm=>rho%rho_ao!sm->dbcsr
+    NULLIFY(rho_ao)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
+    DO ii=1,SIZE(rho_ao)!sm->dbcsr
+       ALLOCATE(rho_ao(ii)%matrix)!sm->dbcsr
+       CALL dbcsr_init(rho_ao(ii)%matrix)
+       CALL dbcsr_from_sm(rho_ao(ii)%matrix, rho_ao_sm(ii)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
                     cell=cell, error=error)
     !! One atom systems have no contribution to forces
     IF( SIZE(particle_set,1) == 1) THEN
+       CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
       RETURN
     END IF
 
@@ -292,7 +312,7 @@ MODULE hfx_derivatives
 
 
 !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(qs_env,&
-!$OMP                                  rho,&
+!$OMP                                  rho_ao,&
 !$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  irep,&
@@ -460,14 +480,14 @@ MODULE hfx_derivatives
  
     !! Get the full density from all the processors
     CALL timeset(routineN//"_getP",handle_getP)
-    CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, shm_number_of_p_entries,&
+    CALL get_full_density(para_env, full_density, rho_ao(1)%matrix, shm_number_of_p_entries,&
                           shm_is_assoc_atomic_block, &
                           shm_block_offset, natom, last_sgf_global, &
                           kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
     IF(nspins == 2) THEN
       ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, shm_number_of_p_entries,&
+      CALL get_full_density(para_env, full_density_beta, rho_ao(2)%matrix, shm_number_of_p_entries,&
                             shm_is_assoc_atomic_block, &
                             shm_block_offset, natom, last_sgf_global, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
@@ -1493,6 +1513,8 @@ MODULE hfx_derivatives
     ! CALL terminate_libderiv(private_deriv)
 
 !$OMP END PARALLEL
+
+    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

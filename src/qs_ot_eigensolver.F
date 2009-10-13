@@ -9,6 +9,9 @@
 !> \author Joost VandeVondele (25.08.2002)
 ! *****************************************************************************
 MODULE qs_ot_eigensolver
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
@@ -25,7 +28,8 @@ MODULE qs_ot_eigensolver
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_in_use,&
@@ -61,11 +65,11 @@ CONTAINS
 ! on input c contains the initial guess (should not be zero !)
 ! on output c spans the subspace
 ! *****************************************************************************
-  SUBROUTINE ot_eigensolver(matrix_h,matrix_s,matrix_orthogonal_space, &
+  SUBROUTINE ot_eigensolver(matrix_h_sm,matrix_s_sm,matrix_orthogonal_space, &
                             matrix_c,preconditioner,eps_gradient, &
                             iter_max,size_ortho_space,silent,ot_settings,error)
 
-    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
+    TYPE(real_matrix_type), POINTER          :: matrix_h_sm, matrix_s_sm
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_orthogonal_space
     TYPE(cp_fm_type), POINTER                :: matrix_c
     TYPE(preconditioner_type), OPTIONAL, &
@@ -97,9 +101,19 @@ CONTAINS
                                                 matrix_os_ortho, &
                                                 matrix_s_ortho
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj), POINTER                 :: matrix_h, matrix_s
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     CALL timeset(routineN,handle)
+
+    NULLIFY(matrix_s)!sm->dbcsr
+    ALLOCATE(matrix_s)!sm->dbcsr
+    CALL dbcsr_init(matrix_s)
+    CALL dbcsr_from_sm(matrix_s, matrix_s_sm, error)!sm->dbcsr
+    NULLIFY(matrix_h)!sm->dbcsr
+    ALLOCATE(matrix_h)!sm->dbcsr
+    CALL dbcsr_init(matrix_h)
+    CALL dbcsr_from_sm(matrix_h, matrix_h_sm, error)!sm->dbcsr
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -168,7 +182,7 @@ CONTAINS
           CALL cp_fm_create(matrix_buf2_ortho, fm_struct_tmp,"matrix_buf2_ortho",error=error)
           CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-          CALL cp_sm_fm_multiply(matrix_s,matrix_orthogonal_space, &
+          CALL dbcsr_sm_fm_multiply(matrix_s,matrix_orthogonal_space, &
                                   matrix_s_ortho,ortho_space_k,error=error)
 
           CALL cp_fm_gemm('T','N',ortho_space_k,ortho_space_k,n,rone,matrix_s_ortho, &
@@ -187,7 +201,7 @@ CONTAINS
 
           ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
           CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0,error=error)
-          CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
+          CALL dbcsr_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                   matrix_c,k,error=error)
           CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, matrix_c,error=error)
 
@@ -205,7 +219,7 @@ CONTAINS
       ! set c0,sc0
          CALL cp_fm_get_info(matrix_c,ncol_global=k,error=error)
          CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0,error=error)
-         CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
+         CALL dbcsr_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                  qs_ot_env(1)%matrix_sc0,k,error=error)
          CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, qs_ot_env(1)%matrix_sc0,error=error)
 
@@ -244,7 +258,7 @@ CONTAINS
         iter_total=iter_total+1
 
         ! the energy is cHc, the gradient is 2*H*c
-        CALL cp_sm_fm_multiply(matrix_h,matrix_c, &
+        CALL dbcsr_sm_fm_multiply(matrix_h,matrix_c, &
                                        matrix_hc(1)%matrix,k,error=error)
         CALL cp_fm_trace(matrix_c,matrix_hc(1)%matrix,energy,error=error)
         IF (.NOT. energy_only) THEN
@@ -256,7 +270,7 @@ CONTAINS
         delta           =qs_ot_env(1)%delta
         energy_only     =qs_ot_env(1)%energy_only
 
-        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_x, &
+        CALL dbcsr_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_x, &
                                            qs_ot_env(1)%matrix_sx, k,error=error)
 
         CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),error=error)
@@ -294,6 +308,9 @@ CONTAINS
       ENDIF
 
     ENDDO outer_scf
+
+    CALL dbcsr_deallocate_matrix( matrix_s, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix( matrix_h, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

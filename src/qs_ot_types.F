@@ -17,6 +17,10 @@ MODULE qs_ot_types
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
@@ -31,6 +35,11 @@ MODULE qs_ot_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
+                                             dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE input_constants,                 ONLY: &
        ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &
@@ -49,14 +58,6 @@ MODULE qs_ot_types
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type,&
                                              get_aux_coeff
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             create_dbm_from_sm,&
-                                             deallocate_matrix,&
-                                             deallocate_matrix_set,&
-                                             get_matrix_info,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -201,12 +202,12 @@ MODULE qs_ot_types
      REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_e 
      REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_x 
      ! NDDO
-     TYPE ( real_matrix_type ), POINTER :: xmat
-     TYPE ( real_matrix_type ), POINTER :: dxmat
-     TYPE ( real_matrix_type ), POINTER :: gxmat
-     TYPE ( real_matrix_type ), POINTER :: gx_oldmat
-     TYPE ( real_matrix_p_type ), POINTER :: he_mat ( : )
-     TYPE ( real_matrix_p_type ), POINTER :: hx_mat ( : )
+     TYPE ( dbcsr_obj ), POINTER :: xmat
+     TYPE ( dbcsr_obj ), POINTER :: dxmat
+     TYPE ( dbcsr_obj ), POINTER :: gxmat
+     TYPE ( dbcsr_obj ), POINTER :: gx_oldmat
+     TYPE ( dbcsr_obj_p_type ), POINTER :: he_mat ( : )
+     TYPE ( dbcsr_obj_p_type ), POINTER :: hx_mat ( : )
      INTEGER :: n_el_scp
      ! *** SCP
 
@@ -305,11 +306,11 @@ CONTAINS
             qs_ot_env % gx_old ( : ) = 0.0_dp
     ENDIF
     IF (qs_ot_env%settings%scp_nddo) THEN
-       CALL set_matrix ( qs_ot_env % gxmat, 0.0_dp )
+       CALL dbcsr_set( qs_ot_env % gxmat, 0.0_dp, error=error )
        IF (qs_ot_env%use_dx) &
-            CALL set_matrix ( qs_ot_env % dxmat, 0.0_dp )
+            CALL dbcsr_set ( qs_ot_env % dxmat, 0.0_dp, error=error )
        IF (qs_ot_env%use_gx_old) &
-            CALL set_matrix ( qs_ot_env % gx_oldmat, 0.0_dp )
+            CALL dbcsr_set ( qs_ot_env % gx_oldmat, 0.0_dp, error=error )
     ENDIF
     ! **** SCP
     IF (qs_ot_env%settings%do_ener) THEN
@@ -331,8 +332,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: scp_sm
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: scp_sm
     INTEGER, OPTIONAL                        :: ortho_k
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -522,33 +522,52 @@ CONTAINS
       NULLIFY ( qs_ot_env % dxmat )
       NULLIFY ( qs_ot_env % gx_oldmat )
 
-      CALL create_dbm_from_sm ( qs_ot_env % xmat, scp_sm, "SCP_XMAT", .FALSE., error=error )     
+      ALLOCATE(qs_ot_env % xmat)
+      CALL dbcsr_init(qs_ot_env % xmat, error=error)
+      CALL dbcsr_copy(qs_ot_env % xmat,scp_sm,"SCP_XMAT",error=error)
+      CALL dbcsr_set ( qs_ot_env % xmat, 0.0_dp, error=error )
       
       IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-        CALL allocate_matrix_set ( qs_ot_env % he_mat, m_diis, error ) 
-        CALL allocate_matrix_set ( qs_ot_env % hx_mat, m_diis, error ) 
+        CALL dbcsr_allocate_matrix_set ( qs_ot_env % he_mat, m_diis, error ) 
+        CALL dbcsr_allocate_matrix_set ( qs_ot_env % hx_mat, m_diis, error ) 
 
         DO ii = 1, m_diis
-          CALL create_dbm_from_sm ( qs_ot_env % he_mat ( ii )%matrix, scp_sm, "SCP_HE_MAT", .FALSE., error=error )
-          CALL create_dbm_from_sm ( qs_ot_env % hx_mat ( ii )%matrix, scp_sm, "SCP_HX_MAT", .FALSE., error=error )
+           ALLOCATE(qs_ot_env % he_mat ( ii )%matrix)
+           CALL dbcsr_init(qs_ot_env % he_mat ( ii )%matrix, error=error)
+           CALL dbcsr_copy(qs_ot_env % he_mat ( ii )%matrix, scp_sm, "SCP_HE_MAT", error=error)
+           CALL dbcsr_set (qs_ot_env % he_mat ( ii )%matrix, 0.0_dp, error=error )
+
+           ALLOCATE(qs_ot_env % hx_mat ( ii )%matrix)
+           CALL dbcsr_init(qs_ot_env % hx_mat ( ii )%matrix, error=error)
+           CALL dbcsr_copy(qs_ot_env % hx_mat ( ii )%matrix, scp_sm, "SCP_HX_MAT", error=error)
+           CALL dbcsr_set (qs_ot_env % hx_mat ( ii )%matrix, 0.0_dp, error=error )
         END DO
       ENDIF
 
-      CALL create_dbm_from_sm ( qs_ot_env % gxmat, scp_sm, "SCP_GXMAT",.FALSE., error=error )        
+      ALLOCATE(qs_ot_env % gxmat)
+      CALL dbcsr_init(qs_ot_env % gxmat, error=error)
+      CALL dbcsr_copy(qs_ot_env % gxmat, scp_sm,"SCP_GXMAT",error=error)
+      CALL dbcsr_set ( qs_ot_env % gxmat, 0.0_dp, error=error )
 
       IF (qs_ot_env%use_gx_old) THEN
-        CALL create_dbm_from_sm ( qs_ot_env % gx_oldmat, scp_sm, "SCP_GX_OLDMAT", .FALSE., error=error )        
+         ALLOCATE(qs_ot_env % gx_oldmat)
+         CALL dbcsr_init(qs_ot_env % gx_oldmat, error=error)
+         CALL dbcsr_copy(qs_ot_env % gx_oldmat, scp_sm,"SCP_GX_OLDMAT",error=error)
+         CALL dbcsr_set (qs_ot_env % gx_oldmat, 0.0_dp, error=error )
       ENDIF
 
       IF (qs_ot_env%use_dx) THEN
-        CALL create_dbm_from_sm ( qs_ot_env % dxmat, scp_sm, "SCP_DXMAT", .FALSE., error=error )         
-        CALL set_matrix ( qs_ot_env % dxmat, 0.0_dp )
+         ALLOCATE(qs_ot_env % dxmat)
+         CALL dbcsr_init(qs_ot_env % dxmat, error=error)
+         CALL dbcsr_copy(qs_ot_env % dxmat, scp_sm,"SCP_DXMAT",error=error)
+         CALL dbcsr_set (qs_ot_env % dxmat, 0.0_dp, error=error )
       END IF
 
 ! Finding the actuall number of allocated elements in scp_sm.  This will coresspond
 ! to the number of variational degrees of freedom (e.g. coefficients).
      
-      CALL get_matrix_info ( scp_sm, nelement_allocated = ncoef )
+      ncoef = dbcsr_get_data_size(scp_sm)
+      !CALL dbcsr_get_info ( scp_sm, nze = ncoef )
      
       qs_ot_env % n_el_scp = ncoef
    
@@ -709,17 +728,17 @@ CONTAINS
     END IF
 
     IF (qs_ot_env%settings%scp_nddo) THEN
-       CALL deallocate_matrix ( qs_ot_env % xmat, error=error )
-       CALL deallocate_matrix ( qs_ot_env % gxmat, error=error )
+       CALL dbcsr_deallocate_matrix ( qs_ot_env % xmat, error=error )
+       CALL dbcsr_deallocate_matrix ( qs_ot_env % gxmat, error=error )
        IF (qs_ot_env%use_gx_old) THEN
-         CALL deallocate_matrix ( qs_ot_env % gx_oldmat, error=error )
+         CALL dbcsr_deallocate_matrix ( qs_ot_env % gx_oldmat, error=error )
        END IF
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-         CALL deallocate_matrix_set ( qs_ot_env % he_mat, error=error )
-         CALL deallocate_matrix_set ( qs_ot_env % hx_mat, error=error )
+         CALL dbcsr_deallocate_matrix_set ( qs_ot_env % he_mat, error=error )
+         CALL dbcsr_deallocate_matrix_set ( qs_ot_env % hx_mat, error=error )
        END IF
        IF (qs_ot_env%use_dx) THEN
-          CALL deallocate_matrix ( qs_ot_env % dxmat, error=error )
+          CALL dbcsr_deallocate_matrix ( qs_ot_env % dxmat, error=error )
        ENDIF
     END IF
     ! **** SCP

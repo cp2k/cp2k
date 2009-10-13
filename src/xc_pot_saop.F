@@ -12,6 +12,11 @@ MODULE xc_pot_saop
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_plus_fm_fm_t
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
@@ -21,6 +26,8 @@ MODULE xc_pot_saop
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_set
   USE f77_blas
   USE input_constants,                 ONLY: do_method_gapw,&
                                              oe_gllb,&
@@ -140,6 +147,8 @@ CONTAINS
       POINTER                                :: single_mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: orbital_density_matrix
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: molecular_orbitals
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -149,8 +158,6 @@ CONTAINS
                                                 vxc_tmp
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: orbital_density_matrix
     TYPE(section_vals_type), POINTER         :: input, xc_fun_section_orig, &
                                                 xc_fun_section_tmp, &
                                                 xc_section_orig, &
@@ -201,14 +208,17 @@ CONTAINS
        nspins=1
     END IF
 
-    ALLOCATE(rho_r(nspins), orbital_density_matrix(nspins), single_mo_coeff(nspins), stat=stat)
+    ALLOCATE(rho_r(nspins), single_mo_coeff(nspins), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL dbcsr_allocate_matrix_set(orbital_density_matrix,nspins,error=error)
     DO ispin=1,nspins
        rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
-       NULLIFY(orbital_density_matrix(ispin)%matrix)
-       CALL replicate_matrix(rho_struct%rho_ao(ispin)%matrix, &
-                             orbital_density_matrix(ispin)%matrix, &
-                             "orbital density", .TRUE.,error=error)
+       ALLOCATE(orbital_density_matrix(ispin)%matrix)
+       CALL dbcsr_init(orbital_density_matrix(ispin)%matrix)
+       CALL dbcsr_from_sm(orbital_density_matrix(ispin)%matrix,rho_struct%rho_ao(ispin)%matrix,error=error)
+       !CALL replicate_matrix(rho_struct%rho_ao(ispin)%matrix, &
+       !                      orbital_density_matrix(ispin)%matrix, &
+       !                      "orbital density", .TRUE.,error=error)
     END DO
     bo = rho_r(1)%pw%pw_grid%bounds_local
 
@@ -336,8 +346,8 @@ CONTAINS
                                    1, orb, nrow(ispin), 1, error=error)
           CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
                                    1, orb, error=error)
-          CALL set_matrix(orbital_density_matrix(ispin)%matrix, value=0.0_dp)
-          CALL cp_sm_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
+          CALL dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+          CALL dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                   matrix_v=single_mo_coeff(ispin)%matrix,&
                                   matrix_g=single_mo_coeff(ispin)%matrix,&
                                   ncol=ncol(ispin), &
@@ -407,8 +417,8 @@ CONTAINS
                                    1, orb, nrow(ispin), 1, error=error)
           CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
                                    1, orb, error=error)
-          CALL set_matrix(orbital_density_matrix(ispin)%matrix, value=0.0_dp)
-          CALL cp_sm_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
+          CALL dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+          CALL dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                   matrix_v=single_mo_coeff(ispin)%matrix,&
                                   matrix_g=single_mo_coeff(ispin)%matrix,&
                                   ncol=ncol(ispin), &
@@ -428,7 +438,7 @@ CONTAINS
        END DO
 
        CALL cp_fm_release(single_mo_coeff(ispin)%matrix, error=error)
-       CALL deallocate_matrix(orbital_density_matrix(ispin)%matrix,error=error)
+       CALL dbcsr_deallocate_matrix(orbital_density_matrix(ispin)%matrix,error=error)
 
        DEALLOCATE(coeff_col)
 
@@ -490,16 +500,14 @@ CONTAINS
     ! Call the GAPW routine !
     !-----------------------!
     IF (gapw) THEN
-       CALL gapw_add_atomic_saop_pot(ks_matrix, qs_env, oe_corr, error)
+       CALL gapw_add_atomic_saop_pot(qs_env, oe_corr, error)
     END IF
 
   END SUBROUTINE add_saop_pot
 
 ! *****************************************************************************
-  SUBROUTINE gapw_add_atomic_saop_pot(ks_matrix, qs_env, oe_corr, error)
+  SUBROUTINE gapw_add_atomic_saop_pot(qs_env, oe_corr, error)
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: oe_corr
     TYPE(cp_error_type), INTENT(INOUT)       :: error

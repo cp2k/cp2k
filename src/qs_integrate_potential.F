@@ -35,12 +35,23 @@ MODULE qs_integrate_potential
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_d32cp2k
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy
+  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_util,                      ONLY: dbcsr_create,&
+                                             dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_release
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
@@ -117,6 +128,11 @@ MODULE qs_integrate_potential
             integrate_ppl_rspace,&
             integrate_pgf_product_rspace,&
             potential_pw2rs
+
+  INTERFACE integrate_v_rspace
+     MODULE PROCEDURE integrate_v_rspace_old
+     MODULE PROCEDURE integrate_v_rspace_new
+  END INTERFACE
 
 CONTAINS
 
@@ -487,8 +503,17 @@ CONTAINS
 !>     this argument is optional
 !>     derivatives of these matrix elements with respect to the ionic
 !>     coordinates can be computed as well
+!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>     THIS ROUTINE WILL BE REMOVED SHORTLY
+!>     THIS ROUTINE WILL BE REMOVED SHORTLY
+!>     THIS ROUTINE WILL BE REMOVED SHORTLY
+!>     THIS ROUTINE WILL BE REMOVED SHORTLY
+!>     THIS ROUTINE WILL BE REMOVED SHORTLY
+!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! *****************************************************************************
-  SUBROUTINE integrate_v_rspace(v_rspace, p,h,qs_env,calculate_forces,compute_tau,gapw,&
+  SUBROUTINE integrate_v_rspace_old(v_rspace, p,h,qs_env,calculate_forces,compute_tau,gapw,&
        matrix_dv, basis_set_id, error)
 
     TYPE(pw_p_type)                          :: v_rspace
@@ -503,7 +528,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_old', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 3000
@@ -1225,7 +1250,783 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE integrate_v_rspace
+  END SUBROUTINE integrate_v_rspace_old
+
+! *****************************************************************************
+!> \brief computes matrix elements corresponding to a given potential
+!> \note
+!>     integrates a given potential (or other object on a real
+!>     space grid) = v_rspace using a multi grid technique (mgrid_*)
+!>     over the basis set producing a number for every element of h
+!>     (should have the same sparsity structure of S)
+!>     additional screening is available using the magnitude of the
+!>     elements in p (? I'm not sure this is a very good idea)
+!>     this argument is optional
+!>     derivatives of these matrix elements with respect to the ionic
+!>     coordinates can be computed as well
+! *****************************************************************************
+  SUBROUTINE integrate_v_rspace_new(v_rspace, p,h,qs_env,calculate_forces,compute_tau,gapw,&
+       matrix_dv, basis_set_id, error)
+
+    TYPE(pw_p_type)                          :: v_rspace
+    TYPE(dbcsr_obj_p_type), INTENT(IN), &
+      OPTIONAL                               :: p
+    TYPE(dbcsr_obj_p_type), INTENT(INOUT)    :: h
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      OPTIONAL, TARGET                       :: matrix_dv
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_new', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: add_tasks = 1000, &
+                                                max_tasks = 3000
+    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
+
+    INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, iatom_new, &
+      iatom_old, idir, igrid_level, ikind, ikind_old, ilevel, ipgf, ipgf_new, &
+      iset, iset_new, iset_old, itask, ithread, jatom, jatom_new, jatom_old, &
+      jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, maxco, &
+      maxpgf, maxset, maxsgf_set, my_basis_set_id, na1, na2, natom, nb1, nb2, &
+      ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, sgfa, sgfb, &
+      stat
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: atom_pair_recv, atom_pair_send
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
+      h_duplicated, has_dv, map_consistent, my_compute_tau, my_gapw, &
+      new_set_pair_coming, p_duplicated, pab_required, scatter, use_subpatch, &
+      use_virial
+    REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
+                                                kind_radius_b, rab2, zetp
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
+                                                rab_inv, rb
+    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, h_block, hab, &
+                                                p_block, pab, rpgfa, rpgfb, &
+                                                sphi_a, sphi_b, work, zeta, &
+                                                zetb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: habt, hadb, hdab, pabt, workt
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: hadbt, hdabt
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    TYPE(dbcsr_obj), POINTER                 :: deltap, dh
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ddv
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(realspace_grid_desc_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_v
+    TYPE(section_vals_type), POINTER         :: input, interp_section
+    TYPE(task_list_type), POINTER            :: task_list, task_list_soft
+    TYPE(virial_type), POINTER               :: virial
+
+    failure=.FALSE.
+    NULLIFY(pw_env, rs_descs, tasks, dist_ab)
+
+    debug_count=debug_count+1
+
+    offs_dv=0
+    has_dv=PRESENT(matrix_dv)
+    my_compute_tau = .FALSE.
+    my_gapw = .FALSE.
+    IF (PRESENT(compute_tau)) my_compute_tau = compute_tau
+    IF (PRESENT(gapw)) my_gapw = gapw
+    IF (PRESENT(basis_set_id)) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
+   
+    SELECT CASE (my_basis_set_id)
+    CASE (use_orb_basis_set) 
+      CALL get_qs_env(qs_env=qs_env,&
+         atomic_kind_set=atomic_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         sab_orb=sab_orb,&
+         para_env=para_env,&
+         input=input,&
+         task_list=task_list,&
+         task_list_soft=task_list_soft,&
+         force=force,pw_env=pw_env,&
+         virial=virial,error=error)
+    CASE (use_aux_fit_basis_set)
+      CALL get_qs_env(qs_env=qs_env,&
+         atomic_kind_set=atomic_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         sab_aux_fit=sab_orb,&
+         para_env=para_env,&
+         input=input,&
+         task_list_aux_fit=task_list,&
+         task_list_soft=task_list_soft,&
+         force=force,pw_env=pw_env,&
+         virial=virial,error=error)
+    END SELECT
+
+    IF (my_compute_tau) THEN
+       CALL timeset(routineN,handle)
+    ELSE
+       CALL timeset(routineN,handle)
+    END IF
+
+    ! get the task lists
+    IF (my_gapw) task_list=>task_list_soft
+    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,error,failure)
+    tasks  =>task_list%tasks
+    dist_ab=>task_list%dist_ab
+    atom_pair_send=>task_list%atom_pair_send
+    atom_pair_recv=>task_list%atom_pair_recv
+    ntasks=task_list%ntasks
+
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs,error=error)
+    ALLOCATE (rs_v(SIZE(rs_descs)),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i=1,SIZE(rs_v)
+      CALL rs_grid_create(rs_v(i)%rs_grid, rs_descs(i)%rs_desc, error=error)
+    END DO
+
+    ! *** assign from pw_env
+    gridlevel_info=>pw_env%gridlevel_info
+    cube_info=>pw_env%cube_info
+
+    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
+         error=error)
+    CALL potential_pw2rs(rs_v,v_rspace,pw_env,interp_section,error)
+
+    !   *** having the potential on the rs_multigrids, just integrate ...
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+
+    IF (calculate_forces) THEN
+       ALLOCATE (atom_of_kind(natom),STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+            atom_of_kind=atom_of_kind)
+    END IF
+
+    map_consistent=dft_control%qs_control%map_consistent
+    IF (map_consistent) THEN
+       eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace ! needs to be consistent with rho_rspace
+    ELSE
+       eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
+    ENDIF
+
+    pab_required = PRESENT(P) .AND. (calculate_forces .OR. .NOT. map_consistent)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+         maxco=maxco,&
+         maxsgf_set=maxsgf_set,&
+         basis_set_id=my_basis_set_id)
+
+    distributed_grids = .FALSE.
+    DO igrid_level = 1, gridlevel_info%ngrid_levels
+       IF ( rs_v(igrid_level)%rs_grid%desc%distributed ) THEN
+          distributed_grids = .TRUE.
+       ENDIF
+    ENDDO
+
+    h_duplicated = .FALSE.
+    dh => h%matrix
+    IF (distributed_grids) THEN
+       NULLIFY ( dh )
+       h_duplicated = .TRUE.
+!!$       CALL dbcsr_allocate_matrix(matrix=dh,&
+!!$            nrow=h%matrix%nrow,&
+!!$            ncol=h%matrix%ncol,&
+!!$            nblock_row=h%matrix%nblock_row,&
+!!$            nblock_col=h%matrix%nblock_col,&
+!!$            first_row=h%matrix%first_row(:),&
+!!$            last_row=h%matrix%last_row(:),&
+!!$            first_col=h%matrix%first_col(:),&
+!!$            last_col=h%matrix%last_col(:),&
+!!$            matrix_name="LocalH",&
+!!$            sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
+!!$            matrix_symmetry=h%matrix%symmetry,error=error)
+       ALLOCATE(dh)
+       CALL dbcsr_init(dh)
+       CALL dbcsr_create(dh, 'LocalH', &
+            h%matrix%m%dist, h%matrix%m%matrix_type, h%matrix%m%row_blk_size,&
+            h%matrix%m%col_blk_size, h%matrix%m%nblks, h%matrix%m%nze,&
+            error=error)
+
+       IF (has_dv) THEN
+          NULLIFY(ddv)
+          CALL dbcsr_allocate_matrix_set(ddv,3,error=error)
+          DO idir=1,3
+!!$             CALL dbcsr_allocate_matrix(matrix=ddv(idir)%matrix,&
+!!$                  nrow=h%matrix%nrow,&
+!!$                  ncol=h%matrix%ncol,&
+!!$                  nblock_row=h%matrix%nblock_row,&
+!!$                  nblock_col=h%matrix%nblock_col,&
+!!$                  first_row=h%matrix%first_row(:),&
+!!$                  last_row=h%matrix%last_row(:),&
+!!$                  first_col=h%matrix%first_col(:),&
+!!$                  last_col=h%matrix%last_col(:),&
+!!$                  matrix_name="LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))),&
+!!$                  sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
+!!$                  matrix_symmetry=h%matrix%symmetry,error=error)
+             ALLOCATE(ddv(idir)%matrix)
+             CALL dbcsr_init(ddv(idir)%matrix)
+             CALL dbcsr_create(ddv(idir)%matrix, "LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))), &
+                  h%matrix%m%dist, h%matrix%m%matrix_type, h%matrix%m%row_blk_size,&
+                  h%matrix%m%col_blk_size, h%matrix%m%nblks, h%matrix%m%nze,&
+                  error=error)
+          END DO
+       END IF
+    END IF
+
+    p_duplicated = .FALSE.
+    IF ( pab_required ) THEN
+       deltap => p%matrix
+       IF (distributed_grids) THEN
+          p_duplicated = .TRUE.
+          NULLIFY ( deltap )
+!!$          CALL replicate_matrix(p%matrix,deltap,target_name="LocalP",error=error)
+          ALLOCATE(deltap)
+          CALL dbcsr_init(deltap)
+          CALL dbcsr_copy(deltap,p%matrix,name="LocalP",error=error)
+          ! this matrix has no strict sparsity pattern in parallel
+          !deltap%sparsity_id=-1
+          !CALL distribution_2d_release(deltap%distribution_2d,error=error)
+       END IF
+    END IF
+
+    !   *** Allocate work storage ***
+    nthread = 1
+    NULLIFY ( pabt, habt, workt )
+    CALL reallocate(habt,1,maxco,1,maxco,0,nthread)
+    CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread)
+    IF (pab_required) THEN
+       CALL reallocate(pabt,1,maxco,1,maxco,0,nthread)
+    ELSE
+       IF (calculate_forces) CALL stop_program("integrate_v_rspace",&
+            "need p for forces")
+    ENDIF
+
+    NULLIFY(hdabt,hadbt,hdab,hadb)
+
+    IF (has_dv) THEN
+       CALL reallocate(hdabt,1,3,1,maxco,1,1,0,nthread)
+       CALL reallocate(hadbt,1,3,1,maxco,1,1,0,nthread)
+    END IF
+
+    !   get maximum numbers
+    natom = SIZE( particle_set )
+    maxset=0
+    maxpgf=0
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       SELECT CASE (my_basis_set_id)
+       CASE (use_orb_basis_set)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_gapw, &
+              orb_basis_set=orb_basis_set)
+       CASE (use_aux_fit_basis_set)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_gapw, &
+              aux_fit_basis_set=orb_basis_set,&
+              basis_set_id=my_basis_set_id)
+       END SELECT
+
+       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+            npgf=npgfa, nset=nseta )
+
+       maxset=MAX(nseta,maxset)
+       maxpgf=MAX(MAXVAL(npgfa),maxpgf)
+    END DO
+
+    IF (distributed_grids .AND. pab_required) THEN
+        CALL distribute_matrix (rs_v, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
+    ENDIF
+
+    ithread = 0
+    work => workt(:,:,ithread)
+    hab => habt(:,:,ithread)
+    IF (has_dv) THEN
+       hdab => hdabt(:,:,:,ithread)
+       hadb => hadbt(:,:,:,ithread)
+    END IF
+    IF (pab_required) THEN
+       pab => pabt(:,:,ithread)
+    ENDIF
+    IF (has_dv) THEN
+       hdab => hdabt(:,:,:,ithread)
+       hadb => hadbt(:,:,:,ithread)
+    END IF
+
+    iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1 
+    ikind_old = -1 ; jkind_old = -1
+
+    loop_tasks: DO itask = 1, ntasks
+
+       CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+
+       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
+
+          ikind = particle_set(iatom)%atomic_kind%kind_number
+          jkind = particle_set(jatom)%atomic_kind%kind_number
+
+          IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r,cell)
+
+          IF (iatom <= jatom) THEN
+             brow = iatom
+             bcol = jatom
+          ELSE
+             brow = jatom
+             bcol = iatom
+          END IF
+
+          IF (ikind .NE. ikind_old ) THEN
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                    softb = my_gapw, &
+                    orb_basis_set=orb_basis_set)
+             CASE (use_aux_fit_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                    softb = my_gapw, &
+                    aux_fit_basis_set=orb_basis_set,&
+                    basis_set_id = my_basis_set_id)
+             END SELECT
+
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  first_sgf=first_sgfa,&
+                  lmax=la_max,&
+                  lmin=la_min,&
+                  npgf=npgfa,&
+                  nset=nseta,&
+                  nsgf_set=nsgfa,&
+                  pgf_radius=rpgfa,&
+                  set_radius=set_radius_a,&
+                  sphi=sphi_a,&
+                  zet=zeta)
+          ENDIF
+
+          IF (jkind .NE. jkind_old ) THEN
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+                    softb = my_gapw, &
+                    orb_basis_set=orb_basis_set)
+             CASE (use_aux_fit_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+                    softb = my_gapw, &
+                    aux_fit_basis_set=orb_basis_set,&
+                    basis_set_id=my_basis_set_id)
+             END SELECT
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  first_sgf=first_sgfb,&
+                  kind_radius=kind_radius_b,&
+                  lmax=lb_max,&
+                  lmin=lb_min,&
+                  npgf=npgfb,&
+                  nset=nsetb,&
+                  nsgf_set=nsgfb,&
+                  pgf_radius=rpgfb,&
+                  set_radius=set_radius_b,&
+                  sphi=sphi_b,&
+                  zet=zetb)          
+
+          ENDIF
+
+          CALL dbcsr_get_block_node(matrix=dh,&
+               block_row=brow,&
+               block_col=bcol,&
+               block=h_block)
+
+          IF (.NOT.ASSOCIATED(h_block)) &
+               CALL dbcsr_add_block_node ( dh, brow, bcol, h_block ,error=error)
+          IF (has_dv) THEN
+             DO idir=1,3
+                CALL dbcsr_get_block_node(matrix=ddv(idir)%matrix,&
+                     block_row=brow,&
+                     block_col=bcol,&
+                     BLOCK=dv_block(idir)%array)
+
+                IF (.NOT.ASSOCIATED(dv_block(idir)%array)) &
+                     CALL dbcsr_add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
+             END DO
+          END IF
+
+          IF (pab_required) THEN
+             CALL dbcsr_get_block_node(matrix=deltap,&
+                  block_row=brow,&
+                  block_col=bcol,&
+                  BLOCK=p_block)
+             IF (.NOT.ASSOCIATED(p_block)) &
+                  CALL stop_program(routineP,"p_block not associated in deltap")
+          END IF
+
+          IF (calculate_forces) THEN
+             atom_a = atom_of_kind(iatom)
+             atom_b = atom_of_kind(jatom)
+             force_a(:) = 0.0_dp
+             force_b(:) = 0.0_dp
+          ENDIF
+          IF (use_virial) THEN
+             my_virial_a = 0.0_dp
+             my_virial_b = 0.0_dp
+          ENDIF
+
+          iatom_old = iatom
+          jatom_old = jatom
+          ikind_old = ikind
+          jkind_old = jkind
+
+          atom_pair_changed = .TRUE.
+
+       ELSE
+
+          atom_pair_changed = .FALSE.
+
+       ENDIF
+
+       IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
+
+          ncoa = npgfa(iset)*ncoset(la_max(iset))
+          sgfa = first_sgfa(1,iset)
+          ncob = npgfb(jset)*ncoset(lb_max(jset))
+          sgfb = first_sgfb(1,jset)
+          IF (pab_required) THEN
+             IF (iatom <= jatom) THEN
+                CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+                     1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                     p_block(sgfa,sgfb),SIZE(p_block,1),&
+                     0.0_dp,work(1,1),SIZE(work,1))
+                CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                     1.0_dp,work(1,1),SIZE(work,1),&
+                     sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                     0.0_dp,pab(1,1),SIZE(pab,1))
+             ELSE
+                CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
+                     1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                     p_block(sgfb,sgfa),SIZE(p_block,1),&
+                     0.0_dp,work(1,1),SIZE(work,1))
+                CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
+                     1.0_dp,work(1,1),SIZE(work,1),&
+                     sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                     0.0_dp,pab(1,1),SIZE(pab,1))
+             END IF
+          END IF
+
+          IF (iatom<=jatom) THEN
+             hab(1:ncoa,1:ncob) = 0._dp
+          ELSE
+             hab(1:ncob,1:ncoa) = 0._dp
+          ENDIF
+
+          ! expensive zero, presumably zeroing *far* too much in most cases.
+          IF (has_dv) THEN
+             hdab=0._dp
+             hadb=0._dp
+          END IF
+
+          iset_old = iset
+          jset_old = jset
+
+       ENDIF
+
+       rab(1) = dist_ab (1,itask)
+       rab(2) = dist_ab (2,itask)
+       rab(3) = dist_ab (3,itask)
+       rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+       rb(1) = ra(1) + rab(1)
+       rb(2) = ra(2) + rab(2)
+       rb(3) = ra(3) + rab(3)
+       zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+       dab=SQRT(rab2)
+       igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
+
+       na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+       na2 = ipgf*ncoset(la_max(iset))
+       nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
+       nb2 = jpgf*ncoset(lb_max(jset))
+
+       ! check whether we need to use fawzi's generalised collocation scheme
+       IF(rs_v(igrid_level)%rs_grid%desc%distributed)THEN
+          !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
+          IF (tasks(4,itask) .EQ. 2 ) THEN
+             use_subpatch = .TRUE.
+          ELSE
+             use_subpatch = .FALSE.
+          ENDIF 
+       ELSE
+          use_subpatch = .FALSE.
+       ENDIF
+
+       IF (pab_required) THEN
+          IF (has_dv) THEN
+             IF (iatom <= jatom) THEN
+                CALL integrate_pgf_product_rspace(&
+                     la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                     lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                     ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                     cube_info(igrid_level),&
+                     hab,pab=pab,o1=na1-1,o2=nb1-1, &
+                     eps_gvg_rspace=eps_gvg_rspace,&
+                     calculate_forces=calculate_forces,hdab=hdab,hadb=hadb,&
+                     force_a=force_a,force_b=force_b,ithread=ithread,&
+                     compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                     use_virial=use_virial,my_virial_a=my_virial_a,&
+                     my_virial_b=my_virial_b, use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+             ELSE
+                rab_inv=-rab
+                CALL integrate_pgf_product_rspace(&
+                     lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                     la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                     rb,rab_inv,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                     cube_info(igrid_level),&
+                     hab,pab=pab,o1=nb1-1,o2=na1-1, &
+                     eps_gvg_rspace=eps_gvg_rspace,&
+                     calculate_forces=calculate_forces,hdab=hadb,hadb=hdab,&
+                     force_a=force_b,force_b=force_a,ithread=ithread,&
+                     compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                     use_virial=use_virial,my_virial_a=my_virial_b,&
+                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+             END IF
+          ELSE
+
+             IF (iatom <= jatom) THEN
+                CALL integrate_pgf_product_rspace(&
+                     la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                     lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                     ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                     cube_info(igrid_level),&
+                     hab,pab=pab,o1=na1-1,o2=nb1-1, &
+                     eps_gvg_rspace=eps_gvg_rspace,&
+                     calculate_forces=calculate_forces,&
+                     force_a=force_a,force_b=force_b,ithread=ithread,&
+                     compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                     use_virial=use_virial,my_virial_a=my_virial_a,&
+                     my_virial_b=my_virial_b,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+             ELSE
+                rab_inv=-rab
+                CALL integrate_pgf_product_rspace(&
+                     lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                     la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                     rb,rab_inv,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                     cube_info(igrid_level),&
+                     hab,pab=pab,o1=nb1-1,o2=na1-1, &
+                     eps_gvg_rspace=eps_gvg_rspace,&
+                     calculate_forces=calculate_forces,&
+                     force_a=force_b,force_b=force_a,ithread=ithread,&
+                     compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                     use_virial=use_virial,my_virial_a=my_virial_b,&
+                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+             END IF
+          END IF
+       ELSE
+          IF (iatom <= jatom) THEN
+             CALL integrate_pgf_product_rspace(&
+                  la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                  lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                  ra,rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                  cube_info(igrid_level),&
+                  hab,o1=na1-1,o2=nb1-1,&
+                  eps_gvg_rspace=eps_gvg_rspace,&
+                  calculate_forces=calculate_forces,&
+                  force_a=force_a,force_b=force_b,ithread=ithread,&
+                  compute_tau=my_compute_tau,&
+                  map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+          ELSE
+             rab_inv=-rab
+             CALL integrate_pgf_product_rspace(&
+                  lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                  la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                  rb,rab_inv,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                  cube_info(igrid_level),&
+                  hab,o1=nb1-1,o2=na1-1,&
+                  eps_gvg_rspace=eps_gvg_rspace,&
+                  calculate_forces=calculate_forces,&
+                  force_a=force_b,force_b=force_a,ithread=ithread, &
+                  compute_tau=my_compute_tau,&
+                  map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+          END IF
+       END IF
+
+       new_set_pair_coming=.FALSE.
+       atom_pair_done = .FALSE.
+       IF (itask<ntasks)  THEN
+          CALL int2pair(tasks(3,itask+1),ilevel,iatom_new,jatom_new,iset_new,jset_new,ipgf_new,jpgf_new,natom,maxset,maxpgf)
+          IF (iatom_new .NE. iatom .OR. jatom_new .NE. jatom .OR. iset_new .NE. iset .OR. jset_new .NE. jset) THEN
+             new_set_pair_coming=.TRUE.
+          ENDIF
+          IF(iatom_new .NE. iatom .OR. jatom_new .NE. jatom ) THEN
+             atom_pair_done = .TRUE.
+          ENDIF
+       ELSE 
+          ! do not forget the last block
+          new_set_pair_coming=.TRUE.
+          atom_pair_done = .TRUE.
+       ENDIF
+
+       ! contract the block into h if we're done with the current set pair
+       IF (new_set_pair_coming) THEN
+          IF (iatom <= jatom) THEN
+             CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                  1.0_dp,hab(1,1),SIZE(hab,1),&
+                  sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                  0.0_dp,work(1,1),SIZE(work,1))
+             CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                  1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                  work(1,1),SIZE(work,1),&
+                  1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
+             IF (has_dv) THEN
+                DO idir=1,3
+                   CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                        1.0_dp,hdab(idir,1,1),SIZE(hab,2),&
+                        sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                        0.0_dp,work(1,1),SIZE(work,1))
+                   CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                        1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                        work(1,1),SIZE(work,1),&
+                        1.0_dp,dv_block(idir)%array(sgfa,sgfb),SIZE(h_block,1))
+                END DO
+             END IF
+          ELSE
+             CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
+                  1.0_dp,hab(1,1),SIZE(hab,1),&
+                  sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                  0.0_dp,work(1,1),SIZE(work,1))
+             CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
+                  1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                  work(1,1),SIZE(work,1),&
+                  1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
+             IF (has_dv) THEN
+                DO idir=1,3
+                   CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
+                        1.0_dp,hadb(idir,1,1),SIZE(hadb,2),&
+                        sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                        0.0_dp,work(1,1),SIZE(work,1))
+                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
+                        1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                        work(1,1),SIZE(work,1),&
+                        1.0_dp,dv_block(idir)%array(sgfb,sgfa),SIZE(h_block,1))
+                END DO
+             END IF
+          END IF
+
+       END IF
+
+       IF (atom_pair_done) THEN
+          IF (calculate_forces) THEN
+             force(ikind)%rho_elec(:,atom_a) =&
+                  force(ikind)%rho_elec(:,atom_a) + 2.0_dp*force_a(:)
+             IF (iatom /= jatom ) THEN
+                force(jkind)%rho_elec(:,atom_b) =&
+                     force(jkind)%rho_elec(:,atom_b) + 2.0_dp*force_b(:)
+             END IF
+          ENDIF
+          IF (use_virial) THEN
+             IF (use_virial .AND. calculate_forces) THEN
+                virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_a
+                IF (iatom /= jatom) THEN
+                   virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_b
+                END IF
+             END IF
+
+          END IF
+
+       ENDIF
+
+    END DO loop_tasks
+
+    CALL dbcsr_finalize(dh, error=error)
+
+    IF (has_dv) THEN
+       DO idir=1,3
+          CALL dbcsr_add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
+       END DO
+    ENDIF
+
+    IF ( h_duplicated ) THEN
+       ! Reconstruct H matrix if using distributed RS grids
+       ! note send and recv direction reversed WRT collocate
+       scatter = .FALSE.
+       CALL distribute_matrix (rs_v, dh, atom_pair_recv, atom_pair_send,&
+            natom, scatter, error, h%matrix)
+       CALL dbcsr_deallocate_matrix ( dh ,error=error)
+
+       IF (has_dv) THEN
+          DO idir=1,3
+             CALL distribute_matrix (rs_v, ddv(idir)%matrix,&
+                  atom_pair_recv, atom_pair_send, &
+                  natom, scatter, error, matrix_dv(idir)%matrix)
+          END DO
+          CALL dbcsr_deallocate_matrix_set(ddv,error=error)
+       END IF
+    ELSE
+       NULLIFY ( dh, ddv )
+    END IF
+
+    IF ( p_duplicated ) THEN
+       CALL dbcsr_deallocate_matrix ( deltap ,error=error)
+    ELSE
+       NULLIFY ( deltap )
+    END IF
+
+    !   *** Release work storage ***
+
+    DEALLOCATE (habt,workt,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF ( pab_required ) THEN
+       DEALLOCATE (pabt,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (ASSOCIATED(rs_v)) THEN
+      DO i=1,SIZE(rs_v)
+        CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
+      END DO
+      DEALLOCATE (rs_v,STAT=stat)
+      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (calculate_forces) THEN
+       DEALLOCATE (atom_of_kind,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE integrate_v_rspace_new
 
 ! *****************************************************************************
 !> \brief transfers a potential from a pw_grid to a vector of 

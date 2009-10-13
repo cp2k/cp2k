@@ -17,6 +17,12 @@ MODULE xas_tp_scf
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
@@ -33,8 +39,7 @@ MODULE xas_tp_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
-                                             cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: core_guess,&
@@ -158,6 +163,8 @@ CONTAINS
                                                 fm_work, mo_coeff, ortho, &
                                                 scf_work2
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -168,13 +175,13 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, matrix_s
+      POINTER                                :: matrix_ks_sm, matrix_s_sm
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section, xas_section
 
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks)
+    NULLIFY(dft_control,matrix_s,matrix_ks)
     NULLIFY(rho,energy,scf_control,logger, ks_env,mos,atomic_kind_set)
     NULLIFY(particle_set,vecbuffer,vecbuffer2, occupation_numbers)
     NULLIFY( scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff)
@@ -198,8 +205,7 @@ CONTAINS
          dft_control=dft_control,&
          scf_control=scf_control,&
          input=input, &
-         matrix_h=matrix_h,&
-         matrix_s=matrix_s,energy=energy,&
+         matrix_s=matrix_s_sm,energy=energy,&
          particle_set=particle_set,&
          qs_charges=qs_charges,&
          ks_env=ks_env,&
@@ -226,7 +232,15 @@ CONTAINS
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
-    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,mos=mos,error=error)
+    CALL get_qs_env(qs_env,matrix_ks=matrix_ks_sm,rho=rho,mos=mos,error=error)
+
+    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+       ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_s(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
     nao = mos(1)%mo_set%nao
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -282,14 +296,25 @@ CONTAINS
 
        CASE(xas_scf_general) ! diagonalisation (default)
 
+
+    CALL get_qs_env(qs_env,matrix_ks=matrix_ks_sm,rho=rho,mos=mos,error=error)
+    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_ks(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
           DO ispin=1,dft_control%nspins
-             CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix,error=error)
+             CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix)
           ENDDO
+
+    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
 
           IF (iter_count > 1  .AND. .NOT. scf_env%skip_diis) THEN
              CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
                   scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                  xas_env%eps_diis,s_matrix=matrix_s,scf_section=scf_section,&
+                  xas_env%eps_diis,s_matrix_sm=matrix_s_sm,scf_section=scf_section,&
                   error=error)
           ELSE
             diis_step = .FALSE.
@@ -361,7 +386,7 @@ CONTAINS
                 !                 END IF
                 !TEST
 
-                CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo,error=error)
+                CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo,error=error)
                 CALL cp_fm_gemm("T","N",1,xas_control%nexc_search,nao,1.0_dp,excvec_coeff,&
                      fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
                 CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices,&
@@ -503,6 +528,9 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,xas_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
     CALL cp_rm_iter_level(logger%iter_info,"XAS_SCF",error=error)
+
+    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
+
     CALL timestop(handle)
 
   END SUBROUTINE xas_do_tp_scf
@@ -658,6 +686,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
                                                 excvec_overlap, mo_coeff, &
                                                 uno_orbs
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
@@ -668,13 +698,13 @@ CONTAINS
     TYPE(preconditioner_type), POINTER       :: local_preconditioner
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, matrix_s
+      POINTER                                :: matrix_ks_sm, matrix_s
     TYPE(section_vals_type), POINTER         :: input, loc_section, &
                                                 print_loc_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind,dft_control,matrix_h,matrix_s,matrix_ks)
+    NULLIFY(atomic_kind,dft_control,matrix_s,matrix_ks)
     NULLIFY(cell,particle_set,local_preconditioner,vecbuffer,vecbuffer2)
     NULLIFY(dft_control,input,loc_section,mos,mo_coeff,eigenvalues)
     NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
@@ -686,9 +716,16 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          cell=cell,dft_control=dft_control,&
-         input=input,matrix_h=matrix_h,&
-         matrix_ks=matrix_ks, matrix_s=matrix_s,mos=mos,&
+         input=input,&
+         matrix_ks=matrix_ks_sm, matrix_s=matrix_s,mos=mos,&
          particle_set=particle_set,error=error)
+
+    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_ks(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     ! Some elements from the xas_env
     CALL get_xas_env(xas_env=xas_env,&
@@ -797,16 +834,16 @@ CONTAINS
        CALL make_preconditioner(local_preconditioner, &
             precon_type=ot_precond_full_kinetic, &
             solver_type=ot_precond_solver_default, &
-            matrix_h=matrix_ks(1)%matrix, &
-            matrix_s=matrix_s(1)%matrix,&
-            matrix_t=qs_env%kinetic(1)%matrix, &
+            matrix_h_sm=matrix_ks_sm(1)%matrix, &
+            matrix_s_sm=matrix_s(1)%matrix,&
+            matrix_t_sm=qs_env%kinetic(1)%matrix, &
             mo_coeff=mo_coeff,energy_gap=0.2_dp,error=error)
 
        CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
             unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter,error=error)
        CALL cp_fm_init_random(uno_orbs,nvirtual2,error=error)
 
-       CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
+       CALL ot_eigensolver(matrix_h_sm=matrix_ks_sm(1)%matrix,matrix_s_sm=matrix_s(1)%matrix, &
             matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
             preconditioner=local_preconditioner,eps_gradient=uno_eps,&
             iter_max=uno_iter,size_ortho_space=nmo,error=error)
@@ -861,6 +898,9 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(centers_wfn,first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
+
     CALL timestop(handle)
 
   END SUBROUTINE cls_prepare_states
@@ -887,12 +927,14 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: all_vectors, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
+      POINTER                                :: matrix_ks_sm
     TYPE(scf_control_type), POINTER          :: scf_control
 
     failure = .FALSE.
@@ -911,7 +953,14 @@ CONTAINS
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
     IF(.NOT. failure) THEN
        CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, scf_control=scf_control,&
-            matrix_ks=matrix_ks,mos=mos,para_env=para_env,error=error)
+            matrix_ks=matrix_ks_sm,mos=mos,para_env=para_env,error=error)
+
+    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_ks(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
        CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
        homo = nelectron - 1
@@ -964,6 +1013,8 @@ CONTAINS
           nvirtual = nvirtual1
           CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2,error=error)
        END IF
+
+    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
 
     END IF  ! failure
     CALL timestop(handle)

@@ -15,6 +15,7 @@ MODULE cp_ddapc
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_from_sm
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                              reset_ch_pulay,&
                                              restraint_functional_force,&
@@ -24,6 +25,8 @@ MODULE cp_ddapc
                                              restraint_functional_potential
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_set
   USE f77_blas
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -47,8 +50,7 @@ MODULE cp_ddapc
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             replicate_matrix_structure
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -163,9 +165,13 @@ CONTAINS
              IF(qs_env%et_coupling%keep_matrix)THEN
                 IF(qs_env%et_coupling%first_run)THEN
                    NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
-                   CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
-                        TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
-                        target_name="ET_RESTRAINT_MATRIX_B",error=error)
+                   ALLOCATE(qs_env%et_coupling%rest_mat(1)%matrix)
+                   CALL dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix)
+                   CALL dbcsr_from_sm(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1)%matrix, error)
+                   CALL dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp, error=error)
+                   !CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
+                   !     TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
+                   !     target_name="ET_RESTRAINT_MATRIX_B",error=error)
                    CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
                         h=qs_env%et_coupling%rest_mat(1),&
                         qs_env=qs_env,calculate_forces=.FALSE.,error=error)
@@ -174,10 +180,14 @@ CONTAINS
                    qs_env%et_coupling%e1=qs_env%dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%strength
                    qs_env%et_coupling%keep_matrix=.FALSE.
                 ELSE
-                   NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
-                   CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
-                        TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
-                        target_name="ET_RESTRAINT_MATRIX_B",error=error)
+                   NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix) 
+                   ALLOCATE(qs_env%et_coupling%rest_mat(2)%matrix)
+                   CALL dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix)
+                   CALL dbcsr_from_sm(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1)%matrix, error)
+                   CALL dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp, error=error)
+                   !CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
+                   !     TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
+                   !     target_name="ET_RESTRAINT_MATRIX_B",error=error)
                    CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
                         h=qs_env%et_coupling%rest_mat(2),&
                         qs_env=qs_env,calculate_forces=.FALSE.,error=error)

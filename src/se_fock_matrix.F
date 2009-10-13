@@ -17,10 +17,10 @@ MODULE se_fock_matrix
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
                                              dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply,&
                                              sm_from_dbcsr
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -28,10 +28,10 @@ MODULE se_fock_matrix
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
+                                             dbcsr_set,&
                                              dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -66,10 +66,7 @@ MODULE se_fock_matrix
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_finalize,&
                                              semi_empirical_si_initialize,&
                                              semi_empirical_si_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             set_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -119,7 +116,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: ks_scp, matrix_tmp, pscp
+    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_h, matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -128,7 +125,6 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h_sm, matrix_p_sm
-    TYPE(real_matrix_type), POINTER          :: ks_scp_sm, pscp_sm
     TYPE(scp_energy_type), POINTER           :: energy_scp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -138,8 +134,8 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control, matrix_tmp)
-    NULLIFY(scp_env, pscp, ks_scp_sm, ascp_diag, energy_scp,atomic_kind_set, pscp, ks_scp)
+    NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
+    NULLIFY(scp_env, pscp, ascp_diag, energy_scp,atomic_kind_set, pscp, ks_scp)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -203,8 +199,8 @@ CONTAINS
 
        ! Zero the ks_scp matrix.  Will get info from coulomb routines
        IF (scp_nddo) THEN
-          CALL get_scp_env(scp_env, ks_scp=ks_scp_sm, error=error)
-          CALL set_matrix(ks_scp_sm,0.0_dp)
+          CALL get_scp_env(scp_env, ks_scp=ks_scp, error=error)
+          CALL dbcsr_set(ks_scp,0.0_dp,error=error)
        END IF
 
 
@@ -246,23 +242,14 @@ CONTAINS
        END DO
        ! Compute the SCP Hartree energy and polarization energy and update ks_scp
        IF (scp_nddo) THEN
-          CALL get_scp_env ( scp_env, pscp=pscp_sm, ks_scp=ks_scp_sm, energy=energy_scp, &
+          CALL get_scp_env ( scp_env, pscp=pscp, ks_scp=ks_scp, energy=energy_scp, &
                              ascp_diag= ascp_diag, error = error )
-          ALLOCATE(pscp, ks_scp)!sm->dbcsr
-          CALL dbcsr_from_sm(pscp, pscp_sm, error)!sm->dbcsr
-          CALL dbcsr_from_sm(ks_scp, ks_scp_sm, error)!sm->dbcsr
           ! Get energy
           CALL dbcsr_trace(ks_scp,pscp,trace=ecoul_scp,local_sum=.TRUE.,error=error)
           energy_scp%e_scp_hartree = ecoul_scp*0.5_dp
           ! evalulate kernel and forces on the SCP coeffs
           CALL evaluate_scp_force ( atomic_kind_set, pscp, ks_scp, ascp_diag, &
                                     just_energy, energy_scp%e_scp_kernel, error )
-          CALL deallocate_matrix(scp_env%ks_scp, error=error)!sm->dbcsr
-          CALL sm_from_dbcsr(scp_env%ks_scp, ks_scp, distribution_2d, error=error )!sm->dbcsr
-          CALL get_scp_env ( scp_env, ks_scp=ks_scp_sm, error=error )!sm->dbcsr
-          CALL dbcsr_deallocate_matrix( pscp, error=error )!sm->dbcsr
-          CALL dbcsr_deallocate_matrix( ks_scp, error=error )!sm->dbcsr
-
           ! NOTE: If needed, at this point, forces on P_SCP are up-to-date and stored 
           !       in KS_SCP as a*ks_scp
        END IF
@@ -271,12 +258,10 @@ CONTAINS
        IF (qs_env%qmmm) THEN
           DO ispin = 1, nspins
              ! If QM/MM sumup the 1el Hamiltonian
-             ALLOCATE(matrix_tmp)!sm->dbcsr
-             CALL dbcsr_from_sm(matrix_tmp, qs_env%ks_qmmm_env%matrix_h(1)%matrix, error)!sm->dbcsr
-             CALL dbcsr_add(ks_matrix(ispin)%matrix,matrix_tmp,error=error)
+             CALL dbcsr_add(ks_matrix(ispin)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,error=error)
              ! Compute QM/MM Energy
-             CALL dbcsr_trace(matrix_tmp,matrix_p(ispin)%matrix,trace=qmmm_el,error=error)
-             CALL dbcsr_deallocate_matrix(matrix_tmp,error=error)!sm->dbcsr
+             CALL dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
+                  matrix_p(ispin)%matrix,trace=qmmm_el,error=error)
              energy%qmmm_el = energy%qmmm_el + qmmm_el
           END DO
        END IF
@@ -333,19 +318,16 @@ CONTAINS
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
                              occupation_numbers=occupation_numbers )
              CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
-             CALL cp_sm_fm_multiply(ks_matrix_sm(ispin)%matrix,mo_coeff,&
+             CALL dbcsr_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                     mo_derivs(ispin)%matrix, ncol_global,error=error)
           ENDDO
        ENDIF
 
     END SELECT
 
-    CALL dbcsr_deallocate_matrix_set ( matrix_h, error=error )
-    CALL dbcsr_deallocate_matrix_set ( ks_matrix, error=error )
-    CALL dbcsr_deallocate_matrix_set ( matrix_p, error=error )
-    !CALL dbcsr_deallocate_matrix ( matrix_tmp, error=error )
-    !CALL dbcsr_deallocate_matrix ( ks_scp, error=error )
-    !CALL dbcsr_deallocate_matrix ( pscp, error=error )
+    CALL dbcsr_deallocate_matrix_set ( matrix_h, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set ( ks_matrix, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set ( matrix_p, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

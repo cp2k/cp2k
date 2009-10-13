@@ -20,7 +20,8 @@ MODULE qs_dftb_matrices
        dbcsr_add_block_node, dbcsr_allocate_matrix, &
        dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
        dbcsr_get_block_node, dbcsr_obj_p_type, dbcsr_replicate_matrix_struct, &
-       dbcsr_write_sparse_matrix, sm_from_dbcsr
+       dbcsr_sm_fm_multiply, sm_from_dbcsr
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_type
@@ -29,8 +30,9 @@ MODULE qs_dftb_matrices
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE dbcsr_operations,                ONLY: dbcsr_add
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy
   USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -61,8 +63,7 @@ MODULE qs_dftb_matrices
   USE sparse_matrix_types,             ONLY: allocate_matrix,&
                                              allocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             transfer_matrix
+                                             replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -669,13 +670,13 @@ CONTAINS
   END SUBROUTINE build_dftb_matrices
 
 ! *****************************************************************************
-  SUBROUTINE build_dftb_ks_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
+  SUBROUTINE build_dftb_ks_matrix (ks_env,qs_env,ks_matrix_sm,rho,energy,&
                calculate_forces,just_energy,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+      POINTER                                :: ks_matrix_sm
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -684,8 +685,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, iatom, ikind, &
-                                                ispin, istat, natom, &
+    INTEGER                                  :: atom_a, handle, i, iatom, &
+                                                ikind, ispin, istat, natom, &
                                                 ncol_global, nkind, nspins, &
                                                 output_unit
     LOGICAL                                  :: failure
@@ -700,20 +701,24 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, matrix_h
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s
+      POINTER                                :: matrix_h_sm, matrix_p_sm, &
+                                                matrix_s_sm
     TYPE(section_vals_type), POINTER         :: scf_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(matrix_h, dft_control, logger, scf_section)
-    NULLIFY(matrix_s, matrix_p, particle_set)
+    NULLIFY(matrix_h_sm, dft_control, logger, scf_section)
+    NULLIFY(matrix_s_sm, matrix_p_sm, particle_set)
 
     energy%hartree = 0._dp
 
@@ -723,13 +728,31 @@ CONTAINS
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
+
+    NULLIFY(ks_matrix)
+    CALL dbcsr_allocate_matrix_set( ks_matrix, SIZE(ks_matrix_sm), error )!sm->dbcsr
+    DO i=1,SIZE(ks_matrix)!sm->dbcsr
+       ALLOCATE(ks_matrix(i)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(ks_matrix(i)%matrix, ks_matrix_sm(i)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+
     IF ( .NOT. failure ) THEN
 
        CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
             atomic_kind_set=atomic_kind_set,&
-            matrix_h=matrix_h,&
+            matrix_h=matrix_h_sm,&
             para_env=para_env,error=error)
+
+    NULLIFY(matrix_h)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( matrix_h, SIZE(matrix_h_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_h)!sm->dbcsr
+       ALLOCATE(matrix_h(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_h(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_h(ispin)%matrix, matrix_h_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
 
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
        nspins=dft_control%nspins
@@ -739,20 +762,21 @@ CONTAINS
 
        DO ispin=1,nspins
          ! copy the core matrix into the fock matrix
-         CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
+          !CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
+         CALL dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
        END DO
 
        IF ( dft_control%qs_control%dftb_control%self_consistent ) THEN
          ! Mulliken charges
          CALL get_qs_env(qs_env=qs_env,&
               particle_set=particle_set,&
-              matrix_s=matrix_s,error=error)
-         matrix_p => rho%rho_ao
+              matrix_s=matrix_s_sm,error=error)
+         matrix_p_sm => rho%rho_ao
          natom=SIZE(particle_set)
          ALLOCATE(charges(natom,nspins),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          !
-         CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
+         CALL mulliken_charges(matrix_p_sm,matrix_s_sm(1)%matrix,para_env,charges,error=error)
          !
          ALLOCATE(mcharge(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -803,12 +827,20 @@ CONTAINS
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
                              occupation_numbers=occupation_numbers )
              CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
-             CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
+             CALL dbcsr_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                         mo_derivs(ispin)%matrix, ncol_global,error=error)
           ENDDO
        ENDIF
 
     END IF
+
+
+    CALL get_qs_env(qs_env=qs_env,distribution_2d=distribution_2d,error=error)!sm->dbcsr
+    DO ispin=1,SIZE(ks_matrix)!sm->dbcsr
+       CALL sm_from_dbcsr( ks_matrix_sm(ispin)%matrix, ks_matrix(ispin)%matrix, distribution_2d, error=error )!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( ks_matrix, error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_h, error )!sm->dbcsr
 
     CALL timestop(handle)
 

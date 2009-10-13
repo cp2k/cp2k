@@ -15,6 +15,7 @@ MODULE qs_linres_types
                                              gto_basis_set_type
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -27,7 +28,6 @@ MODULE qs_linres_types
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_release
   USE realspace_grid_types,            ONLY: realspace_grid_p_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -129,7 +129,7 @@ MODULE qs_linres_types
      TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_efg,psi1_pso,efg_psi0,pso_psi0,dso_psi0,psi1_dso!last two not needed
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1_fc
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: fc_psi0
-     TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: matrix_efg,matrix_pso,matrix_dso,matrix_fc
+     TYPE(dbcsr_obj_p_type),DIMENSION(:  ), POINTER :: matrix_efg,matrix_pso,matrix_dso,matrix_fc
   END TYPE issc_env_type
 
   TYPE nmr_env_type
@@ -588,7 +588,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: efg_psi0, pso_psi0, dso_psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: fc_psi0
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_efg, matrix_pso, &
                                                 matrix_dso, matrix_fc
     TYPE(cp_error_type), INTENT(inout)       :: error

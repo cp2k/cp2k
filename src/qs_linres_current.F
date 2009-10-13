@@ -24,6 +24,14 @@ MODULE qs_linres_current
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_plus_fm_fm_t,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -40,11 +48,15 @@ MODULE qs_linres_current
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_util,                      ONLY: dbcsr_create,&
+                                             dbcsr_finalize
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
   USE input_section_types,             ONLY: section_get_ivals,&
@@ -110,11 +122,6 @@ MODULE qs_linres_current
                                              rs_grid_mult_and_add,&
                                              rs_grid_release,&
                                              rs_grid_zero
-  USE sparse_matrix_types,             ONLY: &
-       add_block_node, allocate_matrix, allocate_matrix_set, &
-       deallocate_matrix, deallocate_matrix_set, get_block_node, &
-       real_matrix_p_type, real_matrix_type, replicate_matrix_structure, &
-       set_matrix
   USE task_list_methods,               ONLY: distribute_matrix,&
                                              distribute_tasks,&
                                              int2pair,&
@@ -199,6 +206,11 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: density_matrix0, &
+                                                density_matrix_a, &
+                                                density_matrix_ii, &
+                                                density_matrix_iii
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -210,11 +222,6 @@ CONTAINS
     TYPE(pw_p_type), POINTER                 :: jrho_gspace, jrho_rspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: density_matrix0, &
-                                                density_matrix_a, &
-                                                density_matrix_ii, &
-                                                density_matrix_iii, matrix_s
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: current_section
@@ -223,7 +230,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     !
     NULLIFY(jrho_rspace,jrho_gspace,logger,current_section,density_matrix0,density_matrix_a,&
-         &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,matrix_s,&
+         &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,&
          &  particle_set,pw_env,auxbas_rs_desc,auxbas_pw_pool,&
          &  para_env,center_list,mo_coeff,psi_a_iB,&
          &  psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order)
@@ -252,7 +259,6 @@ CONTAINS
          &          pw_env=pw_env,&
          &          para_env=para_env,&
          &          particle_set=particle_set,&
-         &          matrix_s=matrix_s,&
          &          subsys=subsys,&
          &          error=error)
     CALL cp_subsys_get(subsys,particles=particles,error=error)
@@ -272,30 +278,26 @@ CONTAINS
     ENDDO
     !
     !
-    ALLOCATE(density_matrix0(nspins),density_matrix_a(nspins),&
-         &   density_matrix_ii(nspins),density_matrix_iii(nspins),&
-         &   STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL dbcsr_allocate_matrix_set(density_matrix0,nspins,error=error)
+    CALL dbcsr_allocate_matrix_set(density_matrix_a,nspins,error=error)
+    CALL dbcsr_allocate_matrix_set(density_matrix_ii,nspins,error=error)
+    CALL dbcsr_allocate_matrix_set(density_matrix_iii,nspins,error=error)
     !
     DO ispin = 1,nspins
        !
        !density_matrix0
-       NULLIFY(density_matrix0(ispin)%matrix)
        CALL set_up_op_sm(density_matrix0(ispin)%matrix,qs_env,symmetry="none",&
                          name="density_matrix0",error=error)
        !
        !density_matrix_a
-       NULLIFY(density_matrix_a(ispin)%matrix)
        CALL set_up_op_sm(density_matrix_a(ispin)%matrix,qs_env,symmetry="none",&
                          name="density_matrix_a",error=error)
        !
        !density_matrix_ii
-       NULLIFY(density_matrix_ii(ispin)%matrix)
        CALL set_up_op_sm(density_matrix_ii(ispin)%matrix,qs_env,symmetry="none",&
                          name="density_matrix_ii",error=error)
        !
        !density_matrix_iii
-       NULLIFY(density_matrix_iii(ispin)%matrix)
        CALL set_up_op_sm(density_matrix_iii(ispin)%matrix,qs_env,symmetry="none",&
                          name="density_matrix_iii",error=error)
     ENDDO
@@ -320,8 +322,8 @@ CONTAINS
           !
           !
           ! Build the first density matrix
-          CALL set_matrix(density_matrix0(ispin)%matrix,0.0_dp)
-          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix ,&
+          CALL dbcsr_set(density_matrix0(ispin)%matrix,0.0_dp,error=error)
+          CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix ,&
                &                  matrix_v=mo_coeff,matrix_g=mo_coeff,&
                &                  ncol=nmo,alpha=maxocc,error=error)
           !
@@ -370,20 +372,20 @@ CONTAINS
           ! Multiply by the occupation number for the density matrix
           !
           ! Build the first density matrix
-          CALL set_matrix(density_matrix_a(ispin)%matrix ,0.0_dp)
-          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_a(ispin)%matrix ,&
+          CALL dbcsr_set(density_matrix_a(ispin)%matrix ,0.0_dp,error=error)
+          CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_a(ispin)%matrix ,&
                &                  matrix_v=mo_coeff,matrix_g=psi_a_iB,&
                &                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Build the second density matrix
-          CALL set_matrix(density_matrix_iii(ispin)%matrix,0.0_dp)
-          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
+          CALL dbcsr_set(density_matrix_iii(ispin)%matrix,0.0_dp,error=error)
+          CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
                &                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiiB)%matrix,&
                &                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Build the third density matrix
-          CALL set_matrix(density_matrix_ii(ispin)%matrix,0.0_dp)
-          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
+          CALL dbcsr_set(density_matrix_ii(ispin)%matrix,0.0_dp,error=error)
+          CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
                &                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiB)%matrix,&
                &                  ncol=nmo,alpha=maxocc,error=error)
           DO idir = 1,3
@@ -510,14 +512,15 @@ CONTAINS
        DO ispin = 1,nspins
           CALL cp_fm_release(  psi1(ispin)%matrix,error)
           CALL cp_fm_release(p_psi1(ispin)%matrix,error)
-          CALL deallocate_matrix(density_matrix0(ispin)%matrix,error=error)
-          CALL deallocate_matrix(density_matrix_a(ispin)%matrix,error=error)
-          CALL deallocate_matrix(density_matrix_ii(ispin)%matrix,error=error)
-          CALL deallocate_matrix(density_matrix_iii(ispin)%matrix,error=error)
        ENDDO
-       DEALLOCATE(density_matrix0,density_matrix_a,density_matrix_ii,density_matrix_iii, &
-                  psi1,p_psi1,STAT=istat)
+       DEALLOCATE(psi1,p_psi1,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       CALL dbcsr_deallocate_matrix_set(density_matrix0,error=error)
+       CALL dbcsr_deallocate_matrix_set(density_matrix_a,error=error)
+       CALL dbcsr_deallocate_matrix_set(density_matrix_ii,error=error)
+       CALL dbcsr_deallocate_matrix_set(density_matrix_iii,error=error)
+
        !
     ENDIF ! failure
     !
@@ -556,7 +559,7 @@ CONTAINS
   SUBROUTINE calculate_jrho_resp(mat_d0,mat_jp,mat_jp_rii,mat_jp_riii,iB,idir,&
        current_rs, current_gs, qs_env, current_env, soft_valid, error)
 
-    TYPE(real_matrix_type), POINTER          :: mat_d0, mat_jp, mat_jp_rii, &
+    TYPE(dbcsr_obj), POINTER                 :: mat_d0, mat_jp, mat_jp_rii, &
                                                 mat_jp_riii
     INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(pw_p_type), INTENT(INOUT)           :: current_rs, current_gs
@@ -608,6 +611,9 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
+    TYPE(dbcsr_obj), POINTER                 :: deltajp_a, deltajp_b, &
+                                                deltajp_c, deltajp_d, mat_a, &
+                                                mat_b, mat_c, mat_d
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -619,9 +625,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(real_matrix_type), POINTER          :: deltajp_a, deltajp_b, &
-                                                deltajp_c, deltajp_d, mat_a, &
-                                                mat_b, mat_c, mat_d
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
@@ -645,6 +648,7 @@ CONTAINS
     NULLIFY(lgrid%r)
 
     CALL timeset(routineN,handle)
+
     !
     ! Set pointers for the different gauge
     do_igaim = current_env%gauge.EQ.current_gauge_atom
@@ -780,56 +784,31 @@ CONTAINS
     ! distributed rs grids require a matrix that will be changed (distribute_tasks)
     ! whereas this is not the case for replicated grids
     IF (distributed_rs_grids) THEN
-       CALL allocate_matrix(matrix=deltajp_a,&
-            nrow=mat_a%nrow,&
-            ncol=mat_a%ncol,&
-            nblock_row=mat_a%nblock_row,&
-            nblock_col=mat_a%nblock_col,&
-            first_row=mat_a%first_row(:),&
-            last_row=mat_a%last_row(:),&
-            first_col=mat_a%first_col(:),&
-            last_col=mat_a%last_col(:),&
-            matrix_name="DeltaP",&
-            sparsity_id=-1, &   ! basically unknown sparsity in parallel
-            matrix_symmetry=mat_a%symmetry,error=error)
-       CALL allocate_matrix(matrix=deltajp_b,&
-            nrow=mat_a%nrow,&
-            ncol=mat_a%ncol,&
-            nblock_row=mat_a%nblock_row,&
-            nblock_col=mat_a%nblock_col,&
-            first_row=mat_a%first_row(:),&
-            last_row=mat_a%last_row(:),&
-            first_col=mat_a%first_col(:),&
-            last_col=mat_a%last_col(:),&
-            matrix_name="DeltaP",&
-            sparsity_id=-1, &   ! basically unknown sparsity in parallel
-            matrix_symmetry=mat_a%symmetry,error=error)
-       CALL allocate_matrix(matrix=deltajp_c,&
-            nrow=mat_a%nrow,&
-            ncol=mat_a%ncol,&
-            nblock_row=mat_a%nblock_row,&
-            nblock_col=mat_a%nblock_col,&
-            first_row=mat_a%first_row(:),&
-            last_row=mat_a%last_row(:),&
-            first_col=mat_a%first_col(:),&
-            last_col=mat_a%last_col(:),&
-            matrix_name="DeltaP",&
-            sparsity_id=-1, &   ! basically unknown sparsity in parallel
-            matrix_symmetry=mat_a%symmetry,error=error)
+       ALLOCATE(deltajp_a,deltajp_b,deltajp_c)
+       CALL dbcsr_init(deltajp_a)
+       CALL dbcsr_init(deltajp_b)
+       CALL dbcsr_init(deltajp_c)
        IF(do_igaim) THEN
-          CALL allocate_matrix(matrix=deltajp_d,&
-               nrow=mat_a%nrow,&
-               ncol=mat_a%ncol,&
-               nblock_row=mat_a%nblock_row,&
-               nblock_col=mat_a%nblock_col,&
-               first_row=mat_a%first_row(:),&
-               last_row=mat_a%last_row(:),&
-               first_col=mat_a%first_col(:),&
-               last_col=mat_a%last_col(:),&
-               matrix_name="DeltaP",&
-               sparsity_id=-1, &   ! basically unknown sparsity in parallel
-               matrix_symmetry=mat_a%symmetry,error=error)
+          ALLOCATE(deltajp_d)
+          CALL dbcsr_init(deltajp_d)
        ENDIF
+
+       CALL dbcsr_create(deltajp_a, ' deltajp_a ', &
+            mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
+            mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
+            error=error)
+       CALL dbcsr_create(deltajp_b, ' deltajp_b ', &
+            mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
+            mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
+            error=error)
+       CALL dbcsr_create(deltajp_c, ' deltajp_c ', &
+            mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
+            mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
+            error=error)
+       IF(do_igaim) CALL dbcsr_create(deltajp_d, ' deltajp_d ', &
+            mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
+            mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
+            error=error)
     ELSE
        deltajp_a => mat_a !mat_jp
        deltajp_b => mat_b !mat_jp_rii
@@ -920,19 +899,19 @@ CONTAINS
                 brow = iatom
                 bcol = jatom
 
-                CALL get_block_node(matrix=mat_a,&
+                CALL dbcsr_get_block_node(matrix=mat_a,&
                      block_row=brow,&
                      block_col=bcol,&
                      BLOCK=jp_block_a)
-                CALL get_block_node(matrix=mat_b,&
+                CALL dbcsr_get_block_node(matrix=mat_b,&
                      block_row=brow,&
                      block_col=bcol,&
                      BLOCK=jp_block_b)
-                CALL get_block_node(matrix=mat_c,&
+                CALL dbcsr_get_block_node(matrix=mat_c,&
                      block_row=brow,&
                      block_col=bcol,&
                      BLOCK=jp_block_c)
-                IF(do_igaim) CALL get_block_node(matrix=mat_d,&
+                IF(do_igaim) CALL dbcsr_get_block_node(matrix=mat_d,&
                                   block_row=brow,&
                                   block_col=bcol,&
                                   BLOCK=jp_block_d)
@@ -944,13 +923,13 @@ CONTAINS
 
                 IF (distributed_rs_grids) THEN
                    NULLIFY (jpblock_a,jpblock_b,jpblock_c,jpblock_d)
-                   CALL add_block_node ( deltajp_a, brow, bcol, jpblock_a ,error=error)
+                   CALL dbcsr_add_block_node ( deltajp_a, brow, bcol, jpblock_a ,error=error)
                    jpblock_a = jp_block_a
-                   CALL add_block_node ( deltajp_b, brow, bcol, jpblock_b ,error=error)
+                   CALL dbcsr_add_block_node ( deltajp_b, brow, bcol, jpblock_b ,error=error)
                    jpblock_b = jp_block_b
-                   CALL add_block_node ( deltajp_c, brow, bcol, jpblock_c ,error=error)
+                   CALL dbcsr_add_block_node ( deltajp_c, brow, bcol, jpblock_c ,error=error)
                    jpblock_c = jp_block_c
-                   IF(do_igaim) CALL add_block_node ( deltajp_d, brow, bcol, jpblock_d ,error=error)
+                   IF(do_igaim) CALL dbcsr_add_block_node ( deltajp_d, brow, bcol, jpblock_d ,error=error)
                    IF(do_igaim) jpblock_d = jp_block_d
                 ELSE
                    jpblock_a => jp_block_a
@@ -983,6 +962,13 @@ CONTAINS
        END DO loop_jkind
 
     END DO loop_ikind
+
+    IF (distributed_rs_grids) THEN
+       CALL dbcsr_finalize(deltajp_a, error=error)
+       CALL dbcsr_finalize(deltajp_b, error=error)
+       CALL dbcsr_finalize(deltajp_c, error=error)
+       IF(do_igaim) CALL dbcsr_finalize(deltajp_d, error=error)
+    ENDIF
 
     ! sorts / redistributes the task list
     CALL distribute_tasks ( rs_rho, ntasks, natom,&
@@ -1121,19 +1107,19 @@ CONTAINS
 
           ENDIF
 
-          CALL get_block_node(matrix=deltajp_a,&
+          CALL dbcsr_get_block_node(matrix=deltajp_a,&
                block_row=brow,&
                block_col=bcol,&
                BLOCK=jp_block_a)
-          CALL get_block_node(matrix=deltajp_b,&
+          CALL dbcsr_get_block_node(matrix=deltajp_b,&
                block_row=brow,&
                block_col=bcol,&
                BLOCK=jp_block_b)
-          CALL get_block_node(matrix=deltajp_c,&
+          CALL dbcsr_get_block_node(matrix=deltajp_c,&
                block_row=brow,&
                block_col=bcol,&
                BLOCK=jp_block_c)
-          IF(do_igaim) CALL get_block_node(matrix=deltajp_d,&
+          IF(do_igaim) CALL dbcsr_get_block_node(matrix=deltajp_d,&
                             block_row=brow,&
                             block_col=bcol,&
                             BLOCK=jp_block_d)
@@ -1319,10 +1305,10 @@ CONTAINS
     !   *** Release work storage ***
 
     IF (distributed_rs_grids) THEN
-       CALL deallocate_matrix ( deltajp_a ,error=error)
-       CALL deallocate_matrix ( deltajp_b ,error=error)
-       CALL deallocate_matrix ( deltajp_c ,error=error)
-       CALL deallocate_matrix ( deltajp_d ,error=error)
+       CALL dbcsr_deallocate_matrix ( deltajp_a ,error=error)
+       CALL dbcsr_deallocate_matrix ( deltajp_b ,error=error)
+       CALL dbcsr_deallocate_matrix ( deltajp_c ,error=error)
+       IF(do_igaim) CALL dbcsr_deallocate_matrix ( deltajp_d ,error=error)
     END IF
 
     IF ( nthread > 1 ) THEN
@@ -2219,13 +2205,13 @@ CONTAINS
                                                 psi_p1, psi_p2, psi_rxp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op_mom_ao, op_p_ao
+    TYPE(dbcsr_obj_p_type), &
+      DIMENSION(:, :), POINTER               :: op_mom_der_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_mom_ao, op_p_ao
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: op_mom_der_ao
 
     failure = .FALSE.
     !
@@ -2279,46 +2265,37 @@ CONTAINS
     !
     ! Allocate sparse matrices for dipole, quadrupole and their derivatives => 9x3
     ! Remember the derivatives are antisymmetric
-    CALL allocate_matrix_set(op_mom_ao,9,error=error)
-    CALL allocate_matrix_set(op_mom_der_ao,9,3,error=error)
+    CALL dbcsr_allocate_matrix_set(op_mom_ao,9,error=error)
+    CALL dbcsr_allocate_matrix_set(op_mom_der_ao,9,3,error=error)
     CALL set_up_op_sm(op_mom_ao(1)%matrix,qs_env,symmetry="none",&
          &            name="op_mom",error=error)
     DO idir2=1,3
-       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
-            &                          op_mom_der_ao(1,idir2)%matrix,&
-            &                          "op_mom_der_ao"//"-"//TRIM(&
-            &                          ADJUSTL(cp_to_string(idir2))),&
-            &                          target_symmetry="none",&
-            &                          error=error)
-       CALL set_matrix(op_mom_der_ao(1,idir2)%matrix,0.0_dp)
+       ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
+       CALL dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
+       CALL dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
+            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))),error)
     ENDDO
 
     DO idir = 2,SIZE(op_mom_ao,1)
-       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
-            &                          op_mom_ao(idir)%matrix,&
-            &                          "op_mom_ao"//"-"//TRIM(&
-            &                          ADJUSTL(cp_to_string(idir))),&
-            &                          target_symmetry="none",&
-            &                          error=error)
-       CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
+       ALLOCATE(op_mom_ao(idir)%matrix)
+       CALL dbcsr_init(op_mom_ao(idir)%matrix)
+       CALL dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
+            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
        DO idir2=1,3
-          CALL replicate_matrix_structure(op_mom_ao(1)%matrix,&
-               &                          op_mom_der_ao(idir,idir2)%matrix,&
-               &                          "op_mom_der_ao"//"-"//TRIM(&
-               &                          ADJUSTL(cp_to_string(idir*idir2))),&
-               &                          target_symmetry="none",&
-               &                          error=error)
-          CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
+          ALLOCATE(op_mom_der_ao(idir,idir2)%matrix)
+          CALL dbcsr_init(op_mom_der_ao(idir,idir2)%matrix)
+          CALL dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
+               "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),error)
        ENDDO
     ENDDO
     !
-    CALL allocate_matrix_set(op_p_ao,3,error=error)
+    CALL dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
     CALL set_up_op_sm(op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="op_p_ao",error=error)
     DO idir=2,3
-       CALL replicate_matrix_structure(op_p_ao(1)%matrix,op_p_ao(idir)%matrix,&
-            & "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="antisymmetric",&
-            & error=error)
-       CALL set_matrix(op_p_ao(idir)%matrix,0.0_dp)
+       ALLOCATE(op_p_ao(idir)%matrix)
+       CALL dbcsr_init(op_p_ao(idir)%matrix)
+       CALL dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
+            "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
     ENDDO
     !
     !
@@ -2383,9 +2360,9 @@ CONTAINS
           ! Compute the multipole integrals for the state istate,
           ! using as reference center the corresponding Wannier center
           DO idir = 1,9
-             CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
+             CALL dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp,error=error)
              DO idir2 = 1,3
-                CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
+                CALL dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp,error=error)
              ENDDO
           ENDDO
           CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
@@ -2420,34 +2397,34 @@ CONTAINS
           !
           DO idir = 1,3
              CALL set_vecp(idir,ii,iii)
-             CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,psi_rxp,&
+             CALL dbcsr_sm_fm_multiply(op_p_ao(idir)%matrix,psi_rxp,&
                   &                 p_rxp(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                   &                 error=error)
              IF(iiiB.EQ.iii.OR.iiiB.EQ.ii) THEN
-                CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p1,&
+                CALL dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p1,&
                      &                 r_p1(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                      &                 error=error)
              ENDIF
              IF(iiB.EQ.iii.OR.iiB.EQ.ii) THEN
-                CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p2,&
+                CALL dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p2,&
                      &                 r_p2(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                      &                 error=error)
              ENDIF
              DO idir2 = 1,9
                 IF(idir2.EQ.ii.OR.idir2.EQ.iii) THEN
-                   CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_rxp,&
+                   CALL dbcsr_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_rxp,&
                         &                 rr_rxp(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                         &                 error=error)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiiB).OR.idir2.EQ.ind_m2(iii,iiiB).OR.idir2.EQ.iiiB) THEN
-                   CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p1,&
+                   CALL dbcsr_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p1,&
                         &                 rr_p1(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                         &                 error=error)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiB).OR.idir2.EQ.ind_m2(iii,iiB).OR.idir2.EQ.iiB) THEN
-                   CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p2,&
+                   CALL dbcsr_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p2,&
                         &                 rr_p2(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                         &                 error=error)
                 ENDIF
@@ -2580,9 +2557,10 @@ CONTAINS
     ENDDO ! ispin
     !
     ! deallocate the sparse matrices
-    CALL deallocate_matrix_set(op_mom_ao,error=error)
-    CALL deallocate_matrix_set(op_mom_der_ao,error=error)
-    CALL deallocate_matrix_set(op_p_ao,error=error)
+    CALL dbcsr_deallocate_matrix_set(op_mom_ao,error=error)
+    CALL dbcsr_deallocate_matrix_set(op_mom_der_ao,error=error)
+    CALL dbcsr_deallocate_matrix_set(op_p_ao,error=error)
+
     CALL cp_fm_release(psi0,error=error)
     CALL cp_fm_release(psi_rxp,error=error)
     CALL cp_fm_release(psi_D,error=error)
@@ -2634,13 +2612,13 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: buf, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op_mom_ao, op_p_ao
+    TYPE(dbcsr_obj_p_type), &
+      DIMENSION(:, :), POINTER               :: op_mom_der_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_mom_ao, op_p_ao
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: op_mom_der_ao
 
     failure = .FALSE.
     !
@@ -2681,46 +2659,37 @@ CONTAINS
     !
     ! Allocate sparse matrices for dipole, quadrupole and their derivatives => 9x3
     ! Remember the derivatives are antisymmetric
-    CALL allocate_matrix_set(op_mom_ao,9,error=error)
-    CALL allocate_matrix_set(op_mom_der_ao,9,3,error=error)
+    CALL dbcsr_allocate_matrix_set(op_mom_ao,9,error=error)
+    CALL dbcsr_allocate_matrix_set(op_mom_der_ao,9,3,error=error)
     CALL set_up_op_sm(op_mom_ao(1)%matrix,qs_env,symmetry="none",&
          &            name="op_mom",error=error)
     DO idir2=1,3
-       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
-            &                          op_mom_der_ao(1,idir2)%matrix,&
-            &                          "op_mom_der_ao"//"-"//TRIM(&
-            &                          ADJUSTL(cp_to_string(idir2))),&
-            &                          target_symmetry="none",&
-            &                          error=error)
-       CALL set_matrix(op_mom_der_ao(1,idir2)%matrix,0.0_dp)
+       ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
+       CALL dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
+       CALL dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
+            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))),error)
     ENDDO
 
     DO idir = 2,SIZE(op_mom_ao,1)
-       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
-            &                          op_mom_ao(idir)%matrix,&
-            &                          "op_mom_ao"//"-"//TRIM(&
-            &                          ADJUSTL(cp_to_string(idir))),&
-            &                          target_symmetry="none",&
-            &                          error=error)
-       CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
+       ALLOCATE(op_mom_ao(idir)%matrix)
+       CALL dbcsr_init(op_mom_ao(idir)%matrix)
+       CALL dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
+            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
        DO idir2=1,3
-          CALL replicate_matrix_structure(op_mom_ao(1)%matrix,&
-               &                          op_mom_der_ao(idir,idir2)%matrix,&
-               &                          "op_mom_der_ao"//"-"//TRIM(&
-               &                          ADJUSTL(cp_to_string(idir*idir2))),&
-               &                          target_symmetry="none",&
-               &                          error=error)
-          CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
+          ALLOCATE(op_mom_der_ao(idir,idir2)%matrix)
+          CALL dbcsr_init(op_mom_der_ao(idir,idir2)%matrix)
+          CALL dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
+               "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),error)
        ENDDO
     ENDDO
     !
-    CALL allocate_matrix_set(op_p_ao,3,error=error)
+    CALL dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
     CALL set_up_op_sm(op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="op_p_ao",error=error)
     DO idir=2,3
-       CALL replicate_matrix_structure(op_p_ao(1)%matrix,op_p_ao(idir)%matrix,&
-            & "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="antisymmetric",&
-            & error=error)
-       CALL set_matrix(op_p_ao(idir)%matrix,0.0_dp)
+       ALLOCATE(op_p_ao(idir)%matrix)
+       CALL dbcsr_init(op_p_ao(idir)%matrix)
+       CALL dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
+            "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
     ENDDO
     !
     !
@@ -2763,9 +2732,9 @@ CONTAINS
        ! Compute the multipole integrals for the state istate,
        ! using as reference center the corresponding Wannier center
        DO idir = 1,9
-          CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
+          CALL dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp,error=error)
           DO idir2 = 1,3
-             CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
+             CALL dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp,error=error)
           ENDDO
        ENDDO
        CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
@@ -2784,7 +2753,7 @@ CONTAINS
           !
           ! term: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
           IF(.NOT.chi_pbc) THEN
-             CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,mo_coeff,&
+             CALL dbcsr_sm_fm_multiply(op_p_ao(idir)%matrix,mo_coeff,&
                   &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
              DO jdir = 1,3
                 DO kdir = 1,3
@@ -2805,7 +2774,7 @@ CONTAINS
           ! term: +dk_ii * 2[C0|(r-dk)_iiiB | d_iii(C1(piiB))] +
           !       -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
           DO jdir = 1,3
-             CALL cp_sm_fm_multiply(op_mom_der_ao(jdir,idir)%matrix,mo_coeff,&
+             CALL dbcsr_sm_fm_multiply(op_mom_der_ao(jdir,idir)%matrix,mo_coeff,&
                   &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
@@ -2845,7 +2814,7 @@ CONTAINS
           !        -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
           ! HERE THERE IS ONE EXTRA MULTIPLY
           DO jdir = 1,3
-             CALL cp_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiB),idir)%matrix,mo_coeff,&
+             CALL dbcsr_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiB),idir)%matrix,mo_coeff,&
                   &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
@@ -2853,7 +2822,7 @@ CONTAINS
                 chi(kdir) = chi(kdir) + Levi_Civita(kdir,jdir,idir) * 2.0_dp * contrib
              ENDDO
              !
-             CALL cp_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiiB),idir)%matrix,mo_coeff,&
+             CALL dbcsr_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiiB),idir)%matrix,mo_coeff,&
                   &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
@@ -2869,7 +2838,7 @@ CONTAINS
           ! and
           ! term2: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] +
           !        -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
-          CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,mo_coeff,&
+          CALL dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix,mo_coeff,&
                &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
           DO jdir = 1,3
              DO kdir = 1,3
@@ -2909,9 +2878,9 @@ CONTAINS
     ENDDO ! ispin
     !
     ! deallocate the sparse matrices
-    CALL deallocate_matrix_set(op_mom_ao,error=error)
-    CALL deallocate_matrix_set(op_mom_der_ao,error=error)
-    CALL deallocate_matrix_set(op_p_ao,error=error)
+    CALL dbcsr_deallocate_matrix_set(op_mom_ao,error=error)
+    CALL dbcsr_deallocate_matrix_set(op_mom_der_ao,error=error)
+    CALL dbcsr_deallocate_matrix_set(op_p_ao,error=error)
     CALL cp_fm_release(buf,error=error)
 
     CALL timestop(handle)

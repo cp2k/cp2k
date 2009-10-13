@@ -305,6 +305,7 @@ MODULE dbcsr_types
 !> \var data_type             'r'/'R' for single/double precision real or
 !>                            'c'/'C' for single/double precision complex data
 !> \var replication_type      multi-process replication used in the matrix
+!> \var sym_negation          negate transposition for negative block pointer
 !> \var special_memory        uses special (MPI-allocated) memory
 !> \var refcount              reference count
 !> \var work_mutable          uses the mutable data for working and not the
@@ -333,6 +334,7 @@ MODULE dbcsr_types
      INTEGER                 :: nblkrows_local, nblkcols_local
      INTEGER                 :: nfullrows_local, nfullcols_local
      CHARACTER               :: matrix_type, data_type, replication_type
+     LOGICAL                 :: sym_negation
      LOGICAL                 :: special_memory
      !TYPE(dbcsr_work_type)   :: w
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms

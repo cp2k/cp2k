@@ -17,6 +17,11 @@ MODULE rt_propagation_methods
                                              cp_cfm_release,&
                                              cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_upper_to_full
@@ -35,11 +40,11 @@ MODULE rt_propagation_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
-                                             cp_sm_fm_multiply
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
@@ -666,16 +671,26 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
                                                 matrix_struct_new
     TYPE(cp_fm_type), POINTER                :: fm_tmp, fm_tmp1, fm_tmp2
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, s_hist
+      POINTER                                :: matrix_s_sm, s_hist
 
     CALL timeset(routineN,handle)
     NULLIFY(exp_hist)
     CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,mos_new=mos_new,error=error)
     nmat=SIZE(rtp%exp_H_new)
     CALL get_qs_env(qs_env,&
-         matrix_s=matrix_s,&
+         matrix_s=matrix_s_sm,&
          error=error)
+
+    NULLIFY(matrix_s)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
+    DO i=1,SIZE(matrix_s)!sm->dbcsr
+       ALLOCATE(matrix_s(i)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_s(i)%matrix)
+       CALL dbcsr_from_sm(matrix_s(i)%matrix, matrix_s_sm(i)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     naspc=MIN(rtp%istep,aspc_order)
     CALL cite_reference(Kolafa2004)
@@ -772,8 +787,8 @@ CONTAINS
                 fm_tmp%local_data(:,icol_local)=mos_new(2*i-1)%matrix%local_data(:,icol_local)
                 fm_tmp%local_data(:,icol_local+ncol_local)=mos_new(2*i)%matrix%local_data(:,icol_local)
              END DO
-             
-             CALL cp_sm_fm_multiply(matrix_s(1)%matrix,fm_tmp,fm_tmp1,kdbl,error=error)
+
+             CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,fm_tmp,fm_tmp1,kdbl,error=error)
 
              DO icol_local=1,ncol_local
                 cfm_tmp%local_data(:,icol_local)=CMPLX(fm_tmp1%local_data(:,icol_local),&
@@ -800,6 +815,9 @@ CONTAINS
           END DO
          
        END IF
+
+       CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
+
     CALL timestop(handle)
 
   END SUBROUTINE aspc_extrapolate

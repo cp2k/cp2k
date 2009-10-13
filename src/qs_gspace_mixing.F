@@ -7,21 +7,25 @@
 MODULE qs_gspace_mixing
 
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
                                              dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply,&
                                              sm_from_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_trace,&
                                              cp_fm_upper_to_full
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
-                                             copy_sm_to_fm,&
-                                             cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_create_matrix_vect
-  USE dbcsr_operations,                ONLY: dbcsr_set
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_scale,&
+                                             dbcsr_set,&
+                                             dbcsr_trace
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
                                              invert_matrix
@@ -57,12 +61,7 @@ MODULE qs_gspace_mixing
                                              multisecant_mixing_nr,&
                                              pulay_mixing_nr,&
                                              qs_scf_env_type
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-                                             cp_sm_sm_trace,&
-                                             get_matrix_info,&
-                                             real_matrix_p_type,&
-                                             scale_matrix,&
-                                             set_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -118,14 +117,14 @@ CONTAINS
     matrix_q_sm => scf_env%p_delta
     nspin = SIZE(p_in_sm)
 
-    CALL dbcsr_allocate_matrix_set( matrix_q, nspin, error )
-    CALL dbcsr_allocate_matrix_set( p_in, nspin, error )
-    CALL dbcsr_allocate_matrix_set( p_out, nspin, error )
-    DO ispin = 1,nspin
-       ALLOCATE(matrix_q(ispin)%matrix,p_in(ispin)%matrix,p_out(ispin)%matrix)!super dirty
-       CALL dbcsr_from_sm(matrix_q(ispin)%matrix, matrix_q_sm(ispin)%matrix, error)
-       CALL dbcsr_from_sm(p_in(ispin)%matrix, p_in_sm(ispin)%matrix, error)
-       CALL dbcsr_from_sm(p_out(ispin)%matrix, p_out_sm(ispin)%matrix, error)
+    CALL dbcsr_allocate_matrix_set( matrix_q, nspin, error )!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( p_in, nspin, error )!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( p_out, nspin, error )!sm->dbcsr
+    DO ispin = 1,nspin!sm->dbcsr
+       ALLOCATE(matrix_q(ispin)%matrix,p_in(ispin)%matrix,p_out(ispin)%matrix)!super dirty!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_q(ispin)%matrix, matrix_q_sm(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(p_in(ispin)%matrix, p_in_sm(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(p_out(ispin)%matrix, p_out_sm(ispin)%matrix, error)!sm->dbcsr
     ENDDO
 
     ! Compute the difference (p_out - p_in)and check convergence
@@ -143,9 +142,9 @@ CONTAINS
             p_in_sm(ispin)%matrix%distribution_2d, error=error )
     ENDDO
 
-    CALL dbcsr_deallocate_matrix_set( matrix_q, error=error )
-    CALL dbcsr_deallocate_matrix_set( p_in, error=error )
-    CALL dbcsr_deallocate_matrix_set( p_out, error=error )
+    CALL dbcsr_deallocate_matrix_set( matrix_q, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( p_in, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( p_out, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -164,12 +163,12 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
       
-  SUBROUTINE  gspace_density_mixing(qs_env,scf_env,p_out,delta,eps_scf,diis,error)
+  SUBROUTINE  gspace_density_mixing(qs_env,scf_env,p_out_sm,delta,eps_scf,diis,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_out
+      POINTER                                :: p_out_sm
     REAL(KIND=dp), INTENT(INOUT)             :: delta
     REAL(KIND=dp), INTENT(IN)                :: eps_scf
     LOGICAL, INTENT(in)                      :: diis
@@ -186,7 +185,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g2
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_q_d, p_in_d, p_out_d
+      POINTER                                :: matrix_q, matrix_s, p_in, &
+                                                p_out
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -194,61 +194,57 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_q, matrix_s, p_in
+      POINTER                                :: matrix_q_sm, matrix_s_sm, &
+                                                p_in_sm
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(matrix_q_d,p_in_d,p_out_d)
+    NULLIFY(matrix_q,p_in,p_out)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(p_out),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(p_out_sm),cp_failure_level,routineP,error,failure)
     NULLIFY(auxbas_pw_pool, matrix_s, rho, matrix_q, p_in, para_env, pw_env)
     NULLIFY(g2, pw_grid)
 
     CALL get_qs_env(qs_env=qs_env,  &
                     dft_control=dft_control,&
-                    matrix_s=matrix_s,&
+                    matrix_s=matrix_s_sm,&
                     pw_env=pw_env,&
                     rho=rho,& 
                     para_env=para_env,&
                     error=error)
-    p_in => rho%rho_ao
-    matrix_q => scf_env%p_delta
-    nspin = SIZE(p_in)
-    CALL get_matrix_info(matrix= rho%rho_ao(1)%matrix, nrow=nao)
+    p_in_sm => rho%rho_ao
+    matrix_q_sm => scf_env%p_delta
 
 
-    CALL dbcsr_allocate_matrix_set( matrix_q_d, nspin, error )
-    CALL dbcsr_allocate_matrix_set( p_in_d, nspin, error )
-    CALL dbcsr_allocate_matrix_set( p_out_d, nspin, error )
-    DO ispin = 1,nspin
-       ALLOCATE(matrix_q_d(ispin)%matrix,p_in_d(ispin)%matrix,p_out_d(ispin)%matrix)!super dirty
-       CALL dbcsr_from_sm(matrix_q_d(ispin)%matrix, matrix_q(ispin)%matrix, error)
-       CALL dbcsr_from_sm(p_in_d(ispin)%matrix, p_in(ispin)%matrix, error)
-       CALL dbcsr_from_sm(p_out_d(ispin)%matrix, p_out(ispin)%matrix, error)
+    CALL dbcsr_allocate_matrix_set( matrix_q, SIZE(matrix_q), error )!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( p_in, SIZE(matrix_q), error )!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( p_out, SIZE(matrix_q), error )!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_q), error )!sm->dbcsr
+    DO ispin = 1,SIZE(matrix_q)!sm->dbcsr
+       ALLOCATE(matrix_q(ispin)%matrix,p_in(ispin)%matrix,p_out(ispin)%matrix,&
+            matrix_s(ispin)%matrix)!super dirty!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_q(ispin)%matrix, matrix_q_sm(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(p_in(ispin)%matrix, p_in_sm(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(p_out(ispin)%matrix, p_out_sm(ispin)%matrix, error)!sm->dbcsr
     ENDDO
+
+    nspin = SIZE(p_in)
+
+    CALL dbcsr_get_info(matrix= p_in(1)%matrix, nfullrows_total=nao)
 
     ! Compute the difference (p_out - p_in)and check convergence
     delta = 0.0_dp
     DO ispin = 1,nspin
-       CALL dbcsr_set(matrix_q_d(ispin)%matrix, 0.0_dp,error=error)
+       CALL dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp,error=error)
  !      CALL cp_sm_mix(m1=p_in(ispin)%matrix,m2=p_out(ispin)%matrix,&
-       CALL cp_sm_mix(m1=p_out_d(ispin)%matrix,m2=p_in_d(ispin)%matrix,&
+       CALL cp_sm_mix(m1=p_out(ispin)%matrix,m2=p_in(ispin)%matrix,&
             p_mix=1.0_dp,delta=tmp, para_env=para_env,&
-            m3=matrix_q_d(ispin)%matrix,error=error)
+            m3=matrix_q(ispin)%matrix,error=error)
       delta = MAX(tmp,delta)
     END DO
-
-    DO ispin = 1,nspin
-       CALL sm_from_dbcsr ( matrix_q(ispin)%matrix, matrix_q_d(ispin)%matrix, &
-            p_in(ispin)%matrix%distribution_2d, error=error )
-    ENDDO
-
-    CALL dbcsr_deallocate_matrix_set( matrix_q_d, error=error )
-    CALL dbcsr_deallocate_matrix_set( p_in_d, error=error )
-    CALL dbcsr_deallocate_matrix_set( p_out_d, error=error )
-
 
     ! For the moment skip the density matrix mixing in g-space
     ! In its place, Matthias method of mixing only the potential is restored
@@ -296,7 +292,7 @@ CONTAINS
        
        CALL pw_scale ( kerker_pot_rspace%pw, pw_grid%dvol, error=error)
 
-       CALL set_matrix(matrix_q(ispin)%matrix, 0.0_dp)
+       CALL dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp,error=error)
        CALL integrate_v_rspace(v_rspace=kerker_pot_rspace, &
             h=matrix_q(ispin), qs_env=qs_env,&
             calculate_forces =.FALSE., gapw=gapw, error=error)
@@ -304,19 +300,18 @@ CONTAINS
        ! Impose Tr[S^-1 Q S^-1 S] = 0, i.e. the correction to P_out
        ! should not change the total number of electrons 
     IF(.FALSE.) THEN
-       CALL copy_sm_to_fm(matrix_q(ispin)%matrix,scf_env%scf_work2,error=error)
+       CALL copy_dbcsr_to_fm(matrix_q(ispin)%matrix,scf_env%scf_work2)
        CALL cp_fm_upper_to_full(scf_env%scf_work2,scf_env%scf_work1(ispin)%matrix,error=error) 
        CALL cp_fm_trace(scf_env%s_minus_one,scf_env%scf_work2,trace,error=error)
        trace = -trace / REAL(nao)
-       CALL cp_sm_scale_and_add(matrix_a=matrix_q(ispin)%matrix,alpha=1.0_dp,&
-                                matrix_b=matrix_s(1)%matrix,beta=trace,error=error)
+       CALL dbcsr_add(matrix_a=matrix_q(ispin)%matrix,matrix_b=matrix_s(1)%matrix,&
+            alpha_scalar=1.0_dp,beta_scalar=trace,error=error)
     END IF
 
-!       CALL cp_sm_sm_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, para_env, error)
-       CALL cp_sm_sm_trace(p_in(ispin)%matrix,matrix_s(1)%matrix,trace, para_env, error)
+       CALL dbcsr_trace(p_in(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
        t1 = trace
  
-       CALL cp_sm_fm_multiply(matrix_q(ispin)%matrix,scf_env%s_minus_one,&
+       CALL dbcsr_sm_fm_multiply(matrix_q(ispin)%matrix,scf_env%s_minus_one,&
             scf_env%scf_work2, nao,error=error)
        CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,scf_env%s_minus_one,&
             scf_env%scf_work2,0.0_dp,scf_env%scf_work1(ispin)%matrix,error=error )
@@ -326,16 +321,31 @@ CONTAINS
 !            p_out(ispin)%matrix,a_mix,1.0_dp)
 
        a_mix = scf_env%p_mix_alpha
-       CALL copy_fm_to_sm(scf_env%scf_work1(ispin)%matrix,&
+       CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
             p_out(ispin)%matrix,a_mix,0.0_dp)
-       CALL cp_sm_scale_and_add(p_out(ispin)%matrix,1.0_dp,p_in(ispin)%matrix,1.0_dp,error)
-       CALL cp_sm_sm_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, para_env, error)
+       CALL dbcsr_add(p_out(ispin)%matrix,p_in(ispin)%matrix,&
+            alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+       CALL dbcsr_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, error=error)
        t2 =t1/ trace
-       CALL scale_matrix(p_out(ispin)%matrix,t2)
+       CALL dbcsr_scale(p_out(ispin)%matrix,t2,error=error)
        
     END DO  !ispin
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhog%pw,error=error)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,kerker_pot_rspace%pw,error=error)
+
+
+    DO ispin = 1,nspin!sm->dbcsr
+       CALL sm_from_dbcsr ( matrix_q_sm(ispin)%matrix, matrix_q(ispin)%matrix, &!sm->dbcsr
+            matrix_q(ispin)%matrix%m%dist2d, error=error )!sm->dbcsr
+       CALL sm_from_dbcsr ( p_out_sm(ispin)%matrix, p_out(ispin)%matrix, &!sm->dbcsr
+            matrix_q(ispin)%matrix%m%dist2d, error=error )!sm->dbcsr
+       CALL sm_from_dbcsr ( p_in_sm(ispin)%matrix, p_in(ispin)%matrix, &!sm->dbcsr
+            matrix_q(ispin)%matrix%m%dist2d, error=error )!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_q, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( p_in, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( p_out, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

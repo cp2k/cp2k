@@ -11,7 +11,13 @@
 ! *****************************************************************************
 MODULE harris_functional
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE f77_blas
   USE harris_energy_types,             ONLY: harris_energy_type
   USE harris_env_types,                ONLY: harris_env_get,&
@@ -33,15 +39,13 @@ MODULE harris_functional
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_vxc_create
-!calc_rho_tot_gspace
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_methods,                  ONLY: duplicate_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE sparse_matrix_types,             ONLY: cp_sm_sm_trace,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -306,11 +310,13 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, rho_ao
+      POINTER                                :: matrix_ks_sm, rho_ao_sm
 
 !   ------------------------------------------------------------------------
 
@@ -327,19 +333,38 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
-      CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, matrix_ks=matrix_ks, &
+      CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, matrix_ks=matrix_ks_sm, &
                       para_env=para_env, error=error)
-      CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, error=error)
+      CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao_sm, error=error)
+
+    NULLIFY(matrix_ks)
+    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_ks(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(rho_ao)
+    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
+       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(rho_ao(ispin)%matrix)
+       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
 
       nspins = dft_control%nspins
       DO ispin = 1,nspins
-        CALL cp_sm_sm_trace(matrix_ks(ispin)%matrix, rho_ao(ispin)%matrix, &
-                            trace=harris_energy%sum_of_eigenvalues, &
-                            para_env=para_env, error=error)
+        CALL dbcsr_trace(matrix_ks(ispin)%matrix, rho_ao(ispin)%matrix, &
+                         trace=harris_energy%sum_of_eigenvalues, error=error)
       END DO
 
       harris_energy%Eharris = harris_energy%sum_of_eigenvalues &
                             + harris_energy%Eharris_correction
+
+    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
     END IF
 
@@ -375,10 +400,12 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, p_mix_new
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
+      POINTER                                :: matrix_ks_sm
 
 !   ------------------------------------------------------------------------
 
@@ -397,18 +424,38 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks, &
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks_sm, &
                       para_env=para_env, error=error)
+
+
+    NULLIFY(matrix_ks)
+    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_ks(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(p_mix_new)
+    CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(scf_env%p_mix_new), error )!sm->dbcsr
+    DO ispin=1,SIZE(p_mix_new)!sm->dbcsr
+       ALLOCATE(p_mix_new(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(p_mix_new(ispin)%matrix)
+       CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
       nspins = dft_control%nspins
       DO ispin = 1,nspins
-        CALL cp_sm_sm_trace(matrix_ks(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
+        CALL dbcsr_trace(matrix_ks(ispin)%matrix, p_mix_new(ispin)%matrix, &
                             trace=harris_energy%sum_of_eigenvalues, &
-                            para_env=para_env, error=error)
+                            error=error)
       END DO
 
       harris_energy%Eharris = harris_energy%sum_of_eigenvalues + &
                               harris_energy%Eharris_correction
+
+CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
+CALL dbcsr_deallocate_matrix_set( p_mix_new, error=error )!sm->dbcsr
 
     END IF
 

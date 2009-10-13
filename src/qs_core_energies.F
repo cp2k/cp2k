@@ -19,10 +19,20 @@ MODULE qs_core_energies
                                              plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
+  USE dbcsr_methods,                   ONLY: dbcsr_init,&
+                                             dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
+                                             dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
@@ -42,12 +52,7 @@ MODULE qs_core_energies
                                              deallocate_subcell,&
                                              local_atoms_type,&
                                              subcell_type
-  USE sparse_matrix_types,             ONLY: first_block_node,&
-                                             get_block_node,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -82,48 +87,47 @@ CONTAINS
 !>           structure (27.06.2003,MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE calculate_ecore(h,p,ecore,para_env)
+  SUBROUTINE calculate_ecore(h_sm,p_sm,ecore,para_env,error)
 
-    TYPE(real_matrix_type), POINTER          :: h, p
+    TYPE(real_matrix_type), POINTER          :: h_sm, p_sm
     REAL(KIND=dp), INTENT(OUT)               :: ecore
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iblock_col, &
-                                                iblock_row, j, jblock_col, &
-                                                nblock_row
+    INTEGER                                  :: blk, handle, i, iblock_col, &
+                                                iblock_row, j
+    LOGICAL                                  :: tr
     REAL(KIND=dp)                            :: ecore_block
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
-    TYPE(real_block_node_type), POINTER      :: h_block_node, p_block_node
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj), POINTER                 :: h, p
 
     CALL timeset(routineN,handle)
     ecore = 0.0_dp
-    CALL get_matrix_info(matrix=h,nblock_row=nblock_row)
 
-    DO iblock_row=1,nblock_row
+    ALLOCATE(h)!sm->dbcsr
+    CALL dbcsr_init(h)!sm->dbcsr
+    CALL dbcsr_from_sm(h, h_sm, error)!sm->dbcsr
 
-      h_block_node => first_block_node(matrix=h,block_row=iblock_row)
-      p_block_node => first_block_node(matrix=p,block_row=iblock_row)
+    ALLOCATE(p)!sm->dbcsr
+    CALL dbcsr_init(p)!sm->dbcsr
+    CALL dbcsr_from_sm(p, p_sm, error)!sm->dbcsr
 
-      DO WHILE (ASSOCIATED(h_block_node))
+    CALL dbcsr_iterator_start(iter, h)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, h_block, tr, blk)
 
-        CALL get_block_node(block_node=h_block_node,&
-                            block_col=iblock_col,&
-                            block=h_block)
-
-        CALL get_block_node(block_node=p_block_node,&
-                            block_col=jblock_col,&
-                            block=p_block)
-
-        IF (jblock_col /= iblock_col) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "The matrix structures of the core Hamiltonian "//&
-                            "and the density matrix does not match.")
-        END IF
-
-        ecore_block = 0.0_dp
+       CALL dbcsr_get_block_node(matrix=p,&
+                                 block_row=iblock_row,&
+                                 block_col=iblock_col,&
+                                 BLOCK=p_block)
+       IF ( .NOT. ASSOCIATED ( p_block ) ) THEN
+          CALL stop_program ( routineN, "Matrix block not found" )
+       ENDIF
+       ecore_block = 0.0_dp
 
         DO j=1,SIZE(h_block,2)
           DO i=1,SIZE(h_block,1)
@@ -137,14 +141,13 @@ CONTAINS
           ecore = ecore + 2.0_dp*ecore_block
         END IF
 
-        h_block_node => next_block_node(h_block_node)
-        p_block_node => next_block_node(p_block_node)
-
-      END DO
-
-    END DO
+     ENDDO
+     CALL dbcsr_iterator_stop(iter)
 
     CALL mp_sum(ecore,para_env%group)
+
+    CALL dbcsr_deallocate_matrix( h, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix( p, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

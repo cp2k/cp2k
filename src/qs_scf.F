@@ -42,6 +42,8 @@ MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_power
@@ -69,6 +71,8 @@ MODULE qs_scf
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
@@ -177,7 +181,6 @@ MODULE qs_scf
   USE sparse_matrix_output,            ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type,&
                                              transfer_matrix
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
@@ -414,6 +417,7 @@ CONTAINS
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -427,7 +431,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
-    TYPE(real_matrix_type), POINTER          :: ks_scp, pscp
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, harris_section, &
@@ -636,14 +639,14 @@ CONTAINS
              IF(do_std_diag .AND.&
                 (scf_env%iter_count==1 .OR. scf_env%iter_delta>scf_env%krylov_space%eps_std_diag)) THEN
                 IF(scf_env%krylov_space%always_check_conv) THEN
-                   CALL do_block_krylov_diag(scf_env,mos,matrix_ks,matrix_s,&
+                   CALL do_block_krylov_diag(scf_env,mos,matrix_ks,&
                                      scf_control, scf_section, check_moconv_only=.TRUE., error=error)
                 END IF
                 CALL do_general_diag(scf_env,mos,matrix_ks,&
                                                  matrix_s,scf_control,scf_section, &
                                                  diis_step,use_jacobi,error)
              ELSE
-               CALL do_block_krylov_diag(scf_env,mos,matrix_ks,matrix_s, &
+               CALL do_block_krylov_diag(scf_env,mos,matrix_ks, &
                                          scf_control, scf_section, error=error)
              END IF
           CASE(ot_method_nr)
@@ -931,8 +934,7 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: pscp, fscp
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp
     LOGICAL, INTENT(INOUT)                   :: energy_only
     LOGICAL, INTENT(IN)                      :: has_unit_metric
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -941,15 +943,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    TYPE(real_matrix_type), POINTER          :: orthogonality_metric
+    TYPE(dbcsr_obj), POINTER                 :: orthogonality_metric
 
     CALL timeset(routineN,handle)
-
 
     IF (has_unit_metric) THEN
       NULLIFY(orthogonality_metric)
     ELSE
-      orthogonality_metric=>matrix_s(1)%matrix
+       ALLOCATE(orthogonality_metric)!sm->dbcsr
+       CALL dbcsr_init(orthogonality_metric)!sm->dbcsr
+       CALL dbcsr_from_sm(orthogonality_metric, matrix_s(1)%matrix, error)!sm->dbcsr
+       !orthogonality_metric=>matrix_s(1)%matrix
     END IF
 
     ! in case of LSD the first spin qs_ot_env will drive the minimization
@@ -973,6 +977,10 @@ CONTAINS
 
     scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
     scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
+
+    IF (.NOT.has_unit_metric) THEN!sm->dbcsr
+       CALL dbcsr_deallocate_matrix( orthogonality_metric, error=error )!sm->dbcsr
+    END IF!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -1279,13 +1287,13 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: ks_scp, orthogonality_metric, &
+                                                pscp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
-    TYPE(real_matrix_type), POINTER          :: ks_scp, orthogonality_metric, &
-                                                pscp
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
 
@@ -1536,9 +1544,11 @@ CPSourceFileRef)
           IF (has_unit_metric) THEN
              NULLIFY(orthogonality_metric)
           ELSE
-             orthogonality_metric=>matrix_s(1)%matrix
+             ALLOCATE(orthogonality_metric)!sm->dbcsr
+             CALL dbcsr_init(orthogonality_metric)!sm->dbcsr
+             CALL dbcsr_from_sm(orthogonality_metric, matrix_s(1)%matrix, error)!sm->dbcsr
+             !orthogonality_metric=>matrix_s(1)%matrix
           ENDIF
-
           IF(semi .OR. dftb) THEN
              ! we have to treat the semi-empirical methods separately
              SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
@@ -1558,7 +1568,7 @@ CPSourceFileRef)
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                           scf_env%qs_ot_env(1)%settings%precond_solver_type, &
-                          matrix_h=matrix_ks(ispin)%matrix, &
+                          matrix_h_sm=matrix_ks(ispin)%matrix, &
                           mo_coeff=mo_coeff, &
                           energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
                           error=error)
@@ -1566,9 +1576,9 @@ CPSourceFileRef)
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                           scf_env%qs_ot_env(1)%settings%precond_solver_type, &
-                          matrix_h=matrix_ks(ispin)%matrix, &
-                          matrix_s=matrix_s(1)%matrix, &
-                          matrix_t=matrix_s(1)%matrix, &
+                          matrix_h_sm=matrix_ks(ispin)%matrix, &
+                          matrix_s_sm=matrix_s(1)%matrix, &
+                          matrix_t_sm=matrix_s(1)%matrix, &
                           mo_coeff=mo_coeff,&
                           energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
                           error=error)
@@ -1639,6 +1649,7 @@ CPSourceFileRef)
                         qs_ot_env = scf_env%qs_ot_env,error=error)
                 END IF
              END SELECT
+
           ELSE
              SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
              CASE(ot_precond_none)
@@ -1717,6 +1728,11 @@ CPSourceFileRef)
                 ENDDO
              END SELECT
           END IF
+
+             IF (.NOT.has_unit_metric) THEN!sm->dbcsr
+                CALL dbcsr_deallocate_matrix( orthogonality_metric, error=error )!sm->dbcsr
+             END IF!sm->dbcsr
+
        ENDIF
 
        ! if we have non-uniform occupations we should be using rotation

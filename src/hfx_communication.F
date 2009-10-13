@@ -12,7 +12,20 @@
 MODULE hfx_communication 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init,&
+                                             dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
+                                             dbcsr_obj
   USE f77_blas
   USE hfx_types,                       ONLY: hfx_2D_map,&
                                              hfx_basis_type,&
@@ -29,12 +42,7 @@ MODULE hfx_communication
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE sparse_matrix_types,             ONLY: first_block_node,&
-                                             get_block_node,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -79,7 +87,7 @@ MODULE hfx_communication
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:), POINTER          :: full_density
-    TYPE(real_matrix_type), POINTER          :: rho
+    TYPE(dbcsr_obj), POINTER                 :: rho
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
     INTEGER, DIMENSION(:), POINTER           :: block_offset
@@ -89,23 +97,22 @@ MODULE hfx_communication
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     LOGICAL, INTENT(IN)                      :: get_max_vals_spin
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: rho_beta
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: rho_beta
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_full_density', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: block_size, data_from, dest, i, iatom, icpu, ikind, iset, &
+    INTEGER :: blk, block_size, data_from, dest, i, iatom, icpu, ikind, iset, &
       istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, &
       req(2), source, source_cpu
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, tr
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, &
                                                 sparse_block_beta
-    TYPE(real_block_node_type), POINTER      :: block_node, block_node_beta
+    TYPE(dbcsr_iterator)                     :: iter
 
     failure = .FALSE.
 
@@ -116,21 +123,19 @@ MODULE hfx_communication
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     i=1
-    DO iatom=1,rho%nblock_row
-      block_node => first_block_node(rho,iatom)
+    CALL dbcsr_iterator_start(iter, rho)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+
       ikind = kind_of(iatom)
       nseta = basis_parameter(ikind)%nset
       nsgfa => basis_parameter(ikind)%nsgf
-      IF (get_max_vals_spin ) block_node_beta => first_block_node(rho_beta,iatom)
-      DO WHILE (ASSOCIATED(block_node))
-        CALL get_block_node(block_node=block_node,&
-                            block_col=jatom,&
-                            BLOCK=sparse_block)
         jkind = kind_of(jatom)
         nsetb = basis_parameter(jkind)%nset
         nsgfb => basis_parameter(jkind)%nsgf
         IF( get_max_vals_spin ) THEN
-          CALL get_block_node(block_node=block_node_beta,&
+          CALL dbcsr_get_block_node(rho_beta,&
+                              block_row=iatom,&
                               block_col=jatom,&
                               BLOCK=sparse_block_beta)
           pa = 0
@@ -147,8 +152,6 @@ MODULE hfx_communication
             END DO
             pa = pa + nsgfa(iset)
           END DO
-          block_node => next_block_node(block_node)
-          block_node_beta => next_block_node(block_node_beta)
         ELSE
           pa = 0
           DO iset = 1,nseta
@@ -164,10 +167,9 @@ MODULE hfx_communication
             END DO
             pa = pa + nsgfa(iset)
           END DO
-          block_node => next_block_node(block_node)
         END IF
-      END DO
     END DO
+    CALL dbcsr_iterator_stop(iter)
 
     ! sync before/after a ring of isendrecv
     CALL mp_sync(para_env%group)
@@ -223,7 +225,7 @@ MODULE hfx_communication
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:)                   :: full_ks
-    TYPE(real_matrix_type), POINTER          :: ks_matrix
+    TYPE(dbcsr_obj), POINTER                 :: ks_matrix
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block
     INTEGER, DIMENSION(:), POINTER           :: block_offset
@@ -238,16 +240,16 @@ MODULE hfx_communication
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: block_size, data_to, dest, dest_cpu, i, iatom, icpu, ikind, &
-      iset, istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, &
-      pb, pb1, req(2), source
+    INTEGER :: blk, block_size, data_to, dest, dest_cpu, i, iatom, icpu, &
+      ikind, iset, istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, &
+      pa1, pb, pb1, req(2), source
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, tr
     REAL(dp)                                 :: my_fac
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
-    TYPE(real_block_node_type), POINTER      :: block_node
+    TYPE(dbcsr_iterator)                     :: iter
 
     my_fac = 1.0_dp
     IF( PRESENT( off_diag_fac ) ) my_fac = off_diag_fac
@@ -285,15 +287,13 @@ MODULE hfx_communication
     CALL mp_sync(para_env%group)
 
     i = 1
-    DO iatom=1,ks_matrix%nblock_row
+    CALL dbcsr_iterator_start(iter, ks_matrix)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+
       ikind = kind_of(iatom)
       nseta = basis_parameter(ikind)%nset
       nsgfa => basis_parameter(ikind)%nsgf
-      block_node => first_block_node(ks_matrix,iatom)
-      DO WHILE (ASSOCIATED(block_node))
-        CALL get_block_node(block_node=block_node,&
-                            block_col=jatom,&
-                            BLOCK=sparse_block)
         jkind = kind_of(jatom)
         nsetb = basis_parameter(jkind)%nset
         nsgfb => basis_parameter(jkind)%nsgf
@@ -315,9 +315,8 @@ MODULE hfx_communication
           END DO
           pa = pa + nsgfa(iset)
         END DO
-        block_node => next_block_node(block_node)
-      END DO
     END DO
+    CALL dbcsr_iterator_stop(iter)
 
     DEALLOCATE(sendbuffer, recbuffer, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -344,13 +343,13 @@ MODULE hfx_communication
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
+  SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix_sm, irep ,&
                                              scaling_factor, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+      POINTER                                :: ks_matrix_sm
     INTEGER, INTENT(IN)                      :: irep
     REAL(dp), INTENT(IN)                     :: scaling_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -359,13 +358,15 @@ MODULE hfx_communication
       routineN = 'scale_and_add_fock_to_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ikind, istat, natom, &
-                                                nspins, stat
+    INTEGER                                  :: iatom, ii, ikind, istat, &
+                                                natom, nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: full_ks
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_type), POINTER                  :: actual_x_data
@@ -373,6 +374,14 @@ MODULE hfx_communication
       POINTER                                :: particle_set
 
 !! All shared data is saved in i_thread = 1!
+
+    NULLIFY(ks_matrix)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( ks_matrix, SIZE(ks_matrix_sm), error )!sm->dbcsr
+    DO ii=1,SIZE(ks_matrix)!sm->dbcsr
+       ALLOCATE(ks_matrix(ii)%matrix)!sm->dbcsr
+       CALL dbcsr_init(ks_matrix(ii)%matrix)
+       CALL dbcsr_from_sm(ks_matrix(ii)%matrix, ks_matrix_sm(ii)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     actual_x_data => qs_env%x_data(irep, 1)
     basis_parameter => actual_x_data%basis_parameter
@@ -425,6 +434,13 @@ MODULE hfx_communication
     DEALLOCATE(kind_of, last_sgf_global, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+
+    DO ii=1,SIZE(ks_matrix)!sm->dbcsr
+       CALL sm_from_dbcsr ( ks_matrix_sm(ii)%matrix, ks_matrix(ii)%matrix, &!sm->dbcsr
+            ks_matrix(ii)%matrix%m%dist2d, error=error )!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( ks_matrix, error=error )!sm->dbcsr
+
   END SUBROUTINE scale_and_add_fock_to_ks_matrix 
 
 ! *****************************************************************************
@@ -466,7 +482,7 @@ MODULE hfx_communication
                                    para_env,atomic_block_offset, set_offset, &
                                    block_offset, map_atoms_to_cpus, nkind, error)
 
-    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(hfx_basis_type), DIMENSION(:)       :: basis_parameter
     INTEGER, DIMENSION(:)                    :: kind_of
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: is_assoc_atomic_block
@@ -482,16 +498,16 @@ MODULE hfx_communication
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atomic_block_maps', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, ibuf, icpu, ikind, ilist, iset, itask, jatom, &
-      jkind, jset, natom, ncpu, nseta, nsetb, number_of_p_blocks, offset, &
-      stat, tmp(2)
+    INTEGER :: blk, handle, iatom, ibuf, icpu, ikind, ilist, iset, itask, &
+      jatom, jkind, jset, natom, ncpu, nseta, nsetb, number_of_p_blocks, &
+      offset, stat, tmp(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buffer_in, buffer_out, &
                                                 counter, rcount, rdispl
     INTEGER, DIMENSION(:), POINTER           :: iatom_list, jatom_list, &
                                                 nsgfa, nsgfb
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
-    TYPE(real_block_node_type), POINTER      :: block_node
+    TYPE(dbcsr_iterator)                     :: iter
 
     failure=.FALSE.
 
@@ -504,20 +520,17 @@ MODULE hfx_communication
     !
     ! count number_of_p_blocks and number_of_p_entries
     !
-    DO iatom=1,matrix%nblock_row
-      block_node => first_block_node(matrix,iatom)
-      ikind = kind_of(iatom)
-      DO WHILE (ASSOCIATED(block_node))
-        CALL get_block_node(block_node=block_node,&
-                            block_col=jatom,&
-                            BLOCK=sparse_block)
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+       ikind = kind_of(iatom)
         jkind = kind_of(jatom)
         number_of_p_blocks = number_of_p_blocks + 1
         number_of_p_entries =  number_of_p_entries + &
               basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
-        block_node => next_block_node(block_node)
-      END DO
     END DO
+    CALL dbcsr_iterator_stop(iter)
+
     tmp=(/number_of_p_entries,number_of_p_blocks/)
     CALL mp_max(tmp, para_env%group)
     number_of_p_entries=tmp(1)
@@ -536,21 +549,16 @@ MODULE hfx_communication
     buffer_in=0
     ibuf=0
 
-    DO iatom=1,matrix%nblock_row
-      block_node => first_block_node(matrix,iatom)
-      DO WHILE (ASSOCIATED(block_node))
-        CALL get_block_node(block_node=block_node,&
-                            block_col=jatom,&
-                            BLOCK=sparse_block)
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
 
         buffer_in(ibuf+1)=iatom
         buffer_in(ibuf+2)=jatom
         buffer_in(ibuf+3)=para_env%mepos + 1
         ibuf=ibuf+3
-
-        block_node => next_block_node(block_node)
-      END DO
     END DO
+    CALL dbcsr_iterator_stop(iter)
 
     rcount=SIZE(buffer_in)
     rdispl(1)=0

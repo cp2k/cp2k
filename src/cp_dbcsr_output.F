@@ -4,93 +4,116 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Some output routines for sparse matrices
-!> \par History
-!>      JGH: outsourced to this routine from qs_overlap
-!> \author Matthias Krack (03.09.2001,25.06.2003)
+!> \brief   DBCSR output in CP2K
+!> \author  VW
+!> \date    2009-09-09
+!> \version 0.1
+!>
+!> <b>Modification history:</b>
+!> - Created 2009-09-09
 ! *****************************************************************************
-MODULE sparse_matrix_output
-
+MODULE cp_dbcsr_output
+  USE array_types,                     ONLY: array_data
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_get_submatrix,&
-                                             cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
+  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
+                                             dbcsr_get_info,&
+                                             dbcsr_get_matrix_type,&
+                                             dbcsr_get_num_blocks,&
+                                             dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
+                                             dbcsr_obj,&
+                                             dbcsr_type_antisymmetric,&
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_symmetric
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix
-  USE message_passing,                 ONLY: mp_sum,&
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum,&
                                              mp_sync
   USE orbital_pointers,                ONLY: nso
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE sparse_matrix_types,             ONLY: copy_local_sm_to_replicated_fm,&
-                                             get_matrix_info,&
-                                             real_matrix_type
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_output'
+
+  PUBLIC :: dbcsr_write_sparse_matrix
+  PUBLIC :: dbcsr_write_matrix_distribution
+
   PRIVATE
-
-  ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sparse_matrix_output'
-
-  ! *** Public subroutines ***
-  PUBLIC :: write_fm_with_basis_info,&
-            write_sparse_matrix
 
 CONTAINS
 
-! *****************************************************************************
-!> \brief Print a spherical matrix of blacs type. 
-!> \author Creation (12.06.2001,MK)
-!>       Allow for printing of a sub-matrix (01.07.2003,MK)
-! *****************************************************************************
-  SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,para_env,&
-       first_row,last_row,first_col,last_col,output_unit,error)
+  SUBROUTINE dbcsr_write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
+                                      first_row,last_row,first_col,last_col,scale,&
+                                       output_unit,error)
 
-    TYPE(cp_fm_type), POINTER                :: blacs_matrix
+    TYPE(dbcsr_obj), POINTER                 :: sparse_matrix
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
+    REAL(dp), INTENT(IN), OPTIONAL           :: scale
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_fm_with_basis_info', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_write_sparse_matrix', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=60)                        :: matrix_name
-    INTEGER                                  :: col1, col2, group, &
-                                                ncol_global, nrow_global, &
-                                                nsgf, row1, row2, stat
-    LOGICAL                                  :: failure
+    CHARACTER(LEN=80)                        :: matrix_name
+    INTEGER                                  :: col1, col2, dim_col, dim_row, &
+                                                group, row1, row2, stat
+    LOGICAL                                  :: failure, print_sym
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
 
     failure = .FALSE.
     group = para_env%group
-    IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
-    CALL cp_fm_get_info(blacs_matrix,name=matrix_name,nrow_global=nrow_global,&
-         ncol_global=ncol_global,error=error)
 
-    ALLOCATE(matrix(nrow_global,ncol_global),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_fm_get_submatrix(blacs_matrix,matrix,error=error)
+    NULLIFY (matrix)
+
+    CALL copy_repl_dbcsr_to_repl_fm(sparse_matrix,matrix,error)
+
+    SELECT CASE(dbcsr_get_matrix_type(sparse_matrix))
+    CASE(dbcsr_type_symmetric)
+       CALL symmetrize_matrix(matrix,"upper_to_lower")
+       print_sym = .TRUE.
+    CASE(dbcsr_type_antisymmetric)
+       CALL symmetrize_matrix(matrix,"anti_upper_to_lower")
+       print_sym = .TRUE.
+    CASE(dbcsr_type_normal)
+       print_sym = .FALSE.
+    CASE DEFAULT
+       CALL stop_program(routineN,"WRONG")
+    END SELECT
 
     ! *** Get the matrix dimension and check the optional arguments ***
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+    dim_row = SIZE(matrix,1)
+    dim_col = SIZE(matrix,2)
 
     IF (PRESENT(first_row)) THEN
       row1 = MAX(1,first_row)
@@ -99,9 +122,9 @@ CONTAINS
     END IF
 
     IF (PRESENT(last_row)) THEN
-      row2 = MIN(nsgf,last_row)
+      row2 = MIN(dim_row,last_row)
     ELSE
-      row2 = nsgf
+      row2 = dim_row
     END IF
 
     IF (PRESENT(first_col)) THEN
@@ -111,21 +134,99 @@ CONTAINS
     END IF
 
     IF (PRESENT(last_col)) THEN
-      col2 = MIN(nsgf,last_col)
+      col2 = MIN(dim_col,last_col)
     ELSE
-      col2 = nsgf
+      col2 = dim_col
     END IF
 
-    CALL write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
-         row1,row2,col1,col2,output_unit,error=error)
+    IF (PRESENT(scale)) THEN
+      matrix=matrix*scale
+    END IF
 
-    ! *** Release work storage ***
+    IF (print_sym) THEN
+       CALL write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
+            row1,row2,col1,col2, output_unit,error=error)
+    ELSE
+       CALL write_matrix_gen(matrix,matrix_name,before,after,para_env,&
+            row1,row2,col1,col2, output_unit,error=error)
+    END IF
+
     IF (ASSOCIATED(matrix)) THEN
        DEALLOCATE (matrix,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
-  END SUBROUTINE write_fm_with_basis_info
+
+  END SUBROUTINE dbcsr_write_sparse_matrix
+
+  SUBROUTINE copy_repl_dbcsr_to_repl_fm(sparse_matrix,fm,error)
+
+    TYPE(dbcsr_obj), POINTER                 :: sparse_matrix
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'copy_repl_dbcsr_to_repl_fm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, handle, i, istat, &
+                                                j, nblkcols_total, &
+                                                nblkrows_total, nc, nr, row
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_offset, r_offset
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: failure, tr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
+    TYPE(dbcsr_iterator)                     :: iter
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+    IF (ASSOCIATED(fm)) DEALLOCATE (fm)
+
+    CALL dbcsr_get_info(matrix=sparse_matrix,&
+                        nblkrows_total=nblkrows_total,&
+                        nblkcols_total=nblkcols_total)
+
+    col_blk_size => array_data (sparse_matrix%m%col_blk_size)
+    row_blk_size => array_data (sparse_matrix%m%row_blk_size)
+
+    !> this should be precomputed somewhere else
+    ALLOCATE(r_offset(nblkrows_total),c_offset(nblkcols_total),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    r_offset(1) = 1
+    DO row = 2,nblkrows_total
+       r_offset(row) = r_offset(row-1) + row_blk_size(row-1)
+    ENDDO
+    nr = SUM(row_blk_size)
+    c_offset(1) = 1
+    DO col = 2,nblkcols_total
+       c_offset(col) = c_offset(col-1) + col_blk_size(col-1)
+    ENDDO
+    nc = SUM(col_blk_size)
+    !<
+
+    ALLOCATE (fm(nr,nc),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    fm(:,:) = 0.0_dp
+
+    CALL dbcsr_iterator_start(iter, sparse_matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, DATA, tr, blk)
+       DO j=1,SIZE(DATA,2)
+       DO i=1,SIZE(DATA,1)
+          fm(r_offset(row)+i-1,c_offset(col)+j-1) = DATA(i,j)
+       ENDDO
+       ENDDO
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+
+    DEALLOCATE(r_offset,c_offset,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE copy_repl_dbcsr_to_repl_fm
 
 ! *****************************************************************************
 !> \brief Write a matrix or a sub-matrix to the output unit (symmetric)
@@ -255,7 +356,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      
+
       WRITE (UNIT=output_unit,FMT="(/)")
       DEALLOCATE (first_sgf,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -335,7 +436,7 @@ CONTAINS
                  irow,(matrix(irow,jcol),jcol=from,to)
          END DO
       END DO
-      
+
       WRITE (UNIT=output_unit,FMT="(/)")
     END IF
 
@@ -344,105 +445,132 @@ CONTAINS
 
   END SUBROUTINE write_matrix_gen
 
-! *****************************************************************************
-!> \brief Print a spherical matrix of sparse_matrix_type.
-!> \author Creation (07.06.2000,MK)
-!>      Allow for printing of a sub-matrix (01.07.2003,MK)
-! *****************************************************************************
-  SUBROUTINE write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
-                                 first_row,last_row,first_col,last_col,scale,&
-                                 output_unit,error)
 
-    TYPE(real_matrix_type), POINTER          :: sparse_matrix
-    INTEGER, INTENT(IN)                      :: before, after
-    TYPE(qs_environment_type), POINTER       :: qs_env
+! *****************************************************************************
+!> \brief Print the distribution of a sparse matrix.
+!> \par History
+!>      Creation (25.06.2003,MK)
+! *****************************************************************************
+  SUBROUTINE dbcsr_write_matrix_distribution(matrix,force_env_section,para_env,error)
+    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
-                                                first_col, last_col
-    REAL(dp), INTENT(IN), OPTIONAL           :: scale
-    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_sparse_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'dbcsr_write_matrix_distribution', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
-    CHARACTER(LEN=40)                        :: matrix_symmetry
-    CHARACTER(LEN=80)                        :: matrix_name
-    INTEGER                                  :: col1, col2, dim_col, dim_row, &
-                                                group, row1, row2, stat
-    LOGICAL                                  :: failure, print_sym
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    CHARACTER(LEN=80)                        :: matrix_name, matrix_symmetry
+    INTEGER :: group, handle, ipe, mype, natom, nblock_max, nblock_sum, &
+      nblock_tot, nelement_max, nelement_sum, npe, nrow, output_unit, stat, &
+      tmp(2)
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
+    LOGICAL                                  :: failure, ionode
+    REAL(KIND=dp)                            :: occupation
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
+    ! *** Quick return, if no printing is requested ***
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) RETURN
+
+    CALL timeset(routineN,handle)
+
     group = para_env%group
-    CALL get_matrix_info(matrix=sparse_matrix,&
-                         matrix_name=matrix_name,&
-                         matrix_symmetry=matrix_symmetry)
+    ionode = para_env%ionode
+    mype = para_env%mepos + 1
+    npe = para_env%num_pe
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
+                        extension=".distribution",error=error)
 
-    NULLIFY (matrix)
+    ! *** Allocate work storage ***
+    ALLOCATE (nblock(npe),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    nblock(:) = 0
 
-    CALL copy_local_sm_to_replicated_fm(sparse_matrix,matrix)
+    ALLOCATE (nelement(npe),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    nelement(:) = 0
 
-    IF (matrix_symmetry == "symmetric") THEN
-       CALL symmetrize_matrix(matrix,"upper_to_lower")
-       print_sym = .TRUE.
-    ELSE IF (matrix_symmetry == "antisymmetric") THEN
-       CALL symmetrize_matrix(matrix,"anti_upper_to_lower")
-       print_sym = .TRUE.
-    ELSE IF (matrix_symmetry /= "none") THEN
-       print_sym = .FALSE.
-    END IF
+    nblock(mype) = dbcsr_get_num_blocks(matrix)
+    nelement(mype) = dbcsr_get_data_size(matrix)
 
-    CALL mp_sum(matrix,group)
+    CALL dbcsr_get_info(matrix=matrix,&
+                        name=matrix_name,&
+                        matrix_type=matrix_symmetry,&
+                        nblkrows_total=natom,&
+                        nfullrows_total=nrow)
 
-    ! *** Get the matrix dimension and check the optional arguments ***
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    dim_row = SIZE(matrix,1)
-    dim_col = SIZE(matrix,2)
+    IF (full_output) THEN
+       ! XXXXXXXX should gather/scatter this on ionode
+       CALL mp_sum(nblock,group)
+       CALL mp_sum(nelement,group)
 
-    IF (PRESENT(first_row)) THEN
-      row1 = MAX(1,first_row)
+       nblock_sum = SUM(nblock)
+       nelement_sum = SUM(nelement)
     ELSE
-      row1 = 1
-    END IF
+       nblock_sum = nblock(mype)
+       nblock_max = nblock(mype)
+       nelement_sum = nelement(mype)
+       nelement_max = nelement(mype)
+       tmp=(/nblock_sum,nelement_sum/)
+       CALL mp_sum(tmp,group)
+       nblock_sum=tmp(1) ; nelement_sum=tmp(2)
+       tmp=(/nblock_max,nelement_max/)
+       CALL mp_max(tmp,group)
+       nblock_max=tmp(1) ; nelement_max=tmp(2)
+    ENDIF
 
-    IF (PRESENT(last_row)) THEN
-      row2 = MIN(dim_row,last_row)
+    IF (TRIM(matrix_symmetry) == "symmetric") THEN
+      nblock_tot = natom*(natom + 1)/2
     ELSE
-      row2 = dim_row
+      nblock_tot = natom*natom
     END IF
 
-    IF (PRESENT(first_col)) THEN
-      col1 = MAX(1,first_col)
-    ELSE
-      col1 = 1
+    occupation = -1.0_dp
+    IF(nblock_tot.NE.0) occupation = 100.0_dp*REAL(nblock_sum,dp)/REAL(nblock_tot,dp)
+
+    IF (ionode) THEN
+       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+            "DISTRIBUTION OF THE "//TRIM(matrix_name)
+       IF (full_output) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(I9,T27,I10,T55,I10))")&
+               "Process    Number of matrix blocks   Number of matrix elements",&
+               (ipe-1,nblock(ipe),nelement(ipe),ipe=1,npe)
+          WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,T55,I10)")&
+               "Sum",nblock_sum,nelement_sum
+          WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,A,F5.1,A,T55,I10,A,F5.1,A)")&
+               " of",nblock_tot," (",occupation," % occupation)"
+       ELSE
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,T50,I13)") "Number  of non-zero blocks:",nblock_sum
+          WRITE (UNIT=output_unit,FMT="(T3,A,T57,F6.2)")"Percentage non-zero blocks:",occupation
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of blocks per CPU:",&
+               (nblock_sum+npe-1)/npe
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of blocks per CPU:",nblock_max
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of matrix elements per CPU:",&
+               (nelement_sum+npe-1)/npe
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of matrix elements per CPU:",&
+               nelement_max
+       ENDIF
     END IF
 
-    IF (PRESENT(last_col)) THEN
-      col2 = MIN(dim_col,last_col)
-    ELSE
-      col2 = dim_col
-    END IF
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,"PRINT%DISTRIBUTION",&
+         error=error)
 
-    IF (PRESENT(scale)) THEN
-      matrix=matrix*scale
-    END IF
+    ! *** Release work storage ***
+    DEALLOCATE (nblock,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (print_sym) THEN
-       CALL write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
-            row1,row2,col1,col2, output_unit,error=error)
-    ELSE
-       CALL write_matrix_gen(matrix,matrix_name,before,after,para_env,&
-            row1,row2,col1,col2, output_unit,error=error)
-    END IF
+    DEALLOCATE (nelement,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (ASSOCIATED(matrix)) THEN
-       DEALLOCATE (matrix,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    CALL timestop(handle)
 
-  END SUBROUTINE write_sparse_matrix
+  END SUBROUTINE dbcsr_write_matrix_distribution
 
-END MODULE sparse_matrix_output
+END MODULE cp_dbcsr_output

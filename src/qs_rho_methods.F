@@ -365,7 +365,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
       ! if needed compute also the gradient of the density
       IF (dft_control%drho_by_collocation) THEN
          DO ispin=1,nspins
-           CALL calculate_drho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
+           CALL calculate_drho_elec(matrix_p_sm=rho_struct%rho_ao(ispin)%matrix,&
              drho=rho_struct%drho_r(3*(ispin-1)+1:3*ispin),&
              drho_gspace=rho_struct%drho_g(3*(ispin-1)+1:3*ispin),&
              qs_env=qs_env,soft_valid=gapw,error=error)
@@ -411,7 +411,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
          ! if needed compute also the gradient of the density
          IF (dft_control%drho_by_collocation) THEN
             DO ispin=1,nspins
-              CALL calculate_drho_elec(matrix_p=rho_xc%rho_ao(ispin)%matrix,&
+              CALL calculate_drho_elec(matrix_p_sm=rho_xc%rho_ao(ispin)%matrix,&
                 drho=rho_xc%drho_r(3*(ispin-1)+1:3*ispin),&
                 drho_gspace=rho_xc%drho_g(3*(ispin-1)+1:3*ispin),&
                 qs_env=qs_env,soft_valid=gapw_xc,error=error)

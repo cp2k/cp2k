@@ -12,6 +12,7 @@
 MODULE preconditioner_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -22,8 +23,6 @@ MODULE preconditioner_types
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_constants,                 ONLY: ot_precond_solver_default
   USE kinds,                           ONLY: dp
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -40,7 +39,7 @@ MODULE preconditioner_types
 ! *****************************************************************************
   TYPE preconditioner_type
 !    PRIVATE
-       TYPE(real_matrix_type),    POINTER :: sparse_matrix,sparse_matrix_inner
+       TYPE(dbcsr_obj),    POINTER :: sparse_matrix,sparse_matrix_inner
        TYPE(cp_fm_type), POINTER :: fm
        TYPE(dbcsr_obj), POINTER           :: dbcsr_matrix
        TYPE(cp_para_env_type),  POINTER   :: para_env
@@ -96,11 +95,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-       CALL deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
+       CALL dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
        NULLIFY(preconditioner_env%sparse_matrix)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
-       CALL deallocate_matrix(preconditioner_env%sparse_matrix_inner,error=error)
+       CALL dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix_inner,error=error)
        NULLIFY(preconditioner_env%sparse_matrix_inner)
     ENDIF
  

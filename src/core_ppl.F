@@ -234,31 +234,32 @@ CONTAINS
                                           block_row=irow,&
                                           block_col=icol,&
                                           BLOCK=p_block)
-                      CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
-                      DO iset=1,nseta
-                         ncoa = npgfa(iset)*ncoset(la_max(iset))
-                         sgfa = first_sgfa(1,iset)
-                         DO jset=1,nsetb
-                            ncob = npgfb(jset)*ncoset(lb_max(jset))
-                            sgfb = first_sgfb(1,jset)
-                            ! *** Decontract density matrix block ***
-                            IF (iatom <= jatom) THEN
-                               CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    p_block(sgfa,sgfb),SIZE(p_block,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                            ELSE
-                               CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    p_block(sgfb,sgfa),SIZE(p_block,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                            END IF
-                            CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                                 1.0_dp,work(1,1),SIZE(work,1),&
-                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_dp,pab(1,1,iset,jset),SIZE(pab,1))
+                      IF(ASSOCIATED(p_block)) THEN
+                         DO iset=1,nseta
+                            ncoa = npgfa(iset)*ncoset(la_max(iset))
+                            sgfa = first_sgfa(1,iset)
+                            DO jset=1,nsetb
+                               ncob = npgfb(jset)*ncoset(lb_max(jset))
+                               sgfb = first_sgfb(1,jset)
+                               ! *** Decontract density matrix block ***
+                               IF (iatom <= jatom) THEN
+                                  CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                       p_block(sgfa,sgfb),SIZE(p_block,1),&
+                                       0.0_dp,work(1,1),SIZE(work,1))
+                               ELSE
+                                  CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
+                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                       p_block(sgfb,sgfa),SIZE(p_block,1),&
+                                       0.0_dp,work(1,1),SIZE(work,1))
+                               END IF
+                               CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                                    1.0_dp,work(1,1),SIZE(work,1),&
+                                    sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                    0.0_dp,pab(1,1,iset,jset),SIZE(pab,1))
+                            END DO
                          END DO
-                      END DO
+                      ENDIF
                    END IF
 
                 END IF

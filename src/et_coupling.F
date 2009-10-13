@@ -13,6 +13,8 @@ MODULE et_coupling
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_invert,&
                                              cp_fm_transpose
@@ -47,7 +49,6 @@ MODULE et_coupling
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -158,7 +159,7 @@ CONTAINS
 
 !    calculate the MO-representation of the restraint matrix A
          
-    CALL cp_sm_fm_multiply(qs_env%et_coupling%rest_mat(1)%matrix,&
+    CALL dbcsr_sm_fm_multiply(qs_env%et_coupling%rest_mat(1)%matrix,&
          qs_env%et_coupling%et_mo_coeff(i)%matrix,&
          tmp2,nmo,1.0_dp,0.0_dp,error=error)   
     
@@ -168,7 +169,7 @@ CONTAINS
 
 !    calculate the MO-representation of the restraint matrix D
              
-    CALL cp_sm_fm_multiply(qs_env%et_coupling%rest_mat(2)%matrix,&
+    CALL dbcsr_sm_fm_multiply(qs_env%et_coupling%rest_mat(2)%matrix,&
          qs_env%mos(i)%mo_set%mo_coeff,&
          tmp2,nmo,1.0_dp,0.0_dp,error=error)
     
@@ -281,7 +282,7 @@ CONTAINS
        
     ENDIF
 
-    CALL deallocate_matrix_set(qs_env%et_coupling%rest_mat,error=error)
+    CALL dbcsr_deallocate_matrix_set(qs_env%et_coupling%rest_mat,error=error)
    
     CALL cp_print_key_finished_output(iw,logger,et_coupling_section,&
                "PROGRAM_RUN_INFO", error=error)

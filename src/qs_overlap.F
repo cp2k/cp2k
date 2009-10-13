@@ -23,8 +23,8 @@ MODULE qs_overlap
                                              dbcsr_allocate_matrix,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_struct,&
-                                             dbcsr_write_matrix_distribution,&
+                                             dbcsr_replicate_matrix_struct
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_matrix_distribution,&
                                              dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&

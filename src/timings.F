@@ -242,6 +242,8 @@ CONTAINS
 #include "f_hpm.h"
 #endif
 
+!$OMP MASTER
+
     wt_now=m_walltime ()
 
     IF (stack_pointer<1) THEN
@@ -338,6 +340,8 @@ CONTAINS
        ENDIF
     ENDIF
 
+!$OMP END MASTER
+
   END SUBROUTINE timeset
 
 ! *****************************************************************************
@@ -359,6 +363,8 @@ CONTAINS
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
+
+!$OMP MASTER
 
     wt_now = m_walltime()
 
@@ -437,6 +443,8 @@ CONTAINS
     timer_env%clock_status ( handle ) = timer_env%clock_status ( handle ) - 1
     timer_env%handle_stack (timer_env%stack_size)=0
     timer_env%stack_size = timer_env%stack_size - 1
+
+!$OMP END MASTER
 
   END SUBROUTINE timestop
 

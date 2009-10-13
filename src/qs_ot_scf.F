@@ -11,6 +11,7 @@
 ! *****************************************************************************
 MODULE qs_ot_scf
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_trace
@@ -19,7 +20,9 @@ MODULE qs_ot_scf
        cp_fm_release, cp_fm_set_all, cp_fm_set_diag, cp_fm_to_fm, cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -45,9 +48,6 @@ MODULE qs_ot_scf
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type,&
                                              get_aux_coeff
-  USE sparse_matrix_types,             ONLY: real_matrix_type,&
-                                             set_matrix,&
-                                             transfer_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -126,12 +126,11 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dedc
     TYPE(smear_type)                         :: smear
-    TYPE(real_matrix_type), POINTER          :: matrix_s
+    TYPE(dbcsr_obj), POINTER                 :: matrix_s
     REAL(KIND=dp)                            :: energy
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: pscp, fscp
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp
     LOGICAL, INTENT(INOUT)                   :: energy_only
     REAL(KIND=dp)                            :: delta
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -298,7 +297,7 @@ CONTAINS
        SELECT CASE(qs_ot_env(1)%settings%ot_algorithm)
        CASE("TOD")
           IF (ASSOCIATED(matrix_s)) THEN
-             CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
+             CALL dbcsr_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
                   qs_ot_env(ispin)%matrix_sx, k,error=error)
           ELSE
              CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,error=error)
@@ -370,11 +369,10 @@ CONTAINS
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(real_matrix_type), POINTER          :: matrix_s
+    TYPE(dbcsr_obj), POINTER                 :: matrix_s
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: pscp, fscp
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -412,7 +410,7 @@ CONTAINS
        ! set c0,sc0
        CALL cp_fm_to_fm(mo_coeff,qs_ot_env(ispin)%matrix_c0,error=error)
        IF (ASSOCIATED(matrix_s)) THEN
-          CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
+          CALL dbcsr_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
                qs_ot_env(ispin)%matrix_sc0,k,error=error)
        ELSE
           CALL cp_fm_to_fm ( qs_ot_env ( ispin ) % matrix_c0,  &
@@ -434,7 +432,7 @@ CONTAINS
           qs_ot_env ( ispin ) % x ( : ) = 0.0_dp
        ENDIF
        IF (qs_ot_env(ispin)%settings%scp_nddo) THEN
-          CALL set_matrix ( qs_ot_env ( ispin ) % xmat, 0.0_dp )
+          CALL dbcsr_set ( qs_ot_env ( ispin ) % xmat, 0.0_dp, error=error )
        ENDIF
 
        IF (qs_ot_env(ispin)%settings%do_ener) THEN
@@ -478,8 +476,10 @@ CONTAINS
           END DO
        END IF
        IF (qs_ot_env(1)%settings%scp_nddo .AND. ispin == 1) THEN
-         CALL transfer_matrix ( pscp, qs_ot_env(1)%xmat, error )
-         CALL transfer_matrix ( fscp, qs_ot_env(1)%gxmat, error )
+          !CALL transfer_matrix ( pscp, qs_ot_env(1)%xmat, error )
+         CALL dbcsr_copy ( qs_ot_env(1)%xmat, pscp, error=error )
+         !CALL transfer_matrix ( fscp, qs_ot_env(1)%gxmat, error )
+         CALL dbcsr_copy ( qs_ot_env(1)%gxmat, fscp, error=error )
        END IF
        ! **** SCP
 

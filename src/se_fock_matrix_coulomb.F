@@ -24,10 +24,8 @@ MODULE se_fock_matrix_coulomb
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+                                             dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -91,7 +89,6 @@ MODULE se_fock_matrix_coulomb
   USE semi_empirical_utils,            ONLY: finalize_se_taper,&
                                              get_se_type,&
                                              initialize_se_taper
-  USE sparse_matrix_types,             ONLY: real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -161,7 +158,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_matrix_type), POINTER          :: ks_scp_sm, pscp_sm
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -175,7 +171,7 @@ CONTAINS
 
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control,cell,force,particle_set,diagmat_ks,diagmat_p,&
-               se_control,se_taper,pscp_sm,pscp,ks_scp_sm,ks_scp,scp_env)
+               se_control,se_taper,pscp,ks_scp,scp_env)
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_2c=sab_2c, atomic_kind_set=atomic_kind_set, &
@@ -231,10 +227,7 @@ CONTAINS
 
        IF (scp_nddo)  THEN 
           CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
-          CALL get_scp_env(scp_env=scp_env, pscp=pscp_sm, ks_scp=ks_scp_sm, error=error)
-          ALLOCATE(pscp)!sm->dbcsr
-          CALL dbcsr_from_sm(pscp,pscp_sm,error=error)!sm->dbcsr
-          !call dbcsr_from_sm(ks_scp,ks_scp_sm,error=error)!sm->dbcsr
+          CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
        END IF
        
        ecore2   = 0.0_dp
@@ -517,13 +510,10 @@ CONTAINS
 
        IF ( scp_nddo ) THEN
           ! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
-          ALLOCATE(ks_scp)!sm->dbcsr ! need a soft copy !
-          CALL dbcsr_init(ks_scp)
           CALL dbcsr_copy ( ks_scp, diagmat_ks(1)%matrix, 'ks_scp', error )
           ! sum over all procs to get the replicated ks_scp
           CALL dbcsr_sum_replicated( ks_scp )
-          CALL sm_from_dbcsr ( scp_env%ks_scp, ks_scp, distribution_2d, error=error )!sm->dbcsr
-          !CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp_sm, error = error ) 
+          CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
        ENDIF 
 
        DO ispin = 1, nspins
@@ -542,9 +532,6 @@ CONTAINS
        ! Two-centers one-electron terms
        CALL mp_sum(ecore2,para_env%group)       
        energy%hartree = ecore2 - energy%core
-
-       IF(scp_nddo) CALL dbcsr_deallocate_matrix(pscp,error=error)!sm->dbcsr
-       IF(scp_nddo) CALL dbcsr_deallocate_matrix(ks_scp,error=error)!sm->dbcsr
 
     END IF
     CALL finalize_se_taper(se_taper,error=error)    
@@ -607,7 +594,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_matrix_type), POINTER          :: ks_scp_sm, pscp_sm
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &
@@ -672,14 +658,7 @@ CONTAINS
 
        ! Handle the case of SCP-NDDO
        IF (scp_nddo) THEN
-          CALL get_scp_env(scp_env=scp_env, pscp=pscp_sm, ks_scp=ks_scp_sm, error=error)
-          ALLOCATE(pscp,ks_scp)!sm->dbcsr
-          CALL dbcsr_init(pscp)
-          CALL dbcsr_init(ks_scp)
-          CALL dbcsr_from_sm(pscp,pscp_sm,error=error)!sm->dbcsr
-          CALL dbcsr_from_sm(ks_scp,ks_scp_sm,error=error)!sm->dbcsr
-          !CALL dbcsr_copy(dbm,ks_scp,'DUMMY BLOCK KS MATRIX',error)
-          !CALL dbcsr_set(dbm, 0.0_dp, error=error)
+          CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
        END IF
 
        ! Check for implemented SE methods
@@ -932,8 +911,7 @@ CONTAINS
           CALL dbcsr_sum_replicated( dbm )
           ! add dbm (which is the long range part of (P+p)C + CZ )to the replicated ks_scp
           CALL dbcsr_add(ks_scp, dbm, error=error)
-          CALL sm_from_dbcsr ( ks_scp_sm, ks_scp, distribution_2d, error=error )!sm->dbcsr
-          CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp_sm, error = error ) 
+          CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
           CALL dbcsr_deallocate_matrix ( dbm, error=error )
        ENDIF
        
@@ -954,9 +932,6 @@ CONTAINS
           DEALLOCATE(forces_r,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-
-       IF(scp_nddo) CALL dbcsr_deallocate_matrix(pscp,error=error)!sm->dbcsr
-       IF(scp_nddo) CALL dbcsr_deallocate_matrix(ks_scp,error=error)!sm->dbcsr
 
     END IF
 

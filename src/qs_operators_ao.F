@@ -9,8 +9,6 @@
 !> \author MI (07.2005)
 ! *****************************************************************************
 MODULE qs_operators_ao
-
-  USE ai_angmom,                       ONLY: angmom
   USE ai_moments,                      ONLY: diff_momop,&
                                              diffop,&
                                              moment
@@ -23,16 +21,16 @@ MODULE qs_operators_ao
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: &
-       dbcsr_add_block_node, dbcsr_allocate_matrix, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
-       dbcsr_deallocate_matrix_set, dbcsr_from_sm, dbcsr_get_block_node, &
-       dbcsr_obj_p_type, sm_from_dbcsr
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
-                                             dbcsr_type_antisymmetric
+                                             dbcsr_type_antisymmetric,&
+                                             dbcsr_type_normal
   USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
@@ -48,8 +46,6 @@ MODULE qs_operators_ao
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -61,7 +57,7 @@ MODULE qs_operators_ao
 
 ! *** Public subroutines ***
 
-  PUBLIC :: p_xyz_ao, rmc_x_p_xyz_ao, rRc_xyz_ao, rRc_xyz_der_ao, set_up_op_sm
+  PUBLIC :: p_xyz_ao, rRc_xyz_ao, rRc_xyz_der_ao, set_up_op_sm
   PUBLIC :: build_lin_mom_matrix, build_ang_mom_matrix
 
 CONTAINS
@@ -73,12 +69,11 @@ CONTAINS
 !> \date    27.02.2009
 !> \version 1.0
 ! *****************************************************************************
-
-  SUBROUTINE build_lin_mom_matrix(qs_env,matrix_sm,error)
+  SUBROUTINE build_lin_mom_matrix(qs_env,matrix,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix', &
@@ -110,8 +105,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_p_type), &
@@ -127,7 +120,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(cell,sab_orb,atomic_kind_set,particle_set,para_env)
-    NULLIFY(logger,matrix)
+    NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
 
@@ -143,12 +136,6 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
-
-    CALL dbcsr_allocate_matrix_set( matrix, SIZE(matrix_sm), error )
-    DO i = 1,SIZE(matrix)
-       ALLOCATE(matrix(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(matrix(i)%matrix, matrix_sm(i)%matrix, error)
-    ENDDO
 
 !   *** Allocate work storage ***
 
@@ -327,20 +314,15 @@ CONTAINS
     DEALLOCATE(intab,work,integral,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    DO i = 1,SIZE(matrix)
-       CALL sm_from_dbcsr( matrix_sm(i)%matrix, matrix(i)%matrix, distribution_2d, error=error )
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set(matrix, error)
-
 !   *** Print the spin orbit matrix, if requested ***
 
     !IF (BTEST(cp_print_key_should_output(logger%iter_info,&
     !     qs_env%input,"DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM",error=error),cp_p_file)) THEN
     !   iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/LINEA_MOMENTUM",&
     !        extension=".Log",error=error)
-    !   CALL write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-    !   CALL write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-    !   CALL write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL dbcsr_write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL dbcsr_write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL dbcsr_write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
     !   CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
     !        "DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM", error=error)
     !END IF
@@ -348,6 +330,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE build_lin_mom_matrix
+
 
 ! *****************************************************************************
 !> \brief   Calculation of the primitive paramagnetic spin orbit integrals over
@@ -478,11 +461,11 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_ang_mom_matrix(qs_env,matrix_sm,rc,error)
+  SUBROUTINE build_ang_mom_matrix(qs_env,matrix,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -515,8 +498,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_p_type), &
@@ -532,7 +513,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(cell,sab_orb,atomic_kind_set,particle_set,para_env)
-    NULLIFY(logger,matrix)
+    NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
 
@@ -549,12 +530,6 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
-
-    CALL dbcsr_allocate_matrix_set( matrix, SIZE(matrix_sm), error )
-    DO i = 1,SIZE(matrix)
-       ALLOCATE(matrix(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(matrix(i)%matrix, matrix_sm(i)%matrix, error)
-    ENDDO
 
 !   *** Allocate work storage ***
 
@@ -746,20 +721,15 @@ CONTAINS
     DEALLOCATE(intab,work,integral,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    DO i = 1,SIZE(matrix)
-       CALL sm_from_dbcsr( matrix_sm(i)%matrix, matrix(i)%matrix, distribution_2d, error=error )
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set(matrix, error)
-
 !   *** Print the spin orbit matrix, if requested ***
 
     !IF (BTEST(cp_print_key_should_output(logger%iter_info,&
     !     qs_env%input,"DFT%PRINT%AO_MATRICES/ANGULAR_MOMENTUM",error=error),cp_p_file)) THEN
     !   iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ANGULAR_MOMENTUM",&
     !        extension=".Log",error=error)
-    !   CALL write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-    !   CALL write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-    !   CALL write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL dbcsr_write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL dbcsr_write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL dbcsr_write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
     !   CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
     !        "DFT%PRINT%AO_MATRICES/ANGULAR_MOMENTUM", error=error)
     !END IF
@@ -911,10 +881,11 @@ CONTAINS
 !>      06.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE p_xyz_ao(op_sm,qs_env,minimum_image,error)
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_sm
+  SUBROUTINE p_xyz_ao(op,qs_env,minimum_image,error)
+
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -950,8 +921,6 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: op_dipt
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
@@ -967,7 +936,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set,op)
+    NULLIFY (atomic_kind, atomic_kind_set)
     NULLIFY (cell, particle_set, orb_basis_set)
     NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
              sab_orb_neighbor_node)
@@ -981,12 +950,6 @@ CONTAINS
          sab_orb=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
-
-    CALL dbcsr_allocate_matrix_set( op, SIZE(op_sm), error )
-    DO i = 1,SIZE(op)
-       ALLOCATE(op(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(op(i)%matrix, op_sm(i)%matrix, error)
-    ENDDO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
@@ -1262,352 +1225,9 @@ CONTAINS
     DEALLOCATE(difabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    DO i = 1,SIZE(op)
-       CALL sm_from_dbcsr( op_sm(i)%matrix, op(i)%matrix, distribution_2d, error=error )
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set(op, error)
-
     CALL timestop(handle)
 
   END SUBROUTINE p_xyz_ao
-
-! *****************************************************************************
-!> \brief Calculation of the components of the (r-c)xp operator
-!>      where p is the gradient and c is the center of the primitive
-!>      function multiplied from the .
-!>      The resulting sparse matrix is not symmetric, therefore all_pair
-!>      lists are used, which contain the either ab and ba
-!>      The center c will be the position of
-!>      iatom and the position of jatom respectively.
-!>      The elements of the  sparse matrices are the integrals in the
-!>      basis functions
-!> \param op_sm matrix representation of the (r-c)xp operator
-!>               in terms of the contracted basis functions
-!> \param qs_env enviroment for the lists and the basis sets
-!> \param minimum_image take into account only the first neighbors in the lists
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      06.2005 created [MI]
-!> \author MI
-! *****************************************************************************
-  SUBROUTINE rmc_x_p_xyz_ao(op_sm,qs_env,minimum_image,wancen,error)
-
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_sm
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
-    REAL(KIND=dp), DIMENSION(3), OPTIONAL    :: wancen
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rmc_x_p_xyz_ao', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
-      istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
-      ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, nthread, &
-      sgfa, sgfb
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, my_minimum_image, &
-                                                new_atom_b
-    REAL(KIND=dp)                            :: dab, Lxo2, Lyo2, Lzo2, rab2
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc, rc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
-                                                work, zeta, zetb
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: angab, workt
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: angabt
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: op_angij
-    TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: op_angijt
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-
-!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
-
-    CALL timeset(routineN,handle)
-
-    failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set, op)
-    NULLIFY (cell, particle_set, orb_basis_set)
-    NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
-             sab_orb_neighbor_node)
-    NULLIFY (angab,angabt,op_angij,op_angijt,work,workt)
-    NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
-    NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
-
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-         cell=cell,particle_set=particle_set,&
-         distribution_2d=distribution_2d,&
-         sab_all=sab_orb,error=error)
-
-    nkind = SIZE(atomic_kind_set)
-
-    CALL dbcsr_allocate_matrix_set( op, SIZE(op_sm), error )
-    DO i = 1,SIZE(op)
-       ALLOCATE(op(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(op(i)%matrix, op_sm(i)%matrix, error)
-    ENDDO
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=ldwork, maxlgto=maxl )
-
-    my_minimum_image = .FALSE.
-    IF(PRESENT(minimum_image)) THEN
-       my_minimum_image=minimum_image
-       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
-       Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
-       Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
-    END IF
-
-    ldab = ldwork
-    nthread = 1
-!$  nthread = omp_get_max_threads()
-
-    ALLOCATE (angabt(ldab,ldab,3,0:nthread-1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    angabt(1:ldab,1:ldab,1:3,0:nthread-1)=0.0_dp
-    ALLOCATE (workt(ldwork,ldwork,0:nthread-1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    workt(1:ldwork,1:ldwork,0:nthread-1)=0.0_dp
-    ALLOCATE (op_angijt(3,0:nthread-1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    DO i = 1, 3
-      DO j=0,nthread-1
-        NULLIFY (op_angijt(i,j)%block)
-      END DO
-    END DO
-
-    DO ikind=1,nkind
-
-      atomic_kind => atomic_kind_set(ikind)
-
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           orb_basis_set=orb_basis_set)
-
-      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                             first_sgf=first_sgfa,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             nsgf_set=nsgfa,&
-                             pgf_radius=rpgfa,&
-                             set_radius=set_radius_a,&
-                             sphi=sphi_a,&
-                             zet=zeta)
-      ldsa = SIZE(sphi_a,1)
-      DO jkind=1,nkind
-
-        atomic_kind => atomic_kind_set(jkind)
-
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             orb_basis_set=orb_basis_set)
-
-        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               first_sgf=first_sgfb,&
-                               lmax=lb_max,&
-                               lmin=lb_min,&
-                               npgf=npgfb,&
-                               nset=nsetb,&
-                               nsgf_set=nsgfb,&
-                               pgf_radius=rpgfb,&
-                               set_radius=set_radius_b,&
-                               sphi=sphi_b,&
-                               zet=zetb)
-
-        iab = ikind + nkind*(jkind - 1)
-        ldsb = SIZE(sphi_b,1)
-
-        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-
-        CALL get_neighbor_list_set(neighbor_list_set=&
-                                   sab_orb(iab)%neighbor_list_set,&
-                                   nlist=nlist)
-
-        NULLIFY ( sab_orb_neighbor_list )
-
-!$OMP parallel &
-!$OMP default(none) &
-!$OMP private(ithread,angab,work,ilist,iatom,jatom)&
-!$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb)&
-!$OMP private(iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
-!$OMP private(op_angij,rab,rab2,dab,i)&
-!$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
-!$OMP private(rc,rac,rbc)&
-!$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
-!$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
-!$OMP shared(set_radius_a,ncoset,npgfa,nseta,ldsa,ldsb)&
-!$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,angabt,qs_env)&
-!$OMP shared(op_angijt)&
-!$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op)&
-!$OMP shared(atomic_kind_set,particle_set,cell)&
-!$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)&
-!$OMP shared(wancen,error,failure)
-        ithread = 0
-!$      ithread = omp_get_thread_num()
-
-        angab => angabt(:,:,:,ithread)
-        work  => workt(:,:,ithread)
-        op_angij => op_angijt(:,ithread)
-
-!$OMP do
-       DO ilist = 1,nlist
-
-!$OMP critical (qs_core_neighbor_list)
-          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-            sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-          ELSE
-            sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-          END IF
-          sab_orb_neighbor_list_local => sab_orb_neighbor_list
-!$OMP end critical (qs_core_neighbor_list)
-
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-                                 atom=iatom,&
-                                 nnode=nnode)
-          ra = pbc(particle_set(iatom)%r,cell)
-          last_jatom = 0
-
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-
-          DO inode=1,nnode
-
-            CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                   neighbor=jatom, r=rab)
-
-            IF(my_minimum_image) THEN
-              IF(ABS(rab(1)) > ABS(Lxo2) .OR. ABS(rab(2)) > ABS(Lyo2) .OR. ABS(rab(3)) > ABS(Lzo2)) THEN
-                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                CYCLE
-              END IF
-            END IF
-
-            rb = rab + ra
-
-            IF (jatom /= last_jatom) THEN
-              new_atom_b = .TRUE.
-              last_jatom = jatom
-            ELSE
-              new_atom_b = .FALSE.
-            END IF
-
-!dbg
-!   write(*,*) 'atoms ', iatom, jatom, rab(1:3)
-!dbg
-            IF (new_atom_b) THEN
-              DO i = 1,3
-                 NULLIFY(op_angij(i)%block)
-                 irow = iatom
-                 icol = jatom
-                 CALL dbcsr_get_block_node(matrix=op(i)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     block=op_angij(i)%block)
-                 CPPostcondition(ASSOCIATED(op_angij(i)%block),cp_failure_level,routineP,error,failure)
-              END DO
-            END IF  !new_atom_b
-            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-            dab = SQRT(rab2)
-
-            DO iset=1,nseta
-
-              ncoa = npgfa(iset)*ncoset(la_max(iset))
-              sgfa = first_sgfa(1,iset)
-
-              DO jset=1,nsetb
-
-                ncob = npgfb(jset)*ncoset(lb_max(jset))
-                sgfb = first_sgfb(1,jset)
-
-                IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
-
-!            *** Calculate the primitive overlap integrals (iatom jatom)***
-                   IF(PRESENT(wancen)) THEN
-                      rc = wancen
-                      rac = pbc(rc,ra,cell)
-                      rbc = rac + rab
-                   ELSE
-                      rc(1:3) = rb(1:3)
-                      rac(1:3) = -rab(1:3)
-                      rbc(1:3) = 0.0_dp
-                   END IF
-
-                  CALL angmom(la_max(iset),npgfa(iset),zeta(:,iset),&
-                        rpgfa(:,iset),la_min(iset), lb_max(jset),npgfb(jset),&
-                        zetb(:,jset),rpgfb(:,jset),rac,rbc,angab)
-!            *** Contraction ***
-                  DO i = 1,3
-                     CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                          1.0_dp,angab(1,1,i),ldab,sphi_b(1,sgfb),ldsb,&
-                          0.0_dp,work(1,1),ldwork)
-                     CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                          1.0_dp,sphi_a(1,sgfa),ldsa,&
-                          work(1,1),ldwork,&
-                          1.0_dp,op_angij(i)%block(sgfa,sgfb),&
-                          SIZE(op_angij(i)%block,1))
-                  END DO
-
-                END IF  !  >= dab
-
-              END DO ! jset
-
-            END DO ! iset
-
-            sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-
-          END DO ! jatom => atom B
-
-       END DO ! iatom => atom A
-!$OMP end parallel
-
-      END DO ! jkind
-
-    END DO ! ikind
-
-    DO i = 1,3
-      DO j = 0,nthread-1
-           NULLIFY(op_angijt(i,j)%block)
-      END DO
-    END DO
-    DEALLOCATE(op_angijt, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    DEALLOCATE(angabt,workt,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    DO i = 1,SIZE(op)
-       CALL sm_from_dbcsr( op_sm(i)%matrix, op(i)%matrix, distribution_2d, error=error )
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set(op, error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE rmc_x_p_xyz_ao
 
 ! *****************************************************************************
 !> \brief Calculation of the components of the dipole operator in the length form
@@ -1628,10 +1248,11 @@ CONTAINS
 !>      03.2006 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE rRc_xyz_ao(op_sm,qs_env,rc,order,minimum_image,soft,error)
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_sm
+  SUBROUTINE rRc_xyz_ao(op,qs_env,rc,order,minimum_image,soft,error)
+
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
@@ -1668,8 +1289,6 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: op_dipt
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
@@ -1685,7 +1304,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set, op)
+    NULLIFY (atomic_kind, atomic_kind_set)
     NULLIFY (cell, particle_set, orb_basis_set)
     NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
              sab_orb_neighbor_node)
@@ -1698,12 +1317,6 @@ CONTAINS
          distribution_2d=distribution_2d,error=error)
 
     nkind = SIZE(atomic_kind_set)
-
-    CALL dbcsr_allocate_matrix_set( op, SIZE(op_sm), error )
-    DO i = 1,SIZE(op)
-       ALLOCATE(op(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(op(i)%matrix, op_sm(i)%matrix, error)
-    ENDDO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
@@ -1958,11 +1571,6 @@ CONTAINS
     DEALLOCATE(mabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    DO i = 1,SIZE(op)
-       CALL sm_from_dbcsr( op_sm(i)%matrix, op(i)%matrix, distribution_2d, error=error )
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set(op, error)
-
     CALL timestop(handle)
 
   END SUBROUTINE   rRc_xyz_ao
@@ -2007,12 +1615,12 @@ CONTAINS
 !>      03.2006 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE rRc_xyz_der_ao(op_sm,op_sm_der,qs_env,rc,order,minimum_image,soft,error)
+  SUBROUTINE rRc_xyz_der_ao(op,op_der,qs_env,rc,order,minimum_image,soft,error)
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_sm
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: op_sm_der
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op
+    TYPE(dbcsr_obj_p_type), &
+      DIMENSION(:, :), POINTER               :: op_der
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
@@ -2057,11 +1665,6 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :, :), &
       POINTER                                :: op_dip_dert
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op
-    TYPE(dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: op_der
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -2078,13 +1681,14 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(op_sm),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(op_sm_der),cp_failure_level,routineP,error,failure)
-    IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN
-      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(op),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(op_der),cp_failure_level,routineP,error,failure)
+    !IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN
+    IF(.NOT.dbcsr_get_matrix_type(op_der(1,1)%matrix).EQ.dbcsr_type_normal) THEN
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
-    NULLIFY (atomic_kind, atomic_kind_set, op, op_der)
+    NULLIFY (atomic_kind, atomic_kind_set)
     NULLIFY (cell, particle_set, orb_basis_set)
     NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
              sab_orb_neighbor_node)
@@ -2095,24 +1699,9 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
-         distribution_2d=distribution_2d,&
          sab_all=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
-
-    CALL dbcsr_allocate_matrix_set( op, SIZE(op_sm), error )
-    DO i = 1,SIZE(op)
-       ALLOCATE(op(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(op(i)%matrix, op_sm(i)%matrix, error)
-    ENDDO
-
-    CALL dbcsr_allocate_matrix_set( op_der, SIZE(op_sm_der,1),SIZE(op_sm_der,2), error )
-    DO j = 1,SIZE(op_der,2)
-    DO i = 1,SIZE(op_der,1)
-       ALLOCATE(op_der(i,j)%matrix)!super dirty
-       CALL dbcsr_from_sm(op_der(i,j)%matrix, op_sm_der(i,j)%matrix, error)
-    ENDDO
-    ENDDO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
@@ -2451,18 +2040,6 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
     DEALLOCATE(mabt,difmabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    DO i = 1,SIZE(op)
-       CALL sm_from_dbcsr( op_sm(i)%matrix, op(i)%matrix, distribution_2d, error=error )
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set(op, error)
-
-    DO j = 1,SIZE(op_der,2)
-    DO i = 1,SIZE(op_der,1)
-       CALL sm_from_dbcsr( op_sm_der(i,j)%matrix, op_der(i,j)%matrix, distribution_2d, error=error )
-    ENDDO
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set(op_der, error)
-    
     CALL timestop(handle)
 
   END SUBROUTINE   rRc_xyz_der_ao
@@ -2477,9 +2054,10 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
 !>      07.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE set_up_op_sm(matrix_sm,qs_env,symmetry,name,error)
 
-    TYPE(real_matrix_type), POINTER          :: matrix_sm
+  SUBROUTINE set_up_op_sm(matrix,qs_env,symmetry,name,error)
+
+    TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     CHARACTER(LEN=*)                         :: symmetry, name
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2494,7 +2072,6 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -2507,7 +2084,6 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
     failure = .FALSE.
 
     NULLIFY(particle_set,distribution_2d,atomic_kind_set,sab_orb)
-    NULLIFY (matrix)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -2626,8 +2202,6 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
     END DO  ! ikind
 
     CALL dbcsr_finalize( matrix, error=error )
-    CALL sm_from_dbcsr ( matrix_sm, matrix, distribution_2d, error=error )
-    CALL dbcsr_deallocate_matrix( matrix, error=error )
 
   END SUBROUTINE set_up_op_sm
 

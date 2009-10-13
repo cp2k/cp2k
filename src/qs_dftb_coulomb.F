@@ -101,13 +101,13 @@ MODULE qs_dftb_coulomb
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE build_dftb_coulomb(ks_env,qs_env,ks_matrix_sm,rho,mcharge,energy,&
+  SUBROUTINE build_dftb_coulomb(ks_env,qs_env,ks_matrix,rho,mcharge,energy,&
                calculate_forces,just_energy,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     REAL(dp), DIMENSION(:)                   :: mcharge
     TYPE(qs_energy_type), POINTER            :: energy
@@ -136,8 +136,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: gamma_matrix, ks_matrix, &
-                                                matrix_p, matrix_s
+      POINTER                                :: gamma_matrix, matrix_p, &
+                                                matrix_s
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -155,7 +155,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(distribution_2d,gamma_matrix,matrix_p,matrix_s,ks_matrix)
+    NULLIFY(distribution_2d,gamma_matrix,matrix_p,matrix_s)
 
     failure=.FALSE.
     use_virial=.FALSE.
@@ -174,13 +174,6 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix_sm,&
                     particle_set=particle_set,cell=cell,&
                     virial=virial,error=error)
-
-    NULLIFY(ks_matrix)
-    CALL dbcsr_allocate_matrix_set( ks_matrix, SIZE(ks_matrix_sm), error )!sm->dbcsr
-    DO i=1,SIZE(ks_matrix)!sm->dbcsr
-       ALLOCATE(ks_matrix(i)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(ks_matrix(i)%matrix, ks_matrix_sm(i)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     NULLIFY(gamma_matrix)
     CALL dbcsr_allocate_matrix_set( gamma_matrix, SIZE(gamma_matrix_sm), error )!sm->dbcsr
@@ -400,10 +393,6 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env,distribution_2d=distribution_2d,error=error)    
-    DO i=1,SIZE(ks_matrix)!sm->dbcsr
-       CALL sm_from_dbcsr(ks_matrix_sm(i)%matrix, ks_matrix(i)%matrix, &
-                          distribution_2d, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
     DO i=1,SIZE(gamma_matrix)!sm->dbcsr
        CALL sm_from_dbcsr(qs_env%gamma_matrix(i)%matrix,gamma_matrix(i)%matrix, &
                           distribution_2d, error)!sm->dbcsr
@@ -412,7 +401,6 @@ CONTAINS
     CALL dbcsr_deallocate_matrix_set( matrix_p, error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set( matrix_s, error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set( gamma_matrix, error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( ks_matrix, error )!sm->dbcsr
 
     CALL timestop(handle)
 

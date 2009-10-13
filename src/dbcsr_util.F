@@ -82,13 +82,6 @@ MODULE dbcsr_util
                                              mp_sum
 
   !$ USE OMP_LIB
-  USE sparse_matrix_types,             ONLY: first_block_node,&
-                                             get_block_node,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_type,&
-                                             allocate_matrix, get_block_node,&
-                                             add_block_node
   USE termination,                     ONLY: stop_memory,stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -850,6 +843,7 @@ CONTAINS
     matrix%m%index(1:dbcsr_num_slots) = 0
     matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
     !
+    matrix%m%sym_negation = .FALSE.
     SELECT CASE (matrix_type)
     CASE ('N', 'n')
        mt = dbcsr_type_normal
@@ -859,6 +853,7 @@ CONTAINS
        mt = dbcsr_type_symmetric
     CASE ('A', 'a')
        mt = dbcsr_type_antisymmetric
+       matrix%m%sym_negation = .TRUE.
     CASE DEFAULT
        CALL cp_assert(.FALSE., cp_failure_level,&
             cp_wrong_args_error, routineP, "Invalid matrix type.")
@@ -1009,9 +1004,9 @@ CONTAINS
     IF (dbcsr_valid_index(matrix)) THEN
        IF (dbg) WRITE(*,'(2(1X,A))')&
             "No need to finalize a valid matrix, skipping."
-       CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms), cp_warning_level,&
-            cp_internal_error, routineN,&
-            "Valid matrix should not contain work data")
+!vw       CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms), cp_warning_level,&
+!vw            cp_internal_error, routineN,&
+!vw            "Valid matrix should not contain work data")
        IF (ASSOCIATED (matrix%m%wms)) &
             CALL dbcsr_work_destroy_all(matrix%m)
        RETURN
@@ -1409,7 +1404,7 @@ CONTAINS
     new_type = normal%m%matrix_type
     CALL dbcsr_create (transposed, "transposed "//normal%m%name, new_dist,&
          new_type, normal%m%col_blk_size, normal%m%row_blk_size, normal%m%nblks,&
-         normal%m%nze, dbcsr_type_real_8, normal%m%special_memory)
+         normal%m%nze, normal%m%data_type, normal%m%special_memory)
     ! Reserve the space for the new indices.
     CALL dbcsr_addto_index_array (transposed%m, dbcsr_slot_row_p,&
          reservation=transposed%m%nblkrows_total+1, extra=transposed%m%nblks*2)
@@ -1729,13 +1724,17 @@ CONTAINS
        max_elements_per_bin = CEILING (REAL(nelements)/REAL(nbins))
        max_elements_per_block = MIN (max_elements_per_bin, max_block_size)
        max_blocks_per_bin = CEILING (REAL(max_elements_per_bin)/REAL(max_elements_per_block))
+
+
        IF (dbg) bin = max_elements_per_block
        max_elements_per_block = CEILING (REAL(max_elements_per_bin)/REAL(max_blocks_per_bin))
+
        IF (max_elements_per_block*max_blocks_per_bin*(nbins-1) .GE. nelements) THEN
-          max_elements_per_block = MIN(1, max_elements_per_block-1)
+          max_elements_per_block = MAX(1, max_elements_per_block-1)
           max_blocks_per_bin = max_blocks_per_bin+1
           DBG " small number FIX"
        ENDIF
+
        IF (dbg) THEN
           WRITE(*,'(1X,A,1X,A,I7,A,I7,A)')routineP,"For",nelements,&
                " elements and",nbins," bins"
@@ -3957,8 +3956,11 @@ CONTAINS
     DO row_img = 1, row_images
        CALL dbcsr_init (ums%mats(row_img), error)
        CALL dbcsr_create(ums%mats(row_img), 'norm '//sm%name, sm%dist,&
-            'N', sm%row_blk_size, sm%col_blk_size,&
-            0, 0, dbcsr_type_real_8, error=error, special=.TRUE.)
+            dbcsr_type_normal, sm%row_blk_size, sm%col_blk_size,&
+            0, 0, sm%data_type, error=error, special=.TRUE.)
+       IF (sm%matrix_type .EQ. dbcsr_type_antisymmetric) THEN
+          ums%mats(row_img)%m%sym_negation = .TRUE.
+       ENDIF
     ENDDO
     ! Count initial sizes for sending.
     DBG 'A'
@@ -4367,8 +4369,11 @@ CONTAINS
     DO col_img = 1, col_images
        CALL dbcsr_init (ums%mats(col_img), error)
        CALL dbcsr_create(ums%mats(col_img), 'col imaged'//sm%name, sm%dist,&
-            'N', sm%row_blk_size, sm%col_blk_size,&
-            0, 0, dbcsr_type_real_8, error=error, special=.TRUE.)
+            dbcsr_type_normal, sm%row_blk_size, sm%col_blk_size,&
+            0,0, sm%data_type, error=error, special=.TRUE.)
+       IF (sm%matrix_type .EQ. dbcsr_type_antisymmetric) THEN
+          ums%mats(col_img)%m%sym_negation = .TRUE.
+       ENDIF
     ENDDO
     !$OMP END DO NOWAIT
     !$OMP WORKSHARE
@@ -4432,13 +4437,15 @@ CONTAINS
     ENDDO
     !$OMP END MASTER
     !$OMP BARRIER
-    !$OMP SECTIONS
-    !$OMP SECTION
     ! Allocate data structures needed for data exchange.
+    !$OMP MASTER
     ALLOCATE (recv_data(SUM(recv_count(2, :, :))))
     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :, :))))
     ALLOCATE (send_data(SUM(send_count(2, :, :))))
     ALLOCATE (send_meta(metalen*SUM(send_count(1, :, :))))
+    !$OMP END MASTER
+    !$OMP BARRIER
+    !$OMP SECTIONS
     !$OMP SECTION
     ! Calculate displacements for processors needed for the exchanges.
     sd_disp = -1 ; sm_disp = -1
@@ -4586,8 +4593,9 @@ CONTAINS
        ENDDO
     ENDDO
     !$OMP END SINGLE
+    !$OMP END PARALLEL
     ! Finalize the actual imaged matrices from the work matrices.
-    !$OMP DO
+!!$    !$OMP DO
     DO col_img = 1, col_images
        ums%mats(col_img)%m%wms(1)%lastblk = blks(col_img) - 1
        ums%mats(col_img)%m%wms(1)%datasize = blk_ps(col_img) - 1
@@ -4597,8 +4605,8 @@ CONTAINS
           CALL dbcsr_finalize(ums%mats(col_img),reshuffle=.TRUE.)
        ENDIF
     ENDDO
-    !$OMP END DO nowait
-    !$OMP END PARALLEL
+!!$    !$OMP END DO nowait
+!!$    !$OMP END PARALLEL
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
     DEALLOCATE(sdp); DEALLOCATE(sd_disp)
@@ -4728,8 +4736,11 @@ CONTAINS
     ALLOCATE (rd_disp(0:numproc-1))
     ALLOCATE (rm_disp(0:numproc-1))
     CALL dbcsr_create(desm, 'desym '//sm%m%name, sm%m%dist,&
-         'N', sm%m%row_blk_size, sm%m%col_blk_size,&
-         0, 0, dbcsr_type_real_8, error=error, special=sm%m%special_memory)
+         dbcsr_type_normal, sm%m%row_blk_size, sm%m%col_blk_size,&
+         0,0, dbcsr_get_data_type(sm), error=error, special=sm%m%special_memory)
+    IF (sm%m%matrix_type .EQ. dbcsr_type_antisymmetric) THEN
+       desm%m%sym_negation = .TRUE.
+    ENDIF
     ! Count initial sizes for sending.
     DBG 'A'
     send_count(:,:) = 0
@@ -5722,6 +5733,18 @@ CONTAINS
     CASE (dbcsr_type_real_4)
        dst%d%r_sp(lb:ub) = src%d%r_sp(lb_s:ub_s)
     CASE (dbcsr_type_real_8)
+       CALL cp_assert(ASSOCIATED(dst%d%r_dp),cp_fatal_level,&
+            cp_caller_error, routineN, "associated(dst%d%r_dp)")
+       CALL cp_assert(ASSOCIATED(src%d%r_dp),cp_fatal_level,&
+            cp_caller_error, routineN, "associated(src%d%r_dp)")
+       CALL cp_assert(lb.GE.LBOUND(dst%d%r_dp,1),cp_fatal_level,&
+            cp_caller_error, routineN, "lb dst%d%r_dp")
+       CALL cp_assert(ub.LE.UBOUND(dst%d%r_dp,1),cp_fatal_level,&
+            cp_caller_error, routineN, "ub dst%d%r_dp")
+       CALL cp_assert(lb_s.GE.LBOUND(src%d%r_dp,1),cp_fatal_level,&
+            cp_caller_error, routineN, "lb src%d%r_dp")
+       CALL cp_assert(ub_s.LE.UBOUND(src%d%r_dp,1),cp_fatal_level,&
+            cp_caller_error, routineN, "ub src%d%r_dp")
        dst%d%r_dp(lb:ub) = src%d%r_dp(lb_s:ub_s)
     CASE (dbcsr_type_complex_4)
        dst%d%c_sp(lb:ub) = src%d%c_sp(lb_s:ub_s)

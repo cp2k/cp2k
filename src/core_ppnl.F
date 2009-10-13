@@ -365,7 +365,6 @@ CONTAINS
                                               block_row=irow,&
                                               block_col=icol,&
                                               BLOCK=p_block)
-                          CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
                        END IF
                     END IF
 
@@ -397,32 +396,38 @@ CONTAINS
                                     acint(1,1,1),na,1.0_dp,h_block,SIZE(h_block,1))
                              END IF
                              IF (calculate_forces) THEN
-                               katom = alist_ac%clist(kac)%catom
-                               atom_c = atom_of_kind(katom)
-                               DO i=1,3
-                                 j=i+1
-                                 IF (iatom <= jatom) THEN
-                                   fa(i)=SUM(p_block(1:na,1:nb)*&
-                                         MATMUL(acint(1:na,1:np,j),TRANSPOSE(bchint(1:nb,1:np,1))))
-                                   fb(i)=SUM(p_block(1:na,1:nb)*&
-                                         MATMUL(achint(1:na,1:np,1),TRANSPOSE(bcint(1:nb,1:np,j))))
-                                 ELSE
-                                   fa(i)=SUM(p_block(1:nb,1:na)*&
-                                         MATMUL(bchint(1:nb,1:np,1),TRANSPOSE(acint(1:na,1:np,j))))
-                                   fb(i)=SUM(p_block(1:nb,1:na)*&
-                                         MATMUL(bcint(1:nb,1:np,j),TRANSPOSE(achint(1:na,1:np,1))))
-                                 END IF
-                                 force(ikind)%gth_ppnl(i,atom_a) =force(ikind)%gth_ppnl(i,atom_a) + f0*fa(i)
-                                 force(kkind)%gth_ppnl(i,atom_c) =force(kkind)%gth_ppnl(i,atom_c) - f0*fa(i)
-                                 force(jkind)%gth_ppnl(i,atom_b) =force(jkind)%gth_ppnl(i,atom_b) + f0*fb(i)
-                                 force(kkind)%gth_ppnl(i,atom_c) =force(kkind)%gth_ppnl(i,atom_c) - f0*fb(i)
-                               END DO
-                               IF (use_virial) THEN
-                                 rac = alist_ac%clist(kac)%rac
-                                 rbc = alist_bc%clist(kbc)%rac
-                                 CALL virial_pair_force ( virial%pv_virial, f0, fa, rac, error)
-                                 CALL virial_pair_force ( virial%pv_virial, f0, fb, rbc, error)
-                               END IF
+                                IF(ASSOCIATED(p_block)) THEN
+                                   katom = alist_ac%clist(kac)%catom
+                                   atom_c = atom_of_kind(katom)
+                                   DO i=1,3
+                                      j=i+1
+                                      IF (iatom <= jatom) THEN
+                                         fa(i)=SUM(p_block(1:na,1:nb)*&
+                                              MATMUL(acint(1:na,1:np,j),TRANSPOSE(bchint(1:nb,1:np,1))))
+                                         fb(i)=SUM(p_block(1:na,1:nb)*&
+                                              MATMUL(achint(1:na,1:np,1),TRANSPOSE(bcint(1:nb,1:np,j))))
+                                      ELSE
+                                         fa(i)=SUM(p_block(1:nb,1:na)*&
+                                              MATMUL(bchint(1:nb,1:np,1),TRANSPOSE(acint(1:na,1:np,j))))
+                                         fb(i)=SUM(p_block(1:nb,1:na)*&
+                                              MATMUL(bcint(1:nb,1:np,j),TRANSPOSE(achint(1:na,1:np,1))))
+                                      END IF
+                                      force(ikind)%gth_ppnl(i,atom_a) =force(ikind)%gth_ppnl(i,atom_a) &
+                                           + f0*fa(i)
+                                      force(kkind)%gth_ppnl(i,atom_c) =force(kkind)%gth_ppnl(i,atom_c) &
+                                           - f0*fa(i)
+                                      force(jkind)%gth_ppnl(i,atom_b) =force(jkind)%gth_ppnl(i,atom_b) &
+                                           + f0*fb(i)
+                                      force(kkind)%gth_ppnl(i,atom_c) =force(kkind)%gth_ppnl(i,atom_c) &
+                                           - f0*fb(i)
+                                   END DO
+                                   IF (use_virial) THEN
+                                      rac = alist_ac%clist(kac)%rac
+                                      rbc = alist_bc%clist(kbc)%rac
+                                      CALL virial_pair_force ( virial%pv_virial, f0, fa, rac, error)
+                                      CALL virial_pair_force ( virial%pv_virial, f0, fb, rbc, error)
+                                   END IF
+                                ENDIF
                              END IF
                              EXIT ! We have found a match and there can be only one single match
                           END IF

@@ -106,7 +106,7 @@ CONTAINS
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
-                          s_matrix=matrix_s,&
+                          s_matrix_sm=matrix_s,&
                           scf_section=scf_section,error=error)
     ELSE
       diis_step = .FALSE.
@@ -295,7 +295,7 @@ CONTAINS
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
-                          s_matrix=matrix_s,&
+                          s_matrix_sm=matrix_s,&
                           scf_section=scf_section,error=error)
     ELSE
       diis_step = .FALSE.
@@ -328,8 +328,8 @@ CONTAINS
 
     DO ispin=1,SIZE(matrix_ks)
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo,homo=homo)
-       CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix,&
-                           matrix_s=matrix_s(1)%matrix,&
+       CALL ot_eigensolver(matrix_h_sm=matrix_ks(ispin)%matrix,&
+                           matrix_s_sm=matrix_s(1)%matrix,&
                            matrix_c=mo_coeff,&
                            preconditioner=scf_env%ot_preconditioner(1)%preconditioner,&
                            eps_gradient=eps_iter,&
@@ -509,7 +509,7 @@ CONTAINS
                             diis_step=diis_step,&
                             eps_diis=scf_control%eps_diis,&
                             scf_section=scf_section,&
-                            s_matrix=matrix_s,&
+                            s_matrix_sm=matrix_s,&
                             roks=.TRUE.,&
                             error=error)
       END IF
@@ -631,14 +631,14 @@ CONTAINS
 !>      05.2009 created [MI]
 ! *****************************************************************************
 
-  SUBROUTINE do_block_krylov_diag(scf_env,mos,matrix_ks, matrix_s,&
+  SUBROUTINE do_block_krylov_diag(scf_env,mos,matrix_ks,&
                      scf_control, scf_section, check_moconv_only, error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(IN), OPTIONAL            :: check_moconv_only

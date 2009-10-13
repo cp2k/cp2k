@@ -21,6 +21,7 @@ MODULE qs_ks_atom
                                              dbcsr_obj_p_type,&
                                              sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -170,13 +171,15 @@ CONTAINS
            distribution_2d=distribution_2d,&
            sab_orb=sab_orb,error=error)
 
-    CALL dbcsr_allocate_matrix_set( ks, SIZE(ks_sm), error )
-    CALL dbcsr_allocate_matrix_set( p, SIZE(p_sm), error )
-    DO i = 1,SIZE(ks)
-       ALLOCATE(ks(i)%matrix)
-       ALLOCATE(p(i)%matrix)
-       CALL dbcsr_from_sm(ks(i)%matrix, ks_sm(i)%matrix, error)
-       CALL dbcsr_from_sm(p(i)%matrix, p_sm(i)%matrix, error)
+    CALL dbcsr_allocate_matrix_set( ks, SIZE(ks_sm), error )!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( p, SIZE(p_sm), error )!sm->dbcsr
+    DO i = 1,SIZE(ks)!sm->dbcsr
+       ALLOCATE(ks(i)%matrix)!sm->dbcsr
+       ALLOCATE(p(i)%matrix)!sm->dbcsr
+       CALL dbcsr_init(ks(i)%matrix)
+       CALL dbcsr_init(p(i)%matrix)
+       CALL dbcsr_from_sm(ks(i)%matrix, ks_sm(i)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(p(i)%matrix, p_sm(i)%matrix, error)!sm->dbcsr
     ENDDO
 
     IF (my_tddft) THEN
@@ -467,12 +470,12 @@ CONTAINS
          "DCPC_h,dCPC_s,PC_h,PC_s")
     END IF
 
-    DO i = 1,SIZE(ks)
-       CALL sm_from_dbcsr ( ks_sm(i)%matrix, ks(i)%matrix, distribution_2d, error=error )
-    ENDDO
+    DO i = 1,SIZE(ks)!sm->dbcsr
+       CALL sm_from_dbcsr ( ks_sm(i)%matrix, ks(i)%matrix, distribution_2d, error=error )!sm->dbcsr
+    ENDDO!sm->dbcsr
 
-    CALL dbcsr_deallocate_matrix_set ( ks, error )
-    CALL dbcsr_deallocate_matrix_set ( p, error )
+    CALL dbcsr_deallocate_matrix_set ( ks, error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set ( p, error )!sm->dbcsr
 
     CALL timestop(handle)
 

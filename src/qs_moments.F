@@ -34,6 +34,7 @@ MODULE qs_moments
                                              dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply,&
                                              sm_from_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -49,9 +50,10 @@ MODULE qs_moments
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set,&
+                                             dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -76,13 +78,8 @@ MODULE qs_moments
        neighbor_list_type, neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             cp_sm_sm_trace,&
-                                             deallocate_matrix,&
-                                             deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix,&
-                                             set_matrix
+                                             replicate_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -98,10 +95,312 @@ MODULE qs_moments
   PUBLIC :: build_local_moment_matrix, build_berry_moment_matrix
   PUBLIC :: qs_moment_berry_phase, qs_moment_locop
 
+  INTERFACE build_local_moment_matrix
+     MODULE PROCEDURE build_local_moment_matrix_new
+     MODULE PROCEDURE build_local_moment_matrix_old
+  END INTERFACE
+
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE build_local_moment_matrix(qs_env,moments_sm,nmoments,ref_point,ref_points,error)
+  SUBROUTINE build_local_moment_matrix_new(qs_env,moments,nmoments,ref_point,ref_points,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: moments
+    INTEGER, INTENT(IN)                      :: nmoments
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: ref_point
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: ref_points
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'build_local_moment_matrix_new', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
+      istat, jatom, jkind, jset, last_jatom, maxco, maxsgf, natom, ncoa, &
+      ncob, nkind, nlist, nm, nnode, nseta, nsetb, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dab, rab2
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: mab
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc, rc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                zeta, zetb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: mint
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_sm
+
+    IF ( nmoments < 1 ) RETURN
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    NULLIFY (atomic_kind_set,cell,matrix_s_sm,particle_set,sab_orb)
+    NULLIFY (neighbor_list,neighbor_list_set,neighbor_node,orb_basis_set,matrix_s)
+
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm,error=error)
+
+    CALL dbcsr_allocate_matrix_set( matrix_s, 1, error )!sm->dbcsr
+    ALLOCATE(matrix_s(1)%matrix)!super dirty!sm->dbcsr
+    CALL dbcsr_from_sm(matrix_s(1)%matrix, matrix_s_sm(1)%matrix, error)!sm->dbcsr
+    
+    nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
+    CALL dbcsr_allocate_matrix_set ( moments, nm ,error=error)
+
+    DO i=1,nm
+       ALLOCATE(moments(i)%matrix)
+       CALL dbcsr_init (moments(i)%matrix)
+       CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments", error)
+       CALL dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
+    END DO
+
+    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,cell=cell,&
+                    sab_orb=sab_orb,error=error)
+
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+!   *** Allocate work storage ***
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxco=maxco,&
+                             maxsgf=maxsgf)
+
+    ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    mab(:,:,:) = 0.0_dp
+
+    ALLOCATE (work(maxco,maxsgf),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    work(:,:) = 0.0_dp
+
+    ALLOCATE (mint(nm),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO i=1,nm
+      NULLIFY (mint(i)%block)
+    END DO
+
+    DO ikind=1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           orb_basis_set=orb_basis_set)
+
+      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                             first_sgf=first_sgfa,&
+                             lmax=la_max,&
+                             lmin=la_min,&
+                             npgf=npgfa,&
+                             nset=nseta,&
+                             nsgf_set=nsgfa,&
+                             pgf_radius=rpgfa,&
+                             set_radius=set_radius_a,&
+                             sphi=sphi_a,&
+                             zet=zeta)
+
+      DO jkind=1,nkind
+
+        atomic_kind => atomic_kind_set(jkind)
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             orb_basis_set=orb_basis_set)
+
+        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               first_sgf=first_sgfb,&
+                               lmax=lb_max,&
+                               lmin=lb_min,&
+                               npgf=npgfb,&
+                               nset=nsetb,&
+                               nsgf_set=nsgfb,&
+                               pgf_radius=rpgfb,&
+                               set_radius=set_radius_b,&
+                               sphi=sphi_b,&
+                               zet=zetb)
+
+        iab = ikind + nkind*(jkind - 1)
+
+        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+
+        neighbor_list_set => sab_orb(iab)%neighbor_list_set
+
+        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                   nlist=nlist)
+
+        neighbor_list => first_list(neighbor_list_set)
+
+        DO ilist=1,nlist
+
+          CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                 atom=iatom,&
+                                 nnode=nnode)
+
+          last_jatom = 0
+
+          neighbor_node => first_node(neighbor_list)
+
+          DO inode=1,nnode
+
+            CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                   neighbor=jatom)
+
+            ! this guarentees minimum image convention
+            ! anything else would not make sense
+            IF (jatom == last_jatom) THEN
+              neighbor_node => next(neighbor_node)
+              CYCLE
+            END IF
+
+            last_jatom = jatom
+
+            IF (iatom <= jatom) THEN
+              irow = iatom
+              icol = jatom
+            ELSE
+              irow = jatom
+              icol = iatom
+            END IF
+
+            DO i=1,nm
+              NULLIFY (mint(i)%block)
+              CALL dbcsr_get_block_node(matrix=moments(i)%matrix,&
+                                  block_row=irow,&
+                                  block_col=icol,&
+                                  BLOCK=mint(i)%block)
+              mint(i)%block = 0._dp
+            END DO
+
+            ! fold atomic position back into unit cell
+            ra(:) = pbc(particle_set(iatom)%r(:),cell)
+            rb(:) = pbc(particle_set(jatom)%r(:),cell)
+            IF ( PRESENT (ref_points) ) THEN
+               rc(:) = 0.5_dp * (ref_points(:,iatom) + ref_points(:,jatom))
+            ELSE IF ( PRESENT (ref_point) ) THEN
+               rc(:) = ref_point(:)
+            ELSE
+               rc(:) = 0._dp
+            END IF
+            ! we dont use PBC at this point
+            rab(:) = ra(:) - rb(:)
+            rac(:) = ra(:) - rc(:)
+            rbc(:) = rb(:) - rc(:)
+            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+            dab = SQRT(rab2)
+
+            DO iset=1,nseta
+
+              ncoa = npgfa(iset)*ncoset(la_max(iset))
+              sgfa = first_sgfa(1,iset)
+
+              DO jset=1,nsetb
+
+                IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+
+                ncob = npgfb(jset)*ncoset(lb_max(jset))
+                sgfb = first_sgfb(1,jset)
+
+!               *** Calculate the primitive integrals ***
+
+                CALL moment(la_max(iset),npgfa(iset),zeta(:,iset),&
+                            rpgfa(:,iset),la_min(iset),&
+                            lb_max(jset),npgfb(jset),zetb(:,jset),&
+                            rpgfb(:,jset),nmoments,rac,rbc,mab)
+
+!               *** Contraction step ***
+
+                DO i=1,nm
+
+                  CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                             1.0_dp,mab(1,1,i),SIZE(mab,1),&
+                             sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                             0.0_dp,work(1,1),SIZE(work,1))
+
+                  IF (iatom <= jatom) THEN
+
+                    CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                               1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                               work(1,1),SIZE(work,1),&
+                               1.0_dp,mint(i)%block(sgfa,sgfb),&
+                               SIZE(mint(i)%block,1))
+
+                  ELSE
+
+                    CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                               1.0_dp,work(1,1),SIZE(work,1),&
+                               sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                               1.0_dp,mint(i)%block(sgfb,sgfa),&
+                               SIZE(mint(i)%block,1))
+
+                  END IF
+
+                END DO
+
+              END DO
+            END DO
+
+            neighbor_node => next(neighbor_node)
+
+          END DO
+
+          neighbor_list => next(neighbor_list)
+
+        END DO
+
+      END DO
+    END DO
+
+!   *** Release work storage ***
+
+    DEALLOCATE (mab,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (work,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO i=1,nm
+      NULLIFY (mint(i)%block)
+    END DO
+    DEALLOCATE (mint,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
+
+    CALL timestop(handle)
+
+  END SUBROUTINE build_local_moment_matrix_new
+
+  SUBROUTINE build_local_moment_matrix_old(qs_env,moments_sm,nmoments,ref_point,ref_points,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -113,7 +412,8 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: ref_points
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moment_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'build_local_moment_matrix_old', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
@@ -175,9 +475,6 @@ CONTAINS
        ALLOCATE(moments(i)%matrix)
        CALL dbcsr_init (moments(i)%matrix)
        CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments", error)
-       !CALL replicate_matrix(source=matrix_s(1)%matrix,&
-       !                     TARGET=moments(i)%matrix,&
-       !                     target_name="Moments",error=error)
     END DO
 
     NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
@@ -406,13 +703,13 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE build_local_moment_matrix
+  END SUBROUTINE build_local_moment_matrix_old
 
 ! *****************************************************************************
-  SUBROUTINE build_berry_moment_matrix(qs_env,cosmat_sm,sinmat_sm,kvec,error)
+  SUBROUTINE build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_type), POINTER          :: cosmat_sm, sinmat_sm
+    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: kvec
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -438,8 +735,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -453,12 +748,14 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell,cosmat,sinmat)
+    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,cell=cell,&
-                    distribution_2d=distribution_2d,&
                     sab_orb=sab_orb,error=error)
+
+    CALL dbcsr_set(sinmat,0.0_dp,error=error)
+    CALL dbcsr_set(cosmat,0.0_dp,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxco=ldwork )
     ldab = ldwork
@@ -471,12 +768,6 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
-
-    CALL set_matrix(cosmat_sm,0.0_dp)
-    CALL set_matrix(sinmat_sm,0.0_dp)
-    ALLOCATE(cosmat,sinmat)
-    CALL dbcsr_from_sm(cosmat, cosmat_sm, error)
-    CALL dbcsr_from_sm(sinmat, sinmat_sm, error)
 
     DO ikind=1,nkind
 
@@ -561,41 +852,47 @@ CONTAINS
                                 block_row=irow,&
                                 block_col=icol,&
                                 BLOCK=cblock)
-            CPPostcondition(ASSOCIATED(cblock),cp_failure_level,routineP,error,failure)
             NULLIFY (sblock)
             CALL dbcsr_get_block_node(matrix=sinmat,&
                                 block_row=irow,&
                                 block_col=icol,&
                                 BLOCK=sblock)
-            CPPostcondition(ASSOCIATED(sblock),cp_failure_level,routineP,error,failure)
+            IF(ASSOCIATED(cblock).AND..NOT.ASSOCIATED(sblock).OR.&
+               .NOT.ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
+               CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+            ENDIF
 
-            ra(:) = pbc(particle_set(iatom)%r(:),cell)
-            rb(:) = ra+rab
-            dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+            IF(ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
 
-            DO iset=1,nseta
+               ra(:) = pbc(particle_set(iatom)%r(:),cell)
+               rb(:) = ra+rab
+               dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 
-              ncoa = npgfa(iset)*ncoset(la_max(iset))
-              sgfa = first_sgfa(1,iset)
+               DO iset=1,nseta
 
-              DO jset=1,nsetb
+                  ncoa = npgfa(iset)*ncoset(la_max(iset))
+                  sgfa = first_sgfa(1,iset)
 
-                IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+                  DO jset=1,nsetb
 
-                ncob = npgfb(jset)*ncoset(lb_max(jset))
-                sgfb = first_sgfb(1,jset)
+                     IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+
+                     ncob = npgfb(jset)*ncoset(lb_max(jset))
+                     sgfb = first_sgfb(1,jset)
 
 !               *** Calculate the primitive integrals ***
-                CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                            lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                            ra,rb,kvec,cosab,sinab)
-                CALL contract_cossin(cblock,sblock,&
-                            iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
-                            jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
-                            cosab,sinab,ldab,work,ldwork)
+                     CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                          lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
+                          ra,rb,kvec,cosab,sinab)
+                     CALL contract_cossin(cblock,sblock,&
+                          iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
+                          jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
+                          cosab,sinab,ldab,work,ldwork)
 
-              END DO
-            END DO
+                  END DO
+               END DO
+
+            ENDIF
 
             neighbor_node => next(neighbor_node)
 
@@ -614,12 +911,6 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(work,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    CALL sm_from_dbcsr ( cosmat_sm, cosmat, distribution_2d, error=error )
-    CALL sm_from_dbcsr ( sinmat_sm, sinmat, distribution_2d, error=error )
-
-    CALL dbcsr_deallocate_matrix ( cosmat, error=error )
-    CALL dbcsr_deallocate_matrix ( sinmat, error=error )
 
     CALL timestop(handle)
 
@@ -663,6 +954,9 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, rho_dbcsr
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -671,8 +965,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-    TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
+      POINTER                                :: matrix_s_sm
 
      failure = .FALSE.
      CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -702,13 +995,32 @@ CONTAINS
        NULLIFY ( local_particles )
        CALL get_qs_env ( qs_env, local_particles=local_particles, error=error)
        NULLIFY ( matrix_s, mos )
-       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, mos=mos, error=error)
+       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm, mos=mos, error=error)
+
+    NULLIFY(matrix_s)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+       ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_s(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(rho_dbcsr)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( rho_dbcsr, SIZE(rho%rho_ao), error )!sm->dbcsr
+    DO ispin=1,SIZE(rho_dbcsr)!sm->dbcsr
+       ALLOCATE(rho_dbcsr(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(rho_dbcsr(ispin)%matrix)
+       CALL dbcsr_from_sm(rho_dbcsr(ispin)%matrix, rho%rho_ao(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
        NULLIFY ( cosmat, sinmat )
-       CALL replicate_matrix(source=matrix_s(1)%matrix,&
-                            TARGET=cosmat,target_name="COS MOM",error=error)
-       CALL replicate_matrix(source=matrix_s(1)%matrix,&
-                            TARGET=sinmat,target_name="SIN MOM",error=error)
+       ALLOCATE(cosmat, sinmat)
+       CALL dbcsr_init(cosmat)
+       CALL dbcsr_init(sinmat)
+       CALL dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM',error=error)
+       CALL dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
+       CALL dbcsr_set(cosmat,0.0_dp,error=error)
+       CALL dbcsr_set(sinmat,0.0_dp,error=error)
 
        ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -857,8 +1169,7 @@ CONTAINS
        ! charge
        trace = 0.0_dp
        DO ispin=1,dft_control%nspins
-         CALL cp_sm_sm_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,&
-                                para_env,error)
+         CALL dbcsr_trace(rho_dbcsr(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
          rmom(1,1) = rmom(1,1) + trace
        END DO
 
@@ -998,8 +1309,8 @@ CONTAINS
        DEALLOCATE (rlab,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       CALL deallocate_matrix ( cosmat, error )
-       CALL deallocate_matrix ( sinmat, error )
+       CALL dbcsr_deallocate_matrix ( cosmat, error )
+       CALL dbcsr_deallocate_matrix ( sinmat, error )
 
        DO ispin = 1, dft_control%nspins
          CALL cp_fm_release(opvec(ispin)%matrix,error=error)
@@ -1015,6 +1326,9 @@ CONTAINS
        DEALLOCATE ( eigrmat, STAT = istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    CALL dbcsr_deallocate_matrix_set( rho_dbcsr, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
+
        CALL timestop(handle)
 
      END IF
@@ -1024,7 +1338,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
 
-    TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
+    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -1038,10 +1352,10 @@ CONTAINS
 
     DO i=1,SIZE ( op_fm_set, 2 )   ! spin
        CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
-       CALL cp_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
        CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
             op_fm_set(1,i)%matrix,error=error)
-       CALL cp_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
        CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
             op_fm_set(2,i)%matrix,error=error)
     ENDDO
@@ -1051,7 +1365,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
 
-    TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
+    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -1089,8 +1403,8 @@ CONTAINS
           work%local_data(:,icol+lcol)=mos_new(2*i)%matrix%local_data(:,icol)
        END DO
 
-       CALL cp_sm_fm_multiply(cosmat, work, work1, ncol=newdim, error=error)
-       CALL cp_sm_fm_multiply(sinmat, work, work2, ncol=newdim, error=error)
+       CALL dbcsr_sm_fm_multiply(cosmat, work, work1, ncol=newdim, error=error)
+       CALL dbcsr_sm_fm_multiply(sinmat, work, work2, ncol=newdim, error=error)
 
        DO icol=1,lcol
           work%local_data(:,icol)=work1%local_data(:,icol)-work2%local_data(:,icol+lcol)
@@ -1162,13 +1476,15 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, moments, rho_dbcsr
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, moments
+      POINTER                                :: matrix_s_sm
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -1190,7 +1506,22 @@ CONTAINS
                          particle_set=particle_set, error=error)
        para_env => qs_env%para_env
        NULLIFY ( matrix_s )
-       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
+       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm,error=error)
+
+    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+       ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_s(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(rho_dbcsr)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( rho_dbcsr, SIZE(rho%rho_ao), error )!sm->dbcsr
+    DO ispin=1,SIZE(rho_dbcsr)!sm->dbcsr
+       ALLOCATE(rho_dbcsr(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(rho_dbcsr(ispin)%matrix)
+       CALL dbcsr_from_sm(rho_dbcsr(ispin)%matrix, rho%rho_ao(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
        nm = SIZE(moments)
        ALLOCATE (rmom(nm+1,3),STAT=istat)
@@ -1202,22 +1533,20 @@ CONTAINS
 
        trace = 0.0_dp
        DO ispin=1,dft_control%nspins
-         CALL cp_sm_sm_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,&
-                                para_env,error)
+         CALL dbcsr_trace(rho_dbcsr(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
          rmom(1,1) = rmom(1,1) + trace
        END DO
 
        DO i = 1, SIZE(moments)
           strace = 0._dp
           DO ispin=1,dft_control%nspins
-            CALL cp_sm_sm_trace(rho%rho_ao(ispin)%matrix,moments(i)%matrix,trace,&
-                                para_env,error)
+            CALL dbcsr_trace(rho_dbcsr(ispin)%matrix,moments(i)%matrix,trace,error=error)
             strace = strace + trace
           END DO
           rmom(i+1,1) = strace
        END DO
 
-       CALL deallocate_matrix_set ( moments, error )
+       CALL dbcsr_deallocate_matrix_set ( moments, error )
 
        ! nuclear contribution
        CALL get_qs_env(qs_env=qs_env,&
@@ -1260,6 +1589,9 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
        CALL timestop(handle)
+
+    CALL dbcsr_deallocate_matrix_set( rho_dbcsr, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
 
      END IF
 

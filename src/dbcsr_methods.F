@@ -927,8 +927,9 @@ CONTAINS
     CALL cp_assert (matrix%m%initialized.EQ.dbcsr_magic_number,&
          cp_fatal_level, cp_caller_error, routineP,&
          "Matrix not initialized")
-    CALL cp_assert (matrix%m%valid, cp_warning_level, cp_caller_error,&
-         routineP,"Invalid matrix")
+    !vw avoid massive priting of warnings
+    !CALL cp_assert (matrix%m%valid, cp_warning_level, cp_caller_error,&
+    !     routineP,"Invalid matrix")
     IF (PRESENT (nblkrows_total)) nblkrows_total = matrix%m%nblkrows_total
     IF (PRESENT (nblkcols_total)) nblkcols_total = matrix%m%nblkcols_total
     IF (PRESENT (nfullrows_total)) nfullrows_total = matrix%m%nfullrows_total

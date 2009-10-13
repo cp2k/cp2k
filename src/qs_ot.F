@@ -19,6 +19,7 @@ MODULE qs_ot
                                              cp_cfm_release,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_frobenius_norm,&
                                              cp_fm_gemm,&
@@ -39,7 +40,10 @@ MODULE qs_ot
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: apply_preconditioner
@@ -48,10 +52,7 @@ MODULE qs_ot
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type,&
                                              get_aux_coeff
-  USE sparse_matrix_types,             ONLY: create_dbm_from_sm,&
-                                             real_matrix_type,&
-                                             set_matrix,&
-                                             transfer_matrix
+  USE sparse_matrix_types,             ONLY: transfer_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -130,8 +131,10 @@ CONTAINS
           qs_ot_env%dx = 0.0_dp
        ENDIF
        IF ( qs_ot_env % settings % scp_nddo ) THEN
-          CALL create_dbm_from_sm ( qs_ot_env % dxmat, qs_ot_env % gxmat, "SCP_DXMAT", .FALSE., error = error )
-          CALL set_matrix ( qs_ot_env % dxmat, 0.0_dp )
+          ALLOCATE(qs_ot_env % dxmat)
+          CALL dbcsr_init(qs_ot_env % dxmat, error=error)
+          CALL dbcsr_copy(qs_ot_env % dxmat, qs_ot_env % gxmat, "SCP_DXMAT", error=error)
+          CALL dbcsr_set (qs_ot_env % dxmat, 0.0_dp, error=error )
        ENDIF
        ! ***SCP
     ENDIF
@@ -324,10 +327,9 @@ CONTAINS
   END SUBROUTINE qs_ot_ref_lwdn
 
 ! *****************************************************************************
-  SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,error)
+  SUBROUTINE qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(real_matrix_type), POINTER          :: S
     TYPE(cp_fm_type), POINTER                :: C_OLD, C_TMP, C_NEW, P, SC
     REAL(dp), INTENT(IN)                     :: norm_in
     LOGICAL, INTENT(IN)                      :: update
@@ -475,7 +477,7 @@ CONTAINS
        &                            qs_ot_env1, error)
     !
     TYPE(cp_fm_type), POINTER                :: matrix_c
-    TYPE(real_matrix_type), POINTER          :: matrix_s
+    TYPE(dbcsr_obj), POINTER                 :: matrix_s
     TYPE(cp_fm_type), POINTER                :: matrix_x, matrix_sx, &
                                                 matrix_gx_old, matrix_dx
     TYPE(qs_ot_type)                         :: qs_ot_env, qs_ot_env1
@@ -492,7 +494,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: C_NEW, C_OLD, C_TMP, D, &
                                                 G_OLD, P, SC, Y
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(real_matrix_type), POINTER          :: S
+    TYPE(dbcsr_obj), POINTER                 :: S
 
     CALL timeset(routineN,handle)
     NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP,G_OLD,D,logger)
@@ -521,7 +523,7 @@ CONTAINS
     !
     ! compute SC = S*C
     IF(ASSOCIATED(S)) THEN
-       CALL cp_sm_fm_multiply(S,C_OLD,SC,k,error=error)
+       CALL dbcsr_sm_fm_multiply(S,C_OLD,SC,k,error=error)
     ELSE
        CALL cp_fm_to_fm(C_OLD,SC,error=error)
     ENDIF
@@ -547,7 +549,7 @@ CONTAINS
     CASE("LWDN")
        CALL qs_ot_ref_lwdn(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,update,error)
     CASE("POLY")
-       CALL qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm,update,error)
+       CALL qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm,update,error)
     CASE DEFAULT
        CALL stop_program("qs_ot_get_orbitals_ref","Wrong argument")
     END SELECT
@@ -945,21 +947,26 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_scp_nddo_coeffs ( qs_ot_env, pscp, error )
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(real_matrix_type), POINTER          :: pscp
+    TYPE(dbcsr_obj), POINTER                 :: pscp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL transfer_matrix ( qs_ot_env%xmat, pscp, error )
+!CALL transfer_matrix ( qs_ot_env%xmat, pscp, error )
+
+    CALL dbcsr_copy(pscp,qs_ot_env%xmat,error=error)
 
   END SUBROUTINE qs_ot_get_scp_nddo_coeffs
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_scp_nddo_derivative ( qs_ot_env, pscp, fscp, error )
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(real_matrix_type), POINTER          :: pscp, fscp
+    TYPE(dbcsr_obj), POINTER                 :: pscp, fscp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL transfer_matrix ( pscp, qs_ot_env%xmat, error )
-    CALL transfer_matrix ( fscp, qs_ot_env%gxmat, error )
-     
+!CALL transfer_matrix ( pscp, qs_ot_env%xmat, error )
+
+    CALL dbcsr_copy(qs_ot_env%xmat,pscp,error=error)
+    !CALL transfer_matrix ( fscp, qs_ot_env%gxmat, error )
+    CALL dbcsr_copy(qs_ot_env%gxmat,fscp,error=error)
+
   END SUBROUTINE qs_ot_get_scp_nddo_derivative 
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_scp_dft_coeffs ( qs_ot_env, aux_coeff_set, error )

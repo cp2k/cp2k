@@ -15,6 +15,8 @@ MODULE xas_env_types
   USE basis_set_types,                 ONLY: deallocate_gto_basis_set,&
                                              gto_basis_set_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_give_back_fm
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -25,8 +27,6 @@ MODULE xas_env_types
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                              qs_loc_env_release,&
                                              qs_loc_env_retain
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             real_matrix_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -92,7 +92,7 @@ MODULE xas_env_types
     TYPE( cp_fm_type ), POINTER :: unoccupied_orbs
     TYPE( cp_fm_type ), POINTER :: all_vectors
     TYPE( cp_fm_type ), POINTER :: fm_work
-    TYPE( real_matrix_p_type ), DIMENSION(:), POINTER :: ostrength_sm
+    TYPE( dbcsr_obj_p_type ), DIMENSION(:), POINTER :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
 
   END TYPE xas_environment_type
@@ -119,7 +119,7 @@ CONTAINS
       POINTER                                :: spectrum
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: groundstate_coeff
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ostrength_sm
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: dip_fm_set
@@ -336,7 +336,7 @@ CONTAINS
          END IF
 
          IF(ASSOCIATED(xas_env%ostrength_sm)) THEN
-            CALL deallocate_matrix_set(xas_env%ostrength_sm,error=error)
+            CALL dbcsr_deallocate_matrix_set(xas_env%ostrength_sm,error=error)
          END IF
          IF(ASSOCIATED(xas_env%qs_loc_env)) THEN
             CALL qs_loc_env_release(xas_env%qs_loc_env, error=error)

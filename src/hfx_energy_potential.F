@@ -24,10 +24,17 @@ MODULE hfx_energy_potential
                                              guidon2008
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: distribute_ks_matrix,&
                                              get_atomic_block_maps,&
@@ -78,8 +85,7 @@ MODULE hfx_energy_potential
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: cp_sm_sm_trace,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -121,13 +127,13 @@ MODULE hfx_energy_potential
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hfx_section,para_env,& 
+  SUBROUTINE integrate_four_center(qs_env,ks_matrix_sm,energy,rho,hfx_section,para_env,& 
                                    geometry_did_change,irep,distribute_fock_matrix,& 
                                    ispin, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+      POINTER                                :: ks_matrix_sm
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: hfx_section
@@ -278,9 +284,30 @@ MODULE hfx_energy_potential
                                                 katom_end, latom_start, latom_end, my_process_id
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
     REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl
+    TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)::ks_matrix,rho_ao
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao_sm
+    INTEGER::ii
     REAL(dp), DIMENSION(:), POINTER          :: p_work
 
     CALL timeset(routineN,handle)
+
+    NULLIFY(ks_matrix)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( ks_matrix, SIZE(ks_matrix_sm), error )!sm->dbcsr
+    DO ii=1,SIZE(ks_matrix)!sm->dbcsr
+       ALLOCATE(ks_matrix(ii)%matrix)!sm->dbcsr
+       CALL dbcsr_init(ks_matrix(ii)%matrix)
+       CALL dbcsr_from_sm(ks_matrix(ii)%matrix, ks_matrix_sm(ii)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    rho_ao_sm=>rho%rho_ao!sm->dbcsr
+    NULLIFY(rho_ao)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
+    DO ii=1,SIZE(rho_ao)!sm->dbcsr
+       ALLOCATE(rho_ao(ii)%matrix)!sm->dbcsr
+       CALL dbcsr_init(rho_ao(ii)%matrix)
+       CALL dbcsr_from_sm(rho_ao(ii)%matrix, rho_ao_sm(ii)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     CALL cite_reference(Guidon2008)
 
@@ -343,7 +370,7 @@ MODULE hfx_energy_potential
 !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(qs_env,&
 !$OMP                                  ks_matrix,&
 !$OMP                                  energy,&
-!$OMP                                  rho,&
+!$OMP                                  rho_ao,&
 !$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  geometry_did_change,&
@@ -720,14 +747,14 @@ MODULE hfx_energy_potential
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF( .NOT. treat_lsd_in_core .OR. nspins == 1 ) THEN
       CALL timeset(routineN//"_getP",handle_getP)
-      CALL get_full_density(para_env, full_density, rho%rho_ao(ispin)%matrix, shm_number_of_p_entries,&
+      CALL get_full_density(para_env, full_density, rho_ao(ispin)%matrix, shm_number_of_p_entries,&
                             shm_is_assoc_atomic_block, &
                             shm_master_x_data%block_offset, natom, last_sgf_global, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)   
 
       IF(nspins == 2) THEN
         ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
-        CALL get_full_density(para_env, full_density_beta, rho%rho_ao(2)%matrix, shm_number_of_p_entries,&
+        CALL get_full_density(para_env, full_density_beta, rho_ao(2)%matrix, shm_number_of_p_entries,&
                               shm_is_assoc_atomic_block, & 
                               shm_master_x_data%block_offset, natom, last_sgf_global, &
                               kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
@@ -755,11 +782,11 @@ MODULE hfx_energy_potential
     ELSE
       IF( do_p_screening ) THEN
         CALL timeset(routineN//"_getP",handle_getP)
-        CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, shm_number_of_p_entries,&
+        CALL get_full_density(para_env, full_density, rho_ao(1)%matrix, shm_number_of_p_entries,&
                               shm_is_assoc_atomic_block, &
                               shm_master_x_data%block_offset, natom, last_sgf_global, &
                               kind_of, basis_parameter,  get_max_vals_spin=.TRUE., &
-                              rho_beta=rho%rho_ao(2)%matrix, error=error)   
+                              rho_beta=rho_ao(2)%matrix, error=error)   
         CALL timestop(handle_getP)
 
         !! Calculate the max values of the density matrix actual_pmax stores the data from the actual density matrix
@@ -780,7 +807,7 @@ MODULE hfx_energy_potential
         END IF
       END IF
       ! ** Now get the density(ispin)
-      CALL get_full_density(para_env, full_density, rho%rho_ao(ispin)%matrix, shm_number_of_p_entries,&
+      CALL get_full_density(para_env, full_density, rho_ao(ispin)%matrix, shm_number_of_p_entries,&
                             shm_is_assoc_atomic_block, &
                             shm_master_x_data%block_offset, natom, last_sgf_global, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., error=error)
@@ -1812,11 +1839,11 @@ MODULE hfx_energy_potential
 
     IF( distribute_fock_matrix) THEN
       !! ** Calculate the exchange energy
-      CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix, rho%rho_ao(ispin)%matrix, &
-                          ene_x_aa, para_env, error)
+      CALL dbcsr_trace(ks_matrix(ispin)%matrix, rho_ao(ispin)%matrix, &
+                          ene_x_aa, error=error)
       IF( nspins == 2 .AND. .NOT. treat_lsd_in_core ) THEN
-        CALL cp_sm_sm_trace(ks_matrix(2)%matrix, rho%rho_ao(2)%matrix, &
-                            ene_x_bb, para_env, error)
+        CALL dbcsr_trace(ks_matrix(2)%matrix, rho_ao(2)%matrix, &
+                            ene_x_bb, error=error)
       END IF
   
       !! Update energy type
@@ -2047,6 +2074,14 @@ MODULE hfx_energy_potential
     
 !$OMP BARRIER
 !$OMP END PARALLEL
+
+    DO ii=1,SIZE(ks_matrix)!sm->dbcsr
+       CALL sm_from_dbcsr ( ks_matrix_sm(ii)%matrix, ks_matrix(ii)%matrix, &!sm->dbcsr
+            ks_matrix(ii)%matrix%m%dist2d, error=error )!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( ks_matrix, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
+
     CALL timestop(handle)
   END SUBROUTINE integrate_four_center
 

@@ -265,10 +265,11 @@ CONTAINS
           CPPrecondition(ASSOCIATED(kinetic_m(1)%matrix),cp_failure_level,routineP,error,failure)
           e_kin=0.0_dp
           DO ispin=1,dft_control%nspins
-             CALL calculate_ecore(h=kinetic_m(1)%matrix,&
-                  p=rho%rho_ao(ispin)%matrix,&
+             CALL calculate_ecore(h_sm=kinetic_m(1)%matrix,&
+                  p_sm=rho%rho_ao(ispin)%matrix,&
                   ecore=e_kinAtt,&
-                  para_env=para_env)
+                  para_env=para_env,&
+                  error=error)
              e_kin=e_kin+e_kinAtt
           END DO
           unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%KINETIC_ENERGY",&
@@ -513,7 +514,7 @@ CPSourceFileRef,&
                 ENDIF
              ENDIF
 
-             CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=matrix_s(1)%matrix, &
+             CALL ot_eigensolver(matrix_h_sm=ks_rmpv(ispin)%matrix,matrix_s_sm=matrix_s(1)%matrix, &
                   matrix_c=unoccupied_orbs(ispin)%matrix, &
                   matrix_orthogonal_space=mo_coeff, &
                   eps_gradient=scf_control%eps_lumos, &
@@ -1679,10 +1680,10 @@ CPSourceFileRef,&
             IF (ionode) WRITE(UNIT=output_unit,FMT="(T3,A)")&
               "WARNING: S**2 computation does not yet treat fractional occupied orbitals"
           ELSE
-            CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square,&
-                 s_square_ideal=s_square_ideal,error=error)
-            IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
-                 "Ideal and single determinant S**2 : ",s_square_ideal,s_square
+             CALL compute_s_square(mos=mos, matrix_s_sm=matrix_s, s_square=s_square,&
+                  s_square_ideal=s_square_ideal,error=error)
+             IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
+                  "Ideal and single determinant S**2 : ",s_square_ideal,s_square
           END IF
        ENDIF
 

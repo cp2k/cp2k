@@ -588,3 +588,9 @@ hcn_ts_r.inp
 hcn_meta_chaincoord.inp
 # FFTW3 now plans to use SSE by default 
 hcn_meta_chaincoord_kind.inp
+#
+hcn_ts_r.inp
+#
+hcn_meta_chaincoord.inp
+#
+hcn_meta_chaincoord_kind.inp

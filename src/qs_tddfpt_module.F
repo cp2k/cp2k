@@ -162,7 +162,7 @@ CONTAINS
     CALL section_vals_release(xc_fun_tmp,error=error)
 
     CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
-                                      ks_matrix=qs_env%matrix_ks, rho=qs_env%rho, &
+                                      ks_matrix_sm=qs_env%matrix_ks, rho=qs_env%rho, &
                                       energy=qs_env%energy,&
                                       calculate_forces=.FALSE.,&
                                       just_energy=.FALSE.,error=error)

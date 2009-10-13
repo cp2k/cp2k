@@ -420,8 +420,8 @@ CPSourceFileRef,&
                 ENDIF
              ENDIF
 
-             CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,&
-                  matrix_s=matrix_s(1)%matrix, &
+             CALL ot_eigensolver(matrix_h_sm=ks_rmpv(ispin)%matrix,&
+                  matrix_s_sm=matrix_s(1)%matrix, &
                   matrix_c=unoccupied_orbs(ispin)%matrix, &
                   matrix_orthogonal_space=mo_coeff, &
                   eps_gradient=scf_control%eps_lumos, &
@@ -844,14 +844,14 @@ CPSourceFileRef,&
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s
+      POINTER                                :: ks_rmpv
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell, dft_control, mos, atomic_kind_set, particle_set, rho, &
-         ks_rmpv, matrix_s, scf_control, dft_section, molecule_set, input, &
+         ks_rmpv, scf_control, dft_section, molecule_set, input, &
          particles, subsys)
     para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
@@ -862,7 +862,7 @@ CPSourceFileRef,&
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-            rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,&
+            rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,&
             input=input,cell=cell,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 

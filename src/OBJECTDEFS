@@ -84,6 +84,7 @@ OBJECTS_GENERIC =\
  cp_control_types.o\
  cp_control_utils.o\
  cp_dbcsr_operations.o\
+ cp_dbcsr_output.o\
  cp_ddapc.o\
  cp_ddapc_forces.o\
  cp_ddapc_methods.o\

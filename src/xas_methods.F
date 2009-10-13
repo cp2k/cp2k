@@ -22,6 +22,11 @@ MODULE xas_methods
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -40,7 +45,9 @@ MODULE xas_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_none, state_loc_all, state_loc_list, state_loc_range, &
@@ -92,10 +99,7 @@ MODULE xas_methods
                                              ot_method_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: external_control,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -173,6 +177,8 @@ CONTAINS
                                                 mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, op_sm, ostrength_sm
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(localized_wfn_control_type), &
       POINTER                                :: my_localized_wfn_control
@@ -183,7 +189,7 @@ CONTAINS
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, op_sm, ostrength_sm
+      POINTER                                :: matrix_ks_sm
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, loc_section, &
                                                 print_loc_section, &
@@ -245,7 +251,14 @@ CONTAINS
     NULLIFY(atomic_kind_set, dft_control, scf_control, mos, para_env, particle_set)
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
          cell = cell, dft_control=dft_control, scf_control=scf_control,&
-         matrix_ks=matrix_ks,mos=mos, para_env=para_env, particle_set=particle_set ,error=error)
+         matrix_ks=matrix_ks_sm,mos=mos, para_env=para_env, particle_set=particle_set ,error=error)
+
+    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_ks(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
 !   The eigenstate of the KS Hamiltonian are nedeed
     NULLIFY(mo_coeff,eigenvalues)
@@ -262,6 +275,8 @@ CONTAINS
              do_rotation=.TRUE.,error=error)
       END DO
     END IF
+
+    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
 
 !   Set initial occupation numbers, and store the original ones
     DO ispin = 1,dft_control%nspins
@@ -391,12 +406,11 @@ CONTAINS
       CALL get_xas_env(xas_env=xas_env,ostrength_sm=ostrength_sm,error=error)
       DO i = 1,3
         NULLIFY(op_sm(i)%matrix)
-          op_sm(i)%matrix => ostrength_sm(i)%matrix
+        op_sm(i)%matrix => ostrength_sm(i)%matrix
       END DO
       IF(xas_control%dipole_form==xas_dip_vel) THEN
-          CALL p_xyz_ao(op_sm,qs_env,error=error)
+         CALL p_xyz_ao(op_sm,qs_env,error=error)
       END IF
-      DO i = 1,3;xas_env%ostrength_sm(i)%matrix=>op_sm(i)%matrix;ENDDO!super dirty
     END IF
     ! by using td-dft case the oscillator strength should be obtained from the linear response orbitals
 
@@ -598,6 +612,8 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(localized_wfn_control_type), &
@@ -609,7 +625,7 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s_sm
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
@@ -630,9 +646,17 @@ CONTAINS
               dft_control = dft_control, &
               scf_control = scf_control, &
               mpools=mpools,&
-              matrix_s=matrix_s, mos=mos, &
+              matrix_s=matrix_s_sm, mos=mos, &
               para_env=para_env, particle_set=particle_set,&
               scf_env=scf_env, error=error)
+
+    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+       ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_init(matrix_s(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
       nexc_search = xas_control%nexc_search
       nexc_atoms = xas_control%nexc_atoms
 
@@ -825,26 +849,27 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
   
       IF(xas_control%dipole_form==xas_dip_len2) THEN
-        CALL allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
+         CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
         DO i = 1,3
-           NULLIFY(xas_env%ostrength_sm(i)%matrix)
-           CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-                xas_env%ostrength_sm(i)%matrix,"xas_env%ostrength_sm"//&
-                "-"//TRIM(ADJUSTL(cp_to_string(i))),target_symmetry="symmetric",error=error)
-           CALL set_matrix(xas_env%ostrength_sm(i)%matrix,0.0_dp)
+           ALLOCATE(xas_env%ostrength_sm(i)%matrix)
+           CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
+           CALL dbcsr_copy(xas_env%ostrength_sm(i)%matrix,matrix_s(1)%matrix,&
+                "xas_env%ostrength_sm"//&
+                "-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
+           CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
         END DO
       ELSEIF(xas_control%dipole_form==xas_dip_vel) THEN
-        CALL allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
-        NULLIFY(xas_env%ostrength_sm(1)%matrix)
-        CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="antisymmetric",&
-        name="xas_env%ostrength_sm",error=error)
-        CALL set_matrix(xas_env%ostrength_sm(1)%matrix,0.0_dp)
+         CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
+         NULLIFY(xas_env%ostrength_sm(1)%matrix)
+         CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="antisymmetric",&
+              name="xas_env%ostrength_sm",error=error)
+         CALL dbcsr_set(xas_env%ostrength_sm(1)%matrix,0.0_dp,error=error)
         DO i = 2,3
-           NULLIFY(xas_env%ostrength_sm(i)%matrix)
-           CALL replicate_matrix_structure(xas_env%ostrength_sm(1)%matrix, &
-                xas_env%ostrength_sm(i)%matrix,"xas_env%ostrength_sm"//&
-                "-"//TRIM(ADJUSTL(cp_to_string(i))),target_symmetry="antisymmetric",error=error)
-           CALL set_matrix(xas_env%ostrength_sm(i)%matrix,0.0_dp)
+           ALLOCATE(xas_env%ostrength_sm(i)%matrix)
+           CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
+           CALL dbcsr_copy(xas_env%ostrength_sm(i)%matrix,xas_env%ostrength_sm(1)%matrix,&
+                "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
+           CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
         END DO
       END IF
 
@@ -973,6 +998,8 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF  ! failure
 
+    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
+
   END SUBROUTINE xas_env_init
 
 ! *****************************************************************************
@@ -1014,13 +1041,13 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
                                                 fm_work
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op_sm, ostrength_sm
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, op_sm, ostrength_sm
 
     failure =.FALSE.
     NULLIFY(logger)
@@ -1034,12 +1061,12 @@ CONTAINS
 
     NULLIFY(fm_work,ostrength_sm,op_sm, dip_fm_set)
     NULLIFY(all_evals,all_vectors,excvec_coeff, spectrum)
-    NULLIFY(cell,dft_control,mos,particle_set,matrix_s)
+    NULLIFY(cell,dft_control,mos,particle_set)
     ALLOCATE (op_sm(3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env,cell = cell, dft_control=dft_control,&
-         mos=mos,particle_set=particle_set,matrix_s=matrix_s,error=error)
+         mos=mos,particle_set=particle_set,error=error)
 
     CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
          all_evals=all_evals,dip_fm_set=dip_fm_set,excvec_coeff=excvec_coeff,&
@@ -1058,12 +1085,11 @@ CONTAINS
              op_sm(i)%matrix => ostrength_sm(i)%matrix
            END DO
            CALL rRc_xyz_ao(op_sm,qs_env,rc,order=1,minimum_image=.TRUE.,error=error)
-           DO i = 1,3;xas_env%ostrength_sm(i)%matrix=>op_sm(i)%matrix;ENDDO!super dirty
            CALL spectrum_dip_vel(dip_fm_set,op_sm,mos,excvec_coeff,&
                 all_vectors,all_evals,fm_work,&
                 spectrum,dft_control%xas_estate,error=error)
            DO i = 1,SIZE(ostrength_sm,1)
-             CALL set_matrix(ostrength_sm(i)%matrix,0.0_dp)
+              CALL dbcsr_set(ostrength_sm(i)%matrix,0.0_dp,error=error)
            END DO
         ELSE
            DO i = 1,3
@@ -1286,7 +1312,7 @@ CONTAINS
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
-    TYPE(real_matrix_p_type), &
+    TYPE(dbcsr_obj_p_type), &
       DIMENSION(:, :), POINTER               :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1323,7 +1349,7 @@ CONTAINS
            CPPrecondition(ASSOCIATED(fm_set(j,i)%matrix),cp_failure_level,routineP,error,failure)
            CALL cp_fm_set_all(fm_set(j,i)%matrix, 0.0_dp, error=error)
            CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-           CALL cp_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nvirtual,error=error)
+           CALL dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nvirtual,error=error)
            CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
                   fm_work,0.0_dp, fm_set(j,i)%matrix,b_first_col=1,error=error)
         END DO
@@ -1374,7 +1400,7 @@ CONTAINS
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1409,7 +1435,7 @@ CONTAINS
          CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
          CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
          CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-         CALL cp_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual,error=error)
+         CALL dbcsr_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual,error=error)
          CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
               fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
       END DO

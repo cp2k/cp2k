@@ -16,6 +16,11 @@ MODULE qs_pdos
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -33,7 +38,7 @@ MODULE qs_pdos
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -129,9 +134,11 @@ CONTAINS
                                                 matrix_work, mo_coeff, mo_virt
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: s_matrix
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s_matrix
+      POINTER                                :: s_matrix_sm
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -154,7 +161,15 @@ CONTAINS
 
 
     CALL get_qs_env(qs_env=qs_env,&
-         matrix_s=s_matrix,error=error)
+         matrix_s=s_matrix_sm,error=error)
+
+    NULLIFY(s_matrix)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( s_matrix, SIZE(s_matrix_sm), error )!sm->dbcsr
+    DO i=1,SIZE(s_matrix)!sm->dbcsr
+       ALLOCATE(s_matrix(i)%matrix)!sm->dbcsr
+       CALL dbcsr_init(s_matrix(i)%matrix)
+       CALL dbcsr_from_sm(s_matrix(i)%matrix, s_matrix_sm(i)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
            natom=natom, nsgf=nsgf, maxlgto=maxlgto)
@@ -191,7 +206,7 @@ CONTAINS
     CALL cp_fm_create(matrix_shalf, fm_struct_tmp,name="matrix_shalf",error=error)
     CALL cp_fm_create(matrix_work, fm_struct_tmp,name="matrix_work",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-    CALL copy_sm_to_fm(s_matrix(1)%matrix,matrix_shalf,error=error)
+    CALL copy_dbcsr_to_fm(s_matrix(1)%matrix,matrix_shalf,error=error)
     CALL cp_fm_power(matrix_shalf,matrix_work,0.5_dp,EPSILON(0.0_dp),n_dependent,error=error)
     CALL cp_fm_release(matrix_work,error=error)
 
@@ -509,6 +524,8 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
+    CALL dbcsr_deallocate_matrix_set( s_matrix, error=error )!sm->dbcsr
+
     CALL timestop(handle)
 
   END SUBROUTINE  calculate_projected_dos
@@ -569,7 +586,7 @@ CONTAINS
 
     NULLIFY (local_preconditioner)
 
-    CALL ot_eigensolver(matrix_h=ks_matrix(ispin)%matrix,matrix_s=s_matrix(1)%matrix, &
+    CALL ot_eigensolver(matrix_h_sm=ks_matrix(ispin)%matrix,matrix_s_sm=s_matrix(1)%matrix, &
          matrix_c=mo_virt, matrix_orthogonal_space=mo_coeff, &
          eps_gradient=scf_control%eps_lumos, &
          preconditioner=local_preconditioner, &

@@ -19,12 +19,9 @@ MODULE qs_elec_field
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -43,8 +40,6 @@ MODULE qs_elec_field
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -72,11 +67,11 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_efg_matrix(qs_env,matrix_efg_sm,rc,error)
+  SUBROUTINE build_efg_matrix(qs_env,matrix_efg,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_efg_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_efg
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -109,8 +104,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_efg
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_p_type), &
@@ -140,13 +133,6 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
-
-    NULLIFY(matrix_efg)
-    CALL dbcsr_allocate_matrix_set( matrix_efg, SIZE(matrix_efg_sm), error )
-    DO i = 1,SIZE(matrix_efg)
-       ALLOCATE(matrix_efg(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(matrix_efg(i)%matrix, matrix_efg_sm(i)%matrix, error)
-    ENDDO
 
     ! *** Allocate work storage ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -351,23 +337,18 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "efgint")
 
-    DO i = 1,SIZE(matrix_efg)
-       CALL sm_from_dbcsr( matrix_efg_sm(i)%matrix, matrix_efg(i)%matrix, distribution_2d, error=error )
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set(matrix_efg, error)
-
     ! *** Print the electric field gradient matrix, if requested ***
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/EFG",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/EFG",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_efg_sm(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_efg_sm(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_efg_sm(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_efg_sm(4)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_efg_sm(5)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_efg_sm(6)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_efg(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_efg(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_efg(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_efg(4)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_efg(5)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_efg(6)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/EFG", error=error)
     END IF

@@ -689,6 +689,10 @@
     stored_row = row ; stored_col = col
     CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col, tr)
     nze = row_size*col_size
+    !
+    ! check for 0 block
+    IF(nze.LE.0) RETURN
+
     CALL cp_assert (SIZE(block) .GE. nze, cp_fatal_level,&
          cp_caller_error, routineN, "Invalid block dimensions")
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&

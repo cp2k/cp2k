@@ -21,6 +21,10 @@ MODULE qs_linres_op
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -32,7 +36,10 @@ MODULE qs_linres_op
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
+  USE dbcsr_util,                      ONLY: dbcsr_checksum
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -56,12 +63,6 @@ MODULE qs_linres_op
                                              rRc_xyz_ao,&
                                              set_up_op_sm
   USE qs_spin_orbit,                   ONLY: build_pso_matrix
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             checksum_matrix,&
-                                             deallocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -123,12 +124,12 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_ao
     TYPE(section_vals_type), POINTER         :: lr_section
 
     CALL timeset(routineN,handle)
@@ -190,13 +191,16 @@ CONTAINS
     !************************************************************
     !
 
-    CALL allocate_matrix_set(op_ao,3,error=error)
+    CALL dbcsr_allocate_matrix_set(op_ao,3,error=error)
+    ALLOCATE(op_ao(1)%matrix,op_ao(2)%matrix,op_ao(3)%matrix)
+    CALL dbcsr_init (op_ao(1)%matrix)
+    CALL dbcsr_init (op_ao(2)%matrix)
+    CALL dbcsr_init (op_ao(3)%matrix)
     CALL set_up_op_sm(op_ao(1)%matrix,qs_env,symmetry="none",name="op_ao",error=error)
     DO idir=2,3
-       CALL replicate_matrix_structure(op_ao(1)%matrix,op_ao(idir)%matrix,&
-            & "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none",&
-            & error=error)
-       CALL set_matrix(op_ao(idir)%matrix,0.0_dp)
+       CALL dbcsr_copy(op_ao(idir)%matrix,op_ao(1)%matrix,&
+            "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error=error)
+       CALL dbcsr_set(op_ao(idir)%matrix,0.0_dp,error=error)
     ENDDO
 
     chk(:) = 0.0_dp
@@ -207,23 +211,23 @@ CONTAINS
        CALL cp_fm_set_all(p_psi0(ispin,2)%matrix,0.0_dp,error=error)
        CALL cp_fm_set_all(p_psi0(ispin,3)%matrix,0.0_dp,error=error)
        DO icenter = 1,nbr_center(ispin)
-          CALL set_matrix(op_ao(1)%matrix,0.0_dp)
-          CALL set_matrix(op_ao(2)%matrix,0.0_dp)
-          CALL set_matrix(op_ao(3)%matrix,0.0_dp)
+          CALL dbcsr_set(op_ao(1)%matrix,0.0_dp,error=error)
+          CALL dbcsr_set(op_ao(2)%matrix,0.0_dp,error=error)
+          CALL dbcsr_set(op_ao(3)%matrix,0.0_dp,error=error)
           !CALL rmc_x_p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,&
           !     &              wancen=centers_set(ispin)%array(1:3,icenter),&
           !     &              error=error)
           CALL build_ang_mom_matrix(qs_env,op_ao,centers_set(ispin)%array(1:3,icenter),error)
           !
           ! accumulate checksums
-          chk(1) = chk(1)+checksum_matrix(op_ao(1)%matrix,para_env)
-          chk(2) = chk(2)+checksum_matrix(op_ao(2)%matrix,para_env)
-          chk(3) = chk(3)+checksum_matrix(op_ao(3)%matrix,para_env)
+          chk(1) = chk(1)+dbcsr_checksum(op_ao(1)%matrix,error)
+          chk(2) = chk(2)+dbcsr_checksum(op_ao(2)%matrix,error)
+          chk(3) = chk(3)+dbcsr_checksum(op_ao(3)%matrix,error)
           DO idir = 1,3
              CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-             CALL cp_sm_fm_multiply(op_ao(idir)%matrix,mo_coeff,&
-                  &                 rxp_psi0(ispin,idir)%matrix,ncol=nmo,&
-                  &                 alpha=-1.0_dp,error=error)
+             CALL dbcsr_sm_fm_multiply(op_ao(idir)%matrix,mo_coeff,&
+                  &                    rxp_psi0(ispin,idir)%matrix,ncol=nmo,&
+                  &                    alpha=-1.0_dp,error=error)
              DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
                 istate = center_list(ispin)%array(2,j)
                 CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix,&
@@ -236,7 +240,7 @@ CONTAINS
        CALL cp_fm_to_fm(p_psi0(ispin,3)%matrix,rxp_psi0(ispin,3)%matrix,error)
     ENDDO
     !
-    CALL deallocate_matrix_set(op_ao,error=error)
+    CALL dbcsr_deallocate_matrix_set(op_ao,error=error)
     !
     ! print checksums
     IF(output_unit>0) THEN
@@ -246,22 +250,25 @@ CONTAINS
     ENDIF
     !
     ! Calculate the px py pz operators
-    CALL allocate_matrix_set(op_ao,3,error=error)
+    CALL dbcsr_allocate_matrix_set(op_ao,3,error=error)
+    ALLOCATE(op_ao(1)%matrix,op_ao(2)%matrix,op_ao(3)%matrix)
+    CALL dbcsr_init (op_ao(1)%matrix)
+    CALL dbcsr_init (op_ao(2)%matrix)
+    CALL dbcsr_init (op_ao(3)%matrix)
     CALL set_up_op_sm(op_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="op_ao",error=error)
     DO idir=2,3
-       CALL replicate_matrix_structure(op_ao(1)%matrix,op_ao(idir)%matrix,&
-            & "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="antisymmetric",&
-            & error=error)
-       CALL set_matrix(op_ao(idir)%matrix,0.0_dp)
+       CALL dbcsr_copy(op_ao(idir)%matrix,op_ao(1)%matrix,&
+            "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error=error)
+       CALL dbcsr_set(op_ao(idir)%matrix,0.0_dp,error=error)
     ENDDO
     !
     CALL build_lin_mom_matrix(qs_env,op_ao,error)
     !CALL p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,error=error)
     !
     ! print checksums
-    chk(1) = checksum_matrix(op_ao(1)%matrix,para_env)
-    chk(2) = checksum_matrix(op_ao(2)%matrix,para_env)
-    chk(3) = checksum_matrix(op_ao(3)%matrix,para_env)
+    chk(1) = dbcsr_checksum(op_ao(1)%matrix,error)
+    chk(2) = dbcsr_checksum(op_ao(2)%matrix,error)
+    chk(3) = dbcsr_checksum(op_ao(3)%matrix,error)
     IF(output_unit>0) THEN
        WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_x =',chk(1)
        WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_y =',chk(2)
@@ -273,13 +280,13 @@ CONTAINS
          mo_coeff => psi0_order(ispin)%matrix
          nmo = nstates(ispin)
          CALL cp_fm_set_all(p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         CALL cp_sm_fm_multiply(op_ao(idir)%matrix,mo_coeff,&
-              &                 p_psi0(ispin,idir)%matrix,ncol=nmo,&
-              &                 alpha=-1.0_dp,error=error)
+         CALL dbcsr_sm_fm_multiply(op_ao(idir)%matrix,mo_coeff,&
+              &                    p_psi0(ispin,idir)%matrix,ncol=nmo,&
+              &                    alpha=-1.0_dp,error=error)
       END DO
     END DO
     !
-    CALL deallocate_matrix_set(op_ao,error=error)
+    CALL dbcsr_deallocate_matrix_set(op_ao,error=error)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
@@ -350,13 +357,13 @@ CONTAINS
 
              !Add the second term to the idir component
              CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-             CALL cp_sm_fm_multiply(op_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
+             CALL dbcsr_sm_fm_multiply(op_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
                   fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)
              CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
                   1.0_dp, fm_work1,error=error)
           
              CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-             CALL cp_sm_fm_multiply(op_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
+             CALL dbcsr_sm_fm_multiply(op_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
                   fm_work1,ncol=nmo,alpha=-1.0_dp,error=error)
              CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
                   -1.0_dp,fm_work1,error=error)
@@ -410,15 +417,15 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_dso, matrix_efg, &
+                                                matrix_fc, matrix_pso
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_dso, matrix_efg, &
-                                                matrix_fc, matrix_pso
     TYPE(section_vals_type), POINTER         :: lr_section
 
     failure = .FALSE.
@@ -472,10 +479,10 @@ CONTAINS
     ! Fermi contact integral
     !IF(do_fc) THEN
     IF(.TRUE.) THEN ! for the moment we build it (regs)
-       CALL set_matrix(matrix_fc(1)%matrix,0.0_dp)
+       CALL dbcsr_set(matrix_fc(1)%matrix,0.0_dp,error=error)
        CALL build_fermi_contact_matrix(qs_env,matrix_fc,r_i,error)
 
-       chk(1) = checksum_matrix(matrix_fc(1)%matrix,para_env)
+       chk(1) = dbcsr_checksum(matrix_fc(1)%matrix,error=error)
 
        IF(output_unit>0) THEN
           WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| fermi_contact: CheckSum =',chk(1)
@@ -485,14 +492,14 @@ CONTAINS
     ! spin-orbit integral
     !IF(do_pso) THEN
     IF(.TRUE.) THEN ! for the moment we build it (regs)
-       CALL set_matrix(matrix_pso(1)%matrix,0.0_dp)
-       CALL set_matrix(matrix_pso(2)%matrix,0.0_dp)
-       CALL set_matrix(matrix_pso(3)%matrix,0.0_dp)
+       CALL dbcsr_set(matrix_pso(1)%matrix,0.0_dp,error=error)
+       CALL dbcsr_set(matrix_pso(2)%matrix,0.0_dp,error=error)
+       CALL dbcsr_set(matrix_pso(3)%matrix,0.0_dp,error=error)
        CALL build_pso_matrix(qs_env,matrix_pso,r_i,error)
 
-       chk(2) = checksum_matrix(matrix_pso(1)%matrix,para_env)
-       chk(3) = checksum_matrix(matrix_pso(2)%matrix,para_env)
-       chk(4) = checksum_matrix(matrix_pso(3)%matrix,para_env)
+       chk(2) = dbcsr_checksum(matrix_pso(1)%matrix,error=error)
+       chk(3) = dbcsr_checksum(matrix_pso(2)%matrix,error=error)
+       chk(4) = dbcsr_checksum(matrix_pso(3)%matrix,error=error)
 
        IF(output_unit>0) THEN
           WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_x: CheckSum =',chk(2)
@@ -504,20 +511,20 @@ CONTAINS
     ! electric field integral
     !IF(do_sd) THEN
     IF(.TRUE.) THEN ! for the moment we build it (regs)
-       CALL set_matrix(matrix_efg(1)%matrix,0.0_dp)
-       CALL set_matrix(matrix_efg(2)%matrix,0.0_dp)
-       CALL set_matrix(matrix_efg(3)%matrix,0.0_dp)
-       CALL set_matrix(matrix_efg(4)%matrix,0.0_dp)
-       CALL set_matrix(matrix_efg(5)%matrix,0.0_dp)
-       CALL set_matrix(matrix_efg(6)%matrix,0.0_dp)
+       CALL dbcsr_set(matrix_efg(1)%matrix,0.0_dp,error=error)
+       CALL dbcsr_set(matrix_efg(2)%matrix,0.0_dp,error=error)
+       CALL dbcsr_set(matrix_efg(3)%matrix,0.0_dp,error=error)
+       CALL dbcsr_set(matrix_efg(4)%matrix,0.0_dp,error=error)
+       CALL dbcsr_set(matrix_efg(5)%matrix,0.0_dp,error=error)
+       CALL dbcsr_set(matrix_efg(6)%matrix,0.0_dp,error=error)
        CALL build_efg_matrix(qs_env,matrix_efg,r_i,error)
 
-       chk(5) = checksum_matrix(matrix_efg(1)%matrix,para_env)
-       chk(6) = checksum_matrix(matrix_efg(2)%matrix,para_env)
-       chk(7) = checksum_matrix(matrix_efg(3)%matrix,para_env)
-       chk(8) = checksum_matrix(matrix_efg(4)%matrix,para_env)
-       chk(9) = checksum_matrix(matrix_efg(5)%matrix,para_env)
-       chk(10)= checksum_matrix(matrix_efg(6)%matrix,para_env)
+       chk(5) = dbcsr_checksum(matrix_efg(1)%matrix,error=error)
+       chk(6) = dbcsr_checksum(matrix_efg(2)%matrix,error=error)
+       chk(7) = dbcsr_checksum(matrix_efg(3)%matrix,error=error)
+       chk(8) = dbcsr_checksum(matrix_efg(4)%matrix,error=error)
+       chk(9) = dbcsr_checksum(matrix_efg(5)%matrix,error=error)
+       chk(10)= dbcsr_checksum(matrix_efg(6)%matrix,error=error)
 
        IF(output_unit>0) THEN
           WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3xx-rr)/3: CheckSum =',chk(5)
@@ -536,9 +543,9 @@ CONTAINS
     !
     !>>> debugging only  here we build the dipole matrix... debugging the kernel...
     IF(do_dso) THEN
-       CALL set_matrix(matrix_dso(1)%matrix,0.0_dp)
-       CALL set_matrix(matrix_dso(2)%matrix,0.0_dp)
-       CALL set_matrix(matrix_dso(3)%matrix,0.0_dp)
+       CALL dbcsr_set(matrix_dso(1)%matrix,0.0_dp,error=error)
+       CALL dbcsr_set(matrix_dso(2)%matrix,0.0_dp,error=error)
+       CALL dbcsr_set(matrix_dso(3)%matrix,0.0_dp,error=error)
        CALL rRc_xyz_ao(matrix_dso,qs_env,(/0.0_dp,0.0_dp,0.0_dp/),1,error=error)
     ENDIF
     !
@@ -551,34 +558,34 @@ CONTAINS
        ! EFG
        IF(do_sd) THEN
           DO idir = 1,6
-             CALL cp_sm_fm_multiply(matrix_efg(idir)%matrix,mo_coeff,&
-                  &                 efg_psi0(ispin,idir)%matrix,ncol=nmo,&
-                  &                 alpha=1.0_dp,error=error)
+             CALL dbcsr_sm_fm_multiply(matrix_efg(idir)%matrix,mo_coeff,&
+                  &                    efg_psi0(ispin,idir)%matrix,ncol=nmo,&
+                  &                    alpha=1.0_dp,error=error)
           ENDDO
        ENDIF
        !
        ! PSO
        IF(do_pso) THEN
           DO idir = 1,3
-             CALL cp_sm_fm_multiply(matrix_pso(idir)%matrix,mo_coeff,&
-                  &                 pso_psi0(ispin,idir)%matrix,ncol=nmo,&
-                  &                 alpha=-1.0_dp,error=error)
+             CALL dbcsr_sm_fm_multiply(matrix_pso(idir)%matrix,mo_coeff,&
+                  &                   pso_psi0(ispin,idir)%matrix,ncol=nmo,&
+                  &                   alpha=-1.0_dp,error=error)
           ENDDO
        ENDIF
        !
        ! FC
        IF(do_fc) THEN
-          CALL cp_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
-               &                 fc_psi0(ispin)%matrix,ncol=nmo,&
-               &                 alpha=1.0_dp,error=error)
+          CALL dbcsr_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
+               &                    fc_psi0(ispin)%matrix,ncol=nmo,&
+               &                    alpha=1.0_dp,error=error)
        ENDIF
        !
        !>>> for debugging only
        IF(do_dso) THEN
           DO idir = 1,3
-             CALL cp_sm_fm_multiply(matrix_dso(idir)%matrix,mo_coeff,&
-                  &                 dso_psi0(ispin,idir)%matrix,ncol=nmo,&
-                  &                 alpha=-1.0_dp,error=error)
+             CALL dbcsr_sm_fm_multiply(matrix_dso(idir)%matrix,mo_coeff,&
+                  &                    dso_psi0(ispin,idir)%matrix,ncol=nmo,&
+                  &                    alpha=-1.0_dp,error=error)
           ENDDO
        ENDIF
        !<<< for debugging only

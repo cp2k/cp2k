@@ -8,11 +8,11 @@
 ! *****************************************************************************
 MODULE et_coupling_types
 
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -39,7 +39,7 @@ MODULE et_coupling_types
 ! *****************************************************************************
   TYPE et_coupling_type
     TYPE(cp_fm_p_type),DIMENSION(:), POINTER           :: et_mo_coeff
-    TYPE(real_matrix_p_type),DIMENSION(:), POINTER     :: rest_mat
+    TYPE(dbcsr_obj_p_type),DIMENSION(:), POINTER     :: rest_mat
     LOGICAL                                            :: first_run
     LOGICAL                                            :: keep_matrix
     REAL(KIND = dp)                                    :: energy,e1,order_p 
@@ -78,7 +78,7 @@ MODULE et_coupling_types
     TYPE(et_coupling_type), POINTER          :: et_coupling
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: et_mo_coeff
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rest_mat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -95,7 +95,7 @@ MODULE et_coupling_types
     TYPE(et_coupling_type), POINTER          :: et_coupling
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: et_mo_coeff
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rest_mat
     TYPE(cp_error_type), INTENT(inout)       :: error
 

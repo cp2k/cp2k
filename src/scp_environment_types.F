@@ -9,10 +9,12 @@
 MODULE scp_environment_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
@@ -37,8 +39,6 @@ MODULE scp_environment_types
   USE scp_rspw_types,                  ONLY: scp_rspw_release,&
                                              scp_rspw_retain,&
                                              scp_rspw_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -54,7 +54,7 @@ MODULE scp_environment_types
     REAL ( dp )                                           :: eps_gvg_rspace, &
                                                              eps_rho_rspace
 ! FOR NDDO
-    TYPE ( real_matrix_type ), POINTER                    :: pscp, ks_scp
+    TYPE ( dbcsr_obj ), POINTER                    :: pscp, ks_scp
     REAL ( dp ), POINTER                                  :: ascp_diag ( : )
 ! FOR DFT
     TYPE ( aux_coeff_set_type ), POINTER                  :: aux_coeff_set
@@ -108,8 +108,7 @@ CONTAINS
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: pscp, ks_scp
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, ks_scp
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -197,8 +196,7 @@ CONTAINS
       POINTER                                :: distribution_2d
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: pscp, ks_scp
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, ks_scp
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_scp_env', &
@@ -348,10 +346,10 @@ SUBROUTINE scp_env_release(scp_env,error)
            CALL distribution_2d_release(scp_env%distribution_2d,error=error)
         ENDIF
         IF (ASSOCIATED(scp_env%pscp)) THEN
-           CALL deallocate_matrix ( scp_env%pscp, error )
+           CALL dbcsr_deallocate_matrix ( scp_env%pscp, error )
         ENDIF
         IF (ASSOCIATED(scp_env%ks_scp)) THEN
-           CALL deallocate_matrix ( scp_env%ks_scp, error )
+           CALL dbcsr_deallocate_matrix ( scp_env%ks_scp, error )
         ENDIF
         IF (ASSOCIATED(scp_env%ascp_diag)) THEN
            DEALLOCATE ( scp_env%ascp_diag, stat=stat)

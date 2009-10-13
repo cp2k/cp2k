@@ -264,9 +264,9 @@ CONTAINS
                    END IF
                 ELSE
                    CALL calculate_w_matrix(mo_set=mo_set,&
-                        matrix_ks=matrix_ks(ispin)%matrix,&
-                        matrix_p=rho%rho_ao(ispin)%matrix,&
-                        matrix_w=matrix_w(ispin)%matrix,&
+                        matrix_ks_sm=matrix_ks(ispin)%matrix,&
+                        matrix_p_sm=rho%rho_ao(ispin)%matrix,&
+                        matrix_w_sm=matrix_w(ispin)%matrix,&
                         error=error)
                 END IF
              ELSE
@@ -319,7 +319,7 @@ CONTAINS
     ! digested with overlap matrix derivatives
 
     IF (dft_control%dft_plus_u) THEN
-       CALL plus_u(qs_env=qs_env,matrix_w=matrix_w,error=error)
+       CALL plus_u(qs_env=qs_env,matrix_w_sm=matrix_w,error=error)
     END IF
 
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)

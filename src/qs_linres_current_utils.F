@@ -24,6 +24,10 @@ MODULE qs_linres_current_utils
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -40,7 +44,9 @@ MODULE qs_linres_current_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
   USE f77_blas
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&
@@ -95,11 +101,6 @@ MODULE qs_linres_current_utils
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              rs_grid_release
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             deallocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -150,11 +151,11 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: op_p_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_p_ao
     TYPE(section_vals_type), POINTER         :: current_section, lr_section, &
                                                 print_key
 
@@ -221,14 +222,18 @@ CONTAINS
        ENDDO
        !
        ! rebuild the linear momentum matrices
-       CALL allocate_matrix_set(op_p_ao,3,error=error)
+       CALL dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
+       ALLOCATE(op_p_ao(1)%matrix,op_p_ao(2)%matrix,op_p_ao(3)%matrix)
+       CALL dbcsr_init(op_p_ao(1)%matrix)
+       CALL dbcsr_init(op_p_ao(2)%matrix)
+       CALL dbcsr_init(op_p_ao(3)%matrix)
        CALL set_up_op_sm(op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="OP_P",error=error)
-       CALL set_matrix(op_p_ao(1)%matrix,0.0_dp)
+       CALL dbcsr_set(op_p_ao(1)%matrix,0.0_dp,error=error)
        DO idir = 2,3
-          CALL replicate_matrix_structure(op_p_ao(1)%matrix,op_p_ao(idir)%matrix,&
-               & "current_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-               & target_symmetry="antisymmetric",error=error)
-          CALL set_matrix(op_p_ao(idir)%matrix,0.0_dp)
+          CALL dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
+               "current_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
+               error=error)
+          CALL dbcsr_set(op_p_ao(idir)%matrix,0.0_dp,error=error)
        ENDDO
        !
        !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
@@ -431,9 +436,9 @@ CONTAINS
                 !
                 ! Apply the p_iii operator
                 ! fm_work_iii = -p_iii * (dk-dl)_ii * C0
-                CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,fm_work_ii(ispin)%matrix,&
-                     &                 fm_work_iii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
-                     &                 error=error)
+                CALL dbcsr_sm_fm_multiply(op_p_ao(iii)%matrix,fm_work_ii(ispin)%matrix,&
+                     &                    fm_work_iii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
+                     &                    error=error)
                 !
                 ! Copy in h1_psi0
                 ! h1_psi0_i = fm_work_iii
@@ -446,9 +451,9 @@ CONTAINS
                 !
                 ! Apply the p_ii operator
                 ! fm_work_ii = -p_ii * (dk-dl)_iii * C0
-                CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,fm_work_iii(ispin)%matrix,&
-                     &                 fm_work_ii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
-                     &                 error=error)
+                CALL dbcsr_sm_fm_multiply(op_p_ao(ii)%matrix,fm_work_iii(ispin)%matrix,&
+                     &                    fm_work_ii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
+                     &                    error=error)
                 !
                 ! Copy in h1_psi0
                 ! h1_psi0_i = fm_work_iii - fm_work_ii
@@ -512,7 +517,7 @@ CONTAINS
     !
     ! clean up
     IF(current_env%full) THEN
-       CALL deallocate_matrix_set(op_p_ao,error=error)
+       CALL dbcsr_deallocate_matrix_set(op_p_ao,error=error)
        DO ispin = 1,nspins
           CALL cp_fm_release(psi1(ispin)%matrix,error=error)
           CALL cp_fm_release(h1_psi0(ispin)%matrix,error=error)

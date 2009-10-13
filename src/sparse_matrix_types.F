@@ -14,12 +14,10 @@ MODULE sparse_matrix_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
-  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE message_passing,                 ONLY: mp_max,&
-                                             mp_sum
+  USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -89,7 +87,6 @@ MODULE sparse_matrix_types
 
   PUBLIC :: add_block_node,&
             add_matrices,&
-            add_1d_block_node,&
             allocate_matrix,&
             allocate_matrix_set,&
             copy_matrix, transfer_matrix, & ! what is the difference ?
@@ -100,23 +97,14 @@ MODULE sparse_matrix_types
             get_block_node,&
             get_matrix_diagonal,&
             get_matrix_info,&
-            put_block_node,&
             replicate_matrix, replicate_matrix_structure,& ! should be put together
-            scale_matrix,&
             set_matrix,&
             set_matrix_diagonal,&
             sparse_times_local, &
             sparse_plus_loc_loct, &
-            remove_block_node, &
-            write_blocks_maxabsval, get_real_matrix_occupation,& ! should be removed
             cp_sm_scale_and_add,&
             cp_sm_get_id_nr,&
-            cp_sm_set,&
-            cp_sm_sm_trace,&
-            cp_sm_maxabsval,&
-            create_dbm_from_sm,&
-            deallocate_dbm_from_sm,&
-            mpsum_dbm
+            cp_sm_set
 
 ! *** Public functions ***
 
@@ -182,20 +170,12 @@ MODULE sparse_matrix_types
     MODULE PROCEDURE next_real_block_node
   END INTERFACE
 
-  INTERFACE put_block_node
-    MODULE PROCEDURE put_real_block_node,put_real_matrix_block
-  END INTERFACE
-
   INTERFACE replicate_matrix
     MODULE PROCEDURE replicate_real_matrix
   END INTERFACE
 
   INTERFACE replicate_matrix_structure
     MODULE PROCEDURE replicate_real_matrix_structure
-  END INTERFACE
-
-  INTERFACE scale_matrix
-    MODULE PROCEDURE scale_real_matrix
   END INTERFACE
 
   INTERFACE set_matrix
@@ -208,14 +188,6 @@ MODULE sparse_matrix_types
 
   INTERFACE transfer_matrix
     MODULE PROCEDURE transfer_real_matrix
-  END INTERFACE
-
-  INTERFACE remove_block_node
-     MODULE PROCEDURE remove_real_matrix_block
-  END INTERFACE
-
-  INTERFACE cp_sm_sm_trace
-     MODULE PROCEDURE cp_sm_sm_trace_scalar, cp_sm_sm_trace_vector
   END INTERFACE
 
 CONTAINS
@@ -657,42 +629,6 @@ END SUBROUTINE cp_sm_scale_and_add
       matrix%block_list(block_row)%nblock_node + 1
 
   END SUBROUTINE add_1d_block_node
-
-! writes for all local blocks the maximum absolute value of
-! the block entries to unit fileunit
-
-! *****************************************************************************
-  SUBROUTINE write_blocks_maxabsval(sparse_matrix,fileunit)
-
-    TYPE(real_matrix_type), POINTER          :: sparse_matrix
-    INTEGER, INTENT(IN)                      :: fileunit
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_blocks_maxabsval', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iblock_col, iblock_row
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-    DO iblock_row=1,sparse_matrix%nblock_row
-
-      block_node => first_block_node(sparse_matrix,iblock_row)
-
-      DO WHILE (ASSOCIATED(block_node))
-
-        CALL get_block_node(block_node=block_node,&
-                            block_col=iblock_col,&
-                            BLOCK=sparse_block)
-
-        WRITE(fileunit,*) iblock_row,iblock_col,MAXVAL(ABS(sparse_block))
-
-        block_node => next_block_node(block_node)
-
-      END DO
-
-    END DO
-
-  END SUBROUTINE write_blocks_maxabsval
 
 ! *****************************************************************************
 !> \brief   Allocate and initialize a real matrix at the real_matrix_type level.
@@ -1668,135 +1604,6 @@ END SUBROUTINE cp_sm_scale_and_add
   END FUNCTION next_real_block_node
 
 ! *****************************************************************************
-!> \brief   Set block node data set.
-!> \author  MK
-!> \date    27.07.2000
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,BLOCK,add)
-    TYPE(real_block_node_type), POINTER      :: block_node
-    TYPE(real_matrix_type), POINTER          :: matrix
-    INTEGER, INTENT(IN)                      :: block_row
-    INTEGER, INTENT(IN), OPTIONAL            :: block_col
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: BLOCK
-    LOGICAL, INTENT(IN), OPTIONAL            :: add
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'put_real_block_node', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ncol, nrow
-    LOGICAL                                  :: add_block
-
-    IF (PRESENT(add)) THEN
-      add_block = add
-    ELSE
-      add_block = .FALSE.
-    END IF
-
-    IF (PRESENT(block_col)) block_node%block_col = block_col
-
-    IF (PRESENT(BLOCK)) THEN
-
-      nrow = matrix%last_row(block_row) - matrix%first_row(block_row) + 1
-      ncol = matrix%last_col(block_col) - matrix%first_col(block_col) + 1
-
-      IF (PRESENT(BLOCK)) THEN
-        IF (ASSOCIATED(BLOCK)) THEN
-          IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
-            IF ( add_block ) THEN
-              block_node%block(:,:) = block_node%block(:,:) + BLOCK(:,:)
-            ELSE
-              block_node%block(:,:) = BLOCK(:,:)
-            END IF
-          ELSE
-            CALL stop_program(routineP,"Incompatible block dimensions")
-          END IF
-        ELSE
-          CALL stop_program(routineP,"Block is not associated")
-        END IF
-      END IF
-
-    END IF
-
-  END SUBROUTINE put_real_block_node
-
-! *****************************************************************************
-!> \brief Allocate and initialize a new block node or update an existing block node.  
-!> \author  MK
-!> \date    07.07.2000
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,BLOCK,add,error)
-
-    TYPE(real_matrix_type), POINTER          :: matrix
-    INTEGER, INTENT(IN)                      :: block_row, block_col
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: BLOCK
-    LOGICAL, INTENT(IN), OPTIONAL            :: add
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'put_real_matrix_block', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ncol, nrow
-    LOGICAL                                  :: add_block
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-    IF ( PRESENT (add) ) THEN
-      add_block = add
-    ELSE
-      add_block = .FALSE.
-    ENDIF
-
-!   *** Check, if the requested block node already exists ***
-
-    block_node => find_real_block_node(matrix,block_row,block_col)
-
-    IF (ASSOCIATED(block_node)) THEN
-
-!     *** Calculate the block dimensions ***
-
-      nrow = matrix%last_row(block_row) - matrix%first_row(block_row) + 1
-      ncol = matrix%last_col(block_col) - matrix%first_col(block_col) + 1
-
-!     *** Update the data set of an existing block node ***
-
-      IF (PRESENT(BLOCK)) THEN
-        IF (ASSOCIATED(BLOCK)) THEN
-          IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
-            IF ( add_block ) THEN
-              block_node%block(:,:) = block_node%block(:,:) + BLOCK(:,:)
-            ELSE
-              block_node%block(:,:) = BLOCK(:,:)
-            END IF
-          ELSE
-            CALL stop_program(routineP,"Incompatible block dimensions")
-          END IF
-        ELSE
-          CALL stop_program(routineP,"Matrix block is not associated")
-        END IF
-      ELSE
-        CALL stop_program(routineP,&
-                          "Block update is impossible, because no matrix "//&
-                          "block was specified")
-      END IF
-
-    ELSE
-
-!     *** Add a new block node ***
-
-      IF (PRESENT(BLOCK)) THEN
-        CALL add_block_node(matrix,block_row,block_col,BLOCK,error=error)
-      ELSE
-        CALL add_block_node(matrix,block_row,block_col,error=error)
-      END IF
-
-    END IF
-
-  END SUBROUTINE put_real_matrix_block
-
-! *****************************************************************************
 !> \brief  Replicate the existing matrix source. The replicated matrix is
 !>         target with the name target_name.
 !>         by default copies the data blocks,
@@ -2241,109 +2048,6 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE transfer_real_matrix
 
 ! *****************************************************************************
-!> \brief removes a block from the matrix
-!> \param matrix the matrix you remove the block from
-!> \param block_row the row of the block to remove
-!> \param block_col the column of the block to remove
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      7.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE remove_real_matrix_block(matrix,block_row, block_col, error)
-    TYPE(real_matrix_type), POINTER          :: matrix
-    INTEGER, INTENT(in)                      :: block_row, block_col
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'remove_real_matrix_block', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-    TYPE(real_block_node_type), POINTER      :: block_node, old_block
-
-    NULLIFY(block_node,old_block)
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       block_node => matrix%block_list(block_row)%first_block_node
-       ! better safe than sorry
-       NULLIFY(matrix%block_list(block_row)%last_used_block_node)
-       DO WHILE (ASSOCIATED(block_node))
-          IF (block_node%block_col == block_col) EXIT
-          old_block => block_node
-          block_node => block_node%next_block_node
-       END DO
-       IF (ASSOCIATED(block_node)) THEN
-          IF (ASSOCIATED(old_block)) THEN
-             old_block%next_block_node => block_node%next_block_node
-          ELSE
-             matrix%block_list(block_row)%first_block_node => &
-                  block_node%next_block_node
-          END IF
-          DEALLOCATE (block_node%block,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          DEALLOCATE (block_node,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-    END IF
-  END SUBROUTINE remove_real_matrix_block
-
-! *****************************************************************************
-  SUBROUTINE get_real_matrix_occupation(matrix, block_occupation, memory_occupation, fill_symmetric)
-
-    TYPE(real_matrix_type), POINTER          :: matrix
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: block_occupation, &
-                                                memory_occupation
-    LOGICAL, OPTIONAL                        :: fill_symmetric
-
-    INTEGER :: block_counter, block_memory, diagonal_memory, i, j, &
-      max_blocks, max_memory, memory_counter, n_diagonal_blocks
-    TYPE(real_block_node_type), POINTER      :: node
-
-! should symmetric matrices be fully counted or just one triangle?
-! code
-
-    IF (SIZE(matrix%block_list) /= SIZE(matrix%first_col)) THEN
-       CALL stop_program("get_real_matrix_occupation", "precondition")
-    END IF
-
-    max_blocks = matrix%nblock_row * matrix%nblock_col
-    max_memory = matrix%ncol * matrix%nrow
-    block_counter = 0
-    memory_counter = 0
-    n_diagonal_blocks = 0
-    diagonal_memory = 0
-
-    DO i=1, matrix%nblock_row
-       node => first_block_node(matrix, i)
-       DO WHILE (ASSOCIATED(NODE))
-          block_memory = SIZE(node%block,1) * SIZE(node%block,2)
-          j = node%block_col
-          IF (i == j) THEN
-             n_diagonal_blocks = n_diagonal_blocks + 1
-             diagonal_memory = diagonal_memory + block_memory
-          END IF
-          block_counter = block_counter + 1
-          memory_counter = memory_counter + block_memory
-          node => next_block_node(node)
-       END DO
-    END DO
-
-    IF (TRIM(matrix%symmetry) == "symmetric") THEN
-       IF (.NOT.PRESENT(fill_symmetric) .OR. fill_symmetric) THEN
-          block_counter = 2*block_counter - n_diagonal_blocks
-          memory_counter = 2*memory_counter - diagonal_memory
-       END IF
-    END IF
-    IF (PRESENT(block_occupation)) block_occupation = REAL(block_counter, dp ) / REAL(max_blocks, dp )
-    IF (PRESENT(memory_occupation)) memory_occupation = REAL(memory_counter, dp ) / REAL(max_memory, dp )
-
-  END SUBROUTINE get_real_matrix_occupation
-
-! *****************************************************************************
 !> \brief returns the id of the given matrix
 !> \param matrix the matrix you want info about
 !> \param error variable to control error logging, stopping,...
@@ -2398,377 +2102,5 @@ SUBROUTINE cp_sm_set(matrix,name,error)
      IF (PRESENT(name)) matrix%name=name
   END IF
 END SUBROUTINE cp_sm_set
-
-! *****************************************************************************
-!> \brief returns the maximum of the abs of the matrix entries
-!> \param matrix the matrix you are interested in
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      04.2003 created [fawzi]
-!> \author fawzi
-! *****************************************************************************
-SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
-    TYPE(real_matrix_type), POINTER          :: matrix
-    REAL(KIND=dp), INTENT(out)               :: maxabsval
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_maxabsval', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iblock_row
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
-  CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
-
-  maxabsval=0.0_dp
-
-  DO iblock_row=1,matrix%nblock_row
-
-     block_node => first_block_node(matrix,iblock_row)
-
-     DO WHILE (ASSOCIATED(block_node))
-
-        CALL get_block_node(block_node=block_node,&
-                            BLOCK=matrix_block)
-
-        maxabsval=MAX(maxabsval,MAXVAL(ABS(matrix_block)))
-
-        block_node => block_node%next_block_node
-
-      END DO
-
-    END DO
-
-    CALL mp_max(maxabsval,para_env%group)
-
-  END SUBROUTINE cp_sm_maxabsval
-
-! *****************************************************************************
-!> \brief returns the trace of the product of two sparse matrices
-!> \param matrix the matrix you are interested in
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \note
-!>      uses Kahan's sum
-!> \par History
-!>      10.2004 created [jgh]
-!> \author jgh
-! *****************************************************************************
-SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
-    TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
-    REAL(KIND=dp), INTENT(out)               :: trace
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace_scalar', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: block_col1, block_col2, &
-                                                iblock_row, nblock_row
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: c, ks, sfactor, t, &
-                                                trace_block, y
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block1, matrix_block2
-    TYPE(real_block_node_type), POINTER      :: block_node1, block_node2
-
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(matrix1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(matrix2),cp_failure_level,routineP,error,failure)
-    CPPrecondition(matrix1%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(matrix2%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF ( PRESENT ( para_env ) ) THEN
-      CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-      CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
-
-    trace=0.0_dp
-    ks = 0.0_dp ;  t = 0.0_dp ; y = 0.0_dp ; c = 0.0_dp
-
-    CALL get_matrix_info(matrix=matrix1,nblock_row=nblock_row)
-    ! we assume symmetric matrices
-    sfactor = 2._dp
-
-    DO iblock_row=1,nblock_row
-
-     block_node1 => first_block_node(matrix1,iblock_row)
-     block_node2 => first_block_node(matrix2,iblock_row)
-
-     DO WHILE (ASSOCIATED(block_node1) .AND. ASSOCIATED(block_node2))
-
-        CALL get_block_node(block_node=block_node1,&
-                            block_col=block_col1,BLOCK=matrix_block1)
-        CALL get_block_node(block_node=block_node2,&
-                            block_col=block_col2,BLOCK=matrix_block2)
-        CPPostcondition(block_col1==block_col2,cp_warning_level,routineP,error,failure)
-
-        trace_block = accurate_sum ( matrix_block1*matrix_block2 )
-
-        IF ( iblock_row == block_col1 ) THEN
-          trace_block = trace_block
-        ELSE
-          trace_block = sfactor*trace_block
-        END IF
-
-        ! use Kahan's sum to reduce roundoff
-        y  = trace_block - c
-        t  = ks + y
-        c  = (t - ks) - y
-        ks = t
-
-        block_node1 => block_node1%next_block_node
-        block_node2 => block_node2%next_block_node
-
-     END DO
-
-    END DO
-
-    trace = ks
-
-! If not present, assumes that you have a replicated matrix structure
-    IF ( PRESENT ( para_env ) ) &
-    CALL mp_sum(trace,para_env%group)
-
-END SUBROUTINE cp_sm_sm_trace_scalar
-
-! *****************************************************************************
-!> \brief Calculates blockwise the trace of a matrix product of two sparse matrices,
-!>      this is necessary if the forceone application is the calculation of the
-!>      forces via F=Tr[p*(dH/dR)]
-!> \note
-!>      - matrix1: 1st multiplier
-!>      - matrix2: 2nd multiplier
-!>      - trace_vec: The vector in which the blockwise traces are written
-!>      - para_env: The paralle environment
-!>      - error: variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      02.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
-SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
-    TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace_vector', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: block_col1, block_col2, &
-                                                iblock_row, nblock_row
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: trace_block
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block1, matrix_block2
-    TYPE(real_block_node_type), POINTER      :: block_node1, block_node2
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(matrix1), cp_failure_level, routineP, error, failure)
-  CPPrecondition(ASSOCIATED(matrix2), cp_failure_level, routineP, error, failure)
-  CPPrecondition(matrix1%ref_count>0, cp_failure_level, routineP, error, failure)
-  CPPrecondition(matrix2%ref_count>0, cp_failure_level, routineP, error, failure)
-  CPPrecondition(ASSOCIATED(para_env), cp_failure_level, routineP, error, failure)
-  CPPrecondition(para_env%ref_count>0, cp_failure_level, routineP, error, failure)
-
-  trace_vec(:) = 0.0_dp
-
-  CALL get_matrix_info(matrix=matrix1, nblock_row=nblock_row)
-
-  DO iblock_row = 1,nblock_row
-
-     block_node1 => first_block_node(matrix1, iblock_row)
-     block_node2 => first_block_node(matrix2, iblock_row)
-
-     DO WHILE (ASSOCIATED(block_node1) .AND. ASSOCIATED(block_node2))
-
-        CALL get_block_node(block_node=block_node1, &
-                            block_col=block_col1, BLOCK=matrix_block1)
-        CALL get_block_node(block_node=block_node2, &
-                            block_col=block_col2, BLOCK=matrix_block2)
-        CPPostcondition(block_col1==block_col2, cp_warning_level, routineP, error, failure)
-
-        trace_block = accurate_sum(matrix_block1*matrix_block2)
-
-        IF (iblock_row == block_col1) THEN
-          trace_vec(iblock_row) = trace_vec(iblock_row) + trace_block
-        ELSE
-          ! we assume symmetric matrices
-          trace_vec(iblock_row) = trace_vec(iblock_row) + trace_block
-          trace_vec(nblock_row-iblock_row+1) = trace_vec(nblock_row-iblock_row+1) &
-                                             + trace_block
-        END IF
-
-        block_node1 => block_node1%next_block_node
-        block_node2 => block_node2%next_block_node
-
-     END DO
-
-  END DO
-
-  CALL mp_sum(trace_vec, para_env%group)
-
-END SUBROUTINE cp_sm_sm_trace_vector
-
-! *****************************************************************************
-!> \brief  Create a diagonal block matrix from a real sparse matrix
-!>         same structure. 
-!> \version 1.0
-! *****************************************************************************
-SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
-
-    TYPE(real_matrix_type), POINTER          :: dbm, sm
-    CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
-    LOGICAL, INTENT(IN)                      :: copy_in
-    TYPE(cp_para_env_type), INTENT(IN), &
-      OPTIONAL                               :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_dbm_from_sm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, iblock_col, iblock_row
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-    CALL timeset(routineN,handle)
-
-    CALL allocate_matrix(matrix=dbm,&
-                         nblock_row=sm%nblock_row,&
-                         nblock_col=sm%nblock_col,&
-                         nrow=sm%nrow,&
-                         ncol=sm%ncol,&
-                         first_row=sm%first_row,&
-                         last_row=sm%last_row,&
-                         first_col=sm%first_col,&
-                         last_col=sm%last_col,&
-                         matrix_name=matrix_name,&
-                         matrix_symmetry="symmetric",&
-                         sparsity_id=1111,&
-                         distribution_2d=sm%distribution_2d,&!dirty fix!
-                         error=error)
-
-    DO iblock_row = 1, sm%nblock_row
-       CALL add_block_node(matrix=dbm,&
-                           block_row=iblock_row,&
-                           block_col=iblock_row,error=error)
-    END DO
-    IF ( copy_in ) THEN
-
-      DO iblock_row=1,sm%nblock_row
-        block_node => first_block_node(sm,iblock_row)
-        DO WHILE (ASSOCIATED(block_node))
-          NULLIFY(block)
-          CALL get_block_node(block_node=block_node,&
-                              block_col=iblock_col,&
-                              block=block)
-          IF (iblock_row == iblock_col) THEN
-            CALL put_block_node(dbm,iblock_row,iblock_row,block,error=error)
-          END IF
-          block_node => next_block_node(block_node)
-        END DO
-      END DO
-      IF ( PRESENT(para_env) ) THEN
-        DO iblock_row=1,dbm%nblock_row
-          NULLIFY(block)
-          CALL get_block_node(matrix=dbm,&
-                              block_row=iblock_row,block_col=iblock_row,&
-                              BLOCK=block)
-          CALL mp_sum(block,para_env%group)
-        END DO
-      END IF
-
-    END IF
-
-    CALL timestop(handle)
-
-END SUBROUTINE create_dbm_from_sm
-! *****************************************************************************
-!> \brief  mp_sum the diagonal blocks 
-!> \version 1.0
-! *****************************************************************************
-SUBROUTINE mpsum_dbm(dbm,para_env,error)
-    TYPE(real_matrix_type), POINTER          :: dbm
-    TYPE(cp_para_env_type), INTENT(IN)       :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mpsum_dbm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, iblock_row
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-
-    CALL timeset(routineN,handle)
-    DO iblock_row=1,dbm%nblock_row
-      NULLIFY(block)
-      CALL get_block_node(matrix=dbm,&
-                          block_row=iblock_row,block_col=iblock_row,&
-                          BLOCK=block)
-      CALL mp_sum(block,para_env%group)
-    END DO
-    CALL timestop(handle)
-END SUBROUTINE mpsum_dbm
-
-! *****************************************************************************
-!> \brief   Deallocate a diagonal block matrix
-!> \version 1.0
-! *****************************************************************************
-SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
-    TYPE(real_matrix_type), POINTER          :: dbm, sm
-    LOGICAL, INTENT(IN)                      :: copy_out
-    TYPE(cp_para_env_type), INTENT(IN), &
-      OPTIONAL                               :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbm_from_sm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, iblock_col, iblock_row
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-  CALL timeset(routineN,handle)
-
-  IF ( copy_out ) THEN
-     IF ( PRESENT(para_env) ) THEN
-        DO iblock_row=1,dbm%nblock_row
-          NULLIFY(block)
-          CALL get_block_node(matrix=dbm,&
-                              block_row=iblock_row,block_col=iblock_row,&
-                              BLOCK=block)
-          CALL mp_sum(block,para_env%group)
-        END DO
-      END IF
-      DO iblock_row=1,sm%nblock_row
-        block_node => first_block_node(sm,iblock_row)
-        DO WHILE (ASSOCIATED(block_node))
-          CALL get_block_node(block_node=block_node,&
-                              block_col=iblock_col)
-          IF (iblock_row == iblock_col) THEN
-            CALL get_block_node(matrix=dbm,&
-                                block_row=iblock_row,block_col=iblock_row,&
-                                BLOCK=block)
-            CALL put_block_node(sm,iblock_row,iblock_row,block,.TRUE.,error=error)
-          END IF
-          block_node => next_block_node(block_node)
-        END DO
-      END DO
-  END IF
-
-  CALL deallocate_matrix(dbm,error=error)
-
-  CALL timestop(handle)
-
-END SUBROUTINE deallocate_dbm_from_sm
 
 END MODULE sparse_matrix_types

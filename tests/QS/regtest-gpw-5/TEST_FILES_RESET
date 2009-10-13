@@ -37,3 +37,5 @@ si8_broy_kry_r.inp
 
 # FFTW3 now plans to use SSE by default 
 si8_pulay_off.inp
+#
+si8_pmix_otdiag.inp

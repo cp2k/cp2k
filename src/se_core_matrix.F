@@ -19,8 +19,8 @@ MODULE se_core_matrix
                                              dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_write_sparse_matrix,&
                                              sm_from_dbcsr
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&

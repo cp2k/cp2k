@@ -251,10 +251,10 @@ CONTAINS
                     kinetic=kinetic,rho=rho,para_env=para_env,error=error)
 
     DO ispin=1,dft_control%nspins
-       CALL calculate_ecore(h=kinetic(1)%matrix,&
-                            p=rho%rho_ao(ispin)%matrix,&
+       CALL calculate_ecore(h_sm=kinetic(1)%matrix,&
+                            p_sm=rho%rho_ao(ispin)%matrix,&
                             ecore=epr_g_zke_temp(ispin),&
-                            para_env=para_env)
+                            para_env=para_env,error=error)
     END DO
 
     epr_env%g_zke = epr_env%g_zke_factor * ( epr_g_zke_temp(1) - epr_g_zke_temp(2) )

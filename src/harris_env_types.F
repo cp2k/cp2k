@@ -17,11 +17,9 @@ MODULE harris_env_types
   USE harris_energy_types,             ONLY: harris_energy_clear,&
                                              harris_energy_release,&
                                              harris_energy_type
-!harris_energy_create
   USE harris_force_types,              ONLY: harris_force_clear,&
                                              harris_force_release,&
                                              harris_force_type
-!harris_force_create
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
 #include "cp_common_uses.h"

@@ -590,7 +590,7 @@ CONTAINS
     END DO
 
     CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
-         qs_env=qs_env,ks_matrix=k_p_p1,rho=rho,energy=qs_energy,&
+         qs_env=qs_env,ks_matrix_sm=k_p_p1,rho=rho,energy=qs_energy,&
          calculate_forces=.FALSE.,&
          just_energy=.FALSE.,error=error)
 
@@ -614,7 +614,7 @@ CONTAINS
     END DO
 
     CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
-         qs_env=qs_env,ks_matrix=ks_2,rho=rho,energy=qs_energy,&
+         qs_env=qs_env,ks_matrix_sm=ks_2,rho=rho,energy=qs_energy,&
          calculate_forces=.FALSE.,&
          just_energy=.FALSE.,error=error)
 

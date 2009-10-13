@@ -17,6 +17,12 @@ MODULE qs_ot_minimizer
                                              cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_scale,&
+                                             dbcsr_set,&
+                                             dbcsr_trace
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
@@ -27,12 +33,6 @@ MODULE qs_ot_minimizer
                                              qs_ot_get_scp_nddo_derivative
   USE qs_ot_types,                     ONLY: qs_ot_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-                                             cp_sm_sm_trace,&
-                                             real_matrix_type,&
-                                             scale_matrix,&
-                                             set_matrix,&
-                                             transfer_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -64,8 +64,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
       POINTER                                :: matrix_hc
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: pscp, fscp
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_mini', &
@@ -129,7 +128,8 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
            ENDIF 
 
            IF ( do_scp_nddo .AND. ispin == 1 ) THEN
-             CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, tmp, error=error )
+             CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, tmp, local_sum=.TRUE., &
+                  error=error )
              qs_ot_env ( 1 ) % gradient = qs_ot_env ( 1 ) % gradient + tmp
            ENDIF 
 ! ***SCP
@@ -154,7 +154,8 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
            ENDIF 
 
            IF (  do_scp_nddo .AND. ispin == 1 ) THEN
-             CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, error=error )
+             CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE.,&
+                  error=error )
              qs_ot_env ( 1 ) % gradient = qs_ot_env ( 1 ) % gradient - tmp
            ENDIF 
 ! ***SCP
@@ -301,8 +302,8 @@ SUBROUTINE take_step(ds,qs_ot_env,error)
            qs_ot_env(1)%x = qs_ot_env ( 1 ) % x + ds * qs_ot_env ( 1 ) % dx
        ENDIF
        IF (do_scp_nddo) THEN
-           CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % xmat, 1.0_dp, &
-                                      qs_ot_env ( 1 ) % dxmat, ds, error=error )
+          CALL dbcsr_add ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % dxmat, &
+               alpha_scalar=1.0_dp, beta_scalar=ds, error=error )
        ENDIF
 ! **** SCP
        IF (do_ener) THEN
@@ -324,8 +325,8 @@ SUBROUTINE take_step(ds,qs_ot_env,error)
            qs_ot_env(1)%x = qs_ot_env ( 1 ) % x - ds * qs_ot_env ( 1 ) % gx
        ENDIF
        IF (do_scp_nddo) THEN
-           CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % xmat, 1.0_dp, &
-                                      qs_ot_env ( 1 ) % gxmat, -ds, error=error )
+          CALL dbcsr_add ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % gxmat, &
+               alpha_scalar=1.0_dp, beta_scalar=-ds, error=error )
        END IF
 ! **** SCP
        IF (do_ener) THEN
@@ -626,9 +627,11 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
        IF (do_scp_nddo ) THEN
        ! Remember, SCP is formally a spin restricted theory
        ! right now no preconditioner yet
-         CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, error )
-         CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, tmp, error=error)
-         CALL scale_matrix ( qs_ot_env ( 1 ) % dxmat, -1.0_dp ) 
+          !CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, error )
+         CALL dbcsr_copy (  qs_ot_env ( 1 ) % dxmat,qs_ot_env ( 1 ) % gxmat, error=error )
+         CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, tmp, local_sum=.TRUE.,&
+              error=error)
+         CALL dbcsr_scale( qs_ot_env ( 1 ) % dxmat, -1.0_dp , error=error) 
          qs_ot_env ( 1 )%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDIF
 ! **** SCP
@@ -664,7 +667,8 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
        ENDIF
        IF ( do_scp_nddo ) THEN
        ! Remember, SCP is formally a spin restricted theory
-         CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, error=error)
+         CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE.,&
+              error=error)
          qs_ot_env ( 1 )%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDIF
 ! **** SCP
@@ -757,7 +761,8 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
          gnorm_cross = gnorm_cross + tmp 
    END IF
    IF ( do_scp_nddo ) THEN
-         CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, tmp, error=error )
+         CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, tmp, local_sum=.TRUE.,&
+              error=error )
          gnorm_cross = gnorm_cross + tmp 
    END IF
    IF ( do_ener ) THEN
@@ -807,10 +812,13 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
              qs_ot_env ( 1 ) % gx = qs_ot_env ( 1 ) % gx_old
        END IF 
        IF ( do_scp_nddo ) THEN
-             CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, error )
-             CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, tmp, error=error )
+          !CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, error )
+             CALL dbcsr_copy ( qs_ot_env ( 1 ) % gx_oldmat, qs_ot_env ( 1 ) % gxmat, error=error )
+             CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, tmp, local_sum=.TRUE.,&
+                  error=error )
              qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-             CALL transfer_matrix ( qs_ot_env ( 1 ) % gx_oldmat, qs_ot_env ( 1 ) % gxmat, error )
+             !CALL transfer_matrix ( qs_ot_env ( 1 ) % gx_oldmat, qs_ot_env ( 1 ) % gxmat, error )
+             CALL dbcsr_copy ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat,error=error )
        END IF 
        IF ( do_ener ) THEN
           DO ispin=1,nspin
@@ -845,9 +853,11 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
          qs_ot_env ( 1 ) % gx_old = qs_ot_env ( 1 ) % gx
        END IF
        IF ( do_scp_nddo ) THEN
-         CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, error=error )
+         CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE., &
+              error=error )
          qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-         CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, error )
+         !CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, error )
+         CALL dbcsr_copy ( qs_ot_env ( 1 ) % gx_oldmat, qs_ot_env ( 1 ) % gxmat, error=error )
        END IF
 ! ***SCP
        IF (do_ener) THEN
@@ -914,9 +924,10 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
      test_down = test_down + tmp
    END IF 
    IF ( do_scp_nddo ) THEN
-     CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % dxmat, beta_pr, &
-                                qs_ot_env ( 1 ) % gxmat,-1.0_dp, error=error )
-     CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, tmp, error=error )
+     CALL dbcsr_add ( qs_ot_env ( 1 ) % dxmat, qs_ot_env ( 1 ) % gxmat, alpha_scalar=beta_pr,&
+          beta_scalar=-1.0_dp, error=error )
+     CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, tmp, local_sum=.TRUE., &
+          error=error )
      test_down = test_down + tmp
    END IF 
 ! ***SCP
@@ -944,8 +955,8 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
            qs_ot_env ( 1 ) % dx = beta_pr * qs_ot_env ( 1 ) % dx - qs_ot_env ( 1 ) % gx
          END IF 
          IF ( do_scp_nddo ) THEN
-           CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % dxmat, beta_pr, &
-                                      qs_ot_env ( 1 ) % gxmat,-1.0_dp, error=error )
+            CALL dbcsr_add ( qs_ot_env ( 1 ) % dxmat, qs_ot_env ( 1 ) % gxmat, &
+                 alpha_scalar=beta_pr, beta_scalar=-1.0_dp, error=error )
          END IF 
 ! ***SCP
          IF ( do_ener ) THEN
@@ -1006,7 +1017,7 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
         qs_ot_env ( 1 ) % h_x ( j, : ) =  qs_ot_env ( 1 ) % x ( : )
    END IF 
    IF ( do_scp_nddo ) THEN
-      CALL transfer_matrix ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % hx_mat ( j )%matrix, error)
+      CALL dbcsr_copy ( qs_ot_env ( 1 ) % hx_mat ( j )%matrix, qs_ot_env ( 1 ) % xmat, error=error)
    ENDIF
    IF ( do_ener )THEN
       DO ispin=1,nspin
@@ -1051,10 +1062,12 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          qs_ot_env ( 1 ) % h_e ( j, : ) =  -qs_ot_env ( 1 ) % ds_min * qs_ot_env ( 1 ) % h_e ( j, : ) 
        END IF
        IF ( do_scp_nddo ) THEN
-         CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( j ) % matrix ,error)
-         CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( j ) % matrix, tmp, error=error )
+          !CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( j ) % matrix ,error)
+         CALL dbcsr_copy ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix ,qs_ot_env ( 1 ) % gxmat,error=error)
+         CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( j ) % matrix, tmp, &
+              local_sum=.TRUE. ,error=error )
          qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-         CALL scale_matrix ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix, -qs_ot_env ( 1 ) % ds_min )
+         CALL dbcsr_scale ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix, -qs_ot_env ( 1 ) % ds_min, error=error )
        ENDIF
 ! ***SCP
        IF (do_ener) THEN
@@ -1091,11 +1104,12 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          qs_ot_env ( 1 ) % h_e ( j, : ) =  -qs_ot_env ( 1 ) % ds_min * qs_ot_env ( 1 ) % gx ( : ) 
        END IF
        IF ( do_scp_nddo ) THEN
-         CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, error=error )
+         CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE., &
+              error=error )
          qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-         CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( j )%matrix,error)
-         CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix, 0.0_dp, &
-                                    qs_ot_env ( 1 ) % gxmat,-qs_ot_env ( 1 ) % ds_min, error=error )
+         CALL dbcsr_copy ( qs_ot_env ( 1 ) % he_mat ( j )%matrix,qs_ot_env ( 1 ) % gxmat,error=error)
+         CALL dbcsr_add ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix,  &
+              qs_ot_env ( 1 ) % gxmat,alpha_scalar=0.0_dp,beta_scalar=-qs_ot_env ( 1 ) % ds_min, error=error )
        END IF
 ! ***SCP
        IF (do_ener) THEN
@@ -1168,8 +1182,8 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          qs_ot_env ( 1 ) % ls_diis ( i, j ) = qs_ot_env ( 1 ) % ls_diis ( i, j ) + tmp
        END IF
        IF ( do_scp_nddo ) THEN
-         CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix, qs_ot_env ( 1 ) % he_mat ( i ) % matrix,  &
-                               tmp, error=error )
+         CALL dbcsr_trace ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix, qs_ot_env ( 1 ) % he_mat ( i ) % matrix, &
+              tmp, local_sum=.TRUE.,error=error )
          qs_ot_env ( 1 ) % ls_diis ( i, j ) = qs_ot_env ( 1 ) % ls_diis ( i, j ) + tmp
        END IF
        IF (do_ener) THEN
@@ -1202,7 +1216,8 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          qs_ot_env ( 1 ) % ls_diis ( i, j ) = qs_ot_env ( 1 ) % ls_diis ( i, j ) - qs_ot_env ( 1 ) % ds_min * tmp
        END IF
        IF ( do_scp_nddo ) THEN
-         CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( i ) % matrix, tmp, error=error )
+         CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( i ) % matrix, tmp, &
+              local_sum=.TRUE., error=error )
          qs_ot_env ( 1 ) % ls_diis ( i, j ) = qs_ot_env ( 1 ) % ls_diis ( i, j ) - qs_ot_env ( 1 ) % ds_min * tmp
        END IF
 ! ***SCP
@@ -1222,6 +1237,7 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
    qs_ot_env(1)%c_diis(diis_bound+1)=1.0_dp
    ! put in buffer, dgesv destroys
    qs_ot_env(1)%lss_diis=qs_ot_env(1)%ls_diis
+
    CALL DGESV(diis_bound+1, 1, qs_ot_env(1)%lss_diis,diis_m+1,qs_ot_env(1)%ipivot,&
                  qs_ot_env(1)%c_diis, diis_m+1, info)
    IF (info.ne.0) CALL stop_program("ot diis","singular diis matrix")
@@ -1264,14 +1280,14 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
      END DO
    END IF
    IF (do_scp_nddo) THEN
-     CALL set_matrix ( qs_ot_env ( 1 ) % xmat, 0.0_dp )
+     CALL dbcsr_set( qs_ot_env ( 1 ) % xmat, 0.0_dp, error=error)
      DO i = 1, diis_bound 
-       CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % xmat, 1.0_dp, qs_ot_env ( 1 ) % he_mat ( i ) % matrix, &
-                                  qs_ot_env ( 1 ) % c_diis ( i ), error )
+       CALL dbcsr_add ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % he_mat ( i ) % matrix, &
+            alpha_scalar=1.0_dp, beta_scalar=qs_ot_env ( 1 ) % c_diis ( i ), error=error )
      END DO
      DO i = 1, diis_bound 
-       CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % xmat, 1.0_dp, qs_ot_env ( 1 ) % hx_mat ( i ) % matrix, &
-                                  qs_ot_env ( 1 ) % c_diis ( i ), error )
+       CALL dbcsr_add ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % hx_mat ( i ) % matrix, &
+            alpha_scalar=1.0_dp,beta_scalar=qs_ot_env ( 1 ) % c_diis ( i ), error=error )
      END DO
    END IF
 ! ***SCP
@@ -1323,9 +1339,11 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
        tr_xnew_gx = tr_xnew_gx+tmp
      END IF
      IF (do_scp_nddo) THEN
-       CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % hx_mat ( j ) % matrix, qs_ot_env ( 1 ) % gxmat, tmp, error=error )
+       CALL dbcsr_trace ( qs_ot_env ( 1 ) % hx_mat ( j ) % matrix, qs_ot_env ( 1 ) % gxmat, tmp, &
+            local_sum=.TRUE., error=error )
        tr_xold_gx = tr_xold_gx+tmp
-       CALL cp_sm_sm_trace ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % gxmat, tmp, error=error )
+       CALL dbcsr_trace ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE.,&
+            error=error )
        tr_xnew_gx = tr_xnew_gx+tmp
      END IF
 ! ***SCP
@@ -1364,11 +1382,12 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
            qs_ot_env ( 1 ) % x ( : ) = qs_ot_env ( 1 ) % x ( : ) + qs_ot_env ( 1 ) % h_x ( j, : )
          END IF
          IF (do_scp_nddo) THEN
-           CALL set_matrix ( qs_ot_env ( 1 ) % xmat ,  0._dp )
-           CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % xmat, 1.0_dp,  &
-                                      qs_ot_env ( 1 ) % he_mat ( j ) % matrix, 1.0_dp, error )
-           CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % xmat, 1.0_dp,  &
-                                      qs_ot_env ( 1 ) % hx_mat ( j ) % matrix, 1.0_dp, error )
+           CALL dbcsr_set ( qs_ot_env ( 1 ) % xmat ,  0._dp , error=error)
+           CALL dbcsr_add ( qs_ot_env ( 1 ) % xmat,  &
+                qs_ot_env ( 1 ) % he_mat ( j ) % matrix, &
+                alpha_scalar=1.0_dp, beta_scalar=1.0_dp, error=error )
+           CALL dbcsr_add ( qs_ot_env ( 1 ) % xmat, qs_ot_env ( 1 ) % hx_mat ( j ) % matrix, &
+                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp, error=error )
          END IF
 ! ***SCP
          IF (do_ener) THEN
