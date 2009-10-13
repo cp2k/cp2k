@@ -97,3 +97,5 @@ ethene_colv1_g.inp
 cf_genpot.inp
 # bug fix for a(zero-cell)-a(non-zero-cell) interaction.
 H2O-32_PME_distr.inp
+#bug fix DOF
+argon_ext.inp
