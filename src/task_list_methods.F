@@ -1287,7 +1287,6 @@ CONTAINS
 !> \brief performs load balancing shifting tasks on the replicated grids
 !>        this modifies the destination of some of the tasks on replicated
 !>        grids, and in this way balances the load
-!>        XXXXXXXXXXXXXXX should be implemented with scatter gather instead of all to all
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
@@ -1312,10 +1311,8 @@ CONTAINS
                                                 total_cost_global
     INTEGER(kind=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: load_imbalance, loads, &
-                                                recv_buf_i, send_buf_i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, recv_disps, &
-                                                recv_sizes, send_disps, &
-                                                send_sizes
+                                                recv_buf_i
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: index
     TYPE(realspace_grid_type), POINTER       :: rs
 
     CALL timeset(routineN,handle)
@@ -1323,28 +1320,10 @@ CONTAINS
     rs=>rs_rho(1)%rs_grid
 
     ! allocate local arrays
-    ALLOCATE(send_sizes(rs%desc%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
-    ALLOCATE(recv_sizes(rs%desc%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
-    ALLOCATE(send_disps(rs%desc%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
-    ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
-    ALLOCATE(send_buf_i(rs%desc%group_size),STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
     ALLOCATE(recv_buf_i(rs%desc%group_size),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
     ALLOCATE(loads(rs%desc%group_size),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%desc%group_size)
-    send_sizes = 1
-    recv_sizes = 1
-    send_disps(1)=0
-    recv_disps(1)=0
-    DO i = 2, rs % desc%group_size
-       send_disps(i) = send_disps(i-1) + send_sizes(i-1)
-       recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
-    ENDDO
 
     recv_buf_i = 0
     DO i = 1, SIZE(rs_rho)
@@ -1389,8 +1368,8 @@ CONTAINS
 
     ! now, correct the load imbalance for the overloaded CPUs
     ! they will send away not more than the total load of replicated tasks
-    send_buf_i = cost_task_rep
-    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
+    CALL mp_allgather(cost_task_rep,recv_buf_i,rs % desc % group)
+
     DO i = 1, rs%desc%group_size
        ! At the moment we can only offload replicated tasks
        IF(load_imbalance(i) .GT. 0)&
@@ -1454,15 +1433,6 @@ CONTAINS
     DEALLOCATE(load_imbalance,STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","load_imbalance",rs%desc%group_size)
 
-    DEALLOCATE(send_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
-    DEALLOCATE(recv_sizes,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
-    DEALLOCATE(send_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
-    DEALLOCATE(recv_disps,STAT=stat)
-    IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
-
     CALL timestop(handle)
 
   END SUBROUTINE load_balance_replicated
@@ -1513,15 +1483,6 @@ CONTAINS
     IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
     ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
-
-    send_sizes = 1
-    recv_sizes = 1
-    send_disps(1)=0
-    recv_disps(1)=0
-    DO i = 2, rs % desc % group_size
-       send_disps(i) = send_disps(i-1) + send_sizes(i-1)
-       recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
-    ENDDO
     ALLOCATE(send_buf_i(rs%desc%group_size),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%desc%group_size)
     ALLOCATE(recv_buf_i(rs%desc%group_size),STAT=stat)
@@ -1534,9 +1495,9 @@ CONTAINS
        send_buf_i( rank+1 ) = send_buf_i( rank+1 ) + 1 
     END DO
 
-    CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % desc % group)
+    CALL mp_alltoall(send_buf_i, recv_buf_i, 1, rs % desc % group)
     
-    ! communication step 3 : pack the tasks, and send them around
+    ! pack the tasks, and send them around
 
     task_dim = SIZE(tasks,1)
 
