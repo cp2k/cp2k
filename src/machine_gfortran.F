@@ -15,7 +15,7 @@ MODULE machine_gfortran
 
   PRIVATE
 
-  PUBLIC :: m_cputime, m_datum, m_flush, m_memory, &
+  PUBLIC :: m_cputime, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details
 
@@ -61,20 +61,6 @@ FUNCTION m_cputime() RESULT (ct)
 
     CALL CPU_TIME(ct)
 END FUNCTION m_cputime
-
-!!  time and date
-! *****************************************************************************
-SUBROUTINE m_datum(cal_date)
-    CHARACTER(len=*), INTENT(OUT)            :: cal_date
-
-    CHARACTER(len=10)                        :: time
-    CHARACTER(len=5)                         :: zone
-    CHARACTER(len=8)                         :: date
-    INTEGER, DIMENSION(8)                    :: values
-
-    CALL DATE_AND_TIME(date=date, time=time, zone=zone, values=values)
-    cal_date=date//" "//time
-END SUBROUTINE m_datum
 
 ! flush a given unit
 ! *****************************************************************************

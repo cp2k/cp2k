@@ -14,73 +14,73 @@ MODULE machine
   USE  kinds,  ONLY        : dp
 #if defined ( __AIX )
   USE machine_aix, ONLY    : & 
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __IRIX )
   USE machine_irix, ONLY   : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __G95 )
   USE machine_g95, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __GFORTRAN )
   USE machine_gfortran, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __INTEL )
   USE machine_intel, ONLY  : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 ! must be before __PGI because pgf90 defines __PGI
 #elif defined ( __XT3 )
   USE machine_xt3, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __XT5 )
   USE machine_xt5, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __PGI )
   USE machine_pgi, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __T3E )
   USE machine_t3e, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __DEC )
   USE machine_dec, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __ABSOFT )
   USE machine_absoft, ONLY : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __SUN )
   USE machine_sun, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __NAG )
   USE machine_nag, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #elif defined ( __SX )
   USE machine_sx, ONLY    : &
-       m_cputime, m_datum, m_flush_internal=>m_flush, &
+       m_cputime, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, m_memory_details
 #endif
@@ -168,5 +168,21 @@ FUNCTION m_walltime() RESULT (wt)
          / REAL(count_rate,KIND=dp)
 !$OMP END CRITICAL
 END FUNCTION m_walltime
+
+! *****************************************************************************
+!> \brief returns a datum in human readable format using a standard Fortran routine
+!> \par History
+!>      10.2009 created [Joost VandeVondele]
+! *****************************************************************************
+SUBROUTINE m_datum(cal_date)
+    CHARACTER(len=*), INTENT(OUT)            :: cal_date
+
+    CHARACTER(len=10)                        :: time
+    CHARACTER(len=8)                         :: date
+
+    CALL DATE_AND_TIME(date=date, time=time)
+    cal_date=date(1:4)//"-"//date(5:6)//"-"//date(7:8)//" "//time(1:2)//":"//time(3:4)//":"//time(5:10)
+
+END SUBROUTINE m_datum
 
 END MODULE machine

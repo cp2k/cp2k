@@ -18,7 +18,7 @@ MODULE machine_intel
 
   PRIVATE
 
-  PUBLIC :: m_cputime, m_datum, m_flush, m_memory, &
+  PUBLIC :: m_cputime, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, & 
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c,m_mov, m_memory_details
 
@@ -63,18 +63,6 @@ FUNCTION m_cputime() RESULT (ct)
 
     CALL CPU_TIME(ct)
 END FUNCTION m_cputime
-!!  time and date
-! *****************************************************************************
-SUBROUTINE m_datum(cal_date)
-    CHARACTER(len=*), INTENT(OUT)            :: cal_date
-
-    INTEGER                                  :: l, le
-
-  CALL fdate(cal_date)
-  l = LEN(cal_date)
-  le = LEN_TRIM(cal_date)
-  cal_date(le:l) = ' '
-END SUBROUTINE m_datum
 
 ! *****************************************************************************
 !> \brief   Flush the output to a logical unit.
