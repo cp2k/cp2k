@@ -90,6 +90,7 @@ IMPLICIT NONE
   plan % fsign = fsign
   plan % fft_in_place = fft_in_place 
   plan % n_3d = n
+!$ plan % need_alt_plan = .FALSE.
 
   SELECT CASE ( fft_type )
     CASE ( 2 )
@@ -175,6 +176,7 @@ IMPLICIT NONE
   plan % trans = trans
   plan % n = n
   plan % m = m
+!$ plan % need_alt_plan = .FALSE.
 
   SELECT CASE ( fft_type )
     CASE ( 2 )

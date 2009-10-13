@@ -8,6 +8,8 @@
 !> \par History
 !>      IAB 09-Jan-2009 : initial version
 !>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>      IAB 09-Oct-2009 : Added additional fields needed when using OpenMP
+!>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !> \author JGH
 ! *****************************************************************************
 
@@ -37,6 +39,10 @@ MODULE fft_plan
     INTEGER                             :: n, m
     INTEGER, DIMENSION(3)               :: n_3d
     INTEGER (KIND=integer8_kind)        :: fftw_plan
+!   Needed for OpenMP case where not all threads have the same number of rows
+!$  INTEGER (KIND=integer8_kind)        :: alt_fftw_plan
+!$  LOGICAL                             :: need_alt_plan
+!$  INTEGER                             :: num_threads_needed, num_rows, alt_num_rows
 
   END TYPE fft_plan_type
 

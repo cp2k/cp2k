@@ -9,6 +9,8 @@
 !>      Adapted for new interface
 !>      IAB 09-Jan-2009 : Modified to cache plans in fft_plan_type
 !>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>      IAB 09-Oct-2009 : Added OpenMP directives to 1D FFT, and planning routines
+!>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !> \author JGH
 ! *****************************************************************************
 SUBROUTINE fftw3_get_lengths ( DATA, max_length )
@@ -225,12 +227,16 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
 
   USE fft_plan,                           ONLY : fft_plan_type, dp
 
+  IMPLICIT NONE
+
   TYPE(fft_plan_type), INTENT ( INOUT )              :: plan
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
   INTEGER                                            :: plan_style
   LOGICAL                                            :: aligned
-  INTEGER                                            :: ii,di,io,DO
+  INTEGER                                            :: ii,di,io,DO, num_threads, num_rows
+
+!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
 
 #if defined ( __FFTW3 )
 #include "fftw3.f"
@@ -252,6 +258,33 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
     fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
   END IF
 
+num_threads = 1
+!$omp parallel default(none), &
+!$omp          shared(num_threads)
+!$ num_threads = omp_get_num_threads()
+!$omp end parallel
+
+num_rows = plan%m / num_threads
+!$   plan%num_threads_needed = num_threads
+
+! Check for number of rows less than num_threads
+!$ IF (plan%m < num_threads) THEN
+!$   num_rows = 1
+!$   plan%num_threads_needed = plan%m
+!$ ENDIF
+#if defined(__SGL) || defined(__FFTSGL)
+! Check for odd numbers of elements per thread (for SSE alignment issues)
+!$ IF (MOD(num_rows*plan%n, 2) .EQ. 1 .AND. plan%num_threads_needed .NE. 1) THEN
+!$   num_rows = num_rows + 1
+!$   plan%num_threads_needed = (plan%m + num_rows - 1) / num_rows
+!$ ENDIF
+#endif
+! Check for total number of rows not divisible by num_threads
+!$ IF (num_rows*plan%num_threads_needed .NE. plan%m) THEN
+!$   plan%need_alt_plan = .TRUE.
+!$ ENDIF
+
+!$  plan%num_rows = num_rows
   ii = 1
   di = plan%n
   io = 1
@@ -266,21 +299,42 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
 
 #if defined(__SGL) || defined(__FFTSGL)
   IF ( plan%fsign == +1 ) THEN
-    CALL sfftw_plan_many_dft(plan%fftw_plan,1,plan%n,plan%m,zin,0,ii,di,&
+    CALL sfftw_plan_many_dft(plan%fftw_plan,1,plan%n,num_rows,zin,0,ii,di,&
               zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
   ELSE
-    CALL sfftw_plan_many_dft(plan%fftw_plan,1,plan%n,plan%m,zin,0,ii,di,&
+    CALL sfftw_plan_many_dft(plan%fftw_plan,1,plan%n,num_rows,zin,0,ii,di,&
               zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
   END IF
 #else
   IF ( plan%fsign == +1 ) THEN
-    CALL dfftw_plan_many_dft(plan%fftw_plan,1,plan%n,plan%m,zin,0,ii,di,&
+    CALL dfftw_plan_many_dft(plan%fftw_plan,1,plan%n,num_rows,zin,0,ii,di,&
               zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
   ELSE
-    CALL dfftw_plan_many_dft(plan%fftw_plan,1,plan%n,plan%m,zin,0,ii,di,&
+    CALL dfftw_plan_many_dft(plan%fftw_plan,1,plan%n,num_rows,zin,0,ii,di,&
               zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
   END IF
 #endif
+
+!$ IF (plan%need_alt_plan) THEN
+!$  plan%alt_num_rows = plan%m - (plan%num_threads_needed - 1)*num_rows
+#if defined(__SGL) || defined(__FFTSGL)
+!$  IF ( plan%fsign == +1 ) THEN
+!$    CALL sfftw_plan_many_dft(plan%alt_fftw_plan,1,plan%n,plan%alt_num_rows,zin,0,ii,di,&
+!$              zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
+!$  ELSE
+!$    CALL sfftw_plan_many_dft(plan%alt_fftw_plan,1,plan%n,plan%alt_num_rows,zin,0,ii,di,&
+!$              zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
+!$  END IF
+#else
+!$  IF ( plan%fsign == +1 ) THEN
+!$    CALL dfftw_plan_many_dft(plan%alt_fftw_plan,1,plan%n,plan%alt_num_rows,zin,0,ii,di,&
+!$              zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
+!$  ELSE
+!$    CALL dfftw_plan_many_dft(plan%alt_fftw_plan,1,plan%n,plan%alt_num_rows,zin,0,ii,di,&
+!$              zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
+!$  END IF
+#endif
+!$ END IF
 
 #endif
 
@@ -297,8 +351,14 @@ SUBROUTINE fftw3_destroy_plan ( plan )
 #if defined ( __FFTW3 )
 #if defined(__SGL) || defined(__FFTSGL)
   CALL sfftw_destroy_plan(plan%fftw_plan)
+!$  IF (plan%need_alt_plan) THEN
+!$    CALL sfftw_destroy_plan(plan%alt_fftw_plan)
+!$  END IF
 #else
   CALL dfftw_destroy_plan(plan%fftw_plan)
+!$  IF (plan%need_alt_plan) THEN
+!$    CALL dfftw_destroy_plan(plan%alt_fftw_plan)
+!$  END IF
 #endif
 #endif
 
@@ -309,28 +369,78 @@ SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
   USE fft_plan,                 ONLY : fft_plan_type, dp
 
   IMPLICIT NONE
+#if defined (__NAG)
+  INTEGER*8          :: dummy_64_bit
+  INTEGER, PARAMETER :: integer8_kind = KIND(dummy_64_bit)
+#else
+  INTEGER, PARAMETER :: integer8_kind = 8
+#endif
+
   TYPE (fft_plan_type), INTENT (IN)                  :: plan
-  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
-  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
+  COMPLEX(KIND=dp), DIMENSION(*), TARGET, INTENT(IN)         :: zin
+  COMPLEX(KIND=dp), DIMENSION(*), TARGET, INTENT(INOUT)      :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale
   INTEGER, INTENT(OUT)                               :: stat
+  INTEGER :: num_rows, my_id, in_offset, out_offset, scal_offset
+  COMPLEX(KIND=dp), POINTER :: zin_ptr, zout_ptr, zscal_ptr
+  INTEGER (KIND=integer8_kind)        :: fftw_plan
+
+!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
 
 !------------------------------------------------------------------------------
+
+my_id = 0
+num_rows = plan%m
+
+!$omp parallel num_threads(plan%num_threads_needed), &
+!$omp          default(none), &
+!$omp          private(my_id,num_rows,zin_ptr,zout_ptr,zscal_ptr,in_offset,out_offset,scal_offset,fftw_plan), &
+!$omp          shared(plan,scale,stat)
+!$ my_id = omp_get_thread_num()
+
+fftw_plan = plan%fftw_plan
+
+in_offset = 1
+out_offset = 1
+scal_offset = 1
+
+!$ in_offset = 1 + plan%num_rows * my_id * plan%n
+!$ out_offset = 1 + plan%num_rows * my_id * plan%n
+!$ IF ( plan%fsign == +1 .AND. plan%trans ) THEN
+!$  in_offset = 1 + plan%num_rows*my_id
+!$ ELSEIF ( plan%fsign == -1 .AND. plan%trans ) THEN
+!$  out_offset = 1 + plan%num_rows*my_id
+!$ ENDIF
+!$ scal_offset = 1 + plan%n*plan%num_rows*my_id 
+!$ IF ( plan%need_alt_plan .AND. my_id .EQ. omp_get_num_threads() - 1 ) THEN
+!$   num_rows = plan%alt_num_rows
+!$   fftw_plan = plan%alt_fftw_plan
+!$ ELSE
+!$   num_rows = plan%num_rows
+!$ ENDIF
+
+zin_ptr => zin(in_offset)
+zout_ptr => zout(out_offset)
+zscal_ptr => zout(scal_offset)
 
 #if defined ( __FFTW3 )
   stat=1
 #if defined(__SGL) || defined(__FFTSGL)
-  CALL sfftw_execute_dft(plan%fftw_plan, zin, zout)
-  IF ( scale /= 1.0_dp ) CALL csscal(plan%n*plan%m,scale,zout,1)
+  CALL sfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
+!$omp barrier
+  IF ( scale /= 1.0_dp ) CALL csscal(plan%n*num_rows,scale,zscal_ptr,1)
 #else
-  CALL dfftw_execute_dft(plan%fftw_plan, zin, zout)
-  IF ( scale /= 1.0_dp ) CALL zdscal(plan%n*plan%m,scale,zout,1)
+  CALL dfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
+!$omp barrier
+  IF ( scale /= 1.0_dp ) CALL zdscal(plan%n*num_rows,scale,zscal_ptr,1)
 #endif
 #else
 
   stat=0
 
 #endif
+
+!$omp end parallel
 
 END SUBROUTINE fftw31dm
 

@@ -1327,12 +1327,13 @@ CONTAINS
       DIMENSION(:, :)                        :: grays
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
-    INTEGER                                  :: dir, handle, handle2, l1, l2, &
-                                                l3, my_pos, nloc( 3 ), nrays, &
-                                                nsize, out_space, stat
+    INTEGER :: dir, handle, handle2, l1, l2, l3, lb, my_id, my_pos, &
+      nloc( 3 ), nrays, nsize, num_threads, out_space, stat, ub
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: failure, test
     REAL(KIND=dp)                            :: norm
+
+!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
 
     failure = .FALSE.
     CALL timeset(routineN,handle2)
@@ -1504,7 +1505,18 @@ CONTAINS
        nrays = pw1%pw_grid%para%nyzray ( my_pos )
        ALLOCATE ( grays ( n(1), nrays ), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       grays = 0.0_dp
+
+       num_threads = 1
+       my_id = 0
+!$omp parallel default(none), &
+!$omp          private(my_id, num_threads, lb, ub), &
+!$omp          shared(grays)
+!$     num_threads = omp_get_num_threads()
+!$     my_id = omp_get_thread_num()
+       lb = (SIZE(grays,2)*my_id)/num_threads + 1
+       ub = (SIZE(grays,2)*(my_id+1))/num_threads
+       grays(:, lb:ub) = 0.0_dp
+!$omp end parallel
 
        SELECT CASE ( mode )
        CASE DEFAULT

@@ -23,6 +23,8 @@
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !>      IAB (13-Feb-2009): Extended plan caching to serial 3D FFT (fft3d_s)
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>      IAB (09-Oct-2009): Added OpenMP directives to parallel 3D FFT
+!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !> \author JGH
 ! *****************************************************************************
 MODULE fft_tools
@@ -500,9 +502,9 @@ CONTAINS
       POINTER                                :: pbuf, qbuf, rbuf, sbuf
     COMPLEX(KIND=lp), DIMENSION(:, :, :), &
       POINTER                                :: tbuf
-    INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mcx2, mcz1, mcz2, mg, &
-      mmax, mx1, mx2, my1, mz2, n1, n2, nmax, numtask, numtask_g, numtask_r, &
-      nx, ny, nz, r_dim(2), r_pos(2), rp, sign, stat
+    INTEGER :: g_pos, handle, ierr, iout, lb, lg, lmax, mcx2, mcz1, mcz2, mg, &
+      mmax, mx1, mx2, my1, my_id, mz2, n1, n2, nmax, num_threads, numtask, &
+      numtask_g, numtask_r, nx, ny, nz, r_dim(2), r_pos(2), rp, sign, stat, ub
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: sum_data
@@ -510,6 +512,8 @@ CONTAINS
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
+
+!$  INTEGER :: omp_get_num_threads, omp_get_thread_num  
 
     CALL timeset(routineN,handle)
 
@@ -824,8 +828,20 @@ CONTAINS
 
        sbuf => fft_scratch%r1buf
        tbuf => fft_scratch%tbuf
-       sbuf = 0._dp
-       tbuf = 0._dp
+       num_threads = 1
+       my_id = 0
+!$omp parallel default(none), &
+!$omp          private(my_id, num_threads, lb, ub), &
+!$omp          shared(sbuf, tbuf)
+!$     num_threads = omp_get_num_threads()
+!$     my_id = omp_get_thread_num()
+       lb = (SIZE(sbuf,2)*my_id)/num_threads + 1
+       ub = (SIZE(sbuf,2)*(my_id+1))/num_threads
+       sbuf(:,lb:ub) = 0._dp
+       lb = (SIZE(tbuf,3)*my_id)/num_threads + 1
+       ub = (SIZE(tbuf,3)*(my_id+1))/num_threads
+       tbuf(:,:,lb:ub) = 0._dp
+!$omp end parallel
 
        IF ( sign == FWFFT ) THEN
           ! cin -> gin
@@ -899,7 +915,7 @@ CONTAINS
                 WRITE ( *, '(A,T67,2I7)') "     Transform X ",n(1),nyzray(g_pos)
                 WRITE ( *, '(A,T60,3I7)') "     Transform YZ ",n(2),n(3),nx
                 WRITE ( *, '(A,T61,E20.14)') "     Sum of data(1) ",sum_data
-             END IF
+            END IF
           END IF
 
           ! FFT along x
@@ -948,7 +964,6 @@ CONTAINS
                 WRITE ( *, '(A,T61,E20.14)') "     Sum of data(4) ",sum_data
              END IF
           END IF
-
        ELSE
           CALL stop_program ( "fft3d", "Illegal fsign parameter" )
        ENDIF
@@ -964,6 +979,7 @@ CONTAINS
        status = stat
     END IF
     CALL timestop(handle)
+
 
   END SUBROUTINE fft3d_ps
 
@@ -1504,19 +1520,26 @@ CONTAINS
     mpr = p2p ( my_pos )
     nm = MAXVAL ( nray ( 0 : np - 1 ) )
     nr = nray ( my_pos )
+!$omp parallel do default(none), &
+!$omp             private(ix,nx), &
+!$omp             shared(np,p2p,bo,nr,scount,sdispl)
     DO ip = 0, np - 1
        ix = p2p ( ip )
        nx = bo ( 2, 1, ix ) - bo ( 1, 1, ix ) + 1
        scount ( ip ) = nr * nx
        sdispl ( ip ) = nr * ( bo ( 1, 1, ix ) - 1 ) 
     END DO
+!$omp end parallel do
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
+!$omp parallel do default(none), &
+!$omp             private(nr), &
+!$omp             shared(np,nray,nx,rcount,rdispl,nm)
     DO ip = 0, np - 1
        nr = nray ( ip )
        rcount ( ip ) = nr * nx
        rdispl ( ip ) = nm * nx * ip 
     END DO
-
+!$omp end parallel do
     IF ( alltoall_sgl ) THEN
        CALL mp_alltoall ( ss, scount, sdispl, tt, rcount, rdispl, group )
     ELSE
@@ -1524,6 +1547,9 @@ CONTAINS
     END IF
 
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
+!$omp parallel do default(none), &
+!$omp             private(nr,ix,ixx,ir,iy,iz), &
+!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tt,rr)
     DO ip = 0, np - 1
        nr = nray ( ip )
        DO ix = 1, nx
@@ -1543,6 +1569,7 @@ CONTAINS
           END IF
        END DO
     END DO
+!$omp end parallel do
 
     CALL timestop(handle)
 
@@ -1597,6 +1624,9 @@ CONTAINS
     END IF
 
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
+!$omp parallel do default(none), &
+!$omp             private(nr, ix, ixx, ir, iy, iz), &
+!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tb,tt,rr)
     DO ip = 0, np - 1
        nr = nray ( ip )
        DO ix = 1, nx
@@ -1616,21 +1646,29 @@ CONTAINS
           END IF
        END DO
     END DO
-
+!$omp end parallel do
     nm = MAXVAL ( nray ( 0 : np - 1 ) )
     nr = nray ( my_pos )
+!$omp parallel do default(none), &
+!$omp             private(ix,nx), &
+!$omp             shared(np,p2p,bo,rcount,rdispl,nr)
     DO ip = 0, np - 1
        ix = p2p ( ip )
        nx = bo ( 2, 1, ix ) - bo ( 1, 1, ix ) + 1
        rcount ( ip ) = nr * nx
        rdispl ( ip ) = nr * ( bo ( 1, 1, ix ) - 1 )
     END DO
+!$omp end parallel do
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
+!$omp parallel do default(none), &
+!$omp             private(nr), &
+!$omp             shared(nray,scount,sdispl,nx,nm)
     DO ip = 0, np - 1
        nr = nray ( ip )
        scount ( ip ) = nr * nx
        sdispl ( ip ) = nm * nx * ip
     END DO
+!$omp end parallel do
 
     IF ( alltoall_sgl ) THEN
        CALL mp_alltoall ( tt, scount, sdispl, ss, rcount, rdispl, group )
@@ -1671,13 +1709,13 @@ CONTAINS
       POINTER                                :: rq, rs
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: tq, ts
-    INTEGER                                  :: handle, icrs, ip, ipr, ir, &
-                                                ix, iz, jj, jx, jy, jz, myx, &
-                                                myz, nmax, np, npx, npz, nx, &
-                                                nz, rs_pos
+    INTEGER :: handle, icrs, ip, ipr, ir, ix, iz, jj, jx, jy, jz, lb, my_id, &
+      myx, myz, nmax, np, npx, npz, num_threads, nx, nz, rs_pos, ub
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
+
+!$ INTEGER :: omp_get_num_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -1704,17 +1742,26 @@ CONTAINS
     sdispl => fft_scratch%sdispl
     rdispl => fft_scratch%rdispl
 
+!$omp parallel default(none), &
+!$omp          private(ip), &
+!$omp          shared(npx,pgrid,xcor,bo,npz,zcor)
+!$omp do
     DO ix = 0, npx - 1
        ip = pgrid ( ix, 0 )
        xcor ( bo ( 1, 1, ip ) : bo ( 2, 1, ip ) ) = ix
     END DO
+!$omp end do
+!$omp do
     DO iz = 0, npz - 1
        ip = pgrid ( 0, iz )
        zcor ( bo ( 1, 3, ip ) : bo ( 2, 3, ip ) ) = iz
     END DO
+!$omp end do
+!$omp end parallel
 
     scount = 0
     nx = SIZE ( sb ,2 )
+
     DO jx = 1, nx
        IF ( alltoall_sgl ) THEN
           DO ir = 1, nray ( my_pos )
@@ -1734,12 +1781,13 @@ CONTAINS
           END DO
        END IF
     END DO
-
+!$omp parallel do default(none), &
+!$omp             shared(np, sdispl, rdispl,nmax)
     DO ip = 0, np - 1
        sdispl ( ip ) = nmax * ip
        rdispl ( ip ) = nmax * ip
     END DO
-
+!$omp end parallel do
     IF ( fft_scratch%inr == 0 ) THEN
        CALL mp_alltoall ( scount, rcount, 1, group )
        fft_scratch%rtrans = rcount
@@ -1768,7 +1816,18 @@ CONTAINS
     myx = fft_scratch%sizes%r_pos ( 1 )
     myz = fft_scratch%sizes%r_pos ( 2 )
     nz = bo ( 2, 3, rs_pos ) - bo ( 1, 3, rs_pos ) + 1
-    tb = 0.0_lp
+    num_threads = 1
+    my_id = 0
+!$omp parallel default(none), &
+!$omp          private(my_id,num_threads,lb,ub,ipr,jj,jx,ir,jz,jy), &
+!$omp          shared(tb,np,p2p,bo,rs_pos,nray,yzp,alltoall_sgl,zcor,myz,tq,rq,nz)
+!$  num_threads = omp_get_num_threads()
+!$  my_id = omp_get_thread_num()
+    lb = (SIZE(tb,2)*my_id)/num_threads + 1
+    ub = (SIZE(tb,2)*(my_id+1))/num_threads
+    tb(:,lb:ub) = 0.0_lp
+!$omp barrier
+!$omp do
     DO ip = 0, np - 1
        ipr = p2p ( ip )
        jj = 0
@@ -1793,6 +1852,8 @@ CONTAINS
           END DO
        END DO
     END DO
+!$omp end do
+!$omp end parallel
 
     CALL timestop(handle)
 
@@ -1857,25 +1918,36 @@ CONTAINS
     sdispl => fft_scratch%sdispl
     rdispl => fft_scratch%rdispl
 
+    rcount = 0
+    nx = MAXVAL ( bo ( 2, 1, : ) )
+
+!$omp parallel default(none), &
+!$omp          private(ip,ir,jy,jz), &
+!$omp          shared(npx,pgrid,xcor,bo,npz,nx,nray,yzp,zcor,rcount,my_pos) 
+!$omp do
     DO ix = 0, npx - 1
        ip = pgrid ( ix, 0 )
        xcor ( bo ( 1, 1, ip ) : bo ( 2, 1, ip ) ) = ix
     END DO
+!$omp end do
+!$omp do
     DO iz = 0, npz - 1
        ip = pgrid ( 0, iz )
        zcor ( bo ( 1, 3, ip ) : bo ( 2, 3, ip ) ) = iz
     END DO
-
-    rcount = 0
-    nx = MAXVAL ( bo ( 2, 1, : ) )
+!$omp end do
+!$omp do
     DO jx = 1, nx
        DO ir = 1, nray ( my_pos )
           jy = yzp ( 1, ir, my_pos )
           jz = yzp ( 2, ir, my_pos )
           ip = pgrid ( xcor ( jx ), zcor ( jz ) )
+!$omp atomic
           rcount ( ip ) = rcount ( ip ) + 1
        END DO
     END DO
+!$omp end do
+!$omp end parallel
 
     IF ( fft_scratch%ins == 0 ) THEN
        CALL mp_alltoall ( rcount, scount, 1, group )
@@ -1897,6 +1969,12 @@ CONTAINS
     mp = p2p ( my_pos )
     nz = bo ( 2, 3, mp ) - bo ( 1, 3, mp ) + 1
     nx = bo ( 2, 1, mp ) - bo ( 1, 1, mp ) + 1
+!$omp parallel default(none), &
+!$omp          private(jj,ipl,ir,jz,jy,jx,ixx), &
+!$omp          shared(np,p2p,nray,yzp,zcor,myz,bo,mp, &
+!$omp                 alltoall_sgl,nx,scount,tq,rq,sb, &
+!$omp                 nz,nmax,sdispl,rdispl)
+!$omp do
     DO ip = 0, np - 1
        jj = 0
        ipl = p2p ( ip )
@@ -1920,11 +1998,14 @@ CONTAINS
           END IF
        END DO
     END DO
-
+!$omp end do
+!$omp do
     DO ip = 0, np - 1
        sdispl ( ip ) = nmax * ip
        rdispl ( ip ) = nmax * ip
     END DO
+!$omp end do
+!$omp end parallel
 
     IF ( alltoall_sgl ) THEN
        CALL mp_alltoall ( tq, scount, sdispl, ts, rcount, rdispl, group )
@@ -2005,25 +2086,37 @@ CONTAINS
 
     nx = boin ( 2, 1, mip ) - boin ( 1, 1, mip ) + 1
     nz = boin ( 2, 3, mip ) - boin ( 1, 3, mip ) + 1
+
+!$omp parallel do default(none), &
+!$omp             private(ipl,ny), &
+!$omp             shared(np,pgrid,boout,scount,sdispl,nx,nz)
     DO ip = 0, np - 1
        ipl = pgrid ( ip, 2 )
        ny = boout ( 2, 2, ipl ) - boout ( 1, 2, ipl ) + 1
        scount ( ip ) = nx * nz * ny
        sdispl ( ip ) = nx * nz * ( boout ( 1, 2, ipl ) - 1 )
     END DO
+!$omp end parallel do
     ny = boout ( 2, 2, mip ) - boout ( 1, 2, mip ) + 1
     mz = MAXVAL ( boin ( 2, 3, : ) - boin ( 1, 3, : ) + 1 )
+!$omp parallel do default(none), &
+!$omp             private(ipl,nz), &
+!$omp             shared(np,pgrid,boin,nx,ny,rcount,rdispl,mz)
     DO ip = 0, np - 1
        ipl = pgrid ( ip, 2 )
        nz = boin ( 2, 3, ipl ) - boin ( 1, 3, ipl ) + 1
        rcount ( ip ) = nx * nz * ny
        rdispl ( ip ) = nx * ny * mz * ip
     END DO
+!$omp end parallel do
 
     rbuf => fft_scratch%rbuf1
 
     CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
 
+!$omp parallel do default(none), &
+!$omp             private(ip,ipl,nz,iz,is,ir), &
+!$omp             shared(nx,ny,np,pgrid,boin,sout,rbuf)
     DO ixy = 1, nx * ny
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 2 )
@@ -2035,6 +2128,7 @@ CONTAINS
           END DO
        END DO
     END DO
+!$omp end parallel do
 
     CALL timestop(handle)
 
@@ -2083,6 +2177,10 @@ CONTAINS
 
     rbuf => fft_scratch%rbuf2
 
+!$omp parallel default(none), &
+!$omp          private(ip,ipl,nz,iz,ir), &
+!$omp          shared(nx,ny,np,pgrid,boout,rbuf,cin,scount,sdispl,mz)
+!$omp do
     DO ixy = 1, nx * ny
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 2 )
@@ -2093,20 +2191,27 @@ CONTAINS
           END DO
        END DO
     END DO
-
+!$omp end do
+!$omp do
     DO ip = 0, np - 1
        ipl = pgrid ( ip, 2 )
        nz = boout ( 2, 3, ipl ) - boout ( 1, 3, ipl ) + 1
        scount ( ip ) = nx * ny * nz
        sdispl ( ip ) = nx * ny * mz * ip
     END DO
+!$omp end do
+!$omp end parallel
     nz = boout ( 2, 3, mip ) - boout ( 1, 3, mip ) + 1
+!$omp parallel do default(none), &
+!$omp             private(ipl,ny), &
+!$omp             shared(np,pgrid,boin,nx,nz,rcount,rdispl)
     DO ip = 0, np - 1
        ipl = pgrid ( ip, 2 )
        ny = boin ( 2, 2, ipl ) - boin ( 1, 2, ipl ) + 1
        rcount ( ip ) = nx * ny * nz
        rdispl ( ip ) = nx * nz * ( boin ( 1, 2, ipl ) - 1 )
     END DO
+!$omp end parallel do
 
     CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
 
@@ -2132,11 +2237,14 @@ CONTAINS
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, is, ixz, &
-                                                iy, mip, my, np, nx, ny, nz, &
-                                                sub_group
+                                                iy, lb, mip, my, my_id, np, &
+                                                num_threads, nx, ny, nz, &
+                                                sub_group, ub
     INTEGER, DIMENSION(2)                    :: dim, pos
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
+
+!$  INTEGER :: omp_get_thread_num, omp_get_num_threads
 
     CALL timeset(routineN,handle)
 
@@ -2153,26 +2261,48 @@ CONTAINS
 
     ny = boin ( 2, 2, mip ) - boin ( 1, 2, mip ) + 1
     nz = boin ( 2, 3, mip ) - boin ( 1, 3, mip ) + 1
+!$omp parallel do default(none), &
+!$omp             private(ipl, nx), &
+!$omp             shared(np,pgrid,boout,ny,nz,scount,sdispl)
     DO ip = 0, np - 1
        ipl = pgrid ( ip, 1 )
        nx = boout ( 2, 1, ipl ) - boout ( 1, 1, ipl ) + 1
        scount ( ip ) = nx * nz * ny
        sdispl ( ip ) = ny * nz * ( boout ( 1, 1, ipl ) - 1 )
     END DO
+!$omp end parallel do
     nx = boout ( 2, 1, mip ) - boout ( 1, 1, mip ) + 1
     my = MAXVAL ( boin ( 2, 2, : ) - boin ( 1, 2, : ) + 1 )
+!$omp parallel do default(none), &
+!$omp             private(ipl, ny), &
+!$omp             shared(np,pgrid,boin,nx,nz,my,rcount,rdispl)
     DO ip = 0, np - 1
        ipl = pgrid ( ip, 1 )
        ny = boin ( 2, 2, ipl ) - boin ( 1, 2, ipl ) + 1
        rcount ( ip ) = nx * nz * ny
        rdispl ( ip ) = nx * my * nz * ip
     END DO
+!$omp end parallel do
 
     rbuf => fft_scratch%rbuf3
-    rbuf = 0.0_lp
+    num_threads = 1
+    my_id = 0
+!$omp parallel default(none), &
+!$omp          private(num_threads, my_id, lb, ub), &
+!$omp          shared(rbuf)
+!$  num_threads = omp_get_num_threads()
+!$  my_id = omp_get_thread_num()
+    lb = (SIZE(rbuf,2)*my_id)/num_threads 
+    ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
+
+    rbuf(:,lb:ub) = 0.0_lp
+!$omp end parallel
 
     CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
 
+!$omp parallel do default(none), &
+!$omp             private(ip,ipl,ny,iy,is,ir), &
+!$omp             shared(nx,nz,np,pgrid,boin,rbuf,sout)
     DO ixz = 1, nx * nz
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 1 )
@@ -2184,6 +2314,7 @@ CONTAINS
           END DO
        END DO
     END DO
+!$omp end parallel do
 
     CALL timestop(handle)
 
@@ -2207,11 +2338,14 @@ CONTAINS
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, iy, izx, &
-                                                mip, my, np, nx, ny, nz, &
-                                                sub_group
+                                                lb, mip, my, my_id, np, &
+                                                num_threads, nx, ny, nz, &
+                                                sub_group, ub
     INTEGER, DIMENSION(2)                    :: dim, pos
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
+
+!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -2231,8 +2365,20 @@ CONTAINS
     my = MAXVAL ( boout ( 2, 2, : ) - boout ( 1, 2, : ) + 1 )
 
     rbuf => fft_scratch%rbuf4
-    rbuf = 0.0_lp
+    num_threads = 1
+    my_id = 0
+!$omp parallel default(none), &
+!$omp          private(num_threads,my_id,lb,ub,ip,ipl,ny,iy,ir), &
+!$omp          shared(rbuf,nz,nx,np,pgrid,boout,cin,my,scount,sdispl)
+!$  num_threads = omp_get_num_threads()
+!$  my_id = omp_get_thread_num()
+    lb = (SIZE(rbuf,2)*my_id)/num_threads 
+    ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
 
+    rbuf(:,lb:ub) = 0.0_lp
+!$omp barrier
+
+!$omp do
     DO izx = 1, nz * nx
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 1 )
@@ -2243,20 +2389,27 @@ CONTAINS
           END DO
        END DO
     END DO
-
+!$omp end do
+!$omp do
     DO ip = 0, np - 1
        ipl = pgrid ( ip, 1 )
        ny = boout ( 2, 2, ipl ) - boout ( 1, 2, ipl ) + 1
        scount ( ip ) = nx * ny * nz
        sdispl ( ip ) = nx * nz * my * ip
     END DO
+!$omp end do
+!$omp end parallel
     ny = boout ( 2, 2, mip ) - boout ( 1, 2, mip ) + 1
+!$omp parallel do default(none), &
+!$omp             private(ipl,nx), &
+!$omp             shared(np,pgrid,boin,rcount,rdispl,ny,nz)
     DO ip = 0, np - 1
        ipl = pgrid ( ip, 1 )
        nx = boin ( 2, 1, ipl ) - boin ( 1, 1, ipl ) + 1
        rcount ( ip ) = nx * ny * nz
        rdispl ( ip ) = ny * nz * ( boin ( 1, 1, ipl ) - 1 )
     END DO
+!$omp end parallel do
 
     CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
 
@@ -2282,8 +2435,11 @@ CONTAINS
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ir, is, ixz, iy, &
-                                                mip, my, np, nx, ny, nz
+                                                lb, mip, my, my_id, np, &
+                                                num_threads, nx, ny, nz, ub
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
+
+!$  INTEGER :: omp_get_thread_num, omp_get_num_threads
 
     CALL timeset(routineN,handle)
 
@@ -2296,24 +2452,47 @@ CONTAINS
 
     ny = boin ( 2, 2, mip ) - boin ( 1, 2, mip ) + 1
     nz = boin ( 2, 3, mip ) - boin ( 1, 3, mip ) + 1
+!$omp parallel do default(none), &
+!$omp             private(nx), &
+!$omp             shared(np,boout,ny,nz,scount,sdispl)
     DO ip = 0, np - 1
        nx = boout ( 2, 1, ip ) - boout ( 1, 1, ip ) + 1
        scount ( ip ) = nx * nz * ny
        sdispl ( ip ) = ny * nz * ( boout ( 1, 1, ip ) - 1 )
     END DO
+!$omp end parallel do
     nx = boout ( 2, 1, mip ) - boout ( 1, 1, mip ) + 1
     my = MAXVAL ( boin ( 2, 2, : ) - boin ( 1, 2, : ) + 1 )
+!$omp parallel do default(none), &
+!$omp             private(ny), &
+!$omp             shared(np,boin,nx,nz,rcount,rdispl,my)
     DO ip = 0, np - 1
        ny = boin ( 2, 2, ip ) - boin ( 1, 2, ip ) + 1
        rcount ( ip ) = nx * nz * ny
        rdispl ( ip ) = nx * my * nz * ip
     END DO
+!$omp end parallel do
 
     rbuf => fft_scratch%rbuf5
-    rbuf = 0.0_lp
+    num_threads = 1
+    my_id = 0
+!$omp parallel default(none), &
+!$omp          private(num_threads, my_id, lb, ub), &
+!$omp          shared(rbuf)
+!$  num_threads = omp_get_num_threads()
+!$  my_id = omp_get_thread_num()
+    lb = (SIZE(rbuf,2)*my_id)/num_threads 
+    ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
+
+    rbuf(:,lb:ub) = 0.0_lp
+!$omp end parallel
+
 
     CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, group )
 
+!$omp parallel do default(none), &
+!$omp             private(ip,ny,iy,is,ir), &
+!$omp             shared(nx,nz,np,boin,sout,rbuf)
     DO ixz = 1, nx * nz
        DO ip = 0, np - 1
           ny = boin ( 2, 2, ip ) - boin ( 1, 2, ip ) + 1
@@ -2324,6 +2503,7 @@ CONTAINS
           END DO
        END DO
     END DO
+!$omp end parallel do
 
     CALL timestop(handle)
 
@@ -2346,9 +2526,12 @@ CONTAINS
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
-    INTEGER                                  :: handle, ip, ir, iy, izx, mip, &
-                                                my, np, nx, ny, nz
+    INTEGER                                  :: handle, ip, ir, iy, izx, lb, &
+                                                mip, my, my_id, np, &
+                                                num_threads, nx, ny, nz, ub
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
+
+!$  INTEGER :: omp_get_thread_num, omp_get_num_threads
 
     CALL timeset(routineN,handle)
 
@@ -2364,8 +2547,20 @@ CONTAINS
     my = MAXVAL ( boout ( 2, 2, : ) - boout ( 1, 2, : ) + 1 )
 
     rbuf => fft_scratch%rbuf5
-    rbuf = 0.0_lp
+    num_threads = 1
+    my_id = 0
+!$omp parallel default(none), &
+!$omp          private(num_threads,my_id,lb,ub,ip,ny,iy,ir), &
+!$omp          shared(rbuf,nx,nz,np,boout,cin,my,scount,sdispl)
+!$  num_threads = omp_get_num_threads()
+!$  my_id = omp_get_thread_num()
+    lb = (SIZE(rbuf,2)*my_id)/num_threads
+    ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
 
+    rbuf(:,lb:ub) = 0.0_lp
+!$omp barrier
+
+!$omp do
     DO izx = 1, nz * nx
        DO ip = 0, np - 1
           ny = boout ( 2, 2, ip ) - boout ( 1, 2, ip ) + 1
@@ -2375,18 +2570,25 @@ CONTAINS
           END DO
        END DO
     END DO
-
+!$omp end do
+!$omp do
     DO ip = 0, np - 1
        ny = boout ( 2, 2, ip ) - boout ( 1, 2, ip ) + 1
        scount ( ip ) = nx * ny * nz
        sdispl ( ip ) = nx * nz * my * ip
     END DO
+!$omp end do
+!$omp end parallel
     ny = boout ( 2, 2, mip ) - boout ( 1, 2, mip ) + 1
+!$omp parallel do default(none), &
+!$omp             private(nx), &
+!$omp             shared(np,boin,rcount,rdispl,nz,ny)
     DO ip = 0, np - 1
        nx = boin ( 2, 1, ip ) - boin ( 1, 1, ip ) + 1
        rcount ( ip ) = nx * ny * nz
        rdispl ( ip ) = ny * nz * ( boin ( 1, 1, ip ) - 1 )
     END DO
+!$omp end parallel do
 
     CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, group )
 
