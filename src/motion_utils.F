@@ -57,10 +57,12 @@ CONTAINS
 !>      rotating frame
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
-  SUBROUTINE rot_ana(particles, mat, dof, print_section, keep_rotations, mass_weighted, natoms, error)
+  SUBROUTINE rot_ana(particles, mat, dof, print_section, keep_rotations, mass_weighted,&
+                     natoms, error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: mat
     INTEGER, INTENT(OUT)                     :: dof
     TYPE(section_vals_type), POINTER         :: print_section
     LOGICAL, INTENT(IN)                      :: keep_rotations, mass_weighted
@@ -72,7 +74,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iparticle, iseq, &
                                                 iw, j, k, lrot(3), stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, present_mat
     REAL(KIND=dp)                            :: cp(3), Ip(3,3), Ip_eigval(3), &
                                                 mass, masst, norm, rcom(3), &
                                                 rm(3)
@@ -83,8 +85,11 @@ CONTAINS
     CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
     failure = .FALSE.
+    present_mat = PRESENT(mat)
     CPPostcondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(mat),cp_failure_level,routineP,error,failure)
+    IF (present_mat) THEN
+       CPPostcondition(.NOT.ASSOCIATED(mat),cp_failure_level,routineP,error,failure)
+    END IF
     IF (.NOT.keep_rotations) THEN
        rcom  = 0.0_dp
        masst = 0.0_dp
@@ -92,10 +97,11 @@ CONTAINS
        DO iparticle = 1, natoms
           mass = 1.0_dp
           IF (mass_weighted) mass = particles(iparticle)%atomic_kind%mass
-          CPPostcondition(mass>0.0_dp,cp_failure_level,routineP,error,failure)
+          CPPostcondition(mass>=0.0_dp,cp_failure_level,routineP,error,failure)
           masst = masst + mass
           rcom =  particles(iparticle)%r * mass + rcom
        END DO
+       CPPostcondition(masst>0.0_dp,cp_failure_level,routineP,error,failure)
        rcom = rcom / masst
        ! Intertia Tensor
        Ip   = 0.0_dp
@@ -206,17 +212,19 @@ CONTAINS
        IF (dof==3.AND.(.NOT.keep_rotations)) WRITE(iw,'(T2,A)')"ROT| Single Atom detected.." 
     END IF
     CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO",error=error)
-    ! Give back the vectors generating the rototranslating Frame
-    ALLOCATE(mat(natoms*3,dof),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    iseq = 0
-    DO i = 1, 3
-       mat(:,i)=Tr(:,i)
-       IF (lrot(i)==1) THEN 
-          iseq = iseq + 1
-          mat(:,3+iseq) = Rot(:,i) 
-       END IF
-    END DO
+    IF (present_mat) THEN
+       ! Give back the vectors generating the rototranslating Frame
+       ALLOCATE(mat(natoms*3,dof),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       iseq = 0
+       DO i = 1, 3
+          mat(:,i)=Tr(:,i)
+          IF (lrot(i)==1) THEN 
+             iseq = iseq + 1
+             mat(:,3+iseq) = Rot(:,i) 
+          END IF
+       END DO
+    END IF
     DEALLOCATE(Tr,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)   
     DEALLOCATE(Rot,stat=stat)

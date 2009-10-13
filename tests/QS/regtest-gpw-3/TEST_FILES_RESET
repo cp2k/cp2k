@@ -761,3 +761,5 @@ rsgrid-dist-1.inp
 H2O-ata.inp
 #
 dynamics.inp
+# bug fix DOF for linear molecules
+O2-ROKS.inp

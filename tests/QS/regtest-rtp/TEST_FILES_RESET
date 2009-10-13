@@ -67,3 +67,13 @@ H2plus-emd-1.inp
 H2plus-emd.inp
 #
 wfn_mix_1.inp
+# bug fix DOF for linear molecules
+H2-emd_CN.inp
+H2-emd-efield.inp
+H2-emd_EM.inp
+H2-emd_ETRS_PADE.inp
+H2-emd.inp
+H2-emd_restart-1.inp
+H2-emd_restart.inp
+H2plus-emd-1.inp
+H2plus-emd.inp

@@ -159,3 +159,6 @@ mol_sph_cut.inp
 
 # numerics
 mol.inp
+# bug fix DOF for linear molecules
+h2_dbg_0.inp
+h2_dbg_1.inp

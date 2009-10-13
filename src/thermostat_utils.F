@@ -47,6 +47,7 @@ MODULE thermostat_utils
   USE molecule_types_new,              ONLY: get_molecule,&
                                              global_constraint_type,&
                                              molecule_type
+  USE motion_utils,                    ONLY: rot_ana
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: femtoseconds
@@ -109,9 +110,19 @@ CONTAINS
     INTEGER                                  :: iw, natom, nconstraint_ext, &
                                                 nconstraint_int, nfree, &
                                                 nrestraints_int
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    simpar % nfree = 6 - SUM(cell%perd(1:3))
+    failure = .FALSE.
+    ! Retrieve information on number of atoms, constraints (external and internal)
+    CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
+         natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
+
+    ! Compute degrees of freedom
+    CALL rot_ana(particles%els, dof=simpar%nfree, print_section=print_section,&
+                 keep_rotations=.FALSE., mass_weighted=.TRUE., natoms=natom, error=error)
+
+    simpar%nfree = simpar%nfree - SUM(cell%perd(1:3))
     ! Collect info about thermostats
     CALL setup_thermostat_info(thermostats%thermostat_info_part, molecule_kind_set,&
          local_molecules, molecules, particles, region, simpar%ensemble, simpar%nfree, &
@@ -121,8 +132,6 @@ CONTAINS
     simpar % nfree_rot_transl = simpar % nfree
 
     ! compute the total number of degrees of freedom for temperature
-    CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
-         natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
     nconstraint_ext = gci%ntot - gci%nrestraint
     nfree = 3*natom - nconstraint_int - nconstraint_ext - simpar%nfree
 

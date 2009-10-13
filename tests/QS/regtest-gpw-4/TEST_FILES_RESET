@@ -687,3 +687,5 @@ He3_multi_ddapc.inp
 h2o-otdiag.inp
 #
 h2o-otdiag-lsd.inp
+# bug fix DOF for linear molecules
+spin_restraint.inp

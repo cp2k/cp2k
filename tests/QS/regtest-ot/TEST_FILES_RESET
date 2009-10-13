@@ -574,3 +574,12 @@ sic_ddapc_rt.inp
 He2_ddapc_constraint-4.inp
 #
 He2_none_full_single.inp
+# bug fix DOF for linear molecules
+H2-BECKE-MD.inp
+He2_ddapc_constraint-2.inp
+He2_ddapc_constraint-3.inp
+He2_ddapc_constraint-4.inp
+He2_ddapc_constraint.inp
+He2_none_full_all.inp
+He2_none_full_inverse.inp
+He2_none_full_single.inp
