@@ -13,12 +13,12 @@
     BASIS_SET_FILE_NAME ../BASIS_SET
     POTENTIAL_FILE_NAME ../POTENTIAL
     &MGRID
-      CUTOFF 100
+      CUTOFF 260
     &END MGRID
     &QS
     &END QS
     &SCF
-      MAX_SCF 4
+      MAX_SCF 15
       SCF_GUESS atomic
     &END SCF
     &TDDFPT

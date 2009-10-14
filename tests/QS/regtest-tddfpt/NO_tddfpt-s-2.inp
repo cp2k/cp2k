@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT NO_tddfpt-s-1
+  PROJECT NO_tddfpt-s-2
   RUN_TYPE ELECTRONIC_SPECTRA
   PRINT_LEVEL LOW
 &END GLOBAL
@@ -18,7 +18,7 @@
     &QS
     &END QS
     &SCF
-      MAX_SCF 6
+      MAX_SCF 15
       SCF_GUESS atomic
     &END SCF
     &TDDFPT
