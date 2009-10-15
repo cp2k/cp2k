@@ -4507,6 +4507,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        IF (count .GT. nblocks .OR. block .LT. 1 .OR. block .GT. nblocks) THEN
           WRITE(*,'(1X,A,I9,A,I9,A)')"Want to find block",&
                block," of",nblocks," blocks"
+          !WRITE(*,'(10(1X,I7))')block_start
+          !WRITE(*,'(10(1X,I7))')block_end
+          !WRITE(*,*)"full, nblocks, count, hint", full, nblocks, count, hint
           CALL cp_assert (count .LE. nblocks, cp_failure_level,&
                cp_internal_error, "find_block_of_element",&
                "Too many searches")
@@ -4523,10 +4526,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !>        matrix.
 !> \param[in] matrix          matrix to redistribute
 !> \param[in,out] redist      redistributed matrix
+!> \param[in] alpha           (optional) scaling of input matrix
+!> \param[in] keep_sparsity   (optional) retains the sparsity of the redist
+!>                            matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_complete_redistribute(matrix, redist)
+  SUBROUTINE dbcsr_complete_redistribute(matrix, redist, alpha, keep_sparsity)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_obj), INTENT(INOUT)           :: redist
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
+    LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_complete_redistribute', &
       routineP = moduleN//':'//routineN
@@ -4552,7 +4560,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       col_dist_new, col_dist_old, row_blk_size_new, row_blk_size_old, &
       row_dist_new, row_dist_old
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
-    LOGICAL                                  :: found, new_meta, tr
+    LOGICAL                                  :: found, my_keep_sparsity, &
+                                                new_meta, tr, valid_block
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:), TARGET                   :: recv_data
@@ -4589,6 +4598,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL dbcsr_get_data (matrix%m%data_area, c_sp)
        CALL cp_unimplemented_error(routineN, "Only double precision real.")
     END SELECT
+    !
+    my_keep_sparsity = .FALSE.
+    IF (PRESENT (keep_sparsity)) my_keep_sparsity = my_keep_sparsity
     ! Get row and column start and end positions
     ! Old matrix
     dist_old = dbcsr_distribution (matrix)
@@ -4798,11 +4810,22 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 ENDIF
              ENDIF
              IF (.NOT. tr) THEN
-                send_data(sdp(dst_p))&
-                     = r2_dp(full_row-row_offset_old, full_col-col_offset_old)
+                IF (.NOT. PRESENT (alpha)) THEN
+                   send_data(sdp(dst_p))&
+                        = r2_dp(full_row-row_offset_old, full_col-col_offset_old)
+                   ELSE
+                      send_data(sdp(dst_p)) = alpha * &
+                           r2_dp(full_row-row_offset_old, full_col-col_offset_old)
+
+                   ENDIF
              ELSE
-                send_data(sdp(dst_p))&
-                     = r2_dp(full_col-col_offset_old, full_row-row_offset_old)
+                IF (.NOT. PRESENT (alpha)) THEN
+                   send_data(sdp(dst_p))&
+                        = r2_dp(full_col-col_offset_old, full_row-row_offset_old)
+                ELSE
+                   send_data(sdp(dst_p)) = alpha * &
+                        r2_dp(full_col-col_offset_old, full_row-row_offset_old)
+                ENDIF
              ENDIF
              sdp(dst_p) = sdp(dst_p)+1
              send_count(2, dst_p) = send_count(2, dst_p) + 1
@@ -4855,7 +4878,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           NULLIFY (r2_dp)
           CALL dbcsr_get_block_p(redist, stored_row_new, stored_col_new,&
                r2_dp, tr, found)
-          IF (.NOT. found) THEN
+          valid_block = found
+          IF (.NOT. found .AND. .NOT. my_keep_sparsity) THEN
              ALLOCATE (r2_dp(row_blk_size_new (stored_row_new),&
                   col_blk_size_new (stored_col_new)))
              r2_dp(:,:) = 0.0_dp ! Needed for nagging compilers.
@@ -4866,28 +4890,32 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              blks = blks + 1
              blk_ps = blk_ps + row_blk_size_new (stored_row_new) * &
                                col_blk_size_new (stored_col_new)
+             valid_block = .TRUE.
           ENDIF
-          DO col = rel_full_col_new, rel_full_col_new + col_rle - 1
-             DO row = rel_full_row_new, rel_full_row_new + row_rle - 1
-                IF (dbg) &
-                     WRITE(*,*)'adding point',row,col,&
-                     data_offset_l,recv_data(data_offset_l)
-                IF (.NOT. tr) THEN
-                   r2_dp(row, col) = recv_data(data_offset_l)
-                ELSE
-                   r2_dp(col, row) = recv_data(data_offset_l)
-                ENDIF
-                data_offset_l = data_offset_l + 1
+          IF (valid_block) THEN
+             DO col = rel_full_col_new, rel_full_col_new + col_rle - 1
+                DO row = rel_full_row_new, rel_full_row_new + row_rle - 1
+                   IF (dbg) &
+                        WRITE(*,*)'adding point',row,col,&
+                        data_offset_l,recv_data(data_offset_l)
+                   IF (.NOT. tr) THEN
+                      r2_dp(row, col) = recv_data(data_offset_l)
+                   ELSE
+                      r2_dp(col, row) = recv_data(data_offset_l)
+                   ENDIF
+                   data_offset_l = data_offset_l + 1
+                ENDDO
              ENDDO
-          ENDDO
-          IF (.NOT. found) THEN
+          ENDIF
+          IF (.NOT. found .AND. valid_block) THEN
              IF (dbg) WRITE(*,*)routineN//" Adding new block at",&
                   stored_row_new, stored_col_new
              CALL dbcsr_put_block(redist, stored_row_new, stored_col_new,&
                   r2_dp, tr)
              DEALLOCATE (r2_dp)
           ELSE
-             IF (dbg) WRITE(*,*)routineN//" Reusing block at",&
+             IF (.NOT. my_keep_sparsity .AND. dbg) &
+                  WRITE(*,*)routineN//" Reusing block at",&
                   stored_row_new, stored_col_new
           ENDIF
        ENDDO

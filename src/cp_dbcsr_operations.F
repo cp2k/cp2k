@@ -19,7 +19,6 @@ MODULE cp_dbcsr_operations
                                              array_new,&
                                              array_nullify,&
                                              array_release
-  USE cp_blacs_calls,                  ONLY: cp_blacs_pnum
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                              cp_blacs_env_write,&
                                              get_blacs_info
@@ -52,7 +51,7 @@ MODULE cp_dbcsr_operations
        dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, &
-       dbcsr_distribute, dbcsr_filter, dbcsr_get_block, dbcsr_get_block_p, &
+       dbcsr_distribute, dbcsr_filter, dbcsr_get_block, &
        dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_norm, dbcsr_put_block, &
        dbcsr_remove_block, dbcsr_replace_blocks, dbcsr_replicate_all, &
        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_sum_replicated, &
@@ -64,15 +63,16 @@ MODULE cp_dbcsr_operations
        dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: &
-       convert_offsets_to_sizes, convert_sizes_to_offsets, dbcsr_checksum, &
-       dbcsr_create, dbcsr_create_col_image_dist, &
-       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_elemental, &
-       dbcsr_create_dist_fullest, dbcsr_create_dist_r_rot, &
-       dbcsr_create_dist_r_unrot, dbcsr_destroy_array, &
-       dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, dbcsr_finalize, &
-       dbcsr_find_column, dbcsr_get_block_index, dbcsr_make_col_images, &
-       dbcsr_new_transposed, dbcsr_set_debug, dbcsr_verify_matrix, &
-       dbcsr_work_create, pointer_set, pointer_view, swap
+       add_work_coordinate, convert_offsets_to_sizes, &
+       convert_sizes_to_offsets, dbcsr_checksum, dbcsr_create, &
+       dbcsr_create_col_image_dist, dbcsr_create_dist_block_cyclic, &
+       dbcsr_create_dist_elemental, dbcsr_create_dist_fullest, &
+       dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
+       dbcsr_data_ensure_size, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
+       dbcsr_dist2d_to_dist, dbcsr_finalize, dbcsr_find_column, &
+       dbcsr_get_block_index, dbcsr_make_col_images, dbcsr_new_transposed, &
+       dbcsr_set_debug, dbcsr_verify_matrix, dbcsr_work_create, pointer_set, &
+       pointer_view, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -2743,193 +2743,185 @@ CONTAINS
 !>
 !>          real_matrix=beta*real_matrix+alpha*fm
 !>          beta defaults to 0, alpha to 1
-!> \author  Matthias Krack
-!> \date    06.06.2001
+!> \author  Urban Borstnik
+!> \date    2009-10-13
 !> \par History
-!>          08.2002 adapted to local_data, could be optimized
-!>          08.2003 imported form qs_blacs
-!>          2009-09-01 adapted for DBCSR
-!> \version 1.0
+!>          2009-10-13 rewritten based on copy_dbcsr_to_fm
+!> \version 2.0
 !> \param[in] fm              full matrix
 !> \param[out] matrix         DBCSR matrix
 !> \param[in] alpha           (optional) scaling of FM
-!> \param[in] beta            (optional) scalinig of existing SM
+!> \param[in] beta            (optional) scaling of existing SM
+!> \param[in] keep_sparsity   (optional) retains the sparsity of the input
+!>                            matrix
 ! *****************************************************************************
-  SUBROUTINE copy_fm_to_dbcsr(fm,matrix,alpha,beta)
-    TYPE(cp_fm_type), POINTER           :: fm
-    TYPE(dbcsr_obj), INTENT(INOUT)      :: matrix
-    REAL(kind=dp), INTENT(in), OPTIONAL :: alpha,beta
+  SUBROUTINE copy_fm_to_dbcsr(fm,matrix,alpha,beta,keep_sparsity)
+    TYPE(cp_fm_type), POINTER                :: fm
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    REAL(kind=dp), INTENT(IN), OPTIONAL      :: alpha, beta
+    LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_fm_to_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    TYPE(real_block_node_type), POINTER :: block_node
+    INTEGER :: blk_p, col, col_l, col_size, group, handle, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_local, nfullcols_total, nfullrows_local, &
+      nfullrows_total, nrow_block, nrow_global, nze, row, row_l, row_size
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
+                                                last_col, last_row, &
+                                                local_col_sizes, &
+                                                local_row_sizes
+    INTEGER, DIMENSION(:), POINTER           :: cbs, local_cols, local_rows, &
+                                                rbs
+    REAL(kind=dp)                            :: my_beta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: blk_1d
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm_block
+    REAL(kind=sp), DIMENSION(:, :), POINTER  :: fm_block_sp
+    TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_size
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(dbcsr_distribution_obj)             :: bc_dist
+    TYPE(dbcsr_obj)                          :: bc_mat
 
-    INTEGER :: group,handle,iblock_col,iblock_row,icol,icol_global,&
-         icol_local,ipcol,ipe,iprow,irow,irow_global,irow_local,istat,&
-         jpcol,jprow,mypcol,mype,myprow,nblock_row,nblkcols_total,&
-         ncol_local,npcol,npe,nprow,nblkrows_total,nrow_local, nblock_col,&
-         nblkrows_local, nblkcols_local, row_l, col_l, nrow_block, ncol_block
-
-    INTEGER, DIMENSION(:), POINTER    :: row_blk_sizes, col_blk_sizes, local_rows, local_cols
-    INTEGER, DIMENSION(:), ALLOCATABLE :: first_col,first_row,last_col,last_row
-         
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: fm_block, real_matrix_block
-    TYPE(cp_blacs_env_type), POINTER  :: context
-    REAL(kind=dp) :: my_alpha,my_beta
-    LOGICAL :: tr, found
-    TYPE(array_i1d_obj) :: rbs, cbs
-
-#if defined(__SCALAPACK)
-    INTEGER, EXTERNAL :: indxg2l,indxg2p
-
-#endif
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
 
     CALL timeset(routineN,handle)
 
     my_beta=0._dp
-    my_alpha=1._dp
-    IF (PRESENT(alpha)) my_alpha=alpha
-    IF (PRESENT(beta)) my_beta=beta
+    IF (PRESENT(beta)) THEN
+       CALL cp_assert (beta .EQ. my_beta, cp_fatal_level,&
+            cp_unimplemented_error_nr, routineN,&
+            "beta not supported, use matrix addition instead")
+       my_beta=beta
+    ENDIF
     group = fm%matrix_struct%para_env%group
     context => fm%matrix_struct%context
-
+    nrow_block = fm%matrix_struct%nrow_block
+    ncol_block = fm%matrix_struct%ncol_block
+    nrow_global = fm%matrix_struct%nrow_global
+    ncol_global = fm%matrix_struct%ncol_global
+    
     CALL dbcsr_get_info(matrix,&
+         nfullrows_total=nfullrows_total,&
+         nfullcols_total=nfullcols_total)
+
+    CALL cp_assert (nrow_global.eq.nfullrows_total,&
+         cp_fatal_level, cp_caller_error, routineN,&
+         "FM and DBCSR matrix sizes do not match in rows")
+    CALL cp_assert (ncol_global.eq.nfullcols_total,&
+         cp_fatal_level, cp_caller_error, routineN,&
+         "FM and DBCSR matrix sizes do not match in columns")
+
+    ! Create a block-cyclic distribution compatible with the FM matrix.
+    CALL dbcsr_distribution_init (bc_dist)
+    CALL dbcsr_create_dist_block_cyclic (bc_dist,&
+         nfullrows_total, nfullcols_total,& ! Actual full matrix size
+         nrow_block, ncol_block,&           ! BLACS parameters
+         dbcsr_distribution_mp (dbcsr_distribution (matrix)),&
+         row_blk_size, col_blk_size)        ! block-cyclic row/col sizes
+
+    ! Create the block-cyclic DBCSR matrix
+    CALL dbcsr_init (bc_mat)
+    CALL dbcsr_create (bc_mat, "Block-cyclic "//matrix%m%name, bc_dist,&
+         "N", row_blk_size, col_blk_size, 0, 0)
+    !call dbcsr_finalize (bc_mat)
+    CALL dbcsr_distribution_release (bc_dist)
+    CALL array_release (row_blk_size)
+    CALL array_release (col_blk_size)
+
+    CALL dbcsr_get_info(bc_mat,&
          nblkrows_total=nblkrows_total,&
          nblkcols_total=nblkcols_total,&
          nblkrows_local=nblkrows_local,&
          nblkcols_local=nblkcols_local,&
+         nfullrows_local=nfullrows_local,&
+         nfullcols_local=nfullcols_local,&
+         nfullrows_total=nfullrows_total,&
+         nfullcols_total=nfullcols_total,&
          local_rows=local_rows,&
          local_cols=local_cols,&
-         row_blk_size=rbs,&
-         col_blk_size=cbs)
-    !write(*,*)'blk size',nblkrows_total, nblkcols_total
-    !write(*,*)'blk local size',nblkrows_local, nblkcols_local
-    row_blk_sizes => array_data (rbs)
-    col_blk_sizes => array_data (cbs)
+         row_blk_size=row_blk_size,&
+         col_blk_size=col_blk_size)
+
+    !WRITE(*,*)routineN//" sizes",nblkrows_total,&
+    !     nblkcols_total,&
+    !     nblkrows_local,&
+    !     nblkcols_local,&
+    !     nfullrows_local,&
+    !     nfullcols_local,&
+    !     nfullrows_total,&
+    !     nfullcols_total
+
+
+    rbs => array_data (row_blk_size)
+    cbs => array_data (col_blk_size)
+    ALLOCATE (local_row_sizes (nblkrows_total))
+    ALLOCATE (local_col_sizes (nblkcols_total))
+    local_row_sizes(:) = 0
+    IF (nblkrows_local .GE. 1) THEN
+       FORALL (row = 1 : nblkrows_local)
+          local_row_sizes(local_rows(row)) = rbs(local_rows(row))
+       END FORALL
+    ENDIF
+    IF (dbg) WRITE(*,*)routineN//" local row sizes",local_row_sizes
+    local_col_sizes(:) = 0
+    IF (nblkcols_local .GE. 1) THEN
+       FORALL (col = 1 : nblkcols_local)
+          local_col_sizes(local_cols(col)) = cbs(local_cols(col))
+       END FORALL
+    ENDIF
+    IF (dbg) WRITE(*,*)routineN//" local col sizes",local_col_sizes
+
     ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))
     ALLOCATE (first_col(nblkcols_total),last_col(nblkcols_total))
-    CALL convert_sizes_to_offsets (row_blk_sizes, first_row, last_row)
-    CALL convert_sizes_to_offsets (col_blk_sizes, first_col, last_col)
-    mype=context%my_pid
-    npe=context%n_pid
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-    nrow_block = fm%matrix_struct%nrow_block
-    ncol_block = fm%matrix_struct%ncol_block
+    CALL convert_sizes_to_offsets (local_row_sizes, first_row, last_row)
+    CALL convert_sizes_to_offsets (local_col_sizes, first_col, last_col)
 
-    CALL dbcsr_work_create(matrix, nblks_guess=nblkrows_local*nblkcols_local,&
-         work_mutable=.TRUE.)
-
-#if defined(__SCALAPACK)
-    prow_loop: DO iprow=0,nprow-1
-       pcol_loop: DO ipcol=0,npcol-1
-          ipe = cp_blacs_pnum(context%group,iprow,ipcol)
-          nrow_local = fm%matrix_struct%nrow_locals(iprow)
-          ncol_local = fm%matrix_struct%ncol_locals(ipcol)
-          IF (ipe /= mype) THEN
-             ALLOCATE (fm_block(nrow_local,ncol_local), STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineP,"fm_block",nrow_local*ncol_local)
-          ELSE
-             fm_block => fm%local_data
-          END IF
-          IF (nrow_local*ncol_local.NE.0) CALL mp_bcast(fm_block,ipe,group)
-          mat_rows: DO row_l = 1, nblkrows_local
-             iblock_row = local_rows(row_l)
-             mat_cols: DO col_l = 1, nblkcols_local
-                iblock_col = local_cols(col_l)
-                IF ((dbcsr_get_matrix_type(matrix) .EQ. dbcsr_type_symmetric .OR. &
-                     dbcsr_get_matrix_type(matrix) .EQ. dbcsr_type_antisymmetric) .AND. &
-                     iblock_row .GT. iblock_col) CYCLE
-                CALL dbcsr_get_block_p(matrix, iblock_row, iblock_col,&
-                     real_matrix_block, tr, found)
-                IF (.NOT. found) THEN
-                   ALLOCATE (real_matrix_block(row_blk_sizes(iblock_row),&
-                        col_blk_sizes(iblock_col)))
-                   real_matrix_block(:,:) = 0.0_dp
-                ENDIF
-                icol = 1
-                bcol_loop: DO icol_global=first_col(iblock_col),last_col(iblock_col)
-                   jpcol = indxg2p(icol_global,ncol_block,mypcol,&
-                        fm%matrix_struct%first_p_pos(2),npcol)
-                   IF (jpcol == ipcol) THEN
-                      icol_local = indxg2l(icol_global,ncol_block,mypcol,&
-                           fm%matrix_struct%first_p_pos(2),npcol)
-                      irow = 1
-                      DO irow_global=first_row(iblock_row),last_row(iblock_row)
-                         jprow = indxg2p(irow_global,nrow_block,myprow,&
-                              fm%matrix_struct%first_p_pos(1),nprow)
-                         IF (jprow == iprow) THEN
-                            irow_local = indxg2l(irow_global,nrow_block,myprow,&
-                                 fm%matrix_struct%first_p_pos(1),nprow)
-                            !write(*,*)irow,icol
-                            IF (found) THEN
-                               real_matrix_block(irow,icol)&
-                                    = my_beta*real_matrix_block(irow,icol)+&
-                                    my_alpha*fm_block(irow_local,icol_local)
-                            ELSE
-                               real_matrix_block(irow,icol)&
-                                    = my_alpha*fm_block(irow_local,icol_local)
-                            ENDIF
-                         END IF
-                         irow = irow + 1
-                      END DO
-                   END IF
-                   icol = icol + 1
-                END DO bcol_loop
-                IF (.NOT. found) THEN
-                   CALL dbcsr_put_block(matrix,&
-                        iblock_row, iblock_col,&
-                        real_matrix_block, tr)
-                   DEALLOCATE (real_matrix_block)
-                ENDIF
-             END DO mat_cols
-          END DO mat_rows
-          IF (ipe /= mype) THEN
-             DEALLOCATE (fm_block,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineP,"fm_block")
-          END IF
-       END DO pcol_loop
-    END DO prow_loop
-
-#else
+    ! Copy the FM data to the block-cyclic DBCSR matrix.  This step
+    ! could be skipped with appropriate DBCSR index manipulation.
     fm_block => fm%local_data
-    DO iblock_row = 1, nblkrows_total
-       DO iblock_col = 1, nblkcols_total
-          CALL dbcsr_get_block_p(matrix, iblock_row, iblock_col,&
-               real_matrix_block, tr, found)
-          IF (.NOT. found) THEN
-             ALLOCATE (real_matrix_block(row_blk_sizes(iblock_row),&
-                  col_blk_sizes(iblock_col)))
-             FORALL (icol = 1:col_blk_sizes(iblock_col),&
-                     irow = 1:row_blk_sizes(iblock_row))
-                real_matrix_block(irow,icol)&
-                     = my_alpha*fm_block(&
-                                         irow+first_row(iblock_row)-1,&
-                                         icol+first_col(iblock_col)-1)
-             END FORALL
-             CALL dbcsr_put_block(matrix,&
-                  iblock_row, iblock_col,&
-                  real_matrix_block, tr)
-             DEALLOCATE (real_matrix_block)
+    fm_block_sp => fm%local_data_sp
+
+    CALL dbcsr_work_create (bc_mat, nblks_guess=nblkrows_local*nblkcols_local,&
+         sizedata_guess=nfullrows_local*nfullcols_local, work_mutable=.FALSE.)
+    CALL dbcsr_data_ensure_size (bc_mat%m%wms(1)%data_area, nfullrows_local*nfullcols_local)
+    blk_p = 1
+    bc_rows: DO row_l = 1, nblkrows_local
+       row = local_rows (row_l)
+       row_size = rbs(row)
+       bc_cols: DO col_l = 1, nblkcols_local
+          col = local_cols (col_l)
+          col_size = cbs(col)
+          nze = row_size*col_size
+          !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
+          CALL add_work_coordinate(bc_mat%m%wms(1), row, col, blk_p)
+          blk_1d => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
+          CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
+               cp_fatal_level, cp_internal_error, routineN,&
+               "Block size does not match block row/col sizes")
+          IF (fm%use_sp) THEN
+             blk_1d(1:nze) = REAL( RESHAPE(&
+                  fm_block_sp(&
+                     first_row(row):last_row(row),first_col(col):last_col(col)&
+                  ), (/ nze /)), dp)
           ELSE
-             FORALL (icol = 1:col_blk_sizes(iblock_col),&
-                     irow = 1:row_blk_sizes(iblock_row))
-                real_matrix_block(irow,icol)&
-                     = my_beta*real_matrix_block(irow,icol) &
-                       + my_alpha*fm_block(&
-                                           irow+first_row(iblock_row)-1,&
-                                           icol+first_col(iblock_col)-1)
-             END FORALL
-          END IF
-       ENDDO
-    END DO
+             blk_1d(1:nze) = RESHAPE(&
+                  fm_block(&
+                     first_row(row):last_row(row),first_col(col):last_col(col)&
+                  ), (/ nze /))
+          ENDIF
+          blk_p = blk_p + nze
+       ENDDO bc_cols
+    ENDDO bc_rows
+    bc_mat%m%wms(1)%datasize = blk_p - 1
+    CALL dbcsr_finalize (bc_mat, reshuffle=.FALSE.)
 
-#endif
+    ! Now convert to the desired matrix distribution
+    CALL dbcsr_complete_redistribute (bc_mat, matrix, alpha=alpha)
+    CALL dbcsr_release (bc_mat)
 
-    CALL dbcsr_finalize (matrix)
     CALL timestop(handle)
   END SUBROUTINE copy_fm_to_dbcsr
 
