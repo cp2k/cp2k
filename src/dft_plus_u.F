@@ -37,6 +37,10 @@ MODULE dft_plus_u
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE dbcsr_methods,                   ONLY: dbcsr_init,&
                                              dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -52,8 +56,10 @@ MODULE dft_plus_u
   USE input_constants,                 ONLY: plus_u_lowdin,&
                                              plus_u_mulliken,&
                                              plus_u_mulliken_charges
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
+  USE orbital_symbols,                 ONLY: sgf_symbol
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -98,27 +104,36 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
-    LOGICAL                                  :: failure, orthonormal_basis
+    INTEGER                                  :: ispin, output_unit
+    LOGICAL                                  :: failure, orthonormal_basis, &
+                                                should_output
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_w
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(section_vals_type), POINTER         :: input
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
+    NULLIFY (distribution_2d)
+    NULLIFY (input)
+
+    logger => cp_error_get_logger(error)
+
     CALL get_qs_env(qs_env=qs_env,&
                     distribution_2d=distribution_2d,&
+                    input=input,&
                     error=error)
 
-    NULLIFY(matrix_w)!sm->dbcsr
-    IF(PRESENT(matrix_w_sm)) THEN!sm->dbcsr
-       CALL dbcsr_allocate_matrix_set( matrix_w, SIZE(matrix_w_sm), error )!sm->dbcsr
-       DO ispin=1,SIZE(matrix_w)!sm->dbcsr
-          ALLOCATE(matrix_w(ispin)%matrix)!sm->dbcsr
-          CALL dbcsr_from_sm(matrix_w(ispin)%matrix, matrix_w_sm(ispin)%matrix, error)!sm->dbcsr
-       ENDDO!sm->dbcsr
-    ENDIF
+    NULLIFY (matrix_w)!sm->dbcsr
+    IF (PRESENT(matrix_w_sm)) THEN!sm->dbcsr
+      CALL dbcsr_allocate_matrix_set(matrix_w,SIZE(matrix_w_sm),error)!sm->dbcsr
+      DO ispin=1,SIZE(matrix_w)!sm->dbcsr
+        ALLOCATE(matrix_w(ispin)%matrix)!sm->dbcsr
+        CALL dbcsr_from_sm(matrix_w(ispin)%matrix,matrix_w_sm(ispin)%matrix,error)!sm->dbcsr
+      END DO!sm->dbcsr
+    END IF
 
     CALL cite_reference(Dudarev1997)
     CALL cite_reference(Dudarev1998)
@@ -128,6 +143,16 @@ CONTAINS
 
     orthonormal_basis = .FALSE.
 
+    ! Setup print control
+
+    should_output = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                          "DFT%PRINT%PLUS_U",error=error),cp_p_file)
+    output_unit = cp_print_key_unit_nr(logger,input,"DFT%PRINT%PLUS_U",&
+                                       extension=".plus_u",&
+                                       ignore_should_output=should_output,&
+                                       log_filename=.FALSE.,&
+                                       error=error)
+
     ! Select DFT+U method
 
     SELECT CASE (qs_env%dft_control%plus_u_method_id)
@@ -135,12 +160,14 @@ CONTAINS
       IF (orthonormal_basis) THEN
         ! For an orthonormal basis the Lowdin method and the Mulliken method
         ! are equivalent
-        CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+        CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,should_output,&
+                      output_unit,error)
       ELSE
         CALL lowdin(qs_env,matrix_h,matrix_w,error)
       END IF
     CASE (plus_u_mulliken)
-      CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+      CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,should_output,&
+                    output_unit,error)
     CASE (plus_u_mulliken_charges)
       CALL mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
     CASE DEFAULT
@@ -148,14 +175,18 @@ CONTAINS
                      "Invalid DFT+U method requested",only_ionode=.TRUE.)
     END SELECT
 
-    IF(PRESENT(matrix_w_sm)) THEN
-       DO ispin=1,SIZE(matrix_w)!sm->dbcsr
-          CALL sm_from_dbcsr ( matrix_w_sm(ispin)%matrix, matrix_w(ispin)%matrix, &
-               distribution_2d, error=error )
-       ENDDO!sm->dbcsr
-    ENDIF
+    CALL cp_print_key_finished_output(output_unit,logger,input,"DFT%PRINT%PLUS_U",&
+                                      ignore_should_output=should_output,&
+                                      error=error)
 
-    CALL dbcsr_deallocate_matrix_set ( matrix_w, error=error )!sm->dbcsr
+    IF (PRESENT(matrix_w_sm)) THEN
+      DO ispin=1,SIZE(matrix_w)!sm->dbcsr
+        CALL sm_from_dbcsr(matrix_w_sm(ispin)%matrix,matrix_w(ispin)%matrix,&
+                           distribution_2d,error=error)
+      END DO!sm->dbcsr
+    END IF
+
+    CALL dbcsr_deallocate_matrix_set(matrix_w,error=error)!sm->dbcsr
 
   END SUBROUTINE plus_u
 
@@ -239,6 +270,7 @@ CONTAINS
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
+    NULLIFY (distribution_2d)
     NULLIFY (energy)
     NULLIFY (first_sgf)
     NULLIFY (fm_s_half)
@@ -247,6 +279,7 @@ CONTAINS
     NULLIFY (fmstruct)
     NULLIFY (matrix_p)
     NULLIFY (matrix_s)
+    NULLIFY (matrix_s_sm)
     NULLIFY (l)
     NULLIFY (last_sgf)
     NULLIFY (nshell)
@@ -623,7 +656,7 @@ CONTAINS
 !MK                  IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
 !MK                  DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
 !MK                    DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-!MK                      IF (isgf == jsgf) THEN 
+!MK                      IF (isgf == jsgf) THEN
 !MK                        v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
 !MK                      ELSE
 !MK                        v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
@@ -741,8 +774,8 @@ CONTAINS
     CALL dbcsr_deallocate_matrix(sm_q,error=error)
     CALL dbcsr_deallocate_matrix(sm_v,error=error)
 
-    CALL dbcsr_deallocate_matrix_set ( matrix_p, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set ( matrix_s, error=error )!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set(matrix_p,error=error)!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set(matrix_s,error=error)!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -775,7 +808,8 @@ CONTAINS
 !> \date          03.07.2008
 !> \version       1.0
 ! *****************************************************************************
-  SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+  SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,&
+                      should_output,output_unit,error)
 !     OPTIONAL, POINTER                      :: matrix_h, matrix_w
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -784,14 +818,18 @@ CONTAINS
       OPTIONAL, POINTER                      :: matrix_h
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_w
+    LOGICAL, INTENT(IN)                      :: should_output
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, handle, i, iatom, ikind, iset, isgf, ishell, ispin, j, &
-      jset, jsgf, jshell, l_of_dft_plus_u, maxnset, maxshell, n, natom, &
-      natom_of_kind, nkind, nsb, nset, nsgf, nspin, stat
+    CHARACTER(LEN=6), ALLOCATABLE, &
+      DIMENSION(:)                           :: symbol
+    INTEGER :: atom_a, handle, i, iatom, ikind, isb, iset, isgf, ishell, &
+      ispin, j, jset, jsgf, jshell, l_of_dft_plus_u, m, maxnset, maxshell, n, &
+      natom, natom_of_kind, nkind, nsb, nset, nsgf, nspin, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: dft_plus_u_atom, failure, &
@@ -799,7 +837,7 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind
     REAL(KIND=dp)                            :: fspin, trq, trq2, u_minus_j
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: q_matrix
+      DIMENSION(:, :)                        :: q_ii, q_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, q_block, &
                                                 s_block, v_block, w_block
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -825,11 +863,13 @@ CONTAINS
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
+    NULLIFY (distribution_2d)
     NULLIFY (energy)
     NULLIFY (first_sgf)
     NULLIFY (h_block)
     NULLIFY (matrix_p)
     NULLIFY (matrix_s)
+    NULLIFY (matrix_s_sm)
     NULLIFY (l)
     NULLIFY (last_sgf)
     NULLIFY (nshell)
@@ -875,9 +915,9 @@ CONTAINS
       CPPrecondition(ASSOCIATED(matrix_s_sm),cp_failure_level,routineP,error,failure)
       CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
       DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-         ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
-         CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
-      ENDDO!sm->dbcsr
+        ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
+        CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
+      END DO!sm->dbcsr
       sm_s => matrix_s(1)%matrix
     END IF
 
@@ -887,9 +927,9 @@ CONTAINS
 
     CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
-       ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(matrix_p(ispin)%matrix, matrix_p_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+      ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
+      CALL dbcsr_from_sm(matrix_p(ispin)%matrix, matrix_p_sm(ispin)%matrix, error)!sm->dbcsr
+    END DO!sm->dbcsr
 
     energy%dft_plus_u = 0.0_dp
 
@@ -946,18 +986,18 @@ CONTAINS
       sm_p => matrix_p(ispin)%matrix
 
       IF (.NOT.ASSOCIATED(sm_q)) THEN
-         ALLOCATE(sm_q)
-         CALL dbcsr_init(sm_q,error=error)
-         CALL dbcsr_get_block_diag(sm_p, sm_q, error=error)
-         CALL dbcsr_replicate_all(sm_q)
+        ALLOCATE(sm_q)
+        CALL dbcsr_init(sm_q,error=error)
+        CALL dbcsr_get_block_diag(sm_p, sm_q, error=error)
+        CALL dbcsr_replicate_all(sm_q)
       END IF
       CALL dbcsr_set(sm_q, 0.0_dp, error=error)
 
       IF (.NOT.ASSOCIATED(sm_v)) THEN
-         ALLOCATE(sm_v)
-         CALL dbcsr_init(sm_v,error=error)
-         CALL dbcsr_get_block_diag(sm_p, sm_v, error=error)
-         CALL dbcsr_replicate_all(sm_v)
+        ALLOCATE(sm_v)
+        CALL dbcsr_init(sm_v,error=error)
+        CALL dbcsr_get_block_diag(sm_p, sm_v, error=error)
+        CALL dbcsr_replicate_all(sm_v)
       END IF
       CALL dbcsr_set(sm_v, 0.0_dp, error=error)
 
@@ -1050,7 +1090,23 @@ CONTAINS
 
         ALLOCATE (q_matrix(n,n),STAT=stat)
         CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-        q_matrix(:,:) = 0.0_dp
+
+        ! Print headline if requested
+
+        IF (should_output) THEN
+          IF (output_unit > 0) THEN
+            ALLOCATE (symbol(n),STAT=stat)
+            CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+            DO m=-l_of_dft_plus_u,l_of_dft_plus_u
+              symbol(l_of_dft_plus_u+m+1) = sgf_symbol(0,l_of_dft_plus_u,m)
+            END DO
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,I0,/,/,T5,A,10(2X,A6))")&
+              "DFT+U occupations for the atoms of atomic kind ",ikind,&
+              "Atom   Shell  ",(ADJUSTR(symbol(i)),i=1,2*l_of_dft_plus_u+1)," Trace"
+            DEALLOCATE (symbol,STAT=stat)
+            CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+          END IF
+        END IF
 
         ! Loop over all atoms of the current atomic kind
 
@@ -1058,82 +1114,33 @@ CONTAINS
 
           atom_a = atom_list(iatom)
 
+          q_matrix(:,:) = 0.0_dp
+
           ! Get diagonal block
 
           CALL dbcsr_get_block_node(matrix=sm_q,&
-                              block_row=atom_a,&
-                              block_col=atom_a,&
-                              block=q_block)
-
-          IF (.NOT.ASSOCIATED(q_block)) CYCLE
+                                    block_row=atom_a,&
+                                    block_col=atom_a,&
+                                    block=q_block)
 
           ! Calculate energy contribution to E(U)
+
+          IF (ASSOCIATED(q_block)) THEN
 
 ! Begin: Off-diagonal blocks include
-          q_matrix(:,:) = 0.0_dp
-
-          i = 0
-          DO iset=1,nset
-            DO ishell=1,nshell(iset)
-              IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
-              DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-                i = i + 1
-                j = 0
-                DO jset=1,nset
-                  DO jshell=1,nshell(jset)
-                    IF (l(jshell,jset) /= l_of_dft_plus_u) CYCLE
-                    DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
-                      j = j + 1
-                      q_matrix(i,j) = q_block(isgf,jsgf)
-                    END DO ! next contracted spherical Gaussian function "jsgf"
-                  END DO ! next shell "jshell"
-                END DO ! next shell set "jset"
-              END DO ! next contracted spherical Gaussian function "isgf"
-            END DO ! next shell "ishell"
-          END DO ! next shell set "iset"
-
-          trq = 0.0_dp
-          trq2 = 0.0_dp
-
-          DO i=1,n
-            trq = trq + q_matrix(i,i)
-!DBG        WRITE (*,"(I6,20F10.6)") i,q_matrix(i,:)
-            DO j=1,n
-              trq2 = trq2 + q_matrix(i,j)*q_matrix(j,i)
-            END DO
-          END DO
-
-          trq = fspin*trq
-          trq2 = fspin*fspin*trq2
-!DBG      WRITE (*,*) trq,trq2,trq - trq2
-
-          ! Calculate energy contribution to E(U)
-
-          energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
-
-          ! Calculate potential V(U) = dE(U)/dq
-
-          IF (.NOT.just_energy) THEN
-
-            CALL dbcsr_get_block_node(matrix=sm_v,&
-                                block_row=atom_a,&
-                                block_col=atom_a,&
-                                block=v_block)
-            CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
-
+            i = 0
             DO iset=1,nset
               DO ishell=1,nshell(iset)
                 IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
                 DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+                  i = i + 1
+                  j = 0
                   DO jset=1,nset
                     DO jshell=1,nshell(jset)
                       IF (l(jshell,jset) /= l_of_dft_plus_u) CYCLE
                       DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
-                        IF (isgf == jsgf) THEN
-                          v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
-                        ELSE
-                          v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
-                        END IF
+                        j = j + 1
+                        q_matrix(i,j) = q_block(isgf,jsgf)
                       END DO ! next contracted spherical Gaussian function "jsgf"
                     END DO ! next shell "jshell"
                   END DO ! next shell set "jset"
@@ -1141,7 +1148,83 @@ CONTAINS
               END DO ! next shell "ishell"
             END DO ! next shell set "iset"
 
-          END IF ! not just energy
+            trq = 0.0_dp
+            trq2 = 0.0_dp
+
+            DO i=1,n
+              trq = trq + q_matrix(i,i)
+              DO j=1,n
+                trq2 = trq2 + q_matrix(i,j)*q_matrix(j,i)
+              END DO
+            END DO
+
+            trq = fspin*trq
+            trq2 = fspin*fspin*trq2
+
+            ! Calculate energy contribution to E(U)
+
+            energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
+
+            ! Calculate potential V(U) = dE(U)/dq
+
+            IF (.NOT.just_energy) THEN
+
+              CALL dbcsr_get_block_node(matrix=sm_v,&
+                                        block_row=atom_a,&
+                                        block_col=atom_a,&
+                                        block=v_block)
+              CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
+
+              DO iset=1,nset
+                DO ishell=1,nshell(iset)
+                  IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
+                  DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+                    DO jset=1,nset
+                      DO jshell=1,nshell(jset)
+                        IF (l(jshell,jset) /= l_of_dft_plus_u) CYCLE
+                        DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
+                          IF (isgf == jsgf) THEN
+                            v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
+                          ELSE
+                            v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
+                          END IF
+                        END DO ! next contracted spherical Gaussian function "jsgf"
+                      END DO ! next shell "jshell"
+                    END DO ! next shell set "jset"
+                  END DO ! next contracted spherical Gaussian function "isgf"
+                END DO ! next shell "ishell"
+              END DO ! next shell set "iset"
+
+            END IF ! not just energy
+
+          END IF ! q_block associated
+
+          ! Consider print requests
+
+          IF (should_output) THEN
+            CALL mp_sum(q_matrix,qs_env%para_env%group)
+            IF (output_unit > 0) THEN
+              ALLOCATE (q_ii(nsb,2*l_of_dft_plus_u+1),STAT=stat)
+              CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              q_ii(:,:) = 0.0_dp
+              DO isb=1,nsb
+                j = 0
+                DO i=(2*l_of_dft_plus_u+1)*(isb-1)+1,(2*l_of_dft_plus_u+1)*isb
+                  j = j + 1
+                  q_ii(isb,j) = q_matrix(i,i)
+                END DO
+              END DO
+              DO isb=1,nsb
+                WRITE (UNIT=output_unit,FMT="(T3,I6,2X,I6,2X,10F8.3)")&
+                  atom_a,isb,q_ii(isb,:),SUM(q_ii(isb,:))
+              END DO
+              WRITE (UNIT=output_unit,FMT="(T12,A,2X,10F8.3)")&
+                "Total",(SUM(q_ii(:,i)),i=1,2*l_of_dft_plus_u+1),SUM(q_ii)
+              WRITE (UNIT=output_unit,FMT="(A)") ""
+              DEALLOCATE (q_ii,STAT=stat)
+              CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+            END IF
+          END IF
 
         END DO ! next atom "iatom" of atomic kind "ikind"
 
@@ -1412,11 +1495,13 @@ CONTAINS
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
+    NULLIFY (distribution_2d)
     NULLIFY (energy)
     NULLIFY (first_sgf)
     NULLIFY (h_block)
     NULLIFY (matrix_p)
     NULLIFY (matrix_s)
+    NULLIFY (matrix_s_sm)
     NULLIFY (l)
     NULLIFY (last_sgf)
     NULLIFY (nshell)

@@ -11,13 +11,13 @@
 ! *****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
-       Avezac2005, Dewar1977, Dewar1985, Elstner1998, Hu2007, Hunt2003, &
-       Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, &
-       Krack2002, Kunert2003, Lippert1997, Lippert1999, Perdew1981, &
-       Porezag1995, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
-       Stewart1982, Stewart1989, Stewart2007, Thiel1992, VandeVondele2003, &
-       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-       Zhechkov2005
+       Avezac2005, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, &
+       Elstner1998, Hu2007, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
+       Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kunert2003, &
+       Lippert1997, Lippert1999, Perdew1981, Porezag1995, Repasky2002, &
+       Rocha2006, Schenter2008, Seifert1996, Stewart1982, Stewart1989, &
+       Stewart2007, Thiel1992, VandeVondele2003, VandeVondele2005a, &
+       VandeVondele2005b, VandeVondele2006, Weber2008, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -1495,6 +1495,18 @@ CONTAINS
        CALL create_powell_section(subsection,error)
        CALL section_add_subsection(print_key, subsection, error=error)
        CALL section_release(subsection,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(&
+            print_key_section=print_key,&
+            name="PLUS_U",&
+            description="Controls the printing for the DFT+U methods",&
+            print_level=high_print_level,&
+            filename="__STD_OUT__",&
+            citations=(/Dudarev1997,Dudarev1998/),&
+            error=error)
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
