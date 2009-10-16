@@ -21,8 +21,7 @@ MODULE ai_geminals
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE timings,                         ONLY: timeset
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -51,16 +50,16 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'gemnorm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ir, irm, irx, iry, &
-                                                irz, is, ism, istat, isx, &
-                                                isy, isz, lr, ls
+    INTEGER                                  :: i, ir, irm, irx, iry, irz, &
+                                                is, ism, istat, isx, isy, &
+                                                isz, lr, ls
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: pi3
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zdet
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: zg
 
-    CALL timeset(routineN,handle)
+!   CALL timeset(routineN,handle)
 
     anorm = 0._dp
 
@@ -145,7 +144,7 @@ MODULE ai_geminals
     DEALLOCATE (zg,zdet,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(handle)
+!   CALL timestop(handle)
 
   END SUBROUTINE gemnorm
 
@@ -173,12 +172,12 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'gemint2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat, n, nr, ns
+    INTEGER                                  :: istat, n, nr, ns
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: iab0
 
-    CALL timeset(routineN,handle)
+!   CALL timeset(routineN,handle)
 
     n = na*nb
     nr = ncoset(lra+lrb)
@@ -196,7 +195,7 @@ MODULE ai_geminals
     DEALLOCATE (iab0,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(handle)
+!   CALL timestop(handle)
 
   END SUBROUTINE gemint2
 
@@ -338,9 +337,9 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'g2gemint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istat, j, k, lrab, &
-                                                lsab, ltab, ltc, na, nab, nb, &
-                                                nc, nrab, nrc, nsab, nsc
+    INTEGER                                  :: i, istat, j, k, lrab, lsab, &
+                                                ltab, ltc, na, nab, nb, nc, &
+                                                nrab, nrc, nsab, nsc
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: zab
@@ -350,7 +349,7 @@ MODULE ai_geminals
       DIMENSION(:, :, :, :, :, :)            :: iabcd
     REAL(KIND=dp), DIMENSION(6)              :: ab
 
-    CALL timeset(routineN,handle)
+!   CALL timeset(routineN,handle)
 
     CPPrecondition(nderivative>=0,cp_failure_level,routineP,error,failure)
     CPPrecondition(nderivative<=1,cp_failure_level,routineP,error,failure)
@@ -435,7 +434,7 @@ MODULE ai_geminals
     DEALLOCATE (iabc,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(handle)
+!   CALL timestop(handle)
 
   END SUBROUTINE g2gemint
 ! *****************************************************************************
@@ -559,9 +558,9 @@ MODULE ai_geminals
       ii3 = (/0,0,1/), ii4 = (/1,0,0/), ii5 = (/0,1,0/), ii6 = (/0,0,1/)
     INTEGER, PARAMETER                       :: nmem = 1000000
 
-    INTEGER :: handle, i1, i2, ii, iint, ir, irx, iry, irz, is, istat, isx, &
-      isy, isz, ix, ixx(1), j10, j20, k, k10, k20, ka, kb, kk, ll, llr, lls, &
-      lr, ls, lsmax, lt, m, mm, n, ni, nr, ns
+    INTEGER :: i1, i2, ii, iint, ir, irx, iry, irz, is, istat, isx, isy, isz, &
+      ix, ixx(1), j10, j20, k, k10, k20, ka, kb, kk, ll, llr, lls, lr, ls, &
+      lsmax, lt, m, mm, n, ni, nr, ns
     INTEGER, DIMENSION(3)                    :: irm, irmm, irr, ism, ismm, iss
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: aai, abi, abj, ari, asi, bab, &
@@ -579,7 +578,7 @@ MODULE ai_geminals
     REAL(KIND=dp), DIMENSION(2, 2)           :: ee
     REAL(KIND=dp), DIMENSION(6)              :: ab, c, d, q
 
-    CALL timeset(routineN,handle)
+!   CALL timeset(routineN,handle)
 
     lr = lra + lrb
     ls = lsa + lsb
@@ -775,7 +774,7 @@ MODULE ai_geminals
     DEALLOCATE (intm,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(handle)
+!   CALL timestop(handle)
 
   END SUBROUTINE vrr
 ! *****************************************************************************
@@ -794,16 +793,16 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'hrr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ii(6), iim(6), ira, irap, irax, iray, iraz, irb, irbm, &
-      irbx, irby, irbz, isa, isap, isax, isay, isaz, isb, isbm, isbx, isby, &
-      isbz, istat, ix, ixx(1), jj(6), jjm(6), mra, mrb, msa, msax, msb, msbx, &
-      n, nra, nrab, nrb, nsa, nsab, nsb, nua, nub
+    INTEGER :: ii(6), iim(6), ira, irap, irax, iray, iraz, irb, irbm, irbx, &
+      irby, irbz, isa, isap, isax, isay, isaz, isb, isbm, isbx, isby, isbz, &
+      istat, ix, ixx(1), jj(6), jjm(6), mra, mrb, msa, msax, msb, msbx, n, &
+      nra, nrab, nrb, nsa, nsab, nsb, nua, nub
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: abx
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: iab
 
-    CALL timeset(routineN,handle)
+!   CALL timeset(routineN,handle)
 
     nra = ncoset(lra)
     nsa = ncoset(lsa)
@@ -904,7 +903,7 @@ MODULE ai_geminals
     DEALLOCATE (iab,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(handle)
+!   CALL timestop(handle)
 
   END SUBROUTINE hrr
 ! *****************************************************************************
@@ -919,16 +918,16 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'gg_trans1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i1, i2, i3, istat, &
-                                                iu, iv, iw, j1, j2, j3, k1, &
-                                                k2, l1, l2, m1, m2, mk, mr, &
-                                                ms, nk, nmax, nr, ns
+    INTEGER                                  :: i1, i2, i3, istat, iu, iv, &
+                                                iw, j1, j2, j3, k1, k2, l1, &
+                                                l2, m1, m2, mk, mr, ms, nk, &
+                                                nmax, nr, ns
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ac
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: a123
 
-    CALL timeset(routineN,handle)
+!   CALL timeset(routineN,handle)
 
     nmax=MAX(la,lb)
 
@@ -983,7 +982,7 @@ MODULE ai_geminals
     DEALLOCATE (ac,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(handle)
+!   CALL timestop(handle)
 
   END SUBROUTINE gg_trans1
 ! *****************************************************************************

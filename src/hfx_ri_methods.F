@@ -50,7 +50,7 @@ MODULE hfx_ri_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_ri_methods'
 
-  PUBLIC :: hfx_ri_energy_potential, hfx_ri_env_create
+  PUBLIC :: hfx_ri_energy_potential, hfx_ri_env_create, hfx_ri_energy
 
 ! *****************************************************************************
 
@@ -153,9 +153,9 @@ CONTAINS
          ngem = ngem + nbasis(ikind)*natoms(ikind)
        END DO
        WRITE(output_unit,'(/,A,A,T79,I2)') "  HFX_RI|",&
-             " Maximum l qunatum number for R variable",maxlgem(1)
+             " Maximum l quantum number for R variable",maxlgem(1)
        WRITE(output_unit,'(A,A,T79,I2)') "  HFX_RI|",&
-             " Maximum l qunatum number for S variable",maxlgem(2)
+             " Maximum l quantum number for S variable",maxlgem(2)
        WRITE(output_unit,'(A,A,T71,I10)') "  HFX_RI|",&
              " Total number of Geminal basis functions",ngem
     END IF
@@ -168,8 +168,7 @@ CONTAINS
   END SUBROUTINE hfx_ri_env_create
 
 ! *****************************************************************************
-!> \brief creates and initializes an ri_env
-!> \param ri_env the ri_environment you want to create
+!> \brief Calculate energy and potential for the HFX RI approximation
 !> 
 !> \author JGH
 ! *****************************************************************************
@@ -182,7 +181,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: calculate_virial, ionode, &
+    LOGICAL                                  :: calculate_energy, &
+                                                calculate_fock, &
+                                                calculate_virial, ionode, &
                                                 s_mstruct_changed
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -202,13 +203,15 @@ CONTAINS
     s_mstruct_changed = ks_env%s_mstruct_changed
 
     ! calcluate expansion coefficients
-    CALL optimize_ri_coeff (qs_env,s_mstruct_changed,error)
+    CALL optimize_ri_coeff (qs_env,s_mstruct_changed,.TRUE.,error)
 
     CALL get_qs_env(qs_env=qs_env,virial=virial,error=error)
     calculate_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     ! calcluate Fock matrix and energy
-    CALL ri_energy_potential(qs_env,calculate_force,calculate_virial,error)
+    calculate_energy = .TRUE.
+    calculate_fock = .TRUE.
+    CALL ri_energy_potential(qs_env,calculate_energy,calculate_fock,calculate_force,calculate_virial,error)
 
     t2 = m_walltime()
     IF ( output_unit > 0 ) THEN
@@ -220,10 +223,35 @@ CONTAINS
   END SUBROUTINE hfx_ri_energy_potential
 
 ! *****************************************************************************
-
-  SUBROUTINE optimize_ri_coeff (qs_env,s_mstruct_changed,error)
+!> \brief calculates the HFX energy in RIO approximation
+!> \author JGH
+! *****************************************************************************
+  SUBROUTINE hfx_ri_energy (qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: s_mstruct_changed
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_energy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
+    ! calcluate expansion coefficients
+    CALL optimize_ri_coeff (qs_env,.TRUE.,.FALSE.,error)
+
+    ! calcluate energy
+    CALL ri_energy_potential(qs_env,.TRUE.,.FALSE.,.FALSE.,.FALSE.,error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE hfx_ri_energy
+
+! *****************************************************************************
+
+  SUBROUTINE optimize_ri_coeff (qs_env,s_mstruct_changed,print_on,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: s_mstruct_changed, print_on
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_ri_coeff', &
@@ -254,7 +282,7 @@ CONTAINS
     hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF%HFX_RI",error=error)
     output_unit=cp_print_key_unit_nr(logger,hfx_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".RILog",error=error)
-    IF ( output_unit > 0 ) THEN
+    IF ( output_unit > 0 .AND. print_on ) THEN
        WRITE(output_unit,'(A)') "  Hartree-Fock-Exchange Resolution of Identity Approximation"
     END IF
 
@@ -319,7 +347,7 @@ CONTAINS
        CALL ri_vector_add(-alpha, ri_apk, ri_res, error)
        CALL ri_vector_norm(rnorm, ri_res, error)
 
-       IF ( output_unit > 0 ) THEN
+       IF ( output_unit > 0 .AND. print_on ) THEN
           WRITE(6,'(T15,A,T25,A,T35,i4,T50,A,T61,F20.10)') "HFX_RI|","Iteration :",iter,"Residual=",rnorm
        END IF
 
@@ -346,14 +374,14 @@ CONTAINS
 
     ounit=cp_print_key_unit_nr(logger,hfx_section,"PRINT%CHARGE",&
          extension=".RILog",error=error)
-    IF ( ounit > 0 ) THEN
+    IF ( ounit > 0 .AND. print_on ) THEN
        charge=0._dp
        CALL geminal_charge(ri_coeff,qs_env,charge,error)
        WRITE(output_unit,'(T15,A,T25,A,T57,F24.12)') "HFX_RI|","Total charge of RI expansion ",charge
     END IF
 
     t2 = m_walltime()
-    IF ( output_unit > 0 ) THEN
+    IF ( output_unit > 0 .AND. print_on ) THEN
        WRITE(output_unit,'(T15,A,T25,A,T69,F12.3)') "HFX_RI|","Total time for optimization ",t2-t1
     END IF
 
@@ -363,9 +391,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE ri_energy_potential (qs_env,calculate_force,calculate_virial,error)
+  SUBROUTINE ri_energy_potential (qs_env,calculate_energy,calculate_fock,&
+                                  calculate_force,calculate_virial,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: calculate_force, &
+    LOGICAL, INTENT(IN)                      :: calculate_energy, &
+                                                calculate_fock, &
+                                                calculate_force, &
                                                 calculate_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -374,8 +405,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ikind, istat, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natoms, nbasis
-    LOGICAL                                  :: calculate_energy, &
-                                                calculate_fock
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_res, ri_rhs
@@ -403,9 +432,6 @@ CONTAINS
 
     DEALLOCATE(nbasis,natoms,stat=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-
-    calculate_energy = .TRUE.
-    calculate_fock = .TRUE.
 
     CALL semi_empirical_si_initialize(gem_integral_storage,.FALSE.,error)
     CALL geminal_coulomb(ri_coeff,ri_res,qs_env,ri_env%ehfx1,calculate_energy,calculate_force,&

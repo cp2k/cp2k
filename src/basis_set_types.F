@@ -109,6 +109,7 @@ MODULE basis_set_types
   TYPE geminal_basis_set_type
      CHARACTER(LEN=default_string_length)       :: name
      CHARACTER(LEN=12), DIMENSION(:), POINTER   :: cgf_symbol
+     CHARACTER(LEN=2)                           :: type_restriction
      REAL(KIND = dp)                            :: kind_radius
      REAL(KIND = dp), DIMENSION(:), POINTER     :: set_radius
      REAL(KIND = dp), DIMENSION(:,:), POINTER   :: pgf_radius
@@ -1896,13 +1897,14 @@ CONTAINS
   END SUBROUTINE deallocate_geminal_basis_set
 
 ! *****************************************************************************
-  SUBROUTINE get_geminal_basis_set(geminal_basis_set,name,cgf_symbol,ngeminals,nset,&
-    lmax,lmin,ls,npgf,nshell,l,first_cgf,last_cgf,kind_radius,set_radius,pgf_radius,&
-    zet,zeth,gcc)
+  SUBROUTINE get_geminal_basis_set(geminal_basis_set,name,type_restriction,&
+    cgf_symbol,ngeminals,nset,lmax,lmin,ls,npgf,nshell,l,first_cgf,last_cgf,&
+    kind_radius,set_radius,pgf_radius,zet,zeth,gcc)
 
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
+    CHARACTER(LEN=2), OPTIONAL               :: type_restriction
     CHARACTER(LEN=12), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cgf_symbol
     INTEGER, INTENT(OUT), OPTIONAL           :: ngeminals, nset
@@ -1926,6 +1928,7 @@ CONTAINS
 
     IF (ASSOCIATED(geminal_basis_set)) THEN
        IF (PRESENT(name)) name = geminal_basis_set%name
+       IF (PRESENT(type_restriction)) type_restriction = geminal_basis_set%type_restriction
        IF (PRESENT(cgf_symbol)) cgf_symbol => geminal_basis_set%cgf_symbol
 
        IF (PRESENT(ngeminals)) ngeminals = geminal_basis_set%ngeminals
@@ -1983,8 +1986,9 @@ CONTAINS
       strlen2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, ls, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: failure, found, is_ok, match, &
-                                                read_from_input
+    LOGICAL                                  :: failure, found, is_ok, isrr, &
+                                                isrs, match, read_from_input
+    REAL(KIND=dp)                            :: aa, bb, cc
     REAL(KIND=dp), DIMENSION(2, 2)           :: zl
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
@@ -2002,7 +2006,11 @@ CONTAINS
     bsname = ""
     bsname2 = ""
 
-    geminal_basis_set%name = basis_set_name
+    IF ( basis_set_name == "" ) THEN
+      geminal_basis_set%name = element_symbol//"_Geminal"
+    ELSE
+      geminal_basis_set%name = basis_set_name
+    END IF
     read_from_input = .FALSE.
     IF (PRESENT(basis_section)) THEN
        CALL section_vals_get(basis_section,explicit=read_from_input, error=error)
@@ -2295,6 +2303,26 @@ CONTAINS
          END IF
     END DO search_loop
 
+    ! is this a RS or RR basis
+    isrs = .TRUE.
+    isrr = .TRUE.
+    DO iset=1,geminal_basis_set%nset
+       DO ipgf=1,geminal_basis_set%npgf(iset)
+         aa = geminal_basis_set%zet(1,1,ipgf,iset)
+         bb = geminal_basis_set%zet(2,2,ipgf,iset)
+         cc = geminal_basis_set%zet(1,2,ipgf,iset)
+         IF (ABS(cc) > 1.E-6) isrs = .FALSE.
+         IF (ABS(aa-bb) > 1.E-6 .OR. aa < ABS(cc) ) isrr = .FALSE.
+       END DO
+    END DO
+    IF ( isrs ) THEN
+      geminal_basis_set%type_restriction = "RS"
+    ELSEIF ( isrr ) THEN
+      geminal_basis_set%type_restriction = "RR"
+    ELSE
+      geminal_basis_set%type_restriction = "NO"
+    END IF
+
     IF (.NOT.read_from_input) THEN
        CALL parser_release(parser,error=error)
        IF ((match).AND.(PRESENT(basis_section))) THEN
@@ -2315,11 +2343,13 @@ CONTAINS
   END SUBROUTINE read_geminal_basis_set
 
 ! *****************************************************************************
-  SUBROUTINE set_geminal_basis_set(geminal_basis_set,name,kind_radius,set_radius,pgf_radius)
+  SUBROUTINE set_geminal_basis_set(geminal_basis_set,name,type_restriction,&
+                                   kind_radius,set_radius,pgf_radius)
 
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name
+    CHARACTER(LEN=2), OPTIONAL               :: type_restriction
     REAL(KIND=dp), OPTIONAL                  :: kind_radius
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: set_radius
@@ -2333,6 +2363,7 @@ CONTAINS
 
     IF (ASSOCIATED(geminal_basis_set)) THEN
        IF (PRESENT(name)) geminal_basis_set%name = name
+       IF (PRESENT(type_restriction)) geminal_basis_set%type_restriction = type_restriction
 
        IF (PRESENT(kind_radius)) geminal_basis_set%kind_radius = kind_radius
        IF (PRESENT(set_radius)) geminal_basis_set%set_radius(:) = set_radius(:)
@@ -2360,12 +2391,14 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(geminal_basis_set).AND.(output_unit>0)) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,T51,A30,/,/,T5,A,T45,A)")&
-            "Gaussian geminal basis set information for",TRIM(geminal_basis_set%name),&
-            "Set  Shell   l(R) l(S)","Exponents               Coefficient"
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,T51,A30)")&
+            "Gaussian geminal basis set information for",TRIM(geminal_basis_set%name)
+       WRITE (UNIT=output_unit,FMT="(T5,A,T79,A2)")&
+            "Geminal type restrictions",TRIM(geminal_basis_set%type_restriction)
+       WRITE (UNIT=output_unit,FMT="(T5,A,T45,A)")&
+            "Set  Shell   l(R) l(S)","Exponents                Coefficient"
 
        DO iset=1,geminal_basis_set%nset
-          WRITE (UNIT=output_unit,FMT="(A)") ""
           DO ishell=1,geminal_basis_set%nshell(iset)
              WRITE (UNIT=output_unit,&
                   FMT="(T5,I3,2X,I4,I5,I5,(T29,4F13.6))")&

@@ -45,6 +45,7 @@ MODULE qs_scf_post_gpw
                                              cp_subsys_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE f77_blas
+  USE hfx_ri_gemopt,                   ONLY: geminal_optimize
   USE input_constants,                 ONLY: ot_precond_full_all,&
                                              state_loc_all,&
                                              use_orb_basis_set
@@ -609,6 +610,9 @@ CPSourceFileRef,&
 
        ! Calculation of properties needed for BASIS_MOLOPT optimizations
        CALL qs_scf_post_molopt(input, logger, qs_env, error)
+
+       ! Optimize Geminals
+       CALL qs_scf_post_gemopt(input, logger, qs_env, error)
 
     END IF
     
@@ -1529,6 +1533,51 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE qs_scf_post_epr
+
+! *****************************************************************************
+!> \brief Geminal optimizer
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE qs_scf_post_gemopt(input, logger, qs_env, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_gemopt', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, unit_nr
+    LOGICAL                                  :: explicit
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
+
+
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                   subsection_name="DFT%PRINT%OPTIMIZE_GEMINALS",&
+                   error=error)
+    unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%OPTIMIZE_GEMINALS",&
+                 extension="",error=error)
+    CALL section_vals_get(print_key,explicit=explicit, error=error)
+
+    IF ( explicit) THEN
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+                cp_p_file)) THEN
+         IF (unit_nr>0) THEN
+            WRITE(unit_nr,"(T2,79('-'),/,T2,'-',T30,A,T80,'-',/,T2,79('-'))") " Optimize Geminals "
+         ENDIF
+         !
+         CALL geminal_optimize(qs_env,print_key,unit_nr,error)
+         !
+         IF (unit_nr>0) WRITE(unit_nr,"(T2,79('-'))") 
+      END IF
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE qs_scf_post_gemopt
 
 ! *****************************************************************************
 !> \brief Write QS results always available (if switched on through the print_keys)

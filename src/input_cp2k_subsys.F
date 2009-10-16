@@ -1270,6 +1270,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,&
+                           name="NO_OPTIMIZE",&
+                           description="Skip optimization of this type (used in specific basis set or"//&
+                                       " potential optimization schemes",&
+                           usage="NO_OPTIMIZE",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        NULLIFY(subsection)
        CALL create_basis_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)

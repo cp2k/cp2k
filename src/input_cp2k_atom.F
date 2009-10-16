@@ -11,7 +11,7 @@ MODULE input_cp2k_atom
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
-  USE input_cp2k_dft,                  ONLY: create_xc_section
+  USE input_cp2k_xc,                   ONLY: create_xc_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -34,7 +34,7 @@ MODULE input_cp2k_atom
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_atom'
 
-  PUBLIC :: create_atom_section
+  PUBLIC :: create_atom_section, create_powell_section
 
 ! *****************************************************************************
 

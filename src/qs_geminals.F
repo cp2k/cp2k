@@ -861,6 +861,7 @@ MODULE qs_geminals
              END IF
              store_int%max_val_buffer(store_int%nbuffer) = MAXVAL(ABS(intab(:,:,1)))
              nbits        = EXPONENT(store_int%max_val_buffer(store_int%nbuffer)/eps_storage) + 1
+             nbits        = MIN(nbits,64)
              buffer_left  = nints
              buffer_start = 1
              DO WHILE (buffer_left > 0)
@@ -889,6 +890,7 @@ MODULE qs_geminals
           IF (.NOT.buffer_overflow) THEN
              ! Get Integrals from containers
              nbits        = EXPONENT(store_int%max_val_buffer(store_int%nbuffer)/eps_storage) + 1
+             nbits        = MIN(nbits,64)
              buffer_left  = nints
              buffer_start = 1
              DO WHILE (buffer_left > 0)
@@ -1128,6 +1130,7 @@ MODULE qs_geminals
              END IF
              store_int%max_val_buffer(store_int%nbuffer) = MAXVAL(ABS(intabc(:,:,:,1)))
              nbits        = EXPONENT(store_int%max_val_buffer(store_int%nbuffer)/eps_storage) + 1
+             nbits        = MIN(nbits,64)
              buffer_left  = nints
              buffer_start = 1
              DO WHILE (buffer_left > 0)
@@ -1158,6 +1161,7 @@ MODULE qs_geminals
           IF (.NOT.buffer_overflow) THEN
              ! Get Integrals from containers
              nbits        = EXPONENT(store_int%max_val_buffer(store_int%nbuffer)/eps_storage) + 1
+             nbits        = MIN(nbits,64)
              buffer_left  = nints
              buffer_start = 1
              DO WHILE (buffer_left > 0)

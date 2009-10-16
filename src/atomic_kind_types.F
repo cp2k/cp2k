@@ -145,6 +145,7 @@ MODULE atomic_kind_types
      LOGICAL                                :: shell_active, bs_occupation
      TYPE(shell_kind_type), POINTER         :: shell
      TYPE(dft_plus_u_type), POINTER         :: dft_plus_u
+     LOGICAL                                :: no_optimize
      !
      TYPE(qs_atom_dispersion_type), POINTER :: dispersion
   END TYPE atomic_kind_type
@@ -246,6 +247,7 @@ CONTAINS
        atomic_kind_set(ikind)%ghost = .FALSE.
        atomic_kind_set(ikind)%shell_active=.FALSE.
        atomic_kind_set(ikind)%bs_occupation=.FALSE.
+       atomic_kind_set(ikind)%no_optimize=.TRUE.
        NULLIFY(atomic_kind_set(ikind)%addel)
        NULLIFY(atomic_kind_set(ikind)%laddel)
        NULLIFY(atomic_kind_set(ikind)%naddel)
@@ -376,7 +378,7 @@ CONTAINS
        hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
        max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
        dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id,npgf,&
-       bs_occupation, addel,laddel,naddel)                        !JT
+       bs_occupation,no_optimize,addel,laddel,naddel) 
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -436,7 +438,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: dispersion
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     INTEGER, INTENT(OUT), OPTIONAL           :: npgf
-    LOGICAL, INTENT(OUT), OPTIONAL           :: bs_occupation
+    LOGICAL, INTENT(OUT), OPTIONAL           :: bs_occupation, no_optimize
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: addel, laddel, naddel
 
@@ -695,6 +697,8 @@ CONTAINS
        IF (PRESENT(addel))  addel  => atomic_kind%addel
        IF (PRESENT(laddel)) laddel => atomic_kind%laddel
        IF (PRESENT(naddel)) naddel => atomic_kind%naddel
+
+       IF (PRESENT(no_optimize)) no_optimize=atomic_kind%no_optimize
 
     ELSE
 
@@ -1677,6 +1681,8 @@ CONTAINS
             keyword_name="GPW_TYPE",l_val=atomic_kind%gpw_type_forced,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="GHOST",l_val=atomic_kind%ghost,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="NO_OPTIMIZE",l_val=atomic_kind%no_optimize,error=error)
 
        ! Read the BS subsection of the current atomic kind, if enabled
        NULLIFY(bs_section)
@@ -2109,7 +2115,7 @@ CONTAINS
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
        natom,atom_list,elec_conf,paw_atom,qm_atom,hard_radius,hard0_radius,&
        elp_potential,soft_basis_set,hard_basis_set,lmax_rho0,zeff,ghost,shell,&
-       shell_active,dispersion,error)
+       shell_active,no_optimize,dispersion,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: element_symbol, name
@@ -2127,7 +2133,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff
     LOGICAL, INTENT(IN), OPTIONAL            :: ghost
     TYPE(shell_kind_type), OPTIONAL, POINTER :: shell
-    LOGICAL, INTENT(IN), OPTIONAL            :: shell_active
+    LOGICAL, INTENT(IN), OPTIONAL            :: shell_active, no_optimize
     TYPE(qs_atom_dispersion_type), &
       OPTIONAL, POINTER                      :: dispersion
     TYPE(cp_error_type), INTENT(inout), &
@@ -2191,6 +2197,8 @@ CONTAINS
           CALL shell_retain(shell,error)
        END IF
        IF (PRESENT(shell_active)) atomic_kind%shell_active=shell_active
+
+       IF (PRESENT(no_optimize)) atomic_kind%no_optimize=no_optimize
 
        IF (PRESENT(dispersion)) atomic_kind%dispersion => dispersion
 

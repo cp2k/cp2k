@@ -263,6 +263,7 @@ OBJECTS_GENERIC =\
  hfx_libint_wrapper_types.o\
  hfx_load_balance_methods.o\
  hfx_pair_list_methods.o\
+ hfx_ri_gemopt.o\
  hfx_ri_methods.o\
  hfx_screening_methods.o\
  hfx_types.o\
@@ -291,6 +292,7 @@ OBJECTS_GENERIC =\
  input_cp2k_subsys.o\
  input_cp2k_thermostats.o\
  input_cp2k_vib.o\
+ input_cp2k_xc.o\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_parsing.o\
