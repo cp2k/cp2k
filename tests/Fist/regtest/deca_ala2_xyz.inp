@@ -25,6 +25,9 @@
       COORD_FILE_NAME deca_ala2.xyz
       COORDINATE XYZ
     &END TOPOLOGY
+    &KIND CXX
+      ELEMENT C
+    &END
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL

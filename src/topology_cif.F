@@ -109,6 +109,9 @@ CONTAINS
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,handle)
 
+    ! Element is assigned on the basis of the atm_name
+    topology%aa_element = .TRUE.
+
     atom_info => topology%atom_info
     CALL reallocate(atom_info%label_molname,1,nblock_atom)
     CALL reallocate(atom_info%label_resname,1,nblock_atom)

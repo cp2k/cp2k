@@ -141,9 +141,12 @@ CONTAINS
     CALL reallocate(atom_info%atm_charge,    1,    natom)
     CALL reallocate(atom_info%occup,         1,    natom)
     CALL reallocate(atom_info%beta,          1,    natom)
-    CALL reallocate(atom_info%element,       1,    natom)    
+    CALL reallocate(atom_info%element,       1,    natom)
+
+    ! Element is assigned on the basis of the atm_name
+    topology%aa_element = .TRUE.
+
     ! Coordinates
-    topology%aa_element        = .TRUE.
     CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
     DO j = 1, natom-MOD(natom,2), 2
        IF (my_end) EXIT
@@ -291,7 +294,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_connectivity_amber', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, iw
+    INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
@@ -310,14 +313,6 @@ CPSourceFileRef,&
     ! Read the Amber topology file
     CALL rdparm_amber_8(filename, iw, para_env, do_connectivity=.TRUE., do_forcefield=.FALSE.,&
          atom_info=atom_info, conn_info=conn_info, error=error)
-
-    ! In case element was autoassigned let's keep up2date the element name 
-    ! with the atom_name
-    IF (topology%aa_element) THEN
-       DO iatom=1,topology%natoms
-          atom_info%element(iatom) = atom_info%label_atmname(iatom)
-       END DO
-    END IF
 
     ! Molnames have been internally generated
     topology%molname_generated = .TRUE.

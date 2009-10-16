@@ -40,6 +40,12 @@
       &DUMP_PSF
       &END
     &END TOPOLOGY
+    &KIND 62
+      ELEMENT O
+    &END
+    &KIND  3
+      ELEMENT H
+    &END
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL

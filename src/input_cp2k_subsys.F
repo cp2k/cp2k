@@ -1692,8 +1692,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        NULLIFY(keyword, subsection, subsubsection)
        CALL section_create(section,name="MOL_SET",&
-            description="Specify the connectivity of a full system specifyin the connectivity"//&
-            " of fragments of the system",&
+            description="Specify the connectivity of a full system specifying the connectivity"//&
+            " of the fragments of the system.",&
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 

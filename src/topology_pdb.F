@@ -165,7 +165,8 @@ CONTAINS
           END IF
 
           IF (TRIM(atom_info%element(natom))=="") THEN
-             topology%aa_element      = .TRUE.
+             ! Element is assigned on the basis of the atm_name
+             topology%aa_element = .TRUE.
              atom_info%element(natom) = atom_info%label_atmname(natom)
           END IF
           IF (TRIM(atom_info%label_molname(natom))=="") THEN

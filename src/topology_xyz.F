@@ -67,6 +67,9 @@ CONTAINS
     CALL parser_create(parser,topology%coord_file_name, para_env=para_env, &
                        parse_white_lines=.TRUE.,error=error)
 
+    ! Element is assigned on the basis of the atm_name
+    topology%aa_element = .TRUE.
+
     natom = 0
     frame = 0
     CALL parser_get_next_line(parser,1,error=error)

@@ -51,78 +51,12 @@ MODULE topology_psf
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_psf'
 
   PRIVATE
-  PUBLIC :: pre_read_topology_psf,&
-            read_topology_psf,&
+  PUBLIC :: read_topology_psf,&
             write_topology_psf,&
             psf_post_process,&
             idm_psf
 
 CONTAINS
-
-! *****************************************************************************
-  SUBROUTINE pre_read_topology_psf (topology,subsys_section, error)
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology_psf', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, iw, stat
-    LOGICAL                                  :: failure
-    TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    failure = .FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".subsysLog",error=error)
-    CALL timeset(routineN,handle)
-    atom_info => topology%atom_info
-
-    IF (ASSOCIATED(atom_info%label_molname)) THEN
-       DEALLOCATE(atom_info%label_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%label_molname)
-    END IF
-
-    IF (ASSOCIATED(atom_info%label_resid)) THEN
-       DEALLOCATE(atom_info%label_resid,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%label_resid)
-    END IF
-
-    IF (ASSOCIATED(atom_info%label_resname)) THEN
-       DEALLOCATE(atom_info%label_resname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%label_resname)
-    END IF
-
-    IF (ASSOCIATED(atom_info%label_atmname)) THEN
-       DEALLOCATE(atom_info%label_atmname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%label_atmname)
-    END IF
-
-    IF (ASSOCIATED(atom_info%atm_charge)) THEN
-       DEALLOCATE(atom_info%atm_charge,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%atm_charge)
-    END IF
-
-    IF (ASSOCIATED(atom_info%atm_mass)) THEN
-       DEALLOCATE(atom_info%atm_mass,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%atm_mass)
-    END IF
-
-    CALL timestop(handle)
-    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
-
-  END SUBROUTINE pre_read_topology_psf
 
 ! *****************************************************************************
 !> \brief Read PSF topology file
@@ -255,14 +189,6 @@ CPSourceFileRef,&
                   atom_info%atm_mass(index_now),&
                   idum
              atom_info%label_atmname(index_now) = TRIM(ADJUSTL(atom_info%label_atmname(index_now)))
-          END DO
-       END IF
-       ! In case element was autoassigned let's keep up2date the element name 
-       ! with the atom_name
-       IF (topology%aa_element) THEN
-          DO iatom=1,natom
-             index_now=iatom+natom_prev
-             atom_info%element(index_now) = atom_info%label_atmname(index_now)
           END DO
        END IF
     END IF

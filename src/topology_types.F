@@ -186,7 +186,8 @@ MODULE topology_types
             constr_list_type
 
   PUBLIC :: init_topology,&
-            deallocate_topology
+            deallocate_topology,&
+            pre_read_topology
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_types'
   PRIVATE
@@ -886,5 +887,57 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE deallocate_constraint
+
+! *****************************************************************************
+!> \brief Deallocate possibly allocated arrays before reading topology
+!> \par History
+!>      none
+! *****************************************************************************
+  SUBROUTINE pre_read_topology (topology, error)
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(atom_info_type), POINTER            :: atom_info
+
+    failure = .FALSE.
+    atom_info => topology%atom_info
+
+    IF (ASSOCIATED(atom_info%label_molname)) THEN
+       DEALLOCATE(atom_info%label_molname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (ASSOCIATED(atom_info%label_resid)) THEN
+       DEALLOCATE(atom_info%label_resid,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (ASSOCIATED(atom_info%label_resname)) THEN
+       DEALLOCATE(atom_info%label_resname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (ASSOCIATED(atom_info%label_atmname)) THEN
+       DEALLOCATE(atom_info%label_atmname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (ASSOCIATED(atom_info%atm_charge)) THEN
+       DEALLOCATE(atom_info%atm_charge,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (ASSOCIATED(atom_info%atm_mass)) THEN
+       DEALLOCATE(atom_info%atm_mass,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE pre_read_topology
 
 END MODULE topology_types

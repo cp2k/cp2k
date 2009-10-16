@@ -34,67 +34,9 @@ MODULE topology_gromos
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_gromos'
 
   PRIVATE
-  PUBLIC :: pre_read_topology_gromos, read_topology_gromos, read_coordinate_g96
+  PUBLIC :: read_topology_gromos, read_coordinate_g96
 
 CONTAINS
-
-! *****************************************************************************
-  SUBROUTINE pre_read_topology_gromos (topology,subsys_section, error)
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology_gromos', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, iw, stat
-    LOGICAL                                  :: failure
-    TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    failure = .FALSE.
-    NULLIFY(logger)
-    CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GTOP_INFO",&
-         extension=".subsysLog",error=error)
-    atom_info => topology%atom_info
-
-    IF (ASSOCIATED(atom_info%label_molname)) THEN
-       DEALLOCATE(atom_info%label_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (ASSOCIATED(atom_info%label_resid)) THEN
-       DEALLOCATE(atom_info%label_resid,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (ASSOCIATED(atom_info%label_resname)) THEN
-       DEALLOCATE(atom_info%label_resname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (ASSOCIATED(atom_info%label_atmname)) THEN
-       DEALLOCATE(atom_info%label_atmname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (ASSOCIATED(atom_info%element)) THEN
-       DEALLOCATE(atom_info%element,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (ASSOCIATED(atom_info%atm_charge)) THEN
-       DEALLOCATE(atom_info%atm_charge,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (ASSOCIATED(atom_info%atm_mass)) THEN
-       DEALLOCATE(atom_info%atm_mass,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
-    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/GTOP_INFO",error=error)
-    CALL timestop(handle)
-
-  END SUBROUTINE pre_read_topology_gromos
 
 ! *****************************************************************************
 !> \brief Read GROMOS topology file
@@ -689,6 +631,9 @@ CONTAINS
     avail_section( 3) = "POSITION"
     avail_section( 4) = "VELOCITY"
     avail_section( 5) = "BOX"
+
+    ! Element is assigned on the basis of the atm_name
+    topology%aa_element = .TRUE.
 
     CALL reallocate(atom_info%label_molname,1,nblock_atom)
     CALL reallocate(atom_info%label_resname,1,nblock_atom)

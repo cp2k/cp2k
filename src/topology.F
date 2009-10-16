@@ -60,8 +60,7 @@ MODULE topology
                                              topology_generate_molecule,&
                                              topology_generate_onfo,&
                                              topology_generate_ub
-  USE topology_gromos,                 ONLY: pre_read_topology_gromos,&
-                                             read_coordinate_g96,&
+  USE topology_gromos,                 ONLY: read_coordinate_g96,&
                                              read_topology_gromos
   USE topology_input,                  ONLY: read_constraints_section,&
                                              read_topology_section
@@ -69,12 +68,12 @@ MODULE topology
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
                                              write_coordinate_pdb
   USE topology_psf,                    ONLY: idm_psf,&
-                                             pre_read_topology_psf,&
                                              psf_post_process,&
                                              read_topology_psf,&
                                              write_topology_psf
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
+                                             pre_read_topology,&
                                              topology_parameters_type
   USE topology_util,                   ONLY: check_subsys_element,&
                                              topology_molecules_check,&
@@ -150,67 +149,40 @@ CONTAINS
     my_qmmm = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
     ! 1. Initialize the topology structure type
-    !-----------------------------------------------------------------------------
     CALL init_topology(topology, error)
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
     ! 2. Get the cell info
-    !-----------------------------------------------------------------------------
     CALL read_cell (topology%cell, topology%cell_ref, cell_section=cell_section,&
                     para_env=para_env, error=error)
     CALL write_cell(topology%cell, subsys_section, label="CELL_TOP|", error=error)
     CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section, error)
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
     ! 3. Read in the topology section in the input file if any
-    !-----------------------------------------------------------------------------
     CALL read_topology_section(topology,topology_section,error)
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
     ! 4. Read in the constraints section
-    !-----------------------------------------------------------------------------
     CALL read_constraints_section(topology,colvar_p,constraint_section,error)
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
     ! 5. Read in the coordinates
-    !-----------------------------------------------------------------------------
     CALL coordinate_control(topology,root_section,para_env,subsys_section,error)
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
     ! 6. Read in or generate the molecular connectivity
-    !-----------------------------------------------------------------------------
     CALL connectivity_control(topology,para_env,my_qmmm, qmmm_env,subsys_section,&
          force_env_section,error)
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
     ! 7. Pack everything into the molecular types
-    !-----------------------------------------------------------------------------
     CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
          topology,subsys_section,error)
-    !-----------------------------------------------------------------------------
-    ! Teo 12.2004:
-    ! 
-    ! This part takes care of the molecule in which QM atoms were defined.
-    ! Preliminary setup for QM/MM link region
-    !-----------------------------------------------------------------------------
-    ! 7.bis. Set up the QM/MM linkage (if any)
-    !-----------------------------------------------------------------------------
+
+    ! 8. Set up the QM/MM linkage (if any)
+    !    This part takes care of the molecule in which QM atoms were defined.
+    !    Preliminary setup for QM/MM link region
     IF (my_qmmm) THEN
        CALL qmmm_connectivity_control(molecule_set, qmmm_env, subsys_section, error)
     END IF
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 8. Pack everything into the atomic types
-    !-----------------------------------------------------------------------------
+
+    ! 9. Pack everything into the atomic types
     IF (my_qmmm) THEN
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
@@ -225,16 +197,10 @@ CONTAINS
             error=error)
     END IF
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 9. Post-Process colvar definitions (if needed)
-    !----------------------------------------------------------------------------
+    !10. Post-Process colvar definitions (if needed)
     CALL topology_post_proc_colvar(colvar_p, particle_set, error)
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 10. Deal with the constraint stuff if requested
-    !-----------------------------------------------------------------------------
+    !11. Deal with the constraint stuff if requested
     IF (my_qmmm) THEN
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
             topology,qmmm_env,particle_set,root_section,subsys_section,&
@@ -245,10 +211,7 @@ CONTAINS
             subsys_section=subsys_section,gci=gci,error=error)
     END IF
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 11. Dump the topology informations
-    !-----------------------------------------------------------------------------
+    !12. Dump the topology informations
     iw2 = cp_print_key_unit_nr(logger,subsys_section,"TOPOLOGY%DUMP_PDB",&
           file_status="REPLACE",extension=".pdb",error=error)
     IF (iw2>0) THEN
@@ -263,10 +226,8 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw2,logger,subsys_section,&
          "TOPOLOGY%DUMP_PSF",error=error)  
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 12. Cleanup the topology structure type
-    !-----------------------------------------------------------------------------
+
+    !13. Cleanup the topology structure type
     CALL deallocate_topology(topology, error)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
@@ -305,7 +266,7 @@ CONTAINS
     INTEGER                                  :: conn_type, handle, handle2, &
                                                 i, i_rep, id, imol, itmp, iw, &
                                                 j, k, n_rep, nmol, stat
-    LOGICAL                                  :: failure, my_qmmm
+    LOGICAL                                  :: check, failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
 
@@ -319,72 +280,74 @@ CONTAINS
     my_qmmm = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
     ! 1. Read in the connectivity information (if this is the case) 
-    !-----------------------------------------------------------------------------
     SELECT CASE (topology%conn_type)
-    CASE (do_conn_mol_set)
-       CALL pre_read_topology_psf(topology,subsys_section,error)
-       section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET",error=error)
-       section => section_vals_get_subs_vals(section,"MOLECULE",error=error)
-       CALL section_vals_get(section,n_repetition=n_rep,error=error)
-       DO i_rep=1,n_rep
-          CALL section_vals_val_get(section,"NMOL",i_val=nmol,&
-               i_rep_section=i_rep,error=error)
-          CALL section_vals_val_get(section,"CONN_FILE_NAME",c_val=filename,&
-               i_rep_section=i_rep,error=error)
-          CALL section_vals_val_get(section,"CONN_FILE_FORMAT",i_val=conn_type,&
-               i_rep_section=i_rep,error=error)
-          CALL cp_assert(((conn_type==do_conn_psf).OR.(conn_type==do_conn_psf_u)),&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "MOL_SET feature implemented only for PSF/UPSF connectivity type."//&
- CPSourceFileRef,&
-               error=error,failure=failure)         
-          DO imol=1,nmol
-             CALL read_topology_psf(filename,topology,para_env,subsys_section,&
-                  conn_type,error)
-          END DO
-       END DO
-       CALL cp_assert(SIZE(topology%atom_info%label_molname)==topology%natoms,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "Number of atoms in connectivity control is larger than the "//&
-            "number of atoms in coordinate control. check coordinates and "//&
-            "connectivity. "//&
- CPSourceFileRef,&
-            error=error,failure=failure)
-       ! Merge defined structures
-       section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET%MERGE_MOLECULES",&
-            error=error)
-       CALL idm_psf(topology,section,subsys_section,error)
-    CASE (do_conn_g96,do_conn_g87)
-       CALL pre_read_topology_gromos(topology,subsys_section,error)
-       CALL read_topology_gromos(topology%conn_file_name,topology,para_env,&
-            subsys_section,error)
-    CASE (do_conn_psf, do_conn_psf_u)
-       CALL pre_read_topology_psf(topology,subsys_section,error)
-       CALL read_topology_psf(topology%conn_file_name,topology,para_env,subsys_section,&
-            topology%conn_type, error)
-    CASE (do_conn_amb7)
-       CALL read_connectivity_amber(topology%conn_file_name,topology,para_env,subsys_section,&
-            error)
     CASE (do_conn_generate, do_conn_off)
        ! Do nothing for the time being.. after we check element and proceed with the workflow..
     CASE DEFAULT
-       ! We should never reach this point.. There is no default associated
-       ! to the connectivity.. contant a developer in case of possible errors
-       ! on this line..
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CALL pre_read_topology(topology,error)
+
+       SELECT CASE (topology%conn_type)
+       CASE (do_conn_mol_set)
+          section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET",error=error)
+          section => section_vals_get_subs_vals(section,"MOLECULE",error=error)
+          CALL section_vals_get(section,n_repetition=n_rep,error=error)
+          DO i_rep=1,n_rep
+             CALL section_vals_val_get(section,"NMOL",i_val=nmol,&
+                  i_rep_section=i_rep,error=error)
+             CALL section_vals_val_get(section,"CONN_FILE_NAME",c_val=filename,&
+                  i_rep_section=i_rep,error=error)
+             CALL section_vals_val_get(section,"CONN_FILE_FORMAT",i_val=conn_type,&
+                  i_rep_section=i_rep,error=error)
+             CALL cp_assert(((conn_type==do_conn_psf).OR.(conn_type==do_conn_psf_u)),&
+                  cp_failure_level,cp_assertion_failed,routineP,&
+                  "MOL_SET feature implemented only for PSF/UPSF connectivity type."//&
+ CPSourceFileRef,&
+                  error=error,failure=failure)         
+             DO imol=1,nmol
+                CALL read_topology_psf(filename,topology,para_env,subsys_section,&
+                     conn_type,error)
+             END DO
+          END DO
+          CALL cp_assert(SIZE(topology%atom_info%label_molname)==topology%natoms,&
+               cp_failure_level,cp_assertion_failed,routineP,&
+               "Number of atoms in connectivity control is larger than the "//&
+               "number of atoms in coordinate control. check coordinates and "//&
+               "connectivity. "//&
+ CPSourceFileRef,&
+               error=error,failure=failure)
+          ! Merge defined structures
+          section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET%MERGE_MOLECULES",&
+               error=error)
+          CALL idm_psf(topology,section,subsys_section,error)
+       CASE (do_conn_g96,do_conn_g87)
+          CALL read_topology_gromos(topology%conn_file_name,topology,para_env,&
+               subsys_section,error)
+       CASE (do_conn_psf, do_conn_psf_u)
+          CALL read_topology_psf(topology%conn_file_name,topology,para_env,subsys_section,&
+               topology%conn_type, error)
+       CASE (do_conn_amb7)
+          CALL read_connectivity_amber(topology%conn_file_name,topology,para_env,subsys_section,&
+               error)
+       END SELECT
+
+       ! Post process of PSF and AMBER information
+       SELECT CASE (topology%conn_type)
+       CASE (do_conn_mol_set, do_conn_psf, do_conn_psf_u, do_conn_amb7)
+          CALL psf_post_process(topology,subsys_section,error)
+       END SELECT
+
     END SELECT
-    ! Post process of PSF and AMBER information 
-    SELECT CASE (topology%conn_type)
-    CASE (do_conn_mol_set, do_conn_psf, do_conn_psf_u, do_conn_amb7)
-       CALL psf_post_process(topology,subsys_section,error)
-    END SELECT
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 2. Check for the element name.. 
-    !-----------------------------------------------------------------------------
+
+    ! 2. In case element was autoassigned let's keep up2date the element name 
+    !    with the atom_name
+    IF (topology%aa_element) THEN
+       check = SIZE(topology%atom_info%element)==SIZE(topology%atom_info%label_atmname)
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       topology%atom_info%element = topology%atom_info%label_atmname
+    END IF
+
+    ! 3. Check for the element name.. 
     CALL timeset(routineN//"_check_element_name",handle2)
     ! Fix element name
     CALL create_ff_map("AMBER",error)
@@ -425,10 +388,8 @@ CONTAINS
     CALL destroy_ff_map("CHARMM",error)
     CALL destroy_ff_map("AMBER",error)
     CALL timestop(handle2)
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 3. Generate the connectivity information otherwise
-    !-----------------------------------------------------------------------------
+
+    ! 4. Generate the connectivity information otherwise
     SELECT CASE (topology%conn_type)
     CASE (do_conn_generate)
        CALL topology_set_atm_mass(topology,subsys_section,error)
@@ -454,15 +415,19 @@ CONTAINS
        CALL topology_generate_dihe(topology,subsys_section,error)
        CALL topology_generate_impr(topology,subsys_section,error)
        CALL topology_generate_onfo(topology,subsys_section,error)
-    CASE DEFAULT
-       ! Post-process connectivity information (if read from an external file)
-       ! in case of multiple_unit_cell
-       CALL topology_conn_multiple(topology, subsys_section, error)
     END SELECT
 
+    ! 5. Handle multiple unit_cell - Update atoms_info
+    CALL topology_muc(topology, subsys_section, error=error)
+
+    ! 6. Handle multiple unit_cell - Update conn_info
+    CALL topology_conn_multiple(topology, subsys_section, error)
+
+    ! 7. Generate Molecules
     CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,subsys_section,error)
     IF(topology%molecules_check) CALL topology_molecules_check(topology,subsys_section,error)
 
+    ! 8. Modify for QM/MM
     IF (my_qmmm) THEN
        CALL qmmm_coordinate_control(topology, qmmm_env,subsys_section, error)
     END IF
@@ -548,8 +513,6 @@ CONTAINS
     ! Parse &COORD section and in case overwrite..
     CALL read_atoms_input ( topology, overwrite=(topology%coord_type/=do_coord_off),&
          subsys_section=subsys_section,save_mem=save_mem,error=error)
-    ! Handle multiple unit_cell
-    CALL topology_muc(topology, subsys_section, error=error)
     CALL timestop(handle2)
     ! Check on atom numbers
     CALL cp_assert(topology%natoms>0,cp_fatal_level,cp_assertion_failed,routineP,&

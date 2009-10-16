@@ -163,6 +163,9 @@ CPSourceFileRef,&
           END DO
        END DO
     ELSE
+       ! Element is assigned on the basis of the atm_name
+       topology%aa_element = .TRUE.
+
        CALL reallocate(atom_info%label_molname,1,natom)
        CALL reallocate(atom_info%label_resname,1,natom)
        CALL reallocate(atom_info%label_resid,1,natom)

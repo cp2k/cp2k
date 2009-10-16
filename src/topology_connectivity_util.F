@@ -1357,11 +1357,10 @@ CONTAINS
 
     INTEGER                                  :: a, fac, i, ind, j, k, m, &
                                                 natoms_orig, nbond, nbond_c, &
-                                                nimpr, nonfo, nphi, nsize, &
-                                                ntheta, nub
+                                                nimpr, nonfo, nphi, ntheta, &
+                                                nub
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL                                  :: check, failure
-    TYPE(atom_info_type), POINTER            :: atom_info
+    LOGICAL                                  :: failure
     TYPE(connectivity_info_type), POINTER    :: conn_info
 
     failure = .FALSE.
@@ -1371,21 +1370,6 @@ CONTAINS
     IF (ANY(multiple_unit_cell/=1)) THEN
        fac = PRODUCT(multiple_unit_cell)
        conn_info => topology%conn_info
-       atom_info => topology%atom_info
-       nsize = SIZE(atom_info%label_molname)
-       check =(nsize== SIZE(atom_info%label_resid)).AND.&
-              (nsize== SIZE(atom_info%label_resname)).AND.&
-              (nsize== SIZE(atom_info%label_atmname)).AND.&
-              (nsize== SIZE(atom_info%atm_charge)).AND.&
-              (nsize== SIZE(atom_info%atm_mass))
-       CPPostcondition(check,cp_failure_level,routineP,error,failure)
-
-       CALL reallocate(atom_info%label_molname,1,nsize*fac)
-       CALL reallocate(atom_info%label_resid,1,nsize*fac)
-       CALL reallocate(atom_info%label_resname,1,nsize*fac)
-       CALL reallocate(atom_info%label_atmname,1,nsize*fac)
-       CALL reallocate(atom_info%atm_charge,1,nsize*fac)
-       CALL reallocate(atom_info%atm_mass,1,nsize*fac)
 
        nbond = 0
        IF (ASSOCIATED(conn_info%bond_a)) THEN
@@ -1443,8 +1427,6 @@ CONTAINS
        END IF
 
        natoms_orig = topology%natoms/fac
-       CPPostcondition(natoms_orig==nsize,cp_failure_level,routineP,error,failure)
-
        ind = 0
        DO k = 1, multiple_unit_cell(3)
           DO j = 1, multiple_unit_cell(2)
@@ -1452,13 +1434,6 @@ CONTAINS
                 ind = ind + 1
                 IF (ind==1) CYCLE
                 a = (ind-1)*natoms_orig
-
-                atom_info%label_molname(a+1:a+natoms_orig) = atom_info%label_molname(1:natoms_orig)
-                atom_info%label_resid(a+1:a+natoms_orig) = atom_info%label_resid(1:natoms_orig)
-                atom_info%label_resname(a+1:a+natoms_orig) = atom_info%label_resname(1:natoms_orig)
-                atom_info%label_atmname(a+1:a+natoms_orig) = atom_info%label_atmname(1:natoms_orig)
-                atom_info%atm_charge(a+1:a+natoms_orig) = atom_info%atm_charge(1:natoms_orig)
-                atom_info%atm_mass(a+1:a+natoms_orig) = atom_info%atm_mass(1:natoms_orig)
 
                 ! Bonds
                 IF (nbond>0) THEN
