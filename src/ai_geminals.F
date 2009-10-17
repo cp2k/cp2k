@@ -21,7 +21,8 @@ MODULE ai_geminals
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
-  USE timings,                         ONLY: timeset
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -50,16 +51,16 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'gemnorm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ir, irm, irx, iry, irz, &
-                                                is, ism, istat, isx, isy, &
-                                                isz, lr, ls
+    INTEGER                                  :: handle, i, ir, irm, irx, iry, &
+                                                irz, is, ism, istat, isx, &
+                                                isy, isz, lr, ls
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: pi3
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zdet
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: zg
 
-!   CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
     anorm = 0._dp
 
@@ -144,7 +145,7 @@ MODULE ai_geminals
     DEALLOCATE (zg,zdet,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-!   CALL timestop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE gemnorm
 
@@ -172,12 +173,12 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'gemint2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, n, nr, ns
+    INTEGER                                  :: handle, istat, n, nr, ns
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: iab0
 
-!   CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
     n = na*nb
     nr = ncoset(lra+lrb)
@@ -195,7 +196,7 @@ MODULE ai_geminals
     DEALLOCATE (iab0,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-!   CALL timestop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE gemint2
 
@@ -337,9 +338,9 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'g2gemint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, j, k, lrab, lsab, &
-                                                ltab, ltc, na, nab, nb, nc, &
-                                                nrab, nrc, nsab, nsc
+    INTEGER                                  :: handle, i, istat, j, k, lrab, &
+                                                lsab, ltab, ltc, na, nab, nb, &
+                                                nc, nrab, nrc, nsab, nsc
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: zab
@@ -349,7 +350,7 @@ MODULE ai_geminals
       DIMENSION(:, :, :, :, :, :)            :: iabcd
     REAL(KIND=dp), DIMENSION(6)              :: ab
 
-!   CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
     CPPrecondition(nderivative>=0,cp_failure_level,routineP,error,failure)
     CPPrecondition(nderivative<=1,cp_failure_level,routineP,error,failure)
@@ -434,7 +435,7 @@ MODULE ai_geminals
     DEALLOCATE (iabc,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-!   CALL timestop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE g2gemint
 ! *****************************************************************************
@@ -558,15 +559,16 @@ MODULE ai_geminals
       ii3 = (/0,0,1/), ii4 = (/1,0,0/), ii5 = (/0,1,0/), ii6 = (/0,0,1/)
     INTEGER, PARAMETER                       :: nmem = 1000000
 
-    INTEGER :: i1, i2, ii, iint, ir, irx, iry, irz, is, istat, isx, isy, isz, &
-      ix, ixx(1), j10, j20, k, k10, k20, ka, kb, kk, ll, llr, lls, lr, ls, &
-      lsmax, lt, m, mm, n, ni, nr, ns
+    INTEGER :: handle, i1, i2, ii, iint, ir, irx, iry, irz, is, istat, isx, &
+      isy, isz, ix, ixx(1), j10, j20, k, k10, k20, ka, kb, kk, ll, llr, lls, &
+      lr, ls, lsmax, lt, m, mm, n, ni, nr, ns
     INTEGER, DIMENSION(3)                    :: irm, irmm, irr, ism, ismm, iss
     LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: aai, abi, abj, ari, asi, bab, &
-                                                d01m, d01p, d02m, d02p, d10m, &
-                                                d10p, d11m, d11p, d20m, d20p, &
-                                                eab, kab, rho, zdet
+    REAL(KIND=dp)                            :: aai, abi, abj, ari, asi, ba, &
+                                                bab, bb, d01m, d01p, d02m, &
+                                                d02p, d10m, d10p, d11m, d11p, &
+                                                d20m, d20p, eab, kab, rho, &
+                                                zdet
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pfab, t
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: f00
@@ -578,7 +580,7 @@ MODULE ai_geminals
     REAL(KIND=dp), DIMENSION(2, 2)           :: ee
     REAL(KIND=dp), DIMENSION(6)              :: ab, c, d, q
 
-!   CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
     lr = lra + lrb
     ls = lsa + lsb
@@ -670,32 +672,44 @@ MODULE ai_geminals
                   j10=coset(irm(1),irm(2),irm(3))
                   j20=coset(irmm(1),irmm(2),irmm(3))
                   k10=coset(ism(1),ism(2),ism(3))
-                  ari = REAL(irm(ix),dp)
-                  asi = REAL(iss(ix),dp)
+                  ari = 0.5_dp*REAL(irm(ix),dp)
+                  asi = 0.5_dp*REAL(iss(ix),dp)
                   abi = ab(ix)
                   abj = ab(3+ix)
                   aai = a(3+ix)
-                  DO mm=0,ll-llr-lls
-                    ! increase r
-                    DO k=1,ii
-                      d10m = intm(k,j10,is,mm)
-                      d10p = intm(k,j10,is,mm+1)
-                      d20m = intm(k,j20,is,mm)
-                      d20p = intm(k,j20,is,mm+1)
-                      d11m = intm(k,j10,k10,mm)
-                      d11p = intm(k,j10,k10,mm+1)
-                      v(1) = abi*(d10p-d10m)
-                      v(2) = abj*(d10p-d10m)
-                      v = MATMUL(zb(:,:,k),v)
-                      v(1) = v(1) + 0.5_dp*ari*(d20m-d20p)
-                      v(2) = v(2) + 0.5_dp*asi*(d11m-d11p)
-                      w = MATMUL(zgm(:,:,k),v)
-                      bab = zb(1,1,k)*abi+zb(1,2,k)*abj-zg(1,2,k)*aai
-                      w(1) = w(1) - bab*d10p/zg(1,1,k)
-                      w(1) = w(1) + 0.5_dp*ari*d20p/zg(1,1,k)
-                      intm(k,ir,is,mm) = w(1)
+                  IF ( ii==1 ) THEN
+                    ba   = (zb(1,1,1)*abi+zb(1,2,1)*abj)
+                    bb   = (zb(2,1,1)*abi+zb(2,2,1)*abj)
+                    bab  = ba-zg(1,2,1)*aai
+                    eab  = 1._dp/zg(1,1,1)
+                    DO mm=0,ll-llr-lls
+                      d10m = intm(1,j10,is,mm)
+                      d10p = intm(1,j10,is,mm+1)
+                      d20m = intm(1,j20,is,mm)
+                      d20p = intm(1,j20,is,mm+1)
+                      d11m = intm(1,j10,k10,mm)
+                      d11p = intm(1,j10,k10,mm+1)
+                      v(1) = ba*(d10p-d10m) + ari*(d20m-d20p)
+                      v(2) = bb*(d10p-d10m) + asi*(d11m-d11p)
+                      intm(1,ir,is,mm) = zgm(1,1,1)*v(1)+zgm(1,2,1)*v(2) - (bab*d10p-ari*d20p)*eab
                     END DO
-                  END DO
+                  ELSE
+                    DO mm=0,ll-llr-lls
+                      ! increase r
+                      DO k=1,ii
+                        d10m = intm(k,j10,is,mm)
+                        d10p = intm(k,j10,is,mm+1)
+                        d20m = intm(k,j20,is,mm)
+                        d20p = intm(k,j20,is,mm+1)
+                        d11m = intm(k,j10,k10,mm)
+                        d11p = intm(k,j10,k10,mm+1)
+                        bab  = (zb(1,1,k)*abi+zb(1,2,k)*abj)-zg(1,2,k)*aai
+                        v(1) = (zb(1,1,k)*abi+zb(1,2,k)*abj)*(d10p-d10m) + ari*(d20m-d20p)
+                        v(2) = (zb(2,1,k)*abi+zb(2,2,k)*abj)*(d10p-d10m) + asi*(d11m-d11p)
+                        intm(k,ir,is,mm) = zgm(1,1,k)*v(1)+zgm(1,2,k)*v(2) - (bab*d10p-ari*d20p)/zg(1,1,k)
+                      END DO
+                    END DO
+                  END IF
                 END DO
               END DO
             END DO
@@ -774,7 +788,7 @@ MODULE ai_geminals
     DEALLOCATE (intm,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-!   CALL timestop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE vrr
 ! *****************************************************************************
@@ -793,16 +807,16 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'hrr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ii(6), iim(6), ira, irap, irax, iray, iraz, irb, irbm, irbx, &
-      irby, irbz, isa, isap, isax, isay, isaz, isb, isbm, isbx, isby, isbz, &
-      istat, ix, ixx(1), jj(6), jjm(6), mra, mrb, msa, msax, msb, msbx, n, &
-      nra, nrab, nrb, nsa, nsab, nsb, nua, nub
+    INTEGER :: handle, ii(6), iim(6), ira, irap, irax, iray, iraz, irb, irbm, &
+      irbx, irby, irbz, isa, isap, isax, isay, isaz, isb, isbm, isbx, isby, &
+      isbz, istat, ix, ixx(1), jj(6), jjm(6), mra, mrb, msa, msax, msb, msbx, &
+      n, nra, nrab, nrb, nsa, nsab, nsb, nua, nub
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: abx
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: iab
 
-!   CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
     nra = ncoset(lra)
     nsa = ncoset(lsa)
@@ -867,8 +881,13 @@ MODULE ai_geminals
                               irap=coset(jjm(1),jjm(2),jjm(3))
                               isap=coset(jjm(4),jjm(5),jjm(6))
           
-                              iab(1:n,ira,isa,irb,isb) = iab(1:n,irap,isap,irbm,isbm) + &
-                                                         abx * iab(1:n,ira,isa,irbm,isbm)
+                              IF ( n==1 ) THEN
+                                iab(1,ira,isa,irb,isb) = iab(1,irap,isap,irbm,isbm) + &
+                                                         abx * iab(1,ira,isa,irbm,isbm)
+                              ELSE
+                                iab(1:n,ira,isa,irb,isb) = iab(1:n,irap,isap,irbm,isbm) + &
+                                                           abx * iab(1:n,ira,isa,irbm,isbm)
+                              END IF
 
                             END DO
                           END DO
@@ -903,7 +922,7 @@ MODULE ai_geminals
     DEALLOCATE (iab,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-!   CALL timestop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE hrr
 ! *****************************************************************************
@@ -918,16 +937,16 @@ MODULE ai_geminals
     CHARACTER(len=*), PARAMETER :: routineN = 'gg_trans1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i1, i2, i3, istat, iu, iv, &
-                                                iw, j1, j2, j3, k1, k2, l1, &
-                                                l2, m1, m2, mk, mr, ms, nk, &
-                                                nmax, nr, ns
+    INTEGER                                  :: handle, i1, i2, i3, istat, &
+                                                iu, iv, iw, j1, j2, j3, k1, &
+                                                k2, l1, l2, m1, m2, mk, mr, &
+                                                ms, nk, nmax, nr, ns
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ac
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: a123
 
-!   CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
     nmax=MAX(la,lb)
 
@@ -982,7 +1001,7 @@ MODULE ai_geminals
     DEALLOCATE (ac,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-!   CALL timestop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE gg_trans1
 ! *****************************************************************************
