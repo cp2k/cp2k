@@ -82,11 +82,12 @@ CONTAINS
 !>        provide them
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE topology_generate_molname(conn_info, natom, label_molname, error)
+  SUBROUTINE topology_generate_molname(conn_info, natom, natom_prev, nbond_prev,&
+                                       label_molname, error)
     TYPE(connectivity_info_type), POINTER    :: conn_info
-    INTEGER, INTENT(IN)                      :: natom
+    INTEGER, INTENT(IN)                      :: natom, natom_prev, nbond_prev
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: label_molname
+      DIMENSION(:), INTENT(INOUT)            :: label_molname
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molname', &
@@ -110,8 +111,9 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     N = 0
-    IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
-    CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+    IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a) - nbond_prev
+    CALL reorder_structure(atom_bond_list, conn_info%bond_a(nbond_prev+1:)-natom_prev, &
+                           conn_info%bond_b(nbond_prev+1:)-natom_prev, N, error)
     
     nmol=0
     DO i = 1, natom
@@ -141,7 +143,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: molname
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: label_molname
+      DIMENSION(:), INTENT(INOUT)            :: label_molname
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_molname_low', &

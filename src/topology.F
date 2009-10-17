@@ -259,16 +259,13 @@ CONTAINS
     INTEGER, PARAMETER                       :: map0 = ICHAR("0"), &
                                                 map9 = ICHAR("9")
 
-    CHARACTER(len=default_path_length)       :: filename
     CHARACTER(len=default_string_length)     :: element0, my_element
     CHARACTER(len=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: elements
-    INTEGER                                  :: conn_type, handle, handle2, &
-                                                i, i_rep, id, imol, itmp, iw, &
-                                                j, k, n_rep, nmol, stat
+    INTEGER                                  :: handle, handle2, i, id, itmp, &
+                                                iw, j, k, stat
     LOGICAL                                  :: check, failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: section
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -285,58 +282,18 @@ CONTAINS
     CASE (do_conn_generate, do_conn_off)
        ! Do nothing for the time being.. after we check element and proceed with the workflow..
     CASE DEFAULT
+       ! Prepare arrays
        CALL pre_read_topology(topology,error)
-
-       SELECT CASE (topology%conn_type)
-       CASE (do_conn_mol_set)
-          section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET",error=error)
-          section => section_vals_get_subs_vals(section,"MOLECULE",error=error)
-          CALL section_vals_get(section,n_repetition=n_rep,error=error)
-          DO i_rep=1,n_rep
-             CALL section_vals_val_get(section,"NMOL",i_val=nmol,&
-                  i_rep_section=i_rep,error=error)
-             CALL section_vals_val_get(section,"CONN_FILE_NAME",c_val=filename,&
-                  i_rep_section=i_rep,error=error)
-             CALL section_vals_val_get(section,"CONN_FILE_FORMAT",i_val=conn_type,&
-                  i_rep_section=i_rep,error=error)
-             CALL cp_assert(((conn_type==do_conn_psf).OR.(conn_type==do_conn_psf_u)),&
-                  cp_failure_level,cp_assertion_failed,routineP,&
-                  "MOL_SET feature implemented only for PSF/UPSF connectivity type."//&
- CPSourceFileRef,&
-                  error=error,failure=failure)         
-             DO imol=1,nmol
-                CALL read_topology_psf(filename,topology,para_env,subsys_section,&
-                     conn_type,error)
-             END DO
-          END DO
-          CALL cp_assert(SIZE(topology%atom_info%label_molname)==topology%natoms,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "Number of atoms in connectivity control is larger than the "//&
-               "number of atoms in coordinate control. check coordinates and "//&
-               "connectivity. "//&
- CPSourceFileRef,&
-               error=error,failure=failure)
-          ! Merge defined structures
-          section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET%MERGE_MOLECULES",&
-               error=error)
-          CALL idm_psf(topology,section,subsys_section,error)
-       CASE (do_conn_g96,do_conn_g87)
-          CALL read_topology_gromos(topology%conn_file_name,topology,para_env,&
-               subsys_section,error)
-       CASE (do_conn_psf, do_conn_psf_u)
-          CALL read_topology_psf(topology%conn_file_name,topology,para_env,subsys_section,&
-               topology%conn_type, error)
-       CASE (do_conn_amb7)
-          CALL read_connectivity_amber(topology%conn_file_name,topology,para_env,subsys_section,&
-               error)
-       END SELECT
+       
+       ! Read connectivity from file
+       CALL read_topology_conn(topology, topology%conn_type, topology%conn_file_name, &
+                               para_env, subsys_section, error)
 
        ! Post process of PSF and AMBER information
        SELECT CASE (topology%conn_type)
        CASE (do_conn_mol_set, do_conn_psf, do_conn_psf_u, do_conn_amb7)
           CALL psf_post_process(topology,subsys_section,error)
        END SELECT
-
     END SELECT
 
     ! 2. In case element was autoassigned let's keep up2date the element name 
@@ -436,6 +393,80 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO",error=error)
 
   END SUBROUTINE connectivity_control
+
+! *****************************************************************************
+!> \brief Reads connectivity from file
+!> \author Teodoro Laino [tlaino] - 10.2009
+! *****************************************************************************
+  RECURSIVE SUBROUTINE read_topology_conn(topology, conn_type, conn_file_name, para_env,&
+       subsys_section, error)
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    INTEGER, INTENT(IN)                      :: conn_type
+    CHARACTER(LEN=default_path_length), &
+      INTENT(IN)                             :: conn_file_name
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_conn', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_path_length)       :: filename
+    INTEGER                                  :: i_rep, imol, loc_conn_type, &
+                                                n_rep, nmol
+    LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: section
+
+    failure = .FALSE.
+    NULLIFY (section)
+
+    SELECT CASE (conn_type)
+    CASE (do_conn_mol_set)
+       section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET",error=error)
+       section => section_vals_get_subs_vals(section,"MOLECULE",error=error)
+       CALL section_vals_get(section,n_repetition=n_rep,error=error)
+       DO i_rep=1,n_rep
+          CALL section_vals_val_get(section,"NMOL",i_val=nmol,i_rep_section=i_rep,error=error)
+          CALL section_vals_val_get(section,"CONN_FILE_NAME",c_val=filename,i_rep_section=i_rep,error=error)
+          CALL section_vals_val_get(section,"CONN_FILE_FORMAT",i_val=loc_conn_type,i_rep_section=i_rep,error=error)
+
+          SELECT CASE (loc_conn_type)
+          CASE (do_conn_psf, do_conn_psf_u, do_conn_g96, do_conn_g87, do_conn_amb7)
+             DO imol=1,nmol
+                CALL read_topology_conn(topology,loc_conn_type,filename,para_env,subsys_section,&
+                     error)
+             END DO
+          CASE DEFAULT
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                  "MOL_SET feature implemented only for PSF/UPSF, G87/G96 and AMBER "//&
+                  "connectivity type."//&
+CPSourceFileRef,&
+                  error=error,failure=failure)
+          END SELECT
+       END DO
+       CALL cp_assert(SIZE(topology%atom_info%label_molname)==topology%natoms,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "Number of atoms in connectivity control is larger than the "//&
+            "number of atoms in coordinate control. check coordinates and "//&
+            "connectivity. "//&
+ CPSourceFileRef,&
+            error=error,failure=failure)
+
+       ! Merge defined structures
+       section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET%MERGE_MOLECULES",error=error)
+       CALL idm_psf(topology,section,subsys_section,error)
+
+    CASE (do_conn_g96,do_conn_g87)
+       CALL read_topology_gromos(conn_file_name,topology,para_env,subsys_section,error)
+    CASE (do_conn_psf, do_conn_psf_u)
+       CALL read_topology_psf(conn_file_name,topology,para_env,subsys_section,conn_type, error)
+    CASE (do_conn_amb7)
+       CALL read_connectivity_amber(conn_file_name,topology,para_env,subsys_section,error)
+    END SELECT
+    
+  END SUBROUTINE read_topology_conn
 
 ! *****************************************************************************
 !> \brief 1. If reading in from external file, make sure its there first

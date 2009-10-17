@@ -381,11 +381,12 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: input_format, section
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: isymbl, labres
-    INTEGER :: handle, handle2, i, ifbox, ifcap, ifpert, info(31), istart, &
-      mbona, mbper, mdper, mgper, mphia, mtheta, natom, natyp, nbona, nbonh, &
-      nbper, ndper, ngper, nhparm, nmxrs, nnb, nparm, nphb, nphia, nphih, &
-      nptra, nres, nsize, ntheta, ntheth, ntypes, numang, numbnd, numextra, &
-      stat, unique_torsions
+    INTEGER :: handle, handle2, i, ifbox, ifcap, ifpert, index_now, info(31), &
+      istart, mbona, mbper, mdper, mgper, mphia, mtheta, natom, natom_prev, &
+      natyp, nbona, nbond_prev, nbonh, nbper, ndper, ngper, nhparm, nmxrs, &
+      nnb, nparm, nphb, nphi_prev, nphia, nphih, nptra, nres, nsize, ntheta, &
+      ntheta_prev, ntheth, ntypes, numang, numbnd, numextra, stat, &
+      unique_torsions
     INTEGER, ALLOCATABLE, DIMENSION(:) :: iac, ib, ibh, icb, icbh, ico, icp, &
       icph, ict, icth, ip, iph, ipres, it, ith, iwork, jb, jbh, jp, jph, jt, &
       jth, kp, kph, kt, kth, lp, lph
@@ -458,6 +459,8 @@ CPSourceFileRef,&
              IF (do_connectivity) THEN
                 check = PRESENT(atom_info).AND.PRESENT(conn_info)
                 CPPrecondition(check,cp_failure_level,routineP,error,failure)
+                natom_prev = 0
+                IF(ASSOCIATED(atom_info%label_molname)) natom_prev = SIZE(atom_info%label_molname)
                 ! Allocate for extracting connectivity infos
                 ALLOCATE(labres (nres               ),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -547,25 +550,25 @@ CPSourceFileRef,&
              CYCLE
           CASE("AMBER_ATOM_TYPE")
              IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%label_atmname,1,natom)
-             CALL rd_amber_section(parser, section, atom_info%label_atmname, natom, error)
+             CALL reallocate(atom_info%label_atmname,1,natom_prev+natom)
+             CALL rd_amber_section(parser, section, atom_info%label_atmname(natom_prev+1:), natom, error)
           CASE("CHARGE")
              IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%atm_charge,1,natom)
-             CALL rd_amber_section(parser, section, atom_info%atm_charge, natom, error)
+             CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
+             CALL rd_amber_section(parser, section, atom_info%atm_charge(natom_prev+1:), natom, error)
              ! Convert charges into atomic units
-             atom_info%atm_charge = atom_info%atm_charge/amber_conv_charge
+             atom_info%atm_charge(natom_prev+1:) = atom_info%atm_charge(natom_prev+1:)/amber_conv_charge
           CASE("MASS")
              IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%atm_mass,1,natom)
-             CALL rd_amber_section(parser, section, atom_info%atm_mass, natom, error)
+             CALL reallocate(atom_info%atm_mass,1,natom_prev+natom)
+             CALL rd_amber_section(parser, section, atom_info%atm_mass(natom_prev+1:), natom, error)
           CASE("RESIDUE_LABEL")
              IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%label_resname,1,natom)
+             CALL reallocate(atom_info%label_resname,1,natom_prev+natom)
              CALL rd_amber_section(parser, section, labres, nres, error)
           CASE("RESIDUE_POINTER")
              IF (.NOT.do_connectivity) CYCLE
-             CALL reallocate(atom_info%label_resid,1,natom)
+             CALL reallocate(atom_info%label_resid,1,natom_prev+natom)
              CALL rd_amber_section(parser, section, ipres, nres, error)
           CASE("ATOM_TYPE_INDEX")
              IF (.NOT.do_forcefield) CYCLE
@@ -664,7 +667,7 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(iwork(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       isymbl = atom_info%label_atmname
+       isymbl = atom_info%label_atmname(natom_prev+1:)
 
        ! Sort atom names + charges and identify unique types
        CALL sort(isymbl, natom, iwork)
@@ -672,26 +675,26 @@ CPSourceFileRef,&
        istart = 1
        DO i = 2, natom
           IF (TRIM(isymbl(i))/=TRIM(isymbl(istart))) THEN
-             CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge, error)
+             CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev+1:), error)
              istart = i
           END IF
        END DO
-       CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge, error)
+       CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge(natom_prev+1:), error)
 
        ! Copy back the modified and conformed atom types
        DO i = 1, natom
-          atom_info%label_atmname(iwork(i)) = isymbl(i)
+          atom_info%label_atmname(natom_prev+iwork(i)) = isymbl(i)
        END DO
 
        ! -----------------------------------------------------------
        ! Fill residue_name and residue_id information before exiting
        ! -----------------------------------------------------------
        DO i = 1, nres-1
-          atom_info%label_resname(ipres(i):ipres(i+1)) = labres(i)
-          atom_info%label_resid(ipres(i):ipres(i+1))   = i
+          atom_info%label_resname(natom_prev+ipres(i):natom_prev+ipres(i+1)) = labres(i)
+          atom_info%label_resid(natom_prev+ipres(i):natom_prev+ipres(i+1))   = i
        END DO
-       atom_info%label_resname(ipres(i):natom) = labres(i)
-       atom_info%label_resid(ipres(i):natom)   = i
+       atom_info%label_resname(natom_prev+ipres(i):natom_prev+natom) = labres(i)
+       atom_info%label_resid(natom_prev+ipres(i):natom_prev+natom)   = i
 
        ! Deallocate when extracting connectivity infos
        DEALLOCATE(iwork,stat=stat)
@@ -707,37 +710,52 @@ CPSourceFileRef,&
        ! Copy connectivity
        ! ----------------------------------------------------------
        ! BONDS
-       CALL reallocate(conn_info%bond_a,1,nbonh+nbona)
-       CALL reallocate(conn_info%bond_b,1,nbonh+nbona)
+       nbond_prev = 0
+       IF(ASSOCIATED(conn_info%bond_a)) nbond_prev = SIZE(conn_info%bond_a)
+
+       CALL reallocate(conn_info%bond_a,1,nbond_prev+nbonh+nbona)
+       CALL reallocate(conn_info%bond_b,1,nbond_prev+nbonh+nbona)
        DO i = 1, nbonh
-          conn_info%bond_a(i)       = ibh(i)
-          conn_info%bond_b(i)       = jbh(i)
+          index_now = nbond_prev + i
+          conn_info%bond_a(index_now) = natom_prev+ibh(i)
+          conn_info%bond_b(index_now) = natom_prev+jbh(i)
        END DO
        DO i = 1, nbona
-          conn_info%bond_a(nbonh+i) = ib(i)
-          conn_info%bond_b(nbonh+i) = jb(i)
+          index_now = nbond_prev + i + nbonh
+          conn_info%bond_a(index_now) = natom_prev+ib(i)
+          conn_info%bond_b(index_now) = natom_prev+jb(i)
        END DO
+
        ! ANGLES
-       CALL reallocate(conn_info%theta_a,1,ntheth+ntheta)
-       CALL reallocate(conn_info%theta_b,1,ntheth+ntheta)
-       CALL reallocate(conn_info%theta_c,1,ntheth+ntheta)
+       ntheta_prev = 0
+       IF(ASSOCIATED(conn_info%theta_a)) ntheta_prev = SIZE(conn_info%theta_a)
+
+       CALL reallocate(conn_info%theta_a,1,ntheta_prev+ntheth+ntheta)
+       CALL reallocate(conn_info%theta_b,1,ntheta_prev+ntheth+ntheta)
+       CALL reallocate(conn_info%theta_c,1,ntheta_prev+ntheth+ntheta)
        DO i = 1, ntheth
-          conn_info%theta_a(i)        = ith(i)
-          conn_info%theta_b(i)        = jth(i)
-          conn_info%theta_c(i)        = kth(i)
+          index_now = ntheta_prev + i
+          conn_info%theta_a(index_now) = natom_prev+ith(i)
+          conn_info%theta_b(index_now) = natom_prev+jth(i)
+          conn_info%theta_c(index_now) = natom_prev+kth(i)
        END DO
        DO i = 1, ntheta
-          conn_info%theta_a(ntheth+i) = it(i)
-          conn_info%theta_b(ntheth+i) = jt(i)
-          conn_info%theta_c(ntheth+i) = kt(i)
+          index_now = ntheta_prev + i + ntheth
+          conn_info%theta_a(index_now) = natom_prev+it(i)
+          conn_info%theta_b(index_now) = natom_prev+jt(i)
+          conn_info%theta_c(index_now) = natom_prev+kt(i)
        END DO
+
        ! TORSIONS
        ! For torsions we need to find out the unique torsions 
        ! defined in the amber parmtop
-       CALL reallocate(conn_info%phi_a,1,nphih+nphia)
-       CALL reallocate(conn_info%phi_b,1,nphih+nphia)
-       CALL reallocate(conn_info%phi_c,1,nphih+nphia)
-       CALL reallocate(conn_info%phi_d,1,nphih+nphia)
+       nphi_prev = 0
+       IF(ASSOCIATED(conn_info%phi_a)) nphi_prev = SIZE(conn_info%phi_a)
+
+       CALL reallocate(conn_info%phi_a,1,nphi_prev+nphih+nphia)
+       CALL reallocate(conn_info%phi_b,1,nphi_prev+nphih+nphia)
+       CALL reallocate(conn_info%phi_c,1,nphi_prev+nphih+nphia)
+       CALL reallocate(conn_info%phi_d,1,nphi_prev+nphih+nphia)
 
        IF (nphih+nphia /= 0) THEN
           ALLOCATE(full_torsions(4,nphih+nphia),stat=stat)
@@ -759,21 +777,21 @@ CPSourceFileRef,&
           END DO
           CALL sort(full_torsions, 1, nphih+nphia, 1, 4, iwork)
 
-          unique_torsions = 1
-          conn_info%phi_a(1) = full_torsions(1,1)
-          conn_info%phi_b(1) = full_torsions(2,1)
-          conn_info%phi_c(1) = full_torsions(3,1)
-          conn_info%phi_d(1) = full_torsions(4,1)
+          unique_torsions = nphi_prev+1
+          conn_info%phi_a(unique_torsions) = natom_prev+full_torsions(1,1)
+          conn_info%phi_b(unique_torsions) = natom_prev+full_torsions(2,1)
+          conn_info%phi_c(unique_torsions) = natom_prev+full_torsions(3,1)
+          conn_info%phi_d(unique_torsions) = natom_prev+full_torsions(4,1)
           DO i = 2, nphih+nphia
              IF ( (full_torsions(1,i)/=full_torsions(1,i-1)).OR.&
                   (full_torsions(2,i)/=full_torsions(2,i-1)).OR.&
                   (full_torsions(3,i)/=full_torsions(3,i-1)).OR.&
                   (full_torsions(4,i)/=full_torsions(4,i-1))) THEN
                 unique_torsions = unique_torsions + 1
-                conn_info%phi_a(unique_torsions) = full_torsions(1,i)
-                conn_info%phi_b(unique_torsions) = full_torsions(2,i)
-                conn_info%phi_c(unique_torsions) = full_torsions(3,i)
-                conn_info%phi_d(unique_torsions) = full_torsions(4,i)
+                conn_info%phi_a(unique_torsions) = natom_prev+full_torsions(1,i)
+                conn_info%phi_b(unique_torsions) = natom_prev+full_torsions(2,i)
+                conn_info%phi_c(unique_torsions) = natom_prev+full_torsions(3,i)
+                conn_info%phi_d(unique_torsions) = natom_prev+full_torsions(4,i)
              END IF
           END DO
           CALL reallocate(conn_info%phi_a,1,unique_torsions)
@@ -795,9 +813,10 @@ CPSourceFileRef,&
        ! ----------------------------------------------------------
        ! Generate molecule names
        ! ----------------------------------------------------------
-       CALL reallocate(atom_info%label_molname,1,natom)
-       atom_info%label_molname = "__UNDEF__"
-       CALL topology_generate_molname(conn_info, natom, atom_info%label_molname, error)
+       CALL reallocate(atom_info%label_molname,1,natom_prev+natom)
+       atom_info%label_molname(natom_prev+1:natom_prev+natom) = "__UNDEF__"
+       CALL topology_generate_molname(conn_info, natom, natom_prev, nbond_prev,&
+            atom_info%label_molname(natom_prev+1:natom_prev+natom), error)
        CALL timestop(handle2)
     END IF
 
@@ -999,7 +1018,7 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:)                    :: iwork
     INTEGER, INTENT(IN)                      :: i
     INTEGER, INTENT(INOUT)                   :: istart
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'conform_atom_type_low', &

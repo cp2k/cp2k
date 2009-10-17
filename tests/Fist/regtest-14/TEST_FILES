@@ -6,3 +6,5 @@ argon-gle.inp    2
 argon-gle_r.inp  2
 #new FF
 water_mm3.inp   11
+#mol_set + amber
+lamol.inp        2
