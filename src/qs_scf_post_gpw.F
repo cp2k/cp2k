@@ -78,6 +78,7 @@ MODULE qs_scf_post_gpw
   USE pw_grids,                        ONLY: get_pw_grid_info
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_copy,&
+                                             pw_derive,&
                                              pw_integrate_function,&
                                              pw_scale,&
                                              pw_transfer,&
@@ -1593,9 +1594,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=1), DIMENSION(3)           :: cdir = (/"x","y","z"/)
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
-    INTEGER                                  :: handle, homo, ispin, iw, nmo, &
-                                                output_unit, unit_nr
+    INTEGER                                  :: handle, homo, id, ispin, iw, &
+                                                nd(3), nmo, output_unit, &
+                                                unit_nr
     LOGICAL                                  :: all_equal, append_cube, &
                                                 failure, ionode, &
                                                 print_total_density
@@ -1620,7 +1623,8 @@ CPSourceFileRef,&
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: rho_elec_gspace, &
+    TYPE(pw_p_type)                          :: aux_g, aux_r, &
+                                                rho_elec_gspace, &
                                                 rho_elec_rspace, wf_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -1966,6 +1970,12 @@ CPSourceFileRef,&
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
 
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
+                                  use_data = REALDATA3D,&
+                                  in_space = REALSPACE, error=error)
+
           append_cube = section_get_lval(input,"DFT%PRINT%V_HARTREE_CUBE%APPEND",error=error)
           my_pos_cube="REWIND"
           IF(append_cube) THEN
@@ -1976,15 +1986,64 @@ CPSourceFileRef,&
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
                extension=".cube",middle_name="v_hartree",file_position=my_pos_cube,error=error)
           udvol = 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol
-          CALL pw_scale(qs_env%ks_env%v_hartree_rspace%pw,udvol,error=error)
 
-          CALL pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
+          CALL pw_copy(qs_env%ks_env%v_hartree_rspace%pw,aux_r%pw, error=error)
+          CALL pw_scale(aux_r%pw,udvol,error=error)
+
+          CALL pw_to_cube(aux_r%pw,&
                unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&
                stride=section_get_ivals(dft_section,&
                "PRINT%V_HARTREE_CUBE%STRIDE",error=error),&
                error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%V_HARTREE_CUBE",error=error)
+
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw, error=error)
+       ENDIF
+
+       ! Print the Electrical Field Components
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%EFIELD_CUBE",error=error),cp_p_file)) THEN
+
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
+                                  use_data = REALDATA3D,&
+                                  in_space = REALSPACE, error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,aux_g%pw,&
+                                  use_data = COMPLEXDATA1D,&
+                                  in_space = RECIPROCALSPACE, error=error)
+
+          append_cube = section_get_lval(input,"DFT%PRINT%EFIELD_CUBE%APPEND",error=error)
+          my_pos_cube="REWIND"
+          IF(append_cube) THEN
+            my_pos_cube="APPEND"
+          END IF
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+          CALL pw_env_get(pw_env, error=error)
+          udvol = 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol
+          DO id=1,3
+            unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%EFIELD_CUBE",&
+              extension=".cube",middle_name="efield_"//cdir(id),file_position=my_pos_cube,error=error)
+
+            CALL pw_transfer(qs_env%ks_env%v_hartree_rspace%pw,aux_g%pw, error=error)
+            nd=0
+            nd(id)=1
+            CALL pw_derive(aux_g%pw,nd,error=error)
+            CALL pw_transfer(aux_g%pw,aux_r%pw, error=error)
+            CALL pw_scale(aux_r%pw,udvol,error=error)
+
+            CALL pw_to_cube(aux_r%pw,&
+               unit_nr,unit_nr>0,"ELECTRIC FIELD",particles=particles,&
+               stride=section_get_ivals(dft_section,&
+               "PRINT%EFIELD_CUBE%STRIDE",error=error),&
+               error=error)
+            CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                 "DFT%PRINT%EFIELD_CUBE",error=error)
+          END DO
+
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw, error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_g%pw, error=error)
        ENDIF
 
        !    *** write the density matrix ***
