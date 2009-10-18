@@ -58,8 +58,8 @@ CONTAINS
       DIMENSION(21)                          :: avail_section
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: namearray1(:), namearray2(:)
-    INTEGER :: begin, handle, i, iatom, ibond, icon, ii(50), iresid, &
-      isolvent, itemp, itype, iw, jatom, natom, natom_prev, nbond, &
+    INTEGER :: begin, handle, i, iatom, ibond, icon, ii(50), index_now, &
+      iresid, isolvent, itemp, itype, iw, jatom, natom, natom_prev, nbond, &
       nbond_prev, ncon, nsolute, nsolvent, ntype, offset, offset2, stat
     INTEGER, POINTER                         :: ba(:), bb(:), na(:)
     LOGICAL                                  :: failure, found
@@ -196,17 +196,18 @@ CONTAINS
        CALL reallocate(atom_info%atm_mass,1,natom_prev+natom)
        CALL parser_get_next_line(parser,1,error=error)
        DO iatom=1,natom
+          index_now = iatom + natom_prev
           CALL parser_get_object(parser,itemp,error=error)
           CALL parser_get_object(parser,itemp,error=error)
-          atom_info%label_resid(iatom)=itemp
-          atom_info%label_molname(iatom) = namearray2(itemp)
-          atom_info%label_resname(iatom) = namearray2(itemp)
+          atom_info%label_resid(index_now)=itemp
+          atom_info%label_molname(index_now) = namearray2(itemp)
+          atom_info%label_resname(index_now) = namearray2(itemp)
           CALL parser_get_object(parser,string,error=error)
           CALL parser_get_object(parser,itemp,error=error)
-          atom_info%label_atmname(iatom) = namearray1(itemp)
-          atom_info%element(iatom)       = namearray1(itemp)
-          CALL parser_get_object(parser,atom_info%atm_mass(iatom),error=error)
-          CALL parser_get_object(parser,atom_info%atm_charge(iatom),error=error)
+          atom_info%label_atmname(index_now) = namearray1(itemp)
+          atom_info%element(index_now)       = namearray1(itemp)
+          CALL parser_get_object(parser,atom_info%atm_mass(index_now),error=error)
+          CALL parser_get_object(parser,atom_info%atm_charge(index_now),error=error)
           CALL parser_get_object(parser,itemp,error=error)
           IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT SOLUTEATOM INFO HERE!!!!"
           CALL parser_get_object(parser,ntype,error=error)
@@ -242,7 +243,7 @@ CONTAINS
              CALL reallocate(conn_info%onfo_a,1,offset+ntype)
              CALL reallocate(conn_info%onfo_b,1,offset+ntype)
              CALL reallocate(conn_info%onfo_type,1,offset+ntype)
-             conn_info%onfo_a(offset+1:offset+ntype)=iatom
+             conn_info%onfo_a(offset+1:offset+ntype)=index_now
              DO i=1,50
                 ii(i)=-1
              END DO
@@ -297,6 +298,8 @@ CONTAINS
           conn_info%bond_type(offset+itype)=itemp
           IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT BONDH INFO HERE!!!!"
        END DO
+       conn_info%bond_a(offset+1:offset+ntype) =  conn_info%bond_a(offset+1:offset+ntype) + natom_prev
+       conn_info%bond_b(offset+1:offset+ntype) =  conn_info%bond_b(offset+1:offset+ntype) + natom_prev
     END IF
     ! BOND SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the BOND section'
@@ -318,6 +321,8 @@ CONTAINS
           conn_info%bond_type(offset+itype)=itemp
           IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT BOND INFO HERE!!!!"
        END DO
+       conn_info%bond_a(offset+1:offset+ntype) =  conn_info%bond_a(offset+1:offset+ntype) + natom_prev
+       conn_info%bond_b(offset+1:offset+ntype) =  conn_info%bond_b(offset+1:offset+ntype) + natom_prev
     END IF
     ! BONDANGLEH SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the BONDANGLEH section'
@@ -341,6 +346,9 @@ CONTAINS
           conn_info%theta_type(offset+itype)=itemp
           IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT BONDANGLEH INFO HERE!!!!"
        END DO
+       conn_info%theta_a(offset+1:offset+ntype) =  conn_info%theta_a(offset+1:offset+ntype) + natom_prev
+       conn_info%theta_b(offset+1:offset+ntype) =  conn_info%theta_b(offset+1:offset+ntype) + natom_prev
+       conn_info%theta_c(offset+1:offset+ntype) =  conn_info%theta_c(offset+1:offset+ntype) + natom_prev
     END IF
     ! BONDANGLE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the BONDANGLE section'
@@ -349,7 +357,8 @@ CONTAINS
     IF(found) THEN
        CALL parser_get_next_line(parser,1,error=error)
        CALL parser_get_object(parser,ntype,error=error)
-       offset = SIZE(conn_info%theta_a)
+       offset = 0
+       IF(ASSOCIATED(conn_info%theta_a)) offset = SIZE(conn_info%theta_a)
        CALL reallocate(conn_info%theta_a,1,offset+ntype)
        CALL reallocate(conn_info%theta_b,1,offset+ntype)
        CALL reallocate(conn_info%theta_c,1,offset+ntype)
@@ -363,6 +372,9 @@ CONTAINS
           conn_info%theta_type(offset+itype)=itemp
           IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT BONDANGLE INFO HERE!!!!"
        END DO
+       conn_info%theta_a(offset+1:offset+ntype) =  conn_info%theta_a(offset+1:offset+ntype) + natom_prev
+       conn_info%theta_b(offset+1:offset+ntype) =  conn_info%theta_b(offset+1:offset+ntype) + natom_prev
+       conn_info%theta_c(offset+1:offset+ntype) =  conn_info%theta_c(offset+1:offset+ntype) + natom_prev
     END IF
     ! IMPDIHEDRALH SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the IMPDIHEDRALH section'
@@ -388,6 +400,10 @@ CONTAINS
           conn_info%impr_type(offset+itype)=itemp
           IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT IMPDIHEDRALH INFO HERE!!!!"
        END DO
+       conn_info%impr_a(offset+1:offset+ntype) =  conn_info%impr_a(offset+1:offset+ntype) + natom_prev
+       conn_info%impr_b(offset+1:offset+ntype) =  conn_info%impr_b(offset+1:offset+ntype) + natom_prev
+       conn_info%impr_c(offset+1:offset+ntype) =  conn_info%impr_c(offset+1:offset+ntype) + natom_prev
+       conn_info%impr_d(offset+1:offset+ntype) =  conn_info%impr_d(offset+1:offset+ntype) + natom_prev
     END IF
     ! IMPDIHEDRAL SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the IMPDIHEDRAL section'
@@ -413,6 +429,10 @@ CONTAINS
           conn_info%impr_type(offset+itype)=itemp
           IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT IMPDIHEDRAL INFO HERE!!!!"
        END DO
+       conn_info%impr_a(offset+1:offset+ntype) =  conn_info%impr_a(offset+1:offset+ntype) + natom_prev
+       conn_info%impr_b(offset+1:offset+ntype) =  conn_info%impr_b(offset+1:offset+ntype) + natom_prev
+       conn_info%impr_c(offset+1:offset+ntype) =  conn_info%impr_c(offset+1:offset+ntype) + natom_prev
+       conn_info%impr_d(offset+1:offset+ntype) =  conn_info%impr_d(offset+1:offset+ntype) + natom_prev
     END IF
     ! DIHEDRALH SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the DIHEDRALH section'
@@ -438,6 +458,10 @@ CONTAINS
           conn_info%phi_type(offset+itype)=itemp
           IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT DIHEDRALH INFO HERE!!!!"
        END DO
+       conn_info%phi_a(offset+1:offset+ntype) =  conn_info%phi_a(offset+1:offset+ntype) + natom_prev
+       conn_info%phi_b(offset+1:offset+ntype) =  conn_info%phi_b(offset+1:offset+ntype) + natom_prev
+       conn_info%phi_c(offset+1:offset+ntype) =  conn_info%phi_c(offset+1:offset+ntype) + natom_prev
+       conn_info%phi_d(offset+1:offset+ntype) =  conn_info%phi_d(offset+1:offset+ntype) + natom_prev
     END IF
     ! DIHEDRAL SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the DIHEDRAL section'
@@ -463,6 +487,10 @@ CONTAINS
           conn_info%phi_type(offset+itype)=itemp
           IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT DIHEDRAL INFO HERE!!!!"
        END DO
+       conn_info%phi_a(offset+1:offset+ntype) =  conn_info%phi_a(offset+1:offset+ntype) + natom_prev
+       conn_info%phi_b(offset+1:offset+ntype) =  conn_info%phi_b(offset+1:offset+ntype) + natom_prev
+       conn_info%phi_c(offset+1:offset+ntype) =  conn_info%phi_c(offset+1:offset+ntype) + natom_prev
+       conn_info%phi_d(offset+1:offset+ntype) =  conn_info%phi_d(offset+1:offset+ntype) + natom_prev
     END IF
     CALL parser_release(parser,error=error)
 
@@ -518,13 +546,14 @@ CONTAINS
     DO isolvent=1,nsolvent
        offset = nsolute + natom*isolvent - natom
        DO iatom=1,natom
-          atom_info%label_atmname(offset+iatom) = namearray1(na(iatom))
-          atom_info%element(offset+iatom)       = namearray1(na(iatom))
-          atom_info%label_molname(offset+iatom) = "SOL"
-          atom_info%label_resname(offset+iatom) = "SOL"
-          atom_info%label_resid(offset+iatom)   = isolvent
-          atom_info%atm_mass(offset+iatom)      = am(iatom)
-          atom_info%atm_charge(offset+iatom)    = ac(iatom)
+          index_now = offset+iatom
+          atom_info%label_atmname(index_now) = namearray1(na(iatom))
+          atom_info%element(index_now)       = namearray1(na(iatom))
+          atom_info%label_molname(index_now) = "SOL"
+          atom_info%label_resname(index_now) = "SOL"
+          atom_info%label_resid(index_now)   = isolvent
+          atom_info%atm_mass(index_now)      = am(iatom)
+          atom_info%atm_charge(index_now)    = ac(iatom)
        END DO
     END DO
 
