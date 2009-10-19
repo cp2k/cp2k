@@ -25,6 +25,11 @@
     &PRINT
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
+      &PLUS_U
+        &EACH
+          QS_SCF 5
+        &END EACH
+      &END PLUS_U
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-8

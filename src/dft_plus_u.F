@@ -175,7 +175,8 @@ CONTAINS
       CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,&
                     .TRUE.,should_output,output_unit,error)
     CASE (plus_u_mulliken_charges)
-      CALL mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+      CALL mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,&
+                            should_output,output_unit,error)
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Invalid DFT+U method requested",only_ionode=.TRUE.)
@@ -1107,7 +1108,7 @@ CONTAINS
 
         IF (should_output) THEN
           IF (output_unit > 0) THEN
-            ALLOCATE (symbol(n),STAT=stat)
+            ALLOCATE (symbol(2*l_of_dft_plus_u+1),STAT=stat)
             CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
             DO m=-l_of_dft_plus_u,l_of_dft_plus_u
               symbol(l_of_dft_plus_u+m+1) = sgf_symbol(0,l_of_dft_plus_u,m)
@@ -1480,8 +1481,8 @@ CONTAINS
 !> \note          The use of any full matrices was avoided. Thus no ScaLAPACK
 !>                calls are performed
 ! *****************************************************************************
-  SUBROUTINE mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
-!     OPTIONAL, POINTER                      :: matrix_h, matrix_w
+  SUBROUTINE mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,&
+                               should_output,output_unit,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
@@ -1489,14 +1490,20 @@ CONTAINS
       OPTIONAL, POINTER                      :: matrix_h
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_w
+    LOGICAL, INTENT(IN)                      :: should_output
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_charges', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, blk, handle, iatom, ikind, iset, isgf, ishell, ispin, &
-      jatom, jsgf, l_of_dft_plus_u, natom, natom_of_kind, nkind, nset, nsgf, &
-      nspin, sgf, stat
+    CHARACTER(LEN=10)                        :: spin_info
+    CHARACTER(LEN=6), ALLOCATABLE, &
+      DIMENSION(:)                           :: symbol
+    CHARACTER(LEN=default_string_length)     :: atomic_kind_name
+    INTEGER :: atom_a, blk, handle, i, iatom, ikind, isb, iset, isgf, ishell, &
+      ispin, jatom, jsgf, l_of_dft_plus_u, m, natom, natom_of_kind, nkind, &
+      nsb, nset, nsgf, nspin, sgf, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
@@ -1504,6 +1511,8 @@ CONTAINS
                                                 just_energy, tr
     REAL(KIND=dp)                            :: fspin, q, u_minus_j, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dEdq, trps
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: q_ii
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, s_block, &
                                                 w_block
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1731,6 +1740,7 @@ CONTAINS
                              atom_list=atom_list,&
                              dft_plus_u_atom=dft_plus_u_atom,&
                              l_of_dft_plus_u=l_of_dft_plus_u,&
+                             name=atomic_kind_name,&
                              natom=natom_of_kind,&
                              orb_basis_set=orb_basis_set,&
                              u_minus_j=u_minus_j)
@@ -1751,11 +1761,48 @@ CONTAINS
                                nset=nset,&
                                nshell=nshell)
 
+        ! Count the relevant shell blocks of this atomic kind
+
+        nsb = 0
+        DO iset=1,nset
+          DO ishell=1,nshell(iset)
+            IF (l(ishell,iset) == l_of_dft_plus_u) nsb = nsb + 1
+          END DO
+        END DO
+
+        ALLOCATE (q_ii(nsb,2*l_of_dft_plus_u+1),STAT=stat)
+        CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+
+        ! Print headline if requested
+
+        IF (should_output) THEN
+          IF (output_unit > 0) THEN
+            ALLOCATE (symbol(2*l_of_dft_plus_u+1),STAT=stat)
+            CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+            DO m=-l_of_dft_plus_u,l_of_dft_plus_u
+              symbol(l_of_dft_plus_u+m+1) = sgf_symbol(0,l_of_dft_plus_u,m)
+            END DO
+            IF (nspin > 1) THEN
+              WRITE (UNIT=spin_info,FMT="(A8,I2)") " of spin",ispin
+            ELSE
+              spin_info = ""
+            END IF 
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,I0,A,/,/,T5,A,10(2X,A6))")&
+              "DFT+U occupations"//TRIM(spin_info)//" for the atoms of atomic kind ",ikind,&
+              ": "//TRIM(atomic_kind_name),&
+              "Atom   Shell  ",(ADJUSTR(symbol(i)),i=1,2*l_of_dft_plus_u+1)," Trace"
+            DEALLOCATE (symbol,STAT=stat)
+            CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+          END IF
+        END IF
+
         ! Loop over all atoms of the current atomic kind
 
         DO iatom=1,natom_of_kind
 
           atom_a = atom_list(iatom)
+
+          q_ii(:,:) = 0.0_dp
 
           ! Get diagonal block
 
@@ -1770,11 +1817,16 @@ CONTAINS
 
             sgf = first_sgf_atom(atom_a)
 
+            isb = 0
             DO iset=1,nset
               DO ishell=1,nshell(iset)
                 IF (l(ishell,iset) == l_of_dft_plus_u) THEN
+                  isb = isb + 1
+                  i = 0
                   DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
                     q = fspin*trps(sgf)
+                    i = i + 1
+                    q_ii(isb,i) = q
                     energy%dft_plus_u = energy%dft_plus_u +&
                                         0.5_dp*u_minus_j*(q - q**2)/fspin
                     IF (.NOT.just_energy) THEN
@@ -1790,7 +1842,27 @@ CONTAINS
 
           END IF ! this process is the owner of the sparse matrix block?
 
+          ! Consider print requests
+
+          IF (should_output) THEN
+            CALL mp_sum(q_ii,qs_env%para_env%group)
+            IF (output_unit > 0) THEN
+              DO isb=1,nsb
+                WRITE (UNIT=output_unit,FMT="(T3,I6,2X,I6,2X,10F8.3)")&
+                  atom_a,isb,q_ii(isb,:),SUM(q_ii(isb,:))
+              END DO
+              WRITE (UNIT=output_unit,FMT="(T12,A,2X,10F8.3)")&
+                "Total",(SUM(q_ii(:,i)),i=1,2*l_of_dft_plus_u+1),SUM(q_ii)
+              WRITE (UNIT=output_unit,FMT="(A)") ""
+            END IF
+          END IF ! should output
+
         END DO ! next atom "iatom" of atomic kind "ikind"
+
+        IF (ALLOCATED(q_ii)) THEN
+          DEALLOCATE (q_ii,STAT=stat)
+          CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+        END IF
 
       END DO ! next atomic kind "ikind"
 
