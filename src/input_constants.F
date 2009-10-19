@@ -728,7 +728,8 @@ MODULE input_constants
   ! Define DFT+U method identifier codes
   INTEGER, PARAMETER, PUBLIC               :: plus_u_lowdin=1,&
                                               plus_u_mulliken=2,&
-                                              plus_u_mulliken_charges=3
+                                              plus_u_mulliken_block_diag=3,&
+                                              plus_u_mulliken_charges=4
 
   ! Distribution in g-space can be
   INTEGER, PARAMETER, PUBLIC               :: do_pw_grid_blocked_false=0,&

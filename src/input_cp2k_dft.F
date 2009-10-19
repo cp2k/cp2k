@@ -345,13 +345,15 @@ CONTAINS
                         description="Method employed for the calculation of the DFT+U contributuion",&
                         required=.FALSE.,&
                         repeats=.FALSE.,&
-                        enum_c_vals=s2a("LOWDIN","MULLIKEN","MULLIKEN_CHARGES"),&
-                        enum_i_vals=(/plus_u_lowdin,plus_u_mulliken,plus_u_mulliken_charges/),&
+                        enum_c_vals=s2a("LOWDIN","MULLIKEN","MULLIKEN_BLOCK_DIAG","MULLIKEN_CHARGES"),&
+                        enum_i_vals=(/plus_u_lowdin,plus_u_mulliken,plus_u_mulliken_block_diag,plus_u_mulliken_charges/),&
                         enum_desc=s2a("Method based on Lowdin population analysis "//&
                                       "(computationally expensive, since the diagonalization of the"//&
                                       " overlap matrix is required, but possibly more robust than Mulliken)",&
                                       "Method based on Mulliken population analysis "//&
                                       "(computationally cheap method due to minor overhead)",&
+                                      "Method based on Mulliken orbital charges "//&
+                                      "(only the diagonal orbital shell blocks of PS are considered)",&
                                       "Method based on Mulliken orbital charges "//&
                                       "(only the trace of PS is considered)"),&
                         n_var=1,&
