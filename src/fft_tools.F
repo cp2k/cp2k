@@ -1549,7 +1549,7 @@ CONTAINS
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
 !$omp parallel do default(none), &
 !$omp             private(nr,ix,ixx,ir,iy,iz), &
-!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tt,rr)
+!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb)
     DO ip = 0, np - 1
        nr = nray ( ip )
        DO ix = 1, nx
@@ -1662,7 +1662,7 @@ CONTAINS
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
 !$omp parallel do default(none), &
 !$omp             private(nr), &
-!$omp             shared(nray,scount,sdispl,nx,nm)
+!$omp             shared(np,nray,scount,sdispl,nx,nm)
     DO ip = 0, np - 1
        nr = nray ( ip )
        scount ( ip ) = nr * nx
