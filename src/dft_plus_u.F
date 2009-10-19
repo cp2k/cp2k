@@ -58,7 +58,8 @@ MODULE dft_plus_u
                                              plus_u_mulliken_block_diag,&
                                              plus_u_mulliken_charges
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE message_passing,                 ONLY: mp_sum
   USE orbital_symbols,                 ONLY: sgf_symbol
   USE particle_types,                  ONLY: get_particle_set,&
@@ -146,8 +147,9 @@ CONTAINS
 
     ! Setup print control
 
-    should_output = BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                          "DFT%PRINT%PLUS_U",error=error),cp_p_file)
+    should_output = (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                          "DFT%PRINT%PLUS_U",error=error),cp_p_file).AND.&
+                     (.NOT.PRESENT(matrix_w_sm)))
     output_unit = cp_print_key_unit_nr(logger,input,"DFT%PRINT%PLUS_U",&
                                        extension=".plus_u",&
                                        ignore_should_output=should_output,&
@@ -830,8 +832,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=10)                        :: spin_info
     CHARACTER(LEN=6), ALLOCATABLE, &
       DIMENSION(:)                           :: symbol
+    CHARACTER(LEN=default_string_length)     :: atomic_kind_name
     INTEGER :: atom_a, handle, i, i0, iatom, ikind, isb, iset, isgf, ishell, &
       ispin, j, jset, jsgf, jshell, l_of_dft_plus_u, m, maxnset, maxshell, n, &
       natom, natom_of_kind, nkind, nsb, nset, nsgf, nspin, stat
@@ -986,6 +990,7 @@ CONTAINS
       END IF
 
       ! Get density matrix for spin ispin in sparse format
+
       sm_p => matrix_p(ispin)%matrix
 
       IF (.NOT.ASSOCIATED(sm_q)) THEN
@@ -1061,6 +1066,7 @@ CONTAINS
                              atom_list=atom_list,&
                              dft_plus_u_atom=dft_plus_u_atom,&
                              l_of_dft_plus_u=l_of_dft_plus_u,&
+                             name=atomic_kind_name,&
                              natom=natom_of_kind,&
                              orb_basis_set=orb_basis_set,&
                              u_minus_j=u_minus_j)
@@ -1106,8 +1112,14 @@ CONTAINS
             DO m=-l_of_dft_plus_u,l_of_dft_plus_u
               symbol(l_of_dft_plus_u+m+1) = sgf_symbol(0,l_of_dft_plus_u,m)
             END DO
-            WRITE (UNIT=output_unit,FMT="(/,T3,A,I0,/,/,T5,A,10(2X,A6))")&
-              "DFT+U occupations for the atoms of atomic kind ",ikind,&
+            IF (nspin > 1) THEN
+              WRITE (UNIT=spin_info,FMT="(A8,I2)") " of spin",ispin
+            ELSE
+              spin_info = ""
+            END IF 
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,I0,A,/,/,T5,A,10(2X,A6))")&
+              "DFT+U occupations"//TRIM(spin_info)//" for the atoms of atomic kind ",ikind,&
+              ": "//TRIM(atomic_kind_name),&
               "Atom   Shell  ",(ADJUSTR(symbol(i)),i=1,2*l_of_dft_plus_u+1)," Trace"
             DEALLOCATE (symbol,STAT=stat)
             CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)

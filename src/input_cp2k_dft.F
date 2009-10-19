@@ -1529,6 +1529,8 @@ CONTAINS
             description="Controls the printing for the DFT+U methods",&
             print_level=high_print_level,&
             filename="__STD_OUT__",&
+            each_iter_names=s2a("QS_SCF"),&
+            each_iter_values=(/0/),&
             citations=(/Dudarev1997,Dudarev1998/),&
             error=error)
 
