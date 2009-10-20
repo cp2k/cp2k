@@ -1,0 +1,18 @@
+CC       = bgxlc_r
+CPP      = cpp -traditional -E
+#CPP      = /opt/ibmcmp/xlf/bg/11.1/exe/cpp -traditional -E 
+FC       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf90_r  -qsuffix=f=f90 
+LD       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf90_r
+AR       = ar -r
+DFLAGS   = -D__AIX -D__ESSL -D__FFTW3 -D__parallel -D__BLACS -D__SCALAPACK -I/bgpusers/bek/LIB/fftw-3.1.2/include
+CPPFLAGS = -C $(DFLAGS) -P
+FCFLAGS  = -O2 -qarch=450d  -qtune=450  -I/bgpusers/bek/LIB/fftw-3.1.2/include
+#-qmaxmem=-1  
+#-qalias=noaryovrlp  
+FCFLAGS  = -O2 -qarch=450d  -qtune=450  -I/bgpusers/bek/LIB/fftw-3.1.2/include
+#-qmaxmem=-1  
+#-qalias=noaryovrlp 
+LDFLAGS  = $(FCFLAGS) -O2  -qarch=450d -qtune=450  -qnosave  --allow-multiple-definition
+LIBS     = -L/bgpusers/bek/LIB  -L/bgpusers/bek/LIB/fftw-3.1.2/lib -lmass -llapack  -lscalapack -lblacsF77init -lblacs -lesslbg -lfftw3  --allow-multiple-definition
+
+OBJECTS_ARCHITECTURE = machine_aix.o
