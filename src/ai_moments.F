@@ -133,6 +133,12 @@ CONTAINS
     dab = SQRT(rab2)
     k2  = kvec(1)*kvec(1) + kvec(2)*kvec(2) + kvec(3)*kvec(3)
 
+    ! initialize all matrix elements to zero
+    na = ncoset(la_max)*npgfa
+    nb = ncoset(lb_max)*npgfb
+    cosab(1:na,1:nb) = 0.0_dp
+    sinab(1:na,1:nb) = 0.0_dp
+
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
     na = 0
@@ -148,12 +154,6 @@ CONTAINS
 
 !       *** Screening ***
         IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
-          DO j=nb+1,nb+ncoset(lb_max)
-            DO i=na+1,na+ncoset(la_max)
-              cosab(i,j) = 0.0_dp
-              sinab(i,j) = 0.0_dp
-            END DO
-          END DO
           nb = nb + ncoset(lb_max)
           CYCLE
         END IF
@@ -635,8 +635,6 @@ CONTAINS
 
        DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
          DO i=ncoset(la_min-1)+1,ncoset(la_max)
-!        do j =1,ncoset(lb_max)
-!          do i = 1, ncoset(la_max)
             cosab(na+i,nb+j) = sc(i,j)
             sinab(na+i,nb+j) = ss(i,j)
           END DO

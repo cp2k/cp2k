@@ -24,3 +24,5 @@ H2O-meta-mindisp.inp    2
 # smearing and g-space mixing with LSD
 si8_broy_lsd.inp        1
 md-01.inp               2
+# bugs in berry phase dipole
+bug_ai_moments.inp     39
