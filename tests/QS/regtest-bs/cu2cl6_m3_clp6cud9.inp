@@ -53,7 +53,7 @@
       POTENTIAL  GTH-BLYP-q11
       &BS
         &ALPHA
-          NEL -1  -1
+          NEL -1  -2
           L   0   2
           N   4   3
         &END
@@ -70,7 +70,7 @@
       POTENTIAL  GTH-BLYP-q11
       &BS
         &ALPHA
-          NEL -1  -1
+          NEL -1  -2
           L   0   2
           N   4   3
         &END
@@ -87,12 +87,12 @@
       POTENTIAL  GTH-BLYP-q7
       &BS
         &ALPHA
-          NEL 1
+          NEL 2
           L   1
           N   3
         &END
         &BETA
-          NEL 1
+          NEL 2
           L   1
           N   3
         &END

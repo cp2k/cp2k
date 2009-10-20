@@ -347,7 +347,6 @@ CONTAINS
         l=laddel(i,ispin)
         nn=naddel(i,ispin)-l
         IF(ne/=0) THEN
-          IF(nspin==2 ) ne = ne*2
           IF(nn==0) THEN
             DO ii=SIZE(nelem,2),1,-1
               IF(ncalc(l,ii)>0) THEN
