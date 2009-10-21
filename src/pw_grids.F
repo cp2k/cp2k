@@ -1557,10 +1557,13 @@ CONTAINS
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
     ALLOCATE ( pw_grid % g_hat ( 3, ng ), STAT = allocstat )
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-    ALLOCATE ( pw_grid % grays ( pw_grid%npts(1), &
-               pw_grid%para%nyzray(pw_grid%para%my_pos) ), &
-               STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+
+    IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
+      ALLOCATE ( pw_grid % grays ( pw_grid%npts(1), &
+                 pw_grid%para%nyzray(pw_grid%para%my_pos) ), &
+                 STAT = allocstat )
+      CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    END IF
 
     ALLOCATE ( pw_grid % mapl % pos ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
          STAT = allocstat )
