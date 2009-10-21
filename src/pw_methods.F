@@ -1323,7 +1323,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=9)                         :: mode
-    COMPLEX(KIND=dp), ALLOCATABLE, &
+    COMPLEX(KIND=dp), POINTER, &
       DIMENSION(:, :)                        :: grays
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
@@ -1503,18 +1503,19 @@ CONTAINS
 
        my_pos = pw1%pw_grid%para%my_pos
        nrays = pw1%pw_grid%para%nyzray ( my_pos )
-       ALLOCATE ( grays ( n(1), nrays ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       grays => pw1%pw_grid%grays
+       CPPostcondition(SIZE(grays,1)==n(1),cp_failure_level,routineP,error,failure)
+       CPPostcondition(SIZE(grays,2)==nrays,cp_failure_level,routineP,error,failure)
 
        num_threads = 1
        my_id = 0
 !$omp parallel default(none), &
 !$omp          private(my_id, num_threads, lb, ub), &
-!$omp          shared(grays)
+!$omp          shared(grays,nrays)
 !$     num_threads = omp_get_num_threads()
 !$     my_id = omp_get_thread_num()
-       lb = (SIZE(grays,2)*my_id)/num_threads + 1
-       ub = (SIZE(grays,2)*(my_id+1))/num_threads
+       lb = (nrays*my_id)/num_threads + 1
+       ub = (nrays*(my_id+1))/num_threads
        grays(:, lb:ub) = 0.0_dp
 !$omp end parallel
 
@@ -1581,9 +1582,6 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END SELECT
 
-       DEALLOCATE ( grays, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     END IF
 
     !..update the space tag for pw2
@@ -1594,6 +1592,7 @@ CONTAINS
     END IF
     CALL timestop(handle) 
     CALL timestop(handle2) 
+
 
   END SUBROUTINE fft_wrap_pw1pw2
 

@@ -106,6 +106,7 @@ CONTAINS
        NULLIFY ( pw_grid % gsq )
        NULLIFY ( pw_grid % g_hat )
        NULLIFY ( pw_grid % gidx )
+       NULLIFY ( pw_grid % grays )
        NULLIFY ( pw_grid % mapl % pos )
        NULLIFY ( pw_grid % mapl % neg )
        NULLIFY ( pw_grid % mapm % pos )
@@ -1556,6 +1557,10 @@ CONTAINS
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
     ALLOCATE ( pw_grid % g_hat ( 3, ng ), STAT = allocstat )
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( pw_grid % grays ( pw_grid%npts(1), &
+               pw_grid%para%nyzray(pw_grid%para%my_pos) ), &
+               STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE ( pw_grid % mapl % pos ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
          STAT = allocstat )
@@ -2059,6 +2064,10 @@ CONTAINS
           END IF
           IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
              DEALLOCATE ( pw_grid % g_hat, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF ( ASSOCIATED ( pw_grid % grays ) ) THEN
+             DEALLOCATE ( pw_grid % grays, STAT = stat )
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapl % pos ) ) THEN

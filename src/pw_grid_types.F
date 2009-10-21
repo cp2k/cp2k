@@ -86,6 +86,7 @@ MODULE pw_grid_types
      INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
      INTEGER :: ref_count                         ! reference count
      LOGICAL :: spherical                         ! spherical cutoff?
+     COMPLEX (KIND=dp), DIMENSION ( :, : ), POINTER :: grays ! used by parallel 3D FFT routine
   END TYPE pw_grid_type
   
 END MODULE pw_grid_types
