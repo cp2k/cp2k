@@ -289,7 +289,7 @@ CONTAINS
        IF (output_unit>0) THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
           WRITE(UNIT=output_unit,FMT="(T2,A,T24,A,T78,A)")&
-               "***","2PNT TRASLATIONAL LINE SEARCH INFO","***"
+               "***","2PNT TRANSLATIONAL LINE SEARCH INFO","***"
           WRITE(UNIT=output_unit,FMT="(T2,A,T78,A)")"***","***"
           WRITE(UNIT=output_unit,FMT="(T2,A,3X,A,F12.6,T78,A)")&
                "***","LOCAL CURVATURE =",dimer_env%rot%curvature,"***"
