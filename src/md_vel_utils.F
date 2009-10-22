@@ -1340,14 +1340,13 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: temp_old, vel_com
     REAL(KIND=dp), DIMENSION(3)              :: vcom_old
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
-    NULLIFY(subsys, para_env)
+    NULLIFY(subsys)
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
+    CALL force_env_get(force_env,subsys=subsys,error=error)
 
     ! Print COMVEL and COM Position
     iw = cp_print_key_unit_nr(logger,force_env%root_section,"MOTION%MD%PRINT%CENTER_OF_MASS",&
