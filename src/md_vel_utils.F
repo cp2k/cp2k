@@ -1325,11 +1325,12 @@ CONTAINS
 !>      Creation (29.04.2007,MI)
 !>      Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE comvel_control(simpar,md_ener,force_env,logger, error)
+  SUBROUTINE comvel_control(simpar,md_ener,force_env, md_section, logger, error)
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: md_section
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1337,8 +1338,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: temp_old, vel_com
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp)                            :: comvel_tol, temp_old, vel_com
     REAL(KIND=dp), DIMENSION(3)              :: vcom_old
     TYPE(cp_subsys_type), POINTER            :: subsys
 
@@ -1349,23 +1350,23 @@ CONTAINS
     CALL force_env_get(force_env,subsys=subsys,error=error)
 
     ! Print COMVEL and COM Position
-    iw = cp_print_key_unit_nr(logger,force_env%root_section,"MOTION%MD%PRINT%CENTER_OF_MASS",&
-         extension=".mdLog",error=error)
+    iw = cp_print_key_unit_nr(logger,md_section,"PRINT%CENTER_OF_MASS",extension=".mdLog",error=error)
     IF (iw>0) THEN
        WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
             "Centre of mass motion (COM):","x =",md_ener%vcom(1),"y =",md_ener%vcom(2),"z =",md_ener%vcom(3)
     END IF
-    CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
-         "MOTION%MD%PRINT%CENTER_OF_MASS", error=error)
+    CALL cp_print_key_finished_output(iw,logger,md_section,"PRINT%CENTER_OF_MASS", error=error)
 
     ! If requested rescale COMVEL
-    IF (simpar%comvel_tol > 0.0_dp ) THEN
-       iw = cp_print_key_unit_nr(logger,force_env%root_section,"MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
+    CALL section_vals_val_get(md_section,"COMVEL_TOL",explicit=explicit,error=error)
+    IF ( explicit ) THEN
+       CALL section_vals_val_get(md_section,"COMVEL_TOL",r_val=comvel_tol,error=error)
+       iw = cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".mdLog",error=error)
        vel_com = SQRT(md_ener%vcom(1)**2+md_ener%vcom(2)**2+md_ener%vcom(3)**2)
 
        ! Subtract the velocity of the COM, if requested
-       IF (vel_com > simpar%comvel_tol) THEN
+       IF (vel_com > comvel_tol) THEN
           temp_old = md_ener%temp_part/kelvin
           vcom_old = md_ener%vcom
           CALL reset_vcom( subsys, md_ener, vsubtract=vcom_old, error=error)
@@ -1376,8 +1377,8 @@ CONTAINS
                   "New VCOM =", md_ener%vcom(1:3)," a.u"
           END IF
        END IF
-       CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
-            "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
+       CALL cp_print_key_finished_output(iw,logger,md_section,&
+            "PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
 
     CALL timestop(handle)

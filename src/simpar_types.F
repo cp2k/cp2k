@@ -36,7 +36,6 @@ MODULE simpar_types
      REAL (KIND=dp) :: temp_baro
      REAL (KIND=dp) :: temp_tol
      REAL (KIND=dp) :: temp_baro_tol
-     REAL (KIND=dp) :: comvel_tol
      REAL (KIND=dp) :: p_ext
      REAL (KIND=dp) :: cmass
      REAL (KIND=dp) :: cmass_nph
