@@ -32,3 +32,5 @@ LiH.inp            31
 SiO2_lr_quad.inp   11
 #XTL file
 Al2O3.inp          11
+#angvel_tol
+gly_noangvel.inp    2

@@ -61,7 +61,8 @@ MODULE md_run
                                              md_environment_type,&
                                              set_md_env
   USE md_util,                         ONLY: md_output
-  USE md_vel_utils,                    ONLY: comvel_control,&
+  USE md_vel_utils,                    ONLY: angvel_control,&
+                                             comvel_control,&
                                              setup_velocities,&
                                              temperature_control
   USE metadynamics,                    ONLY: metadyn_forces,&
@@ -451,7 +452,8 @@ CONTAINS
        IF(simpar%ensemble /= reftraj_ensemble) THEN
           CALL md_energy(md_env, md_ener, error) 
           CALL temperature_control(simpar, md_env, md_ener, force_env, logger, error)
-          CALL comvel_control(simpar, md_ener, force_env, md_section, logger, error)
+          CALL comvel_control(md_ener, force_env, md_section, logger, error)
+          CALL angvel_control(md_ener, force_env, md_section, logger, error)
        ELSE
           CALL md_ener_reftraj(md_env, md_ener, error)
        END IF

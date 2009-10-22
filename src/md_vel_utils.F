@@ -78,6 +78,7 @@ MODULE md_vel_utils
  
   PUBLIC :: temperature_control,&
             comvel_control,&
+            angvel_control,&
             setup_velocities
 
 CONTAINS
@@ -1048,7 +1049,7 @@ CONTAINS
 
     NULLIFY(atomic_kinds,particles,shell_particles,core_particles,shell,atom_list)
 
-     my_ireg = ireg
+    my_ireg = ireg
     ekin = 0.0_dp
     tmass = 0.0_dp
     vcom = 0.0_dp
@@ -1325,9 +1326,8 @@ CONTAINS
 !>      Creation (29.04.2007,MI)
 !>      Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE comvel_control(simpar,md_ener,force_env, md_section, logger, error)
+  SUBROUTINE comvel_control(md_ener,force_env, md_section, logger, error)
 
-    TYPE(simpar_type), POINTER               :: simpar
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: md_section
@@ -1345,7 +1345,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(subsys)
-    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CALL force_env_get(force_env,subsys=subsys,error=error)
 
@@ -1374,7 +1373,7 @@ CONTAINS
           IF (iw>0) THEN
              WRITE (UNIT=iw,FMT="(T2,'MD| ',A,3F16.10,A)") &
                   "Old VCOM = ",vcom_old(1:3)," a.u.",&
-                  "New VCOM =", md_ener%vcom(1:3)," a.u"
+                  "New VCOM = ",md_ener%vcom(1:3)," a.u"
           END IF
        END IF
        CALL cp_print_key_finished_output(iw,logger,md_section,&
@@ -1383,6 +1382,101 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE comvel_control
+
+! *****************************************************************************
+!> \brief Set to 0 the angular velocity along MD runs, if required. 
+!> \par History
+!>      Creation (10.2009) Teodoro Laino [tlaino]
+! *****************************************************************************
+  SUBROUTINE angvel_control(md_ener, force_env, md_section, logger, error)
+
+    TYPE(md_ener_type), POINTER              :: md_ener
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: md_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'angvel_control', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ifixd, &
+                                                imolecule_kind, iw, natoms, &
+                                                stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp)                            :: angvel_tol, rcom(3), &
+                                                temp_old, vang(3), vang_new(3)
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(particle_list_type), POINTER        :: particles
+
+    CALL timeset(routineN,handle)
+    ! If requested rescale ANGVEL
+    CALL section_vals_val_get(md_section,"ANGVEL_TOL",explicit=explicit,error=error)
+    IF ( explicit ) THEN 
+       NULLIFY(subsys, cell)
+       CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+       CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
+
+       IF (SUM(cell%perd(1:3)) == 0) THEN
+          CALL section_vals_val_get(md_section,"ANGVEL_TOL",r_val=angvel_tol,error=error)
+          iw = cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",&
+               extension=".mdLog",error=error)
+          
+          CALL cp_subsys_get(subsys,molecule_kinds_new=molecule_kinds,&
+               particles=particles, error=error)
+          
+          natoms = SIZE(particles%els)
+          ! Build a list of all fixed atoms (if any)
+          ALLOCATE (is_fixed(natoms),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          
+          is_fixed = use_perd_none
+          molecule_kind_set => molecule_kinds%els
+          DO imolecule_kind=1,molecule_kinds%n_els
+             molecule_kind => molecule_kind_set(imolecule_kind)
+             CALL get_molecule_kind(molecule_kind=molecule_kind,fixd_list=fixd_list)
+             IF (ASSOCIATED(fixd_list)) THEN
+                DO ifixd=1,SIZE(fixd_list)
+                   IF (.NOT.fixd_list(ifixd)%restraint%active) &
+                        is_fixed(fixd_list(ifixd)%fixd) = fixd_list(ifixd)%itype
+                END DO
+             END IF
+          END DO
+          
+          ! If requested and the system is not periodic, subtract the angular velocity
+          CALL compute_rcom(particles%els,is_fixed,rcom)
+          CALL compute_vang(particles%els,is_fixed,rcom,vang,error)
+          IF (SQRT(DOT_PRODUCT(vang,vang))>angvel_tol) THEN 
+             CALL subtract_vang(particles%els,is_fixed,rcom,vang)
+             
+             ! Rescale velocities after removal
+             temp_old = md_ener%temp_part/kelvin
+             CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw, error)
+             CALL compute_vang(particles%els,is_fixed,rcom,vang_new,error)
+             IF (iw>0) THEN
+                WRITE (UNIT=iw,FMT="(T2,'MD| ',A,3F16.10,A)") &
+                     "Old VANG = ",vang(1:3)," a.u.",&
+                     "New VANG = ",vang_new(1:3)," a.u"
+             END IF
+          END IF
+          
+          DEALLOCATE (is_fixed,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          
+          CALL cp_print_key_finished_output(iw,logger,md_section,&
+               "PRINT%PROGRAM_RUN_INFO", error=error)
+       END IF
+    END IF
+
+    CALL timestop(handle)
+  END SUBROUTINE angvel_control
 
 ! *****************************************************************************
 !> \brief Initialize Velocities for MD runs

@@ -1518,6 +1518,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="angvel_tol",&
+            description="The maximum accepted angular velocity. This option is ignored "//&
+            "when the system is periodic. Removes the components of the velocities that"//&
+            "project on the external rotational degrees of freedom.",&
+            usage="angvel_tol 0.1", type_of_var=real_t, n_var=1, unit_str="bohr*au_t^-1",&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="angvel_zero",&
             description="Set the initial angular velocity to zero. This option is ignored "//&
             "when the system is periodic or when initial velocities are defined. Technically, "//&
