@@ -1323,8 +1323,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=9)                         :: mode
-    COMPLEX(KIND=dp), POINTER, &
-      DIMENSION(:, :)                        :: grays
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: grays
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
     INTEGER :: dir, handle, handle2, l1, l2, l3, lb, my_id, my_pos, &
