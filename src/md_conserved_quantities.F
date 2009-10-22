@@ -75,7 +75,8 @@ CONTAINS
 !>      none
 !> \author gloria
 ! *****************************************************************************
-  SUBROUTINE compute_conserved_quantity (md_env, md_ener, tkind, tcoeff, tshell, natom, error)
+  SUBROUTINE compute_conserved_quantity (md_env, md_ener, tkind, tcoeff, tshell,&
+       natom, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
     LOGICAL, INTENT(IN)                      :: tkind, tcoeff, tshell
@@ -448,14 +449,14 @@ CONTAINS
     
     particle_set => particles%els
     IF(tshell) THEN
-      shell_particle_set => shell_particles%els
-      core_particle_set => core_particles%els
-        DO iparticle_kind=1,nparticle_kind
-           atomic_kind => atomic_kind_set(iparticle_kind)
-           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass, &
-                shell_active=is_shell, shell=shell)
-           nparticle_local = local_particles%n_el(iparticle_kind)
-           IF(is_shell) THEN
+       shell_particle_set => shell_particles%els
+       core_particle_set => core_particles%els
+       DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass, &
+               shell_active=is_shell, shell=shell)
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          IF(is_shell) THEN
              DO iparticle_local=1,nparticle_local
                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                 shell_index = particle_set(iparticle)%shell_index
@@ -472,25 +473,25 @@ CONTAINS
                 
                 md_ener%ekin = md_ener%ekin +  ekin_com
                 ekin_c =  0.5_dp * shell%mass_core *  &
-                   ( core_particle_set(shell_index)%v(1)* core_particle_set(shell_index)%v(1) &
-                   + core_particle_set(shell_index)%v(2)* core_particle_set(shell_index)%v(2) &
-                   + core_particle_set(shell_index)%v(3)* core_particle_set(shell_index)%v(3) )
+                     ( core_particle_set(shell_index)%v(1)* core_particle_set(shell_index)%v(1) &
+                     + core_particle_set(shell_index)%v(2)* core_particle_set(shell_index)%v(2) &
+                     + core_particle_set(shell_index)%v(3)* core_particle_set(shell_index)%v(3) )
                 ekin_s =  0.5_dp * shell%mass_shell *  &
-                   ( shell_particle_set(shell_index)%v(1)* shell_particle_set(shell_index)%v(1) &
-                   + shell_particle_set(shell_index)%v(2)* shell_particle_set(shell_index)%v(2) &
-                   + shell_particle_set(shell_index)%v(3)* shell_particle_set(shell_index)%v(3) )
+                     ( shell_particle_set(shell_index)%v(1)* shell_particle_set(shell_index)%v(1) &
+                     + shell_particle_set(shell_index)%v(2)* shell_particle_set(shell_index)%v(2) &
+                     + shell_particle_set(shell_index)%v(3)* shell_particle_set(shell_index)%v(3) )
                 md_ener%ekin_shell = md_ener%ekin_shell + ekin_c + ekin_s - ekin_com
-
-      IF(tkind) THEN
-                md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
-                md_ener%nfree_kind(iparticle_kind) = md_ener%nfree_kind(iparticle_kind) + 3
-                md_ener%ekin_shell_kind(iparticle_kind) = md_ener%ekin_shell_kind(iparticle_kind) +&
-                             ekin_c + ekin_s - ekin_com
-                md_ener%nfree_shell_kind(iparticle_kind) = md_ener%nfree_shell_kind(iparticle_kind) + 3
-       END IF
-
+                
+                IF(tkind) THEN
+                   md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
+                   md_ener%nfree_kind(iparticle_kind) = md_ener%nfree_kind(iparticle_kind) + 3
+                   md_ener%ekin_shell_kind(iparticle_kind) = md_ener%ekin_shell_kind(iparticle_kind) +&
+                        ekin_c + ekin_s - ekin_com
+                   md_ener%nfree_shell_kind(iparticle_kind) = md_ener%nfree_shell_kind(iparticle_kind) + 3
+                END IF
+                
              END DO  ! iparticle_local
-           ELSE
+          ELSE
              DO iparticle_local=1,nparticle_local
                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                 ekin_com =  0.5_dp * mass *  &
@@ -502,55 +503,55 @@ CONTAINS
                 md_ener%vcom(2) = md_ener%vcom(2) + particle_set(iparticle)%v(2)*mass
                 md_ener%vcom(3) = md_ener%vcom(3) + particle_set(iparticle)%v(3)*mass
                 md_ener%total_mass = md_ener%total_mass + mass
-
+                
                 md_ener%ekin = md_ener%ekin +  ekin_com
-      IF(tkind) THEN
+                IF(tkind) THEN
+                   md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
+                   md_ener%nfree_kind(iparticle_kind) = md_ener%nfree_kind(iparticle_kind) + 3
+                END IF
+             END DO  ! iparticle_local
+          END IF
+       END DO  ! iparticle_kind
+       IF(tkind) THEN
+          CALL mp_sum(md_ener%ekin_kind, group )
+          CALL mp_sum(md_ener%nfree_kind, group )
+          CALL mp_sum(md_ener%ekin_shell_kind, group )
+          CALL mp_sum(md_ener%nfree_shell_kind, group )
+       END IF
+       ! sum all contributions to energy over calculated parts on all processors
+       CALL mp_sum ( md_ener%ekin_shell, group )
+    ELSE
+       DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             ! ekin
+             ekin_com =  0.5_dp * mass *  &
+                  ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
+             
+             !vcom
+             md_ener%vcom(1) = md_ener%vcom(1) + particle_set(iparticle)%v(1)*mass
+             md_ener%vcom(2) = md_ener%vcom(2) + particle_set(iparticle)%v(2)*mass
+             md_ener%vcom(3) = md_ener%vcom(3) + particle_set(iparticle)%v(3)*mass
+             md_ener%total_mass = md_ener%total_mass + mass
+             
+             md_ener%ekin = md_ener%ekin +  ekin_com
+             IF(tkind) THEN
                 md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
                 md_ener%nfree_kind(iparticle_kind) = md_ener%nfree_kind(iparticle_kind) + 3
-      END IF
-              END DO  ! iparticle_local
-           END IF
-         END DO  ! iparticle_kind
-      IF(tkind) THEN
-         CALL mp_sum(md_ener%ekin_kind, group )
-         CALL mp_sum(md_ener%nfree_kind, group )
-         CALL mp_sum(md_ener%ekin_shell_kind, group )
-         CALL mp_sum(md_ener%nfree_shell_kind, group )
-      END IF
-      ! sum all contributions to energy over calculated parts on all processors
-      CALL mp_sum ( md_ener%ekin_shell, group )
-    ELSE
-        DO iparticle_kind=1,nparticle_kind
-           atomic_kind => atomic_kind_set(iparticle_kind)
-           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-           nparticle_local = local_particles%n_el(iparticle_kind)
-           DO iparticle_local=1,nparticle_local
-              iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-              ! ekin
-              ekin_com =  0.5_dp * mass *  &
-                   ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
-                   + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
-                   + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-
-              !vcom
-              md_ener%vcom(1) = md_ener%vcom(1) + particle_set(iparticle)%v(1)*mass
-              md_ener%vcom(2) = md_ener%vcom(2) + particle_set(iparticle)%v(2)*mass
-              md_ener%vcom(3) = md_ener%vcom(3) + particle_set(iparticle)%v(3)*mass
-              md_ener%total_mass = md_ener%total_mass + mass
-
-              md_ener%ekin = md_ener%ekin +  ekin_com
-      IF(tkind) THEN
-              md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
-              md_ener%nfree_kind(iparticle_kind) = md_ener%nfree_kind(iparticle_kind) + 3
+             END IF
+          END DO
+       END DO  ! iparticle_kind
+       IF(tkind) THEN
+          CALL mp_sum(md_ener%ekin_kind, group )
+          CALL mp_sum(md_ener%nfree_kind, group )
        END IF
-           END DO
-        END DO  ! iparticle_kind
-      IF(tkind) THEN
-        CALL mp_sum(md_ener%ekin_kind, group )
-        CALL mp_sum(md_ener%nfree_kind, group )
-      END IF
     END IF
-
+    
     ! sum all contributions to energy over calculated parts on all processors
     CALL mp_sum ( md_ener%ekin, group )
     CALL mp_sum ( md_ener%vcom, group )
