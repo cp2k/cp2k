@@ -482,7 +482,7 @@ CPSourceFileRef,&
                                           error=error)
        IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
-           "Atomic guess: The first density matrix is obtained in terms of atomic orbitals ",&
+           "Atomic guess: The first density matrix is obtained in terms of atomic orbitals",&
            "              and electronic configurations assigned to each atomic kind"
        END IF
 

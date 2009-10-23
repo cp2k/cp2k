@@ -120,8 +120,7 @@ CONTAINS
     cost_optimal=(SUM(INT(cost_ele_pair,int_8))+INT(P*Q-1,int_8))/INT(P*Q,int_8)
     
     IF (iw>0) THEN
-       WRITE(iw,'(T2,A)') ""
-       WRITE(iw,'(T2,A)') "2D_MC| Monte Carlo annealing to optimize the distribution_2d"
+       WRITE(iw,'(/,T2,A)') "2D_MC| Monte Carlo annealing to optimize the distribution_2d"
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of moves",nmoves
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of annealing cycles",ncycles
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of reduction steps per cycle",nreduction
@@ -132,7 +131,7 @@ CONTAINS
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of processor rows ",P
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of processor cols ",Q
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of elements ",nele
-       WRITE(iw,'(T2,A,T61,A20)') "2D_MC| What do we minimize ", opt_target_used
+       WRITE(iw,'(T2,A,T61,A20)') "2D_MC| What do we minimize ",ADJUSTR(TRIM(opt_target_used))
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Cost of optimal distribution ",cost_optimal
     ENDIF
 

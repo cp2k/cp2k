@@ -410,7 +410,7 @@ CONTAINS
                                                 total_steps
     LOGICAL :: diis_step, do_std_diag, energy_only, exit_inner_loop, failure, &
       gapw, gapw_xc, harris_energy, harris_flag, has_unit_metric, &
-      outer_loop_converged, scp_dft, scp_nddo, use_jacobi
+      just_energy, outer_loop_converged, scp_dft, scp_nddo, use_jacobi
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -571,7 +571,7 @@ CONTAINS
        diis_step = .FALSE.
        use_jacobi = .FALSE.
        energy_only = .FALSE.
-
+       just_energy = .FALSE.
 
        ! SCF loop, optimisation of the wfn coefficients
        ! qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
@@ -589,11 +589,12 @@ CONTAINS
           IF (output_unit > 0) CALL m_flush(output_unit)
 
           total_steps = total_steps + 1
+          just_energy = energy_only
           ! ***SCP
-          IF ( scp_dft ) CALL qs_ks_scp_update ( qs_env, just_energy=energy_only, error=error )
+          IF ( scp_dft ) CALL qs_ks_scp_update ( qs_env, just_energy=just_energy, error=error )
           ! ***SCP
           CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-               just_energy=energy_only,error=error)
+               just_energy=just_energy,error=error)
 
           ! print 'heavy weight' or relatively expensive quantities
           CALL qs_scf_loop_print(qs_env,scf_env,para_env,error)
@@ -714,23 +715,27 @@ CONTAINS
 
           t2 = m_walltime()
           IF ((output_unit > 0).AND.scf_env%print_iter_line) THEN
-            IF ((ABS(scf_env%iter_delta) < 1.0E-8_dp).OR.&
-                (ABS(scf_env%iter_delta) >= 1.0E5_dp)) THEN
+            IF (just_energy) THEN
               WRITE (UNIT=output_unit,&
-                    FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)")&
-                scf_env%iter_count,TRIM(scf_env%iter_method),&
-                scf_env%iter_param,&
-                t2 - t1,scf_env%iter_delta,&
-                energy%total,energy%total-energy%tot_old
-            ELSE
-              WRITE (UNIT=output_unit,&
-                     FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)")&
+                     FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,16X,F20.10)")&
                 scf_env%iter_count,TRIM(scf_env%iter_method),scf_env%iter_param,&
-                t2 - t1,scf_env%iter_delta,energy%total,energy%total-energy%tot_old
+                t2 - t1,energy%total
+            ELSE
+              IF ((ABS(scf_env%iter_delta) < 1.0E-8_dp).OR.&
+                  (ABS(scf_env%iter_delta) >= 1.0E5_dp)) THEN
+                WRITE (UNIT=output_unit,&
+                       FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,ES14.4,1X,F20.10,1X,ES9.2)")&
+                  scf_env%iter_count,TRIM(scf_env%iter_method),scf_env%iter_param,&
+                  t2 - t1,scf_env%iter_delta,energy%total,energy%total-energy%tot_old
+              ELSE
+                WRITE (UNIT=output_unit,&
+                       FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,1X,F14.8,1X,F20.10,1X,ES9.2)")&
+                  scf_env%iter_count,TRIM(scf_env%iter_method),scf_env%iter_param,&
+                  t2 - t1,scf_env%iter_delta,energy%total,energy%total-energy%tot_old
+              END IF
             END IF
           END IF
-          energy%tot_old = energy%total
-
+          IF (.NOT.just_energy) energy%tot_old = energy%total
 
           IF (harris_flag) THEN
              CALL harris_postprocessing(harris_env, error=error)

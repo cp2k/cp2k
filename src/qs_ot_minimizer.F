@@ -85,7 +85,6 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
    do_ener = qs_ot_env ( 1 ) % settings % do_ener
 
    qs_ot_env(1)%OT_METHOD_FULL=""
-   qs_ot_env(1)%delta=1.0_dp
 
    ! compute the gradient for the variables x
    IF (.NOT. qs_ot_env(1)%energy_only) THEN

@@ -924,9 +924,7 @@ CONTAINS
     ! write OT output
 
     IF (output_unit>0) THEN
-       WRITE(output_unit,'(A)') " "
-       WRITE(output_unit,'(A)') "  ----------------------------------- OT ---------------------------------------"
-       WRITE(output_unit,'(A)') " "
+       WRITE(output_unit,'(/,A,/)') "  ----------------------------------- OT ---------------------------------------"
        WRITE(output_unit,'(A,L2)') "  Allowing for rotations: ",settings%do_rotation
        WRITE(output_unit,'(A,L2)') "  Optimizing orbital energies: ",settings%do_ener
        SELECT CASE (settings%OT_METHOD)
@@ -935,7 +933,7 @@ CONTAINS
        CASE ("CG")
           WRITE(output_unit,'(A)') "  Minimizer      : CG                  : conjugate gradient"
        CASE ("DIIS")
-          WRITE(output_unit,'(A)') "  Minimizer      : DIIS                : direct inversion "
+          WRITE(output_unit,'(A)') "  Minimizer      : DIIS                : direct inversion"
           WRITE(output_unit,'(A)') "                                         in the iterative subspace"
           WRITE(output_unit,'(A,I3,A)')    "                            using      : - ",&
                settings%diis_m," DIIS vectors"
@@ -949,11 +947,11 @@ CONTAINS
        END SELECT
        SELECT CASE (settings%preconditioner_name)
        CASE ("FULL_SINGLE")
-          WRITE(output_unit,'(A)') "  Preconditioner : FULL_SINGLE         : diagonalization based "
+          WRITE(output_unit,'(A)') "  Preconditioner : FULL_SINGLE         : diagonalization based"
        CASE ("FULL_SINGLE_INVERSE")
-          WRITE(output_unit,'(A)') "  Preconditioner : FULL_SINGLE_INVERSE : cholesky inversion of H + eS "
+          WRITE(output_unit,'(A)') "  Preconditioner : FULL_SINGLE_INVERSE : cholesky inversion of H + eS"
        CASE ("FULL_ALL")
-          WRITE(output_unit,'(A)') "  Preconditioner : FULL_ALL            : diagonalization, state selective "
+          WRITE(output_unit,'(A)') "  Preconditioner : FULL_ALL            : diagonalization, state selective"
        CASE ("FULL_KINETIC")
           WRITE(output_unit,'(A)') "  Preconditioner : FULL_KINETIC        : cholesky inversion of T + eS"
        CASE ("FULL_S_INVERSE")
@@ -964,7 +962,7 @@ CONTAINS
        CASE ("SPARSE_KINETIC")
           WRITE(output_unit,'(A)') "  Preconditioner : SPARSE_KINETIC      : sparse linear solver for T + eS"
        CASE ("NONE")
-          WRITE(output_unit,'(A)') "  Preconditioner : NONE  "
+          WRITE(output_unit,'(A)') "  Preconditioner : NONE"
        CASE DEFAULT
           WRITE(output_unit,'(3A)') "  Preconditioner : ",settings%preconditioner_name," : UNKNOWN"
        END SELECT
@@ -974,14 +972,14 @@ CONTAINS
        IF (settings%OT_METHOD .EQ."SD".OR.settings%OT_METHOD.EQ."CG") THEN
           SELECT CASE (settings%line_search_method)
           CASE ("2PNT")
-             WRITE(output_unit,'(A)') "  Line search    : 2PNT                : 2 energies, one gradient "
+             WRITE(output_unit,'(A)') "  Line search    : 2PNT                : 2 energies, one gradient"
           CASE ("3PNT")
-             WRITE(output_unit,'(A)') "  Line search    : 3PNT                : 3 energies "
+             WRITE(output_unit,'(A)') "  Line search    : 3PNT                : 3 energies"
           CASE ("GOLD")
-             WRITE(output_unit,'(A)')       "  Line search    : GOLD                : bracketing and golden section search "
+             WRITE(output_unit,'(A)')       "  Line search    : GOLD                : bracketing and golden section search"
              WRITE(output_unit,'(A,F14.8)') "                   target rel accuracy : ", settings%gold_target
           CASE ("NONE")
-             WRITE(output_unit,'(A)') "  Line search    : NONE "
+             WRITE(output_unit,'(A)') "  Line search    : NONE"
           CASE DEFAULT
              WRITE(output_unit,'(3A)') "  Line search : ", settings%line_search_method," : UNKNOWN"
           END SELECT
@@ -1004,8 +1002,7 @@ CONTAINS
        END IF
        WRITE(output_unit,'(A)') ""
        WRITE(output_unit,'(A,L2)')   "  mixed_precision    :", settings%mixed_precision
-       WRITE(output_unit,'(A)') ""
-       WRITE(output_unit,'(A)') "  ----------------------------------- OT ---------------------------------------"
+       WRITE(output_unit,'(/,A)') "  ----------------------------------- OT ---------------------------------------"
        WRITE (UNIT=output_unit,&
               FMT="(/,T3,A,T12,A,T31,A,T39,A,T59,A,T75,A,/,T3,A)")&
          "Step","Update method","Time","Convergence","Total energy","Change",&
