@@ -86,8 +86,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nipbv, &
-      nlj, nshell, ntersoff, ntors, ntot, nubs, nwl
+    INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nimpr, &
+      nipbv, nlj, nshell, ntersoff, ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure, &
                                                 unique_spline
     REAL(KIND=dp)                            :: min_eps_spline_allowed
@@ -119,13 +119,13 @@ CPSourceFileRef,&
           ! Do Nothing
        CASE DEFAULT
           CALL stop_program ("force_fields_input","force field type not implemented")
-       END SELECT 
+       END SELECT
        ! Numerical Accuracy:
        ! the factors here should depend on the energy and on the shape of each potential mapped
-       ! with splines. this would make everything un-necessarily complicated. Let's just be safe 
-       ! and assume that we cannot achieve an accuracy on the spline 2 orders of magnitude more 
-       ! than the smallest representable number (taking into account also the max_energy for the 
-       ! spline generation       
+       ! with splines. this would make everything un-necessarily complicated. Let's just be safe
+       ! and assume that we cannot achieve an accuracy on the spline 2 orders of magnitude more
+       ! than the smallest representable number (taking into account also the max_energy for the
+       ! spline generation
        min_eps_spline_allowed = 20.0_dp*MAX(ff_type%max_energy,10.0_dp)*EPSILON(0.0_dp)
        IF (ff_type%eps_spline < min_eps_spline_allowed) THEN
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -349,6 +349,22 @@ CPSourceFileRef,&
                inp_info%torsion_c,inp_info%torsion_d,inp_info%torsion_k,inp_info%torsion_phi0,&
                inp_info%torsion_m,tmp_section, ntot, error )
        END IF
+
+       tmp_section => section_vals_get_subs_vals(ff_section,"IMPROPER",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nimpr,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%impr_kind,1,nimpr)
+          CALL reallocate(inp_info%impr_a,1,nimpr)
+          CALL reallocate(inp_info%impr_b,1,nimpr)
+          CALL reallocate(inp_info%impr_c,1,nimpr)
+          CALL reallocate(inp_info%impr_d,1,nimpr)
+          CALL reallocate(inp_info%impr_k,1,nimpr)
+          CALL reallocate(inp_info%impr_phi0,1,nimpr)
+          CALL read_improper_section(inp_info%impr_kind,inp_info%impr_a, inp_info%impr_b,&
+               inp_info%impr_c,inp_info%impr_d,inp_info%impr_k,inp_info%impr_phi0,&
+               tmp_section, ntot, error )
+       END IF
     END IF
 
   END SUBROUTINE read_force_field_section1
@@ -527,7 +543,7 @@ CPSourceFileRef,&
        nonbonded%pot(start+isec)%pot %set(1)%lj%sigma6  = sigma**6
        nonbonded%pot(start+isec)%pot %set(1)%lj%sigma12 = sigma**12
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
-       ! 
+       !
        CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
@@ -572,7 +588,7 @@ CPSourceFileRef,&
        nonbonded%pot(start+isec)%pot %set(1)%willis%b = b
        nonbonded%pot(start+isec)%pot %set(1)%willis%c = c
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
-       ! 
+       !
        CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
@@ -621,7 +637,7 @@ CPSourceFileRef,&
        nonbonded%pot(start+isec)%pot %set(1)%goodwin%m = m
        nonbonded%pot(start+isec)%pot %set(1)%goodwin%mc = mc
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
-       ! 
+       !
        CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
@@ -661,7 +677,7 @@ CPSourceFileRef,&
             nonbonded%pot(start+isec)%pot%set(1)%ipbv )
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
-       ! 
+       !
        CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
@@ -701,7 +717,7 @@ CPSourceFileRef,&
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       
+
        CALL section_vals_val_get(section,"A",i_rep_section=isec,n_rep_val=i,error=error)
        IF (i==1) THEN
           CALL section_vals_val_get(section,"A",i_rep_section=isec,&
@@ -722,7 +738,7 @@ CPSourceFileRef,&
        END IF
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
-       ! 
+       !
        CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
@@ -816,7 +832,7 @@ CPSourceFileRef,&
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
        DEALLOCATE(coeff1,coeff2,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ! 
+       !
        CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
@@ -862,7 +878,7 @@ CPSourceFileRef,&
             nonbonded%pot(start+isec)%pot%set(1)%gp%parameters,nonbonded%pot(start+isec)%pot%set(1)%gp%values,&
             size_variables=1,i_rep_sec=isec,error=error)
        nonbonded%pot(start+isec)%pot%set(1)%gp%variables = nonbonded%pot(start+isec)%pot%set(1)%gp%parameters(1)
-       ! 
+       !
        CALL section_vals_val_get(section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
@@ -923,7 +939,7 @@ CPSourceFileRef,&
 
        ! In case it is defined override the standard specification of RCUT
        CALL section_vals_val_get ( tersoff_section, "RCUT", n_rep_val=n_rep, error=error)
-       IF(n_rep==1) THEN 
+       IF(n_rep==1) THEN
           CALL section_vals_val_get(tersoff_section,"RCUT",r_val=rcut,error=error)
           nonbonded%pot(start+isec)%pot %rcutsq = rcut**2
        END IF
@@ -981,7 +997,7 @@ CPSourceFileRef,&
        nonbonded%pot(start+isec)%pot %set(1)%buckmo%r0 = r0
        nonbonded%pot(start+isec)%pot %set(1)%buckmo%beta = beta
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
-       ! 
+       !
        CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
@@ -1283,6 +1299,47 @@ CPSourceFileRef,&
        CALL section_vals_val_get(section,"M",i_rep_section=isec,i_val=torsion_m(start+isec),error=error)
     END DO
   END SUBROUTINE read_torsions_section
+
+! *****************************************************************************
+!> \brief Reads the IMPROPER section
+!> \author louis vanduyfhuys
+! *****************************************************************************
+  SUBROUTINE read_improper_section(impr_kind,impr_a, impr_b, impr_c, impr_d, impr_k,&
+       impr_phi0, section, start, error )
+    INTEGER, DIMENSION(:), POINTER           :: impr_kind
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: impr_a, impr_b, impr_c, impr_d
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: impr_k, impr_phi0
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_improper_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    NULLIFY( atm_names)
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,i_val=impr_kind(start+isec),error=error)
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       impr_a(start+isec) = atm_names(1)
+       impr_b(start+isec) = atm_names(2)
+       impr_c(start+isec) = atm_names(3)
+       impr_d(start+isec) = atm_names(4)
+       CALL uppercase(impr_a(start+isec))
+       CALL uppercase(impr_b(start+isec))
+       CALL uppercase(impr_c(start+isec))
+       CALL uppercase(impr_d(start+isec))
+       CALL section_vals_val_get(section,"K",i_rep_section=isec,r_val=impr_k(start+isec),error=error)
+       CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=impr_phi0(start+isec),error=error)
+    END DO
+  END SUBROUTINE read_improper_section
 
 ! *****************************************************************************
 !> \brief Reads the force_field input section

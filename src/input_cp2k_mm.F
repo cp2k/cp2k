@@ -55,8 +55,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the input section for FIST.. Come on.. Let's get woohooo
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_mm_section(section,error)
@@ -83,7 +83,7 @@ CONTAINS
        CALL create_forcefield_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-       
+
        CALL create_neighbor_lists_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -103,8 +103,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the print mm section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_print_mm_section(section,error)
@@ -187,7 +187,7 @@ CONTAINS
             "Controls the printing of Force Field parameter file", &
             print_level=debug_print_level+1,filename="",common_iter_levels=2,error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key, "FF_INFO", description=&
             "Controls the printing of information in the forcefield settings", &
@@ -200,17 +200,17 @@ CONTAINS
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword,"spline_data",&
             description="if the printkey is active prints on separated files the splined function"//&
             " together with the reference one. Useful to check the spline behavior.",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-       
+
     END IF
   END SUBROUTINE create_print_mm_section
 
@@ -218,8 +218,8 @@ CONTAINS
 !> \brief Create the forcefield section. This section is useful to set up the
 !>      proper force_field for FIST calculations
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_forcefield_section(section,error)
@@ -234,7 +234,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="FORCEFIELD",&
@@ -324,7 +324,7 @@ CONTAINS
        CALL create_SPLINE_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-       
+
        CALL create_NONBONDED_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -353,6 +353,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_IMPROPER_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_DIPOLE_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -364,8 +368,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the parameters for the splines
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_SPLINE_section(section,error)
@@ -379,7 +383,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="SPLINE",&
@@ -389,7 +393,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-              
+
        CALL keyword_create(keyword, name="R0_NB",&
             description="Specify the minimum value of the distance interval "//&
             " that brackets the value of emax_spline.",&
@@ -408,7 +412,7 @@ CONTAINS
                                         error=error),&
             unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)                     
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EMAX_SPLINE",&
             description="Specify the maximum value of the potential up to which"//&
@@ -425,7 +429,7 @@ CONTAINS
             usage="EMAX_ACCURACY <REAL>", default_r_val=0.02_dp,unit_str="hartree",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-    
+
        CALL keyword_create(keyword, name="EPS_SPLINE",&
             description="Specify the threshold for the choice of the number of"//&
             " points used in the splines (comparing the splined value with the "//&
@@ -447,8 +451,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the torsion of the MM atoms
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_TORSION_section(section,error)
@@ -462,7 +466,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TORSION",&
@@ -518,11 +522,78 @@ CONTAINS
     END IF
   END SUBROUTINE create_TORSION_section
 
+  ! *****************************************************************************
+!> \brief This section specifies the improper torsion of the MM atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author louis vanduyfhuys
+! *****************************************************************************
+  SUBROUTINE create_IMPROPER_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_IMPROPER_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="IMPROPER",&
+            description="Specifies the improper torsion potential of the MM system.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Defines the atomic kinds involved in the improper tors.",&
+            usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", required=.TRUE., type_of_var=char_t,&
+            n_var=4, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword, name="KIND",&
+            description="Define the kind of improper torsion potential",&
+            usage="KIND CHARMM",&
+            enum_c_vals=s2a("CHARMM","G87","G96","HARMONIC"),&
+            enum_desc=s2a("Functional Form (CHARMM): K * [ PHI - PHI0 ]**2",&
+                          "Functional Form (G87|G96|HARMONIC): 0.5 * K * [ PHI - PHI0 ]**2",&
+                          "Functional Form (G87|G96|HARMONIC): 0.5 * K * [ PHI - PHI0 ]**2",&
+                          "Functional Form (G87|G96|HARMONIC): 0.5 * K * [ PHI - PHI0 ]**2"),&
+            enum_i_vals=(/ do_ff_charmm,&
+                           do_ff_g87,&
+                           do_ff_g96,&
+                           do_ff_harmonic/),&
+            default_i_val=do_ff_charmm, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K",&
+            description="Defines the force constant of the potential",&
+            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="hartree*rad^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PHI0",&
+            description="Defines the phase of the potential.",&
+            usage="PHI0 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="rad", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_IMPROPER_section
+
 ! *****************************************************************************
 !> \brief This section specifies the bend of the MM atoms
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_BEND_section(section,error)
@@ -537,7 +608,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BEND",&
@@ -546,7 +617,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword,subsection)
-       
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the bend.",&
             usage="ATOMS {KIND1} {KIND2} {KIND3}", required=.TRUE., type_of_var=char_t,&
@@ -645,8 +716,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the bond of the MM atoms
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_BOND_section(section,label,error)
@@ -662,11 +733,11 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        NULLIFY(keyword)
-       
+
        IF (TRIM(label)=="UB") THEN
           tag = " Urey-Bradley "
           CALL section_create(section,name=TRIM(label),&
@@ -742,8 +813,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the charge of the MM atoms
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_charge_section(section,error)
@@ -757,7 +828,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="charge",&
@@ -766,7 +837,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind of the charge.",&
             usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
@@ -787,8 +858,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the isotropic polarizability of the MM atoms
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Marcel Baer
 ! *****************************************************************************
   SUBROUTINE create_dipole_section(section,error)
@@ -802,7 +873,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DIPOLE",&
@@ -812,7 +883,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind of the scf dipole.",&
             usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
@@ -829,12 +900,12 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_dipole_section
-  
+
 ! *****************************************************************************
 !> \brief This section specifies the charge of the MM atoms
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_shell_section(section,error)
@@ -848,7 +919,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="shell",&
@@ -896,7 +967,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_DISTANCE",&
-            description="Assign a maximum elongation of the spring, "//& 
+            description="Assign a maximum elongation of the spring, "//&
             "if negative no limit is imposed",&
             usage="MAX_DISTANCE 0.0",&
             default_r_val=-1.0_dp,&
@@ -906,7 +977,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="SHELL_CUTOFF",&
             description="Define a screening function to exclude some neighbors "//&
-            " of the shell when electrostatic interaction are considered, "//& 
+            " of the shell when electrostatic interaction are considered, "//&
             "if negative no screening is operated",&
             usage="SHELL_CUTOFF -1.0",&
             default_r_val=-1.0_dp,&
@@ -919,11 +990,11 @@ CONTAINS
   END SUBROUTINE create_shell_section
 
 ! *****************************************************************************
-!> \brief This section specifies the input parameters for 1-4 NON-BONDED 
+!> \brief This section specifies the input parameters for 1-4 NON-BONDED
 !>      Interactions
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_NONBONDED14_section(section,error)
@@ -937,7 +1008,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nonbonded14",&
@@ -967,11 +1038,11 @@ CONTAINS
   END SUBROUTINE create_NONBONDED14_section
 
 ! *****************************************************************************
-!> \brief This section specifies the input parameters for 1-4 NON-BONDED 
+!> \brief This section specifies the input parameters for 1-4 NON-BONDED
 !>      Interactions
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_NONBONDED_section(section,error)
@@ -1004,7 +1075,7 @@ CONTAINS
 
        CALL create_EAM_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL create_Goodwin_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -1033,7 +1104,7 @@ CONTAINS
        CALL create_Tersoff_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-      
+
     END IF
 
   END SUBROUTINE create_NONBONDED_section
@@ -1042,8 +1113,8 @@ CONTAINS
 !> \brief This section specifies the input parameters for generation of
 !>      neighbor lists
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo [07.2007] - Zurich University
 ! *****************************************************************************
   SUBROUTINE create_neighbor_lists_section(section,error)
@@ -1093,7 +1164,7 @@ CONTAINS
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-      
+
     END IF
 
   END SUBROUTINE create_neighbor_lists_section
@@ -1101,8 +1172,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for a generic potential form
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_GENPOT_section(section,error)
@@ -1116,7 +1187,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="GENPOT",&
@@ -1137,7 +1208,7 @@ CONTAINS
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the functional form in mathematical notation.",&
             usage="FUNCTION  a*EXP(-b*x^2)/x+D*log10(x)", required=.TRUE., type_of_var=lchar_t,&
@@ -1195,8 +1266,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for EAM  potential type
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_EAM_section(section,error)
@@ -1210,7 +1281,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="EAM",&
@@ -1219,7 +1290,7 @@ CONTAINS
             required=.TRUE., error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
@@ -1249,8 +1320,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for Lennard-Jones potential type
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_LJ_section(section,error)
@@ -1264,7 +1335,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="lennard-jones",&
@@ -1274,7 +1345,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
@@ -1325,8 +1396,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for Williams potential type
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_Williams_section(section,error)
@@ -1340,7 +1411,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="williams",&
@@ -1350,7 +1421,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
@@ -1408,8 +1479,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for Goodwin potential type
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_Goodwin_section(section,error)
@@ -1423,7 +1494,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="goodwin",&
@@ -1504,8 +1575,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for IPBV potential type
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_ipbv_section(section,error)
@@ -1519,7 +1590,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="ipbv",&
@@ -1529,7 +1600,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the IPBV nonbond potential",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
@@ -1566,8 +1637,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for BMHFT potential type
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_BMHFT_section(section,error)
@@ -1581,7 +1652,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BMHFT",&
@@ -1592,7 +1663,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the BMHFT nonbond potential",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
@@ -1663,8 +1734,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for Buckingham 4 ranges potential type
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE create_Buck4r_section(section,error)
@@ -1678,7 +1749,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BUCK4RANGES",&
@@ -1690,7 +1761,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
@@ -1785,8 +1856,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for Buckingham + Morse potential type
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE create_Buckmorse_section(section,error)
@@ -1800,7 +1871,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BUCKMORSE",&
@@ -1811,7 +1882,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
@@ -1923,7 +1994,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TERSOFF",&
@@ -1932,7 +2003,7 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-       
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&

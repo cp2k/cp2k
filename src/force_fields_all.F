@@ -1626,21 +1626,33 @@ CONTAINS
 
           ! loop over params from AMBER not needed since impropers in AMBER
           ! are treated like standard torsions
-          
+
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%impr_a)) THEN
              DO k=1,SIZE(inp_info%impr_a)
-                IF( (((inp_info%impr_a(k))==(name_atm_a)) .AND. &
-                     ((inp_info%impr_b(k))==(name_atm_b)) .AND. &
-                     ((inp_info%impr_c(k))==(name_atm_c)) .AND. &
-                     ((inp_info%impr_d(k))==(name_atm_d))) .OR. &
-                     (((inp_info%impr_a(k))==(name_atm_d)) .AND. &
-                     ((inp_info%impr_b(k))==(name_atm_c)) .AND. &
-                     ((inp_info%impr_c(k))==(name_atm_b)) .AND. &
-                     ((inp_info%impr_d(k))==(name_atm_a))) ) THEN
+                IF( ((inp_info%impr_a(k))==(name_atm_a)) .AND. &
+                    ((inp_info%impr_d(k))==(name_atm_d)) .AND. &
+                    ((((inp_info%impr_c(k))==(name_atm_c)) .AND. &
+                     ((inp_info%impr_b(k))==(name_atm_b))) .OR. &
+                    (((inp_info%impr_c(k))==(name_atm_b)) .AND. &
+                     ((inp_info%impr_b(k))==(name_atm_c)))) ) THEN
                    impr_list(j)%impr_kind%id_type = inp_info%impr_kind(k)
                    impr_list(j)%impr_kind%k       = inp_info%impr_k(k)
-                   impr_list(j)%impr_kind%phi0    = inp_info%impr_phi0(k)
+                   IF ( ((inp_info%impr_c(k))==(name_atm_c)) .AND. &
+                      ((inp_info%impr_b(k))==(name_atm_b)) ) THEN
+                     impr_list(j)%impr_kind%phi0    = inp_info%impr_phi0(k)
+                   ELSE
+                     impr_list(j)%impr_kind%phi0    = -inp_info%impr_phi0(k)
+                     ! alternative solutions:
+                     !  - swap impr_list(j)%c with impr_list(j)%b and
+                     !    name_atom_c with name_atom_b and
+                     !    atm_c with atm_b
+                     !  - introduce impr_list(j)%impr_kind%sign. if one, the
+                     !    sign of phi is not changed in mol_force.f90. if minus
+                     !    one, the sign of phi is changed in mol_force.f90
+                     ! similar problems with parameters from charmm pot file
+                     ! above
+                   END IF
                    CALL issue_duplications(found,routineP, "Impropers", name_atm_a, name_atm_b,&
                         name_atm_c,name_atm_d, error=error)
                    found = .TRUE.
@@ -1759,7 +1771,7 @@ CONTAINS
        ! print a warning: the CHARGE will not be used if defined.. or we can
        ! even skip its definition..
        IF(ASSOCIATED(inp_info%shell_list)) THEN
-          DO j=1,SIZE(inp_info%shell_list)                   
+          DO j=1,SIZE(inp_info%shell_list)
              IF((inp_info%shell_list(j)%atm_name)==atmname) THEN
                 is_shell  = .TRUE.
                 cs_charge = inp_info%shell_list(j)%shell%charge_core+&
@@ -1831,7 +1843,7 @@ CPSourceFileRef,&
        CALL set_potential(potential=elp_potential,qeff=charge(i), a_pol=alpha(i))
        CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
        ! Sum up total charges for IO
-       IF (found) THEN 
+       IF (found) THEN
           IF (is_shell) THEN
              chrg_tot = chrg_tot + atomic_kind%natom*cs_charge
           ELSE
@@ -1932,7 +1944,7 @@ CPSourceFileRef,&
                 shell%k_spring=inp_info%shell_list(j)%shell%k_spring
                 shell%max_dist=inp_info%shell_list(j)%shell%max_dist
                 shell%shell_cutoff=inp_info%shell_list(j)%shell%shell_cutoff
-                
+
                 shell%mass_shell=shell%massfrac*atmmass
                 shell%mass_core=atmmass-shell%mass_shell
                 CALL issue_duplications(found_shell,routineP, "Shell", atmname, error=error)
@@ -2029,14 +2041,14 @@ CPSourceFileRef,&
                 atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname, shell=shell)
                 CALL uppercase(atmname)
-                shell_list(j)%name = atmname 
+                shell_list(j)%name = atmname
                 shell_list(j)%shell_kind => shell
              END DO
              CALL set_molecule_kind(molecule_kind=molecule_kind, nshell=counter,shell_list=shell_list)
           END IF
           DEALLOCATE(shell_list_tmp,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          n = n + nmol * counter 
+          n = n + nmol * counter
        END DO  ! i molecule kind
     END IF  ! nshell_tot>0
     CPPostcondition(first_shell-1==nshell_tot,cp_failure_level,routineP,error,failure)
@@ -2115,7 +2127,7 @@ CPSourceFileRef,&
 
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
-             ii = 0 
+             ii = 0
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a_14)
                 IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a_14(k))) THEN
@@ -2487,7 +2499,7 @@ CPSourceFileRef,&
     CALL ewald_env_get(ewald_env,rcut=ewald_rcut,do_multipoles=do_multipoles,error=error)
     IF (do_multipoles) ewald_rcut = 0.0_dp
     ewald_rcut2 = ewald_rcut**2
-    
+
     CALL pair_potential_pp_create ( potparm_nonbond, SIZE(atomic_kind_set),error )
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
@@ -2507,7 +2519,7 @@ CPSourceFileRef,&
 
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%nonbond_a)) THEN
-             ii = 0 
+             ii = 0
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a)
                 IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a(k))) THEN
@@ -2598,7 +2610,7 @@ CPSourceFileRef,&
                 found = .TRUE.
              END IF
           END IF
-          
+
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%nonbonded)) THEN
              DO k=1,SIZE(inp_info%nonbonded%pot)
@@ -2744,7 +2756,7 @@ CPSourceFileRef,&
       CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
       do_14=.FALSE., do_zbl=do_zbl, ewald_env=ewald_env, scale_cutoff=ff_type%scale_cutoff,&
       error=error)
-      NULLIFY (spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env) 
+      NULLIFY (spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env)
       CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
            atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
            max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
@@ -2790,8 +2802,8 @@ CPSourceFileRef,&
     DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
           !---------------------------------------
-          ! 1st: The pair-potential contribution, 
-          !      if shell-model, it is ion-shell or shell-shell 
+          ! 1st: The pair-potential contribution,
+          !      if shell-model, it is ion-shell or shell-shell
           !---------------------------------------
           n = spline_nonbond_env % spltab ( ikind, jkind )
           spl_p => spline_nonbond_env%spl_pp(n)%spl_p
@@ -2848,7 +2860,7 @@ CPSourceFileRef,&
   END SUBROUTINE force_field_pack_pp
 
 ! *****************************************************************************
-!> \brief Issues on screen a warning when repetitions are present in the 
+!> \brief Issues on screen a warning when repetitions are present in the
 !>        definition of the forcefield
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************

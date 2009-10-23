@@ -121,7 +121,7 @@ CONTAINS
        fscalar =-k*(COS(theta)-theta0)
        g1 = (b32*id32-b12*id12*COS(theta))*id12
        g3 = (b12*id12-b32*id32*COS(theta))*id32
-       g2 = -g1-g3 
+       g2 = -g1-g3
     CASE (do_ff_charmm, do_ff_amber)
        denom = id12*id12*id32*id32
        energy = k * ( theta - theta0 ) ** 2
@@ -305,20 +305,21 @@ CONTAINS
     IF(cosphi < -1.0_dp) cosphi = -1.0_dp
     phi = SIGN( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ))
 
+
     SELECT CASE (id_type)
     CASE (do_ff_charmm)
        ! compute energy
        energy = k * ( phi - phi0 )**2
 
        ! compute fscalar
-       fscalar = - 2.0_dp * k * ( phi - phi0 ) 
+       fscalar = - 2.0_dp * k * ( phi - phi0 )
 
     CASE (do_ff_harmonic,do_ff_g87,do_ff_g96)
        ! compute energy
        energy = f12 * k * ( phi - phi0 )**2
 
        ! compute fscalar
-       fscalar = - k * ( phi - phi0 ) 
+       fscalar = - k * ( phi - phi0 )
 
     CASE DEFAULT
        CALL stop_program (routineP,"unmatched impr kind")

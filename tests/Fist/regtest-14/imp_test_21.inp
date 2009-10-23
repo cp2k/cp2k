@@ -1,0 +1,192 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM C
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM Cl
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM Br
+        CHARGE 0.0
+      &END CHARGE
+      &BOND
+        ATOMS C H
+        K [au_e*au_l^-2] 0.0
+        R0 [au_l] 1.91807202593
+      &END BOND
+      &BOND
+        ATOMS C Cl
+        K [au_e*au_l^-2] 0.0
+        R0 [au_l] 1.91807202593
+      &END BOND
+      &BOND
+        ATOMS C Br
+        K [au_e*au_l^-2] 0.0
+        R0 [au_l] 1.91807202593
+      &END BOND
+      &BEND
+        ATOMS Br C H
+        K [au_e*rad^-2] 0.0
+        THETA0 [rad] 0.0
+      &END BEND
+      &BEND
+        ATOMS Br C Cl
+        K [au_e*rad^-2] 0.0
+        THETA0 [rad] 0.0
+      &END BEND
+      &BEND
+        ATOMS Cl C H
+        K [au_e*rad^-2] 0.0
+        THETA0 [rad] 0.0
+      &END BEND
+      &IMPROPER
+        KIND HARMONIC
+        ATOMS C Br Cl H
+        K [au_e*rad^-2] 0.5
+        PHI0 [rad] -1.34
+      &END IMPROPER
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS C C
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS C H
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS C Cl
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS C Br
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H H
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H Br
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H Cl
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Br Br
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Br Cl
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Cl Cl
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+      &END NONBONDED
+      &NONBONDED14   
+        &LENNARD-JONES
+          ATOMS C C
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS C H
+        SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS C Cl
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS C Br
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H H
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H Br
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H Cl
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Br Br
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Br Cl
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Cl Cl
+          SIGMA [au_l] 1.0
+          EPSILON [au_e] 0.0
+        &END LENNARD-JONES
+      &END NONBONDED14     
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC none
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 25.9457 25.9457 25.9457
+    &END CELL
+    &COORD
+      Br        -1.45470        0.99560       -0.57390
+      Cl        -0.18290       -1.68550       -0.47690
+      C          0.00000        0.00000        0.00000
+      H          0.10430        0.07370        1.01100
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE_NAME ../sample_psf/imp_test.psf
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT imp_test_21
+  RUN_TYPE DEBUG
+  PRINT_LEVEL LOW
+&END GLOBAL
+&DEBUG
+&END
