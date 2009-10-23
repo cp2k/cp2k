@@ -1548,12 +1548,12 @@ CONTAINS
 
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
 !$omp parallel do default(none), &
-!$omp             private(nr,ix,ixx,ir,iy,iz), &
-!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb)
+!$omp             private(ixx,ir,iy,iz), &
+!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb), &
+!$omp             collapse(2)
     DO ip = 0, np - 1
-       nr = nray ( ip )
        DO ix = 1, nx
-          ixx = nr * ( ix - 1 )
+          ixx = nray(ip) * ( ix - 1 )
           IF ( alltoall_sgl ) THEN
              DO ir = 1, nray ( ip )
                 iy = yzp ( 1, ir, ip )
@@ -1625,12 +1625,12 @@ CONTAINS
 
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
 !$omp parallel do default(none), &
-!$omp             private(nr, ix, ixx, ir, iy, iz), &
-!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tb,tt,rr)
+!$omp             private(ip, ixx, ir, iy, iz), &
+!$omp             shared(np,nray,nx,alltoall_sgl,yzp,tb,tt,rr), &
+!$omp             collapse(2)
     DO ip = 0, np - 1
-       nr = nray ( ip )
        DO ix = 1, nx
-          ixx = nr * ( ix - 1 )
+          ixx = nray(ip) * ( ix - 1 )
           IF ( alltoall_sgl ) THEN
              DO ir = 1, nray ( ip )
                 iy = yzp ( 1, ir, ip )
@@ -1819,7 +1819,7 @@ CONTAINS
     num_threads = 1
     my_id = 0
 !$omp parallel default(none), &
-!$omp          private(my_id,num_threads,lb,ub,ipr,jj,jx,ir,jz,jy), &
+!$omp          private(my_id,num_threads,lb,ub,ipr,jj,ip,ir,jz,jy), &
 !$omp          shared(tb,np,p2p,bo,rs_pos,nray,yzp,alltoall_sgl,zcor,myz,tq,rq,nz)
 !$  num_threads = omp_get_num_threads()
 !$  my_id = omp_get_thread_num()
@@ -1827,10 +1827,10 @@ CONTAINS
     ub = (SIZE(tb,2)*(my_id+1))/num_threads
     tb(:,lb:ub) = 0.0_lp
 !$omp barrier
-!$omp do
     DO ip = 0, np - 1
        ipr = p2p ( ip )
        jj = 0
+!$omp do collapse(2)
        DO jx = 0, bo ( 2, 1, rs_pos ) - bo ( 1, 1, rs_pos )
           DO ir = 1, nray ( ip )
              jz = yzp ( 2, ir, ip )
@@ -1851,8 +1851,8 @@ CONTAINS
              END IF
           END DO
        END DO
-    END DO
 !$omp end do
+    END DO
 !$omp end parallel
 
     CALL timestop(handle)
@@ -1970,14 +1970,14 @@ CONTAINS
     nz = bo ( 2, 3, mp ) - bo ( 1, 3, mp ) + 1
     nx = bo ( 2, 1, mp ) - bo ( 1, 1, mp ) + 1
 !$omp parallel default(none), &
-!$omp          private(jj,ipl,ir,jz,jy,jx,ixx), &
+!$omp          private(jj,ipl,ip,jz,jy,jx,ixx), &
 !$omp          shared(np,p2p,nray,yzp,zcor,myz,bo,mp, &
 !$omp                 alltoall_sgl,nx,scount,tq,rq,sb, &
 !$omp                 nz,nmax,sdispl,rdispl)
-!$omp do
     DO ip = 0, np - 1
        jj = 0
        ipl = p2p ( ip )
+!$omp do
        DO ir = 1, nray ( ip )
           jz = yzp ( 2, ir, ip )
           IF ( zcor ( jz ) == myz ) THEN
@@ -1997,8 +1997,8 @@ CONTAINS
              END IF
           END IF
        END DO
-    END DO
 !$omp end do
+    END DO
 !$omp do
     DO ip = 0, np - 1
        sdispl ( ip ) = nmax * ip
@@ -2180,7 +2180,7 @@ CONTAINS
 !$omp parallel default(none), &
 !$omp          private(ip,ipl,nz,iz,ir), &
 !$omp          shared(nx,ny,np,pgrid,boout,rbuf,cin,scount,sdispl,mz)
-!$omp do
+!$omp do collapse(2)
     DO ixy = 1, nx * ny
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 2 )
@@ -2378,7 +2378,7 @@ CONTAINS
     rbuf(:,lb:ub) = 0.0_lp
 !$omp barrier
 
-!$omp do
+!$omp do collapse(2)
     DO izx = 1, nz * nx
        DO ip = 0, np - 1
           ipl = pgrid ( ip, 1 )
@@ -2560,7 +2560,7 @@ CONTAINS
     rbuf(:,lb:ub) = 0.0_lp
 !$omp barrier
 
-!$omp do
+!$omp do collapse(2)
     DO izx = 1, nz * nx
        DO ip = 0, np - 1
           ny = boout ( 2, 2, ip ) - boout ( 1, 2, ip ) + 1

@@ -990,8 +990,9 @@ CONTAINS
     yzq => pw%pw_grid%para%yzq
 
     IF ( PRESENT ( scale ) ) THEN
-
-!$omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do default(none), &
+!$omp             private(l,m,n,mn), &
+!$omp             shared(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c,scale)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1001,10 +1002,11 @@ CONTAINS
           pw%cc ( gpt ) = scale * c ( l, mn )
 
        END DO
-
+!$omp end parallel do
     ELSE
-
-!$omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do default(none), &
+!$omp             private(l,m,n,mn), &
+!$omp             shared(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1014,7 +1016,7 @@ CONTAINS
           pw%cc ( gpt ) = c ( l, mn )
 
        END DO
-
+!$omp end parallel do
     END IF
 
     cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
@@ -1145,12 +1147,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_p', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: gpt, handle, l, m, mn, n, &
-                                                ngpts
+    INTEGER                                  :: gpt, handle, l, lb, m, mn, &
+                                                my_id, n, ngpts, num_threads, &
+                                                ub
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
+
+!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -1177,11 +1182,24 @@ CONTAINS
 
     ngpts = SIZE ( pw%pw_grid%gsq  )
 
-    IF ( .NOT. PRESENT ( scale ) ) c = 0.0_dp
+    IF ( .NOT. PRESENT ( scale ) ) THEN
+       num_threads = 1
+       my_id = 0
+!$omp parallel default(none), &
+!$omp          private(my_id, num_threads, lb, ub), &
+!$omp          shared(c)
+!$     num_threads = omp_get_num_threads()
+!$     my_id = omp_get_thread_num()
+       lb = (SIZE(c,2)*my_id)/num_threads + 1
+       ub = (SIZE(c,2)*(my_id+1))/num_threads
+       c(:, lb:ub) = 0.0_dp
+!$omp end parallel
+    END IF
 
     IF ( PRESENT ( scale ) ) THEN
-
-!$omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do default(none), &
+!$omp             private(l,m,n,mn), &
+!$omp             shared(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c,scale)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1191,10 +1209,11 @@ CONTAINS
           c ( l, mn ) = scale * pw%cc ( gpt )
 
        END DO
-
+!$omp end parallel do
     ELSE
-
-!$omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do default(none), &
+!$omp             private(l,m,n,mn), &
+!$omp             shared(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1204,7 +1223,7 @@ CONTAINS
           c ( l, mn ) = pw%cc ( gpt )
 
        END DO
-
+!$omp end parallel do
     END IF
 
     IF ( pw%pw_grid%grid_span == HALFSPACE ) THEN
@@ -1214,8 +1233,9 @@ CONTAINS
        mapl => pw%pw_grid%mapl%neg
 
        IF ( PRESENT ( scale ) ) THEN
-
-!$omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do default(none), &
+!$omp             private(l,m,n,mn), &
+!$omp             shared(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c,scale)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1225,10 +1245,11 @@ CONTAINS
              c ( l, mn ) = scale * CONJG ( pw%cc ( gpt ) )
 
           END DO
-
+!$omp end parallel do
        ELSE
-
-!$omp parallel do private(gpt,l,m,n,mn)
+!$omp parallel do default(none), &
+!$omp             private(l,m,n,mn), &
+!$omp             shared(ngpts,mapl,mapm,mapn,ghat,yzq,pw,c)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1238,13 +1259,14 @@ CONTAINS
              c ( l, mn ) = CONJG ( pw%cc ( gpt ) )
 
           END DO
-
+!$omp end parallel do
        END IF
 
     END IF
 
     cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
     CALL timestop(handle)
+
 
   END SUBROUTINE pw_scatter_p
 
