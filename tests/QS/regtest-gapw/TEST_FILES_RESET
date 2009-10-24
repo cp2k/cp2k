@@ -238,3 +238,19 @@ He2-all-md.inp
 He2-all.inp
 # bug fix DOF for linear molecules
 He2-all-md.inp
+# getting rid of full gapw
+H2O-gapw-all.inp
+H2O-gapw-all_localize_crazy.inp
+H2O-gapw-all_localize_crazy_noortho.inp
+H2O-gapw-all_localize.inp
+H2O-gapw-all_localize_noortho.inp
+H2O-gapw-all_loc_list.inp
+H2O-gapw-all_noortho.inp
+H2O-gapw-gth.inp
+H2O-gapw-gth-pvh.inp
+H2S-gapw-gop.inp
+H2S-gapw-gop-ot.inp
+H2S-gapw.inp
+H2S-gapw-ot.inp
+HF_gapw_all_LB.inp
+OF_gapw_all_lsd_LB.inp
