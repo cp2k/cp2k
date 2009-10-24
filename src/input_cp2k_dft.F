@@ -1925,15 +1925,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="FULL_GAPW",&
-            description="Perform a full GAPW calculations, with all the terms"//&
-            " if alpha0_h/=alpha0_s (much more expensive). Otherwise the "//&
-            "compensation densities are set equal and the 2/3 center terms cancel out",&
-            usage="FULL_GAPW",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="FORCE_PAW",&
             description="Use the GAPW scheme also for atoms with soft basis sets, i.e. "//&
             " the local densities are computed even if hard and soft should be equal. "//&
@@ -4894,14 +4885,14 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"DIAGONALIZATION",&
-            description="Sets the various options for Kohn-Sham matrix diagonalization.",&
+            description="Set up type and parameters for Kohn-Sham matrix diagonalization.",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="controls the activation of the ot method",&
+            description="controls the activation of the diagonalization method",&
             usage="&DIAGONALIZATION T",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
@@ -5324,6 +5315,10 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_mixing_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
     END IF
@@ -6543,6 +6538,19 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword,&
+                          name="PULAY_BETA",&
+                          description="Fraction of residual contribution to be added to Pulay expansion",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=1.0_dp,&
+                          usage="PULAY_BETA 0.2",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
       CALL keyword_create(keyword, name="NMIXING",&
             description="Minimal number of density mixing (should be greater than 0),"//&
             "before starting DIIS",&
@@ -6663,6 +6671,20 @@ CONTAINS
                           type_of_var=real_t,&
                           default_r_val=0.1_dp,&
                           usage="KERKER_MIN 0.05",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="MAX_GVEC_EXP",&
+                          description="Restricts the G-space mixing to lower part of G-vector spectrum,"//&
+                          " up to a G0, by assigning the exponent of the Gaussian that can be "//&
+                          "represented by vectors smaller than G0 within a certain accuracy. ",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=-1._dp,&
+                          usage="MAX_GVEC_EXP 3.",&
                           error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)

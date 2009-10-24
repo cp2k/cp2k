@@ -20,6 +20,7 @@ MODULE qs_rho0_methods
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type
   USE f77_blas
+  USE input_constants,                 ONLY: rel_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -169,7 +170,8 @@ MODULE qs_rho0_methods
   SUBROUTINE calculate_rho0_atom(gapw_control,rho_atom_set, rho0_atom_set, &
                                  rho0_mp,a_list,g_atom,&
                                  paw_atom,natom,ikind,atom_kind,harmonics,&
-                                 rho0_h_tot,rho0_s_tot,error)
+                                 rho0_h_tot,&
+                                 error)
 
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -183,7 +185,7 @@ MODULE qs_rho0_methods
     INTEGER, INTENT(IN)                      :: natom, ikind
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    REAL(dp), INTENT(INOUT)                  :: rho0_h_tot, rho0_s_tot
+    REAL(dp), INTENT(INOUT)                  :: rho0_h_tot
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_atom', &
@@ -194,11 +196,11 @@ MODULE qs_rho0_methods
                                                 lmax0, lshell, lx, ly, lz, &
                                                 nr, nsotot, nspins
     LOGICAL                                  :: failure = .FALSE.
-    REAL(dp)                                 :: sum1, sum2
+    REAL(dp)                                 :: sum1
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: cpc_ah, cpc_as
-    REAL(dp), DIMENSION(:), POINTER          :: norm_g0l_h, norm_g0l_s
-    REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, g0_s, vg0_h
+    REAL(dp), DIMENSION(:), POINTER          :: norm_g0l_h
+    REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, vg0_h
     TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
     TYPE(mpole_rho_atom), POINTER            :: mpole_rho
     TYPE(rho_atom_coeff), DIMENSION(:), &
@@ -209,14 +211,14 @@ MODULE qs_rho0_methods
 
     NULLIFY(mpole_gau)
     NULLIFY(mpole_rho)
-    NULLIFY(g0_h, g0_s, vg0_h)
-    NULLIFY(norm_g0l_h, norm_g0l_s)
+    NULLIFY(g0_h, vg0_h)
+    NULLIFY(norm_g0l_h)
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mp,ikind=ikind, &
                         l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&
-                        g0_h=g0_h,g0_s=g0_s, vg0_h=vg0_h,&
-                        norm_g0l_h=norm_g0l_h,&
-                        norm_g0l_s=norm_g0l_s)
+                        g0_h=g0_h,&
+                        vg0_h=vg0_h,&
+                        norm_g0l_h=norm_g0l_h)
 
     nr = g_atom%nr
 
@@ -224,7 +226,6 @@ MODULE qs_rho0_methods
     DO iat = 1,natom
       iatom = a_list(iat)
       rho0_atom_set(iatom)%rho0_rad_h%r_coef = 0.0_dp
-      rho0_atom_set(iatom)%rho0_rad_s%r_coef = 0.0_dp
       rho0_mp%mp_rho(iatom)%Qlm_tot = 0.0_dp
       rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
     ENDDO
@@ -273,21 +274,16 @@ MODULE qs_rho0_methods
 
             rho0_atom_set(iatom)%rho0_rad_h%r_coef(1:nr,iso) = &
               g0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)
-            rho0_atom_set(iatom)%rho0_rad_s%r_coef(1:nr,iso) = &
-              g0_s(1:nr,l) * mpole_rho%Qlm_tot(iso)
+
             rho0_atom_set(iatom)%vrho0_rad_h%r_coef(1:nr,iso) = &
               vg0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)
 
             sum1 = 0.0_dp
-            sum2 = 0.0_dp
             DO ir = 1,nr
               sum1 = sum1 + g_atom%wr(ir)*&
                      rho0_atom_set(iatom)%rho0_rad_h%r_coef(ir,iso)
-              sum2 = sum2 + g_atom%wr(ir)*&
-                     rho0_atom_set(iatom)%rho0_rad_s%r_coef(ir,iso)
             ENDDO
             rho0_h_tot = rho0_h_tot + sum1* harmonics%slm_int(iso)
-            rho0_s_tot = rho0_s_tot + sum2* harmonics%slm_int(iso)
          END DO  ! iso
          IF(paw_atom) THEN
             DEALLOCATE(cpc_ah,cpc_as,STAT=istat)
@@ -297,7 +293,6 @@ MODULE qs_rho0_methods
     END IF
 
 !   Transform the coefficinets from spherical to cartesian
-
     IF(.NOT. paw_atom .AND. gapw_control%nopaw_as_gpw) THEN
       DO iat = 1,natom
         iatom = a_list(iat)
@@ -306,42 +301,35 @@ MODULE qs_rho0_methods
        DO lshell = 0,lmax0
          DO ic = 1,nco(lshell)
            ico = ic + ncoset(lshell-1)
-           mpole_rho%Qlm_car_h(ico) = 0.0_dp
-           mpole_rho%Qlm_car_s(ico) = 0.0_dp
+           mpole_rho%Qlm_car(ico) = 0.0_dp
          END DO
        END DO
       END DO
     ELSE
-    DO iat = 1,natom
-       iatom = a_list(iat)
-       mpole_rho => rho0_mp%mp_rho(iatom)
-
-       DO lshell = 0,lmax0
-         DO ic = 1,nco(lshell)
-           ico = ic + ncoset(lshell-1)
-           mpole_rho%Qlm_car_h(ico) = 0.0_dp
-           mpole_rho%Qlm_car_s(ico) = 0.0_dp
-           lx = indco(1,ico)
-           ly = indco(2,ico)
-           lz = indco(3,ico)
-
-           DO is = 1,nso(lshell)
-             iso = is + nsoset(lshell-1)
-
-             mpole_rho%Qlm_car_s(ico) = mpole_rho%Qlm_car_s(ico) + &
-                  orbtramat(lshell)%c2s(is,ic)*mpole_rho%Qlm_tot(iso)*&
-                  norm_g0l_s(lshell)&
-                 /SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/dfac(2*lshell+1))
-
-             mpole_rho%Qlm_car_h(ico) = mpole_rho%Qlm_car_h(ico) + &
-                  orbtramat(lshell)%c2s(is,ic)*mpole_rho%Qlm_tot(iso)*&
-                  norm_g0l_h(lshell)&
-                 /SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/dfac(2*lshell+1))
-
-           END DO
-         END DO
-       END DO  ! lshell
-    END DO  ! iat
+     DO iat = 1,natom
+        iatom = a_list(iat)
+        mpole_rho => rho0_mp%mp_rho(iatom)
+  
+        DO lshell = 0,lmax0
+          DO ic = 1,nco(lshell)
+            ico = ic + ncoset(lshell-1)
+            mpole_rho%Qlm_car(ico) = 0.0_dp
+            lx = indco(1,ico)
+            ly = indco(2,ico)
+            lz = indco(3,ico)
+  
+            DO is = 1,nso(lshell)
+              iso = is + nsoset(lshell-1)
+  
+              mpole_rho%Qlm_car(ico) = mpole_rho%Qlm_car(ico) + &
+                   orbtramat(lshell)%c2s(is,ic)*mpole_rho%Qlm_tot(iso)*&
+                   norm_g0l_h(lshell)&
+                  /SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/dfac(2*lshell+1))
+  
+            END DO
+          END DO
+        END DO  ! lshell
+     END DO  ! iat
     END IF
 
    CALL timestop(handle)
@@ -368,8 +356,8 @@ MODULE qs_rho0_methods
       nset, nsotot, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, my_tddft, paw_atom
-    REAL(dp) :: alpha_core, ecut, eps_fit, eps_Vrho0, gcut, max_rpgf0_s, &
-      radius, rc_min, rc_orb, total_rho_core_rspace, zetsoft_max
+    REAL(dp) :: alpha_core, ecut, eps_fit, eps_Vrho0, max_rpgf0_s, radius, &
+      rc_min, rc_orb, total_rho_core_rspace, zetsoft_max
     REAL(KIND=dp)                            :: zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -478,10 +466,8 @@ MODULE qs_rho0_methods
 
       DO iat = 1,nat
          iatom = atom_list(iat)
-
 !        Allocate the multipole for rho1_h rho1_s and rho_z
          CALL initialize_mpole_rho(rho0_mpole%mp_rho(iatom),nchan_s,nchan_c,zeff,my_tddft)
-
 !        Allocate the radial part of rho0_h and rho0_s
 !        This is calculated on the radial grid centered at the atomic position
          CALL allocate_rho0_atom_rad(rho0_atom_set(iatom),nr,nchan_s)
@@ -499,18 +485,14 @@ MODULE qs_rho0_methods
 !     WARNING: alpha_core_charge = alpha_c**2
       CALL calculate_rhoz(rhoz_set(ikind),grid_atom,alpha_core,zeff,&
             nat,total_rho_core_rspace,harmonics)
-
     END DO   ! ikind
     total_rho_core_rspace = - total_rho_core_rspace
 
     IF(gapw_control%alpha0_hard_from_input) THEN
 !   The Exponent for the compensation charge rho0_hard is read from input
-
       rho0_mpole%zet0_h = gapw_control%alpha0_hard
-
     ELSE
 !   Calculate the exponent for the compensation charge rho0_hard
-
       rho0_mpole%zet0_h =  0.1_dp
       DO
         radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_Vrho0,1.0_dp)
@@ -520,45 +502,11 @@ MODULE qs_rho0_methods
 
     END IF
 
-    IF(gapw_control%full_gapw) THEN
-!   The compensation charges are not the same if the exponents are not set equal
-!   all the 2 and 3 center terms need to be calculated (time demanding!!)
-      IF(gapw_control%alpha0_soft_from_input) THEN
-!     The Exponent for the compensation charge rho0_soft is read from input
-
-        rho0_mpole%zet0_s = gapw_control%alpha0_soft
-
-      ELSE
-!     Calculate the exponent for the compensation charge rho0_soft
-
-          rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h
-        DO
-          gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_Vrho0,1.0_dp)
-          IF (gcut<=SQRT(2.0_dp*ecut)) EXIT
-          rho0_mpole%zet0_s=rho0_mpole%zet0_s*1.1_dp
-        END DO
-        rho0_mpole%zet0_s=0.25_dp/rho0_mpole%zet0_s
-
-!       rho0_mpole%zet0_s can be as big as the largest exponent of the soft density
-!       that is collocated on the grid
-        IF(rho0_mpole%zet0_s < zetsoft_max) rho0_mpole%zet0_s = zetsoft_max
-
-        IF(rho0_mpole%zet0_s > 0.9_dp*rho0_mpole%zet0_h) &
-            rho0_mpole%zet0_s=0.9_dp*rho0_mpole%zet0_h
-      END IF
-    ELSE
-!   The hard and soft exponents for the compensation chargesare equal
-      rho0_mpole%zet0_s = rho0_mpole%zet0_h
-    END IF
-
 !   Allocate and calculate the normalization factors for g0_lm_h and g0_lm_s
     CALL reallocate(rho0_mpole%norm_g0l_h,0,rho0_mpole%lmax_0)
-    CALL reallocate(rho0_mpole%norm_g0l_s,0,rho0_mpole%lmax_0)
     DO l = 0,rho0_mpole%lmax_0
       rho0_mpole%norm_g0l_h(l) = (2._dp*l+1._dp)/&
                                  ( fourpi*gaussint_sph(rho0_mpole%zet0_h,2*l))
-      rho0_mpole%norm_g0l_s(l) = (2._dp*l+1._dp)/&
-                                 ( fourpi*gaussint_sph(rho0_mpole%zet0_s,2*l))
     END DO
 
 !   Allocate and Initialize the g0 gaussians used to build the compensation density
@@ -568,20 +516,21 @@ MODULE qs_rho0_methods
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,&
                            grid_atom=grid_atom)
-
       CALL calculate_g0(rho0_mpole,grid_atom,ikind)
-
-      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_Vrho0,max_rpgf0_s,.TRUE.)
-
+      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_Vrho0,max_rpgf0_s)
     END DO
     rho0_mpole%max_rpgf0_s = max_rpgf0_s
-    ALLOCATE(rho0_mpole%orb_radius_3c(nkind),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(rho0_mpole%set_radius_3c(maxnset,nkind),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
+!MI get rid of full gapw
+    IF ( qs_env%rel_control%rel_method/=rel_none) THEN
+      ALLOCATE(rho0_mpole%orb_radius_3c(nkind),STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(rho0_mpole%set_radius_3c(maxnset,nkind),STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 !   Calculate the interaction radii for the 3 centers lists
-    CALL radii_3c_orbxrho0(qs_env,rho0_mpole,error=error)
+      CALL radii_3c_orbxrho0(qs_env,rho0_mpole,error=error)
+    END IF
+!MI get rid of full gapw
 
     IF (.NOT.my_tddft) THEN
        CALL set_qs_env(qs_env=qs_env, rho0_mpole = rho0_mpole, &
@@ -612,99 +561,38 @@ MODULE qs_rho0_methods
     END SUBROUTINE init_rho0
 
 ! *****************************************************************************
-  SUBROUTINE interaction_radii_g0(rho0_mpole,grid_atom,ik,&
-                                  eps_Vrho0,max_rpgf0_s,calculate_V0hmV0s)
+  SUBROUTINE interaction_radii_g0(rho0_mpole,grid_atom,ik,eps_Vrho0,max_rpgf0_s)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(grid_atom_type), POINTER            :: grid_atom
     INTEGER, INTENT(IN)                      :: ik
     REAL(dp), INTENT(IN)                     :: eps_Vrho0
     REAL(dp), INTENT(INOUT)                  :: max_rpgf0_s
-    LOGICAL, INTENT(IN)                      :: calculate_V0hmV0s
 
     CHARACTER(len=*), PARAMETER :: routineN = 'interaction_radii_g0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ir, l, lmax, nr
-    REAL(dp)                                 :: I_down_h, I_down_s, I_up_h, &
-                                                I_up_s, r_h, r_hms, r_s, V_h, &
-                                                V_s, z0_h, z0_s
-    REAL(dp), DIMENSION(:), POINTER          :: ng0_h, ng0_s
-    REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, g0_s
+    INTEGER                                  :: l, lmax
+    REAL(dp)                                 :: r_h, z0_h
+    REAL(dp), DIMENSION(:), POINTER          :: ng0_h
 
     CALL get_rho0_mpole(rho0_mpole, ikind =ik, l0_ikind=lmax,&
-                        zet0_h=z0_h, zet0_s=z0_s, norm_g0l_h=ng0_h,&
-                        norm_g0l_s=ng0_s, g0_h=g0_h, g0_s=g0_s)
-    nr = grid_atom%nr
-
+                        zet0_h=z0_h, norm_g0l_h=ng0_h)
     r_h = 0.0_dp
-    r_s = 0.0_dp
     DO l = 0,lmax
       r_h = MAX(r_h, exp_radius(l,z0_h,eps_Vrho0,ng0_h(l)))
-      r_s = MAX(r_s, exp_radius(l,z0_s,eps_Vrho0,ng0_s(l)))
     END DO
 
     rho0_mpole%mp_gau(ik)%rpgf0_h = r_h
-    rho0_mpole%mp_gau(ik)%rpgf0_s = r_s
-    max_rpgf0_s = MAX(max_rpgf0_s,r_s)
+    rho0_mpole%mp_gau(ik)%rpgf0_s = r_h
+    max_rpgf0_s = MAX(max_rpgf0_s,r_h)
 
-    IF(calculate_V0hmV0s .AND. z0_h/=z0_s) THEN
-!    IF(calculate_V0hmV0s ) THEN
-
-      r_hms = 0.0_dp
-      DO l = 0,lmax
-
-        I_up_h = g0_h(nr,l)*grid_atom%rad2l(nr,l)*grid_atom%wr(nr)
-        I_up_s = g0_s(nr,l)*grid_atom%rad2l(nr,l)*grid_atom%wr(nr)
-        I_down_h = 0.0_dp
-        I_down_s = 0.0_dp
-        DO ir = nr-1,1,-1
-          I_down_h = I_down_h + g0_h(ir,l)*&
-                       grid_atom%oorad2l(ir,l+1)*grid_atom%wr(ir)
-          I_down_s = I_down_s + g0_s(ir,l)*&
-                       grid_atom%oorad2l(ir,l+1)*grid_atom%wr(ir)
-        END DO
-
-        V_h = grid_atom%oorad2l(nr,l+1)*I_up_h + &
-              grid_atom%rad2l(nr,l)*I_down_h
-        V_s = grid_atom%oorad2l(nr,l+1)*I_up_s + &
-              grid_atom%rad2l(nr,l)*I_down_s
-
-        DO ir = nr-1,1,-1
-
-          V_h = grid_atom%oorad2l(ir,l+1)*I_up_h + &
-              grid_atom%rad2l(ir,l)*I_down_h
-
-          V_s = grid_atom%oorad2l(ir,l+1)*I_up_s + &
-              grid_atom%rad2l(ir,l)*I_down_s
-
-          IF(ABS(V_h-V_s)<eps_Vrho0 .AND.grid_atom%rad(ir)>0.7_dp ) THEN
-            r_hms = MAX(r_hms,grid_atom%rad(ir))
-            EXIT
-          END IF
-
-          I_up_h = I_up_h + g0_h(ir,l)*&
-                    grid_atom%rad2l(ir,l)*grid_atom%wr(ir)
-          I_down_h = I_down_h - g0_h(ir,l)* &
-                      grid_atom%oorad2l(ir,l+1)*grid_atom%wr(ir)
-          I_up_s = I_up_s + g0_s(ir,l)*&
-                    grid_atom%rad2l(ir,l)*grid_atom%wr(ir)
-          I_down_s = I_down_s - g0_s(ir,l)* &
-                      grid_atom%oorad2l(ir,l+1)*grid_atom%wr(ir)
-
-        END DO  ! ir
-
-      END DO  ! l
-      rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_hms
-
-    ELSE
-      rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_s
-
-    END IF
+    rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_h
 
   END SUBROUTINE  interaction_radii_g0
 
 ! *****************************************************************************
+! MI: get reid of full GAPW
   SUBROUTINE radii_3c_orbxrho0(qs_env,rho0_mpole,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -722,14 +610,14 @@ MODULE qs_rho0_methods
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa
     REAL(dp)                                 :: intmax0, r(3,0:60), r2(0:60), &
                                                 rab(3), rab2, rac(3), rac2, &
-                                                ri, rmax, rp0, z0_h, z0_s
+                                                ri, rmax, rp0, z0_h
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff, Qlm, r_cut_set
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vabc
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: int_abc, int_tmp
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: vv
-    REAL(dp), DIMENSION(:), POINTER          :: ng0_h, ng0_s, orb_rad
+    REAL(dp), DIMENSION(:), POINTER          :: ng0_h, orb_rad
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, set_rad, sphi_a, zeta
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -746,10 +634,10 @@ MODULE qs_rho0_methods
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
 
-    NULLIFY(ng0_h,ng0_s)
+    NULLIFY(ng0_h)
     CALL get_rho0_mpole(rho0_mpole, lmax_0=lmax_0,&
-                        zet0_h=z0_h, zet0_s=z0_s, norm_g0l_h=ng0_h,&
-                        norm_g0l_s=ng0_s ,max_rpgf0_s=rp0)
+                        zet0_h=z0_h, norm_g0l_h=ng0_h,&
+                        max_rpgf0_s=rp0)
 
     ALLOCATE(vv(ncoset(maxlgto),ncoset(maxlgto),ncoset(lmax_0),&
          maxlgto+maxlgto+lmax_0+1),STAT=istat)
@@ -780,7 +668,6 @@ MODULE qs_rho0_methods
     DO ikind = 1,nkind
       NULLIFY(atom_kind,orb_basis,la_max,la_min,npgfa,rpgfa,zeta)
       atom_kind => atomic_kind_set(ikind)
-!      CALL get_atomic_kind(atomic_kind=atom_kind,soft_basis_set=orb_basis)
       CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
       CALL get_gto_basis_set(gto_basis_set=orb_basis,&
                              lmax=la_max,&
@@ -831,7 +718,7 @@ MODULE qs_rho0_methods
                         rpgfa(:,iset),la_min(iset),&
                         la_max(iset),npgfa(iset),zeta(:,iset),&
                         rpgfa(:,iset),la_min(iset),&
-                        lmax_0,z0_s,rp0,0,Qlm,&
+                        lmax_0,z0_h,rp0,0,Qlm,&
                         rab,rab2,rac,rac2,rac2,&
                         vabc,int_tmp,vv,ff(0:))
           intmax0 = 0.0_dp
@@ -842,7 +729,7 @@ MODULE qs_rho0_methods
              DO ico = 1,ncoset(la_max(iset))
                la = indco(1,ico)+indco(2,ico)+indco(3,ico)
                icoa = ico + n
-               int_abc(icoa,2,1)= ng0_s(l0)*int_tmp(icoa,icoa,1)
+               int_abc(icoa,2,1)= ng0_h(l0)*int_tmp(icoa,icoa,1)
 
                intmax0 = MAX(intmax0,ABS(int_abc(icoa,1,1)-int_abc(icoa,2,1)))
              END DO
@@ -851,15 +738,13 @@ MODULE qs_rho0_methods
           DO ico0 = 2,nco0
             l0 = indco(1,ico0)+indco(2,ico0)+indco(3,ico0)
             DO icoa = 1,ncoa
-              int_abc(icoa,2,ico0)= ng0_s(l0)*int_tmp(icoa,icoa,ico0)
+              int_abc(icoa,2,ico0)= ng0_h(l0)*int_tmp(icoa,icoa,ico0)
             END DO
           END DO  ! ico0
-
           IF( intmax0 < eps_radii_3c ) THEN
             r_cut_set(iset) = r(1,i)
             EXIT
           END IF
-
         END DO  ! i
 
         orb_rad(ikind) = MAX(orb_rad(ikind) ,r_cut_set(iset) )
@@ -869,15 +754,10 @@ MODULE qs_rho0_methods
         DEALLOCATE(int_tmp,int_abc,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
               "vabc,int_tmp,int_abc")
-
       END DO  ! iset
-
       DEALLOCATE(r_cut_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r_cut_set")
-
-!  write(*,'(A,I4,15f12.5)') 'prima ',ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
-
     DO jkind = 1,nkind
       NULLIFY(atom_kindj,all_potential)
       atom_kindj => atomic_kind_set(jkind)
@@ -886,18 +766,15 @@ MODULE qs_rho0_methods
         orb_rad(ikind) = MAX(orb_rad(ikind),all_potential%orb_radius_3c(ikind))
       END IF
     END DO
-!  write(*,'(A,I4,2f12.5)') 'dopo ',ikind , orb_rad(ikind), all_potential%orb_radius_3c(ikind)
-
     END DO  ! ikind
-
     DEALLOCATE(Qlm,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "Qlm")
     DEALLOCATE(vv,ff,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "vv,ff")
-
   END SUBROUTINE radii_3c_orbxrho0
+! MI: get reid of full GAPW
 
 END MODULE qs_rho0_methods
 

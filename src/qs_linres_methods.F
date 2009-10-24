@@ -45,8 +45,6 @@ MODULE qs_linres_methods
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
-  USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
-  USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE input_constants,                 ONLY: do_loc_none,&
                                              op_loc_berry,&
@@ -841,9 +839,7 @@ CONTAINS
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 lr_triplet, lsd
     REAL(KIND=dp)                            :: energy_hartree, &
-                                                energy_hartree_1c, &
-                                                energy_hartree_2c, &
-                                                energy_hartree_3c, fac
+                                                energy_hartree_1c, fac
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -874,8 +870,6 @@ CONTAINS
 
     energy_hartree=0.0_dp
     energy_hartree_1c=0.0_dp
-    energy_hartree_2c=0.0_dp
-    energy_hartree_3c=0.0_dp
 
     CPPrecondition(ASSOCIATED(c0),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,error,failure)
@@ -1210,15 +1204,6 @@ CONTAINS
              CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
                                         .FALSE., tddft=.TRUE., do_triplet=lr_triplet, &
                                         p_env=p_env, error=error)
-
-             CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
-                                    tddft=.TRUE.,do_triplet=lr_triplet, &
-                                    p_env=p_env,error=error)
-
-             CALL integrate_a_vhg0_b(qs_env,p_env%kpp1,rho1%rho_ao,&
-                                     energy_hartree_3c,.FALSE.,.FALSE.,&
-                                     tddft=.TRUE.,do_triplet=lr_triplet,&
-                                     p_env=p_env,error=error)
           END IF
 
 !         ***  Add single atom contributions to the KS matrix ***

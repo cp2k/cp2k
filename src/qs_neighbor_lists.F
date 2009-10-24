@@ -41,6 +41,7 @@ MODULE qs_neighbor_lists
                                              gth_potential_type
   USE f77_blas
   USE input_constants,                 ONLY: do_se_IS_slater,&
+                                             rel_none,&
                                              xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -154,7 +155,7 @@ CONTAINS
                                                 unit_conv
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, &
       c_radius, oce_radius, orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, &
-      short_aux_fit_radius, short_orb_radius, V0hmv0s_radius
+      radius_3c, short_aux_fit_radius, short_orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ab_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -347,13 +348,16 @@ CONTAINS
        ALLOCATE (Qlm_present(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       ALLOCATE (V0hmV0s_radius(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       V0hmV0s_radius = 0.0_dp
-
-       ALLOCATE (orb_rad_3c(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       orb_rad_3c = 0.0_dp
+!MI get rid of full gapw
+       IF ( qs_env%rel_control%rel_method/=rel_none) THEN
+         ALLOCATE (radius_3c(nkind),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         radius_3c = 0.0_dp
+         ALLOCATE (orb_rad_3c(nkind),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         orb_rad_3c = 0.0_dp
+       END IF
+!MI get rid of full gapw
     END IF
 
     IF (all_potential_present) THEN
@@ -552,19 +556,20 @@ CONTAINS
 
        ! Check the presence of rho0_hard and rho0_soft
 
-       IF(rho0_present) THEN
-          IF(ABS(rhoz_set(ikind)%one_atom) > 1.0E-8_dp) THEN
-             Qlm_present(ikind) = .TRUE.
-             CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind,&
-                                 rpgf0_s=V0hmV0s_radius(ikind))
-
-          END IF
-          ! These radii determine the extension of the 3c lists used for both
-          ! the all electron core term and the term related to the compensation
-          ! charges
-          orb_rad_3c(ikind) = rho0_mpole%orb_radius_3c(ikind)
-
+!MI get rid of full gapw
+       IF ( qs_env%rel_control%rel_method/=rel_none) THEN
+         IF(rho0_present) THEN
+            IF(ABS(rhoz_set(ikind)%one_atom) > 1.0E-8_dp) THEN
+               Qlm_present(ikind) = .TRUE.
+               CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind,&
+                                     rpgf0_s=radius_3c(ikind))
+              END IF
+              ! These radii determine the extension of the 3c lists used for both
+              ! the all electron core term 
+              orb_rad_3c(ikind) = rho0_mpole%orb_radius_3c(ikind)
+           END IF
        END IF
+!MI get rid of full gapw
 
        ! Check the presence of an all electron potential
 
@@ -601,13 +606,27 @@ CONTAINS
                                             name="ORBITAL ORBITAL",subcells=subcells,&
                                             error=error)
     ELSE
-       CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
+! MI get rid of full gapw
+       IF(rho0_present .AND. qs_env%rel_control%rel_method/=rel_none) THEN
+         CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
                                  unit_conv,unit_str,output_unit,&
                                  orb_present,orb_present,orb_radius,orb_radius,&
                                  name="ORBITAL ORBITAL",&
                                  l3c_oce=paw_atom_present,&
-                                 l3c_rho0=rho0_present,mic=mic,subcells=subcells,&
+                                 l3c_rho0=rho0_present,&
+                                 mic=mic,subcells=subcells,&
                                  error=error)
+       ELSE
+         CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
+                                 unit_conv,unit_str,output_unit,&
+                                 orb_present,orb_present,orb_radius,orb_radius,&
+                                 name="ORBITAL ORBITAL",&
+                                 mic=mic,subcells=subcells,&
+                                 error=error)
+
+       END IF
+! MI get rid of full gapw
+
     END IF
 
     ! Put the generated neighbor lists into the QS environment
@@ -632,15 +651,13 @@ CONTAINS
                                     unit_conv,unit_str,output_unit,&
                                     aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
                                     name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
-                                    l3c_oce=paw_atom_present,&
-                                    l3c_rho0=rho0_present,mic=mic,subcells=subcells,&
+                                    mic=mic,subcells=subcells,&
                                     error=error)
           CALL build_neighbor_lists(sab_aux_fit_asymm,atom,cell,r_skin,maxatom_local,&
                                     unit_conv,unit_str,output_unit,&
                                     aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
                                     name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL_ASYMM",&
-                                    l3c_oce=paw_atom_present,&
-                                    l3c_rho0=rho0_present,mic=mic,&
+                                    mic=mic,&
                                     symmetric=.FALSE.,subcells=subcells,&
                                     error=error)
        END IF
@@ -659,8 +676,7 @@ CONTAINS
                                     unit_conv,unit_str,output_unit,&
                                     aux_fit_present,orb_present,aux_fit_radius,orb_radius,&
                                     name="ORBITAL AUX_FIT_ORBITAL",&
-                                    l3c_oce=paw_atom_present,&
-                                    l3c_rho0=rho0_present,mic=mic,&
+                                    mic=mic,&
                                     symmetric=.FALSE.,subcells=subcells,&
                                     error=error)
 
@@ -686,8 +702,6 @@ CONTAINS
                                  unit_conv,unit_str,output_unit,&
                                  orb_present,orb_present,orb_radius,orb_radius,&
                                  name="ALL_ORBITAL ORBITAL",&
-                                 l3c_oce=paw_atom_present,&
-                                 l3c_rho0=rho0_present,&
                                  symmetric=.FALSE.,subcells=subcells,&
                                  error=error)
        ! Put the generated neighbor lists into the QS environment
@@ -945,64 +959,34 @@ CONTAINS
 
     END IF
 
+! MI get rid of full GAPW
     IF (rho0_present) THEN
-
-       ! Build the neighbor lists for the 2-centers Hartree_local terms
-       ! Vh(rho0_h)rho0_h - Vh(rho0_s)rho0_s
-
-       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
-                                 unit_conv,unit_str,output_unit,Qlm_present,Qlm_present,&
-                                 V0hmV0s_radius,V0hmV0s_radius,&
-                                 name="TWO-CENTER ORBITAL V_HARTREE_LOCAL",&
-                                 subcells=subcells,error=error)
-
-       ! Put the generated neighbor lists into the QS environment
-
-       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
-
-       ! Dump neighbor list if requested
-       CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
-            "/SAB_2C","sab_2c","TWO-CENTER ORBITAL V_HARTREE_LOCAL",error)
-
-       ! Build the neighbor lists for the 3-centers Hartree_local terms
-       ! Vh(rho0_h-rho0_s) rho_soft
-       ! and for the nuclear potential term in all-electron calculations
-       ! -Zc*erfc(zetc|r-Rc|)/|r-Rc|
-
-       ! The lists are groups of 3 atoms A B C, where A and B are a pair in
-       ! the orb_lists, and C is close to both A and B, within the given radius
-
-       ! V0hmV0s_radius is the max distance from  the C center to interact
-       ! with the compensation charge n0_s or the nuclear charge
-
-       IF (all_potential_present) THEN
-          DO ikind=1,nkind
-             V0hmV0s_radius(ikind) = MAX(V0hmV0s_radius(ikind),all_pot_rad(ikind))
-          END DO
-       END IF
-
-       ! orb_rad_3c is the max distance from the A and B centers to have
-       ! a not negligible interaction of the density with the potential
-       ! Vh(rho0_h-rho0_s) or the potential Zc erfc(zetc|r-Rc|)/|r-Rc|
-       ! These two potentials should be very short ranged
-
-       CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
+       IF ( qs_env%rel_control%rel_method/=rel_none) THEN
+         IF (all_potential_present) THEN
+            DO ikind=1,nkind
+               radius_3c(ikind) = MAX(radius_3c(ikind),all_pot_rad(ikind))
+            END DO
+         END IF
+!       ! orb_rad_3c is the max distance from the A and B centers to have
+!       ! a not negligible interaction of the density with the potential
+!       ! Zc erfc(zetc|r-Rc|)/|r-Rc|
+         CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
                                           maxatom,maxatom_local,unit_conv,unit_str,&
                                           output_unit,orb_present,Qlm_present,&
-                                          orb_rad_3c,V0hmV0s_radius,&
+                                          orb_rad_3c,radius_3c,&
                                           name="THREE-CENTER ORBITAL V_HARTREE_LOCAL",&
                                           subcells=subcells,error=error)
 
-       ! Put the generated neighbor lists into the QS environment
-       CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c,error=error)
-
-       ! Dump neighbor list if requested
-       CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,neighbor_list_section,&
-            "/SAC_3C","sac_3c","THREE-CENTER ORBITAL(A) V_HARTREE_LOCAL",error)
-
-       CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,neighbor_list_section,&
-            "/SBC_3C","sbc_3c","THREE-CENTER ORBITAL(B) V_HARTREE_LOCAL",error)
+         ! Put the generated neighbor lists into the QS environment
+         CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c,error=error)
+         ! Dump neighbor list if requested
+         CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,neighbor_list_section,&
+              "/SAC_3C","sac_3c","THREE-CENTER ORBITAL(A) V_HARTREE_LOCAL",error)
+         CALL write_neighbor_lists(sbc_3c,particle_set,cell,para_env,neighbor_list_section,&
+              "/SBC_3C","sbc_3c","THREE-CENTER ORBITAL(B) V_HARTREE_LOCAL",error)
+       END IF  ! rel_method
     END IF
+! MI get rid of full GAPW
 
     ! Print particle distribution
     print_key_path = "PRINT%DISTRIBUTION"
@@ -1078,10 +1062,14 @@ CONTAINS
     ENDIF
 
     IF (rho0_present) THEN
-       DEALLOCATE (V0hmV0s_radius,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(orb_rad_3c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF(ALLOCATED(radius_3c)) THEN
+         DEALLOCATE (radius_3c,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ALLOCATED(orb_rad_3c)) THEN
+         DEALLOCATE(orb_rad_3c,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
     END IF
 
     IF (all_potential_present) THEN

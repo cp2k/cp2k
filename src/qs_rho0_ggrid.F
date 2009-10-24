@@ -79,12 +79,12 @@ MODULE qs_rho0_ggrid
 
 ! *** Public subroutines ***
 
-  PUBLIC :: put_rho0_s_on_grid,rho0_s_grid_create,integrate_vhg0_rspace
+  PUBLIC :: put_rho0_on_grid,rho0_s_grid_create,integrate_vhg0_rspace
 
  CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE put_rho0_s_on_grid(qs_env, atom_set, rho0, tot_rs_int, error)
+  SUBROUTINE put_rho0_on_grid(qs_env, atom_set, rho0, tot_rs_int, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -93,15 +93,14 @@ MODULE qs_rho0_ggrid
     REAL(dp), INTENT(OUT)                    :: tot_rs_int
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'put_rho0_s_on_grid', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'put_rho0_on_grid', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: auxbas_grid, dir, handle, iat, iatom, igrid, ikind, istat, &
       ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, nkind, npme, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure, paw_atom
-    REAL(KIND=dp)                            :: eps_rho_rspace, r_V0, &
-                                                rpgf0_s, zet0_s
+    REAL(KIND=dp)                            :: eps_rho_rspace, rpgf0, zet0
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm_c
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
@@ -143,7 +142,7 @@ MODULE qs_rho0_ggrid
 
     NULLIFY(rho0_s_gs,rho0_s_rs)
     CALL get_rho0_mpole(rho0_mpole=rho0,lmax_0=lmax0,&
-                        zet0_s=zet0_s,igrid_zet0_s=igrid,&
+                        zet0_h=zet0,igrid_zet0_s=igrid,&
                         rho0_s_gs=rho0_s_gs, &
                         rho0_s_rs=rho0_s_rs)
 
@@ -157,7 +156,7 @@ MODULE qs_rho0_ggrid
 
     IF(igrid /= auxbas_grid)  THEN
       ALLOCATE(coeff_rspace,coeff_gspace ,stat=istat)
-      IF(istat /= 0) CALL stop_memory("put_rho0_s_on_grid","coeff_rspace,coeff_gspace")
+      IF(istat /= 0) CALL stop_memory("put_rho0_on_grid","coeff_rspace,coeff_gspace")
 
       CALL pw_pool_create_pw(pw_pool,coeff_rspace%pw,use_data=REALDATA3D,&
                               in_space=REALSPACE,error=error)
@@ -171,7 +170,7 @@ MODULE qs_rho0_ggrid
     nch_max  = ncoset(lmax0)
 
     ALLOCATE(pab(nch_max,1), STAT=istat)
-    IF(istat /= 0) CALL stop_memory("put_rho0_s_on_grid","pab",nch_max)
+    IF(istat /= 0) CALL stop_memory("put_rho0_on_grid","pab",nch_max)
 
     nkind=SIZE(atom_set,1)
 
@@ -182,7 +181,7 @@ MODULE qs_rho0_ggrid
       IF(.NOT. paw_atom .AND. dft_control%qs_control%gapw_control%nopaw_as_gpw) CYCLE
 
       CALL get_rho0_mpole(rho0_mpole=rho0, ikind=ikind, l0_ikind=l0_ikind,&
-                           rpgf0_s=rpgf0_s,r_V0hmV0s=r_V0)
+                           rpgf0_s=rpgf0)
 
       nch_ik = ncoset(l0_ikind)
       pab = 0.0_dp
@@ -218,17 +217,17 @@ MODULE qs_rho0_ggrid
         iat =  cores(j)
         iatom = atom_list(iat)
 
-        CALL  get_rho0_mpole(rho0_mpole=rho0, iat=iatom, Qlm_car_s=Qlm_c)
+        CALL  get_rho0_mpole(rho0_mpole=rho0, iat=iatom, Qlm_car=Qlm_c)
 
         pab(1:nch_ik,1)=Qlm_c(1:nch_ik)
 
         ra(:) = pbc(particle_set(iatom)%r,cell)
 
         CALL collocate_pgf_product_rspace(&
-           l0_ikind,zet0_s,0,0,0.0_dp,0,&
+           l0_ikind,zet0,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
            rs_grid,cell, cube_info(igrid),eps_rho_rspace,ga_gb_function=401,&
-           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,&
+           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0,&
            use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
 
       END DO  !  j
@@ -269,7 +268,7 @@ MODULE qs_rho0_ggrid
     END IF
     CALL timestop(handle)
 
-  END SUBROUTINE  put_rho0_s_on_grid
+  END SUBROUTINE  put_rho0_on_grid
 
 ! *****************************************************************************
   SUBROUTINE rho0_s_grid_create(qs_env, rho0_mpole, tddft, error)
@@ -368,8 +367,8 @@ MODULE qs_rho0_ggrid
     LOGICAL                                  :: failure, grid_distributed, &
                                                 my_tddft, paw_atom
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
-                                                force_tmp(3), r_V0, ra(3), &
-                                                rpgf0_s, scale, zet0_s
+                                                force_tmp(3), ra(3), rpgf0, &
+                                                scale, zet0
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph, norm_l, Qlm
     REAL(dp), DIMENSION(:, :), POINTER       :: hab, hdab_sph, intloc, pab
     REAL(dp), DIMENSION(:, :, :), POINTER    :: hadb, hdab, Qlm_gg
@@ -441,8 +440,8 @@ MODULE qs_rho0_ggrid
     END IF
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax0,&
-                        zet0_s=zet0_s,igrid_zet0_s=igrid,&
-                        norm_g0l_s=norm_l)
+                        zet0_h=zet0,igrid_zet0_s=igrid,&
+                        norm_g0l_h=norm_l)
 
     ! *** set up of the potential on the multigrids
     NULLIFY(rs_descs, pw_pools)
@@ -545,7 +544,7 @@ MODULE qs_rho0_ggrid
       NULLIFY(Qlm_gg,lmax,npgf)
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=ikind,&
                           l0_ikind=l0_ikind, Qlm_gg=Qlm_gg,&
-                          rpgf0_s=rpgf0_s,r_V0hmV0s=r_V0)
+                          rpgf0_s=rpgf0)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                              lmax=lmax, lmin=lmin,&
@@ -584,13 +583,13 @@ MODULE qs_rho0_ggrid
           intloc = 0._dp
 
           CALL integrate_pgf_product_rspace(&
-             l0_ikind,zet0_s,0,0,0.0_dp,0,&
+             l0_ikind,zet0,0,0,0.0_dp,0,&
              ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp,rs_v,cell,&
              cube_info(igrid),hab,pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
              hdab=hdab,hadb=hadb,ithread=0,&
-             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,&
+             collocate_rho0=.TRUE.,rpgf0_s=rpgf0,&
              use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
 
           ! Convert from cartesian to spherical

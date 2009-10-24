@@ -60,8 +60,6 @@ MODULE qs_ks_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
-  USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
-  USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE hfx_communication,               ONLY: scale_and_add_fock_to_ks_matrix
   USE hfx_derivatives,                 ONLY: derivatives_four_center
@@ -284,7 +282,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix_sm,&
                                           rho,energy,calculate_forces,&
-                                          just_energy,rho_xc,kg_gpw,&
+                                          just_energy,print_active,rho_xc,kg_gpw,&
                                           kg_fm_set,kg_sub_pw_env,&
                                           error)
 
@@ -295,6 +293,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    LOGICAL, INTENT(IN), OPTIONAL            :: print_active
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_xc
     LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
     TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
@@ -309,7 +308,7 @@ CONTAINS
       ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, do_hfx_ri, do_ppl, explicit_potential, failure, gapw, &
-      gapw_xc, hfx_treat_lsd_in_core, ionode, my_kg_gpw, scp_dft, &
+      gapw_xc, hfx_treat_lsd_in_core, ionode, my_kg_gpw, my_print, scp_dft, &
       uniform_occupation, use_virial
     REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_dDFA, scale_ddW0, &
       scale_dEx1, scale_dEx2, total_energy_xc
@@ -376,6 +375,8 @@ CONTAINS
     ! Check for a KG_GPW calculation: KE for total rho and for molecular rho
     my_kg_gpw = .FALSE.
     IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
+    my_print = .TRUE.
+    IF(PRESENT(print_active)) my_print = print_active
 
     NULLIFY (matrix_dv)
 
@@ -503,11 +504,13 @@ CONTAINS
        !CJM get the total density in g-space [ions + electrons]
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
 
-       output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
-            extension=".scfLog",error=error)
-       CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc, output_unit, error)
-       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%TOTAL_DENSITIES", error=error)
+       IF(my_print) THEN
+         output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
+              extension=".scfLog",error=error)
+         CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc, output_unit, error)
+         CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+              "PRINT%TOTAL_DENSITIES", error=error)
+       END IF
 
        ! CJM getting the Hartree energy and Hartree potential.  Also getting the stress tensor
        ! CJM from the Hartree term if needed.  No nuclear force information here
@@ -820,7 +823,6 @@ CONTAINS
 
        ! ***  Single atom contributions ***
        IF (.NOT. just_energy) THEN
-!          IF (calculate_forces .AND. .NOT. gapw) THEN
           IF (calculate_forces ) THEN
              IF (do_ep) THEN
                 CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_r%pw,&
@@ -859,7 +861,6 @@ CONTAINS
 
           IF( .NOT.do_hfx ) THEN
             ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
-           
             DO ispin=1,nspins
              CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix_sm(ispin)%matrix,error=error)
             END DO
@@ -1117,18 +1118,6 @@ CONTAINS
 !      ***  Integrals of the Hartree potential with g0_soft ***
           CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
                                      calculate_forces, error=error)
-
-!      ***  Energy, Integrals and Forces coming from the 2-centers terms
-!      ***  Inizialize the energy
-          energy%hartree_2c = 0.0_dp
-          CALL integrate_vhg0_g0(qs_env,energy%hartree_2c,.FALSE.,calculate_forces,error=error)
-
-!      ***  Energy, Integrals and Forces coming from the 3-centers terms
-!      *** Initialize energy
-          energy%hartree_3c = 0.0_dp
-          CALL integrate_a_vhg0_b(qs_env,ks_matrix_sm,rho%rho_ao,&
-                       energy%hartree_3c,.FALSE.,calculate_forces,error=error)
-
        END IF
 
 ! **** SCP
@@ -1259,7 +1248,7 @@ CONTAINS
        ! sum all energy terms to obtain the total energy
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + &
-            energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
+            energy%hartree_1c + &
             energy%exc + energy%exc1 + energy%ex + energy%dispersion +&
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + SUM(energy%ddapc_restraint) + energy%s2_restraint +&
@@ -1276,8 +1265,12 @@ CONTAINS
        ENDIF 
 ! **** SCP
 
-       output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
-            extension=".scfLog",error=error)
+       IF(my_print) THEN
+         output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
+              extension=".scfLog",error=error)
+       ELSE
+         output_unit = -1
+       END IF
        IF (output_unit>0) THEN
           IF(my_kg_gpw) THEN
             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
@@ -1300,9 +1293,7 @@ CONTAINS
           IF(gapw) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
-                "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
-                "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
-                "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
+                "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c
           END IF
           IF(gapw_xc) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
@@ -1335,6 +1326,7 @@ CONTAINS
           ENDIF
 
        END IF
+       IF(my_print) &
        CALL cp_print_key_finished_output(output_unit,logger,input,&
             "DFT%SCF%PRINT%DETAILED_ENERGY", error=error)
 
@@ -2319,12 +2311,13 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
-                               just_energy,error)
+                               just_energy,print_active,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, just_energy
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
+                                                just_energy, print_active
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
@@ -2402,19 +2395,19 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
           CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix_sm=matrix_ks, rho=rho, energy=energy,&
-               calculate_forces=c_forces,just_energy=energy_only,&
+               calculate_forces=c_forces,just_energy=energy_only,print_active=print_active,&
                kg_gpw = .TRUE.,kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
                error=error)
         ELSEIF (dft_control%qs_control%gapw_xc) THEN
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix_sm=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
-               rho_xc=rho_xc,error=error)
+               print_active=print_active,rho_xc=rho_xc,error=error)
         ELSE
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix_sm=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
-               error=error)
+               print_active=print_active,error=error)
         END IF
         IF(.NOT.energy_only) THEN
            ks_env%rho_changed=.FALSE.

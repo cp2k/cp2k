@@ -372,6 +372,7 @@ CONTAINS
         END IF
       END DO
     END IF
+
     IF ( atomic_kind%ghost ) THEN
       nelem = 0
       ncore = 0
@@ -386,6 +387,7 @@ CONTAINS
     atom%state%occ = 0._dp
     atom%state%occ(0:3,1:7)  = REAL(ncalc(0:3,1:7),dp)
     atom%state%occupation = 0._dp
+
     DO l=0,3
       k = 0
       DO i=1,7
@@ -395,6 +397,7 @@ CONTAINS
         END IF
       END DO
     END DO
+
 
     atom%state%maxl_occ = get_maxl_occ(atom%state%occupation)
     atom%state%maxn_occ = get_maxn_occ(atom%state%occupation)

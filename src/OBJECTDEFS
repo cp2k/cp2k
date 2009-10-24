@@ -246,8 +246,6 @@ OBJECTS_GENERIC =\
  harris_force.o\
  harris_force_types.o\
  harris_functional.o\
- hartree_local_2centers.o\
- hartree_local_3centers.o\
  hartree_local_methods.o\
  hartree_local_types.o\
  hfx_communication.o\

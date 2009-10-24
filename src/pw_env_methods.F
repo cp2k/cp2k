@@ -158,8 +158,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       spherical, splines_required, uf_grid, use_ref_cell
     REAL(KIND=dp)                            :: alpha, core_charge, cutilev, &
                                                 max_rpgf0_s, maxradius, &
-                                                my_cut, rel_cutoff, zet0_s, &
-                                                zetp
+                                                my_cut, rel_cutoff, zet0, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
@@ -228,7 +227,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
         CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
-                         zet0_s=zet0_s,max_rpgf0_s=max_rpgf0_s)
+                         zet0_h=zet0,max_rpgf0_s=max_rpgf0_s)
      ELSE
      END IF
 
@@ -497,7 +496,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
      ! Find the grid level suitable for rho0_soft
      IF(qs_env%dft_control%qs_control%gapw) THEN
-        igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0_s)
+        igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0)
         rho0_mpole%igrid_zet0_s = igrid_zet0_s
      END IF
 

@@ -19,7 +19,7 @@ MODULE qs_gapw_densities
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_local_rho_types,              ONLY: local_rho_type
-  USE qs_rho0_ggrid,                   ONLY: put_rho0_s_on_grid
+  USE qs_rho0_ggrid,                   ONLY: put_rho0_on_grid
   USE qs_rho0_methods,                 ONLY: calculate_rho0_atom
   USE qs_rho0_types,                   ONLY: rho0_atom_type,&
                                              rho0_mpole_type
@@ -56,8 +56,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, ionode, my_do_rho0, &
                                                 paw_atom
-    REAL(dp)                                 :: rho0_h_tot, rho0_s_tot, &
-                                                tot_rs_int
+    REAL(dp)                                 :: rho0_h_tot, tot_rs_int
     REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot, rho1_s_tot
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -124,7 +123,6 @@ CONTAINS
     nspins = dft_control%nspins
 
     rho0_h_tot = 0.0_dp
-    rho0_s_tot = 0.0_dp
     ALLOCATE(rho1_h_tot(1:nspins), rho1_s_tot(1:nspins),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     rho1_h_tot = 0.0_dp
@@ -137,15 +135,16 @@ CONTAINS
                            grid_atom=grid_atom,natom=natom,&
                            paw_atom=paw_atom, harmonics=harmonics)
 
-!     Calculate rho1_h and rho1_s on the radial gris centered on the atomic position
+!     Calculate rho1_h and rho1_s on the radial grids centered on the atomic position
       IF(paw_atom) &
         CALL calculate_rho_atom(para_env,rho_atom_set,atom_kind,atom_list,grid_atom,natom,&
                                 nspins,rho1_h_tot,rho1_s_tot,error=error)
 
-!     Calculate rho0_h and rho0_s on the radial gris centered on the atomic position
+!     Calculate rho0_h and rho0_s on the radial grids centered on the atomic position
       IF (my_do_rho0) &
            CALL calculate_rho0_atom(gapw_control,rho_atom_set,rho0_atom_set,rho0_mpole,atom_list,grid_atom,&
-                   paw_atom,natom,ikind,atom_kind,harmonics,rho0_h_tot,rho0_s_tot,error=error)
+                   paw_atom,natom,ikind,atom_kind,harmonics,rho0_h_tot,&
+                   error=error)
 
     ENDDO
 
@@ -158,17 +157,15 @@ CONTAINS
 
     IF (my_do_rho0) THEN
        rho0_mpole%total_rho0_h = -rho0_h_tot
-       rho0_mpole%total_rho0_s = -rho0_s_tot
-
 !      Put the rho0_soft on the global grid
-       CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
-       IF(ABS(rho0_s_tot) .GE. 1.0E-5_dp)THEN
-        IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_s_tot)).GT.1.0E-3_dp) THEN
+       CALL put_rho0_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
+       IF(ABS(rho0_h_tot) .GE. 1.0E-5_dp)THEN
+        IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_h_tot)).GT.1.0E-3_dp) THEN
           IF (ionode) THEN
              WRITE(output_unit,'(/,72("*"))')
              WRITE(output_unit,'(T2,A,T66,1E20.8)') &
-                  "WARNING: rho0_soft calculated on the local grid is  :", -rho0_s_tot,&
-                  "         rho0_soft calculated on the global grid is :", tot_rs_int
+                  "WARNING: rho0 calculated on the local grid is  :", -rho0_h_tot,&
+                  "         rho0 calculated on the global grid is :", tot_rs_int
              WRITE(output_unit,'(T2,A)') &
                   "         bad integration"
              WRITE(output_unit,'(72("*"),/)')
@@ -178,7 +175,6 @@ CONTAINS
        qs_charges%total_rho0_soft_rspace = tot_rs_int
        qs_charges%total_rho0_hard_lebedev = rho0_h_tot
     ELSE
-       qs_charges%total_rho0_soft_rspace = 0.0_dp
        qs_charges%total_rho0_hard_lebedev = 0.0_dp
     END IF
 

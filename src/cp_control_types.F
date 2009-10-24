@@ -121,7 +121,6 @@ MODULE cp_control_types
     LOGICAL                         :: lrho1_eq_lrho0
     LOGICAL                         :: alpha0_hard_from_input,&
                                        alpha0_soft_from_input,&
-                                       full_gapw,&
                                        force_paw,&
                                        non_paw_atoms,&
                                        nopaw_as_gpw
@@ -812,10 +811,6 @@ CONTAINS
     IF (.NOT. failure) THEN
        ALLOCATE (gapw_control,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!!        gapw_control %  full_gapw = .FALSE.
-!        gapw_control %  force_paw = .FALSE.
-!        gapw_control %  non_paw_atoms = .FALSE.
-!        gapw_control %  nopaw_as_gpw = .FALSE.
     END IF
   END SUBROUTINE gapw_control_create
 

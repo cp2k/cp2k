@@ -481,7 +481,6 @@ CPSourceFileRef,&
     CALL section_vals_val_get(qs_section,"ALPHA0_SOFT",r_val=qs_control%gapw_control%alpha0_soft,error=error)
     qs_control%gapw_control%alpha0_soft_from_input = .FALSE.
     IF(qs_control%gapw_control%alpha0_soft/=0.0_dp) qs_control%gapw_control%alpha0_soft_from_input = .TRUE.
-    CALL section_vals_val_get(qs_section,"FULL_GAPW",l_val=qs_control%gapw_control%full_gapw,error=error)
     CALL section_vals_val_get(qs_section,"FORCE_PAW",l_val=qs_control%gapw_control%force_paw,error=error)
     CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
     CALL section_vals_val_get(qs_section,"BCSR_CODE",i_val=qs_control%bcsr_code,error=error)
@@ -1104,10 +1103,6 @@ CPSourceFileRef,&
            IF(qs_control%gapw_control%nopaw_as_gpw) THEN
               WRITE (UNIT=output_unit,FMT="(T2,A)")&
                "QS| GAPW|      The NOT PAW atoms are treated fully GPW"
-           END IF
-           IF(qs_control%gapw_control%full_gapw) THEN
-              WRITE (UNIT=output_unit,FMT="(T2,A)")&
-               "QS| GAPW|      FULL GAPW calculations, alpha0_H=/alpha0_S"
            END IF
        END IF
        IF (qs_control%gapw_xc) THEN

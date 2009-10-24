@@ -16,8 +16,6 @@ MODULE qs_kpp1_env_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
-  USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
-  USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE input_constants,                 ONLY: do_method_gapw,&
                                              do_method_gapw_xc,&
@@ -174,9 +172,7 @@ CONTAINS
                                                 gapw_xc, ionode, lsd, &
                                                 lsd_singlets
     REAL(KIND=dp)                            :: energy_hartree, &
-                                                energy_hartree_1c, &
-                                                energy_hartree_2c, &
-                                                energy_hartree_3c, fac
+                                                energy_hartree_1c, fac
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -502,12 +498,6 @@ CONTAINS
              CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env=p_env,error=error)
              CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
                                         .FALSE., .TRUE., p_env=p_env, error=error)
-
-             CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
-                                    .TRUE., p_env=p_env,error=error)
-             CALL integrate_a_vhg0_b(qs_env,k_p_p1,rho1%rho_ao,&
-                                        energy_hartree_3c,.FALSE.,.FALSE.,&
-                                        .TRUE.,p_env=p_env,error=error)
           END IF
 !         ***  Add single atom contributions to the KS matrix ***
           CALL update_ks_atom(qs_env,k_p_p1,rho%rho_ao,.FALSE.,.TRUE.,p_env,error)

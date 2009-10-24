@@ -379,7 +379,7 @@ CONTAINS
                 NULLIFY(rho_rad_h,rho_rad_s,rho_rad_0)
                 CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=rho_rad_h,&
                                   rho_rad_s=rho_rad_s)
-                rho_rad_0 => rho0_atom_set(iatom)%rho0_rad_s%r_coef
+                rho_rad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
                 vh1_rad_h = 0.0_dp
                 vh1_rad_s = 0.0_dp
 

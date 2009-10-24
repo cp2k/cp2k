@@ -1462,7 +1462,7 @@ CONTAINS
           CALL allocate_harmonics_atom(atomic_kind%harmonics,error)
        END DO
 
-       IF(qs_control%gapw_control%non_paw_atoms .AND. .NOT. qs_control%gapw_control%full_gapw) THEN
+       IF(qs_control%gapw_control%non_paw_atoms) THEN
           qs_control%gapw_control%nopaw_as_gpw = .TRUE.
        ELSE
           qs_control%gapw_control%nopaw_as_gpw = .FALSE.        

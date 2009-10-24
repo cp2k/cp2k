@@ -9,7 +9,6 @@
       REL_CUTOFF 50
     &END MGRID
     &QS
-      FULL_GAPW
       ALPHA0_HARD 10.000000001
       ALPHA0_SOFT  10.0
       METHOD GAPW

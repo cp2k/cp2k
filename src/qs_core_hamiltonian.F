@@ -657,8 +657,7 @@ CONTAINS
                    new_atom_b = .FALSE.
                 END IF
                 
-                IF(rho0_present .AND. (qs_env%dft_control%qs_control%gapw_control%full_gapw .OR. &
-                    qs_env%rel_control%rel_method/=rel_none)) THEN
+               IF(rho0_present .AND. qs_env%rel_control%rel_method/=rel_none) THEN
                    CALL get_neighbor_node(sab_orb_neighbor_node,reduced_3c_rho0=reduced_3c_rho0)
                    ! *** Build reduced 3-center lists
                    IF(.NOT. calculate_forces) &

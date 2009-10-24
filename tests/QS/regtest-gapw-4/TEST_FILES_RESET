@@ -180,3 +180,6 @@ CO_xastpxfh_locall.inp
 CO_xastpxfh.inp
 # Whittaker function
 Fe.inp
+# getting rid of full gapw 
+H2O_gpw_full_gapw.inp
+H_hf_gapw_nopaw_full.inp
