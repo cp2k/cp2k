@@ -108,6 +108,8 @@ How to compile CP2K code
      -D__XT3
      with -D__GRID_CORE=X (with X=1..6) specific optimized core routines can be selected.
      reasonable defaults are provided (see src/lib/collocate_fast.F) but trial-and-error might yield (a small ~10%) speedup.
+     -D__HAS_NO_OMP_3: CP2K assumes that compilers support OpenMP 3.0 - If this is not the case
+     specify this flag to compile.  Runtime performance will be poorer on low numbers of processors
 
  3c) The `I'm feeling lucky' version of building will try to guess what architecture you're on.
      Just type
