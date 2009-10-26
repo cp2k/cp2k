@@ -41,7 +41,7 @@ MODULE preconditioner
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution, dbcsr_distribution_mp, &
+       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_release, &
        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, &
        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
@@ -1993,7 +1993,11 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_copy(mat_li_scaled, mat_li, error=error)
     CALL dbcsr_scale(mat_li_scaled, alpha_matrix=pkd_inv_d, side='left', error=error)
     CALL dbcsr_init(mat_tmp, error=error)
-    CALL dbcsr_sm_sm_multiply(mat_li_scaled, mat_t, mat_tmp, dbcsr_distribution (mat_t), error=error)
+    CALL dbcsr_create (mat_tmp, "tmp mat_t", dbcsr_distribution (mat_t), 'N',&
+         dbcsr_row_block_sizes (mat_li_scaled), dbcsr_col_block_sizes (mat_t),&
+         error=error)
+    CALL dbcsr_sm_sm_multiply(1.0_dp, mat_li_scaled, mat_t,&
+         0.0_dp, mat_tmp, error=error)
 
     CALL dbcsr_trace(mat_li, mat_tmp, trace, error=error)
     WRITE(*,*) 'trace(Li^t*A*Li*D)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
@@ -2046,8 +2050,11 @@ END SUBROUTINE make_full_all_ortho
          col_blk_size = col_blk_size, error=error)
     WRITE(*,*)'Pre checksum:',dbcsr_checksum (matrix_right, error)
     CALL dbcsr_init (matrix_result, error)
-    CALL dbcsr_sm_sm_multiply (preconditioner_env%dbcsr_matrix,&
-         matrix_right, matrix_result, dist_result, error=error)
+    CALL dbcsr_create(matrix_result, "result", dist_result, 'N',&
+         dbcsr_row_block_sizes (preconditioner_env%dbcsr_matrix),&
+         dbcsr_col_block_sizes (matrix_right), error=error)
+    CALL dbcsr_sm_sm_multiply (1.0_dp, preconditioner_env%dbcsr_matrix,&
+         matrix_right, 0.0_dp, matrix_result, error=error)
     CALL dbcsr_distribution_release (dist_result)
     CALL dbcsr_release (matrix_right)
     WRITE(*,*)'Post checksum:',dbcsr_checksum (matrix_result, error)

@@ -32,12 +32,13 @@ MODULE qs_initial_guess
                                              cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_num_blocks, dbcsr_init, dbcsr_iterator_blocks_left, &
-       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
-       dbcsr_release, dbcsr_row_block_sizes
+       dbcsr_col_block_sizes, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_num_blocks, dbcsr_init, &
+       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_release, &
+       dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: dbcsr_filter,&
                                              dbcsr_get_diag,&
                                              dbcsr_scale,&
@@ -47,6 +48,7 @@ MODULE qs_initial_guess
                                              dbcsr_iterator,&
                                              dbcsr_obj
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
+                                             dbcsr_create,&
                                              dbcsr_create_dist_r_unrot,&
                                              dbcsr_verify_matrix
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -787,8 +789,12 @@ CPSourceFileRef,&
              !
              ! S*C
              CALL dbcsr_init(mo_tmp_dbcsr, error)
-             CALL dbcsr_sm_sm_multiply(s_sparse(1)%matrix, mo_dbcsr, mo_tmp_dbcsr,&
-                                       product_dist, hint=1, error=error)
+             CALL dbcsr_create(mo_tmp_dbcsr, "mo_tmp", product_dist, 'N',&
+                  dbcsr_row_block_sizes (s_sparse(1)%matrix),&
+                  dbcsr_col_block_sizes (mo_dbcsr), error=error)
+             CALL dbcsr_sm_sm_multiply(1.0_dp, s_sparse(1)%matrix, mo_dbcsr,&
+                  0.0_dp, mo_tmp_dbcsr,&
+                  hint=1, error=error)
              CALL dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_tmp_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_tmp_dbcsr); CALL mp_sum(i,group)
@@ -804,8 +810,11 @@ CPSourceFileRef,&
              CALL dbcsr_release(mo_dbcsr)
              ! This one is not needed because _destroy takes care of zeroing.
              !CALL dbcsr_init(mo_dbcsr, error=error)
-             CALL dbcsr_sm_sm_multiply(p_rmpv(ispin)%matrix, mo_tmp_dbcsr, mo_dbcsr,&
-                                       product_dist, hint=1, error=error)
+             CALL dbcsr_create (mo_dbcsr, "mo", product_dist, 'N',&
+                  dbcsr_row_block_sizes (p_rmpv(ispin)%matrix),&
+                  dbcsr_col_block_sizes (mo_tmp_dbcsr), error=error)
+             CALL dbcsr_sm_sm_multiply(1.0_dp, p_rmpv(ispin)%matrix,&
+                  mo_tmp_dbcsr, 0.0_dp, mo_dbcsr, error=error)
              CALL dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)

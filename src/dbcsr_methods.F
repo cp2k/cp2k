@@ -36,7 +36,6 @@ MODULE dbcsr_methods
        dbcsr_type_real_8
   USE distribution_2d_types,           ONLY: distribution_2d_release
   USE f77_blas
-  USE f77_blas_generic,                ONLY: bl_copy
   USE kinds,                           ONLY: default_string_length,&
                                              real_4,&
                                              real_8
@@ -63,7 +62,7 @@ MODULE dbcsr_methods
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nlocal_cols,&
             dbcsr_distribution_local_rows, dbcsr_distribution_local_cols,&
             dbcsr_distribution_thread_dist,&
-            dbcsr_distribution_make_threads
+            dbcsr_distribution_make_threads, dbcsr_distribution_no_threads
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
             dbcsr_get_matrix_type, dbcsr_get_data_type,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
@@ -663,6 +662,7 @@ CONTAINS
           CALL array_release (dist%d%local_rows)
           CALL array_release (dist%d%local_cols)
           CALL dbcsr_mp_release (dist%d%mp_env)
+          CALL array_release (dist%d%thread_dist)
           DEALLOCATE (dist%d)
           CALL dbcsr_distribution_init (dist)
        ENDIF
@@ -779,6 +779,15 @@ CONTAINS
     END DO
     CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
   END SUBROUTINE dbcsr_distribution_make_threads
+
+  SUBROUTINE dbcsr_distribution_no_threads(dist)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT), VOLATILE                :: dist
+
+!   ---------------------------------------------------------------------------
+
+    CALL array_release (dist%d%thread_dist)
+  END SUBROUTINE dbcsr_distribution_no_threads
     
 
 ! Pertaining to the dbcsr matrix.
@@ -1274,12 +1283,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: t_data_c
+      POINTER                                :: s_data_c, t_data_c
     COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: t_data_z
+      POINTER                                :: s_data_z, t_data_z
+    INTEGER                                  :: n
     LOGICAL                                  :: shallow_copy
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: t_data_r
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: t_data_d
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: s_data_r, t_data_r
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: s_data_d, t_data_d
 
 !   ---------------------------------------------------------------------------
 
@@ -1298,25 +1308,25 @@ CONTAINS
        ENDIF
        SELECT CASE (source_area%d%data_type)
           CASE (dbcsr_type_real_8)
+             n = dbcsr_get_data_size (source_area)
              CALL dbcsr_get_data (target_area, t_data_d)
-             CALL bl_copy (dbcsr_get_data_size (source_area),&
-                  dbcsr_get_data_p_d (source_area), 1,&
-                  t_data_d, 1)
+             CALL dbcsr_get_data (source_area, s_data_d)
+             t_data_d(1:n) = s_data_d(1:n)
           CASE (dbcsr_type_real_4)
+             n = dbcsr_get_data_size (source_area)
              CALL dbcsr_get_data (target_area, t_data_r)
-             CALL bl_copy (dbcsr_get_data_size (source_area),&
-                  dbcsr_get_data_p_s (source_area), 1,&
-                  t_data_r, 1)
+             CALL dbcsr_get_data (source_area, s_data_r)
+             t_data_r(1:n) = s_data_r(1:n)
           CASE (dbcsr_type_complex_8)
+             n = dbcsr_get_data_size (source_area)
              CALL dbcsr_get_data (target_area, t_data_z)
-             CALL bl_copy (dbcsr_get_data_size (source_area),&
-                  dbcsr_get_data_p_z (source_area), 1,&
-                  t_data_z, 1)
+             CALL dbcsr_get_data (source_area, s_data_z)
+             t_data_z(1:n) = s_data_z(1:n)
           CASE (dbcsr_type_complex_4)
+             n = dbcsr_get_data_size (source_area)
              CALL dbcsr_get_data (target_area, t_data_c)
-             CALL bl_copy (dbcsr_get_data_size (source_area),&
-                  dbcsr_get_data_p_c (source_area), 1,&
-                  t_data_c, 1)
+             CALL dbcsr_get_data (source_area, s_data_c)
+             t_data_c(1:n) = s_data_c(1:n)
           CASE default
              CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
                   routineN, "Invalid matrix type")

@@ -31,7 +31,8 @@ MODULE array_types
             array_release,&
             array_nullify
   PUBLIC :: array_data,&
-            array_size
+            array_size,&
+            array_equality
 
 
   INTERFACE array_new
@@ -59,6 +60,11 @@ MODULE array_types
   INTERFACE array_size
      MODULE PROCEDURE array_size_i1d, array_size_i2d,&
                       array_size_d1d, array_size_d2d
+  END INTERFACE
+
+  INTERFACE array_equality
+     MODULE PROCEDURE array_equality_i1d, array_equality_i2d,&
+                      array_equality_d1d, array_equality_d2d
   END INTERFACE
 
   TYPE array_i1d_type
@@ -387,6 +393,41 @@ CONTAINS
 
     the_size = SIZE(array%low%data)
   END FUNCTION array_size_d2d
+
+  !
+
+  PURE FUNCTION array_equality_i1d(array1, array2) RESULT (are_equal)
+    TYPE(array_i1d_obj), INTENT(IN)          :: array1, array2
+    LOGICAL                                  :: are_equal
+
+    are_equal = .FALSE.
+    IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
+    are_equal = ALL(array1%low%data .EQ. array2%low%data)
+  END FUNCTION array_equality_i1d
+  PURE FUNCTION array_equality_i2d(array1, array2) RESULT (are_equal)
+    TYPE(array_i2d_obj), INTENT(IN)          :: array1, array2
+    LOGICAL                                  :: are_equal
+
+    are_equal = .FALSE.
+    IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
+    are_equal = ALL(array1%low%data .EQ. array2%low%data)
+  END FUNCTION array_equality_i2d
+  PURE FUNCTION array_equality_d1d(array1, array2) RESULT (are_equal)
+    TYPE(array_d1d_obj), INTENT(IN)          :: array1, array2
+    LOGICAL                                  :: are_equal
+
+    are_equal = .FALSE.
+    IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
+    are_equal = ALL(array1%low%data .EQ. array2%low%data)
+  END FUNCTION array_equality_d1d
+  PURE FUNCTION array_equality_d2d(array1, array2) RESULT (are_equal)
+    TYPE(array_d2d_obj), INTENT(IN)          :: array1, array2
+    LOGICAL                                  :: are_equal
+
+    are_equal = .FALSE.
+    IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
+    are_equal = ALL(array1%low%data .EQ. array2%low%data)
+  END FUNCTION array_equality_d2d
 
 
 END MODULE array_types

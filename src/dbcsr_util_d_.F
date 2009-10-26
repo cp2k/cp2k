@@ -279,13 +279,18 @@
 !>                            enlargements
 !> \param[in] nocopy          (optional) copy array on enlargement; default
 !>                            is to copy
+!> \param[in] special         (optional) use MPI-allocated memory; default
+!>                            is no
+!> \param[in] zero_pad        (optional) zero new allocations; default is to
+!>                            write nothing
 ! *****************************************************************************
-  SUBROUTINE ensure_array_size_d(array, lb, ub, factor, nocopy, special)
+  SUBROUTINE ensure_array_size_d(array, lb, ub, factor,&
+       nocopy, special, zero_pad)
     REAL(kind=real_8), DIMENSION(:), POINTER           :: array
     INTEGER, INTENT(IN), OPTIONAL            :: lb
     INTEGER, INTENT(IN)                      :: ub
     REAL, INTENT(IN), OPTIONAL               :: factor
-    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, special
+    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, special, zero_pad
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_d', &
       routineP = moduleN//':'//routineN
@@ -293,7 +298,8 @@
     INTEGER                                  :: lb_new, lb_orig, stat, &
                                                 ub_new, ub_orig
     LOGICAL                                  :: dbg, docopy = .TRUE., &
-                                                failure = .TRUE., info, spec
+                                                failure = .TRUE., info, spec,&
+                                                pad
     REAL(kind=real_8), DIMENSION(:), POINTER           :: newarray
 
 !   ---------------------------------------------------------------------------
@@ -308,6 +314,8 @@
     IF (PRESENT (special)) spec = special
     lb_new = 1
     IF (PRESENT (lb)) lb_new = lb
+    pad = .FALSE.
+    IF (PRESENT (zero_pad)) pad = zero_pad
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
        failure = .FALSE.
@@ -319,6 +327,7 @@
           ALLOCATE(array(lb_new:ub), stat=stat)
        ENDIF
        IF (stat /= 0) CALL stop_memory(routineP, 'array', ub-lb+1)
+       IF (pad) array(:) = 0.0_real_8
        RETURN
     ENDIF
     lb_orig = LBOUND(array,1)
@@ -371,7 +380,10 @@
        ELSE
           DEALLOCATE(array)
        ENDIF
-    END IF
+       IF (pad) array(ub_orig+1:ub_new) = 0.0_real_8
+    ELSEIF (pad) THEN
+       array(:) = 0.0_real_8
+    ENDIF
     array => newarray
     IF(dbg.AND.bcsr_verbose)&
          WRITE(*,*)routineP//' New array',array(lb_orig:ub_orig)
