@@ -30,6 +30,7 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   USE particle_types,                  ONLY: particle_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
 #include "cp_common_uses.h"
+  IMPLICIT NONE
   TYPE charge_mono_type
      REAL(KIND=dp), DIMENSION(:),&
           POINTER                          :: charge
@@ -346,6 +347,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles,&
        energy, debug_r_space, error)
+    IMPLICIT NONE
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
@@ -365,7 +367,7 @@ CONTAINS
                                                 jkind, nkinds, npairs,k,k1,l,l1,&
                                                 ncells, icell, jcell, kcell
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    REAL(KIND=dp)                            :: r, rab2, rab2_max, fac_ij
+    REAL(KIND=dp)                            :: r, rab2, rab2_max, fac_ij, q
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, rab, rm, rab0
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -473,6 +475,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE create_multi_type(multipoles, idim, istart, iend, label, echarge,&
        random_stream, particle_set, charges, dipoles, quadrupoles, error)
+    IMPLICIT NONE
     TYPE(multi_charge_type), DIMENSION(:),&
          POINTER                             :: multipoles
     INTEGER, INTENT(IN)                      :: idim, istart, iend
@@ -596,6 +599,7 @@ CONTAINS
 !> \date   05.2008
 ! *****************************************************************************
   SUBROUTINE release_multi_type(multipoles, error)
+    IMPLICIT NONE
     TYPE(multi_charge_type), DIMENSION(:),&
          POINTER                             :: multipoles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -604,7 +608,7 @@ CONTAINS
       routineP = "ewalds_multipole_debug"//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i, stat, j
     
     failure = .FALSE.
     IF (ASSOCIATED(multipoles)) THEN  
@@ -627,6 +631,7 @@ CONTAINS
 !> \date   05.2008
 ! *****************************************************************************
   SUBROUTINE reallocate_charge_type(charge_typ, istart, iend, error)
+    IMPLICIT NONE
     TYPE(charge_mono_type), DIMENSION(:),&
          POINTER                             :: charge_typ
     INTEGER, INTENT(IN)                      :: istart, iend
@@ -636,7 +641,7 @@ CONTAINS
       routineP = "ewalds_multipole_debug"//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: i, stat, isize, jsize, jsize1, jsize2
+    INTEGER                                  :: i, stat, isize, jsize, jsize1, jsize2, j
         TYPE(charge_mono_type), DIMENSION(:),&
          POINTER                             :: charge_typ_bk
 
@@ -645,7 +650,7 @@ CONTAINS
        isize = SIZE(charge_typ)
        ALLOCATE(charge_typ_bk(1:isize),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, isize
+       DO j = 1, isize
           jsize = SIZE(charge_typ(j)%charge)
           ALLOCATE(charge_typ_bk(j)%charge(jsize),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -719,6 +724,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_neighbor_list_control,      ONLY: list_control
 #include "cp_common_uses.h"
+  IMPLICIT NONE
   TYPE(ewald_environment_type), POINTER    :: ewald_env
   TYPE(ewald_pw_type), POINTER             :: ewald_pw
   TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -748,7 +754,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
        o_tot_ene, enev(3,2), efield2n(3,3)
   REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE&
                                            :: forces_local, forces_glob, efield1, efield2
-  INTEGER :: nparticles,i,k
+  INTEGER :: nparticles,i,k,j,nparticle_local, ind, iparticle_kind
   TYPE(particle_type), POINTER, DIMENSION(:) :: shell_particle_set, core_particle_set
   TYPE(cp_logger_type), POINTER              :: logger
 
@@ -911,6 +917,7 @@ SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_neighbor_list_control,      ONLY: list_control
 #include "cp_common_uses.h"
+  IMPLICIT NONE
   TYPE(ewald_environment_type), POINTER    :: ewald_env
   TYPE(ewald_pw_type), POINTER             :: ewald_pw
   TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -938,7 +945,7 @@ SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell
        o_tot_ene, enev(3,2), efield2n(3,3), prod
   REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE&
                                            :: forces_local, forces_glob, efield1, efield2
-  INTEGER :: nparticles,i,k
+  INTEGER :: nparticles,i,k,j,nparticle_local,iparticle_kind,ind
   TYPE(particle_type), POINTER, DIMENSION(:) :: shell_particle_set, core_particle_set
   TYPE(cp_logger_type), POINTER              :: logger
 
