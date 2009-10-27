@@ -9,9 +9,7 @@
 !> \author Joost VandeVondele (25.08.2002)
 ! *****************************************************************************
 MODULE qs_ot_eigensolver
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
@@ -28,7 +26,6 @@ MODULE qs_ot_eigensolver
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -45,7 +42,6 @@ MODULE qs_ot_eigensolver
                                              qs_ot_settings_init,&
                                              qs_ot_settings_type,&
                                              qs_ot_type
-  USE sparse_matrix_types,             ONLY: real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -65,11 +61,11 @@ CONTAINS
 ! on input c contains the initial guess (should not be zero !)
 ! on output c spans the subspace
 ! *****************************************************************************
-  SUBROUTINE ot_eigensolver(matrix_h_sm,matrix_s_sm,matrix_orthogonal_space, &
+  SUBROUTINE ot_eigensolver(matrix_h,matrix_s,matrix_orthogonal_space, &
                             matrix_c,preconditioner,eps_gradient, &
                             iter_max,size_ortho_space,silent,ot_settings,error)
 
-    TYPE(real_matrix_type), POINTER          :: matrix_h_sm, matrix_s_sm
+    TYPE(dbcsr_obj), POINTER                 :: matrix_h, matrix_s
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_orthogonal_space
     TYPE(cp_fm_type), POINTER                :: matrix_c
     TYPE(preconditioner_type), OPTIONAL, &
@@ -101,19 +97,9 @@ CONTAINS
                                                 matrix_os_ortho, &
                                                 matrix_s_ortho
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj), POINTER                 :: matrix_h, matrix_s
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     CALL timeset(routineN,handle)
-
-    NULLIFY(matrix_s)!sm->dbcsr
-    ALLOCATE(matrix_s)!sm->dbcsr
-    CALL dbcsr_init(matrix_s)
-    CALL dbcsr_from_sm(matrix_s, matrix_s_sm, error)!sm->dbcsr
-    NULLIFY(matrix_h)!sm->dbcsr
-    ALLOCATE(matrix_h)!sm->dbcsr
-    CALL dbcsr_init(matrix_h)
-    CALL dbcsr_from_sm(matrix_h, matrix_h_sm, error)!sm->dbcsr
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -308,9 +294,6 @@ CONTAINS
       ENDIF
 
     ENDDO outer_scf
-
-    CALL dbcsr_deallocate_matrix( matrix_s, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix( matrix_h, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

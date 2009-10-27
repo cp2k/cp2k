@@ -112,12 +112,12 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(p_mix_new,rho_ao)
-    CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(p_mix_new_sm), error )
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(p_mix_new_sm), error )
+    CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(p_mix_new_sm), error )!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(p_mix_new_sm), error )!sm->dbcsr
     DO ispin=1,SIZE(p_mix_new)
-       ALLOCATE(p_mix_new(ispin)%matrix,rho_ao(ispin)%matrix)!super dirty
-       CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, p_mix_new_sm(ispin)%matrix, error)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)
+       ALLOCATE(p_mix_new(ispin)%matrix,rho_ao(ispin)%matrix)!sm->dbcsr
+       CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, p_mix_new_sm(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)!sm->dbcsr
     ENDDO
 
     failure=.FALSE.

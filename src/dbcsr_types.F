@@ -214,6 +214,8 @@ MODULE dbcsr_types
      INTEGER            :: nblks, nblkrows_total, max_r_size, max_c_size
      INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p
      TYPE(dbcsr_data_obj) :: data_area
+     !dbg
+     INTEGER :: count_me
   END TYPE dbcsr_iterator
 
 
@@ -327,6 +329,7 @@ MODULE dbcsr_types
 
      TYPE(distribution_2d_type), POINTER :: dist2d
      INTEGER                             :: sparsity_id
+     INTEGER                             :: id_nr ! use in sm_pool
 
      INTEGER                 :: nblks, nze
      INTEGER                 :: nblkrows_total, nblkcols_total

@@ -12,10 +12,7 @@ MODULE rt_propagation_output
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -30,7 +27,6 @@ MODULE rt_propagation_output
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_constants,                 ONLY: ehrenfest,&
                                              real_time_propagation
@@ -49,7 +45,6 @@ MODULE rt_propagation_output
                                              write_available_results
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -71,8 +66,7 @@ CONTAINS
     REAL(dp), OPTIONAL                       :: delta_iter, used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: ispin, n_electrons, &
-                                                output_unit
+    INTEGER                                  :: n_electrons, output_unit
     REAL(dp)                                 :: orthonormality, tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -84,8 +78,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 rtp_section
@@ -93,18 +85,10 @@ CONTAINS
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s_sm,input=input,rho=rho,particle_set=particle_set,&
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s,input=input,rho=rho,particle_set=particle_set,&
          atomic_kind_set=atomic_kind_set,error=error)
     CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
     rtp_section => section_vals_get_subs_vals(input,"DFT%REAL_TIME_PROPAGATION",error=error)
-
-    NULLIFY(matrix_s)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-       ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_s(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
          nelectron=n_electrons)
@@ -171,8 +155,6 @@ CONTAINS
                                      qs_env%dft_control%scp,qs_env%scp_env,atomic_kind_set,error)
        
     END IF
-
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
 
   END SUBROUTINE rt_prop_output
 
@@ -289,23 +271,13 @@ CONTAINS
     TYPE(dbcsr_obj), POINTER                 :: matrix_s
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrixv_s
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrixv_s_sm
     TYPE(rt_prop_type), POINTER              :: rtp
 
    NULLIFY(tmp_fm_struct)
 
    CALL timeset(routineN,handle)
 
-   CALL get_qs_env(qs_env=qs_env,matrix_s=matrixv_s_sm,rtp=rtp,error=error)
-
-    NULLIFY(matrixv_s)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( matrixv_s, SIZE(matrixv_s_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrixv_s)!sm->dbcsr
-       ALLOCATE(matrixv_s(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrixv_s(ispin)%matrix)
-       CALL dbcsr_from_sm(matrixv_s(ispin)%matrix, matrixv_s_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+   CALL get_qs_env(qs_env=qs_env,matrix_s=matrixv_s,rtp=rtp,error=error)
 
    matrix_s=>matrixv_s(1)%matrix
 
@@ -385,8 +357,6 @@ CONTAINS
    CALL mp_max(max_alpha,delta_mos(1)%matrix%matrix_struct%para_env%group)
    delta_eps=SQRT(max_alpha)
 
-    CALL dbcsr_deallocate_matrix_set( matrixv_s, error=error )!sm->dbcsr
-   
    CALL timestop(handle)
    
  END SUBROUTINE rt_convergence

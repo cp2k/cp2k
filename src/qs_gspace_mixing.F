@@ -8,7 +8,7 @@ MODULE qs_gspace_mixing
 
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
+                                             copy_fm_to_sm_to_dbcsr,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
@@ -194,8 +194,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_q_sm, matrix_s_sm, &
-                                                p_in_sm
+      POINTER                                :: matrix_q_sm, p_in_sm
 
     CALL timeset(routineN,handle)
 
@@ -209,7 +208,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,  &
                     dft_control=dft_control,&
-                    matrix_s=matrix_s_sm,&
+                    matrix_s=matrix_s,&
                     pw_env=pw_env,&
                     rho=rho,& 
                     para_env=para_env,&
@@ -221,12 +220,9 @@ CONTAINS
     CALL dbcsr_allocate_matrix_set( matrix_q, SIZE(matrix_q), error )!sm->dbcsr
     CALL dbcsr_allocate_matrix_set( p_in, SIZE(matrix_q), error )!sm->dbcsr
     CALL dbcsr_allocate_matrix_set( p_out, SIZE(matrix_q), error )!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_q), error )!sm->dbcsr
     DO ispin = 1,SIZE(matrix_q)!sm->dbcsr
-       ALLOCATE(matrix_q(ispin)%matrix,p_in(ispin)%matrix,p_out(ispin)%matrix,&
-            matrix_s(ispin)%matrix)!super dirty!sm->dbcsr
+       ALLOCATE(matrix_q(ispin)%matrix,p_in(ispin)%matrix,p_out(ispin)%matrix)!super dirty!sm->dbcsr
        CALL dbcsr_from_sm(matrix_q(ispin)%matrix, matrix_q_sm(ispin)%matrix, error)!sm->dbcsr
-       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
        CALL dbcsr_from_sm(p_in(ispin)%matrix, p_in_sm(ispin)%matrix, error)!sm->dbcsr
        CALL dbcsr_from_sm(p_out(ispin)%matrix, p_out_sm(ispin)%matrix, error)!sm->dbcsr
     ENDDO
@@ -321,8 +317,8 @@ CONTAINS
 !            p_out(ispin)%matrix,a_mix,1.0_dp)
 
        a_mix = scf_env%p_mix_alpha
-       CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
-            p_out(ispin)%matrix,a_mix,0.0_dp)
+       CALL copy_fm_to_sm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
+            p_out(ispin)%matrix,a_mix,0.0_dp,error=error)
        CALL dbcsr_add(p_out(ispin)%matrix,p_in(ispin)%matrix,&
             alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
        CALL dbcsr_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, error=error)
@@ -343,7 +339,6 @@ CONTAINS
             matrix_q(ispin)%matrix%m%dist2d, error=error )!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set( matrix_q, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set( p_in, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set( p_out, error=error )!sm->dbcsr
 
@@ -1571,6 +1566,12 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, nbuffer, &
                                                 stat
     LOGICAL                                  :: failure
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: p_mix_new
+
+!sm->dbcsr
+
+    NULLIFY(p_mix_new)!sm->dbcsr
 
     failure = .FALSE.
    
@@ -1578,6 +1579,7 @@ CONTAINS
 !   *** allocate p_mix_new ***
     IF (.NOT.ASSOCIATED(scf_env%p_mix_new)) THEN
        CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
+       !CALL sm_pools_create_matrix_vect(S_sm_pools,p_mix_new,&
             name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
             "DENSITY",&
             error=error)
@@ -1587,6 +1589,7 @@ CONTAINS
     IF (mixing_method>=gspace_mixing_nr) THEN
       IF(.NOT.ASSOCIATED(scf_env%p_delta)) THEN
          CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_delta,&
+         !CALL sm_pools_create_matrix_vect(S_sm_pools,p_mix_new,&
               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
               "DENSITY DIFFERENCE",error=error)
       END IF

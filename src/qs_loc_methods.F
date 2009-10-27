@@ -28,9 +28,6 @@ MODULE qs_loc_methods
                                              cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -52,7 +49,6 @@ MODULE qs_loc_methods
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
@@ -104,7 +100,6 @@ MODULE qs_loc_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE realspace_grid_cube,             ONLY: pw_to_cube
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -294,8 +289,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, isgf, &
-                                                istat, ldz, nao, natom, ncol, &
+    INTEGER                                  :: handle, iatom, isgf, istat, &
+                                                ldz, nao, natom, ncol, &
                                                 nmoloc, output_unit, sweeps
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, nsgf
     LOGICAL                                  :: failure
@@ -307,8 +302,6 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -323,15 +316,7 @@ CONTAINS
     CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
     CALL cp_fm_set_all(opvec, 0.0_dp, error=error)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm, particle_set=particle_set,error=error)
-
-    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
-    DO i=1,SIZE(matrix_s)!sm->dbcsr
-       ALLOCATE(matrix_s(i)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_s(i)%matrix)
-       CALL dbcsr_from_sm(matrix_s(i)%matrix, matrix_s_sm(i)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, particle_set=particle_set,error=error)
 
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom), STAT=istat)
@@ -403,8 +388,6 @@ CONTAINS
 
     CALL cp_fm_release(opvec,error=error)
     CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PROGRAM_RUN_INFO",error=error)
-
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

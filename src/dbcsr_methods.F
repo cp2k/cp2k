@@ -41,6 +41,8 @@ MODULE dbcsr_methods
                                              real_8
   USE message_passing,                 ONLY: mp_allocate,&
                                              mp_deallocate
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   !$ USE OMP_LIB
 #include "cp_common_uses.h"
@@ -775,7 +777,7 @@ CONTAINS
     DO t = 0, nthreads-1
        first = MIN (t*rpt+1, nrows)
        last = MIN ((t+1)*rpt, nrows)
-       td(first:last) = t
+       IF(first.GE.1.AND.last.LE.nrows)td(first:last) = t
     END DO
     CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
   END SUBROUTINE dbcsr_distribution_make_threads
@@ -1311,22 +1313,22 @@ CONTAINS
              n = dbcsr_get_data_size (source_area)
              CALL dbcsr_get_data (target_area, t_data_d)
              CALL dbcsr_get_data (source_area, s_data_d)
-             t_data_d(1:n) = s_data_d(1:n)
+             IF(n.GT.0)t_data_d(1:n) = s_data_d(1:n)
           CASE (dbcsr_type_real_4)
              n = dbcsr_get_data_size (source_area)
              CALL dbcsr_get_data (target_area, t_data_r)
              CALL dbcsr_get_data (source_area, s_data_r)
-             t_data_r(1:n) = s_data_r(1:n)
+             IF(n.GT.0)t_data_r(1:n) = s_data_r(1:n)
           CASE (dbcsr_type_complex_8)
              n = dbcsr_get_data_size (source_area)
              CALL dbcsr_get_data (target_area, t_data_z)
              CALL dbcsr_get_data (source_area, s_data_z)
-             t_data_z(1:n) = s_data_z(1:n)
+             IF(n.GT.0)t_data_z(1:n) = s_data_z(1:n)
           CASE (dbcsr_type_complex_4)
              n = dbcsr_get_data_size (source_area)
              CALL dbcsr_get_data (target_area, t_data_c)
              CALL dbcsr_get_data (source_area, s_data_c)
-             t_data_c(1:n) = s_data_c(1:n)
+             IF(n.GT.0)t_data_c(1:n) = s_data_c(1:n)
           CASE default
              CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
                   routineN, "Invalid matrix type")
@@ -1373,9 +1375,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: max_c_size, max_r_size, &
-                                                max_size
+                                                max_size, timing_handle
+    INTEGER, SAVE                            :: count_me = 0
 
 !   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
 
     IF (PRESENT (contiguous_pointers)) THEN
        iterator%contiguous_pointers = contiguous_pointers
@@ -1420,6 +1425,9 @@ CONTAINS
     CASE (dbcsr_type_real_4)
        ALLOCATE (iterator%buffer_r_sp (max_size, max_size))
     CASE (dbcsr_type_real_8)
+count_me=count_me+1
+iterator%count_me=count_me
+!write(*,*) 'DBCSR_ITERATOR_START COUNT',count_me
        ALLOCATE (iterator%buffer_r_dp (max_size, max_size))
     CASE (dbcsr_type_complex_4)
        ALLOCATE (iterator%buffer_c_sp (max_size, max_size))
@@ -1429,6 +1437,7 @@ CONTAINS
        CALL cp_assert(.FALSE., cp_warning_level, cp_internal_error,&
             routineN, "Invalid data type.")
     END SELECT
+    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_iterator_start
 
 ! *****************************************************************************
@@ -1442,9 +1451,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_stop', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: timing_handle
+
 !   ---------------------------------------------------------------------------
 !CALL dbcsr_release (iterator%matrix)
 
+    CALL timeset(routineN, timing_handle)
     iterator%row = 0
     iterator%pos = 0
     SELECT CASE (iterator%data_area%d%data_type)
@@ -1459,6 +1471,7 @@ CONTAINS
             cp_internal_error, routineN, "Array should have been allocated")
        IF (ASSOCIATED (iterator%buffer_r_dp)) THEN
           DEALLOCATE (iterator%buffer_r_dp)
+!write(*,*) 'DBCSR_ITERATOR_STOP COUNT',iterator%count_me
        ENDIF
     CASE (dbcsr_type_complex_4)
        CALL cp_assert (ASSOCIATED (iterator%buffer_c_sp), cp_warning_level,&
@@ -1480,6 +1493,7 @@ CONTAINS
          iterator%buffer_c_sp, iterator%buffer_c_dp, iterator%rbs, iterator%cbs)
     !CALL dbcsr_release (iterator%matrix)
     CALL dbcsr_data_release (iterator%data_area)
+    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_iterator_stop
 
 

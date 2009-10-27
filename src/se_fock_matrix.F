@@ -20,15 +20,13 @@ MODULE se_fock_matrix
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply,&
-                                             sm_from_dbcsr
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
                                              dbcsr_set,&
@@ -88,13 +86,13 @@ CONTAINS
 !> \par History
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
 ! *****************************************************************************
-  SUBROUTINE build_se_fock_matrix (ks_env,qs_env,ks_matrix_sm,rho,energy,&
+  SUBROUTINE build_se_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
        calculate_forces,just_energy,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -118,13 +116,13 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix, matrix_h, matrix_p
+      POINTER                                :: matrix_h, matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h_sm, matrix_p_sm
+      POINTER                                :: matrix_p_sm
     TYPE(scp_energy_type), POINTER           :: energy_scp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -140,22 +138,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h_sm,&
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
          para_env=para_env, se_store_int_env=store_int_env, scp_env=scp_env,&
          atomic_kind_set=atomic_kind_set, distribution_2d=distribution_2d,&
          error=error)
-
-    NULLIFY(ks_matrix,matrix_h)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( ks_matrix, SIZE(ks_matrix_sm), error )!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( matrix_h, SIZE(matrix_h_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(ks_matrix)!sm->dbcsr
-       ALLOCATE(ks_matrix(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(ks_matrix(ispin)%matrix, ks_matrix_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-    DO ispin=1,SIZE(matrix_h)!sm->dbcsr
-       ALLOCATE(matrix_h(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(matrix_h(ispin)%matrix, matrix_h_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     SELECT CASE (dft_control%qs_control%method_id)
     CASE DEFAULT
@@ -188,12 +174,8 @@ CONTAINS
 
        energy%qmmm_el = 0.0_dp
 
-       CALL dbcsr_deallocate_matrix_set( ks_matrix, error )!sm->dbcsr !needed a soft copy!
-       CALL dbcsr_allocate_matrix_set( ks_matrix, nspins, error )!sm->dbcsr
        DO ispin=1,nspins
-          ALLOCATE(ks_matrix(ispin)%matrix)!sm->dbcsr
           ! Copy the core matrix into the fock matrix
-          CALL dbcsr_init(ks_matrix(ispin)%matrix)
           CALL dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
        END DO
 
@@ -306,11 +288,6 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%DETAILED_ENERGY", error=error)
 
-       DO ispin=1,SIZE(ks_matrix)!sm->dbcsr
-          CALL sm_from_dbcsr ( ks_matrix_sm(ispin)%matrix, ks_matrix(ispin)%matrix, &!sm->dbcsr
-               distribution_2d, error=error )!sm->dbcsr
-       ENDDO!sm->dbcsr
-
        ! Here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
@@ -325,8 +302,6 @@ CONTAINS
 
     END SELECT
 
-    CALL dbcsr_deallocate_matrix_set ( matrix_h, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set ( ks_matrix, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set ( matrix_p, error=error )!sm->dbcsr
 
     CALL timestop(handle)

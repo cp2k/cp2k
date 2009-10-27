@@ -20,8 +20,7 @@ MODULE qs_loc_utils
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
                                              dbcsr_obj_p_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -32,7 +31,8 @@ MODULE qs_loc_utils
        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_set
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: do_loc_none,&
@@ -59,7 +59,6 @@ MODULE qs_loc_utils
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -332,13 +331,13 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
 
     CALL timeset(routineN,handle)
 
@@ -448,11 +447,10 @@ CONTAINS
                 NULLIFY(qs_loc_env%op_sm_set(j,i)%matrix)
                 ALLOCATE(qs_loc_env%op_sm_set(j,i)%matrix)
                 CALL dbcsr_init(qs_loc_env%op_sm_set(j,i)%matrix)
-                CALL dbcsr_from_sm(qs_loc_env%op_sm_set(j,i)%matrix, matrix_s(1)%matrix, error)
+                CALL dbcsr_copy(qs_loc_env%op_sm_set(j,i)%matrix, matrix_s(1)%matrix,&
+                     name="qs_loc_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))),&
+                     error=error)
                 CALL dbcsr_set(qs_loc_env%op_sm_set(j,i)%matrix,0.0_dp,error=error)
-                !CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-                !     qs_loc_env%op_sm_set(j,i)%matrix,"qs_loc_env%op_sm_"//&
-                !     TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
              ENDDO
           END DO
 

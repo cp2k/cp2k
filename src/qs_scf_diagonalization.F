@@ -12,6 +12,10 @@
 ! *****************************************************************************
 MODULE qs_scf_diagonalization
 
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_sm_to_dbcsr,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -23,9 +27,6 @@ MODULE qs_scf_diagonalization
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
-                                             copy_sm_to_fm,&
-                                             cp_sm_fm_multiply
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              cholesky_off,&
                                              cholesky_reduce,&
@@ -51,7 +52,6 @@ MODULE qs_scf_diagonalization
                                              simple_eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -85,7 +85,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -97,7 +97,7 @@ CONTAINS
     REAL(kind=dp)                            :: diis_error
 
     DO ispin=1,SIZE(matrix_ks)
-      CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,&
+      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
                          scf_env%scf_work1(ispin)%matrix,&
                          error=error)
     END DO
@@ -106,7 +106,7 @@ CONTAINS
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
-                          s_matrix_sm=matrix_s,&
+                          s_matrix=matrix_s,&
                           scf_section=scf_section,error=error)
     ELSE
       diis_step = .FALSE.
@@ -185,7 +185,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -197,7 +197,7 @@ CONTAINS
     REAL(kind=dp)                            :: diis_error
 
     DO ispin=1,SIZE(matrix_ks)
-      CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
+      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
     END DO
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
@@ -275,7 +275,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -288,14 +288,14 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
     DO ispin=1,SIZE(matrix_ks)
-      CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
+      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
     END DO
 
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                           scf_control%eps_diis,scf_control%nmixing,&
-                          s_matrix_sm=matrix_s,&
+                          s_matrix=matrix_s,&
                           scf_section=scf_section,error=error)
     ELSE
       diis_step = .FALSE.
@@ -310,7 +310,9 @@ CONTAINS
       scf_env%iter_param = diis_error
       scf_env%iter_method = "DIIS/OTdiag"
       DO ispin=1,SIZE(matrix_ks)
-        CALL copy_fm_to_sm(scf_env%scf_work1(ispin)%matrix,matrix_ks(ispin)%matrix)
+         CALL copy_fm_to_sm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
+              matrix_ks(ispin)%matrix,error=error)
+         !CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,matrix_ks(ispin)%matrix)
       END DO
       eps_iter = MAX(eps_iter,scf_control%diagonalization%eps_adapt*diis_error)
     ELSE
@@ -328,8 +330,8 @@ CONTAINS
 
     DO ispin=1,SIZE(matrix_ks)
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo,homo=homo)
-       CALL ot_eigensolver(matrix_h_sm=matrix_ks(ispin)%matrix,&
-                           matrix_s_sm=matrix_s(1)%matrix,&
+       CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix,&
+                           matrix_s=matrix_s(1)%matrix,&
                            matrix_c=mo_coeff,&
                            preconditioner=scf_env%ot_preconditioner(1)%preconditioner,&
                            eps_gradient=eps_iter,&
@@ -368,7 +370,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -396,8 +398,8 @@ CONTAINS
     ksa => scf_env%scf_work1(1)%matrix
     ksb => scf_env%scf_work1(2)%matrix
 
-    CALL copy_sm_to_fm(matrix_ks(1)%matrix,ksa,error=error)
-    CALL copy_sm_to_fm(matrix_ks(2)%matrix,ksb,error=error)
+    CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix,ksa,error=error)
+    CALL copy_dbcsr_to_fm(matrix_ks(2)%matrix,ksb,error=error)
 
     ! Get MO information
 
@@ -466,7 +468,7 @@ CONTAINS
         mo2ao => mob
 !MK     CALL copy_sm_to_fm(matrix_s(1)%matrix,work)
 !MK     CALL cp_fm_symm("L","U",nao,nao,1.0_dp,work,moa,0.0_dp,mo2ao)
-        CALL cp_sm_fm_multiply(matrix_s(1)%matrix,moa,mo2ao,nao,error=error)
+        CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,moa,mo2ao,nao,error=error)
       END IF
 
       ! K(AO) = Q*K(MO)*Q(T)
@@ -509,7 +511,7 @@ CONTAINS
                             diis_step=diis_step,&
                             eps_diis=scf_control%eps_diis,&
                             scf_section=scf_section,&
-                            s_matrix_sm=matrix_s,&
+                            s_matrix=matrix_s,&
                             roks=.TRUE.,&
                             error=error)
       END IF
@@ -637,7 +639,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -684,7 +686,7 @@ CONTAINS
     work  => scf_env%scf_work2
 
     DO ispin=1,SIZE(matrix_ks)
-      CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,&
+      CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
                          scf_env%scf_work1(ispin)%matrix,&
                          error=error)
     END DO

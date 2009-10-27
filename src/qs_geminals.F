@@ -24,8 +24,7 @@ MODULE qs_geminals
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -316,7 +315,7 @@ MODULE qs_geminals
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_sm, matrix_p_sm
+      POINTER                                :: matrix_p_sm
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_rhs
     TYPE(semi_empirical_si_type), POINTER    :: store_int
@@ -332,7 +331,7 @@ MODULE qs_geminals
                     particle_set=particle_set,&
                     local_particles=local_particles,&
                     rho=rho,&
-                    matrix_ks=matrix_ks_sm,&
+                    matrix_ks=matrix_ks,&
                     hfx_ri_env=ri_env,&
                     force=force,&
                     virial=virial,&
@@ -347,12 +346,6 @@ MODULE qs_geminals
 
     matrix_p_sm => rho%rho_ao
     nspins = SIZE(matrix_p_sm)
-
-    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )
-    DO i = 1,SIZE(matrix_ks)
-       ALLOCATE(matrix_ks(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(matrix_ks(i)%matrix, matrix_ks_sm(i)%matrix, error)
-    ENDDO
 
     CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )
     DO i = 1,SIZE(matrix_p)
@@ -504,10 +497,6 @@ MODULE qs_geminals
 
     ri_env%ehfx2 = -ehfx2
 
-    DO i = 1,SIZE(matrix_ks)
-       CALL sm_from_dbcsr(matrix_ks_sm(i)%matrix, matrix_ks(i)%matrix ,error=error)
-    ENDDO
-    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )
     CALL dbcsr_deallocate_matrix_set( matrix_p, error=error )
 
     CALL timestop(handle)

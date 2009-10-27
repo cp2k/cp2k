@@ -23,8 +23,6 @@ MODULE xas_methods
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -99,7 +97,6 @@ MODULE xas_methods
                                              ot_method_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: external_control,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -188,8 +185,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_sm
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, loc_section, &
                                                 print_loc_section, &
@@ -251,14 +246,7 @@ CONTAINS
     NULLIFY(atomic_kind_set, dft_control, scf_control, mos, para_env, particle_set)
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
          cell = cell, dft_control=dft_control, scf_control=scf_control,&
-         matrix_ks=matrix_ks_sm,mos=mos, para_env=para_env, particle_set=particle_set ,error=error)
-
-    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+         matrix_ks=matrix_ks,mos=mos, para_env=para_env, particle_set=particle_set ,error=error)
 
 !   The eigenstate of the KS Hamiltonian are nedeed
     NULLIFY(mo_coeff,eigenvalues)
@@ -275,8 +263,6 @@ CONTAINS
              do_rotation=.TRUE.,error=error)
       END DO
     END IF
-
-    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
 
 !   Set initial occupation numbers, and store the original ones
     DO ispin = 1,dft_control%nspins
@@ -624,8 +610,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
@@ -646,16 +630,9 @@ CONTAINS
               dft_control = dft_control, &
               scf_control = scf_control, &
               mpools=mpools,&
-              matrix_s=matrix_s_sm, mos=mos, &
+              matrix_s=matrix_s, mos=mos, &
               para_env=para_env, particle_set=particle_set,&
               scf_env=scf_env, error=error)
-
-    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-       ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_s(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
       nexc_search = xas_control%nexc_search
       nexc_atoms = xas_control%nexc_atoms
@@ -997,8 +974,6 @@ CONTAINS
       DEALLOCATE(kind_type_tmp,kind_z_tmp,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF  ! failure
-
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
 
   END SUBROUTINE xas_env_init
 

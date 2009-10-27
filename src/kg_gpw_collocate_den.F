@@ -27,7 +27,6 @@ MODULE kg_gpw_collocate_den
                                              dbcsr_get_block_node,&
                                              sm_from_dbcsr
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
@@ -165,7 +164,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(matrix_p)!sm->dbcsr
-    CALL dbcsr_init(matrix_p, error)!sm->dbcsr
+    !CALL dbcsr_init(matrix_p, error)!sm->dbcsr
     CALL dbcsr_from_sm(matrix_p, matrix_p_sm, error)!sm->dbcsr
 
     ! by default, do not compute the kinetic energy density (tau)
@@ -682,8 +681,8 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(matrix_p,matrix_h)!sm->dbcsr
-    CALL dbcsr_init(matrix_p, error)!sm->dbcsr
-    CALL dbcsr_init(matrix_h, error)!sm->dbcsr
+    !CALL dbcsr_init(matrix_p, error)!sm->dbcsr
+    !CALL dbcsr_init(matrix_h, error)!sm->dbcsr
     CALL dbcsr_from_sm(matrix_p, matrix_p_sm%matrix, error)!sm->dbcsr
     CALL dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error)!sm->dbcsr
 

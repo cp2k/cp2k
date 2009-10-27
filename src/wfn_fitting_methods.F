@@ -17,11 +17,12 @@ MODULE wfn_fitting_methods
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_sm_to_dbcsr,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_deallocate_matrix,&
-                                             dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
-                                             sm_from_dbcsr
+                                             dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_schur_product,&
@@ -34,8 +35,8 @@ MODULE wfn_fitting_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
-                                             copy_sm_to_fm
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
@@ -54,12 +55,6 @@ MODULE wfn_fitting_methods
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE sparse_matrix_types,             ONLY: allocate_matrix,&
-                                             deallocate_matrix,&
-                                             get_matrix_info,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix_structure
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -102,7 +97,7 @@ MODULE wfn_fitting_methods
 
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -136,9 +131,9 @@ MODULE wfn_fitting_methods
     ! *** This part only depends on overlap matrices ==> needs only to be calculated if the geometry changed
 
     IF( geometry_did_change ) THEN
-      CALL copy_sm_to_fm(matrix_s_aux_fit(1)%matrix,wfn_fitting_env%S,error)
+      CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix,wfn_fitting_env%S,error)
       CALL cp_fm_upper_to_full(wfn_fitting_env%S,wfn_fitting_env%work_aux_aux,error=error)
-      CALL copy_sm_to_fm(matrix_s_mixed(1)%matrix,wfn_fitting_env%P,error)
+      CALL copy_dbcsr_to_fm(matrix_s_mixed(1)%matrix,wfn_fitting_env%P,error)
 
 
       !! Calculate S'_inverse
@@ -225,7 +220,7 @@ MODULE wfn_fitting_methods
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -242,7 +237,7 @@ MODULE wfn_fitting_methods
     nao_orb = wfn_fitting_env%nao_orb
     nmo = wfn_fitting_env%nmo(ispin)
 
-    CALL copy_sm_to_fm(matrix_ks_aux_fit(ispin)%matrix,wfn_fitting_env%K(ispin)%matrix,error)
+    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,wfn_fitting_env%K(ispin)%matrix,error)
     CALL cp_fm_upper_to_full(wfn_fitting_env%K(ispin)%matrix,wfn_fitting_env%work_aux_aux,error=error)
 
     CALL cp_fm_gemm('N','N', nao_aux_fit, nmo, nao_aux_fit,&
@@ -378,7 +373,7 @@ MODULE wfn_fitting_methods
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -387,12 +382,9 @@ MODULE wfn_fitting_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
-                                                nblock, neighbor_list_id, &
-                                                nmo, nrow
-    INTEGER, DIMENSION(:), POINTER           :: first_col, first_row, &
-                                                last_col, last_row
+                                                neighbor_list_id, nmo
+    TYPE(dbcsr_obj), POINTER                 :: matrix_w_p, matrix_w_s
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(real_matrix_type), POINTER          :: matrix_w_p, matrix_w_s
 
     CALL timeset(routineN,handle)
 
@@ -409,28 +401,12 @@ MODULE wfn_fitting_methods
                     neighbor_list_id=neighbor_list_id,&
                     error=error) 
 
-    CALL get_matrix_info(matrix=matrix_s_aux_fit(1)%matrix,&
-                         nblock_row=nblock,&
-                         nrow=nrow,&
-                         first_row=first_row,&
-                         last_row=last_row,&
-                         first_col=first_col,&
-                         last_col=last_col)
 
-    CALL allocate_matrix(matrix=matrix_w_s,&
-                         nblock_row=nblock,&
-                         nblock_col=nblock,&
-                         nrow=nrow,&
-                         ncol=nrow,&
-                         first_row=first_row,&
-                         last_row=last_row,&
-                         first_col=first_col,&
-                         last_col=last_col,&
-                         matrix_name="W MATRIX AUX S",&
-                         matrix_symmetry="none",&
-                         sparsity_id=neighbor_list_id, &
-                         distribution_2d=distribution_2d,&
-                         error=error)
+    ALLOCATE(matrix_w_s)
+    CALL dbcsr_init(matrix_w_s)
+    CALL dbcsr_copy(matrix_w_s,matrix_s_aux_fit(1)%matrix,&
+         name="W MATRIX AUX S",error=error)
+
     ! *** allocate all blocks
     CALL allocate_w_matrix_blocks(qs_env, &
                                   matrix_w_s, &
@@ -438,9 +414,11 @@ MODULE wfn_fitting_methods
                                   do_symmetric=.FALSE., &
                                   error=error)
 
-    CALL replicate_matrix_structure(matrix_s_aux_fit_vs_orb(1)%matrix,&
-                                    matrix_w_p,&
-                                    "W MATRIX AUX P",error=error)
+
+    ALLOCATE(matrix_w_p)
+    CALL dbcsr_init(matrix_w_p)
+    CALL dbcsr_copy(matrix_w_p,matrix_s_aux_fit_vs_orb(1)%matrix,&
+         "W MATRIX AUX P",error=error)
 
     ! *** S'^(-T)*H'
     CALL cp_fm_gemm('T', 'N', nao_aux_fit, nmo, nao_aux_fit,&
@@ -487,7 +465,8 @@ MODULE wfn_fitting_methods
                     wfn_fitting_env%work_aux_orb,error)
 
     ! *** copy to sparse matrix
-    CALL copy_fm_to_sm(wfn_fitting_env%work_aux_orb, matrix_w_p)
+    !CALL copy_fm_to_dbcsr(wfn_fitting_env%work_aux_orb, matrix_w_p)
+    CALL copy_fm_to_sm_to_dbcsr(wfn_fitting_env%work_aux_orb, matrix_w_p,error=error)
  
     ! *** A*C*Y^(T)*C^(T)
     CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_orb,&
@@ -499,7 +478,8 @@ MODULE wfn_fitting_methods
                     wfn_fitting_env%work_aux_aux,error)
 
     ! *** copy to sparse matrix
-    CALL copy_fm_to_sm(wfn_fitting_env%work_aux_aux, matrix_w_s)
+    !CALL copy_fm_to_dbcsr(wfn_fitting_env%work_aux_aux, matrix_w_s)
+    CALL copy_fm_to_sm_to_dbcsr(wfn_fitting_env%work_aux_aux, matrix_w_s,error=error)
 
     ! *** This can be done in one call w_total = w_alpha + w_beta
 
@@ -512,8 +492,8 @@ MODULE wfn_fitting_methods
                                     do_symmetric=.FALSE., error=error)
    
     ! *** Deallocated weighted density matrices
-    CALL deallocate_matrix(matrix_w_s,error)
-    CALL deallocate_matrix(matrix_w_p,error)
+    CALL dbcsr_deallocate_matrix(matrix_w_s,error)
+    CALL dbcsr_deallocate_matrix(matrix_w_p,error)
 
     CALL timestop(handle)
 
@@ -542,13 +522,13 @@ MODULE wfn_fitting_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE calc_overlap_force_general(qs_env,para_env,matrix_w_sm,&
+  SUBROUTINE calc_overlap_force_general(qs_env,para_env,matrix_w,&
                                         basis_set_id_a, basis_set_id_b, sab_orb, &
                                         do_symmetric, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(real_matrix_type), POINTER          :: matrix_w_sm
+    TYPE(dbcsr_obj), POINTER                 :: matrix_w
     INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -584,7 +564,6 @@ MODULE wfn_fitting_methods
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(dbcsr_obj), POINTER                 :: matrix_w
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set_a, &
                                                 orb_basis_set_b
@@ -617,9 +596,6 @@ MODULE wfn_fitting_methods
                     force=force,&
                     distribution_2d=distribution_2d,&
                     error=error)
-
-    ALLOCATE(matrix_w)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_w, matrix_w_sm, error)!sm->dbcsr
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -853,9 +829,6 @@ MODULE wfn_fitting_methods
     DEALLOCATE (pab,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL sm_from_dbcsr ( matrix_w_sm, matrix_w, distribution_2d, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix ( matrix_w, error=error )!sm->dbcsr
-
     CALL timestop(handle)
 
   END SUBROUTINE calc_overlap_force_general
@@ -875,10 +848,10 @@ MODULE wfn_fitting_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE allocate_w_matrix_blocks(qs_env, matrix_w_sm, neighbor_list_sab, do_symmetric, error)
+  SUBROUTINE allocate_w_matrix_blocks(qs_env, matrix_w, neighbor_list_sab, do_symmetric, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_type), POINTER          :: matrix_w_sm
+    TYPE(dbcsr_obj), POINTER                 :: matrix_w
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: neighbor_list_sab
     LOGICAL, INTENT(IN)                      :: do_symmetric
@@ -892,7 +865,6 @@ MODULE wfn_fitting_methods
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(dbcsr_obj), POINTER                 :: matrix_w
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
@@ -902,9 +874,6 @@ MODULE wfn_fitting_methods
                     atomic_kind_set=atomic_kind_set,&
                     distribution_2d=distribution_2d,&
                     error=error)
-
-    ALLOCATE(matrix_w)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_w, matrix_w_sm, error)!sm->dbcsr
 
     nkind = SIZE(atomic_kind_set)
 
@@ -974,9 +943,6 @@ MODULE wfn_fitting_methods
       END DO
 
     END DO
-
-    CALL sm_from_dbcsr ( matrix_w_sm, matrix_w, distribution_2d, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix ( matrix_w, error=error )!sm->dbcsr
 
   END SUBROUTINE allocate_w_matrix_blocks
 

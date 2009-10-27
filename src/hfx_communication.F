@@ -12,15 +12,10 @@
 MODULE hfx_communication 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init,&
-                                             dbcsr_iterator_blocks_left,&
+  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
@@ -42,7 +37,6 @@ MODULE hfx_communication
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -343,13 +337,13 @@ MODULE hfx_communication
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix_sm, irep ,&
+  SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
                                              scaling_factor, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     INTEGER, INTENT(IN)                      :: irep
     REAL(dp), INTENT(IN)                     :: scaling_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -358,15 +352,13 @@ MODULE hfx_communication
       routineN = 'scale_and_add_fock_to_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ii, ikind, istat, &
-                                                natom, nspins, stat
+    INTEGER                                  :: iatom, ikind, istat, natom, &
+                                                nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: full_ks
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_type), POINTER                  :: actual_x_data
@@ -374,14 +366,6 @@ MODULE hfx_communication
       POINTER                                :: particle_set
 
 !! All shared data is saved in i_thread = 1!
-
-    NULLIFY(ks_matrix)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( ks_matrix, SIZE(ks_matrix_sm), error )!sm->dbcsr
-    DO ii=1,SIZE(ks_matrix)!sm->dbcsr
-       ALLOCATE(ks_matrix(ii)%matrix)!sm->dbcsr
-       CALL dbcsr_init(ks_matrix(ii)%matrix)
-       CALL dbcsr_from_sm(ks_matrix(ii)%matrix, ks_matrix_sm(ii)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     actual_x_data => qs_env%x_data(irep, 1)
     basis_parameter => actual_x_data%basis_parameter
@@ -433,13 +417,6 @@ MODULE hfx_communication
 
     DEALLOCATE(kind_of, last_sgf_global, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-
-    DO ii=1,SIZE(ks_matrix)!sm->dbcsr
-       CALL sm_from_dbcsr ( ks_matrix_sm(ii)%matrix, ks_matrix(ii)%matrix, &!sm->dbcsr
-            ks_matrix(ii)%matrix%m%dist2d, error=error )!sm->dbcsr
-    ENDDO!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( ks_matrix, error=error )!sm->dbcsr
 
   END SUBROUTINE scale_and_add_fock_to_ks_matrix 
 

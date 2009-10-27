@@ -295,17 +295,22 @@
        row_size = dbcsr_blk_row_size (matrix%m, stored_row)
        col_size = dbcsr_blk_column_size (matrix%m, stored_col)
        nze = row_size*col_size
+       IF(nze.eq.0) THEN
+          found = .FALSE.
+          NULLIFY (block)
+       ELSE
        !
 #if defined(__PTR_RANK_REMAP)
-       block_1d => pointer_view (&
-            dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset)
-       block(1:row_size, 1:col_size) => block_1d
+          block_1d => pointer_view (&
+               dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset)
+          block(1:row_size, 1:col_size) => block_1d
 #elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-       block_1d => pointer_view (&
-            dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
-            )
-       CALL pointer_c_rank_remap2 (block, row_size, col_size, block_1d)
+          block_1d => pointer_view (&
+               dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
+               )
+          CALL pointer_c_rank_remap2 (block, row_size, col_size, block_1d)
 #endif
+       ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&

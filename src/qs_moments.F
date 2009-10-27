@@ -78,8 +78,7 @@ MODULE qs_moments
        neighbor_list_type, neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -152,8 +151,6 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm
 
     IF ( nmoments < 1 ) RETURN
 
@@ -161,15 +158,11 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set,cell,matrix_s_sm,particle_set,sab_orb)
+    NULLIFY (atomic_kind_set,cell,particle_set,sab_orb)
     NULLIFY (neighbor_list,neighbor_list_set,neighbor_node,orb_basis_set,matrix_s)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm,error=error)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
 
-    CALL dbcsr_allocate_matrix_set( matrix_s, 1, error )!sm->dbcsr
-    ALLOCATE(matrix_s(1)%matrix)!super dirty!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_s(1)%matrix, matrix_s_sm(1)%matrix, error)!sm->dbcsr
-    
     nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
     CALL dbcsr_allocate_matrix_set ( moments, nm ,error=error)
 
@@ -394,8 +387,6 @@ CONTAINS
     DEALLOCATE (mint,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
-
     CALL timestop(handle)
 
   END SUBROUTINE build_local_moment_matrix_new
@@ -450,8 +441,6 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm
 
     IF ( nmoments < 1 ) RETURN
 
@@ -459,15 +448,11 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set,cell,matrix_s_sm,particle_set,sab_orb, moments)
+    NULLIFY (atomic_kind_set, cell, particle_set, sab_orb, moments)
     NULLIFY (neighbor_list,neighbor_list_set,neighbor_node,orb_basis_set,matrix_s)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm,distribution_2d=distribution_2d,error=error)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,distribution_2d=distribution_2d,error=error)
 
-    CALL dbcsr_allocate_matrix_set( matrix_s, 1, error )
-    ALLOCATE(matrix_s(1)%matrix)!super dirty
-    CALL dbcsr_from_sm(matrix_s(1)%matrix, matrix_s_sm(1)%matrix, error)
-    
     nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
     CALL dbcsr_allocate_matrix_set ( moments, nm ,error=error)
 
@@ -693,13 +678,9 @@ CONTAINS
 
     CALL allocate_matrix_set ( moments_sm, nm ,error=error)
     DO i = 1,SIZE(moments)
-       CALL replicate_matrix(source=matrix_s_sm(1)%matrix,&
-                             TARGET=moments_sm(i)%matrix,&
-                             target_name="Moments",error=error)
        CALL sm_from_dbcsr ( moments_sm(i)%matrix, moments(i)%matrix, distribution_2d, error=error )
     ENDDO
     CALL dbcsr_deallocate_matrix_set( moments, error=error )
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )
 
     CALL timestop(handle)
 
@@ -964,8 +945,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm
 
      failure = .FALSE.
      CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -995,15 +974,7 @@ CONTAINS
        NULLIFY ( local_particles )
        CALL get_qs_env ( qs_env, local_particles=local_particles, error=error)
        NULLIFY ( matrix_s, mos )
-       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm, mos=mos, error=error)
-
-    NULLIFY(matrix_s)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-       ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_s(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, mos=mos, error=error)
 
     NULLIFY(rho_dbcsr)!sm->dbcsr
     CALL dbcsr_allocate_matrix_set( rho_dbcsr, SIZE(rho%rho_ao), error )!sm->dbcsr
@@ -1327,7 +1298,6 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL dbcsr_deallocate_matrix_set( rho_dbcsr, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
 
        CALL timestop(handle)
 
@@ -1483,8 +1453,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -1506,14 +1474,7 @@ CONTAINS
                          particle_set=particle_set, error=error)
        para_env => qs_env%para_env
        NULLIFY ( matrix_s )
-       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm,error=error)
-
-    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-       ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_s(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
 
     NULLIFY(rho_dbcsr)!sm->dbcsr
     CALL dbcsr_allocate_matrix_set( rho_dbcsr, SIZE(rho%rho_ao), error )!sm->dbcsr
@@ -1591,7 +1552,6 @@ CONTAINS
        CALL timestop(handle)
 
     CALL dbcsr_deallocate_matrix_set( rho_dbcsr, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
 
      END IF
 

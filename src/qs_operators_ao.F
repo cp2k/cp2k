@@ -2112,7 +2112,6 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
 
-    NULLIFY (matrix)
     CALL dbcsr_allocate_matrix(matrix=matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&

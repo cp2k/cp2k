@@ -316,7 +316,7 @@ CONTAINS
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_sm, rho_ao_sm
+      POINTER                                :: rho_ao_sm
 
 !   ------------------------------------------------------------------------
 
@@ -333,17 +333,9 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
-      CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, matrix_ks=matrix_ks_sm, &
+      CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, matrix_ks=matrix_ks, &
                       para_env=para_env, error=error)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao_sm, error=error)
-
-    NULLIFY(matrix_ks)
-    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     NULLIFY(rho_ao)
     CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
@@ -363,7 +355,6 @@ CONTAINS
       harris_energy%Eharris = harris_energy%sum_of_eigenvalues &
                             + harris_energy%Eharris_correction
 
-    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
     END IF
@@ -404,8 +395,6 @@ CONTAINS
       POINTER                                :: matrix_ks, p_mix_new
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_sm
 
 !   ------------------------------------------------------------------------
 
@@ -424,17 +413,8 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks_sm, &
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks, &
                       para_env=para_env, error=error)
-
-
-    NULLIFY(matrix_ks)
-    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     NULLIFY(p_mix_new)
     CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(scf_env%p_mix_new), error )!sm->dbcsr
@@ -454,7 +434,6 @@ CONTAINS
       harris_energy%Eharris = harris_energy%sum_of_eigenvalues + &
                               harris_energy%Eharris_correction
 
-CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
 CALL dbcsr_deallocate_matrix_set( p_mix_new, error=error )!sm->dbcsr
 
     END IF

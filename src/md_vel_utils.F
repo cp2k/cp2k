@@ -266,7 +266,6 @@ CONTAINS
       my_nfree = simpar%nfree
       my_temp = simpar%temp_ext
     END IF
-
     IF (my_nfree/=0) THEN
        factor = my_temp / ( 2.0_dp * ekin ) * REAL(my_nfree,KIND=dp)
     ELSE
@@ -744,7 +743,6 @@ CONTAINS
        ! Subtract the vcom
        CALL compute_vcom(part,is_fixed,vcom)
        CALL subtract_vcom(part,is_fixed,vcom)
-       
        ! If requested and the system is not periodic, subtract the angular velocity
        CALL force_env_get(force_env, cell=cell, error=error)
        IF (SUM(cell%perd(1:3)) == 0 .AND. simpar%angvel_zero) THEN
@@ -752,7 +750,6 @@ CONTAINS
           CALL compute_vang(part,is_fixed,rcom,vang,error)
           CALL subtract_vang(part,is_fixed,rcom,vang)
        END IF
-
        ! Rescale the velocities
        IF(simpar%do_thermal_region) THEN
          CALL rescale_vel_region(part,md_env,simpar,error=error)

@@ -13,6 +13,8 @@ MODULE qs_kpp1_env_types
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
                                              cp_2d_logical_write
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_obj_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -22,8 +24,6 @@ MODULE qs_kpp1_env_types
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release
   USE realspace_grid_cube,             ONLY: pw_to_cube
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_p_type
   USE string_utilities,                ONLY: compress
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
@@ -67,7 +67,7 @@ MODULE qs_kpp1_env_types
   TYPE qs_kpp1_env_type
      INTEGER :: ref_count, id_nr, print_count, iter
      TYPE(pw_p_type), DIMENSION(:), POINTER :: v_rspace
-     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
+     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: v_ao
      TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
      TYPE(xc_derivative_set_type), POINTER :: deriv_set
      TYPE(xc_rho_set_type), POINTER        :: rho_set
@@ -124,7 +124,7 @@ CONTAINS
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
              DO ispin=1,SIZE(kpp1_env%v_ao)
                 IF (ASSOCIATED(kpp1_env%v_ao(ispin)%matrix)) THEN
-                   CALL deallocate_matrix(kpp1_env%v_ao(ispin)%matrix,error=error)
+                   CALL dbcsr_deallocate_matrix(kpp1_env%v_ao(ispin)%matrix,error=error)
                 END IF
              END DO
              DEALLOCATE(kpp1_env%v_ao, stat=stat)

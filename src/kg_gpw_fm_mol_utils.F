@@ -23,7 +23,6 @@ MODULE kg_gpw_fm_mol_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -110,7 +109,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(w_matrix)!sm->dbcsr
-    CALL dbcsr_init(w_matrix, error)!sm->dbcsr
+    !CALL dbcsr_init(w_matrix, error)!sm->dbcsr
     CALL dbcsr_from_sm(w_matrix, w_matrix_sm, error)!sm->dbcsr
 
     nmolecule_kind = SIZE(fm_mol_set,1)
@@ -570,7 +569,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(matrix)!sm->dbcsr
-    CALL dbcsr_init(matrix, error)!sm->dbcsr
+    !CALL dbcsr_init(matrix, error)!sm->dbcsr
     CALL dbcsr_from_sm(matrix, matrix_sm, error)!sm->dbcsr
 
     NULLIFY(i_atom,ifirst_ao,ilast_ao)

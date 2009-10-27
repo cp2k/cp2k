@@ -20,6 +20,8 @@ MODULE rt_propagation_types
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_obj_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_get_el_struct
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -38,8 +40,7 @@ MODULE rt_propagation_types
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -75,7 +76,7 @@ MODULE rt_propagation_types
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:,:)                :: mo_history
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:,:)                :: exp_history
     INTEGER                                                    :: mos_or_H
-    TYPE(real_matrix_p_type),POINTER,DIMENSION(:)              :: s_history
+    TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)              :: s_history
  END TYPE rtp_history_type
 
 ! *** Public data types ***
@@ -424,7 +425,7 @@ CONTAINS
     IF (ASSOCIATED(rtp%history%s_history)) THEN
        DO i=1,SIZE(rtp%history%s_history)
           IF (ASSOCIATED(rtp%history%s_history(i)%matrix))&
-               CALL deallocate_matrix(rtp%history%s_history(i)%matrix,error=error)
+               CALL dbcsr_deallocate_matrix(rtp%history%s_history(i)%matrix,error=error)
        END DO
        DEALLOCATE(rtp%history%s_history,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)

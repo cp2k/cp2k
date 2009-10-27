@@ -18,6 +18,9 @@ MODULE qs_scf_post_gpw
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_obj_p_type
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_ddapc_util,                   ONLY: get_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
@@ -40,7 +43,6 @@ MODULE qs_scf_post_gpw
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              get_results,&
                                              put_results
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
@@ -133,7 +135,6 @@ MODULE qs_scf_post_gpw
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE stm_images,                      ONLY: th_stm_image
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -204,6 +205,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: kinetic_m, ks_rmpv, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -219,8 +222,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: kinetic_m, ks_rmpv, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, localization_section, &
                                                 localize_section, print_key
@@ -267,7 +268,7 @@ CONTAINS
           CPPrecondition(ASSOCIATED(kinetic_m(1)%matrix),cp_failure_level,routineP,error,failure)
           e_kin=0.0_dp
           DO ispin=1,dft_control%nspins
-             CALL calculate_ecore(h_sm=kinetic_m(1)%matrix,&
+             CALL calculate_ecore(h=kinetic_m(1)%matrix,&
                   p_sm=rho%rho_ao(ispin)%matrix,&
                   ecore=e_kinAtt,&
                   para_env=para_env,&
@@ -516,7 +517,7 @@ CPSourceFileRef,&
                 ENDIF
              ENDIF
 
-             CALL ot_eigensolver(matrix_h_sm=ks_rmpv(ispin)%matrix,matrix_s_sm=matrix_s(1)%matrix, &
+             CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=matrix_s(1)%matrix, &
                   matrix_c=unoccupied_orbs(ispin)%matrix, &
                   matrix_orthogonal_space=mo_coeff, &
                   eps_gradient=scf_control%eps_lumos, &
@@ -636,7 +637,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     LOGICAL                                  :: ionode
     INTEGER                                  :: output_unit
@@ -764,7 +765,7 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1157,10 +1158,10 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
 
     CALL timeset(routineN,handle)
 
@@ -1448,11 +1449,11 @@ CPSourceFileRef,&
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s, fm_work, mo_coeff
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
@@ -1477,7 +1478,7 @@ CPSourceFileRef,&
        CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
        ALLOCATE(eigenvalues(nao))
 
-       CALL copy_sm_to_fm(matrix_s(1)%matrix,fm_s,error=error)
+       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,fm_s,error=error)
        CALL cp_fm_syevd(fm_s,fm_work,eigenvalues,error=error)
        CALL cp_fm_release(fm_s,error=error)
        CALL cp_fm_release(fm_work,error=error)
@@ -1615,6 +1616,8 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_rmpv, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1631,8 +1634,6 @@ CPSourceFileRef,&
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
@@ -1733,7 +1734,7 @@ CPSourceFileRef,&
             IF (ionode) WRITE(UNIT=output_unit,FMT="(T3,A)")&
               "WARNING: S**2 computation does not yet treat fractional occupied orbitals"
           ELSE
-             CALL compute_s_square(mos=mos, matrix_s_sm=matrix_s, s_square=s_square,&
+             CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square,&
                   s_square_ideal=s_square_ideal,error=error)
              IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
                   "Ideal and single determinant S**2 : ",s_square_ideal,s_square
@@ -2068,7 +2069,7 @@ CPSourceFileRef,&
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                extension=".Log",error=error)
-          CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,para_env,output_unit=iw,error=error)
+          CALL dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,para_env,output_unit=iw,error=error)
           CALL cp_print_key_finished_output(iw,logger,input,&
                "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)
        END IF

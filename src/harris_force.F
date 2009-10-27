@@ -18,11 +18,9 @@ MODULE harris_force
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_get,&
@@ -132,7 +130,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -151,7 +148,7 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_sm, rho_ao_sm
+      POINTER                                :: rho_ao_sm
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -235,14 +232,7 @@ CONTAINS
       CALL zero_qs_force(force)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      ks_env=ks_env, matrix_ks=matrix_ks_sm, error=error)
-
-    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+                      ks_env=ks_env, matrix_ks=matrix_ks, error=error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
@@ -499,13 +489,6 @@ CONTAINS
       DEALLOCATE (natom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
-    CALL get_qs_env(qs_env=qs_env, distribution_2d=distribution_2d, error=error)!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       CALL sm_from_dbcsr ( matrix_ks_sm(ispin)%matrix, matrix_ks(ispin)%matrix, &
-            distribution_2d, error=error )!sm->dbcsr
-    ENDDO!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
-
     END IF
 
     CALL timestop(handle)
@@ -551,7 +534,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -570,7 +552,7 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_sm, rho_ao_sm
+      POINTER                                :: rho_ao_sm
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -646,15 +628,8 @@ CONTAINS
       CALL zero_qs_force(force)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      ks_env=ks_env, matrix_ks=matrix_ks_sm, &
+                      ks_env=ks_env, matrix_ks=matrix_ks, &
                       error=error)
-
-    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
@@ -1042,13 +1017,6 @@ CONTAINS
       DEALLOCATE (natom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
-    CALL get_qs_env(qs_env=qs_env, distribution_2d=distribution_2d, error=error)!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       CALL sm_from_dbcsr ( matrix_ks_sm(ispin)%matrix, matrix_ks(ispin)%matrix, &
-            distribution_2d, error=error )!sm->dbcsr
-    ENDDO!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
-
     END IF
 
     CALL timestop(handle)
@@ -1085,7 +1053,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(particle_type), DIMENSION(:), &
@@ -1101,7 +1068,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force, force_tmp
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_sm, rho_ao_sm
+      POINTER                                :: rho_ao_sm
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -1123,15 +1090,8 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env, dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, force=force, pw_env=pw_env, &
-                      particle_set=particle_set, matrix_ks=matrix_ks_sm, cell=cell, &
+                      particle_set=particle_set, matrix_ks=matrix_ks, cell=cell, &
                       error=error)
-
-    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -1377,13 +1337,6 @@ CONTAINS
         !harris_force%f_nsc(iatom, 1:3) = harris_force%f_nsc(iatom,1:3) + force(ikind)%rho_elec(1:3,i)
       END DO
 
-    CALL get_qs_env(qs_env=qs_env, distribution_2d=distribution_2d, error=error)!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       CALL sm_from_dbcsr ( matrix_ks_sm(ispin)%matrix, matrix_ks(ispin)%matrix, &
-            distribution_2d, error=error )!sm->dbcsr
-    ENDDO!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
-
     END IF
 
     CALL timestop(handle)
@@ -1617,7 +1570,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1632,7 +1584,7 @@ CONTAINS
       POINTER                                :: force, force_tmp
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_sm, rho_ao_sm
+      POINTER                                :: rho_ao_sm
 
 !   ------------------------------------------------------------------------
 
@@ -1680,15 +1632,7 @@ CONTAINS
       CALL zero_qs_force(force)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      matrix_ks=matrix_ks_sm, error=error)
-
-    CALL dbcsr_allocate_matrix_set( matrix_ks, SIZE(matrix_ks_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       ALLOCATE(matrix_ks(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_ks(ispin)%matrix, matrix_ks_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
+                      matrix_ks=matrix_ks, error=error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
@@ -1815,13 +1759,6 @@ CONTAINS
 
       DEALLOCATE (natom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-
-    CALL get_qs_env(qs_env=qs_env, distribution_2d=distribution_2d, error=error)!sm->dbcsr
-    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       CALL sm_from_dbcsr ( matrix_ks_sm(ispin)%matrix, matrix_ks(ispin)%matrix, &
-            distribution_2d, error=error )!sm->dbcsr
-    ENDDO!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_ks, error=error )!sm->dbcsr
 
     END IF
 

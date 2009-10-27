@@ -11,6 +11,8 @@
 ! *****************************************************************************
 MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -36,9 +38,8 @@ MODULE qs_rho_methods
                                              allocate_matrix_set,&
                                              copy_matrix,&
                                              deallocate_matrix_set,&
-                                             real_matrix_p_type,&
                                              replicate_matrix,&
-                                             replicate_matrix_structure
+                                             set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -92,11 +93,11 @@ CONTAINS
     LOGICAL                                  :: failure, my_gapw_xc, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
 
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
     CALL timeset(routineN,handle)
@@ -160,9 +161,11 @@ CONTAINS
             CALL allocate_matrix_set(rho%rho_ao,nspins,error=error)
             DO i=1,nspins
                NULLIFY (rho%rho_ao(i)%matrix)
-               CALL replicate_matrix_structure(matrix_s(1)%matrix,&
-                  rho%rho_ao(i)%matrix,&
-                    "DENSITY_MATRIX_AUX_FIT_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
+               CALL sm_from_dbcsr(rho%rho_ao(i)%matrix,matrix_s(1)%matrix,error=error)
+               CALL set_matrix(rho%rho_ao(i)%matrix,0.0_dp)
+               !CALL replicate_matrix_structure(matrix_s(1)%matrix,&
+               !   rho%rho_ao(i)%matrix,&
+               !     "DENSITY_MATRIX_AUX_FIT_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
             END DO
          END IF
        END IF

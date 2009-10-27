@@ -15,10 +15,8 @@ MODULE qmmm_se_energy
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
                                              dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+                                             dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -60,8 +58,6 @@ MODULE qmmm_se_energy
                                              setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -106,12 +102,10 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_b
+      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -124,17 +118,12 @@ CONTAINS
     NULLIFY (se_kind_a, se_kind_mm, se_taper)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, distribution_2d=distribution_2d, error=error)
-    NULLIFY(matrix_s_b)!sm->dbcsr
-    CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s_b,&
+    CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
                               neighbor_list_sab=qs_env%sab_orb,&
                               error=error)
-    CALL allocate_matrix_set(matrix_s,SIZE(matrix_s_b),error)!sm->dbcsr
-    DO i=1,SIZE(matrix_s_b)!sm->dbcsr
-       CALL sm_from_dbcsr( matrix_s(i)%matrix, matrix_s_b(i)%matrix, distribution_2d, error=error )!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
     CALL get_qs_env(qs_env=qs_env,&
@@ -163,7 +152,7 @@ CONTAINS
     ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix)
     CALL dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix,error)
 
-    CALL dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix,matrix_s_b(1)%matrix,&
+    CALL dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix,matrix_s(1)%matrix,&
                     name="QMMM HAMILTONIAN MATRIX",error=error)
     CALL dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp,error)
 
@@ -255,8 +244,6 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "QMMM%PRINT%QMMM_MATRIX", error=error)
     END IF
-
-    CALL dbcsr_deallocate_matrix_set( matrix_s_b, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

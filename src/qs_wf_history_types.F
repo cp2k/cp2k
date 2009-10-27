@@ -12,8 +12,10 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_wf_history_types
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
                                              kg_fm_p_type
@@ -21,10 +23,8 @@ MODULE qs_wf_history_types
   USE pw_types,                        ONLY: pw_p_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             deallocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -65,7 +65,7 @@ MODULE qs_wf_history_types
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
-     TYPE(real_matrix_type), POINTER :: overlap
+     TYPE(dbcsr_obj), POINTER :: overlap
      TYPE(qs_rho_type), POINTER :: rho_frozen
      REAL(KIND = dp) :: dt
      INTEGER :: id_nr, ref_count
@@ -188,7 +188,7 @@ SUBROUTINE wfs_release(snapshot,error)
            CALL deallocate_matrix_set(snapshot%rho_ao,error=error)
         END IF
         IF (ASSOCIATED(snapshot%overlap)) THEN
-           CALL deallocate_matrix(snapshot%overlap,error=error)
+           CALL dbcsr_deallocate_matrix(snapshot%overlap,error=error)
         END IF
         IF (ASSOCIATED(snapshot%rho_frozen)) THEN
            CALL qs_rho_release(snapshot%rho_frozen,error=error)

@@ -17,6 +17,12 @@ MODULE cp_matrix_utils
   USE cp_array_utils,                  ONLY: cp_2d_r_write
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_add_local_block
+  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
+                                             dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
@@ -44,6 +50,11 @@ MODULE cp_matrix_utils
             cp_sm_b_i_next,&
             cp_sm_write,&
             sm_struct_add_sm_local_blocks
+
+INTERFACE sm_struct_add_sm_local_blocks
+   MODULE PROCEDURE sm_struct_add_sm_local_blocks_sm
+   MODULE PROCEDURE sm_struct_add_sm_local_blocks_dbcsr
+END INTERFACE
 
 ! *****************************************************************************
 !> \brief goes through all the local blocks of the given matrix
@@ -354,13 +365,13 @@ END SUBROUTINE cp_sm_write
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
+SUBROUTINE sm_struct_add_sm_local_blocks_sm(sm_struct,matrix,error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'sm_struct_add_sm_local_blocks', &
+      routineN = 'sm_struct_add_sm_local_blocks_sm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: block_col, block_row, handle
@@ -386,6 +397,43 @@ SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
      END DO
   END IF
   CALL timestop(handle)
-END SUBROUTINE sm_struct_add_sm_local_blocks
+END SUBROUTINE sm_struct_add_sm_local_blocks_sm
+
+SUBROUTINE sm_struct_add_sm_local_blocks_dbcsr(sm_struct,matrix,error)
+    TYPE(cp_sm_struct_type), POINTER         :: sm_struct
+    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'sm_struct_add_sm_local_blocks_dbcsr', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, block_col, block_row, &
+                                                handle
+    LOGICAL                                  :: failure
+    TYPE(dbcsr_iterator)                     :: iter
+
+  failure=.FALSE.
+  
+  CALL timeset(routineN,handle)
+  CPPrecondition(ASSOCIATED(sm_struct),cp_failure_level,routineP,error,failure)
+  CPPrecondition(sm_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     !
+     ! appears to be quadratic scaling 
+     !  
+     CALL dbcsr_iterator_start(iter, matrix)
+     DO WHILE (dbcsr_iterator_blocks_left (iter))
+        CALL dbcsr_iterator_next_block(iter, block_row, block_col, blk)
+        !DO WHILE( cp_sm_b_i_next(m_iter, block_row=block_row, &
+        !  block_col=block_col,error=error))
+        CALL sm_struct_add_local_block(sm_struct, block_row=block_row,&
+             block_col=block_col, error=error)
+     END DO
+     CALL dbcsr_iterator_stop(iter)
+  END IF
+  CALL timestop(handle)
+END SUBROUTINE sm_struct_add_sm_local_blocks_dbcsr
 
 END MODULE cp_matrix_utils

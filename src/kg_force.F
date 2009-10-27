@@ -15,6 +15,11 @@ MODULE kg_force
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -729,6 +734,8 @@ END SUBROUTINE kg_calculate_forces
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_b, matrix_w_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(particle_type), DIMENSION(:), &
@@ -804,7 +811,15 @@ END SUBROUTINE kg_calculate_forces
     CALL kg_qs_energies(kg_env,globenv,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    ks_env=ks_env, matrix_s=matrix_s, rho=rho,error=error)
+                    ks_env=ks_env, matrix_s=matrix_s_b, rho=rho,error=error)
+
+    NULLIFY(matrix_s)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
+            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
 
     nspins = dft_control%nspins
 
@@ -835,12 +850,21 @@ END SUBROUTINE kg_calculate_forces
       END IF
     END DO
 
+    NULLIFY(matrix_w_b)!sm->dbcsr
+    CALL dbcsr_allocate_matrix_set( matrix_w_b, SIZE(matrix_w), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_w_b)!sm->dbcsr
+       ALLOCATE(matrix_w_b(ispin)%matrix)!sm->dbcsr
+       !CALL dbcsr_init(matrix_w_b(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_w_b(ispin)%matrix, matrix_w(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+
 !   *** from an eventual mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
         CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                                para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix_sm=matrix_w,error=error)
+                                para_env,matrix_s_b(1)%matrix, rho%rho_ao,w_matrix=matrix_w_b,error=error)
     ENDIF
-    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w_b,error=error)
 
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                        globenv=globenv,&
@@ -896,13 +920,19 @@ END SUBROUTINE kg_calculate_forces
          "DFT%PRINT%DERIVATIVES",error=error)
 
     CALL deallocate_matrix_set(matrix_w,error=error)
-    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+    CALL dbcsr_deallocate_matrix_set( matrix_w_b, error=error )!sm->dbcsr
+    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w_b,error=error)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE (kind_of,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    !DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+    !   CALL dbcsr_from_sm(matrix_s_b(ispin)%matrix, matrix_s(ispin)%matrix, error)!sm->dbcsr
+    !ENDDO!sm->dbcsr
+    CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
 
     CALL timestop(handle)
 

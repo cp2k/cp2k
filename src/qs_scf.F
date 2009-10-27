@@ -42,8 +42,11 @@ MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_from_sm
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_power
@@ -65,13 +68,12 @@ MODULE qs_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
-                                             cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
   USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
@@ -418,6 +420,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -429,8 +433,6 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, harris_section, &
@@ -736,7 +738,6 @@ CONTAINS
             END IF
           END IF
           IF (.NOT.just_energy) energy%tot_old = energy%total
-
           IF (harris_flag) THEN
              CALL harris_postprocessing(harris_env, error=error)
           END IF
@@ -935,7 +936,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     REAL(KIND=dp), INTENT(IN)                :: total_energy
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
@@ -955,10 +956,7 @@ CONTAINS
     IF (has_unit_metric) THEN
       NULLIFY(orthogonality_metric)
     ELSE
-       ALLOCATE(orthogonality_metric)!sm->dbcsr
-       CALL dbcsr_init(orthogonality_metric)!sm->dbcsr
-       CALL dbcsr_from_sm(orthogonality_metric, matrix_s(1)%matrix, error)!sm->dbcsr
-       !orthogonality_metric=>matrix_s(1)%matrix
+       orthogonality_metric=>matrix_s(1)%matrix
     END IF
 
     ! in case of LSD the first spin qs_ot_env will drive the minimization
@@ -982,10 +980,6 @@ CONTAINS
 
     scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
     scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
-
-    IF (.NOT.has_unit_metric) THEN!sm->dbcsr
-       CALL dbcsr_deallocate_matrix( orthogonality_metric, error=error )!sm->dbcsr
-    END IF!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -1179,12 +1173,14 @@ END SUBROUTINE qs_scf_print_summary
     REAL(KIND=dp)                            :: mo_mag_max, mo_mag_min, &
                                                 orthonormality
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_p, matrix_s
+      POINTER                                :: matrix_p
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
 
@@ -1220,10 +1216,10 @@ END SUBROUTINE qs_scf_print_summary
          iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
               extension=".Log",error=error)
          IF (dft_control%qs_control%semi_empirical) THEN
-            CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,&
+            CALL dbcsr_write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,&
                  scale=evolt,output_unit=iw,error=error)
          ELSE
-            CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,&
+            CALL dbcsr_write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,&
                  output_unit=iw,error=error)
          END IF
          CALL cp_print_key_finished_output(iw,logger,dft_section,&
@@ -1294,11 +1290,11 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj), POINTER                 :: ks_scp, orthogonality_metric, &
                                                 pscp
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
 
@@ -1549,10 +1545,7 @@ CPSourceFileRef)
           IF (has_unit_metric) THEN
              NULLIFY(orthogonality_metric)
           ELSE
-             ALLOCATE(orthogonality_metric)!sm->dbcsr
-             CALL dbcsr_init(orthogonality_metric)!sm->dbcsr
-             CALL dbcsr_from_sm(orthogonality_metric, matrix_s(1)%matrix, error)!sm->dbcsr
-             !orthogonality_metric=>matrix_s(1)%matrix
+             orthogonality_metric=>matrix_s(1)%matrix
           ENDIF
           IF(semi .OR. dftb) THEN
              ! we have to treat the semi-empirical methods separately
@@ -1573,7 +1566,7 @@ CPSourceFileRef)
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                           scf_env%qs_ot_env(1)%settings%precond_solver_type, &
-                          matrix_h_sm=matrix_ks(ispin)%matrix, &
+                          matrix_h=matrix_ks(ispin)%matrix, &
                           mo_coeff=mo_coeff, &
                           energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
                           error=error)
@@ -1581,9 +1574,9 @@ CPSourceFileRef)
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                           scf_env%qs_ot_env(1)%settings%precond_solver_type, &
-                          matrix_h_sm=matrix_ks(ispin)%matrix, &
-                          matrix_s_sm=matrix_s(1)%matrix, &
-                          matrix_t_sm=matrix_s(1)%matrix, &
+                          matrix_h=matrix_ks(ispin)%matrix, &
+                          matrix_s=matrix_s(1)%matrix, &
+                          matrix_t=matrix_s(1)%matrix, &
                           mo_coeff=mo_coeff,&
                           energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
                           error=error)
@@ -1734,10 +1727,6 @@ CPSourceFileRef)
              END SELECT
           END IF
 
-             IF (.NOT.has_unit_metric) THEN!sm->dbcsr
-                CALL dbcsr_deallocate_matrix( orthogonality_metric, error=error )!sm->dbcsr
-             END IF!sm->dbcsr
-
        ENDIF
 
        ! if we have non-uniform occupations we should be using rotation
@@ -1787,12 +1776,12 @@ CPSourceFileRef)
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
@@ -1832,13 +1821,13 @@ CPSourceFileRef)
     ENDIF
 
     ! do some assertions here on these matrices having the same structure
-    id_equal=ALL((/((matrix_s(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_s))/))
+    id_equal=ALL((/((matrix_s(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(matrix_s))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((rho%rho_ao(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(rho%rho_ao))/))
+    id_equal=ALL((/((rho%rho_ao(i)%matrix%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(rho%rho_ao))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((matrix_h(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_h))/))
+    id_equal=ALL((/((matrix_h(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(matrix_h))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((matrix_ks(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_ks))/))
+    id_equal=ALL((/((matrix_ks(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(matrix_ks))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -1877,7 +1866,7 @@ CPSourceFileRef)
     IF (scf_env%method /= ot_method_nr .AND. &
         scf_env%method /= ot_diag_method_nr .AND. &
         scf_env%method /= special_diag_method_nr ) THEN
-       CALL copy_sm_to_fm(matrix_s(1)%matrix,scf_env%ortho,error=error)
+       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,scf_env%ortho,error=error)
        cho_inverse = .FALSE.
        IF (scf_env%cholesky_method>cholesky_off) THEN
            CALL cp_fm_cholesky_decompose(scf_env%ortho,error=error)
@@ -1906,10 +1895,10 @@ CPSourceFileRef)
     IF (dft_control%dft_plus_u) THEN
       IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
         IF (s_minus_half_available) THEN
-          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,scf_env%ortho,scf_env%s_half,&
+          CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,scf_env%ortho,scf_env%s_half,&
                                  nao,error=error)
         ELSE
-          CALL copy_sm_to_fm(matrix_s(1)%matrix,scf_env%s_half,error=error)
+          CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,scf_env%s_half,error=error)
           CALL cp_fm_power(scf_env%s_half,scf_env%scf_work2,0.5_dp,&
                            scf_control%eps_eigval,ndep,error=error)
         END IF
@@ -1996,13 +1985,13 @@ CPSourceFileRef)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools, S_sm_pools_aux_fit
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+                                                matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
@@ -2217,10 +2206,20 @@ CPSourceFileRef)
 !   *** Allocate matrix_ks and put it in the QS environment ***
 
     IF (.not.ASSOCIATED(matrix_ks)) THEN
-       CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
-            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-            "KOHN-SHAM_MATRIX",&
-            error=error)
+!       CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
+!            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+!            "KOHN-SHAM_MATRIX",&
+!            error=error)
+       CALL dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
+       DO ispin=1,dft_control%nspins
+          ALLOCATE(matrix_ks(ispin)%matrix)
+          CALL dbcsr_init(matrix_ks(ispin)%matrix)
+          CALL dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
+               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+               "KOHN-SHAM_MATRIX",error=error)
+          CALL dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+       ENDDO
+
        CALL set_qs_env(qs_env=qs_env,&
             matrix_ks=matrix_ks,error=error)
     END IF
@@ -2229,10 +2228,19 @@ CPSourceFileRef)
 
     IF( dft_control%do_wfn_fitting) THEN
       IF (.not.ASSOCIATED(matrix_ks_aux_fit)) THEN
-         CALL sm_pools_create_matrix_vect(S_sm_pools_aux_fit,matrix_ks_aux_fit,&
-              name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-              "KOHN-SHAM_MATRIX for wfn fitting",&
-              error=error)
+         !CALL sm_pools_create_matrix_vect(S_sm_pools_aux_fit,matrix_ks_aux_fit,&
+         !     name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+         !     "KOHN-SHAM_MATRIX for wfn fitting",&
+         !     error=error)
+         CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
+         DO ispin=1,dft_control%nspins
+            ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
+            CALL dbcsr_init(matrix_ks_aux_fit(ispin)%matrix)
+            CALL dbcsr_copy(matrix_ks_aux_fit(ispin)%matrix,matrix_s(1)%matrix,&
+                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                 "KOHN-SHAM_MATRIX for wfn fitting",error=error)
+         ENDDO
+
          CALL set_qs_env(qs_env=qs_env,&
               matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
       END IF
@@ -2390,6 +2398,10 @@ CPSourceFileRef)
     LOGICAL                                  :: failure
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: p_mix_new
+
+!sm->dbcsr
 
     CALL timeset(routineN,handle)
 
@@ -2414,13 +2426,17 @@ CPSourceFileRef)
        IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho,error=error)
 
        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+
           CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
+          !CALL sm_pools_give_back_matrix_vect(S_sm_pools,p_mix_new,&
                error=error)
+
           CALL sm_pools_flush_cache(S_sm_pools,error=error)
        END IF
 
        IF (ASSOCIATED(scf_env%p_delta)) THEN
           CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_delta,&
+          !CALL sm_pools_give_back_matrix_vect(S_sm_pools,p_mix_new,&
                error=error)
           CALL sm_pools_flush_cache(S_sm_pools,error=error)
        END IF

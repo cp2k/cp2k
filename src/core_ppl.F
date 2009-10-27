@@ -17,9 +17,9 @@ MODULE core_ppl
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
-  USE dbcsr_operations,                ONLY: dbcsr_add
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_get_block_p
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE kinds,                           ONLY: dp
@@ -81,7 +81,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, new_atom_b
+    LOGICAL                                  :: failure, found, new_atom_b, tr
     REAL(KIND=dp)                            :: alpha_ppl, dab, dac, dbc, f0, &
                                                 ppl_radius
     REAL(KIND=dp), ALLOCATABLE, &
@@ -223,17 +223,12 @@ CONTAINS
                       icol = iatom
                    END IF
                    NULLIFY(h_block)
-                   CALL dbcsr_get_block_node(matrix=matrix_h(1)%matrix,&
-                                             block_row=irow,&
-                                             block_col=icol,&
-                                             BLOCK=h_block)
-                   CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
+                   CALL dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,tr,found)
+                   !CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
+                   IF(ASSOCIATED(h_block)) THEN
                    IF (calculate_forces) THEN
                       NULLIFY(p_block)
-                      CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=p_block)
+                      CALL dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,tr,found)
                       IF(ASSOCIATED(p_block)) THEN
                          DO iset=1,nseta
                             ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -261,7 +256,7 @@ CONTAINS
                          END DO
                       ENDIF
                    END IF
-
+                   END IF
                 END IF
 
                 hab = 0._dp

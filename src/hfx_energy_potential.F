@@ -27,8 +27,7 @@ MODULE hfx_energy_potential
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+                                             dbcsr_obj_p_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -127,13 +126,13 @@ MODULE hfx_energy_potential
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE integrate_four_center(qs_env,ks_matrix_sm,energy,rho,hfx_section,para_env,& 
+  SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hfx_section,para_env,& 
                                    geometry_did_change,irep,distribute_fock_matrix,& 
                                    ispin, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: hfx_section
@@ -284,21 +283,13 @@ MODULE hfx_energy_potential
                                                 katom_end, latom_start, latom_end, my_process_id
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
     REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl
-    TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)::ks_matrix,rho_ao
+    TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)::rho_ao
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao_sm
     INTEGER::ii
     REAL(dp), DIMENSION(:), POINTER          :: p_work
 
     CALL timeset(routineN,handle)
-
-    NULLIFY(ks_matrix)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( ks_matrix, SIZE(ks_matrix_sm), error )!sm->dbcsr
-    DO ii=1,SIZE(ks_matrix)!sm->dbcsr
-       ALLOCATE(ks_matrix(ii)%matrix)!sm->dbcsr
-       CALL dbcsr_init(ks_matrix(ii)%matrix)
-       CALL dbcsr_from_sm(ks_matrix(ii)%matrix, ks_matrix_sm(ii)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     rho_ao_sm=>rho%rho_ao!sm->dbcsr
     NULLIFY(rho_ao)!sm->dbcsr
@@ -2075,11 +2066,6 @@ MODULE hfx_energy_potential
 !$OMP BARRIER
 !$OMP END PARALLEL
 
-    DO ii=1,SIZE(ks_matrix)!sm->dbcsr
-       CALL sm_from_dbcsr ( ks_matrix_sm(ii)%matrix, ks_matrix(ii)%matrix, &!sm->dbcsr
-            ks_matrix(ii)%matrix%m%dist2d, error=error )!sm->dbcsr
-    ENDDO!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( ks_matrix, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
     CALL timestop(handle)

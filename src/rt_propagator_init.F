@@ -9,6 +9,8 @@
 ! *****************************************************************************
 MODULE rt_propagator_init
 
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
                                              cp_fm_upper_to_full
@@ -18,7 +20,6 @@ MODULE rt_propagator_init
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
                                              do_diag,&
@@ -41,7 +42,6 @@ MODULE rt_propagator_init
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -73,10 +73,10 @@ CONTAINS
     LOGICAL                                  :: diagonalize
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, mos_old
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: s_mat
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s_mat
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL get_qs_env(qs_env,&
@@ -150,7 +150,7 @@ CONTAINS
                                                 scale, t
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigval_H
     TYPE(cp_fm_type), POINTER                :: H_fm, tmp_mat_H
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, s_mat
 
     failure=.FALSE.
@@ -195,7 +195,7 @@ CONTAINS
 
     DO ispin=1,SIZE(matrix_ks)
 
-       CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
+       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
        CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
        CALL cp_fm_scale(t,H_fm,error)
        ndim=H_fm%matrix_struct%nrow_global

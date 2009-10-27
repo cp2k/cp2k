@@ -12,6 +12,10 @@ MODULE qs_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -19,6 +23,9 @@ MODULE qs_force
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_set
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE f77_blas
@@ -64,12 +71,6 @@ MODULE qs_force
   USE scp_force_types,                 ONLY: scp_force_type
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             deallocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -122,6 +123,11 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s, &
+                                                matrix_s_aux_fit, &
+                                                matrix_s_aux_fit_vs_orb, &
+                                                matrix_w
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -135,11 +141,6 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, &
-                                                matrix_s_aux_fit, &
-                                                matrix_s_aux_fit_vs_orb, &
-                                                matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(scp_force_type), POINTER            :: scp_force( : )
@@ -243,13 +244,13 @@ CONTAINS
 
           nspin = SIZE(mos)
 
-          CALL allocate_matrix_set(matrix_w,nspin,error=error)
+          CALL dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
 
           DO ispin=1,nspin
-
-             CALL replicate_matrix_structure(matrix_s(1)%matrix,&
-                  matrix_w(ispin)%matrix,&
-                  "W MATRIX",error=error)
+             ALLOCATE(matrix_w(ispin)%matrix)
+             CALL dbcsr_init(matrix_w(ispin)%matrix)
+             CALL dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
+                  name="W MATRIX",error=error)
 
              mo_set => mos(ispin)%mo_set
 
@@ -257,16 +258,16 @@ CONTAINS
                 IF (scf_control%use_ot) THEN
                    IF (ispin > 1) THEN
                       ! not very elegant, indeed ...
-                      CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
+                      CALL dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
                    ELSE
                       CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
                            matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
                    END IF
                 ELSE
                    CALL calculate_w_matrix(mo_set=mo_set,&
-                        matrix_ks_sm=matrix_ks(ispin)%matrix,&
+                        matrix_ks=matrix_ks(ispin)%matrix,&
                         matrix_p_sm=rho%rho_ao(ispin)%matrix,&
-                        matrix_w_sm=matrix_w(ispin)%matrix,&
+                        matrix_w=matrix_w(ispin)%matrix,&
                         error=error)
                 END IF
              ELSE
@@ -282,7 +283,7 @@ CONTAINS
                   qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
                 iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
                      extension=".Log",error=error)
-                CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+                CALL dbcsr_write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
                 CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                      "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
              END IF
@@ -293,14 +294,15 @@ CONTAINS
     ELSE
        nspin = SIZE(mos)
        
-       CALL allocate_matrix_set(matrix_w,nspin,error=error)
+       CALL dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
 
 
        DO ispin=1,nspin
-          CALL replicate_matrix_structure(matrix_s(1)%matrix,&
-               matrix_w(ispin)%matrix,&
-               "W MATRIX",error=error)
-          CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
+             ALLOCATE(matrix_w(ispin)%matrix)
+             CALL dbcsr_init(matrix_w(ispin)%matrix)
+             CALL dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
+                  name="W MATRIX",error=error)
+             CALL dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
        END DO
        
        CALL calc_c_mat_force(qs_env,dp_imag,error)
@@ -312,14 +314,14 @@ CONTAINS
 
     IF (dft_control%qs_control%mulliken_restraint) THEN
        CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-            para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix_sm=matrix_w,error=error)
+            para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w,error=error)
     END IF
 
     ! Add non-Pulay contribution of DFT+U to W matrix, since it has also to be
     ! digested with overlap matrix derivatives
 
     IF (dft_control%dft_plus_u) THEN
-       CALL plus_u(qs_env=qs_env,matrix_w_sm=matrix_w,error=error)
+       CALL plus_u(qs_env=qs_env,matrix_w=matrix_w,error=error)
     END IF
 
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
@@ -488,7 +490,7 @@ CONTAINS
        END DO
     END IF
 
-    CALL deallocate_matrix_set(matrix_w,error=error)
+    CALL dbcsr_deallocate_matrix_set(matrix_w,error=error)
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
     DEALLOCATE (atom_of_kind,STAT=istat)

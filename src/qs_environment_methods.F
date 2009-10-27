@@ -15,6 +15,8 @@ MODULE qs_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
   USE cp_ddapc_util,                   ONLY: cp_ddapc_init
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -62,8 +64,6 @@ MODULE qs_environment_methods
   USE scp_environment_types,           ONLY: scp_env_create,&
                                              scp_env_release,&
                                              scp_environment_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             real_matrix_p_type
   USE task_list_methods,               ONLY: generate_qs_task_list
   USE task_list_types,                 ONLY: allocate_task_list,&
                                              task_list_type
@@ -241,11 +241,11 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     INTEGER                                  :: handle
     LOGICAL                                  :: do_ppl, failure
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(task_list_type), POINTER            :: task_list
 
     CALL timeset(routineN,handle)
@@ -263,7 +263,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
          para_env=para_env, error=error)
 
     ! *** deallocate matrices that will have the wrong structure ***
-    CALL deallocate_matrix_set(matrix_ks,error=error)
+    CALL dbcsr_deallocate_matrix_set(matrix_ks,error=error)
     CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
 
     
@@ -274,7 +274,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
            para_env=para_env, basis_set_id=use_aux_fit_basis_set, error=error)
 
       ! *** deallocate matrices that will have the wrong structure ***
-      CALL deallocate_matrix_set(matrix_ks_aux_fit,error=error)
+      CALL dbcsr_deallocate_matrix_set(matrix_ks_aux_fit,error=error)
       CALL set_qs_env(qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
     END IF
     

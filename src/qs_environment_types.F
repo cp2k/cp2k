@@ -22,6 +22,8 @@ MODULE qs_environment_types
                                              dft_control_retain,&
                                              dft_control_type,&
                                              tddfpt_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
   USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_release,&
                                              cp_ddapc_ewald_type,&
                                              cp_ddapc_release,&
@@ -39,8 +41,6 @@ MODULE qs_environment_types
   USE cp_result_types,                 ONLY: cp_result_create,&
                                              cp_result_release,&
                                              cp_result_type
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             sm_pools_give_back_matrix_vect
   USE cp_subsys_types,                 ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
@@ -165,8 +165,6 @@ MODULE qs_environment_types
                                              semi_empirical_si_type
   USE semi_empirical_types,            ONLY: se_taper_release,&
                                              se_taper_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             real_matrix_p_type
   USE task_list_types,                 ONLY: deallocate_task_list,&
                                              task_list_type
   USE timings,                         ONLY: timeset,&
@@ -323,7 +321,7 @@ MODULE qs_environment_types
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(harris_env_type), POINTER                        :: harris_env
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_h,&
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER       :: matrix_h,&
                                                              matrix_ks,&
                                                              matrix_s,&
                                                              kinetic,&
@@ -448,11 +446,11 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks
     LOGICAL, OPTIONAL                        :: run_rtp
     TYPE(rt_prop_type), OPTIONAL, POINTER    :: rtp
-    TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
       matrix_w, matrix_dv, gamma_matrix
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_aux_fit, rho_buffer, &
@@ -473,7 +471,7 @@ CONTAINS
       POINTER                                :: scf_control
     TYPE(rel_control_type), OPTIONAL, &
       POINTER                                :: rel_control
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
     TYPE(pw_p_type), OPTIONAL, POINTER       :: vppl, rho_core
@@ -869,7 +867,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
-    TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, &
       matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, &
       matrix_s_aux_fit_vs_orb, matrix_w, matrix_dv, gamma_matrix
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
@@ -880,7 +878,7 @@ CONTAINS
       POINTER                                :: mpools, mpools_aux_fit
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_aux_fit, rho_buffer, &
                                                 rho_xc
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
@@ -1294,10 +1292,7 @@ CONTAINS
 
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
 
-    NULLIFY(S_sm_pools)
     failure=.FALSE.
 
     IF (ASSOCIATED(qs_env)) THEN
@@ -1475,22 +1470,26 @@ CONTAINS
           IF (ASSOCIATED(qs_env%harris_env)) THEN
              CALL harris_env_release(qs_env%harris_env, error=error)
           END IF
-          IF (ASSOCIATED(qs_env%matrix_h)) CALL deallocate_matrix_set(qs_env%matrix_h,error)
-
+          IF (ASSOCIATED(qs_env%matrix_h)) THEN
+             CALL dbcsr_deallocate_matrix_set(qs_env%matrix_h,error)
+          ENDIF
           IF (ASSOCIATED(qs_env%matrix_ks)) THEN
-             CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
-             CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks,error=error)
+             !CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
+             !CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks,error=error)
+             CALL dbcsr_deallocate_matrix_set(qs_env % matrix_ks,error)
+             !
           ENDIF
           IF (ASSOCIATED(qs_env%matrix_ks_aux_fit)) THEN
-             CALL mpools_get(qs_env%mpools_aux_fit, S_sm_pools=S_sm_pools, error=error)
-             CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks_aux_fit,error=error)
+             !CALL mpools_get(qs_env%mpools_aux_fit, S_sm_pools=S_sm_pools, error=error)
+             !CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks_aux_fit,error=error)
+             CALL dbcsr_deallocate_matrix_set(qs_env % matrix_ks_aux_fit,error)
           ENDIF
-          IF (ASSOCIATED(qs_env%matrix_s)) CALL deallocate_matrix_set(qs_env%matrix_s,error)
-          IF (ASSOCIATED(qs_env%matrix_s_aux_fit)) CALL deallocate_matrix_set(qs_env%matrix_s_aux_fit,error)
-          IF (ASSOCIATED(qs_env%matrix_s_aux_fit_vs_orb)) CALL deallocate_matrix_set(qs_env%matrix_s_aux_fit_vs_orb,error)
-          IF (ASSOCIATED(qs_env%matrix_w)) CALL deallocate_matrix_set(qs_env%matrix_w,error)
-          IF (ASSOCIATED(qs_env%matrix_dv)) CALL deallocate_matrix_set(qs_env%matrix_dv,error)
-          IF (ASSOCIATED(qs_env%gamma_matrix)) CALL deallocate_matrix_set(qs_env%gamma_matrix,error)
+          IF (ASSOCIATED(qs_env%matrix_s)) CALL dbcsr_deallocate_matrix_set(qs_env%matrix_s,error)
+          IF (ASSOCIATED(qs_env%matrix_s_aux_fit)) CALL dbcsr_deallocate_matrix_set(qs_env%matrix_s_aux_fit,error)
+          IF (ASSOCIATED(qs_env%matrix_s_aux_fit_vs_orb)) CALL dbcsr_deallocate_matrix_set(qs_env%matrix_s_aux_fit_vs_orb,error)
+          IF (ASSOCIATED(qs_env%matrix_w)) CALL dbcsr_deallocate_matrix_set(qs_env%matrix_w,error)
+          IF (ASSOCIATED(qs_env%matrix_dv)) CALL dbcsr_deallocate_matrix_set(qs_env%matrix_dv,error)
+          IF (ASSOCIATED(qs_env%gamma_matrix)) CALL dbcsr_deallocate_matrix_set(qs_env%gamma_matrix,error)
           IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce,error)
 
           IF (ASSOCIATED(qs_env%local_rho_set)) THEN
@@ -1500,7 +1499,7 @@ CONTAINS
              CALL hartree_local_release(qs_env%hartree_local,error=error)
           END IF
           IF (ASSOCIATED(qs_env%kinetic))&
-               CALL deallocate_matrix_set(qs_env%kinetic,error=error)
+               CALL dbcsr_deallocate_matrix_set(qs_env%kinetic,error)
 
           IF(ASSOCIATED(qs_env%rho_xc)) THEN
              NULLIFY(qs_env%rho_xc%rho_ao)
@@ -1635,10 +1634,10 @@ CONTAINS
                                                 ortho_contains_cholesky, &
                                                 smearing_is_used
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
     failure=.FALSE.

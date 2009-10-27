@@ -31,7 +31,6 @@ MODULE kg_scf
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
@@ -111,7 +110,8 @@ MODULE kg_scf
                                              wfi_update
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              get_matrix_diagonal,&
                                              real_matrix_p_type,&
@@ -311,7 +311,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: diis_m1_global, diis_m2_global
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_mix_new, rho_ao
+      POINTER                                :: matrix_h_b, matrix_ks_b, &
+                                                matrix_s_b, p_mix_new, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -368,11 +369,32 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     ks_env=ks_env,&
-                    matrix_h=matrix_h,&
-                    matrix_ks=matrix_ks,&
-                    matrix_s=matrix_s,&
+                    matrix_h=matrix_h_b,&
+                    matrix_ks=matrix_ks_b,&
+                    matrix_s=matrix_s_b,&
                     qs_charges=qs_charges,&
                     rho=rho,error=error)
+
+    NULLIFY(matrix_s)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
+            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(matrix_h)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_h, SIZE(matrix_h_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_h)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_h(ispin)%matrix, matrix_h_b(ispin)%matrix, &
+            matrix_h_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(matrix_ks)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_ks, SIZE(matrix_ks_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_ks(ispin)%matrix, matrix_ks_b(ispin)%matrix, &
+            matrix_ks_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm,error=error)
     nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set,1)
@@ -431,6 +453,11 @@ CONTAINS
                                 calculate_forces=.FALSE.,&
                                 just_energy=energy_only)
 
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_ks(ispin)%matrix, qs_env%matrix_ks(ispin)%matrix, &
+            matrix_ks_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
        DO ispin=1,dft_control%nspins
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -483,11 +510,11 @@ CONTAINS
        END IF
 
        SELECT CASE (scf_env%method)
-         CASE DEFAULT
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
                cp_to_string(scf_env%method),error,failure)
-         CASE(general_diag_method_nr) ! diagonalisation (default)
+       CASE(general_diag_method_nr) ! diagonalisation (default)
 
            IF (scf_env%iter_count > 1) THEN
              ib = MODULO(scf_env%scf_diis_buffer%ncall,scf_env%scf_diis_buffer%nbuffer) + 1
@@ -791,6 +818,23 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
 
+
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       CALL dbcsr_deallocate_matrix(qs_env%matrix_ks(ispin)%matrix,error)
+       ALLOCATE(qs_env%matrix_ks(ispin)%matrix)
+       CALL dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL deallocate_matrix_set( matrix_ks, error )!sm->dbcsr
+
+    CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
+
+    DO ispin=1,SIZE(matrix_h)!sm->dbcsr
+       CALL dbcsr_deallocate_matrix(qs_env%matrix_h(ispin)%matrix,error)
+       ALLOCATE(qs_env%matrix_h(ispin)%matrix)
+       CALL dbcsr_from_sm(qs_env%matrix_h(ispin)%matrix, matrix_h(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL deallocate_matrix_set( matrix_h, error )!sm->dbcsr
+
     CALL timestop(handle)
 
   END SUBROUTINE scf_env_do_scf
@@ -826,11 +870,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kgscf_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ndep, output_unit
+    INTEGER                                  :: handle, ispin, ndep, &
+                                                output_unit
     LOGICAL                                  :: do_ortho, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_b, matrix_s_b, &
+                                                p_mix_new
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -864,28 +912,53 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
            dft_control=dft_control,&
            scf_control=scf_control,&
-           matrix_ks=matrix_ks,&
-           matrix_s=matrix_s,&
+           matrix_ks=matrix_ks_b,&
+           matrix_s=matrix_s_b,&
            ks_env=ks_env,&
            error=error)
+
+    NULLIFY(matrix_s)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
+            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(matrix_ks)!sm->dbcsr
+    IF(ASSOCIATED(matrix_ks_b)) THEN!sm->dbcsr
+       CALL allocate_matrix_set( matrix_ks, SIZE(matrix_ks_b), error )!sm->dbcsr
+       DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+          CALL sm_from_dbcsr(matrix_ks(ispin)%matrix, matrix_ks_b(ispin)%matrix, &
+               matrix_ks_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+       ENDDO!sm->dbcsr
+    ENDIF!sm->dbcsr
 
       CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools,&
                       error=error)
 
 !   *** Allocate matrix_ks and put it in the QS environment ***
       IF (.not.ASSOCIATED(matrix_ks)) THEN
+!write(*,*) 'WARNING kg_scf.F need to fix that... fucked up!'
          CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
               "KOHN-SHAM_MATRIX",&
               error=error)
-         CALL set_qs_env(qs_env=qs_env,&
-              matrix_ks=matrix_ks,error=error)
+
+         CALL dbcsr_allocate_matrix_set( matrix_ks_b, SIZE(matrix_ks), error )!sm->dbcsr
+         DO ispin=1,SIZE(matrix_ks_b)!sm->dbcsr
+            ALLOCATE(matrix_ks_b(ispin)%matrix)
+            !call dbcsr_init(matrix_ks_b(ispin)%matrix)
+           CALL dbcsr_from_sm(matrix_ks_b(ispin)%matrix, matrix_ks(ispin)%matrix,error)!sm->dbcsr
+         ENDDO!sm->dbcsr
+
+         CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks_b,error=error)
       END IF
 
 !   *** allocate p_mix_new ***
       IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
          IF (.not.ASSOCIATED(scf_env%p_mix_new)) THEN
             CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
+            !CALL sm_pools_create_matrix_vect(S_sm_pools,p_mix_new,&
                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                  "DENSITY",&
                  error=error)
@@ -956,6 +1029,15 @@ CONTAINS
 
    END IF
 
+    DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
+       CALL dbcsr_deallocate_matrix(qs_env%matrix_ks(ispin)%matrix,error)
+       ALLOCATE(qs_env%matrix_ks(ispin)%matrix)
+       CALL dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL deallocate_matrix_set( matrix_ks, error )!sm->dbcsr
+
+    CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
+
     CALL timestop(handle)
 
   END SUBROUTINE init_kgscf_run
@@ -1013,7 +1095,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE(s)!sm->dbcsr
-    CALL dbcsr_init(s, error)
+    !CALL dbcsr_init(s, error)
     CALL dbcsr_from_sm(s, s_sm, error)!sm->dbcsr
 
     failure = .FALSE.
@@ -1153,6 +1235,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h_b, matrix_s_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
@@ -1180,10 +1264,27 @@ CONTAINS
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
                     para_env=para_env, particle_set=particle_set, &
-                    matrix_h=matrix_h,&
-                    matrix_s=matrix_s,&
+                    matrix_h=matrix_h_b,&
+                    matrix_s=matrix_s_b,&
                     scf_control=scf_control, id_nr=qs_env_id,&
                     dft_control=dft_control,error=error)
+
+
+    NULLIFY(matrix_s)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_s)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
+            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(matrix_h)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_h, SIZE(matrix_h_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_h)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_h(ispin)%matrix, matrix_h_b(ispin)%matrix, &
+            matrix_h_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+
 
     nspin=dft_control%nspins
     kg_fm_mol_set => kg_fm%kg_fm_mol_set
@@ -1465,7 +1566,11 @@ CONTAINS
                         "An invalid keyword for the initial density "//&
                         "guess was specified")
 
-    END IF
+   END IF
+
+    CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
+
+    CALL deallocate_matrix_set( matrix_h, error )!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -1576,6 +1681,8 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: p_mix_new
 
     CALL timeset(routineN,handle)
 
@@ -1592,7 +1699,9 @@ CONTAINS
 !!   *** Release SCF work storage ***
 !
        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+
           CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
+          !CALL sm_pools_give_back_matrix_vect(S_sm_pools,p_mix_new,&
                error=error)
           CALL sm_pools_flush_cache(S_sm_pools,error=error)
        END IF

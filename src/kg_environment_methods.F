@@ -11,9 +11,9 @@ MODULE kg_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             sm_pools_give_back_matrix_vect
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
@@ -41,9 +41,7 @@ MODULE kg_environment_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
-  USE qs_matrix_pools,                 ONLY: mpools_get,&
-                                             mpools_rebuild_s_sm_pools
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE qs_matrix_pools,                 ONLY: mpools_rebuild_s_sm_pools
   USE task_list_methods,               ONLY: generate_qs_task_list
   USE task_list_types,                 ONLY: allocate_task_list,&
                                              task_list_type
@@ -151,14 +149,12 @@ CONTAINS
     LOGICAL                                  :: failure, use_tau
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
     TYPE(task_list_type), POINTER            :: task_list
 
 !------------------------------------------------------------------------------
@@ -167,7 +163,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    NULLIFY(para_env, cell, dft_control, kg_sub_pw_env, matrix_ks, particle_set,S_sm_pools )
+    NULLIFY(para_env, cell, dft_control, kg_sub_pw_env, matrix_ks, &
+         particle_set)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -176,9 +173,11 @@ CONTAINS
 
 !dbg
     IF(ASSOCIATED(matrix_ks)) THEN
-       CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
-       CALL sm_pools_give_back_matrix_vect(S_sm_pools, matrix_ks,error=error)
-       CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
+       !CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
+WRITE(*,*) 'WARNING kg_environment_methods.F need to fix that'
+!CALL sm_pools_give_back_matrix_vect(S_sm_pools, matrix_ks,error=error)
+        CALL dbcsr_deallocate_matrix_set(matrix_ks,error)
+        CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
     END IF
 !dbg
 
@@ -250,6 +249,8 @@ CONTAINS
        CALL kg_scf_env_did_change(kg_env%scf_env,&
             error=error)
     END IF
+
+
 
     CALL timestop(handle)
 

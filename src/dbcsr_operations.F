@@ -2723,6 +2723,8 @@ CONTAINS
                    use_c_col_size_logical = MIN(&
                         use_b_col_size_logical,&
                         use_c_col_size_logical)
+                   IF(use_c_row_size_logical.GT.0.AND.use_c_col_size_logical.GT.0&
+                        .AND.use_a_col_size_logical.GT.0) THEN
                    CALL DGEMM(use_a_type, use_b_type,&
                         use_c_row_size_logical, use_c_col_size_logical,&
                         use_a_col_size_logical,&
@@ -2731,6 +2733,7 @@ CONTAINS
                         right_data_d(use_b_offset), use_b_row_size, use_beta,&
                         product_data_d,&
                         use_c_row_size_logical)
+                   ENDIF
                 ELSE
                    !WRITE(*,*)'Flipping'
                    CALL flip_type (use_a_type)
@@ -2749,6 +2752,8 @@ CONTAINS
                         use_a_offset, use_a_row_size, use_beta,&
                         use_c_offset,&
                         use_c_col_size_logical
+                   IF(use_c_col_size_logical.GT.0.AND.use_c_row_size_logical.GT.0&
+                        .AND.use_a_col_size_logical.GT.0) THEN
                    CALL DGEMM(use_b_type, use_a_type,&
                         use_c_col_size_logical, use_c_row_size_logical,&
                         use_a_col_size_logical,&
@@ -2763,6 +2768,7 @@ CONTAINS
                         product_data_d,&
                         use_c_col_size_logical)
                         !use_a_row_size_logical)
+                   ENDIF
                 ENDIF
                 mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
                 lflop = lflop + INT(use_a_row_size_logical, int_8)&

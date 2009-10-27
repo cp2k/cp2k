@@ -19,8 +19,7 @@ MODULE qs_dftb_coulomb
                                              dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
                                              dbcsr_multiply_local,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -32,7 +31,6 @@ MODULE qs_dftb_coulomb
                                              dg_sum_patch_force_1d,&
                                              dg_sum_patch_force_3d
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -139,7 +137,6 @@ CONTAINS
       POINTER                                :: gamma_matrix, matrix_p, &
                                                 matrix_s
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(neighbor_list_set_p_type), &
@@ -149,13 +146,12 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: gamma_matrix_sm, matrix_p_sm, &
-                                                matrix_s_sm
+      POINTER                                :: matrix_p_sm
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(distribution_2d,gamma_matrix,matrix_p,matrix_s)
+    NULLIFY(gamma_matrix, matrix_p, matrix_s)
 
     failure=.FALSE.
     use_virial=.FALSE.
@@ -171,16 +167,9 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     gmcharge = 0._dp
 
-    CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix_sm,&
+    CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,&
                     particle_set=particle_set,cell=cell,&
                     virial=virial,error=error)
-
-    NULLIFY(gamma_matrix)
-    CALL dbcsr_allocate_matrix_set( gamma_matrix, SIZE(gamma_matrix_sm), error )!sm->dbcsr
-    DO i=1,SIZE(gamma_matrix)!sm->dbcsr
-       ALLOCATE(gamma_matrix(i)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(gamma_matrix(i)%matrix,gamma_matrix_sm(i)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     IF ( calculate_forces ) THEN
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -310,7 +299,7 @@ CONTAINS
 
     IF ( .NOT. just_energy ) THEN
       CALL get_qs_env(qs_env=qs_env,&
-                      matrix_s=matrix_s_sm,error=error)
+                      matrix_s=matrix_s,error=error)
       matrix_p_sm => rho%rho_ao
 
       NULLIFY(matrix_p)
@@ -318,13 +307,6 @@ CONTAINS
       DO i=1,SIZE(matrix_p)!sm->dbcsr
          ALLOCATE(matrix_p(i)%matrix)!sm->dbcsr
          CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_sm(i)%matrix, error)!sm->dbcsr
-      ENDDO!sm->dbcsr
-
-      NULLIFY(matrix_s)
-      CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
-      DO i=1,SIZE(matrix_s)!sm->dbcsr
-         ALLOCATE(matrix_s(i)%matrix)!sm->dbcsr
-         CALL dbcsr_from_sm(matrix_s(i)%matrix, matrix_s_sm(i)%matrix, error)!sm->dbcsr
       ENDDO!sm->dbcsr
 
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
@@ -392,15 +374,7 @@ CONTAINS
     DEALLOCATE(gmcharge,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env,distribution_2d=distribution_2d,error=error)    
-    DO i=1,SIZE(gamma_matrix)!sm->dbcsr
-       CALL sm_from_dbcsr(qs_env%gamma_matrix(i)%matrix,gamma_matrix(i)%matrix, &
-                          distribution_2d, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
     CALL dbcsr_deallocate_matrix_set( matrix_p, error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( gamma_matrix, error )!sm->dbcsr
 
     CALL timestop(handle)
 

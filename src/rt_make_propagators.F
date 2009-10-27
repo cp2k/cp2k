@@ -17,6 +17,8 @@ MODULE rt_make_propagators
                                              cp_cfm_release,&
                                              cp_cfm_set_all,&
                                              cp_cfm_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
                                              cp_fm_upper_to_full
@@ -26,7 +28,6 @@ MODULE rt_make_propagators
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE input_constants,                 ONLY: do_diag,&
                                              do_em,&
                                              do_etrs,&
@@ -43,7 +44,6 @@ MODULE rt_make_propagators
                                              taylor_only_imaginary
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -85,7 +85,7 @@ CONTAINS
       POINTER                                :: SinvH
     TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, SinvB, &
                                                 tmp_mat_B, tmp_mat_H
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(rt_prop_type), POINTER              :: rtp
 
@@ -112,7 +112,7 @@ CONTAINS
        lb=(ispin-1)*2+1
        ub=(ispin-1)*2+2
  
-       CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
+       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
 
        CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
 

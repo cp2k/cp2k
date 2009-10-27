@@ -844,8 +844,7 @@ CONTAINS
     REAL(KIND=dp)                            :: orthonormality
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: matrix_s
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_orthonormality', &
@@ -871,7 +870,7 @@ CONTAINS
         CALL cp_fm_create(svec,mo_array(ispin)%mo_set%mo_coeff%matrix_struct,error=error)
         CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
              nrow_global=n,ncol_global=k,error=error)
-        CALL cp_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%mo_coeff,&
+        CALL dbcsr_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%mo_coeff,&
              svec,k,error=error)
         ! get C^T (S*C)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &

@@ -18,8 +18,7 @@ MODULE qs_ks_atom
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -83,11 +82,11 @@ CONTAINS
 !>      the loop over the spins is done internally [03-05,MI]
 !>      Rewrite using new OCE matrices [08.02.09, jhu]        
 ! *****************************************************************************
-  SUBROUTINE update_ks_atom(qs_env,ks_sm,p_sm,forces,tddft,p_env,error)
+  SUBROUTINE update_ks_atom(qs_env,ks,p_sm,forces,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: ks_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: ks
     TYPE(real_matrix_p_type), DIMENSION(:), &
       INTENT(IN)                             :: p_sm
     LOGICAL, INTENT(IN)                      :: forces
@@ -128,7 +127,7 @@ CONTAINS
       POINTER                                :: mat_h, mat_p
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks, p
+      POINTER                                :: p
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(neighbor_list_set_p_type), &
@@ -149,7 +148,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,force,oce,para_env,rho_atom,sab_orb)
-    NULLIFY(mat_h, mat_p ,orb_basis, ks, p)
+    NULLIFY(mat_h, mat_p ,orb_basis, p)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -171,14 +170,10 @@ CONTAINS
            distribution_2d=distribution_2d,&
            sab_orb=sab_orb,error=error)
 
-    CALL dbcsr_allocate_matrix_set( ks, SIZE(ks_sm), error )!sm->dbcsr
     CALL dbcsr_allocate_matrix_set( p, SIZE(p_sm), error )!sm->dbcsr
-    DO i = 1,SIZE(ks)!sm->dbcsr
-       ALLOCATE(ks(i)%matrix)!sm->dbcsr
+    DO i = 1,SIZE(p)!sm->dbcsr
        ALLOCATE(p(i)%matrix)!sm->dbcsr
-       CALL dbcsr_init(ks(i)%matrix)
        CALL dbcsr_init(p(i)%matrix)
-       CALL dbcsr_from_sm(ks(i)%matrix, ks_sm(i)%matrix, error)!sm->dbcsr
        CALL dbcsr_from_sm(p(i)%matrix, p_sm(i)%matrix, error)!sm->dbcsr
     ENDDO
 
@@ -470,11 +465,6 @@ CONTAINS
          "DCPC_h,dCPC_s,PC_h,PC_s")
     END IF
 
-    DO i = 1,SIZE(ks)!sm->dbcsr
-       CALL sm_from_dbcsr ( ks_sm(i)%matrix, ks(i)%matrix, distribution_2d, error=error )!sm->dbcsr
-    ENDDO!sm->dbcsr
-
-    CALL dbcsr_deallocate_matrix_set ( ks, error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set ( p, error )!sm->dbcsr
 
     CALL timestop(handle)

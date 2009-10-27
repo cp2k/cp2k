@@ -13,6 +13,7 @@ MODULE qs_linres_epr_ownutils
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -72,7 +73,6 @@ MODULE qs_linres_epr_ownutils
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -233,10 +233,10 @@ CONTAINS
     REAL(KIND=dp)                            :: epr_g_zke_temp(2)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: kinetic
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: kinetic
     TYPE(section_vals_type), POINTER         :: lr_section
 
     NULLIFY(dft_control, logger, lr_section, rho, kinetic, para_env)
@@ -251,7 +251,7 @@ CONTAINS
                     kinetic=kinetic,rho=rho,para_env=para_env,error=error)
 
     DO ispin=1,dft_control%nspins
-       CALL calculate_ecore(h_sm=kinetic(1)%matrix,&
+       CALL calculate_ecore(h=kinetic(1)%matrix,&
                             p_sm=rho%rho_ao(ispin)%matrix,&
                             ecore=epr_g_zke_temp(ispin),&
                             para_env=para_env,error=error)

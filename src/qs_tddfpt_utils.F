@@ -10,6 +10,9 @@
 MODULE qs_tddfpt_utils
 
   USE cp_control_types,                ONLY: tddfpt_control_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
@@ -23,8 +26,7 @@ MODULE qs_tddfpt_utils
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
-                                             cp_sm_fm_multiply
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: qs_environment_type
@@ -122,7 +124,7 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
     IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
        DO spin=1, n_spins
-          CALL copy_sm_to_fm(qs_env%matrix_s(1)%matrix, t_env%invS(spin)%matrix,error=error)
+          CALL copy_dbcsr_to_fm(qs_env%matrix_s(1)%matrix, t_env%invS(spin)%matrix,error=error)
           CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix,error=error)
           CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix,error=error)
        END DO
@@ -321,7 +323,7 @@ CONTAINS
        nlumos(spin) = t_control%lumos(spin)%matrix%matrix_struct%ncol_global
        CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix%matrix_struct, &
                          "S times lumos", error=error)
-       CALL cp_sm_fm_multiply(qs_env%matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
+       CALL dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
                               S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp,error=error)
     END DO
 
@@ -385,7 +387,7 @@ CONTAINS
   SUBROUTINE normalize(X, tmp_vec, metric, error)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: metric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -397,7 +399,7 @@ CONTAINS
 
     DO spin=1, n_spins
        tmp = 0.0_dp
-       CALL cp_sm_fm_multiply(metric(1)%matrix, X(spin)%matrix, &
+       CALL dbcsr_sm_fm_multiply(metric(1)%matrix, X(spin)%matrix, &
             tmp_vec(spin)%matrix, &
             X(spin)%matrix%matrix_struct%ncol_global, &
             1.0_dp, 0.0_dp,error=error)

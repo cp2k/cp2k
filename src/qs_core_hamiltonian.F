@@ -82,11 +82,14 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_operations,             ONLY: &
-       dbcsr_add_block_node, dbcsr_allocate_matrix, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
-       dbcsr_get_block_node, dbcsr_obj_p_type, dbcsr_replicate_matrix_struct, &
-       sm_from_dbcsr
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_replicate_matrix_struct
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_matrix_distribution,&
                                              dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -135,8 +138,7 @@ MODULE qs_core_hamiltonian
                                              vtriple_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE timings,                         ONLY: timeset,&
@@ -187,10 +189,11 @@ CONTAINS
                                                 lb_max, lb_min, npgfa, npgfb, &
                                                 nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: all_potential_present, build_kinetic_energy_matrix, do_ep, &
-      epr_calculation, failure, gth_potential_present, harris_flag, &
-      new_atom_b, oce_present, ppl_present, return_s_derivatives, &
-      return_t_derivatives, rho0_present, use_virial, xas_calculation
+    LOGICAL :: all_potential_present, allocated_w, &
+      build_kinetic_energy_matrix, do_ep, epr_calculation, failure, &
+      gth_potential_present, harris_flag, new_atom_b, oce_present, &
+      ppl_present, return_s_derivatives, return_t_derivatives, rho0_present, &
+      use_virial, xas_calculation
     REAL(KIND=dp)                            :: dab, eps_fit, eps_ppnl, f, &
                                                 f0, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -235,9 +238,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h_tmp, matrix_p_tmp, &
-                                                matrix_s_tmp, matrix_t_tmp, &
-                                                matrix_w_tmp
+      POINTER                                :: matrix_p_tmp, matrix_w_tmp
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_rho0
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -261,9 +262,6 @@ CONTAINS
     NULLIFY (matrix_h)
     NULLIFY (matrix_s)
     NULLIFY (matrix_t)
-    NULLIFY (matrix_h_tmp)
-    NULLIFY (matrix_s_tmp)
-    NULLIFY (matrix_t_tmp)
     NULLIFY (habt)
     NULLIFY (oce)
     NULLIFY (VH_3c_list)
@@ -281,7 +279,6 @@ CONTAINS
     NULLIFY (sbc_3c)
     NULLIFY (scf_control)
     NULLIFY (sdabt)
-    NULLIFY (matrix_w_tmp)
     NULLIFY (matrix_w)
     NULLIFY (matrix_p)
     NULLIFY (workt)
@@ -301,11 +298,11 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    matrix_h=matrix_h_tmp,&
-                    kinetic=matrix_t_tmp,&
+                    matrix_h=matrix_h,&
+                    kinetic=matrix_t,&
                     oce=oce, &
                     particle_set=particle_set,&
-                    matrix_s=matrix_s_tmp,&
+                    matrix_s=matrix_s,&
                     sab_orb=sab_orb,&
                     sac_ae=sac_ae,&
                     sac_ppl=sac_ppl,&
@@ -332,7 +329,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
-       CALL get_qs_env(qs_env=qs_env,force=force,ep_qs_env=ep_qs_env,matrix_w=matrix_w_tmp,error=error)
+       CALL get_qs_env(qs_env=qs_env,force=force,ep_qs_env=ep_qs_env,matrix_w=matrix_w,error=error)
 
        do_ep=ASSOCIATED(ep_qs_env)
        IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
@@ -343,22 +340,30 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
           matrix_p_tmp => rho%rho_ao
        END IF
+
+       allocated_w = .FALSE.!sm->dbcsr
        IF (do_ep) THEN
           IF (ASSOCIATED(ep_qs_env%dH_coeffs)) THEN
              matrix_p_tmp => ep_qs_env%dH_coeffs
           END IF
           IF (ASSOCIATED(ep_qs_env%dS_coeffs)) THEN
              matrix_w_tmp => ep_qs_env%dS_coeffs
+
+             NULLIFY(matrix_w)!sm->dbcsr
+             CALL dbcsr_allocate_matrix_set( matrix_w, SIZE(matrix_w_tmp), error )!sm->dbcsr
+             DO i = 1,SIZE(matrix_w_tmp)!sm->dbcsr
+                ALLOCATE(matrix_w(i)%matrix)!sm->dbcsr
+                CALL dbcsr_from_sm(matrix_w(i)%matrix, matrix_w_tmp(i)%matrix, error)!sm->dbcsr
+             ENDDO!sm->dbcsr
+             allocated_w = .TRUE.!sm->dbcsr
+
           END IF
        END IF
 
        CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_tmp), error )
-       CALL dbcsr_allocate_matrix_set( matrix_w, SIZE(matrix_w_tmp), error )
        DO i = 1,SIZE(matrix_p_tmp)
           ALLOCATE(matrix_p(i)%matrix)!super dirty
-          ALLOCATE(matrix_w(i)%matrix)!super dirty
           CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_tmp(i)%matrix, error)
-          CALL dbcsr_from_sm(matrix_w(i)%matrix, matrix_w_tmp(i)%matrix, error)
        ENDDO
 
        !     *** If LSD, then combine alpha density and beta density to
@@ -994,25 +999,10 @@ CONTAINS
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
 
-    CALL allocate_matrix_set(matrix_h_tmp,1,error=error)
-    CALL sm_from_dbcsr ( matrix_h_tmp(1)%matrix, matrix_h(1)%matrix, distribution_2d, error=error )
-
-    CALL allocate_matrix_set(matrix_s_tmp,SIZE(matrix_s),error=error)
-    DO i = 1,SIZE(matrix_s)
-       CALL sm_from_dbcsr ( matrix_s_tmp(i)%matrix, matrix_s(i)%matrix, distribution_2d, error=error )
-    ENDDO
-
-    IF (build_kinetic_energy_matrix) THEN
-       CALL allocate_matrix_set(matrix_t_tmp,SIZE(matrix_t),error=error)
-       DO i = 1,SIZE(matrix_t)
-          CALL sm_from_dbcsr ( matrix_t_tmp(i)%matrix, matrix_t(i)%matrix, distribution_2d, error=error )
-       ENDDO
-    ENDIF
-
     CALL set_qs_env(qs_env=qs_env,&
-                    matrix_s=matrix_s_tmp,&
-                    kinetic=matrix_t_tmp,&
-                    matrix_h=matrix_h_tmp,&
+                    matrix_s=matrix_s,&
+                    kinetic=matrix_t,&
+                    matrix_h=matrix_h,&
                     oce=oce,error=error)
 
     IF(ASSOCIATED(VH_3c_list))THEN
@@ -1022,21 +1012,14 @@ CONTAINS
     IF(qs_env%rel_control%rel_method/=rel_none)THEN
       CALL dkh_mol_integrals(qs_env,error)
       CALL get_qs_env(qs_env=qs_env,&
-                      matrix_h=matrix_h_tmp,&
+                      matrix_h=matrix_h,&
                       error=error)
-
-      CALL dbcsr_deallocate_matrix_set ( matrix_h, error )
-      CALL dbcsr_allocate_matrix_set( matrix_h, 1, error )
-      ALLOCATE(matrix_h(1)%matrix)!super dirty
-      CALL dbcsr_from_sm(matrix_h(1)%matrix, matrix_h_tmp(1)%matrix, error)
 
       CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
 
-      CALL sm_from_dbcsr ( matrix_h_tmp(1)%matrix, matrix_h(1)%matrix, distribution_2d, error=error )
-
       CALL set_qs_env(qs_env=qs_env,&
-                      matrix_h=matrix_h_tmp,&
+                      matrix_h=matrix_h,&
                       error=error)
     END IF
 
@@ -1056,18 +1039,15 @@ CONTAINS
     IF (build_kinetic_energy_matrix) THEN
        DEALLOCATE (tintt,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL dbcsr_deallocate_matrix_set ( matrix_t, error )
     END IF
     
-    CALL dbcsr_deallocate_matrix_set ( matrix_s, error )
-    CALL dbcsr_deallocate_matrix_set ( matrix_h, error )
     IF (calculate_forces) THEN
        CALL dbcsr_deallocate_matrix_set ( matrix_p, error )
-       CALL dbcsr_deallocate_matrix_set ( matrix_w, error )
+       IF(allocated_w) CALL dbcsr_deallocate_matrix_set ( matrix_w, error )!sm->dbcsr
     ENDIF
 
     ! Print matrices if requested
-    CALL dump_info_core_hamiltonian(matrix_s_tmp, matrix_t_tmp, matrix_h_tmp, &
+    CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
          oce, qs_env, calculate_forces, para_env, error)
     CALL timestop(handle)
     
@@ -1077,11 +1057,10 @@ CONTAINS
 !> \brief Possibly prints matrices after the construction of the Core 
 !>     Hamiltonian Matrix
 ! *****************************************************************************
-  SUBROUTINE dump_info_core_hamiltonian(matrix_s_sm, matrix_t_sm, matrix_h_sm, oce, qs_env, &
+  SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, &
        calculate_forces, para_env, error)
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm, matrix_t_sm, &
-                                                matrix_h_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, matrix_t, matrix_h
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
@@ -1091,43 +1070,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_info_core_hamiltonian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, iw
+    INTEGER                                  :: handle, i, iw
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_s, matrix_t, &
-                                                matrix_v
+      POINTER                                :: matrix_v
 
     CALL timeset(routineN,handle)
-
-    NULLIFY(matrix_s)!sm->dbcsr
-    IF(ASSOCIATED(matrix_s_sm)) THEN
-       CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
-       DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-          ALLOCATE(matrix_s(ispin)%matrix)!sm->dbcsr
-          CALL dbcsr_init(matrix_s(ispin)%matrix)
-          CALL dbcsr_from_sm(matrix_s(ispin)%matrix, matrix_s_sm(ispin)%matrix, error)!sm->dbcsr
-       ENDDO!sm->dbcsr
-    ENDIF
-
-    NULLIFY(matrix_t)!sm->dbcsr
-    IF(ASSOCIATED(matrix_t_sm)) THEN
-       CALL dbcsr_allocate_matrix_set( matrix_t, SIZE(matrix_t_sm), error )!sm->dbcsr
-       DO ispin=1,SIZE(matrix_t)!sm->dbcsr
-          ALLOCATE(matrix_t(ispin)%matrix)!sm->dbcsr
-          CALL dbcsr_init(matrix_t(ispin)%matrix)
-          CALL dbcsr_from_sm(matrix_t(ispin)%matrix, matrix_t_sm(ispin)%matrix, error)!sm->dbcsr
-       ENDDO!sm->dbcsr
-    ENDIF
-
-    NULLIFY(matrix_h)!sm->dbcsr
-    IF(ASSOCIATED(matrix_h_sm)) THEN
-       CALL dbcsr_allocate_matrix_set( matrix_h, SIZE(matrix_h_sm), error )!sm->dbcsr
-       DO ispin=1,SIZE(matrix_h)!sm->dbcsr
-          ALLOCATE(matrix_h(ispin)%matrix)!sm->dbcsr
-          CALL dbcsr_init(matrix_h(ispin)%matrix)
-          CALL dbcsr_from_sm(matrix_h(ispin)%matrix, matrix_h_sm(ispin)%matrix, error)!sm->dbcsr
-       ENDDO!sm->dbcsr
-    ENDIF
 
     NULLIFY(logger, matrix_v)
     logger => cp_error_get_logger(error)
@@ -1201,10 +1149,6 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
     END IF
-
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_t, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( matrix_h, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

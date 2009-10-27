@@ -59,7 +59,7 @@ MODULE xc_pot_saop
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_integrate_potential,          ONLY: integrate_v_rspace_half_half
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
                                              local_rho_set_release,&
@@ -117,7 +117,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE add_saop_pot(ks_matrix, qs_env, oe_corr, error)
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: oe_corr
@@ -473,7 +473,7 @@ CONTAINS
        END IF
        vxc_SAOP(ispin)%pw%cr3d = vxc_SAOP(ispin)%pw%cr3d * vxc_SAOP(ispin)%pw%pw_grid%dvol
 
-       CALL integrate_v_rspace(vxc_SAOP(ispin), rho_struct%rho_ao(ispin), &
+       CALL integrate_v_rspace_half_half(vxc_SAOP(ispin), rho_struct%rho_ao(ispin), &
                                ks_matrix(ispin), qs_env, &
                                calculate_forces=.FALSE.,&
                                gapw=gapw, error=error)

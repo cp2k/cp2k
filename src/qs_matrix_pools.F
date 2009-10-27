@@ -10,6 +10,8 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_matrix_pools
+  USE array_types,                     ONLY: array_data
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create,&
@@ -32,6 +34,10 @@ MODULE qs_matrix_pools
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_create,&
                                              sm_struct_release
+  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
+                                             dbcsr_get_info,&
+                                             dbcsr_row_block_sizes
+  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
   USE f77_blas
   USE input_constants,                 ONLY: use_orb_basis_set
   USE particle_types,                  ONLY: get_particle_set,&
@@ -716,7 +722,7 @@ END SUBROUTINE mpools_rebuild_fm_pools
 SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
      para_env, basis_set_id, error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: s
     INTEGER, INTENT(in)                      :: nspins
     TYPE(particle_type), DIMENSION(:), &
@@ -726,6 +732,132 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_s_sm_pools', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, &
+                                                my_basis_set_id, n_atoms, &
+                                                nblkcols_total, &
+                                                nblkrows_total, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: block_begins_at
+    INTEGER, DIMENSION(:), POINTER           :: first_col, first_row, &
+                                                last_col, last_row
+    LOGICAL                                  :: failure
+    TYPE(cp_sm_struct_type), POINTER         :: s_mstruct
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    IF( PRESENT( basis_set_id) ) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
+
+    NULLIFY(first_row, first_col, last_row, last_col, s_mstruct)
+    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(s),cp_failure_level,routineP,error,failure)
+    IF (.NOT.ASSOCIATED(mpools)) THEN
+       CALL mpools_create(mpools,error=error)
+    END IF
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(mpools)) THEN
+          CALL mpools_create(mpools,error=error)
+       END IF
+       CALL sm_pools_dealloc(mpools%S_sm_pools,error=error) ! update instead?
+  
+       n_atoms = SIZE(particle_set)
+       ALLOCATE (block_begins_at(n_atoms+1),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL get_particle_set(particle_set=particle_set,first_sgf=block_begins_at,&
+                             basis_set_id = my_basis_set_id,error=error)
+  
+       CALL sm_struct_create(s_mstruct,&
+            block_begins_at_row=block_begins_at,&
+            block_begins_at_col=block_begins_at,&
+            para_env=para_env, symmetry="symmetric",&
+            distribution_2d=s(1)%matrix%m%dist2d,&
+            sparsity_id=s(1)%matrix%m%sparsity_id, &
+            error=error)
+  
+       DEALLOCATE(block_begins_at,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  
+
+       CALL dbcsr_get_info(s(1)%matrix,nblkrows_total=nblkrows_total,&
+            nblkcols_total=nblkcols_total)
+       !CALL get_matrix_info(s(1)%matrix,first_row=first_row,&
+       !     last_row=last_row, first_col=first_col,&
+       !     last_col=last_col)
+  
+       ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total),&
+            first_col(nblkcols_total), last_col(nblkcols_total))
+       CALL convert_sizes_to_offsets (array_data (dbcsr_row_block_sizes (s(1)%matrix)),&
+            first_row, last_row)
+       CALL convert_sizes_to_offsets (array_data (dbcsr_col_block_sizes (s(1)%matrix)),&
+            first_col, last_col)
+
+       CALL cp_assert(ALL(s_mstruct%block_begins_at_row(1:n_atoms)==&
+            first_row),cp_failure_level,cp_assertion_failed,routineP,&
+            "s has unexpected size, "//&
+            CPSourceFileRef,&
+            error)
+       CALL cp_assert(ALL(s_mstruct%block_begins_at_col(1:n_atoms)==&
+            first_col),cp_failure_level,cp_assertion_failed,routineP,&
+            "s has unexpected size, "//&
+            CPSourceFileRef,&
+            error)
+       CALL cp_assert(s_mstruct%block_begins_at_col(n_atoms+1)==&
+            last_col(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
+            "s has unexpected size, "//&
+            CPSourceFileRef,&
+            error)
+       CALL cp_assert(s_mstruct%block_begins_at_row(n_atoms+1)==&
+            last_row(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
+            "s has unexpected size, "//&
+            CPSourceFileRef,&
+            error)
+  
+       ! at the moment read from s, maybe in the future s will take its structure
+       ! from this
+       CALL sm_struct_add_sm_local_blocks(s_mstruct,&
+            matrix=s(1)%matrix,&
+            error=error)
+  
+       ALLOCATE(mpools%S_sm_pools(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+       NULLIFY(mpools%S_sm_pools(1)%pool)
+       CALL sm_pool_create(mpools%S_sm_pools(1)%pool,&
+            matrix_struct=s_mstruct,&
+            error=error)
+       CALL sm_struct_release(s_mstruct,error=error)
+  
+       DO ispin=2,nspins
+          mpools%S_sm_pools(ispin)%pool => mpools%S_sm_pools(1)%pool
+          CALL sm_pool_retain(mpools%S_sm_pools(ispin)%pool,error=error)
+       END DO
+
+       DEALLOCATE(first_row, last_row, first_col, last_col)
+ 
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE mpools_rebuild_s_sm_pools
+
+  SUBROUTINE mpools_rebuild_s_sm_pools_sm(mpools, s, nspins, particle_set, &
+     para_env, basis_set_id, error)
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s
+    INTEGER, INTENT(in)                      :: nspins
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_s_sm_pools_sm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, &
@@ -823,7 +955,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
     END IF
     CALL timestop(handle)
 
-END SUBROUTINE mpools_rebuild_s_sm_pools
+  END SUBROUTINE mpools_rebuild_s_sm_pools_sm
 
 END MODULE qs_matrix_pools
 

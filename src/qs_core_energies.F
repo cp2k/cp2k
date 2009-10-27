@@ -53,7 +53,6 @@ MODULE qs_core_energies
                                              local_atoms_type,&
                                              subcell_type
   USE sparse_matrix_types,             ONLY: real_matrix_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -87,9 +86,10 @@ CONTAINS
 !>           structure (27.06.2003,MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE calculate_ecore(h_sm,p_sm,ecore,para_env,error)
+  SUBROUTINE calculate_ecore(h,p_sm,ecore,para_env,error)
 
-    TYPE(real_matrix_type), POINTER          :: h_sm, p_sm
+    TYPE(dbcsr_obj), POINTER                 :: h
+    TYPE(real_matrix_type), POINTER          :: p_sm
     REAL(KIND=dp), INTENT(OUT)               :: ecore
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -103,14 +103,10 @@ CONTAINS
     REAL(KIND=dp)                            :: ecore_block
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj), POINTER                 :: h, p
+    TYPE(dbcsr_obj), POINTER                 :: p
 
     CALL timeset(routineN,handle)
     ecore = 0.0_dp
-
-    ALLOCATE(h)!sm->dbcsr
-    CALL dbcsr_init(h)!sm->dbcsr
-    CALL dbcsr_from_sm(h, h_sm, error)!sm->dbcsr
 
     ALLOCATE(p)!sm->dbcsr
     CALL dbcsr_init(p)!sm->dbcsr
@@ -124,29 +120,29 @@ CONTAINS
                                  block_row=iblock_row,&
                                  block_col=iblock_col,&
                                  BLOCK=p_block)
-       IF ( .NOT. ASSOCIATED ( p_block ) ) THEN
-          CALL stop_program ( routineN, "Matrix block not found" )
-       ENDIF
+
+       ! if no block we can cycle
+       IF ( .NOT. ASSOCIATED ( p_block ) ) CYCLE
+
        ecore_block = 0.0_dp
 
-        DO j=1,SIZE(h_block,2)
+       DO j=1,SIZE(h_block,2)
           DO i=1,SIZE(h_block,1)
-            ecore_block = ecore_block + p_block(i,j)*h_block(i,j)
+             ecore_block = ecore_block + p_block(i,j)*h_block(i,j)
           END DO
-        END DO
-
-        IF (iblock_row == iblock_col) THEN
+       END DO
+       
+       IF (iblock_row == iblock_col) THEN
           ecore = ecore + ecore_block
-        ELSE
+       ELSE
           ecore = ecore + 2.0_dp*ecore_block
-        END IF
-
-     ENDDO
-     CALL dbcsr_iterator_stop(iter)
+       END IF
+       
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
 
     CALL mp_sum(ecore,para_env%group)
 
-    CALL dbcsr_deallocate_matrix( h, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix( p, error=error )!sm->dbcsr
 
     CALL timestop(handle)

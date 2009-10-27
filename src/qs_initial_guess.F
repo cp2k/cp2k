@@ -20,7 +20,7 @@ MODULE qs_initial_guess
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, dbcsr_allocate_matrix_set, dbcsr_check, &
+       copy_dbcsr_to_fm, dbcsr_allocate_matrix_set, &
        dbcsr_deallocate_matrix_set, dbcsr_from_fm, dbcsr_from_sm, &
        dbcsr_obj_p_type, dbcsr_sm_fm_multiply, dbcsr_sm_sm_multiply, &
        sm_from_dbcsr
@@ -30,7 +30,6 @@ MODULE qs_initial_guess
        cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
@@ -169,24 +168,24 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h_core_sparse, p_rmpv_sm, &
-                                                s_sparse_sm
+      POINTER                                :: p_rmpv_sm
+                                                
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: s_sparse, p_rmpv
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: s_sparse, h_core_sparse, p_rmpv
     TYPE(section_vals_type), POINTER         :: dft_section, input, subsys_section
     TYPE(dbcsr_obj)                          :: p_dbcsr, s_dbcsr, mo_dbcsr, mo_tmp_dbcsr
     TYPE(array_i1d_obj)                      :: col_blk_size
     TYPE(dbcsr_distribution_obj)             :: dist, product_dist
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    REAL(dp)::tmp
+
     logger => cp_error_get_logger(error)
     failure = .FALSE.
     NULLIFY(all_potential,atomic_kind, mo_coeff, sv,&
          gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
-         ortho,work2,work1,mo_array,s_sparse,s_sparse_sm,p_rmpv_sm,scf_control, &
-         dft_control,h_core_sparse, distribution_2d, p_rmpv,&
+         ortho,work2,work1,mo_array,s_sparse,p_rmpv_sm,scf_control, &
+         dft_control, distribution_2d, p_rmpv,&
          ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
          dft_control,h_core_sparse, distribution_2d)
     NULLIFY(dft_section, input, subsys_section)
@@ -197,15 +196,11 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
-         particle_set=particle_set,mos=mo_array, matrix_s=s_sparse_sm,&
+         particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
          matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
          distribution_2d=distribution_2d,&
          error=error)
-
-    CALL dbcsr_allocate_matrix_set( s_sparse, 1, error )!sm->dbcsr
-    ALLOCATE(s_sparse(1)%matrix)!sm->dbcsr
-    CALL dbcsr_from_sm(s_sparse(1)%matrix, s_sparse_sm(1)%matrix, error=error)!sm->dbcsr
 
     nspin=dft_control%nspins
     scp = dft_control%scp
@@ -324,7 +319,7 @@ CPSourceFileRef,&
             CALL make_basis_simple(mo_coeff,nmo,error=error)
           ELSE
             ! ortho so that one can restart for different positions (basis sets?)
-            CALL make_basis_sm(mo_coeff,homo,s_sparse_sm(1)%matrix,error=error)
+            CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
           ENDIF
          ! only alpha spin is kept for restricted
           IF (dft_control%restricted) EXIT
@@ -365,7 +360,7 @@ CPSourceFileRef,&
                    CALL make_basis_simple(mo_coeff,nmo,error=error)
                 ELSE
                    ! ortho so that one can restart for different positions (basis sets?)
-                   CALL make_basis_sm(mo_coeff,homo,s_sparse_sm(1)%matrix,error=error)
+                   CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
                 ENDIF
                 ! only alpha spin is kept for restricted
                 IF (dft_control%restricted) EXIT
@@ -397,7 +392,7 @@ CPSourceFileRef,&
           IF(ortho_basis) THEN
             CALL make_basis_simple(mo_coeff,nmo,error=error)
           ELSE
-            CALL make_basis_sm(mo_coeff,nmo,s_sparse_sm(1)%matrix,error=error)
+            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
           ENDIF
           ! only alpha spin is kept for restricted
           IF (dft_control%restricted) EXIT
@@ -421,7 +416,7 @@ CPSourceFileRef,&
 
        ! Load core Hamiltonian into work matrix
 
-       CALL copy_sm_to_fm(h_core_sparse(1)%matrix,work1(ispin)%matrix,error=error)
+       CALL copy_dbcsr_to_fm(h_core_sparse(1)%matrix,work1(ispin)%matrix,error=error)
 
        ! Diagonalize the core Hamiltonian matrix and retrieve a first set of
        ! molecular orbitals (MOs)
@@ -563,7 +558,7 @@ CPSourceFileRef,&
                 IF (ortho_basis) THEN
                    CALL make_basis_simple(mo_coeff,nmo,error=error)
                 ELSE
-                   CALL make_basis_sm(mo_coeff,nmo,s_sparse_sm(1)%matrix,error=error)
+                   CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
                 END IF
              END IF
 
@@ -575,12 +570,14 @@ CPSourceFileRef,&
                                            p_rmpv_sm(ispin)%matrix,&
                                            error=error)
           END IF
+
           DO ikind=1,SIZE(atomic_kind_set)
             IF(ASSOCIATED(pmat(ikind)%mat)) THEN
               DEALLOCATE (pmat(ikind)%mat,STAT=istat)
               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             END IF
           END DO
+
        END DO
 
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
@@ -834,7 +831,7 @@ CPSourceFileRef,&
              CALL array_release(col_blk_size)
 
              ! and ortho the result
-             CALL make_basis_sm(mo_coeff,nmo,s_sparse_sm(1)%matrix,error=error)
+             CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
           END IF
 
           CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
@@ -1110,7 +1107,7 @@ CPSourceFileRef,&
                 IF (ortho_basis) THEN
                    CALL make_basis_simple(mo_coeff,nmo,error=error)
                 ELSE
-                   CALL make_basis_sm(mo_coeff,nmo,s_sparse_sm(1)%matrix,error=error)
+                   CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
                 END IF
              END IF
 
@@ -1143,23 +1140,6 @@ CPSourceFileRef,&
 
        ! do some assertions here on these matrices having the same structure,
        ! as is currently required
-       DO ispin=1,SIZE(qs_env%matrix_s)
-          id_equal=(qs_env%matrix_s(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
-          CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-       ENDDO
-       ! matrix_p = rho%rho_ao
-       DO ispin=1,SIZE(qs_env%rho%rho_ao)
-          id_equal=(qs_env%rho%rho_ao(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
-          CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DO ispin=1,SIZE(qs_env%matrix_h)
-          id_equal=(qs_env%matrix_h(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
-          CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DO ispin=1,SIZE(qs_env%matrix_ks)
-          id_equal=(qs_env%matrix_ks(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
-          CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-       ENDDO
        ! end sparsity check
        
        qs_env%scf_env%iter_count = 1
@@ -1171,7 +1151,7 @@ CPSourceFileRef,&
 
        ! diagonalization
        DO ispin = 1,qs_env%dft_control%nspins
-          CALL copy_sm_to_fm(qs_env%matrix_ks(ispin)%matrix,&
+          CALL copy_dbcsr_to_fm(qs_env%matrix_ks(ispin)%matrix,&
                              qs_env%scf_env%scf_work1(ispin)%matrix,&
                              error=error)
        END DO
@@ -1208,24 +1188,6 @@ CPSourceFileRef,&
     ! once a run, we check the new bcsr code on real data, if things go wrong the user can
     ! disable this in the &QS section using the keyword CHECK_BCSR_CODE
     !
-    IF (scf_control%use_ot) THEN
-       IF (qs_env%dft_control%qs_control%check_bcsr_code) THEN
-          ionode = logger%para_env%mepos==logger%para_env%source
-          output_unit = -1
-          IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-          IF (output_unit>0) THEN
-             WRITE(output_unit,'(T2,A)') ""
-             WRITE(output_unit,'(T2,A)') "Testing the BCSR code ... " 
-             WRITE(output_unit,'(T2,A)') "Report errors, and use the input keyword CHECK_BCSR_CODE to circumvent them"
-          ENDIF
-          CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
-          CALL dbcsr_check(s_sparse_sm(1)%matrix, mo_coeff,&
-               qs_env%dft_control%qs_control%bcsr_code, error)
-          qs_env%dft_control%qs_control%check_bcsr_code=.FALSE.
-       ENDIF
-    ENDIF
-
-    CALL dbcsr_deallocate_matrix_set( s_sparse, error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set( p_rmpv, error )!sm->dbcsr
 
     CALL timestop(handle)

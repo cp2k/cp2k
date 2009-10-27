@@ -18,9 +18,6 @@
 MODULE qs_diis
 
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
                                              dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -37,7 +34,6 @@ MODULE qs_diis
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -47,7 +43,6 @@ MODULE qs_diis
   USE qs_diis_types,                   ONLY: qs_diis_buffer_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -239,7 +234,7 @@ CONTAINS
 !> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE qs_diis_b_step(diis_buffer,mo_array,kc,sc,delta,error_max,&
-                            diis_step,eps_diis,nmixing,s_matrix_sm,scf_section,roks,&
+                            diis_step,eps_diis,nmixing,s_matrix,scf_section,roks,&
                             error)
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
@@ -253,8 +248,8 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: diis_step
     REAL(KIND=dp), INTENT(IN)                :: eps_diis
     INTEGER, INTENT(IN), OPTIONAL            :: nmixing
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: s_matrix_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: s_matrix
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(IN), OPTIONAL            :: roks
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -279,22 +274,10 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: c, new_errors, old_errors, &
                                                 parameters
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: s_matrix
 
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-
-IF(PRESENT(s_matrix_sm))THEN!sm->dbcsr
-    NULLIFY(s_matrix)
-    CALL dbcsr_allocate_matrix_set( s_matrix, SIZE(s_matrix_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(s_matrix)!sm->dbcsr
-       ALLOCATE(s_matrix(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(s_matrix(ispin)%matrix)
-       CALL dbcsr_from_sm(s_matrix(ispin)%matrix, s_matrix_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-ENDIF!sm->dbcsr
 
     nspin = SIZE(mo_array)
     diis_step = .FALSE.
@@ -380,7 +363,7 @@ ENDIF!sm->dbcsr
         ! KC <- K*C
         CALL cp_fm_symm("L","U",nao,homo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix,error=error)
 
-        IF (PRESENT(s_matrix_sm)) THEN
+        IF (PRESENT(s_matrix)) THEN
           CALL copy_dbcsr_to_fm(s_matrix(1)%matrix,new_errors)
           ! SC <- S*C
           CALL cp_fm_symm("L","U",nao,homo,1.0_dp,new_errors,c,0.0_dp,sc,error=error)
@@ -408,7 +391,7 @@ ENDIF!sm->dbcsr
           CALL cp_fm_symm("L","U",nao,homo,maxocc,parameters,c,0.0_dp,kc(ispin)%matrix,error=error)
 !       END IF
 
-        IF (PRESENT(s_matrix_sm)) THEN
+        IF (PRESENT(s_matrix)) THEN
           ! I guess that this copy can be avoided for LSD
           CALL copy_dbcsr_to_fm(s_matrix(1)%matrix,new_errors)
           ! sc <- S*C
@@ -571,8 +554,6 @@ ENDIF!sm->dbcsr
       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
                                         "PRINT%DIIS_INFO",error=error)
     END IF
-
-IF(PRESENT(s_matrix_sm))CALL dbcsr_deallocate_matrix_set(s_matrix,error=error)!sm->dbcsr
 
     CALL timestop(handle)
 

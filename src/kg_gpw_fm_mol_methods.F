@@ -26,7 +26,6 @@ MODULE kg_gpw_fm_mol_methods
                                              dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
                                              sm_from_dbcsr
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kg_gpw_fm_mol_types,             ONLY: &
@@ -283,7 +282,7 @@ CONTAINS
     NULLIFY(i_atom,ifirst_ao,ilast_ao,mol_p)
 
     ALLOCATE(p_ispin)!sm->dbcsr
-    CALL dbcsr_init(p_ispin, error)
+    !CALL dbcsr_init(p_ispin, error)
     CALL dbcsr_from_sm(p_ispin, p_ispin_sm, error)!sm->dbcsr
 
     CALL get_fm_mol_block(fm_mol_block = mol_block,&

@@ -54,7 +54,6 @@ MODULE qs_linres_epr_utils
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -103,8 +102,6 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: epr_section, lr_section
 
@@ -113,7 +110,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
-    NULLIFY(logger, matrix_s, mos, mpools, epr_section, particle_set)
+    NULLIFY(logger, mos, mpools, epr_section, particle_set)
     NULLIFY(auxbas_pw_pool, pw_env)
     NULLIFY(nablavks_atom_set)
 
@@ -150,7 +147,6 @@ CONTAINS
          &          cell=cell,&
          &          dft_control=dft_control,&
          &          linres_control=linres_control,&
-         &          matrix_s=matrix_s,&
          &          mos=mos,&
          &          mpools=mpools,&
          &          particle_set=particle_set,&

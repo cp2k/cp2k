@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE lowdin
   USE atomic_charges,                  ONLY: print_atomic_charges
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -21,15 +22,19 @@ MODULE lowdin
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
+                                             dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
+  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
+                                             dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE sparse_matrix_types,             ONLY: get_matrix_info,&
-                                             real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -57,22 +62,25 @@ CONTAINS
 !>      02.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE compute_charges(s_matrix,mos,charges,error)
-    TYPE(real_matrix_type), POINTER          :: s_matrix
+    TYPE(dbcsr_obj), POINTER                 :: s_matrix
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER :: iblock, icol, irow, ispin, n_dependent, nblock, ncol_global, &
-      ncol_local, nrow_global, nrow_local, nspin
-    INTEGER, DIMENSION(:), POINTER           :: col_indices, first_row, &
-                                                last_row, row_indices
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    INTEGER                                  :: blk, i, icol, irow, ispin, &
+                                                n_dependent, ncol_global, &
+                                                ncol_local, nrow_global, &
+                                                nrow_local, nspin
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: tr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA, local_data
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: matrix_shalf, matrix_shalfc, &
                                                 matrix_work, mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_iterator)                     :: iter
 
     nspin=SIZE(mos)
     charges=0.0_dp
@@ -85,7 +93,7 @@ CONTAINS
     CALL cp_fm_create(matrix_shalf, fm_struct_tmp,name="matrix_shalf",error=error)
     CALL cp_fm_create(matrix_work, fm_struct_tmp,name="matrix_work",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-    CALL copy_sm_to_fm(s_matrix,matrix_shalf,error=error)
+    CALL copy_dbcsr_to_fm(s_matrix,matrix_shalf,error=error)
     CALL cp_fm_power(matrix_shalf,matrix_work,0.5_dp,EPSILON(0.0_dp),n_dependent,error=error)
     IF (n_dependent/=0) THEN
        ! ... bad luck, I'd say
@@ -109,19 +117,19 @@ CONTAINS
       ! Now condense on atomic charges
       CALL cp_fm_get_info(matrix_work,row_indices=row_indices,col_indices=col_indices, &
                                       local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
-      CALL get_matrix_info(s_matrix,nblock_row=nblock,first_row=first_row,last_row=last_row)
-      DO icol=1,ncol_local
-       DO irow=1,nrow_local
-        IF (row_indices(irow).EQ.col_indices(icol)) THEN
-         DO iblock=1,nblock
-            IF (first_row(iblock).LE.row_indices(irow) .AND. &
-                last_row(iblock).GE.row_indices(irow)) THEN
-               charges(iblock,ispin)=charges(iblock,ispin)+local_data(irow,icol)
-            ENDIF
-         ENDDO
-        ENDIF
-       ENDDO
+
+      CALL dbcsr_iterator_start(iter, s_matrix)
+      DO WHILE (dbcsr_iterator_blocks_left (iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, DATA, tr, blk)
+         IF(irow.EQ.icol) THEN
+            !DO iblock=1,nblock
+            DO i = 1, SIZE(DATA,1)
+               charges(irow,ispin)=charges(irow,ispin)+DATA(i,i)
+            ENDDO
+         ENDIF
       ENDDO
+      CALL dbcsr_iterator_stop(iter)
+
     ENDDO
 
     CALL mp_sum(charges,para_env%group)
@@ -144,7 +152,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE lowdin_charges(s_matrix,mos,particle_set, &
                               scr,title,error)
-    TYPE(real_matrix_type), POINTER          :: s_matrix
+    TYPE(dbcsr_obj), POINTER                 :: s_matrix
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -163,7 +171,8 @@ CONTAINS
 
     ! here we get the numbers for charges
     nspin=SIZE(mos)
-    CALL get_matrix_info(s_matrix,nblock_row=nblock)
+
+    CALL dbcsr_get_info(s_matrix,nblkrows_total=nblock)
 
     ALLOCATE(charges(nblock,nspin))
     CALL compute_charges(s_matrix,mos,charges,error=error)

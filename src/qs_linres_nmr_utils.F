@@ -49,7 +49,6 @@ MODULE qs_linres_nmr_utils
                                              nmr_env_type
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -98,8 +97,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
 
@@ -110,7 +107,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
-    NULLIFY(logger, matrix_s, mpools, nmr_section, particle_set)
+    NULLIFY(logger, mpools, nmr_section, particle_set)
     NULLIFY(pw_env, parser)
 
     n_mo(1:2) = 0
@@ -168,7 +165,6 @@ CONTAINS
          &          cell=cell,&
          &          dft_control=dft_control,&
          &          linres_control=linres_control,&
-         &          matrix_s=matrix_s,&
          &          mpools=mpools,&
          &          particle_set=particle_set,&
          &          pw_env=pw_env,&

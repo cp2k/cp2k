@@ -17,9 +17,9 @@ MODULE rt_propagation_methods
                                              cp_cfm_release,&
                                              cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -40,11 +40,9 @@ MODULE rt_propagation_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             sm_pool_create_matrix,&
-                                             sm_pools_create_matrix_vect
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_copy
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
@@ -83,9 +81,7 @@ MODULE rt_propagation_methods
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             copy_matrix,&
                                              deallocate_matrix,&
-                                             real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
@@ -127,12 +123,12 @@ CONTAINS
     LOGICAL                                  :: my_force
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, exp_H_new
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
@@ -143,7 +139,6 @@ CONTAINS
          matrix_ks=matrix_ks,&
          rho=rho,&
          mos=mos,&
-         matrix_s=matrix_s,&
          ks_env=ks_env,&
          rtp=rtp,&
          error=error)
@@ -396,7 +391,7 @@ CONTAINS
       POINTER                                :: SinvH
     TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, SinvB, &
                                                 tmp_mat_H
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(rt_prop_type), POINTER              :: rtp
 
@@ -421,7 +416,7 @@ CONTAINS
        lb=(ispin-1)*2+1
        ub=(ispin-1)*2+2
 
-       CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
+       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,H_fm,error=error)
        CALL cp_fm_upper_to_full(H_fm,exp_H(ub)%matrix,error)
        CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,H_fm,zero,exp_H(ub)%matrix,error)
 
@@ -456,7 +451,7 @@ CONTAINS
 
   SUBROUTINE s_matrices_create (s_mat,rtp,diagonalize,error)
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
     TYPE(rt_prop_type), POINTER              :: rtp
     LOGICAL                                  :: diagonalize
@@ -497,7 +492,7 @@ CONTAINS
        ALLOCATE(eigval_H(ndim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL copy_sm_to_fm(s_mat(1)%matrix,tmp,error=error)
+       CALL copy_dbcsr_to_fm(s_mat(1)%matrix,tmp,error=error)
        CALL cp_fm_upper_to_full(tmp,eigvec_H,error)
        
        CALL cp_fm_syevd(tmp,eigvec_H,eigval_H,error)
@@ -511,7 +506,7 @@ CONTAINS
        CALL cp_fm_release(eigvec_H,error)       
 
     ELSE
-       CALL copy_sm_to_fm(s_mat(1)%matrix,S_inv,error=error)
+       CALL copy_dbcsr_to_fm(s_mat(1)%matrix,S_inv,error=error)
        CALL cp_fm_cholesky_decompose(S_inv,error=error)
        CALL cp_fm_cholesky_invert(S_inv,error=error)
        CALL cp_fm_upper_to_full(S_inv,tmp,error=error)
@@ -600,14 +595,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_core_and_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, ispin
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
@@ -624,15 +619,24 @@ CONTAINS
     CALL calculate_ecore_self(qs_env,error=error)
     CALL calculate_ecore_overlap(qs_env, para_env, &
          calculate_forces=.FALSE.,error=error)
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,ks_env=ks_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_s=matrix_s,ks_env=ks_env,error=error)
     CALL mpools_get(qs_env%mpools,&
          S_sm_pools=S_sm_pools,&
          error=error)
     
     IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
-            name="KOHN-SHAM_MATRIX",&
-            error=error)
+       !CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
+       !     name="KOHN-SHAM_MATRIX",&
+       !     error=error)
+CALL dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
+DO ispin=1,dft_control%nspins
+   ALLOCATE(matrix_ks(ispin)%matrix)
+   CALL dbcsr_init(matrix_ks(ispin)%matrix)
+   CALL dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
+        name="KOHN-SHAM_MATRIX",error=error)
+ENDDO
+WRITE(*,*) 'WARNING rt_propagation_methods.F need to fix that'
+
        CALL set_qs_env(qs_env=qs_env,&
             matrix_ks=matrix_ks,error=error)
     END IF
@@ -672,25 +676,15 @@ CONTAINS
                                                 matrix_struct_new
     TYPE(cp_fm_type), POINTER                :: fm_tmp, fm_tmp1, fm_tmp2
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm, s_hist
+      POINTER                                :: matrix_s, s_hist
 
     CALL timeset(routineN,handle)
     NULLIFY(exp_hist)
     CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,mos_new=mos_new,error=error)
     nmat=SIZE(rtp%exp_H_new)
     CALL get_qs_env(qs_env,&
-         matrix_s=matrix_s_sm,&
+         matrix_s=matrix_s,&
          error=error)
-
-    NULLIFY(matrix_s)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
-    DO i=1,SIZE(matrix_s)!sm->dbcsr
-       ALLOCATE(matrix_s(i)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_s(i)%matrix)
-       CALL dbcsr_from_sm(matrix_s(i)%matrix, matrix_s_sm(i)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     naspc=MIN(rtp%istep,aspc_order)
     CALL cite_reference(Kolafa2004)
@@ -816,8 +810,6 @@ CONTAINS
          
        END IF
 
-       CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
-
     CALL timestop(handle)
 
   END SUBROUTINE aspc_extrapolate
@@ -828,7 +820,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos, exp_H
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: s_mat
     INTEGER                                  :: ihist
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -863,11 +855,15 @@ CONTAINS
       CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools, error=error)
        IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
           ! (future struct:check)
-          CALL deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
+          CALL dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
        END IF
-       CALL sm_pool_create_matrix(S_sm_pools(1)%pool,&
-            rtp%history%s_history(ihist)%matrix,"hist%overlap",error=error)
-       CALL copy_matrix(s_mat(1)%matrix,rtp%history%s_history(ihist)%matrix)
+       !CALL sm_pool_create_matrix(S_sm_pools(1)%pool,&
+       !     rtp%history%s_history(ihist)%matrix,"hist%overlap",error=error)
+       WRITE(*,*) 'WARNING rt_propagation_methods.F need to fix that'
+
+       ALLOCATE(rtp%history%s_history(ihist)%matrix)
+       CALL dbcsr_init(rtp%history%s_history(ihist)%matrix)
+       CALL dbcsr_copy(rtp%history%s_history(ihist)%matrix,s_mat(1)%matrix,error=error)
     END IF
 
   END SUBROUTINE put_data_to_history

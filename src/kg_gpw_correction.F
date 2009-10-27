@@ -13,7 +13,12 @@ MODULE kg_gpw_correction
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: sic_none,&
                                              xc_funct_no_shortcut
@@ -43,7 +48,9 @@ MODULE kg_gpw_correction
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             deallocate_matrix_set,&
+                                             real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -80,7 +87,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE kg_gpw_ekin_mol(qs_env,molbox_env,fm_mol_set,ks_global,p_global,&
+  SUBROUTINE kg_gpw_ekin_mol(qs_env,molbox_env,fm_mol_set,ks_global_b,p_global,&
                              ekin_mol,calculate_forces,just_energy,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -88,8 +95,10 @@ CONTAINS
       POINTER                                :: molbox_env
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: fm_mol_set
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_global_b
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_global, p_global
+      POINTER                                :: p_global
     REAL(dp), INTENT(OUT)                    :: ekin_mol
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -111,6 +120,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell_mol
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -126,6 +136,8 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force_global
     TYPE(qs_rho_type), POINTER               :: rho_global, rho_mol
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_global
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), POINTER                  :: rho_mol_blocks
     TYPE(rho_mol_blocks_type), POINTER       :: rho_block
@@ -139,6 +151,13 @@ CONTAINS
     failure=.FALSE.
 
     CALL timeset(routineN,handle)
+
+    NULLIFY(ks_global)!sm->dbcsr
+    CALL get_qs_env(qs_env=qs_env,distribution_2d=distribution_2d,error=error)!sm->dbcsr
+    CALL allocate_matrix_set( ks_global, SIZE(ks_global_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(ks_global)!sm->dbcsr
+       CALL sm_from_dbcsr(ks_global(ispin)%matrix, ks_global_b(ispin)%matrix, distribution_2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     ! initialize to zero
     ekin_mol = 0.0_dp
@@ -445,6 +464,14 @@ CONTAINS
 
     CALL section_vals_release(xc_section_kg,error=error)
     CALL section_vals_release(xc_fun_section_kg,error=error)
+
+
+    DO ispin=1,SIZE(ks_global)!sm->dbcsr
+       CALL dbcsr_deallocate_matrix(ks_global_b(ispin)%matrix,error)
+       ALLOCATE(ks_global_b(ispin)%matrix)
+       CALL dbcsr_from_sm(ks_global_b(ispin)%matrix, ks_global(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL deallocate_matrix_set( ks_global, error )!sm->dbcsr
 
     CALL timestop(handle)
 

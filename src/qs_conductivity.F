@@ -8,10 +8,7 @@
 !> \author Joost VandeVondele (04.2003)
 ! *****************************************************************************
 MODULE qs_conductivity
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -21,12 +18,10 @@ MODULE qs_conductivity
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -42,10 +37,10 @@ MODULE qs_conductivity
 CONTAINS
 
 ! *****************************************************************************
-SUBROUTINE optical_conductivity(matrix_s_sm,occupied_orbs,occupied_evals, &
+SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
                                 unoccupied_orbs,unoccupied_evals,volume,ionode,scr,error)
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_type), POINTER                :: occupied_orbs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupied_evals
     TYPE(cp_fm_type), POINTER                :: unoccupied_orbs
@@ -69,8 +64,6 @@ SUBROUTINE optical_conductivity(matrix_s_sm,occupied_orbs,occupied_evals, &
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: RESULT
     TYPE(cp_fm_struct_type), POINTER         :: me_struct, template
     TYPE(cp_fm_type), POINTER                :: buf, matrix_elements
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
 
 ! bands can be used to split the spectrum divinding the occupied evals in nbands
 ! CALL stop_program("optical_conductivity","NYI")
@@ -78,16 +71,6 @@ SUBROUTINE optical_conductivity(matrix_s_sm,occupied_orbs,occupied_evals, &
 ! the core is present
 
    CALL timeset(routineN,handle)
-
-
-    NULLIFY(matrix_s)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( matrix_s, SIZE(matrix_s_sm), error )!sm->dbcsr
-    DO i=1,SIZE(matrix_s)!sm->dbcsr
-       ALLOCATE(matrix_s(i)%matrix)!sm->dbcsr
-       CALL dbcsr_init(matrix_s(i)%matrix)
-       CALL dbcsr_from_sm(matrix_s(i)%matrix, matrix_s_sm(i)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
 
    IF (SIZE(matrix_s).lt.4) CALL stop_program("optical_conductivity","where is the derivative ?")
 
@@ -161,8 +144,6 @@ SUBROUTINE optical_conductivity(matrix_s_sm,occupied_orbs,occupied_evals, &
    CALL cp_fm_release(buf,error=error)
    CALL cp_fm_release(matrix_elements,error=error)
    DEALLOCATE(RESULT)
-
-    CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
 
    CALL timestop(handle)
 

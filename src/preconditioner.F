@@ -15,11 +15,10 @@ MODULE preconditioner
                                              array_i1d_obj
   USE cp_dbcsr_operations,             ONLY: &
        copy_dbcsr_to_fm, cp_dbcsr_get_dist2d, dbcsr_copy_vec, &
-       dbcsr_deallocate_matrix, dbcsr_from_fm, dbcsr_from_sm, &
-       dbcsr_get_block_node, dbcsr_multiply_vec, dbcsr_pack_vec, &
-       dbcsr_sm_fm_multiply, dbcsr_sm_sm_multiply, dbcsr_unpack_vec, &
-       packed_vec_bif_tech2, packed_vec_build_u, packed_vec_scale, &
-       sm_from_dbcsr
+       dbcsr_deallocate_matrix, dbcsr_from_fm, dbcsr_get_block_node, &
+       dbcsr_multiply_vec, dbcsr_pack_vec, dbcsr_sm_fm_multiply, &
+       dbcsr_sm_sm_multiply, dbcsr_unpack_vec, packed_vec_bif_tech2, &
+       packed_vec_build_u, packed_vec_scale
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -70,7 +69,6 @@ MODULE preconditioner
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
-  USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -101,14 +99,13 @@ CONTAINS
 ! might overwrite matrix_h, matrix_t
 
 ! *****************************************************************************
-SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h_sm, matrix_s_sm, &
-                               matrix_t_sm, mo_coeff, energy_gap, mixed_precision, error)
+SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
+                               matrix_t, mo_coeff, energy_gap, mixed_precision, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     INTEGER, INTENT(IN)                      :: precon_type, solver_type
-    TYPE(real_matrix_type), POINTER          :: matrix_h_sm
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: matrix_s_sm, matrix_t_sm
+    TYPE(dbcsr_obj), POINTER                 :: matrix_h
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: matrix_s, matrix_t
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     REAL(KIND=dp)                            :: energy_gap
     LOGICAL, INTENT(IN), OPTIONAL            :: mixed_precision
@@ -124,26 +121,10 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
                                                 needs_homo
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
-    TYPE(dbcsr_obj), POINTER                 :: matrix_h, matrix_s, matrix_t
 
     failure=.FALSE.
 
   CALL timeset(routineN,handle)
-
-  NULLIFY(matrix_h,matrix_s,matrix_t)
-  ALLOCATE(matrix_h)!sm->dbcsr
-  CALL dbcsr_init(matrix_h)!sm->dbcsr
-  CALL dbcsr_from_sm(matrix_h, matrix_h_sm, error)!sm->dbcsr
-  IF(PRESENT(matrix_s_sm)) THEN
-     ALLOCATE(matrix_s)!sm->dbcsr
-     CALL dbcsr_init(matrix_s)!sm->dbcsr
-     CALL dbcsr_from_sm(matrix_s, matrix_s_sm, error)!sm->dbcsr
-  ENDIF
-  IF(PRESENT(matrix_t_sm)) THEN
-     ALLOCATE(matrix_t)!sm->dbcsr
-     CALL dbcsr_init(matrix_t)!sm->dbcsr
-     CALL dbcsr_from_sm(matrix_t, matrix_t_sm, error)!sm->dbcsr
-  ENDIF
 
     CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
 
@@ -201,7 +182,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      IF(my_solver_type.NE.ot_precond_solver_default) THEN
         CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
      ENDIF
-     IF ( PRESENT(matrix_s_sm) ) THEN
+     IF ( PRESENT(matrix_s) ) THEN
         CALL make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
                               energy_homo, energy_gap ,error=error)
      ELSE
@@ -213,7 +194,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      IF(my_solver_type.NE.ot_precond_solver_default) THEN
         CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
      ENDIF
-     IF ( PRESENT(matrix_s_sm) ) THEN
+     IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_single(preconditioner_env, preconditioner_env%fm,&
                               matrix_h, matrix_s, energy_homo, energy_gap ,error=error)
      ELSE
@@ -226,7 +207,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      !   CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
      !ENDIF
      IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
-     IF ( PRESENT(matrix_s_sm) ) THEN
+     IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, error=error)
      ELSE
         CALL stop_program("make preconditioner","Type for S=1 not implemented")
@@ -234,7 +215,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   CASE (ot_precond_full_kinetic)
      preconditioner_env%in_use=ot_precond_full_kinetic
      IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
-     IF ( PRESENT(matrix_s_sm) .AND. PRESENT(matrix_t_sm) ) THEN
+     IF ( PRESENT(matrix_s) .AND. PRESENT(matrix_t) ) THEN
         CALL make_full_kinetic(preconditioner_env, preconditioner_env%fm,&
              &                 matrix_t, matrix_s, energy_gap, &
              &                 my_mixed_precision, error=error)
@@ -244,7 +225,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   CASE (ot_precond_full_single_inverse)
      preconditioner_env%in_use=ot_precond_full_single_inverse
      IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
-     IF ( PRESENT(matrix_s_sm) ) THEN
+     IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_single_inverse(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
                                       eigenvalues_ot, energy_gap, my_mixed_precision, &
                                       error=error)
@@ -257,7 +238,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      IF(my_solver_type.NE.ot_precond_solver_default) THEN
         CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
      ENDIF
-     IF ( PRESENT(matrix_s_sm) ) THEN
+     IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_all(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
                            eigenvalues_ot, energy_gap,error=error)
      ELSE
@@ -283,7 +264,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      ! compute the full inverse
      preconditioner_env%solver=ot_precond_solver_inv_chol
      CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
-          &                          my_mixed_precision, PRESENT(matrix_s_sm), error=error)!present sm->dbcsr
+          &                          my_mixed_precision, error=error)!present sm->dbcsr
   CASE (ot_precond_solver_sainv)
      !
      preconditioner_env%solver=ot_precond_solver_sainv
@@ -292,13 +273,13 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      ! FOR THE MOMENT WE DO IT THE OLD WAY !
      preconditioner_env%solver=ot_precond_solver_inv_chol
      CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
-          &                          my_mixed_precision, PRESENT(matrix_s_sm), error=error)!present sm->dbcsr
+          &                          my_mixed_precision, error=error)!present sm->dbcsr
   CASE (ot_precond_solver_direct)
      !
      ! prepare for the direct solver
      preconditioner_env%solver=ot_precond_solver_direct
      CALL make_full_fact_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
-          &                       PRESENT(matrix_s_sm), error)!present sm->dbcsr
+          &                       error)!present sm->dbcsr
    CASE (ot_precond_solver_default)
      preconditioner_env%solver=ot_precond_solver_default
   CASE DEFAULT
@@ -310,18 +291,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
       DEALLOCATE(eigenvalues_ot,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
-
-
-  CALL sm_from_dbcsr ( matrix_h_sm, matrix_h, matrix_h%m%dist2d, error=error )!sm->dbcsr
-  CALL dbcsr_deallocate_matrix ( matrix_h, error=error )!sm->dbcsr
-  IF(PRESENT(matrix_s_sm))THEN!sm->dbcsr
-     CALL sm_from_dbcsr ( matrix_s_sm, matrix_s, matrix_s%m%dist2d, error=error )!sm->dbcsr
-     CALL dbcsr_deallocate_matrix ( matrix_s, error=error )!sm->dbcsr
-  ENDIF!sm->dbcsr
-  IF(PRESENT(matrix_t_sm))THEN!sm->dbcsr
-     CALL sm_from_dbcsr ( matrix_t_sm, matrix_t, matrix_t%m%dist2d, error=error )!sm->dbcsr
-     CALL dbcsr_deallocate_matrix ( matrix_t, error=error )!sm->dbcsr
-  ENDIF!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -1106,13 +1075,12 @@ END SUBROUTINE make_full_s_inverse
 END SUBROUTINE make_full_kinetic
 
   SUBROUTINE make_full_inverse_cholesky(preconditioner_env, fm, matrix_s, mixed_precision, &
-       matrix_s_present, error)
+       error)
     
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: matrix_s
-    LOGICAL, INTENT(IN)                      :: mixed_precision, &
-                                                matrix_s_present
+    LOGICAL, INTENT(IN)                      :: mixed_precision
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky', &
@@ -1146,8 +1114,7 @@ END SUBROUTINE make_full_kinetic
     IF (failure) THEN
        !
        ! just the overlap matrix
-!       IF(PRESENT(matrix_s_sm)) THEN
-       IF(matrix_s_present) THEN!sm->dbcsr
+       IF(PRESENT(matrix_s)) THEN
           CALL copy_dbcsr_to_fm(matrix_s,fm)
           CALL cp_fm_cholesky_decompose(fm,error=error)
        ELSE
@@ -1163,12 +1130,11 @@ END SUBROUTINE make_full_kinetic
 
   END SUBROUTINE make_full_inverse_cholesky
 
-  SUBROUTINE make_full_fact_cholesky(preconditioner_env, fm, matrix_s, matrix_s_present, error)
+  SUBROUTINE make_full_fact_cholesky(preconditioner_env, fm, matrix_s, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: matrix_s
-    LOGICAL, INTENT(IN)                      :: matrix_s_present
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_fact_cholesky', &
@@ -1195,8 +1161,7 @@ END SUBROUTINE make_full_kinetic
     IF (failure) THEN
        !
        ! just the overlap matrix
-       !IF(PRESENT(matrix_s)) THEN
-       IF(matrix_s_present) THEN!sm->dbcsr
+       IF(PRESENT(matrix_s)) THEN
           CALL copy_dbcsr_to_fm(matrix_s,fm)
           CALL cp_fm_cholesky_decompose(fm,error=error)
        ELSE

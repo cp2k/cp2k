@@ -615,14 +615,14 @@ MODULE  rt_propagation_utils
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_rmpv, s_sparse
+      POINTER                                :: p_rmpv
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     NULLIFY(atomic_kind_set,mo_array,particle_set)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
-         particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
+         particle_set=particle_set,mos=mo_array, &
          input=input,scp_env=scp_env,&
          id_nr=qs_env_id, dft_control=dft_control,&
          error=error)

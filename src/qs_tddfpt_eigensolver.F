@@ -6,6 +6,8 @@
 ! *****************************************************************************
 MODULE qs_tddfpt_eigensolver
   USE cp_control_types,                ONLY: tddfpt_control_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_plus_fm_fm_t,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
@@ -24,8 +26,7 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t
+  USE dbcsr_operations,                ONLY: dbcsr_set
   USE f77_blas
   USE input_constants,                 ONLY: tddfpt_davidson,&
                                              tddfpt_lanczos
@@ -43,7 +44,6 @@ MODULE qs_tddfpt_eigensolver
   USE qs_tddfpt_utils,                 ONLY: co_initial_guess,&
                                              normalize,&
                                              reorthogonalize
-  USE sparse_matrix_types,             ONLY: set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -367,7 +367,7 @@ CONTAINS
                qs_env%dft_control%tddfpt_control%do_kernel,error=error)
           CALL p_postortho(p_env, qs_env, Ab(k,:),error=error)
           DO spin=1, nspins
-             CALL cp_sm_fm_multiply(qs_env%matrix_s(1)%matrix, &
+             CALL dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, &
                   b(k,spin)%matrix, &
                   Sb(k,spin)%matrix, &
                   p_env%n_mo(spin),error=error)
@@ -559,13 +559,13 @@ CONTAINS
     !-----------------!
     IF (do_kernel) THEN
        DO spin=1, nspins
-          CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_dp) ! optimize?
-          CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
+          CALL dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp, error=error) ! optimize?
+          CALL dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=p_env%psi0d(spin)%matrix,&
                                   matrix_g=X(spin)%matrix,&
                                   ncol=p_env%n_mo(spin), &
                                   alpha=0.5_dp,error=error)
-          CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
+          CALL dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=X(spin)%matrix,&
                                   matrix_g=p_env%psi0d(spin)%matrix,&
                                   ncol=p_env%n_mo(spin), &

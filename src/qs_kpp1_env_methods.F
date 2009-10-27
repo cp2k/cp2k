@@ -12,9 +12,17 @@
 ! *****************************************************************************
 MODULE qs_kpp1_env_methods
   USE cell_types,                      ONLY: cell_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_scale,&
+                                             dbcsr_set
   USE f77_blas
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE input_constants,                 ONLY: do_method_gapw,&
@@ -57,7 +65,7 @@ MODULE qs_kpp1_env_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_integrate_potential,          ONLY: integrate_v_rspace_half_half
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
@@ -67,11 +75,7 @@ MODULE qs_kpp1_env_methods
                                              qs_rho_type
   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-                                             deallocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix,&
-                                             transfer_matrix
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_calc_2nd_deriv,&
@@ -155,7 +159,7 @@ CONTAINS
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho1_xc
@@ -408,9 +412,9 @@ CONTAINS
 
                 END IF
                 ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-                CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
-                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     p=rho%rho_ao(ispin),&
+                CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
+                CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
+                     p_sm=rho%rho_ao(ispin),&
                      h=kpp1_env%v_ao(ispin),&
                      qs_env=qs_env,&
                      calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
@@ -421,17 +425,17 @@ CONTAINS
                                                v_hartree_rspace%pw%pw_grid%dvol
                     v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
 
-                    CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=rho%rho_ao(ispin),&
+                    CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
+                         p_sm=rho%rho_ao(ispin),&
                          h=kpp1_env%v_ao(ispin),&
                          qs_env=qs_env,&
                          calculate_forces=.FALSE.,gapw=gapw,error=error)
                 END IF
              ELSE
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-               CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     p=rho%rho_ao(ispin),&
+               CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
+               CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
+                     p_sm=rho%rho_ao(ispin),&
                      h=kpp1_env%v_ao(ispin),&
                      qs_env=qs_env,&
                      calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
@@ -441,8 +445,8 @@ CONTAINS
                                              v_hartree_rspace%pw%pw_grid%dvol
                END IF
                v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=rho%rho_ao(ispin),&
+               CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
+                         p_sm=rho%rho_ao(ispin),&
                          h=kpp1_env%v_ao(ispin),&
                          qs_env=qs_env,&
                          calculate_forces=.FALSE.,gapw=gapw,error=error)
@@ -478,18 +482,16 @@ CONTAINS
             END IF
 
             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-            CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
-            CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                 p=rho%rho_ao(ispin),&
+            CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
+            CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
+                 p_sm=rho%rho_ao(ispin),&
                  h=kpp1_env%v_ao(ispin),&
                  qs_env=qs_env,&
                  calculate_forces=.FALSE.,gapw=gapw,error=error)
 
           END IF
 
-          CALL transfer_matrix(kpp1_env%v_ao(ispin)%matrix,&
-               k_p_p1(ispin)%matrix,error=error)
-
+          CALL dbcsr_copy(k_p_p1(ispin)%matrix,kpp1_env%v_ao(ispin)%matrix,error=error)
        END DO
 
        IF (gapw) THEN
@@ -542,7 +544,7 @@ CONTAINS
        diff, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: diff
@@ -551,12 +553,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1_fdiff', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, nspins, stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: ispin, nspins
     REAL(KIND=dp)                            :: my_diff
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: ks_2, matrix_s
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_2, matrix_s, rho_ao
+      POINTER                                :: rho_ao
 
     NULLIFY(ks_2,matrix_s,qs_energy)
     nspins = SIZE(k_p_p1)
@@ -580,16 +583,16 @@ CONTAINS
     END DO
 
     CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
-         qs_env=qs_env,ks_matrix_sm=k_p_p1,rho=rho,energy=qs_energy,&
+         qs_env=qs_env,ks_matrix=k_p_p1,rho=rho,energy=qs_energy,&
          calculate_forces=.FALSE.,&
          just_energy=.FALSE.,error=error)
 
-    ALLOCATE(ks_2(nspins),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL dbcsr_allocate_matrix_set(ks_2,nspins,error=error)
     DO ispin=1,nspins
-       NULLIFY(ks_2(ispin)%matrix)
-       CALL replicate_matrix_structure(matrix_s(1)%matrix,ks_2(ispin)%matrix,&
-            target_name="tmp_ks2-"//ADJUSTL(cp_to_string(ispin)),error=error)
+       ALLOCATE(ks_2(ispin)%matrix)
+       CALL dbcsr_init(ks_2(ispin)%matrix)
+       CALL dbcsr_copy(ks_2(ispin)%matrix,matrix_s(1)%matrix,&
+            name="tmp_ks2-"//ADJUSTL(cp_to_string(ispin)),error=error)
     END DO
 
     ! rho = rho0-h/2*rho1
@@ -604,7 +607,7 @@ CONTAINS
     END DO
 
     CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
-         qs_env=qs_env,ks_matrix_sm=ks_2,rho=rho,energy=qs_energy,&
+         qs_env=qs_env,ks_matrix=ks_2,rho=rho,energy=qs_energy,&
          calculate_forces=.FALSE.,&
          just_energy=.FALSE.,error=error)
 
@@ -621,14 +624,12 @@ CONTAINS
 
     ! k_p_p1=(H(rho0+h/2 rho1)-H(rho0-h/2 rho1))/h
     DO ispin=1,nspins
-       CALL cp_sm_scale_and_add(matrix_a=k_p_p1(ispin)%matrix, &
-            matrix_b=ks_2(ispin)%matrix,&
-            beta=-1.0_dp,error=error)
-       CALL cp_sm_scale_and_add(alpha=0.5_dp/my_diff,&
-            matrix_a=k_p_p1(ispin)%matrix,error=error)
+       CALL dbcsr_add(k_p_p1(ispin)%matrix,ks_2(ispin)%matrix,&
+            alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+       CALL dbcsr_scale(k_p_p1(ispin)%matrix,alpha_scalar=0.5_dp/my_diff,error=error)
     END DO
 
-    CALL deallocate_matrix_set(ks_2,error=error)
+    CALL dbcsr_deallocate_matrix_set(ks_2,error=error)
     CALL deallocate_qs_energy(qs_energy)
   END SUBROUTINE kpp1_calc_k_p_p1_fdiff
 
@@ -656,12 +657,12 @@ CONTAINS
     LOGICAL                                  :: explicit, failure, &
                                                 lsd_singlets
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(section_vals_type), POINTER         :: input, xc_section
 
 ! ------------------------------------------------------------------
@@ -695,16 +696,13 @@ CONTAINS
        END IF
 
        IF (.NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
-          ALLOCATE(kpp1_env%v_ao(nspins),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (.NOT. failure) THEN
+          CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error=error)
              DO ispin=1,nspins
-                NULLIFY(kpp1_env%v_ao(ispin)%matrix)
-                CALL replicate_matrix_structure(matrix_s(1)%matrix,&
-                     kpp1_env%v_ao(ispin)%matrix,&
-                     "kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)),error=error)
+                ALLOCATE(kpp1_env%v_ao(ispin)%matrix)
+                CALL dbcsr_init(kpp1_env%v_ao(ispin)%matrix)
+                CALL dbcsr_copy(kpp1_env%v_ao(ispin)%matrix,matrix_s(1)%matrix,&
+                     name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)),error=error)
              END DO
-          END IF
        END IF
 
        IF (.not.ASSOCIATED(kpp1_env%deriv_set)) THEN
@@ -801,7 +799,7 @@ CONTAINS
     IF (.not.failure) THEN
        IF (my_s_struct_changed) THEN
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
-             CALL deallocate_matrix_set(kpp1_env%v_ao,error=error)
+             CALL dbcsr_deallocate_matrix_set(kpp1_env%v_ao,error=error)
           END IF
        END IF
        IF (my_s_struct_changed.or.my_psi0_changed) THEN

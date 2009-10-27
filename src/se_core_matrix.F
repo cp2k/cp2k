@@ -17,9 +17,7 @@ MODULE se_core_matrix
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+                                             dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -31,11 +29,11 @@ MODULE se_core_matrix
                                              dbcsr_copy,&
                                              dbcsr_distribute,&
                                              dbcsr_get_block_diag,&
+                                             dbcsr_get_block_p,&
                                              dbcsr_replicate_all,&
                                              dbcsr_set,&
                                              dbcsr_sum_replicated
   USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
@@ -58,8 +56,7 @@ MODULE se_core_matrix
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
@@ -90,7 +87,8 @@ CONTAINS
       inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, &
       natorb_b, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure, use_virial
+    LOGICAL                                  :: defined, failure, found, tr, &
+                                                use_virial
     REAL(KIND=dp)                            :: delta, dr, econst, eheat, &
                                                 eisol, enuclear, kh, udd, &
                                                 uff, upp, uss
@@ -107,7 +105,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
@@ -119,67 +116,45 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h_sm, matrix_p_sm, &
-                                                matrix_s_sm
+      POINTER                                :: matrix_p_sm
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-     NULLIFY ( matrix_h_sm,matrix_s_sm,matrix_p_sm,rho,force,atomic_kind_set,sab_orb,&
+     NULLIFY ( matrix_p_sm,rho,force,atomic_kind_set,sab_orb,&
                diagmat_h,diagmat_p,particle_set, matrix_p )
 
      ! calculate overlap matrix
      IF(calculate_forces) THEN
-        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm, distribution_2d=distribution_2d, error=error)
-        NULLIFY(matrix_s)!sm->dbcsr
+        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
         CALL build_overlap_matrix(qs_env,para_env,nderivative=1, matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
                               neighbor_list_sab=qs_env%sab_orb,&
                               error=error)
-        CALL allocate_matrix_set(matrix_s_sm,SIZE(matrix_s),error)!sm->dbcsr
-        DO i=1,SIZE(matrix_s)!sm->dbcsr
-           CALL sm_from_dbcsr( matrix_s_sm(i)%matrix, matrix_s(i)%matrix, &
-                distribution_2d, error=error )!sm->dbcsr
-        ENDDO!sm->dbcsr
-        CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
-        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s_sm,error=error)
+        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
         CALL get_qs_env(qs_env=qs_env, virial=virial, error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      ELSE
-        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s_sm, distribution_2d=distribution_2d, error=error)
-        NULLIFY(matrix_s)!sm->dbcsr
+        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
         CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
                               neighbor_list_sab=qs_env%sab_orb,&
                               error=error)
-        CALL allocate_matrix_set(matrix_s_sm,SIZE(matrix_s),error)!sm->dbcsr
-        DO i=1,SIZE(matrix_s)!sm->dbcsr
-           CALL sm_from_dbcsr( matrix_s_sm(i)%matrix, matrix_s(i)%matrix, &
-                distribution_2d, error=error )!sm->dbcsr
-        ENDDO!sm->dbcsr
-        CALL dbcsr_deallocate_matrix_set( matrix_s, error=error )!sm->dbcsr
-        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s_sm,error=error)
+        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
         use_virial = .FALSE.
      END IF
 
      CALL get_qs_env(qs_env=qs_env,&
-                     matrix_h=matrix_h_sm,&
-                     matrix_s=matrix_s_sm,&
+                     matrix_h=matrix_h,&
+                     matrix_s=matrix_s,&
                      atomic_kind_set=atomic_kind_set,&
                      dft_control=dft_control,error=error)
-
-     NULLIFY(matrix_s)!sm->dbcsr
-     CALL dbcsr_allocate_matrix_set(matrix_s,SIZE(matrix_s_sm),error)!sm->dbcsr
-     DO i=1,SIZE(matrix_s)!sm->dbcsr
-        ALLOCATE(matrix_s(i)%matrix)
-        CALL dbcsr_from_sm( matrix_s(i)%matrix, matrix_s_sm(i)%matrix, error=error )!sm->dbcsr
-     ENDDO!sm->dbcsr
 
      IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,&
@@ -211,12 +186,10 @@ CONTAINS
      END IF
 
      ! Allocate the core Hamiltonian matrix
-     NULLIFY(matrix_h)!sm->dbcsr
      CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)
      ALLOCATE(matrix_h(1)%matrix)
      CALL dbcsr_init(matrix_h(1)%matrix)
      CALL dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX",error=error)
-     matrix_h(1)%matrix%m%sparsity_id=matrix_s(1)%matrix%m%sparsity_id !sm->dbcsr !this hack should be done in copy!
      CALL dbcsr_set(matrix_h(1)%matrix,0.0_dp,error=error)
      !CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
      !               TARGET=matrix_h(1)%matrix,&
@@ -239,7 +212,6 @@ CONTAINS
 
      enuclear = 0.0_dp
      econst   = 0.0_dp
-
      DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -274,7 +246,6 @@ CONTAINS
                              defined=defined,&
                              natorb=natorb_b,&
                              beta=beta_b)
-
            IF (.NOT.defined .OR. natorb_b < 1) CYCLE
 
            hb( 1   ) = beta_b(0)
@@ -288,7 +259,6 @@ CONTAINS
                                       sab_orb(iab)%neighbor_list_set,&
                                       nlist=nlist)
            NULLIFY(sab_orb_neighbor_list)
-
            DO ilist=1,nlist
              IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
                sab_orb_neighbor_list => &
@@ -307,24 +277,18 @@ CONTAINS
                CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
                      do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
                  NULLIFY(h_blocka)
-                 CALL dbcsr_get_block_node(matrix=diagmat_h,&
-                                     block_row=iatom,&
-                                     block_col=iatom,&
-                                     BLOCK=h_blocka)
+                 CALL dbcsr_get_block_p(diagmat_h,&
+                      iatom,iatom,h_blocka,tr,found)
                  CPPostcondition(ASSOCIATED(h_blocka),cp_failure_level,routineP,error,failure)
                  IF(calculate_forces) THEN
-                   CALL dbcsr_get_block_node(matrix=diagmat_p,&
-                                       block_row=iatom,&
-                                       block_col=iatom,&
-                                       BLOCK=pamat)
+                   CALL dbcsr_get_block_p(diagmat_p,&
+                        iatom,iatom,pamat,tr,found)
                    CPPostcondition(ASSOCIATED(pamat),cp_failure_level,routineP,error,failure)
                  END IF
              END SELECT
-
              DO inode=1,nnode
                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                       neighbor=jatom,r=rij)
-
                dr = SUM(rij(:)**2)
                IF (iatom == jatom .AND. dr < rij_threshold) THEN
 
@@ -340,7 +304,6 @@ CONTAINS
                  END SELECT
 
                ELSE
-
                  IF (iatom <= jatom) THEN
                    irow = iatom
                    icol = jatom
@@ -349,17 +312,13 @@ CONTAINS
                    icol = iatom
                  END IF
                  NULLIFY (h_block)
-                 CALL dbcsr_get_block_node(matrix=matrix_h(1)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     BLOCK=h_block)
+                 CALL dbcsr_get_block_p(matrix_h(1)%matrix,&
+                      irow,icol,h_block,tr,found)
                  CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
                  ! two-centre one-electron term
                  NULLIFY(s_block)
-                 CALL dbcsr_get_block_node(matrix=matrix_s(1)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     BLOCK=s_block)
+                 CALL dbcsr_get_block_p(matrix_s(1)%matrix,&
+                      irow,icol,s_block,tr,found)
                  CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
                  IF ( irow == iatom ) THEN
                    DO i=1,SIZE(h_block,1)
@@ -377,17 +336,13 @@ CONTAINS
                  IF(calculate_forces) THEN
                    atom_a = atom_of_kind(iatom)
                    atom_b = atom_of_kind(jatom)
-                   CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       BLOCK=pabmat)
+                   CALL dbcsr_get_block_p(matrix_p(1)%matrix,&
+                        irow,icol,pabmat,tr,found)
                    CPPostcondition(ASSOCIATED(pabmat),cp_failure_level,routineP,error,failure)
                    DO icor=1,3
                      force_ab(icor) = 0._dp
-                     CALL dbcsr_get_block_node(matrix=matrix_s(icor+1)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         BLOCK=dsmat)
+                     CALL dbcsr_get_block_p(matrix_s(icor+1)%matrix,&
+                          irow,icol,dsmat,tr,found)
                      CPPostcondition(ASSOCIATED(dsmat),cp_failure_level,routineP,error,failure)
                      dsmat=2._dp*kh*dsmat*pabmat
                      IF ( irow == iatom ) THEN
@@ -432,10 +387,7 @@ CONTAINS
      CALL dbcsr_sum_replicated(diagmat_h)
      CALL dbcsr_distribute(diagmat_h)
      CALL dbcsr_add(matrix_h(1)%matrix, diagmat_h,error=error)
-
-     CALL allocate_matrix_set(qs_env%matrix_h, 1, error=error)!sm->dbcsr
-     CALL sm_from_dbcsr( qs_env%matrix_h(1)%matrix, matrix_h(1)%matrix, distribution_2d, error=error )!sm->dbcsr
-     !CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
+     CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
 
      qs_env%energy%core_self    = econst
 
@@ -457,10 +409,8 @@ CONTAINS
        CALL dbcsr_deallocate_matrix(diagmat_p,error=error)
      END IF
 
-     CALL dbcsr_deallocate_matrix_set(matrix_h,error=error)!sm->dbcsr
-     CALL dbcsr_deallocate_matrix_set(matrix_s,error=error)!sm->dbcsr
-     CALL dbcsr_deallocate_matrix(diagmat_h,error=error)!sm->dbcsr
-     CALL dbcsr_deallocate_matrix_set(matrix_p,error=error)!sm->dbcsr
+     CALL dbcsr_deallocate_matrix(diagmat_h,error=error)
+     CALL dbcsr_deallocate_matrix_set(matrix_p,error=error)
 
   END SUBROUTINE build_se_core_matrix
 

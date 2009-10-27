@@ -29,7 +29,8 @@ MODULE cp_dbcsr_operations
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
+                                             cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_data_hold, dbcsr_data_release, &
@@ -117,7 +118,10 @@ MODULE cp_dbcsr_operations
             dbcsr_obj_p_type, dbcsr_block_node_type, test_sm,&
             dbcsr_from_fm, dbcsr_from_sm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
             sm_from_dbcsr, dbcsr_type_from_sm_symmetry, &
-            dbcsr_sm_fm_multiply, dbcsr_plus_fm_fm_t
+            dbcsr_sm_fm_multiply, dbcsr_plus_fm_fm_t,&
+            cp_dbcsr_get_id_nr
+
+  PUBLIC :: copy_fm_to_sm_to_dbcsr ! HACK
 
   INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
@@ -153,6 +157,8 @@ MODULE cp_dbcsr_operations
   END TYPE dbcsr_obj_p_type
 
   PRIVATE
+
+  INTEGER, SAVE, PRIVATE :: last_matrix_id=0
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
@@ -2661,13 +2667,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: dbcsr_matrix_type
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, timing_handle
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
 
 !   ---------------------------------------------------------------------------
 ! Setup the distribution
+
+    CALL timeset(routineN, timing_handle)
 
     IF (ASSOCIATED (matrix)) CALL dbcsr_deallocate_matrix (matrix, error)
     ALLOCATE (matrix)
@@ -2715,6 +2723,11 @@ CONTAINS
          mutable_work=.TRUE., replication_type=replication_type, error=error)
     CALL cp_dbcsr_add_dist2d (matrix%m, distribution_2d, error)
     matrix%m%sparsity_id = sparsity_id
+    !
+    ! these are needed for the sm_pool
+    !last_matrix_id=last_matrix_id+1
+    !matrix%m%id_nr=last_matrix_id
+
     ! Clean up
     CALL dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
@@ -2723,8 +2736,37 @@ CONTAINS
     matrix%m%valid = .FALSE.
     CALL dbcsr_mutable_new (matrix%m%wms(1)%mutable,&
          dbcsr_get_data_type (matrix))
+
+    CALL timestop(timing_handle)
+
   END SUBROUTINE dbcsr_allocate_matrix
 
+
+! *****************************************************************************
+!> \brief returns the id of the given matrix (from cp_sm_get_id_nr)
+!> \param matrix the matrix you want info about
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+FUNCTION cp_dbcsr_get_id_nr(matrix,error) RESULT(res)
+    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_id_nr', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+!  CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
+  CPPrecondition(matrix%m%refcount>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     res=matrix%m%id_nr
+  ELSE
+     res=0
+  END IF
+END FUNCTION cp_dbcsr_get_id_nr
 
 ! *****************************************************************************
 !> \brief Deallocates a DBCSR matrix for compatibility with CP2K
@@ -2738,6 +2780,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_deallocate_matrix', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: timing_handle
+
+    CALL timeset(routineN, timing_handle)
+
     CALL dbcsr_release (matrix)
     CALL cp_assert (.NOT. dbcsr_valid_index(matrix), cp_warning_level,&
          cp_caller_error, routineN,&
@@ -2745,6 +2791,9 @@ CONTAINS
          'Avoid pointers to DBCSR matrices.')
     DEALLOCATE (matrix)
     NULLIFY (matrix)
+
+    CALL timestop(timing_handle)
+
   END SUBROUTINE dbcsr_deallocate_matrix
 
 
@@ -2875,7 +2924,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imatrix, istat
+    INTEGER                                  :: imatrix, istat, timing_handle
+
+    CALL timeset(routineN, timing_handle)
 
     IF (ASSOCIATED(matrix_set)) THEN
       DO imatrix=1,SIZE(matrix_set)
@@ -2884,6 +2935,9 @@ CONTAINS
       DEALLOCATE (matrix_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"matrix_set")
     END IF
+
+    CALL timestop(timing_handle)
+
   END SUBROUTINE deallocate_dbcsr_matrix_set
 
 ! *****************************************************************************
@@ -3171,6 +3225,26 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE copy_fm_to_dbcsr
 
+  SUBROUTINE copy_fm_to_sm_to_dbcsr(fm,matrix,alpha,beta,error)
+    ! well another hack...
+    TYPE(cp_fm_type), POINTER                :: fm
+    TYPE(dbcsr_obj), POINTER                 :: matrix
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: alpha, beta
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    TYPE(dbcsr_obj), POINTER                 :: matrix2
+    TYPE(real_matrix_type), POINTER          :: sm
+
+    NULLIFY(sm,matrix2)
+    ALLOCATE(matrix2)
+    CALL dbcsr_init(matrix2)
+    CALL sm_from_dbcsr(sm, matrix, matrix%m%dist2d, error)
+    CALL copy_fm_to_sm(fm, sm, alpha=alpha, beta=beta)
+    CALL dbcsr_from_sm(matrix2, sm, error)
+    CALL dbcsr_copy(matrix,matrix2, error=error)
+    CALL dbcsr_deallocate_matrix(matrix2, error)
+    CALL deallocate_matrix(sm, error)
+  END SUBROUTINE copy_fm_to_sm_to_dbcsr
 
 ! *****************************************************************************
 !> \brief   Copy a DBCSR matrix to a BLACS matrix
@@ -3627,6 +3701,8 @@ CONTAINS
           NULLIFY(blkdata_2d)
           CALL dbcsr_iterator_next_block(iter, stored_row, stored_col,&
                blkdata_2d, tr, blk)
+          !
+          IF(SIZE(blkdata_2d).EQ.0) CYCLE
           ! We need to get the upper triangular form for the
           ! sparse_matrix_type.
           IF (symmetric .AND. stored_row .GT. stored_col) THEN
