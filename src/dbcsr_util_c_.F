@@ -185,10 +185,30 @@
          RESHAPE(extent_in, (/rows, columns/))), (/rows*columns/))
   END SUBROUTINE block_transpose_copy_c
 
+! *****************************************************************************
+!> \brief Copy a block
+!> \param[out] extent_out     output matrix in the form of a 2-d array
+!> \param[in] extent_in       input matrix in the form of a 1-d array
+!> \param[in] rows, columns   input matrix size
+! *****************************************************************************
+  PURE SUBROUTINE block_copy_2d1d_c(extent_out, extent_in,&
+       rows, columns)
+    INTEGER, INTENT(IN)                           :: rows, columns
+    COMPLEX(kind=real_4), DIMENSION(rows,columns), INTENT(OUT) :: extent_out
+    COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN)             :: extent_in
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_copy_2d1d_c', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    extent_out = RESHAPE(extent_in, (/rows, columns/))
+  END SUBROUTINE block_copy_2d1d_c
+
 
 ! *****************************************************************************
 !> \brief Copy and transpose block.
-!> \param[out] extent_out     output matrix in the form of a 1-d array
+!> \param[out] extent_out     output matrix in the form of a 2-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
 !> \param[in] rows, columns   input matrix size
 ! *****************************************************************************
@@ -198,7 +218,7 @@
     COMPLEX(kind=real_4), DIMENSION(columns,rows), INTENT(OUT) :: extent_out
     COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN)             :: extent_in
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_copy_c', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_copy_2d1d_c', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
@@ -209,7 +229,28 @@
 ! *****************************************************************************
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 1-d array
-!> \param[in] extent_in       input matrix in the form of a 1-d array
+!> \param[in] extent_in       input matrix in the form of a 2-d array
+!> \param[in] rows, columns   input matrix size
+! *****************************************************************************
+  PURE SUBROUTINE block_copy_1d2d_c(extent_out, extent_in,&
+       rows, columns)
+    COMPLEX(kind=real_4), DIMENSION(:), INTENT(OUT)            :: extent_out
+    INTEGER, INTENT(IN)                           :: rows, columns
+    COMPLEX(kind=real_4), DIMENSION(rows,columns), INTENT(IN)  :: extent_in
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_copy_1d2d_c', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    extent_out = RESHAPE(extent_in, (/rows*columns/))
+  END SUBROUTINE block_copy_1d2d_c
+
+
+! *****************************************************************************
+!> \brief Copy and transpose block.
+!> \param[out] extent_out     output matrix in the form of a 1-d array
+!> \param[in] extent_in       input matrix in the form of a 2-d array
 !> \param[in] rows, columns   input matrix size
 ! *****************************************************************************
   PURE SUBROUTINE block_transpose_copy_1d2d_c(extent_out, extent_in,&
@@ -218,7 +259,7 @@
     INTEGER, INTENT(IN)                           :: rows, columns
     COMPLEX(kind=real_4), DIMENSION(rows,columns), INTENT(IN)  :: extent_in
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_copy_c', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_copy_1d2d_c', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------

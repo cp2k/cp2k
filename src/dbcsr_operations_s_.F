@@ -216,16 +216,14 @@
        IF (nze .GT. 0) THEN
           !
           ! let's copy the block
+          block_1d => pointer_view (dbcsr_get_data_p (&
+               matrix%m%data_area, 0.0_real_4), offset, offset+nze-1)
           IF (tr .EQV. stored_tr) THEN
-             CALL scopy(nze,&
-                  pointer_view (dbcsr_get_data_p (&
-                     matrix%m%data_area, 0.0_real_4), offset, offset&
-                  ), 1, block(1,1), 1)
+             CALL dbcsr_block_copy (block(:,:), block_1d, row_size, col_size)
           ELSE
              IF (stored_tr) CALL swap (row_size, col_size)
              CALL dbcsr_block_transpose (block,&
-                  pointer_view (dbcsr_get_data_p (&
-                  matrix%m%data_area, 0.0_real_4), offset, offset+nze-1),&
+                  block_1d,&
                   row_size, col_size)
           ENDIF
        ENDIF
@@ -299,15 +297,11 @@
           found = .FALSE.
           NULLIFY (block)
        ELSE
-       !
+          block_1d => pointer_view (dbcsr_get_data_p (&
+               matrix%m%data_area, 0.0_real_4), offset, offset+nze-1)
 #if defined(__PTR_RANK_REMAP)
-          block_1d => pointer_view (&
-               dbcsr_get_data_p (matrix%m%data_area, 0.0_real_4), offset, offset)
           block(1:row_size, 1:col_size) => block_1d
 #elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-          block_1d => pointer_view (&
-               dbcsr_get_data_p (matrix%m%data_area, 0.0_real_4), offset, offset&
-               )
           CALL pointer_s_rank_remap2 (block, row_size, col_size, block_1d)
 #endif
        ENDIF
@@ -358,6 +352,7 @@
     LOGICAL                                  :: stored_tr
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     TYPE(btree_2d_data_s)          :: data_block
+    REAL(kind=real_4), DIMENSION(:), POINTER           :: block_1d
 !   ---------------------------------------------------------------------------
     CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_real_4,&
          cp_fatal_level, cp_caller_error,&
@@ -373,16 +368,14 @@
        IF (nze .GT. 0) THEN
           !
           ! let's copy the block
+          block_1d => pointer_view (dbcsr_get_data_p (&
+               matrix%m%data_area, 0.0_real_4), offset, offset+nze-1)
           IF (tr .EQV. stored_tr) THEN
-             CALL scopy(nze,&
-                  pointer_view (dbcsr_get_data_p (&
-                     matrix%m%data_area, 0.0_real_4), offset, offset&
-                  ), 1, block(1), 1)
+             block(1:nze) = block_1d(1:nze)
           ELSE
              IF (stored_tr) CALL swap (row_size, col_size)
              CALL dbcsr_block_transpose (block,&
-                  pointer_view (dbcsr_get_data_p (&
-                  matrix%m%data_area, 0.0_real_4), offset, offset+nze-1),&
+                  block_1d,&
                   row_size, col_size)
           ENDIF
        ENDIF
@@ -675,6 +668,7 @@
                                                 row_size, blk_p,&
                                                 stored_row, stored_col
     LOGICAL                                  :: found, tr, do_sum
+    REAL(kind=real_4), DIMENSION(:), POINTER           :: block_1d
 
 !   ---------------------------------------------------------------------------
     IF (PRESENT (transposed)) THEN
@@ -711,25 +705,23 @@
        IF (matrix%m%blk_p(blk).LT.0 .NEQV. tr) THEN
           matrix%m%blk_p(blk) = -matrix%m%blk_p(blk)
        ENDIF
+       block_1d => pointer_view (dbcsr_get_data_p (&
+            matrix%m%data_area, 0.0_real_4), offset, offset+nze-1)
        IF (do_sum) THEN
           IF (PRESENT (scale)) THEN
-             CALL saxpy (nze, scale, block(1), 1,&
-                  pointer_view (dbcsr_get_data_p (&
-                  matrix%m%data_area, 0.0_real_4), offset, offset), 1)
+             CALL saxpy (nze, scale, block(1:nze), 1,&
+                  block_1d, 1)
           ELSE
-             CALL saxpy (nze, 1.0_real_4, block(1), 1,&
-                  pointer_view (dbcsr_get_data_p (&
-                  matrix%m%data_area, 0.0_real_4), offset, offset), 1)
+             CALL saxpy (nze, 1.0_real_4, block(1:nze), 1,&
+                  block_1d, 1)
           ENDIF
        ELSE
           IF (PRESENT (scale)) THEN
              CALL scopy (nze, scale*block(1:nze), 1,&
-                  pointer_view (dbcsr_get_data_p (&
-                  matrix%m%data_area, 0.0_real_4), offset, offset), 1)
+                  block_1d, 1)
           ELSE
-             CALL scopy (nze, block(1), 1,&
-                  pointer_view (dbcsr_get_data_p (&
-                  matrix%m%data_area, 0.0_real_4), offset, offset), 1)
+             CALL scopy (nze, block(1:nze), 1,&
+                  block_1d, 1)
           ENDIF
        ENDIF
     ELSE

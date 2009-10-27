@@ -142,6 +142,13 @@ MODULE dbcsr_util
           dbcsr_block_transpose_aa
   END INTERFACE
 
+  INTERFACE dbcsr_block_copy
+     MODULE PROCEDURE block_copy_2d1d_s, block_copy_2d1d_d,&
+          block_copy_2d1d_c, block_copy_2d1d_z,&
+          block_copy_1d2d_s, block_copy_1d2d_d,&
+          block_copy_1d2d_c, block_copy_1d2d_z
+  END INTERFACE
+
   ! Supports copy between two data areas, or to a data area from a
   ! given explicit array.
   INTERFACE dbcsr_data_set
@@ -206,7 +213,7 @@ MODULE dbcsr_util
        dbcsr_get_stored_coordinates, dbcsr_get_stored_block_info,&
        dbcsr_find_column,&
        add_work_coordinate,&
-       dbcsr_copy_block_sizes, dbcsr_block_transpose,&
+       dbcsr_copy_block_sizes, dbcsr_block_transpose, dbcsr_block_copy,&
        dbcsr_copy_sort_data,&
        dbcsr_pack_meta,&
        dbcsr_unpack_i8_2i4,&
