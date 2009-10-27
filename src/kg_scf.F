@@ -877,8 +877,7 @@ CONTAINS
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_b, matrix_s_b, &
-                                                p_mix_new
+      POINTER                                :: matrix_ks_b, matrix_s_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1681,8 +1680,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_mix_new
 
     CALL timeset(routineN,handle)
 

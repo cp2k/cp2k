@@ -2398,8 +2398,6 @@ CPSourceFileRef)
     LOGICAL                                  :: failure
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_mix_new
 
 !sm->dbcsr
 

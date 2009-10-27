@@ -3626,8 +3626,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       routineN = 'dbcsr_make_untransposed_blocks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, blk_p, col, col_size, &
-                                                row, row_size
+    INTEGER                                  :: blk, col, col_size, row, &
+                                                row_size
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: sym_negation, tr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp

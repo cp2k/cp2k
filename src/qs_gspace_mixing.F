@@ -1566,12 +1566,10 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, nbuffer, &
                                                 stat
     LOGICAL                                  :: failure
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_mix_new
 
 !sm->dbcsr
 
-    NULLIFY(p_mix_new)!sm->dbcsr
+!sm->dbcsr
 
     failure = .FALSE.
    
