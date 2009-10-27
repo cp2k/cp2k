@@ -5975,7 +5975,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 2
 
-    INTEGER                                  :: bin, i, old_nbins
+    INTEGER                                  :: bin, i, old_nbins, virtual_bin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
 
 !
@@ -5995,8 +5995,9 @@ CONTAINS
        IF (bin_multiplier(bin) .GE. multiplicity) THEN
           bin_multiplier(bin) = 0
        ENDIF
-       new_bins (i) = (bin + old_nbins*bin_multiplier(bin)) / nimages
-       images(i) = 1 + MOD (bin, nimages)
+       virtual_bin = bin*multiplicity+bin_multiplier(bin)
+       new_bins(i) = virtual_bin / nimages
+       images(i) = 1 + MOD (virtual_bin, nimages)
     ENDDO
   END SUBROUTINE rebin_distribution
 

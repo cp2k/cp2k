@@ -976,7 +976,7 @@ CONTAINS
        !left_src_image = 1 + MOD (right_src_prow, left_nimages)
        xfer_case_left: IF (right_prow_i .LT. nprows) THEN
           DO mult = 1, left_multiplicity
-             left_virt_src_pcol = right_src_prow+(left_nimages*(mult-1))
+             left_virt_src_pcol = right_src_prow*left_multiplicity+mult-1
              left_src_pcol = INT (left_virt_src_pcol / left_nimages)
              left_src_image = 1 + MOD (left_virt_src_pcol, left_nimages)
              IF (dbg) WRITE(*,'(1X,A,I3,A,"(",I3,",",I3,")")')&
