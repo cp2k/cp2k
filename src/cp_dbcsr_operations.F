@@ -322,9 +322,9 @@ CONTAINS
     !$ nthreads = OMP_GET_NUM_THREADS ()
     CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
     ! CP2k does not follow conventions, so always copy the data
-    CALL cp_assert (beta.eq.0 .OR. beta.eq.1, cp_fatal_level,&
-         cp_unimplemented_error_nr, routineN,&
-         "CP2K only supports beta=0 or beta=1!")
+    !CALL cp_assert (beta.eq.0 .OR. beta.eq.1, cp_fatal_level,&
+    !     cp_unimplemented_error_nr, routineN,&
+    !     "CP2K only supports beta=0 or beta=1!")
     !
     !IF (beta .NE. 0.0_dp) THEN
        !call dbcsr_print (product_matrix)
