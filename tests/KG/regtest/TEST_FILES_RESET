@@ -165,3 +165,8 @@ nai-1.inp
 nai-2.inp
 nai-4.inp
 nai-5.inp
+# bug fix dof for linear mol/single atoms
+nai-1.inp
+nai-2.inp
+nai-4.inp
+nai-5.inp

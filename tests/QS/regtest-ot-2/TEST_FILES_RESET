@@ -803,3 +803,9 @@ N3-6.inp
 H2O.inp
 #
 H2_trip.inp
+# bug fix dof for linear mol/single atoms
+N3-2.inp
+N3-3.inp
+N3-4.inp
+N3-5.inp
+N3-6.inp

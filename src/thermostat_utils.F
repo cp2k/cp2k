@@ -108,8 +108,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iw, natom, nconstraint_ext, &
-                                                nconstraint_int, nfree, &
-                                                nrestraints_int
+                                                nconstraint_int, &
+                                                nrestraints_int, rot_dof, &
+                                                roto_trasl_dof
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -119,21 +120,23 @@ CONTAINS
          natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
 
     ! Compute degrees of freedom
-    CALL rot_ana(particles%els, dof=simpar%nfree, print_section=print_section,&
-                 keep_rotations=.FALSE., mass_weighted=.TRUE., natoms=natom, error=error)
+    CALL rot_ana(particles%els, dof=roto_trasl_dof, rot_dof=rot_dof, &
+                 print_section=print_section, keep_rotations=.FALSE.,&
+                 mass_weighted=.TRUE., natoms=natom, error=error)
 
-    simpar%nfree = simpar%nfree - SUM(cell%perd(1:3))
+    roto_trasl_dof = roto_trasl_dof - MIN(SUM(cell%perd(1:3)),rot_dof)
+
     ! Collect info about thermostats
     CALL setup_thermostat_info(thermostats%thermostat_info_part, molecule_kind_set,&
-         local_molecules, molecules, particles, region, simpar%ensemble, simpar%nfree, &
+         local_molecules, molecules, particles, region, simpar%ensemble, roto_trasl_dof, &
          region_sections=region_sections, qmmm_env=qmmm_env, error=error)
 
     ! Saving this value of simpar preliminar to the real count of constraints..
-    simpar % nfree_rot_transl = simpar % nfree
+    simpar%nfree_rot_transl = roto_trasl_dof
 
     ! compute the total number of degrees of freedom for temperature
     nconstraint_ext = gci%ntot - gci%nrestraint
-    nfree = 3*natom - nconstraint_int - nconstraint_ext - simpar%nfree
+    simpar%nfree = 3*natom - nconstraint_int - nconstraint_ext - roto_trasl_dof
 
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
@@ -146,8 +149,8 @@ CONTAINS
        WRITE ( iw, '( T33, A, T71, I10 )' ) &
             ' Number of Intermolecular constraints:', nconstraint_ext
        WRITE ( iw, '( T34, A, T71, I10 )' ) &
-            ' Invariants(translation + rotations):', simpar % nfree
-       WRITE ( iw, '( T48, A, T71, I10 )' ) '    Degrees of freedom:', nfree
+            ' Invariants(translation + rotations):', roto_trasl_dof
+       WRITE ( iw, '( T48, A, T71, I10 )' ) '    Degrees of freedom:', simpar%nfree
        WRITE ( iw, '()' )
        WRITE ( iw, '( /, A )' ) ' Restraints Information'
        WRITE ( iw, '( T33, A, T71, I10 )' ) &
@@ -157,7 +160,6 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw,logger,print_section,&
                "PROGRAM_RUN_INFO", error=error)
-    simpar%nfree = nfree
 
   END SUBROUTINE compute_degrees_of_freedom
 

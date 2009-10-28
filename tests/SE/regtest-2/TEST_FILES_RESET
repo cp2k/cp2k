@@ -271,3 +271,7 @@ hcl_ot.inp
 hcl_z.inp
 #
 zn_1w_debug.inp
+# bug fix dof for linear mol/single atoms
+hcl.inp
+hcl_ot.inp
+hcl_z.inp

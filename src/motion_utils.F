@@ -58,7 +58,7 @@ CONTAINS
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE rot_ana(particles, mat, dof, print_section, keep_rotations, mass_weighted,&
-                     natoms, error)
+                     natoms, rot_dof, error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -67,6 +67,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_section
     LOGICAL, INTENT(IN)                      :: keep_rotations, mass_weighted
     INTEGER, INTENT(IN)                      :: natoms
+    INTEGER, INTENT(OUT), OPTIONAL           :: rot_dof
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana', &
@@ -204,6 +205,7 @@ CONTAINS
           END IF
        END DO
     END IF
+    IF (PRESENT(rot_dof)) rot_dof = COUNT(lrot==1)
     dof = dof + COUNT(lrot==1)
     iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO",extension=".vibLog",error=error)
     IF (iw>0) THEN

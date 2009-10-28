@@ -162,3 +162,6 @@ mol.inp
 # bug fix DOF for linear molecules
 h2_dbg_0.inp
 h2_dbg_1.inp
+# bug fix dof for linear mol/single atoms
+h2_dbg_0.inp
+h2_dbg_1.inp
