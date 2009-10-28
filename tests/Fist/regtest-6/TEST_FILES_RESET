@@ -99,3 +99,5 @@ cf_genpot.inp
 H2O-32_PME_distr.inp
 #bug fix DOF
 argon_ext.inp
+#reset dof bug fix
+argon_ext.inp
