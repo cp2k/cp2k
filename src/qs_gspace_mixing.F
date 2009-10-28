@@ -1568,7 +1568,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
 !sm->dbcsr
-
 !sm->dbcsr
 
     failure = .FALSE.

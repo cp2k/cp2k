@@ -2105,6 +2105,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure = .FALSE.
 
@@ -2116,7 +2117,7 @@ CONTAINS
                           name="DFT_PLUS_U",&
                           description="Define the parameters for a DFT+U run",&
                           n_keywords=3,&
-                          n_subsections=0,&
+                          n_subsections=1,&
                           repeats=.FALSE.,&
                           required=.FALSE.,&
                           error=error)
@@ -2125,7 +2126,7 @@ CONTAINS
 
       CALL keyword_create(keyword,&
                           name="_SECTION_PARAMETERS_",&
-                          description="controls the activation of the DFT+U section",&
+                          description="Controls the activation of the DFT+U section",&
                           usage="&DFT_PLUS_U ON",&
                           default_l_val=.FALSE.,&
                           lone_keyword_l_val=.TRUE.,&
@@ -2160,6 +2161,85 @@ CONTAINS
                           error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
+
+      NULLIFY (subsection)
+
+      CALL section_create(subsection,&
+                          name="ENFORCE_OCCUPATION",&
+                          description="Enforce and control a special (initial) orbital occupation. "//&
+                                      "Note, this feature works only for the method MULLIKEN.",&
+                          n_keywords=5,&
+                          n_subsections=0,&
+                          repeats=.FALSE.,&
+                          required=.FALSE.,&
+                          error=error)
+
+      CALL keyword_create(keyword,&
+                          name="_SECTION_PARAMETERS_",&
+                          description="Controls the activation of the ENFORCE_OCCUPATION section",&
+                          usage="&ENFORCE_OCCUPATION ON",&
+                          default_l_val=.FALSE.,&
+                          lone_keyword_l_val=.TRUE.,&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="ORBITALS",&
+                          variants=(/"M"/),&
+                          description="Select orbitals and occupation order. An input of 1 to 2*L+1 integer values in "//&
+                                      "the range -L to L defining the M values of the spherical orbitals is expected.",&
+                          required=.TRUE.,&
+                          repeats=.FALSE.,&
+                          n_var=-1,&
+                          type_of_var=integer_t,&
+                          default_i_val=0,&
+                          usage="ORBITALS 0 +1 -1",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="EPS_SCF",&
+                          description="The occupation constraint is enforced until this threshold value "//&
+                                      "for the SCF convergence criterion is reached",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=1.0E30_dp,&
+                          usage="EPS_SCF 0.001",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="MAX_SCF",&
+                          description="The occupation constraint is applied for this number of initial SCF iterations",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=integer_t,&
+                          default_i_val=-1,&
+                          usage="MAX_SCF 5",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="SMEAR",&
+                          description="The occupation constraint is applied with smearing",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          default_l_val=.FALSE.,&
+                          lone_keyword_l_val=.TRUE.,&
+                          usage="SMEAR ON",&
+                          error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL section_add_subsection(section,subsection,error=error)
+      CALL section_release(subsection,error=error)
 
     END IF
 

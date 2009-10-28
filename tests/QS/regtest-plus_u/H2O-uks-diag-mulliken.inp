@@ -25,6 +25,8 @@
     &PRINT
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
+      &PLUS_U
+      &END PLUS_U
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-8
@@ -77,6 +79,12 @@
       &DFT_PLUS_U
         L 1
         U_MINUS_J 0.08
+        &ENFORCE_OCCUPATION
+          ORBITALS 1 -1  0
+          EPS_SCF 1.0E-3
+          MAX_SCF 3
+          SMEAR ON
+        &END ENFORCE_OCCUPATION
       &END DFT_PLUS_U
     &END KIND
     &PRINT

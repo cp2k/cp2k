@@ -100,8 +100,10 @@ MODULE atomic_kind_types
 !> Input parameters for the DFT+U method
 ! *****************************************************************************
   TYPE dft_plus_u_type
-     INTEGER                                :: l
-     REAL(KIND=dp)                          :: u_minus_j
+     INTEGER                                :: l,max_scf
+     REAL(KIND=dp)                          :: eps_scf,u_minus_j
+     INTEGER, DIMENSION(:), POINTER         :: orbitals
+     LOGICAL                                :: smear
   END TYPE dft_plus_u_type
 
 !> Provides all information about an atomic kind
@@ -334,6 +336,10 @@ CONTAINS
           CALL shell_release(atomic_kind_set(ikind)%shell,error)
 
           IF (ASSOCIATED(atomic_kind_set(ikind)%dft_plus_u)) THEN
+             IF (ASSOCIATED(atomic_kind_set(ikind)%dft_plus_u%orbitals)) THEN
+                DEALLOCATE (atomic_kind_set(ikind)%dft_plus_u%orbitals,STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
              DEALLOCATE (atomic_kind_set(ikind)%dft_plus_u,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
@@ -378,7 +384,7 @@ CONTAINS
        hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
        max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
        dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id,npgf,&
-       bs_occupation,no_optimize,addel,laddel,naddel) 
+       bs_occupation,no_optimize,addel,laddel,naddel,orbitals,max_scf,eps_scf,smear)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -441,6 +447,10 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: bs_occupation, no_optimize
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: addel, laddel, naddel
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: orbitals
+    INTEGER, OPTIONAL                        :: max_scf
+    REAL(KIND=dp), OPTIONAL                  :: eps_scf
+    LOGICAL, OPTIONAL                        :: smear
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -691,8 +701,36 @@ CONTAINS
              u_minus_j = 0.0_dp
           END IF
        END IF
-
-       IF (PRESENT(dispersion))  dispersion  => atomic_kind%dispersion
+       IF (PRESENT(orbitals)) THEN
+          NULLIFY (orbitals)
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             IF (ASSOCIATED(atomic_kind%dft_plus_u%orbitals)) THEN
+                orbitals => atomic_kind%dft_plus_u%orbitals
+             END IF
+          END IF
+       END IF
+       IF (PRESENT(eps_scf)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             eps_scf = atomic_kind%dft_plus_u%eps_scf
+          ELSE
+             eps_scf = 1.0E30_dp
+          END IF
+       END IF
+       IF (PRESENT(max_scf)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             max_scf = atomic_kind%dft_plus_u%max_scf
+          ELSE
+             max_scf = -1
+          END IF
+       END IF
+       IF (PRESENT(smear)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             smear = atomic_kind%dft_plus_u%smear
+          ELSE
+             smear = .FALSE.
+          END IF
+       END IF
+       IF (PRESENT(dispersion)) dispersion => atomic_kind%dispersion
        IF (PRESENT(bs_occupation)) bs_occupation=atomic_kind%bs_occupation
        IF (PRESENT(addel))  addel  => atomic_kind%addel
        IF (PRESENT(laddel)) laddel => atomic_kind%laddel
@@ -1292,37 +1330,43 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atomic_kind', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: method_name_id
+    INTEGER                                  :: handle, method_name_id
+
+    CALL timeset(routineN,handle)
 
     IF (ASSOCIATED(atomic_kind)) THEN
        CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
        IF (method_name_id == do_qs) THEN
-          IF (ASSOCIATED(atomic_kind%gth_potential))THEN
+          IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
              CALL init_potential(atomic_kind%gth_potential,error)
           END IF
-          IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
-             IF(atomic_kind%orb_basis_set%norm_type < 0) &
-                  atomic_kind%orb_basis_set%norm_type = 2
+          IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
+             IF (atomic_kind%orb_basis_set%norm_type < 0) THEN
+                atomic_kind%orb_basis_set%norm_type = 2
+             END IF
              CALL init_orb_basis_set(atomic_kind%orb_basis_set,error)
           END IF
           IF (ASSOCIATED(atomic_kind%aux_fit_basis_set)) THEN
-             IF(atomic_kind%aux_fit_basis_set%norm_type < 0) &
-                  atomic_kind%aux_fit_basis_set%norm_type = 2
+             IF (atomic_kind%aux_fit_basis_set%norm_type < 0) THEN
+                atomic_kind%aux_fit_basis_set%norm_type = 2
+             END IF
              CALL init_orb_basis_set(atomic_kind%aux_fit_basis_set,error)
           END IF
           IF (ASSOCIATED(atomic_kind%aux_basis_set)) THEN
-             IF(atomic_kind%aux_basis_set%norm_type < 0) &
-                  atomic_kind%aux_basis_set%norm_type = 1  
+             IF (atomic_kind%aux_basis_set%norm_type < 0) THEN
+                atomic_kind%aux_basis_set%norm_type = 1
+             END IF
              CALL init_aux_basis_set(atomic_kind%aux_basis_set,error)
           END IF
        ELSE IF (method_name_id == do_kg) THEN
           IF (ASSOCIATED(atomic_kind%gth_potential).AND. PRESENT(method))THEN
-             IF(method == "KG_GPW")&
-                  CALL init_potential(atomic_kind%gth_potential,error)
+             IF (method == "KG_GPW") THEN
+                CALL init_potential(atomic_kind%gth_potential,error)
+             END IF
           END IF
-          IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
-             IF(atomic_kind%orb_basis_set%norm_type < 0) THEN
-                IF(PRESENT(method)) THEN
+          IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
+             IF (atomic_kind%orb_basis_set%norm_type < 0) THEN
+                IF (PRESENT(method)) THEN
                    IF(method == "KG_GPW") THEN
                       atomic_kind%orb_basis_set%norm_type = 2
                    ELSE
@@ -1335,7 +1379,7 @@ CONTAINS
              CALL init_orb_basis_set(atomic_kind%orb_basis_set,error)
           END IF
           IF (ASSOCIATED(atomic_kind%aux_fit_basis_set)) THEN
-             IF(atomic_kind%aux_fit_basis_set%norm_type < 0) THEN
+             IF (atomic_kind%aux_fit_basis_set%norm_type < 0) THEN
                 IF(PRESENT(method)) THEN
                    IF(method == "KG_GPW") THEN
                       atomic_kind%aux_fit_basis_set%norm_type = 2
@@ -1348,14 +1392,13 @@ CONTAINS
              END IF
              CALL init_orb_basis_set(atomic_kind%aux_fit_basis_set,error)
           END IF
-
-          IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
+          IF (ASSOCIATED(atomic_kind%aux_basis_set)) THEN
              IF(atomic_kind%aux_basis_set%norm_type < 0) &
                   atomic_kind%aux_basis_set%norm_type = 1
              CALL init_aux_basis_set(atomic_kind%aux_basis_set,error)
           END IF
        ELSE IF (method_name_id == do_fist) THEN
-          IF (ASSOCIATED(atomic_kind%elp_potential))THEN
+          IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
              CALL allocate_potential(atomic_kind%elp_potential,error)
           END IF
        END IF
@@ -1364,6 +1407,8 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer atomic_kind is not associated",para_env)
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE init_atomic_kind
 
@@ -1498,16 +1543,17 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
       aux_fit_basis_set_name, geminal_basis_set_name, keyword, &
       orb_basis_set_name, potential_name, potential_type
-    INTEGER                                  :: handle, i, i_rep, ipos, &
-                                                k_rep, n_rep, naux, ngauss, &
-                                                norb, stat, z
-    INTEGER, DIMENSION(:), POINTER           :: add_el, elec_conf
+    INTEGER                                  :: handle, i, i_rep, ipos, j, &
+                                                k_rep, l, m, n_rep, naux, &
+                                                ngauss, norb, norbitals, &
+                                                stat, z
+    INTEGER, DIMENSION(:), POINTER           :: add_el, elec_conf, orbitals
     LOGICAL :: check, explicit, explicit_basis, explicit_geminal, &
-      explicit_potential, failure, section_enabled
+      explicit_potential, failure, section_enabled, subsection_enabled
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(section_vals_type), POINTER :: basis_section, bs_section, &
-      dft_plus_u_section, dft_section, geminal_section, potential_section, &
-      spin_section
+      dft_plus_u_section, dft_section, enforce_occupation_section, &
+      geminal_section, potential_section, spin_section
 
     CALL timeset(routineN,handle)
 
@@ -1711,7 +1757,7 @@ CONTAINS
               CALL section_vals_val_get(spin_section,&
                    keyword_name="L",i_vals=add_el,error=error)
               CPPrecondition(ASSOCIATED(add_el),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
+              CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
               ALLOCATE(atomic_kind%laddel(SIZE(add_el),2),STAT=stat)
               atomic_kind%laddel =0
               atomic_kind%laddel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
@@ -1737,13 +1783,13 @@ CONTAINS
             NULLIFY(add_el)
             CALL section_vals_val_get(spin_section,&
                  keyword_name="NEL",i_vals=add_el,error=error)
-     CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
+            CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
             atomic_kind%addel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
             atomic_kind%addel(:,:) = atomic_kind%addel(:,:)
             NULLIFY(add_el)
             CALL section_vals_val_get(spin_section,&
                  keyword_name="L",i_vals=add_el,error=error)
-     CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
+            CPPrecondition(SIZE(add_el)==SIZE( atomic_kind%addel,1),cp_failure_level,routineP,error,failure)
             atomic_kind%laddel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
               
             CALL section_vals_val_get(spin_section,&
@@ -1762,28 +1808,89 @@ CONTAINS
        ! Read the DFT+U subsection of the current atomic kind, if enabled
 
        NULLIFY (dft_plus_u_section)
-       dft_plus_u_section  => section_vals_get_subs_vals(kind_section,"DFT_PLUS_U",&
-            i_rep_section=k_rep,&
-            error=error)
+       dft_plus_u_section => section_vals_get_subs_vals(kind_section,&
+                                                        subsection_name="DFT_PLUS_U",&
+                                                        i_rep_section=k_rep,&
+                                                        error=error)
        section_enabled = .FALSE.
-       CALL section_vals_val_get(dft_plus_u_section,"_SECTION_PARAMETERS_",&
-            l_val=section_enabled,&
-            error=error)
+       CALL section_vals_val_get(dft_plus_u_section,&
+                                 keyword_name="_SECTION_PARAMETERS_",&
+                                 l_val=section_enabled,&
+                                 error=error)
        IF (section_enabled) THEN
           ALLOCATE (atomic_kind%dft_plus_u,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          NULLIFY (atomic_kind%dft_plus_u%orbitals)
           CALL section_vals_val_get(dft_plus_u_section,&
-               keyword_name="L",&
-               i_val=atomic_kind%dft_plus_u%l,&
-               error=error)
-          CALL cp_assert(atomic_kind%dft_plus_u%l >= 0,cp_failure_level,&
-               cp_assertion_failed,routineP,&
-               "DFT+U| Error: l < 0",error,failure)
+                                    keyword_name="L",&
+                                    i_val=l,&
+                                    error=error)
+          atomic_kind%dft_plus_u%l = l
+          CALL cp_assert((l >= 0),cp_failure_level,&
+                         cp_assertion_failed,routineP,&
+                         "DFT+U| Invalid orbital angular momentum quantum number specified: l < 0",&
+                         error,failure)
           CALL section_vals_val_get(dft_plus_u_section,&
-               keyword_name="U_MINUS_J",&
-               r_val=atomic_kind%dft_plus_u%u_minus_j,&
-               error=error)
-       END IF
+                                    keyword_name="U_MINUS_J",&
+                                    r_val=atomic_kind%dft_plus_u%u_minus_j,&
+                                    error=error)
+
+          NULLIFY (enforce_occupation_section)
+          enforce_occupation_section => section_vals_get_subs_vals(dft_plus_u_section,&
+                                                                   subsection_name="ENFORCE_OCCUPATION",&
+                                                                   error=error)
+          subsection_enabled = .FALSE.
+          CALL section_vals_val_get(enforce_occupation_section,&
+                                    keyword_name="_SECTION_PARAMETERS_",&
+                                    l_val=subsection_enabled,&
+                                    error=error)
+          IF (subsection_enabled) THEN
+             NULLIFY (orbitals)
+             CALL section_vals_val_get(enforce_occupation_section,&
+                                       keyword_name="ORBITALS",&
+                                       i_vals=orbitals,&
+                                       error=error)
+             norbitals = SIZE(orbitals)
+             CALL cp_assert(((norbitals > 0).AND.(norbitals <= 2*l+1)),cp_failure_level,cp_assertion_failed,routineP,&
+                            "DFT+U| Invalid number of ORBITALS specified: 1 to 2*L+1 integer numbers are expected",&
+                            error,failure)
+             ALLOCATE (atomic_kind%dft_plus_u%orbitals(norbitals),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             atomic_kind%dft_plus_u%orbitals(:) = orbitals(:)
+             NULLIFY (orbitals)
+             DO m=1,norbitals
+                CALL cp_assert((atomic_kind%dft_plus_u%orbitals(m) <= l),cp_failure_level,&
+                               cp_assertion_failed,routineP,&
+                               "DFT+U| Invalid orbital magnetic quantum number specified: m > l",&
+                               error,failure)
+                CALL cp_assert((atomic_kind%dft_plus_u%orbitals(m) >= -l),cp_failure_level,&
+                               cp_assertion_failed,routineP,&
+                               "DFT+U| Invalid orbital magnetic quantum number specified: m < -l",&
+                               error,failure)
+                DO j=1,norbitals
+                   IF (j /= m) THEN
+                      CALL cp_assert((atomic_kind%dft_plus_u%orbitals(j) /= atomic_kind%dft_plus_u%orbitals(m)),&
+                                     cp_failure_level,cp_assertion_failed,routineP,&
+                                     "DFT+U| An orbital magnetic quantum number was specified twice",&
+                                     error,failure)
+                   END IF
+                END DO
+             END DO
+             CALL section_vals_val_get(enforce_occupation_section,&
+                                       keyword_name="EPS_SCF",&
+                                       r_val=atomic_kind%dft_plus_u%eps_scf,&
+                                       error=error)
+             CALL section_vals_val_get(enforce_occupation_section,&
+                                       keyword_name="MAX_SCF",&
+                                       i_val=i,&
+                                       error=error)
+             atomic_kind%dft_plus_u%max_scf = MAX(-1,i)
+             CALL section_vals_val_get(enforce_occupation_section,&
+                                       keyword_name="SMEAR",&
+                                       l_val=atomic_kind%dft_plus_u%smear,&
+                                       error=error)
+          END IF ! subsection enabled
+       END IF ! section enabled
 
     END IF
 
@@ -2260,14 +2367,31 @@ CONTAINS
           CALL write_potential(atomic_kind%gth_potential,output_unit,error)
           IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
              WRITE (UNIT=output_unit,&
-                  FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)")&
-                  "A DFT+U correction is applied to atoms of this atomic kind:",&
-                  "Angular quantum momentum number L:",atomic_kind%dft_plus_u%l,&
-                  "U - J value in [eV]:",atomic_kind%dft_plus_u%u_minus_j*evolt
+                    FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)")&
+               "A DFT+U correction is applied to atoms of this atomic kind:",&
+               "Angular quantum momentum number L:",atomic_kind%dft_plus_u%l,&
+               "U - J value in [eV]:",atomic_kind%dft_plus_u%u_minus_j*evolt
+             IF (ASSOCIATED(atomic_kind%dft_plus_u%orbitals)) THEN
+                WRITE (UNIT=output_unit,FMT="(T8,A)")&
+                  "An initial orbital occupation is requested:"
+                WRITE (UNIT=output_unit,FMT="(T9,A,(T78,I3))")&
+                  "Preferred (initial) orbital occupation order (orbital M values):",&
+                  atomic_kind%dft_plus_u%orbitals(:)
+                WRITE (UNIT=output_unit,FMT="(T9,A,T71,ES10.3,/,T9,A,T76,I5))")&
+                  "Threshold value for the SCF convergence criterion:",&
+                  atomic_kind%dft_plus_u%eps_scf,&
+                  "Number of initial SCF iterations:",&
+                  atomic_kind%dft_plus_u%max_scf
+                IF (atomic_kind%dft_plus_u%smear) THEN
+                   WRITE (UNIT=output_unit,FMT="(T9,A)")&
+                     "A smearing of the orbital occupations will be performed"
+                END IF
+             END IF
           END IF
        ELSE
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
+
     END IF
 
   END SUBROUTINE write_atomic_kind
