@@ -598,7 +598,6 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure
     REAL(dp)                                 :: chksum
-    TYPE(dbcsr_obj), POINTER                 :: rho_ao
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
