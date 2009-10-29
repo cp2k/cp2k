@@ -279,3 +279,7 @@ hcl_z.inp
 ch4-ot.inp
 # Numerics changes due to different distributions 
 ZrF2-PM6.inp
+#
+hcl_ot.inp
+#
+zn_1w_debug.inp

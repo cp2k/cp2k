@@ -277,3 +277,11 @@ H2O-hfx-emd-restart.inp
 # bug fix dof for linear mol/single atoms
 CH-hfx-md-2.inp
 CH-hfx-md.inp
+#
+H2O-hfx-3.inp
+#
+4H2O-disk.inp
+#
+4H2O-mix-disk-ram.inp
+#
+4H2O-mix-disk-ram-on-the-fly.inp
