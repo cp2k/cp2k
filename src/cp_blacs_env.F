@@ -26,6 +26,7 @@ MODULE cp_blacs_env
                                              BLACS_GRID_SQUARE
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
+  USE mathlib,                         ONLY: gcd
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
@@ -97,9 +98,9 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ipcol, ipe, iprow, &
-                                                my_blacs_grid_layout, npcol, &
-                                                npe, nprow, stat
+    INTEGER                                  :: gcd_max, ipcol, ipe, iprow, &
+                                                jpe, my_blacs_grid_layout, &
+                                                npcol, npe, nprow, stat
     LOGICAL                                  :: failure, my_blacs_repeatable
 
   failure=.FALSE.
@@ -142,15 +143,18 @@ CPSourceFileRef,&
      ! XXXXXX
      SELECT CASE (my_blacs_grid_layout)
      CASE (BLACS_GRID_SQUARE)
-       IF (nprow*npcol /= npe) THEN
-         DO ipe=CEILING(SQRT(REAL(npe,dp))),npe
-           IF (MODULO(npe,ipe) == 0) THEN
-             nprow = ipe
-             npcol = npe/nprow
-             EXIT
-           END IF
-         END DO
-       END IF
+        ! make the grid as 'square' as possible, where square is defined as nprow and npcol
+        ! having the largest possible gcd
+        gcd_max=-1
+        DO ipe=1,CEILING(SQRT(REAL(npe,dp)))
+           jpe=npe/ipe
+           IF(ipe*jpe.NE.npe) CYCLE
+           IF (gcd(ipe,jpe)>=gcd_max) THEN
+              nprow=ipe
+              npcol=jpe
+              gcd_max=gcd(ipe,jpe)
+           ENDIF 
+        ENDDO
      CASE (BLACS_GRID_ROW)
         nprow = 1
         npcol = npe
