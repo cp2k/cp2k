@@ -699,3 +699,9 @@ h2o-otdiag.inp
 h2o-otdiag-lsd.inp
 # bug fix dof for linear mol/single atoms
 spin_restraint.inp
+# Numerics changes due to different distributions 
+spin_restraint.inp
+# Numerics changes due to different distributions 
+He3_multi_ddapc.inp
+# Numerics changes due to different distributions 
+h2o-otdiag.inp

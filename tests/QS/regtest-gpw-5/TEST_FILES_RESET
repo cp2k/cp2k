@@ -41,3 +41,5 @@ si8_pulay_off.inp
 si8_pmix_otdiag.inp
 #
 si8_pmix_otdiag.inp
+# Numerics changes due to different distributions 
+si8_broy_kry.inp

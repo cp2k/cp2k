@@ -89,3 +89,5 @@ H2-emd_restart-1.inp
 H2-emd_restart.inp
 H2plus-emd-1.inp
 H2plus-emd.inp
+# Numerics changes due to different distributions 
+wfn_mix_1.inp

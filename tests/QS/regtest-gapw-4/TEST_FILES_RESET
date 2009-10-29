@@ -185,3 +185,5 @@ H2O_gpw_full_gapw.inp
 H_hf_gapw_nopaw_full.inp
 #
 CO_xastpxfh.inp
+# Numerics changes due to different distributions 
+CO_xastpxfh.inp

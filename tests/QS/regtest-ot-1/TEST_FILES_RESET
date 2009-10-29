@@ -604,3 +604,5 @@ vib-mixed.inp
 vib-int-mixed.inp
 #
 H2O-OT-1.inp
+# Numerics changes due to different distributions 
+H2O-OT-1.inp

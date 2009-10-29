@@ -606,3 +606,17 @@ He2_ddapc_constraint.inp
 He2_none_full_all.inp
 He2_none_full_inverse.inp
 He2_none_full_single.inp
+# Numerics changes due to different distributions 
+He2_ddapc_constraint.inp
+# Numerics changes due to different distributions 
+He2_ddapc_constraint-2.inp
+# Numerics changes due to different distributions 
+He2_ddapc_constraint-3.inp
+# Numerics changes due to different distributions 
+He2_none_full_all.inp
+# Numerics changes due to different distributions 
+He2_none_full_inverse.inp
+# Numerics changes due to different distributions 
+sic_ddapc_rt.inp
+# Numerics changes due to different distributions 
+He2_ddapc_constraint-4.inp

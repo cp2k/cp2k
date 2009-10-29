@@ -128,3 +128,5 @@ Si_tersoff_qmmm.inp
 Si_tersoff_qmmm.inp
 #
 Si_tersoff_qmmm.inp
+# Numerics changes due to different distributions 
+Si_tersoff_qmmm.inp

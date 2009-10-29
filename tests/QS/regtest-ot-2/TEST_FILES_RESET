@@ -809,3 +809,5 @@ N3-3.inp
 N3-4.inp
 N3-5.inp
 N3-6.inp
+# Numerics changes due to different distributions 
+H2O.inp
