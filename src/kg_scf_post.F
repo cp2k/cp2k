@@ -16,6 +16,9 @@ MODULE kg_scf_post
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -50,7 +53,8 @@ MODULE kg_scf_post
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_moments,                      ONLY: build_local_moment_matrix
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             deallocate_matrix_set,&
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -95,6 +99,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: moments_b
     TYPE(distribution_1d_type), POINTER      :: local_molecule
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
@@ -197,10 +203,18 @@ CONTAINS
         CALL section_vals_val_get(input,"DFT%KG%PRINT%MOMENTS%NMOMENTS",&
              i_val=nmoments,error=error)
 
-        NULLIFY ( moments )
-        CALL build_local_moment_matrix(qs_env,moments,nmoments,&
+
+        NULLIFY(moments_b)
+        CALL build_local_moment_matrix(qs_env,moments_b,nmoments,&
                                  ref_points=ref_point,error=error)
-  
+    NULLIFY(moments)!sm->dbcsr
+    CALL allocate_matrix_set( moments, SIZE(moments_b), error )!sm->dbcsr
+    DO i=1,SIZE(moments)!sm->dbcsr
+       CALL sm_from_dbcsr(moments(i)%matrix, moments_b(i)%matrix, &
+            moments_b(i)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL dbcsr_deallocate_matrix_set(moments_b,error)!sm->dbcsr
+
         nm = SIZE(moments,1)
         ALLOCATE ( mmol(1:nm,1:num_mol), STAT=istat )
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

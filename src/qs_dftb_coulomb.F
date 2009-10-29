@@ -14,10 +14,7 @@ MODULE qs_dftb_coulomb
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
                                              dbcsr_multiply_local,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -80,7 +77,6 @@ MODULE qs_dftb_coulomb
        pw2rs, realspace_grid_desc_type, realspace_grid_p_type, &
        realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, &
        rs_grid_set_box, rs_grid_zero, rs_pw_transfer
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE spme,                            ONLY: get_patch
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -145,8 +141,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_sm
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -300,14 +294,7 @@ CONTAINS
     IF ( .NOT. just_energy ) THEN
       CALL get_qs_env(qs_env=qs_env,&
                       matrix_s=matrix_s,error=error)
-      matrix_p_sm => rho%rho_ao
-
-      NULLIFY(matrix_p)
-      CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
-      DO i=1,SIZE(matrix_p)!sm->dbcsr
-         ALLOCATE(matrix_p(i)%matrix)!sm->dbcsr
-         CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_sm(i)%matrix, error)!sm->dbcsr
-      ENDDO!sm->dbcsr
+      matrix_p => rho%rho_ao
 
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
         CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
@@ -373,8 +360,6 @@ CONTAINS
     END IF
     DEALLOCATE(gmcharge,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    CALL dbcsr_deallocate_matrix_set( matrix_p, error )!sm->dbcsr
 
     CALL timestop(handle)
 

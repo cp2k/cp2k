@@ -42,7 +42,9 @@ MODULE rt_propagation_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
@@ -80,10 +82,6 @@ MODULE rt_propagation_methods
   USE rt_propagation_output,           ONLY: rt_convergence
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
-  USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             deallocate_matrix,&
-                                             real_matrix_type,&
-                                             replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -536,28 +534,24 @@ CONTAINS
     INTEGER                                  :: handle, i, im_part, re_part
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
+    TYPE(dbcsr_obj), POINTER                 :: tmp_rho_im, tmp_rho_re
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_type), POINTER          :: tmp_rho_im, tmp_rho_re
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (rho,ks_env,mos,tmp_rho_re,tmp_rho_im,rtp)
+    NULLIFY (rho,ks_env,mos,rtp,tmp_rho_im, tmp_rho_re)
     CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,mos=mos,rtp=rtp,error=error)    
     CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
 
-    CALL replicate_matrix_structure(rho%rho_ao(1)%matrix,&
-         tmp_rho_re,&
-         "tmp_tho_rts_re",&
-         error=error)
-
-    CALL replicate_matrix_structure(rho%rho_ao(1)%matrix,&
-         tmp_rho_im,&
-         "tmp_tho_rts_im",&
-         error=error)
+    ALLOCATE(tmp_rho_im, tmp_rho_re)
+    CALL dbcsr_init(tmp_rho_re)
+    CALL dbcsr_init(tmp_rho_im)
+    CALL dbcsr_copy(tmp_rho_re,rho%rho_ao(1)%matrix,"tmp_tho_rts_re",error=error)
+    CALL dbcsr_copy(tmp_rho_im,rho%rho_ao(1)%matrix,"tmp_tho_rts_im",error=error)
 
     DO i=1,SIZE(mos)
        re_part=2*(i-1)+1       
@@ -567,14 +561,17 @@ CONTAINS
        CALL cp_fm_to_fm(mos_new(re_part)%matrix,mos(i)%mo_set%mo_coeff,error)
        CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_re,error)
 
-       CALL add_matrices(rho%rho_ao(i)%matrix,one,tmp_rho_re,one,tmp_rho_im)
+       CALL dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_re,&
+            alpha_scalar=zero,beta_scalar=one,error=error)
+       CALL dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_im,&
+            alpha_scalar=one,beta_scalar=one,error=error)
     END DO
 
     CALL qs_rho_update_rho(rho, qs_env, error=error)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
-    CALL deallocate_matrix(tmp_rho_re,error)
-    CALL deallocate_matrix(tmp_rho_im,error)
+    CALL dbcsr_deallocate_matrix(tmp_rho_re,error)
+    CALL dbcsr_deallocate_matrix(tmp_rho_im,error)
 
     CALL timestop(handle)
 

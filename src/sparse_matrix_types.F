@@ -86,10 +86,9 @@ MODULE sparse_matrix_types
 ! *** Public subroutines ***
 
   PUBLIC :: add_block_node,&
-            add_matrices,&
             allocate_matrix,&
             allocate_matrix_set,&
-            copy_matrix, transfer_matrix, & ! what is the difference ?
+            transfer_matrix, & ! what is the difference ?
             checksum_matrix, &
             copy_local_sm_to_replicated_fm,&
             deallocate_matrix,&
@@ -116,10 +115,6 @@ MODULE sparse_matrix_types
     MODULE PROCEDURE add_real_matrix_block_obsolete
   END INTERFACE
 
-  INTERFACE add_matrices
-    MODULE PROCEDURE add_real_matrices
-  END INTERFACE
-
   INTERFACE allocate_matrix
     MODULE PROCEDURE allocate_real_matrix
   END INTERFACE
@@ -127,10 +122,6 @@ MODULE sparse_matrix_types
   INTERFACE allocate_matrix_set
     MODULE PROCEDURE allocate_real_matrix_set
     MODULE PROCEDURE allocate_real_matrix_set_2d
-  END INTERFACE
-
-  INTERFACE copy_matrix
-    MODULE PROCEDURE copy_real_matrix
   END INTERFACE
 
   INTERFACE checksum_matrix
@@ -293,133 +284,6 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
   END IF
   CALL timestop(handle)
 END SUBROUTINE cp_sm_scale_and_add
-
-! *****************************************************************************
-!> \brief  Calculate the sum of the sparse matrices a and b which have the
-!>           same structure.
-!>           c = alpha*a + beta*b 
-!> \author  MK
-!> \date    10.04.2002
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE add_real_matrices(c,alpha,a,beta,b)
-
-    TYPE(real_matrix_type), POINTER          :: c
-    REAL(KIND=dp), INTENT(IN)                :: alpha
-    TYPE(real_matrix_type), POINTER          :: a
-    REAL(KIND=dp), INTENT(IN)                :: beta
-    TYPE(real_matrix_type), POINTER          :: b
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'add_real_matrices', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iblock_col, iblock_row
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block, b_block, c_block
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-!   *** Check the association status of the matrices ***
-
-    IF (.NOT.ASSOCIATED(a)) THEN
-      CALL stop_program(routineP,"The matrix pointer a is not associated")
-    END IF
-
-    IF (.NOT.ASSOCIATED(b)) THEN
-      CALL stop_program(routineP,"The matrix pointer b is not associated")
-    END IF
-
-    IF (.NOT.ASSOCIATED(c)) THEN
-      CALL stop_program(routineP,"The matrix pointer c is not associated")
-    END IF
-
-!   *** Add matrix elements ***
-
-    IF ((alpha == 1.0_dp).AND.(beta == 1.0_dp)) THEN
-
-      DO iblock_row=1,c%nblock_row
-
-        block_node => first_block_node(c,iblock_row)
-
-        DO WHILE (ASSOCIATED(block_node))
-
-          CALL get_block_node(block_node=block_node,&
-                              block_col=iblock_col,&
-                              BLOCK=c_block)
-
-          CALL get_block_node(matrix=a,&
-                              block_row=iblock_row,&
-                              block_col=iblock_col,&
-                              BLOCK=a_block)
-
-          CALL get_block_node(matrix=b,&
-                              block_row=iblock_row,&
-                              block_col=iblock_col,&
-                              BLOCK=b_block)
-
-          IF (ASSOCIATED(a_block)) THEN
-            IF (ASSOCIATED(b_block)) THEN
-              c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
-            ELSE
-              c_block(:,:) = alpha*a_block(:,:)
-            END IF
-          ELSE
-            IF (ASSOCIATED(b_block)) THEN
-              c_block(:,:) = beta*b_block(:,:)
-            ELSE
-              c_block(:,:) = 0.0_dp
-            END IF
-          END IF
-
-          block_node => block_node%next_block_node
-
-        END DO
-
-      END DO
-
-    ELSE
-
-      DO iblock_row=1,c%nblock_row
-
-        block_node => first_block_node(c,iblock_row)
-
-        DO WHILE (ASSOCIATED(block_node))
-
-          CALL get_block_node(block_node=block_node,&
-                              block_col=iblock_col,&
-                              BLOCK=c_block)
-
-          CALL get_block_node(matrix=a,&
-                              block_row=iblock_row,&
-                              block_col=iblock_col,&
-                              BLOCK=a_block)
-
-          CALL get_block_node(matrix=b,&
-                              block_row=iblock_row,&
-                              block_col=iblock_col,&
-                              BLOCK=b_block)
-
-          IF (ASSOCIATED(a_block)) THEN
-            IF (ASSOCIATED(b_block)) THEN
-              c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
-            ELSE
-              c_block(:,:) = alpha*a_block(:,:)
-            END IF
-          ELSE
-            IF (ASSOCIATED(b_block)) THEN
-              c_block(:,:) = beta*b_block(:,:)
-            ELSE
-              c_block(:,:) = 0.0_dp
-            END IF
-          END IF
-
-          block_node => block_node%next_block_node
-
-        END DO
-
-      END DO
-
-    END IF
-
-  END SUBROUTINE add_real_matrices
 
 ! *****************************************************************************
 !> \brief   Allocate and initialize a new block node.
@@ -1098,121 +962,6 @@ END SUBROUTINE cp_sm_scale_and_add
     CALL timestop(handle)
 
   END SUBROUTINE sparse_plus_loc_loct
-
-! *****************************************************************************
-!> \brief   Copy the real matrix source to the existing real matrix target.
-!> \author  MK
-!> \date    07.07.2000
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE copy_real_matrix(source,TARGET)
-
-    TYPE(real_matrix_type), POINTER          :: source, TARGET
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'copy_real_matrix', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: first_col, first_row, handle, iblock_col, iblock_row, icol, &
-      irow, jblock_col, jblock_row, jcol, jrow, last_col, last_row, &
-      source_first_col, source_first_row, source_last_col, source_last_row, &
-      target_first_col, target_first_row, target_last_col, target_last_row
-    TYPE(real_block_node_type), POINTER      :: source_block_node, &
-                                                target_block_node
-
-!   *** Check the association status of the source matrix ***
-
-    IF (.NOT.ASSOCIATED(source)) THEN
-      CALL stop_program(routineP,"The source matrix pointer is not associated")
-    END IF
-
-    CALL timeset(routineN,handle)
-
-!   *** Check the association status of the target matrix ***
-
-    IF (ASSOCIATED(TARGET)) THEN
-
-      DO iblock_row=1,source%nblock_row
-
-        source_first_row = source%first_row(iblock_row)
-        source_last_row = source%last_row(iblock_row)
-
-        source_block_node => source%block_list(iblock_row)%first_block_node
-
-        DO WHILE (ASSOCIATED(source_block_node))
-
-          iblock_col = source_block_node%block_col
-
-          source_first_col = source%first_col(iblock_col)
-          source_last_col = source%last_col(iblock_col)
-
-          DO jblock_row=1,target%nblock_row
-
-            target_first_row = target%first_row(jblock_row)
-            target_last_row = target%last_row(jblock_row)
-
-            IF ((target_first_row <= source_last_row).AND.&
-                (target_last_row >= source_first_row)) THEN
-
-              target_block_node =>&
-                target%block_list(jblock_row)%first_block_node
-
-              DO WHILE (ASSOCIATED(target_block_node))
-
-                jblock_col = target_block_node%block_col
-
-                target_first_col = target%first_col(jblock_col)
-                target_last_col = target%last_col(jblock_col)
-
-                IF ((target_first_col <= source_last_col).AND.&
-                    (target_last_col >= source_first_col)) THEN
-
-                  first_col = MAX(source_first_col,target_first_col)
-                  first_row = MAX(source_first_row,target_first_row)
-
-                  last_col = MIN(source_last_col,target_last_col)
-                  last_row = MIN(source_last_row,target_last_row)
-
-                  jcol = first_col - target_first_col + 1
-
-                  DO icol=first_col-source_first_col+1,&
-                          last_col-source_first_col+1
-                    jrow = first_row - target_first_row + 1
-                    DO irow=first_row-source_first_row+1,&
-                            last_row-source_first_row+1
-                      target_block_node%block(jrow,jcol) =&
-                        source_block_node%block(irow,icol)
-                      jrow = jrow + 1
-                    END DO
-                    jcol = jcol + 1
-                  END DO
-
-                END IF
-
-                target_block_node => target_block_node%next_block_node
-
-              END DO
-
-            END IF
-
-          END DO
-
-          source_block_node => source_block_node%next_block_node
-
-        END DO
-
-      END DO
-
-    ELSE
-
-      CALL stop_program(routineP,&
-                        "The target matrix pointer is not associated. "//&
-                        "Use replicate_matrix instead of copy_matrix")
-
-    END IF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE copy_real_matrix
 
 ! *****************************************************************************
 !> \brief  Deallocate a real matrix at the real_matrix_type level. 

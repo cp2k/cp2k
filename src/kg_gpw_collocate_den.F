@@ -53,8 +53,7 @@ MODULE kg_gpw_collocate_den
                                              rs_grid_create,&
                                              rs_grid_release,&
                                              rs_grid_zero
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -102,11 +101,11 @@ CONTAINS
 !>      in the global box
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_mol(qs_env,matrix_p_sm,rho_r,rho_g,total_rho,pw_env,&
+  SUBROUTINE calculate_rho_mol(qs_env,matrix_p,rho_r,rho_g,total_rho,pw_env,&
                                atom,kind,ratom,compute_tau,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_type), POINTER          :: matrix_p_sm
+    TYPE(dbcsr_obj), POINTER                 :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_r, rho_g
     REAL(dp), INTENT(OUT)                    :: total_rho
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -148,7 +147,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
-    TYPE(dbcsr_obj), POINTER                 :: matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
@@ -162,10 +160,6 @@ CONTAINS
 !$  INTEGER                                  :: omp_get_max_threads, omp_get_thread_num
 
     failure=.FALSE.
-
-    ALLOCATE(matrix_p)!sm->dbcsr
-    !CALL dbcsr_init(matrix_p, error)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_p, matrix_p_sm, error)!sm->dbcsr
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referencing to rho are actually tau
@@ -584,8 +578,6 @@ CONTAINS
     CALL density_rs2pw(pw_env,rs_rho,rho_r,rho_g,interp_section=interp_section,error=error)
 
     total_rho = pw_integrate_function(rho_r%pw,isign=-1,error=error)
-
-    CALL dbcsr_deallocate_matrix ( matrix_p, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

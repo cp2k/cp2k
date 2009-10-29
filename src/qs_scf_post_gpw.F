@@ -134,7 +134,6 @@ MODULE qs_scf_post_gpw
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE stm_images,                      ONLY: th_stm_image
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -269,7 +268,7 @@ CONTAINS
           e_kin=0.0_dp
           DO ispin=1,dft_control%nspins
              CALL calculate_ecore(h=kinetic_m(1)%matrix,&
-                  p_sm=rho%rho_ao(ispin)%matrix,&
+                  p=rho%rho_ao(ispin)%matrix,&
                   ecore=e_kinAtt,&
                   para_env=para_env,&
                   error=error)
@@ -2053,7 +2052,7 @@ CPSourceFileRef,&
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
+             CALL dbcsr_write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
                   para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&

@@ -59,9 +59,6 @@ MODULE task_list_methods
                                              rs_grid_locate_rank,&
                                              rs_grid_release,&
                                              rs_grid_reorder_ranks
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             get_block_node,&
-                                             real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -81,11 +78,6 @@ MODULE task_list_methods
             pair2int,&
             int2pair,&
             distribute_matrix
-
-  INTERFACE distribute_matrix
-     MODULE PROCEDURE distribute_matrix_sm
-     MODULE PROCEDURE distribute_matrix_dbcsr
-  END INTERFACE
 
 CONTAINS
 
@@ -1972,205 +1964,7 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, symmetric, natoms, maxset,
 
 END SUBROUTINE get_atom_pair
 
-! *****************************************************************************
-SUBROUTINE distribute_matrix_sm( rs_grids, pmat, atom_pair_send, atom_pair_recv, natoms, scatter, error, hmat )
-
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: rs_grids
-    TYPE(real_matrix_type), POINTER          :: pmat
-    INTEGER(KIND=int_8), DIMENSION(:), &
-      POINTER                                :: atom_pair_send, atom_pair_recv
-    INTEGER                                  :: natoms
-    LOGICAL                                  :: scatter
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: hmat
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'distribute_matrix_sm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: acol, arow, handle, i, j, k, &
-                                                l, ncol, nrow, stat
-    INTEGER(KIND=int_8)                      :: natom8, pair
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_disps, recv_sizes, &
-                                                send_disps, send_sizes
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
-    TYPE(realspace_grid_type), POINTER       :: rs
-
-  CALL timeset(routineN,handle)
-
-  rs => rs_grids(1)%rs_grid
-
-  ! allocate local arrays
-  ALLOCATE(send_sizes(rs%desc%group_size),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
-  ALLOCATE(recv_sizes(rs%desc%group_size),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
-  ALLOCATE(send_disps(rs%desc%group_size),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
-  ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
-
-  ! set up send buffer sizes
-  natom8=natoms
-
-  send_sizes = 0
-  DO i = 1, SIZE(atom_pair_send)
-
-     ! proc we're sending this block to
-     k = atom_pair_send(i) / natom8**2 + 1
-
-     pair = MOD(atom_pair_send(i),natom8**2)
-
-     arow = pair / natom8 + 1
-     acol = MOD(pair, natom8) + 1
-
-     nrow = pmat%last_row(arow) - pmat%first_row(arow) + 1
-     ncol = pmat%last_col(acol) - pmat%first_col(acol) + 1       
-
-     send_sizes(k) = send_sizes(k) + nrow * ncol        
-
-  ENDDO
-
-  send_disps = 0
-  DO i = 2, rs % desc % group_size
-     send_disps(i) = send_disps(i-1) + send_sizes(i-1)
-  ENDDO
-
-  ALLOCATE(send_buf_r(SUM(send_sizes)),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",SUM(send_sizes))
-
-  send_buf_r = 0
-
-  ! do packing
-  send_sizes=0
-  DO i = 1, SIZE(atom_pair_send)
-
-     l = atom_pair_send(i) / natom8**2 + 1
-
-     pair = MOD(atom_pair_send(i),natom8**2)
-
-     arow = pair / natom8 + 1
-     acol = MOD(pair, natom8) + 1
-
-     nrow = pmat%last_row(arow)-pmat%first_row(arow) + 1
-     ncol = pmat%last_col(acol)-pmat%first_col(acol) + 1
-
-     CALL get_block_node(matrix=pmat,&
-          block_row=arow,&
-          block_col=acol,&
-          BLOCK=p_block)
-     IF ( .NOT. ASSOCIATED ( p_block ) ) THEN 
-        CALL stop_program ( "pack_matrix almost there", "Matrix block not found" )
-     ENDIF
-
-     DO k = 1, ncol
-        DO j = 1, nrow
-           send_buf_r(send_disps(l)+send_sizes(l)+j+(k-1)*nrow) = p_block(j,k)
-        ENDDO
-     ENDDO
-     send_sizes(l)=send_sizes(l)+nrow*ncol
-  ENDDO
-
-  ! set up recv buffer
-
-  recv_sizes = 0
-  DO i = 1, SIZE(atom_pair_recv)
-
-     ! proc we're receiving this data from
-     k = atom_pair_recv(i) / natom8**2 + 1
-
-     pair = MOD(atom_pair_recv(i),natom8**2)
-
-     arow = pair / natom8 + 1
-     acol = MOD(pair,natom8) + 1
-
-     nrow = pmat%last_row(arow) - pmat%first_row(arow) + 1
-     ncol = pmat%last_col(acol) - pmat%first_col(acol) + 1       
-
-     recv_sizes(k) = recv_sizes(k) + nrow * ncol        
-
-  ENDDO
-
-  recv_disps = 0     
-  DO i = 2, rs % desc % group_size
-     recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
-  ENDDO
-
-  ALLOCATE(recv_buf_r(SUM(recv_sizes)),STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",SUM(recv_sizes))
-
-  recv_buf_r = 0
-
-  ! do communication
-  CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
-       recv_buf_r, recv_sizes, recv_disps, rs % desc % group)
-
-  !do unpacking
-  recv_sizes=0
-  DO i = 1, SIZE(atom_pair_recv)
-     l = atom_pair_recv(i) / natom8**2 + 1
-     pair = MOD(atom_pair_recv(i),natom8**2)
-
-     arow = pair / natom8 + 1
-     acol = MOD(pair, natom8) + 1
-
-     nrow = pmat%last_row(arow)-pmat%first_row(arow) + 1
-     ncol = pmat%last_col(acol)-pmat%first_col(acol) + 1
-
-     CALL get_block_node(matrix=pmat,&
-          block_row=arow,&
-          block_col=acol,&
-          BLOCK=p_block)
-
-     IF ( PRESENT ( hmat ) ) THEN
-     CALL get_block_node(matrix=hmat,&
-          block_row=arow,&
-          block_col=acol,&
-          BLOCK=h_block)
-     ENDIF
-
-     IF ( ASSOCIATED ( p_block ) .AND. l .NE. rs%desc%my_pos+1) THEN
-        !IF( scatter ) THEN
-        !   WRITE(6,*) arow,acol,l 
-        !   CALL stop_program ( "unpack_matrix here and new", "Matrix block already present" )
-        !ENDIF
-     ELSE
-        CALL add_block_node ( pmat, arow, acol, p_block ,error=error)
-     ENDIF
-
-     DO k = 1, ncol
-        DO j = 1, nrow
-           IF ( scatter ) THEN
-              p_block(j,k) = recv_buf_r( recv_disps(l) + recv_sizes(l)+ j + (k-1)*nrow )
-           ELSE
-              h_block(j,k) = h_block(j,k) + recv_buf_r( recv_disps(l) + recv_sizes(l)+ j + (k-1)*nrow )
-           ENDIF
-        ENDDO
-     ENDDO
-     recv_sizes(l)=recv_sizes(l)+nrow*ncol
-  ENDDO
-
-  DEALLOCATE(send_buf_r,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",rs%desc%group_size)
-  DEALLOCATE(recv_buf_r,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",rs%desc%group_size)
-
-  DEALLOCATE(send_sizes,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%desc%group_size)
-  DEALLOCATE(recv_sizes,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_sizes",rs%desc%group_size)
-  DEALLOCATE(send_disps,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
-  DEALLOCATE(recv_disps,STAT=stat)
-  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
-
-  CALL timestop(handle)
-  
-END SUBROUTINE distribute_matrix_sm
-
-SUBROUTINE distribute_matrix_dbcsr( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
+SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      natoms, scatter, error, hmat )
 
     TYPE(realspace_grid_p_type), &
@@ -2183,7 +1977,7 @@ SUBROUTINE distribute_matrix_dbcsr( rs_grids, pmat, atom_pair_send, atom_pair_re
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: hmat
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'distribute_matrix_dbcsr', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribute_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, i, j, k, &
@@ -2383,7 +2177,7 @@ SUBROUTINE distribute_matrix_dbcsr( rs_grids, pmat, atom_pair_send, atom_pair_re
 
   CALL timestop(handle)
   
-END SUBROUTINE distribute_matrix_dbcsr
+END SUBROUTINE distribute_matrix
 
 ! *****************************************************************************
 !> \brief determines the rank of the processor who's real rs grid contains point

@@ -58,6 +58,7 @@ MODULE ep_methods
                                              cp_subsys_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_scale,&
                                              dbcsr_set
   USE distribution_2d_types,           ONLY: distribution_2d_get
   USE ep_qs_methods,                   ONLY: ep_qs_create
@@ -162,8 +163,8 @@ MODULE ep_methods
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
-       cp_sm_scale_and_add, deallocate_matrix, deallocate_matrix_set, &
-       first_block_node, get_block_node, get_matrix_info, next_block_node, &
+       deallocate_matrix, deallocate_matrix_set, first_block_node, &
+       get_block_node, get_matrix_info, next_block_node, &
        real_block_node_type, real_matrix_p_type, real_matrix_type, set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1735,14 +1736,14 @@ CONTAINS
          " update qs_env%rho and ks matrix",error=error)
     CALL get_qs_env(qs_env, rho=rho, mos=mos, error=error)
     DO ispin=1,ep_env%nspins
-       CALL set_matrix(rho%rho_ao(ispin)%matrix,0._dp)
-       CALL cp_sm_plus_fm_fm_t(sparse_matrix=rho%rho_ao(ispin)%matrix,&
+       CALL dbcsr_set(rho%rho_ao(ispin)%matrix,0._dp,error=error)
+       CALL dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(ispin)%matrix,&
             matrix_v=mos(ispin)%mo_set%mo_coeff,&
             matrix_g=ep_env%main_p_env%psi0d(ispin)%matrix,&
             ncol=ep_env%full_nmo(ispin),&
             error=error)
        CALL get_mo_set(mos(ispin)%mo_set, maxocc=maxocc)
-       CALL cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,alpha=maxocc,error=error)
+       CALL dbcsr_scale(rho%rho_ao(ispin)%matrix,alpha_scalar=maxocc,error=error)
     END DO
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)

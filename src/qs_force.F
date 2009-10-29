@@ -266,7 +266,7 @@ CONTAINS
                 ELSE
                    CALL calculate_w_matrix(mo_set=mo_set,&
                         matrix_ks=matrix_ks(ispin)%matrix,&
-                        matrix_p_sm=rho%rho_ao(ispin)%matrix,&
+                        matrix_p=rho%rho_ao(ispin)%matrix,&
                         matrix_w=matrix_w(ispin)%matrix,&
                         error=error)
                 END IF
@@ -352,6 +352,9 @@ CONTAINS
        IF ( dft_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
 
        ! Compute grid-based forces
+
+WRITE(*,*) __FILE__,__LINE__,'rho',ASSOCIATED(qs_env%rho%rho_ao)
+WRITE(*,*) __FILE__,__LINE__,'rho',ASSOCIATED(qs_env%rho%rho_ao(1)%matrix)
        
        IF (.NOT.qs_env%run_rtp)&
            CALL qs_ks_update_qs_env(ks_env=ks_env,&

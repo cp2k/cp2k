@@ -19,15 +19,12 @@ MODULE qs_core_energies
                                              plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_get_block_node
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE dbcsr_methods,                   ONLY: dbcsr_init,&
-                                             dbcsr_iterator_blocks_left,&
+  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
@@ -52,7 +49,6 @@ MODULE qs_core_energies
                                              deallocate_subcell,&
                                              local_atoms_type,&
                                              subcell_type
-  USE sparse_matrix_types,             ONLY: real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -86,10 +82,9 @@ CONTAINS
 !>           structure (27.06.2003,MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE calculate_ecore(h,p_sm,ecore,para_env,error)
+  SUBROUTINE calculate_ecore(h,p,ecore,para_env,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: h
-    TYPE(real_matrix_type), POINTER          :: p_sm
+    TYPE(dbcsr_obj), POINTER                 :: h, p
     REAL(KIND=dp), INTENT(OUT)               :: ecore
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -103,14 +98,9 @@ CONTAINS
     REAL(KIND=dp)                            :: ecore_block
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj), POINTER                 :: p
 
     CALL timeset(routineN,handle)
     ecore = 0.0_dp
-
-    ALLOCATE(p)!sm->dbcsr
-    CALL dbcsr_init(p)!sm->dbcsr
-    CALL dbcsr_from_sm(p, p_sm, error)!sm->dbcsr
 
     CALL dbcsr_iterator_start(iter, h)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
@@ -142,8 +132,6 @@ CONTAINS
     CALL dbcsr_iterator_stop(iter)
 
     CALL mp_sum(ecore,para_env%group)
-
-    CALL dbcsr_deallocate_matrix( p, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

@@ -32,6 +32,7 @@ MODULE kg_scf
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
   USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_util,                      ONLY: dbcsr_checksum
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
@@ -116,8 +117,7 @@ MODULE kg_scf
                                              get_matrix_diagonal,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             set_matrix_diagonal,&
-                                             transfer_matrix
+                                             set_matrix_diagonal
   USE termination,                     ONLY: external_control,&
                                              stop_memory,&
                                              stop_program
@@ -312,7 +312,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h_b, matrix_ks_b, &
-                                                matrix_s_b, p_mix_new, rho_ao
+                                                matrix_s_b, p_mix_new
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -323,7 +323,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, &
-                                                matrix_p, matrix_s
+                                                matrix_p, matrix_s, rho_ao
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, scf_section
 
@@ -401,18 +401,27 @@ CONTAINS
     nelectron_global = kg_fm%nelectron_global
     nmolecule_global = kg_fm%nmolecule_global
 
-    matrix_p => rho%rho_ao
-
     ! do some assertions here on these matrices having the same structure,
     ! as is currently required
+
+
     DO ispin=1,SIZE(matrix_s)
       id_equal=(matrix_s(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
       CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     ENDDO
+
+    NULLIFY(matrix_p)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_p, SIZE(qs_env%rho%rho_ao), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_p(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, &
+            qs_env%rho%rho_ao(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
     DO ispin=1,SIZE(matrix_p)
       id_equal=(matrix_p(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+      !CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     ENDDO
+    CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
+
     DO ispin=1,SIZE(matrix_h)
       id_equal=(matrix_h(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
       CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
@@ -464,7 +473,7 @@ CONTAINS
                qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
              iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                   extension=".Log",error=error)
-             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             !CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
              CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                   "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
           END IF
@@ -648,16 +657,20 @@ CONTAINS
 
 
           CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(scf_env%p_mix_new), error )
-          CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(scf_env%p_mix_new), error )
+          !CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(scf_env%p_mix_new), error )
           DO ispin = 1,SIZE(p_mix_new)
-             ALLOCATE(p_mix_new(ispin)%matrix,rho_ao(ispin)%matrix)!super dirty
+             ALLOCATE(p_mix_new(ispin)%matrix)!,rho_ao(ispin)%matrix)!super dirty
              CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, error)
-             CALL dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)
+             !CALL dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)
           ENDDO
 
           DO ispin=1,SIZE(scf_env%p_mix_new)
+
+WRITE(*,*) __FILE__,&
+__LINE__,'rho',dbcsr_checksum(qs_env%rho%rho_ao(ispin)%matrix,error)
+
              CALL cp_sm_mix(m1=p_mix_new(ispin)%matrix,&
-                  m2=rho_ao(ispin)%matrix,&
+                  m2=qs_env%rho%rho_ao(ispin)%matrix,&
                   p_mix=my_p_mix,&
                   delta=tmp,&
                   para_env=qs_env%para_env,&
@@ -667,11 +680,11 @@ CONTAINS
 
           DO ispin = 1,SIZE(p_mix_new)
              CALL sm_from_dbcsr( scf_env%p_mix_new(ispin)%matrix, p_mix_new(ispin)%matrix, &
-                  qs_env%rho%rho_ao(ispin)%matrix%distribution_2d, error=error )
+                  qs_env%rho%rho_ao(ispin)%matrix%m%dist2d, error=error )
           ENDDO
 
           CALL dbcsr_deallocate_matrix_set( p_mix_new, error=error )
-          CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )
+          !CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )
 
 !          CALL scf_env_density_mixing(scf_env%p_mix_new,&
 !                                    qs_env%scf_env,scf_env%iter_delta,&
@@ -716,8 +729,10 @@ CONTAINS
 !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
            DO ispin=1,dft_control%nspins
-              CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                       rho%rho_ao(ispin)%matrix,error=error)
+              CALL dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error=error)
+              ALLOCATE(qs_env%rho%rho_ao(ispin)%matrix)
+              CALL dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix,&
+                   scf_env%p_mix_new(ispin)%matrix,error=error)
            END DO
        ENDIF
 
@@ -732,6 +747,9 @@ CONTAINS
        CALL timestop(handle2)
 
     END DO scf_loop
+
+WRITE(*,*) __FILE__,&
+__LINE__,'rho',dbcsr_checksum(qs_env%rho%rho_ao(1)%matrix,error)
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -778,23 +796,37 @@ CONTAINS
              scf_env%skip_mixing = .FALSE.
              my_p_mix = 1.0_dp
           END IF
+
+
+          CALL allocate_matrix_set( rho_ao, SIZE(qs_env%rho%rho_ao), error )
+          DO ispin = 1,SIZE(rho_ao)!sm->dbcsr
+             CALL sm_from_dbcsr(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix,&
+                  qs_env%rho%rho_ao(ispin)%matrix%m%dist2d,error)
+          ENDDO!sm->dbcsr
+
+
           DO ispin=1,SIZE(scf_env%p_mix_new)
              IF (my_p_mix/=1.0_dp) THEN
                 CALL cp_sm_scale_and_add(matrix_a=scf_env%p_mix_new(ispin)%matrix,&
                      alpha=1.0_dp/my_p_mix,&
-                     matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&
+                     matrix_b=rho_ao(ispin)%matrix,&
                      beta=(my_p_mix-1.0_dp)/my_p_mix,&
                      error=error)
              END IF
           END DO
+
+          CALL deallocate_matrix_set( rho_ao, error=error )
+
 
 !       CALL scf_env_density_mixing(scf_env%p_mix_new,&
 !                                   qs_scf%scf_env,scf_env%iter_delta,&
 !                                   qs_env=qs_env,diis=diis_step,invert=.TRUE.,&
 !                                   error=error)
        DO ispin=1,dft_control%nspins
-          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                     rho%rho_ao(ispin)%matrix,error=error)
+          CALL dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error=error)
+          ALLOCATE(qs_env%rho%rho_ao(ispin)%matrix)
+          CALL dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix,&
+               scf_env%p_mix_new(ispin)%matrix,error=error)
        END DO
     ENDIF
 !
@@ -827,6 +859,8 @@ CONTAINS
     CALL deallocate_matrix_set( matrix_ks, error )!sm->dbcsr
 
     CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
+
+    CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
 
     DO ispin=1,SIZE(matrix_h)!sm->dbcsr
        CALL dbcsr_deallocate_matrix(qs_env%matrix_h(ispin)%matrix,error)
@@ -915,6 +949,9 @@ CONTAINS
            matrix_s=matrix_s_b,&
            ks_env=ks_env,&
            error=error)
+
+WRITE(*,*) __FILE__,&
+__LINE__,'rho',dbcsr_checksum(qs_env%rho%rho_ao(1)%matrix,error)
 
     NULLIFY(matrix_s)!sm->dbcsr
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
@@ -1283,13 +1320,17 @@ CONTAINS
             matrix_h_b(1)%matrix%m%dist2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
-
+    NULLIFY(matrix_p)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_p, SIZE(qs_env%rho%rho_ao), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_p(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, &
+            qs_env%rho%rho_ao(ispin)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
 
     nspin=dft_control%nspins
     kg_fm_mol_set => kg_fm%kg_fm_mol_set
     nmolecule_kind = SIZE(kg_fm_mol_set)
 
-    matrix_p => qs_env%rho%rho_ao
 
     IF (scf_control%density_guess == restart_guess) THEN
 
@@ -1571,6 +1612,14 @@ CONTAINS
 
     CALL deallocate_matrix_set( matrix_h, error )!sm->dbcsr
 
+    DO ispin=1,SIZE(matrix_p)
+       CALL dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error)
+       ALLOCATE(qs_env%rho%rho_ao(ispin)%matrix)
+       CALL dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix, matrix_p(ispin)%matrix, &
+            error)
+    ENDDO
+    CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
+
     CALL timestop(handle)
 
   END SUBROUTINE kgscf_first_density_matrix
@@ -1652,6 +1701,7 @@ CONTAINS
          CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
 
        END IF
+
     END IF
 
     CALL timestop(handle)

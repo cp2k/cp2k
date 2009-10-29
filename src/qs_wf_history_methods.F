@@ -22,7 +22,9 @@ MODULE qs_wf_history_methods
                                              VandeVondele2005a,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -41,10 +43,10 @@ MODULE qs_wf_history_methods
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             sm_pools_create_matrix_vect
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
                                              dbcsr_set
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -92,13 +94,6 @@ MODULE qs_wf_history_methods
                                              qs_wf_snapshot_type,&
                                              wfi_get_snapshot,&
                                              wfs_release
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             copy_matrix,&
-                                             cp_sm_scale_and_add,&
-                                             deallocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix,&
-                                             transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -250,13 +245,11 @@ END SUBROUTINE wfs_create
 
       ! rho_ao
       IF (ASSOCIATED(input_snapshot%rho_ao)) THEN
-        CALL allocate_matrix_set(output_snapshot%rho_ao, SIZE(input_snapshot%rho_ao),error=error)
+        CALL dbcsr_allocate_matrix_set(output_snapshot%rho_ao, SIZE(input_snapshot%rho_ao),error=error)
         DO i = 1,SIZE(input_snapshot%rho_ao)
-          CALL replicate_matrix(source=input_snapshot%rho_ao(i)%matrix, &
-                                TARGET=output_snapshot%rho_ao(i)%matrix, &
-                                target_name="myDensityMatrix_for_Spin_"//&
-                                TRIM(ADJUSTL(cp_to_string(i))), &
-                                allocate_blocks=.TRUE.,error=error)
+           CALL dbcsr_copy(output_snapshot%rho_ao(i)%matrix,input_snapshot%rho_ao(i)%matrix, &
+                name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
+           CALL dbcsr_set(output_snapshot%rho_ao(i)%matrix,0.0_dp,error=error)
         END DO
       END IF
 
@@ -318,7 +311,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: s_array
+      POINTER                                :: rho_ao, s_array
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -326,8 +319,6 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao
 
   CALL timeset(routineN,handle)
 
@@ -438,19 +429,18 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
 
      IF (ASSOCIATED(snapshot%rho_ao)) THEN ! the sparsity might be different
         ! (future struct:check)
-        CALL deallocate_matrix_set(snapshot%rho_ao,error=error)
+        CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao,error=error)
      END IF
      IF (wf_history%store_rho_ao) THEN
         CALL qs_rho_get(rho, rho_ao=rho_ao,error=error)
         CPPrecondition(ASSOCIATED(rho_ao),cp_failure_level,routineP,error,failure)
 
-        CALL sm_pools_create_matrix_vect(S_sm_pools,&
-             snapshot%rho_ao,error=error)
-             !rho_ao_b,error=error)
-
+        CALL dbcsr_allocate_matrix_set(snapshot%rho_ao,nspins,error=error)
         DO ispin=1,nspins
-           CALL copy_matrix(rho_ao(ispin)%matrix,&
-                snapshot%rho_ao(ispin)%matrix)
+           ALLOCATE(snapshot%rho_ao(ispin)%matrix)
+           CALL dbcsr_init(snapshot%rho_ao(ispin)%matrix)
+           CALL dbcsr_copy(snapshot%rho_ao(ispin)%matrix,rho_ao(ispin)%matrix,&
+                error=error)
         END DO
      END IF
 
@@ -744,8 +734,8 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
           DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
-             CALL transfer_matrix(source_matrix=t0_state%rho_frozen%rho_ao(ispin)%matrix,&
-                  target_matrix=rho%rho_ao(ispin)%matrix, error=error)
+             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,t0_state%rho_frozen%rho_ao(ispin)%matrix,&
+                  error=error)
           END DO
           !FM updating rho_ao directly with t0_state%rho_ao would have the
           !FM wrong matrix structure
@@ -760,8 +750,8 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
-                  target_matrix=rho%rho_ao(ispin)%matrix, error=error)
+             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
+                  error=error)
           END DO
           rho%rho_g_valid=.TRUE.
           IF(my_kg_gpw) THEN
@@ -806,8 +796,8 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
-                  target_matrix=rho%rho_ao(ispin)%matrix, error=error)
+             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
+                  error=error)
           END DO
           !FM updating rho_ao directly with t0_state%rho_ao would have the
           !FM wrong matrix structure
@@ -853,7 +843,7 @@ END FUNCTION wfi_get_method_label
                     beta=(t2-t0)/(t1-t0),set_b=t1_state%wf_mol%kg_fm_mol_set,error=error)
                CALL kg_gpw_fm_mol_linear(alpha=1.0_dp,set_a=kg_fm_mol_set,&
                     beta=(t1-t2)/(t1-t0),set_b=t0_state%wf_mol%kg_fm_mol_set,&
-                    matrix_p=rho%rho_ao,matrix_s_b=matrix_s,error=error)
+                    matrix_p_b=rho%rho_ao,matrix_s_b=matrix_s,error=error)
              ELSE
                DO ispin=1,SIZE(mos)
                   CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
@@ -901,16 +891,10 @@ END FUNCTION wfi_get_method_label
             t1=t1_state%dt
             t2=t1+dt
             DO ispin=1,SIZE(rho%rho_ao)
-               CALL cp_sm_scale_and_add(alpha=0.0_dp,&
-                    matrix_a=rho%rho_ao(ispin)%matrix,&
-                    matrix_b=t1_state%rho_ao(ispin)%matrix,&
-                    beta=(t2-t0)/(t1-t0),&
-                    error=error) ! this copy should be unnecessary
-               CALL cp_sm_scale_and_add(alpha=1.0_dp,&
-                    matrix_a=rho%rho_ao(ispin)%matrix,&
-                    beta=(t1-t2)/(t1-t0), &
-                    matrix_b=t0_state%rho_ao(ispin)%matrix,&
-                    error=error)
+               CALL dbcsr_add(rho%rho_ao(ispin)%matrix,t1_state%rho_ao(ispin)%matrix,&
+                    alpha_scalar=0.0_dp,beta_scalar=(t2-t0)/(t1-t0),error=error) ! this copy should be unnecessary
+               CALL dbcsr_add(rho%rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
+                    alpha_scalar=1.0_dp,beta_scalar=(t1-t2)/(t1-t0),error=error)
             END DO
             CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
             CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
@@ -1021,7 +1005,7 @@ END FUNCTION wfi_get_method_label
              IF(nvec==1) THEN
                CALL kg_gpw_fm_mol_linear(alpha=0.0_dp, set_a=kg_fm_mol_set,&
                     beta=beta, set_b=t1_state%wf_mol%kg_fm_mol_set,&
-                    matrix_p=rho%rho_ao, matrix_s_b=matrix_s, error=error)
+                    matrix_p_b=rho%rho_ao, matrix_s_b=matrix_s, error=error)
              ELSE
                CALL kg_gpw_fm_mol_linear(alpha=0.0_dp, set_a=kg_fm_mol_set,&
                     beta=beta, set_b=t1_state%wf_mol%kg_fm_mol_set, error=error)
@@ -1038,7 +1022,7 @@ END FUNCTION wfi_get_method_label
                beta = -1.0_dp * beta  / REAL(nvec , dp )
                CALL kg_gpw_fm_mol_ps(set_a=kg_fm_mol_set,&
                     beta=beta,set_b=t0_state%wf_mol%kg_fm_mol_set,ov_b_b=t0_state%overlap,&
-                    set_last=t1_state%wf_mol%kg_fm_mol_set, matrix_p=rho%rho_ao,matrix_s_b=matrix_s,&
+                    set_last=t1_state%wf_mol%kg_fm_mol_set, matrix_p_b=rho%rho_ao,matrix_s_b=matrix_s,&
                     error=error)
              END IF
           ELSE

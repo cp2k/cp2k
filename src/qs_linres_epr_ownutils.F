@@ -252,7 +252,7 @@ CONTAINS
 
     DO ispin=1,dft_control%nspins
        CALL calculate_ecore(h=kinetic(1)%matrix,&
-                            p_sm=rho%rho_ao(ispin)%matrix,&
+                            p=rho%rho_ao(ispin)%matrix,&
                             ecore=epr_g_zke_temp(ispin),&
                             para_env=para_env,error=error)
     END DO

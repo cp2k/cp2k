@@ -11,10 +11,7 @@
 MODULE mulliken
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cp_control_types,                ONLY: mulliken_restraint_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
@@ -28,7 +25,6 @@ MODULE mulliken
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -46,11 +42,6 @@ MODULE mulliken
 
   INTERFACE mulliken_charges
      MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b
-  END INTERFACE
-
-  INTERFACE mulliken_restraint
-     MODULE PROCEDURE mulliken_restraint_old
-     MODULE PROCEDURE mulliken_restraint_new
   END INTERFACE
 
 CONTAINS
@@ -73,119 +64,7 @@ CONTAINS
 !> \par History
 !>      06.2004 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE mulliken_restraint_old(mulliken_restraint_control,para_env, &
-                                s_matrix,p_matrix_sm,energy,order_p,ks_matrix,w_matrix,error)
-    TYPE(mulliken_restraint_type), &
-      INTENT(IN)                             :: mulliken_restraint_control
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: s_matrix
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix_sm
-    REAL(KIND=dp), OPTIONAL                  :: energy, order_p
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ks_matrix, w_matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: blk, i, iblock_col, &
-                                                iblock_row, ispin, nblock, &
-                                                nspin
-    LOGICAL                                  :: tr
-    REAL(kind=dp)                            :: mult, my_energy, my_order_p
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_deriv, &
-                                                ks_block, p_block, s_block, &
-                                                w_block
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
-
-    NULLIFY(p_matrix)
-
-! here we get the numbers for charges
-
-    CALL dbcsr_allocate_matrix_set( p_matrix, SIZE(p_matrix_sm), error )
-    DO i = 1,SIZE(p_matrix)
-       ALLOCATE(p_matrix(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(p_matrix(i)%matrix, p_matrix_sm(i)%matrix, error)
-    ENDDO
-
-    nspin=SIZE(p_matrix)
-    CALL dbcsr_get_info(s_matrix,nblkrows_total=nblock)
-
-    ALLOCATE(charges(nblock,nspin))
-    ALLOCATE(charges_deriv(nblock,nspin))
-    CALL compute_charges(p_matrix,s_matrix,charges,para_env)
-    !
-    ! this can be used to check the correct implementation of the derivative
-    ! CALL rf_deriv_check(mulliken_restraint_control,charges)
-    ! 
-    CALL restraint_functional(mulliken_restraint_control, &
-                              charges,charges_deriv,my_energy,my_order_p)
-
-    IF (PRESENT(order_p)) THEN
-        order_p=my_order_p
-    ENDIF
-    IF (PRESENT(energy)) THEN 
-        energy=my_energy
-    ENDIF
-
-    IF (PRESENT(ks_matrix)) THEN
-
-       DO ispin=1,nspin
-          CALL dbcsr_iterator_start(iter, s_matrix)
-          DO WHILE (dbcsr_iterator_blocks_left(iter))
-             CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, tr, blk)
-             CALL dbcsr_get_block_node(matrix=ks_matrix(ispin)%matrix,&
-                                       block_row=iblock_row,&
-                                       block_col=iblock_col,&
-                                       BLOCK=ks_block)
-
-             IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block) ) ) THEN
-                CALL stop_program("Mulliken","unexpected s / ks structure")
-             ENDIF
-                mult = 0.5_dp * charges_deriv(iblock_row,ispin) + &
-                       0.5_dp * charges_deriv(iblock_col,ispin)
-
-                ks_block=ks_block+mult*s_block
-
-          ENDDO
-          CALL dbcsr_iterator_stop(iter)
-       ENDDO
-
-    ENDIF
-
-    IF (PRESENT(w_matrix)) THEN
-
-       DO ispin=1,nspin
-          CALL dbcsr_iterator_start(iter, p_matrix(ispin)%matrix)
-          DO WHILE (dbcsr_iterator_blocks_left(iter))
-             CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, tr, blk)
-             CALL dbcsr_get_block_node(matrix=w_matrix(ispin)%matrix,&
-                                       block_row=iblock_row,&
-                                       block_col=iblock_col,&
-                                       BLOCK=w_block)
-
-             ! we can cycle if a block is not present
-             IF ( .NOT. (ASSOCIATED(w_block) .AND. ASSOCIATED(p_block) ) ) CYCLE
-
-             ! minus sign relates to convention for W 
-             mult = -0.5_dp * charges_deriv(iblock_row,ispin)   &
-                    -0.5_dp * charges_deriv(iblock_col,ispin)
-
-             w_block=w_block+mult*p_block
-
-          END DO
-          CALL dbcsr_iterator_stop(iter)
-       ENDDO
-
-    ENDIF
-
-    DEALLOCATE(charges)
-    DEALLOCATE(charges_deriv)
-
-    CALL dbcsr_deallocate_matrix_set( p_matrix, error=error )
-  END SUBROUTINE mulliken_restraint_old
-
-  SUBROUTINE mulliken_restraint_new(mulliken_restraint_control,para_env, &
+  SUBROUTINE mulliken_restraint(mulliken_restraint_control,para_env, &
                                 s_matrix,p_matrix,energy,order_p,ks_matrix,w_matrix,error)
     TYPE(mulliken_restraint_type), &
       INTENT(IN)                             :: mulliken_restraint_control
@@ -283,7 +162,7 @@ CONTAINS
     DEALLOCATE(charges)
     DEALLOCATE(charges_deriv)
 
-  END SUBROUTINE mulliken_restraint_new
+  END SUBROUTINE mulliken_restraint
 
 ! *****************************************************************************
 !> \brief computes energy and derivatives given a set of charges
@@ -445,11 +324,11 @@ END SUBROUTINE rf_deriv_check
 !> \par History
 !>      06.2004 adapted to remove explicit matrix multiply [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE mulliken_charges_a(p_matrix_sm,s_matrix,para_env,particle_set, &
+  SUBROUTINE mulliken_charges_a(p_matrix,s_matrix,para_env,particle_set, &
                                 scr,title,error)
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix
     TYPE(dbcsr_obj), POINTER                 :: s_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
@@ -461,19 +340,10 @@ END SUBROUTINE rf_deriv_check
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_a', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, nblock, nspin
+    INTEGER                                  :: handle, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
 
     CALL timeset(routineN,handle)
-
-    NULLIFY(p_matrix)
-    CALL dbcsr_allocate_matrix_set( p_matrix, SIZE(p_matrix_sm), error )
-    DO i = 1,SIZE(p_matrix)
-       ALLOCATE(p_matrix(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(p_matrix(i)%matrix, p_matrix_sm(i)%matrix, error)
-    ENDDO
 
     ! here we get the numbers for charges
     nspin=SIZE(p_matrix)
@@ -486,17 +356,15 @@ END SUBROUTINE rf_deriv_check
 
     DEALLOCATE(charges)
 
-    CALL dbcsr_deallocate_matrix_set( p_matrix, error=error )
-
     CALL timestop(handle)
 
   END SUBROUTINE mulliken_charges_a
 
 ! *****************************************************************************
-  SUBROUTINE mulliken_charges_b(p_matrix_sm,s_matrix,para_env,mcharge,error)
+  SUBROUTINE mulliken_charges_b(p_matrix,s_matrix,para_env,mcharge,error)
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix
     TYPE(dbcsr_obj), POINTER                 :: s_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge
@@ -505,22 +373,11 @@ END SUBROUTINE rf_deriv_check
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_b', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
+    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(p_matrix)
-    CALL dbcsr_allocate_matrix_set( p_matrix, SIZE(p_matrix_sm), error )
-    DO i = 1,SIZE(p_matrix)
-       ALLOCATE(p_matrix(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(p_matrix(i)%matrix, p_matrix_sm(i)%matrix, error)
-    ENDDO
-
     CALL compute_charges(p_matrix,s_matrix,mcharge,para_env)
-
-    CALL dbcsr_deallocate_matrix_set( p_matrix, error=error )
 
     CALL timestop(handle)
 

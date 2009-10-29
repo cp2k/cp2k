@@ -15,8 +15,6 @@ MODULE se_core_matrix
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
                                              dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -56,7 +54,6 @@ MODULE se_core_matrix
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
@@ -115,15 +112,13 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_sm
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-     NULLIFY ( matrix_p_sm,rho,force,atomic_kind_set,sab_orb,&
+     NULLIFY ( rho,force,atomic_kind_set,sab_orb,&
                diagmat_h,diagmat_p,particle_set, matrix_p )
 
      ! calculate overlap matrix
@@ -161,14 +156,7 @@ CONTAINS
                        particle_set=particle_set,&
                        rho=rho,&
                        force=force,error=error)
-       matrix_p_sm => rho%rho_ao
-
-       NULLIFY(matrix_p)!sm->dbcsr
-       CALL dbcsr_allocate_matrix_set(matrix_p,SIZE(matrix_p_sm),error)!sm->dbcsr
-       DO i=1,SIZE(matrix_p)!sm->dbcsr
-          ALLOCATE(matrix_p(i)%matrix)
-          CALL dbcsr_from_sm( matrix_p(i)%matrix, matrix_p_sm(i)%matrix, error=error )!sm->dbcsr
-       ENDDO!sm->dbcsr
+       matrix_p => rho%rho_ao
 
        IF (SIZE(matrix_p) == 2) THEN
           CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, alpha_scalar=1.0_dp, beta_scalar=1.0_dp, error=error)
@@ -410,7 +398,6 @@ CONTAINS
      END IF
 
      CALL dbcsr_deallocate_matrix(diagmat_h,error=error)
-     CALL dbcsr_deallocate_matrix_set(matrix_p,error=error)
 
   END SUBROUTINE build_se_core_matrix
 

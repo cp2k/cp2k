@@ -87,7 +87,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE kg_gpw_ekin_mol(qs_env,molbox_env,fm_mol_set,ks_global_b,p_global,&
+  SUBROUTINE kg_gpw_ekin_mol(qs_env,molbox_env,fm_mol_set,ks_global_b,p_global_b,&
                              ekin_mol,calculate_forces,just_energy,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -96,9 +96,7 @@ CONTAINS
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: fm_mol_set
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_global_b
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_global
+      POINTER                                :: ks_global_b, p_global_b
     REAL(dp), INTENT(OUT)                    :: ekin_mol
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -137,7 +135,7 @@ CONTAINS
       POINTER                                :: force_global
     TYPE(qs_rho_type), POINTER               :: rho_global, rho_mol
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_global
+      POINTER                                :: ks_global, p_global
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), POINTER                  :: rho_mol_blocks
     TYPE(rho_mol_blocks_type), POINTER       :: rho_block
@@ -157,6 +155,12 @@ CONTAINS
     CALL allocate_matrix_set( ks_global, SIZE(ks_global_b), error )!sm->dbcsr
     DO ispin=1,SIZE(ks_global)!sm->dbcsr
        CALL sm_from_dbcsr(ks_global(ispin)%matrix, ks_global_b(ispin)%matrix, distribution_2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(p_global)!sm->dbcsr
+    CALL allocate_matrix_set( p_global, SIZE(p_global_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(p_global)!sm->dbcsr
+       CALL sm_from_dbcsr(p_global(ispin)%matrix, p_global_b(ispin)%matrix, distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     ! initialize to zero
@@ -472,6 +476,13 @@ CONTAINS
        CALL dbcsr_from_sm(ks_global_b(ispin)%matrix, ks_global(ispin)%matrix, error)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( ks_global, error )!sm->dbcsr
+
+    DO ispin=1,SIZE(p_global)!sm->dbcsr
+       CALL dbcsr_deallocate_matrix(p_global_b(ispin)%matrix,error)
+       ALLOCATE(p_global_b(ispin)%matrix)
+       CALL dbcsr_from_sm(p_global_b(ispin)%matrix, p_global(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL deallocate_matrix_set( p_global, error )!sm->dbcsr
 
     CALL timestop(handle)
 

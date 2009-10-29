@@ -11,12 +11,12 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_rho_types
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             real_matrix_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -53,7 +53,7 @@ MODULE qs_rho_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE qs_rho_type
-     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
+     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: rho_ao
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: drho_g, drho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: tau_g, tau_r
@@ -136,7 +136,7 @@ CONTAINS
              IF(rho_struct%soft_valid) THEN
                NULLIFY(rho_struct%rho_ao)
              ELSE
-               CALL deallocate_matrix_set(rho_struct%rho_ao,error=error)
+               CALL dbcsr_deallocate_matrix_set(rho_struct%rho_ao,error=error)
              ENDIF
           END IF
           IF (ASSOCIATED(rho_struct%rho_r)) THEN
@@ -249,7 +249,7 @@ CONTAINS
        rho_r_valid, drho_r_valid, rho_g_valid, drho_g_valid, tau_r_valid, tau_g_valid, &
        rebuild_each, tot_rho_r, soft_valid, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(real_matrix_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_ao
     TYPE(pw_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_r, drho_r, rho_g, drho_g, &

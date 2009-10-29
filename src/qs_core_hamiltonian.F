@@ -86,7 +86,6 @@ MODULE qs_core_hamiltonian
                                              dbcsr_allocate_matrix,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_replicate_matrix_struct
@@ -138,7 +137,6 @@ MODULE qs_core_hamiltonian
                                              vtriple_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE timings,                         ONLY: timeset,&
@@ -189,11 +187,10 @@ CONTAINS
                                                 lb_max, lb_min, npgfa, npgfb, &
                                                 nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: all_potential_present, allocated_w, &
-      build_kinetic_energy_matrix, do_ep, epr_calculation, failure, &
-      gth_potential_present, harris_flag, new_atom_b, oce_present, &
-      ppl_present, return_s_derivatives, return_t_derivatives, rho0_present, &
-      use_virial, xas_calculation
+    LOGICAL :: all_potential_present, build_kinetic_energy_matrix, do_ep, &
+      epr_calculation, failure, gth_potential_present, harris_flag, &
+      new_atom_b, oce_present, ppl_present, return_s_derivatives, &
+      return_t_derivatives, rho0_present, use_virial, xas_calculation
     REAL(KIND=dp)                            :: dab, eps_fit, eps_ppnl, f, &
                                                 f0, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -237,8 +234,6 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_tmp, matrix_w_tmp
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_rho0
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -265,7 +260,6 @@ CONTAINS
     NULLIFY (habt)
     NULLIFY (oce)
     NULLIFY (VH_3c_list)
-    NULLIFY (matrix_p_tmp)
     NULLIFY (pabt)
     NULLIFY (particle_set)
     NULLIFY (rho)
@@ -335,36 +329,21 @@ CONTAINS
        IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
        IF (harris_flag) THEN
           CALL get_qs_env(qs_env=qs_env, harris_env=harris_env,error=error)
-          matrix_p_tmp => harris_env%rho%rho_ao
+          matrix_p => harris_env%rho%rho_ao
        ELSE
           CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
-          matrix_p_tmp => rho%rho_ao
+          matrix_p => rho%rho_ao
        END IF
 
-       allocated_w = .FALSE.!sm->dbcsr
        IF (do_ep) THEN
           IF (ASSOCIATED(ep_qs_env%dH_coeffs)) THEN
-             matrix_p_tmp => ep_qs_env%dH_coeffs
+             matrix_p => ep_qs_env%dH_coeffs
           END IF
           IF (ASSOCIATED(ep_qs_env%dS_coeffs)) THEN
-             matrix_w_tmp => ep_qs_env%dS_coeffs
-
-             NULLIFY(matrix_w)!sm->dbcsr
-             CALL dbcsr_allocate_matrix_set( matrix_w, SIZE(matrix_w_tmp), error )!sm->dbcsr
-             DO i = 1,SIZE(matrix_w_tmp)!sm->dbcsr
-                ALLOCATE(matrix_w(i)%matrix)!sm->dbcsr
-                CALL dbcsr_from_sm(matrix_w(i)%matrix, matrix_w_tmp(i)%matrix, error)!sm->dbcsr
-             ENDDO!sm->dbcsr
-             allocated_w = .TRUE.!sm->dbcsr
+             matrix_w => ep_qs_env%dS_coeffs
 
           END IF
        END IF
-
-       CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_tmp), error )
-       DO i = 1,SIZE(matrix_p_tmp)
-          ALLOCATE(matrix_p(i)%matrix)!super dirty
-          CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_tmp(i)%matrix, error)
-       ENDDO
 
        !     *** If LSD, then combine alpha density and beta density to
        !     *** total density: alpha <- alpha + beta   and
@@ -1041,11 +1020,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
-    IF (calculate_forces) THEN
-       CALL dbcsr_deallocate_matrix_set ( matrix_p, error )
-       IF(allocated_w) CALL dbcsr_deallocate_matrix_set ( matrix_w, error )!sm->dbcsr
-    ENDIF
-
     ! Print matrices if requested
     CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
          oce, qs_env, calculate_forces, para_env, error)

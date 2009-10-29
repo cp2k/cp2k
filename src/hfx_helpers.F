@@ -11,13 +11,17 @@
 ! *****************************************************************************
 MODULE hfx_helpers 
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
+                                             dbcsr_get_info,&
+                                             dbcsr_get_matrix_type,&
+                                             dbcsr_get_num_blocks
+  USE dbcsr_types,                     ONLY: dbcsr_obj,&
+                                             dbcsr_type_symmetric
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
   USE message_passing,                 ONLY: mp_sum
-  USE sparse_matrix_types,             ONLY: get_matrix_info,&
-                                             real_matrix_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -181,7 +185,7 @@ MODULE hfx_helpers
 !> \author Manuel Guidon
 ! *****************************************************************************
 FUNCTION get_occupation(matrix,para_env,error)
-    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(dp)                                 :: get_occupation
@@ -189,7 +193,6 @@ FUNCTION get_occupation(matrix,para_env,error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_occupation', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: matrix_symmetry
     INTEGER                                  :: group, mype, natom, &
                                                 nblock_sum, nblock_tot, npe, &
                                                 stat
@@ -212,19 +215,15 @@ FUNCTION get_occupation(matrix,para_env,error)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nelement(:) = 0
 
-    matrix_symmetry = ""
-    CALL get_matrix_info(matrix=matrix,&
-                         matrix_symmetry=matrix_symmetry,&
-                         nblock_allocated=nblock(mype),&
-                         nelement_allocated=nelement(mype),&
-                         nblock_row=natom)
-
+    nblock(mype) = dbcsr_get_num_blocks(matrix)
+    nelement(mype) = dbcsr_get_data_size(matrix)
+    CALL dbcsr_get_info(matrix=matrix,nblkrows_total=natom)
     CALL mp_sum(nblock,group)
     CALL mp_sum(nelement,group)
 
     nblock_sum = SUM(nblock)
 
-    IF (TRIM(matrix_symmetry) == "symmetric") THEN
+    IF (dbcsr_get_matrix_type(matrix) == dbcsr_type_symmetric) THEN
       nblock_tot = natom*(natom + 1)/2
     ELSE
       nblock_tot = natom*natom

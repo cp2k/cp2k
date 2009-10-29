@@ -20,13 +20,13 @@ MODULE  rt_propagation_utils
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_struct,&
-                                             sm_from_dbcsr
+                                             dbcsr_replicate_matrix_struct
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -42,7 +42,6 @@ MODULE  rt_propagation_utils
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_restart_wfn,&
@@ -73,9 +72,6 @@ MODULE  rt_propagation_utils
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE scp_environment_types,           ONLY: scp_environment_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             deallocate_matrix_set,&
-                                             real_matrix_p_type
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE timings,                         ONLY: timeset,&
@@ -166,8 +162,6 @@ MODULE  rt_propagation_utils
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s_derivs_sm
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure = .FALSE.
@@ -177,7 +171,6 @@ MODULE  rt_propagation_utils
 
     NULLIFY (atomic_kind_set)
     NULLIFY (force)
-    NULLIFY(s_derivs_sm)
     NULLIFY (particle_set)
     NULLIFY (sab)
     NULLIFY(rtp)
@@ -453,14 +446,11 @@ MODULE  rt_propagation_utils
         DEALLOCATE (ai_work,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END DO
-    END DO
+   END DO
 
-    CALL allocate_matrix_set(s_derivs_sm,SIZE(s_derivs),error=error)
     DO i = 1,SIZE(s_derivs)
        CALL dbcsr_finalize(s_derivs(i)%matrix,error=error)
-       CALL sm_from_dbcsr ( s_derivs_sm(i)%matrix, s_derivs(i)%matrix, distribution_2d, error=error )
     ENDDO
-    CALL dbcsr_deallocate_matrix_set ( s_derivs, error=error )
  
     DEALLOCATE (sab,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -512,7 +502,8 @@ MODULE  rt_propagation_utils
 
     DO m=1,3
 
-       CALL copy_sm_to_fm(s_derivs_sm(m)%matrix,tmp_mat2,error=error)
+WRITE(*,*) __FILE__,__LINE__,'enter copy_dbcsr_to_fm'
+       CALL copy_dbcsr_to_fm(s_derivs(m)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
        DO icol_local=1,ncol_local
           DO irow_local=1,nrow_local
@@ -551,7 +542,7 @@ MODULE  rt_propagation_utils
     END DO
     
     DO m=1,6
-       CALL copy_sm_to_fm(s_derivs_sm(m+3)%matrix,tmp_mat2,error=error)
+       CALL copy_dbcsr_to_fm(s_derivs(m+3)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
        DO j=1,2
           IF(c_map_mat(m,j)==0)CYCLE
@@ -576,7 +567,7 @@ MODULE  rt_propagation_utils
 
     CALL cp_fm_release(tmp_mat,error)
     CALL cp_fm_release(tmp_mat2,error)
-    CALL deallocate_matrix_set(s_derivs_sm,error)
+    CALL dbcsr_deallocate_matrix_set(s_derivs,error)
     DEALLOCATE(row_atom_index,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(col_atom_index,stat=stat)
@@ -609,13 +600,13 @@ MODULE  rt_propagation_utils
     LOGICAL                                  :: scp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: p_rmpv
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_rmpv
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
@@ -836,7 +827,7 @@ MODULE  rt_propagation_utils
        !calculate the W matrix analogue for EMD
 
        CALL cp_fm_create(p,C_mat(1)%matrix%matrix_struct,error=error)
-       CALL copy_sm_to_fm(qs_env%rho%rho_ao(ispin)%matrix,p,error=error)
+       CALL copy_dbcsr_to_fm(qs_env%rho%rho_ao(ispin)%matrix,p,error=error)
        CALL cp_fm_upper_to_full(p,tmp_mat,error)
 
        

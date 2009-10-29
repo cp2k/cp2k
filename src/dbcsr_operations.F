@@ -4230,6 +4230,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     shallow = .FALSE. ; IF (PRESENT (shallow_data)) shallow = shallow_data
 
+WRITE(*,*) __FILE__,__LINE__,ASSOCIATED(matrix_a%m%row_blk_size%low)
+WRITE(*,*) __FILE__,__LINE__,ASSOCIATED(matrix_a%m%row_blk_size%low%data)
+
     IF(PRESENT(name)) THEN
        CALL dbcsr_create(matrix_b, name, &
             matrix_a%m%dist, matrix_a%m%matrix_type, matrix_a%m%row_blk_size,&
@@ -4932,7 +4935,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
-    integer, dimension(:), allocatable       :: map_row_el_blk, map_col_el_blk
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: map_row_el_blk, map_col_el_blk
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -4995,12 +4998,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     nblkrows_total_new = dbcsr_nblkrows_total (redist)
     nblkcols_total_new = dbcsr_nblkcols_total (redist)
     ! Create mappings of elements to new blocks.
-    allocate (map_row_el_blk (dbcsr_nfullrows_total (redist)))
-    call fill_map (map_row_el_blk, dbcsr_nfullrows_total (redist),&
+    ALLOCATE (map_row_el_blk (dbcsr_nfullrows_total (redist)))
+    CALL fill_map (map_row_el_blk, dbcsr_nfullrows_total (redist),&
          row_start_new, nblkrows_total_new,&
          row_blk_size_new(nblkrows_total_new))
-    allocate (map_col_el_blk (dbcsr_nfullcols_total (redist)))
-    call fill_map (map_col_el_blk, dbcsr_nfullcols_total (redist),&
+    ALLOCATE (map_col_el_blk (dbcsr_nfullcols_total (redist)))
+    CALL fill_map (map_col_el_blk, dbcsr_nfullcols_total (redist),&
          col_start_new, nblkcols_total_new,&
          col_blk_size_new(nblkcols_total_new))
     !
@@ -5308,14 +5311,19 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
   CONTAINS
     SUBROUTINE fill_map (map, nfull, offsets, nblks, last_size)
-      integer, dimension(nfull), intent(out) :: map
-      integer, dimension(nblks), intent(in)  :: offsets
-      integer, intent(in)                    :: nfull, nblks, last_size
-      integer                                :: blk
-      !
-      forall (blk = 1:nblks-1)
+    INTEGER, INTENT(in)                      :: nfull
+    INTEGER, DIMENSION(nfull), INTENT(out)   :: map
+    INTEGER, INTENT(in)                      :: nblks
+    INTEGER, DIMENSION(nblks), INTENT(in)    :: offsets
+    INTEGER, INTENT(in)                      :: last_size
+
+    INTEGER                                  :: blk
+
+!
+
+      FORALL (blk = 1:nblks-1)
          map(offsets(blk):offsets(blk+1)-1) = blk
-      end forall
+      END FORALL
       map(offsets(nblks):offsets(nblks)+last_size-1) = nblks
     END SUBROUTINE fill_map
   END SUBROUTINE dbcsr_complete_redistribute

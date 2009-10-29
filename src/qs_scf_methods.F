@@ -14,12 +14,8 @@
 ! *****************************************************************************
 MODULE qs_scf_methods
 
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -54,7 +50,6 @@ MODULE qs_scf_methods
                                              get_mo_set,&
                                              mo_set_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -88,11 +83,11 @@ CONTAINS
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_env_density_mixing(p_mix_new_sm,scf_env,iter_delta,&
+  SUBROUTINE scf_env_density_mixing(p_mix_new,scf_env,iter_delta,&
                                     qs_env,diis,invert,error)
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_mix_new_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: p_mix_new
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -107,18 +102,12 @@ CONTAINS
     LOGICAL                                  :: failure, my_invert
     REAL(KIND=dp)                            :: my_p_mix, tmp
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_mix_new, rho_ao
+      POINTER                                :: rho_ao
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(p_mix_new,rho_ao)
-    CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(p_mix_new_sm), error )!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(p_mix_new_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(p_mix_new)
-       ALLOCATE(p_mix_new(ispin)%matrix,rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, p_mix_new_sm(ispin)%matrix, error)!sm->dbcsr
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)!sm->dbcsr
-    ENDDO
+    NULLIFY(rho_ao)
+    rho_ao => qs_env%rho%rho_ao
 
     failure=.FALSE.
     my_invert=.FALSE.
@@ -153,14 +142,6 @@ CONTAINS
           END IF
        END DO
     END IF
-
-    DO ispin=1,SIZE(p_mix_new)
-       CALL sm_from_dbcsr( p_mix_new_sm(ispin)%matrix, p_mix_new(ispin)%matrix, &
-            qs_env%rho%rho_ao(ispin)%matrix%distribution_2d, error=error )
-    ENDDO
-
-    CALL dbcsr_deallocate_matrix_set( p_mix_new, error=error )
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )
 
     CALL timestop(handle)
 

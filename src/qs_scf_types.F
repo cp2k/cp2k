@@ -10,6 +10,8 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_scf_types
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
@@ -29,8 +31,6 @@ MODULE qs_scf_types
                                              qs_diis_buffer_type
   USE qs_ot_types,                     ONLY: qs_ot_destroy,&
                                              qs_ot_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -128,7 +128,7 @@ TYPE qs_scf_env_type
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
    TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, s_half, s_minus_one
    TYPE(krylov_space_type), POINTER :: krylov_space
-   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
+   TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
    TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
    TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
@@ -255,10 +255,10 @@ CONTAINS
   CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-        CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
+        CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)
      END IF
      IF (ASSOCIATED(scf_env%p_delta)) THEN
-        CALL deallocate_matrix_set(scf_env%p_delta,error=error)
+        CALL dbcsr_deallocate_matrix_set(scf_env%p_delta,error=error)
      END IF
   END IF
 
@@ -298,11 +298,11 @@ CONTAINS
         CALL cp_fm_release(scf_env%s_minus_one,error=error)
         IF (ASSOCIATED(scf_env%p_mix_new)) THEN
            CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
-           CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
+           CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)
         ENDIF
         IF (ASSOCIATED(scf_env%p_delta)) THEN
            CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
-           CALL deallocate_matrix_set(scf_env%p_delta,error=error)
+           CALL dbcsr_deallocate_matrix_set(scf_env%p_delta,error=error)
         ENDIF
         IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
            DO i=1,SIZE(scf_env%ot_preconditioner)

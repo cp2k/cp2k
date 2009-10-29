@@ -11,12 +11,8 @@
 ! *****************************************************************************
 MODULE harris_functional
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_trace
   USE f77_blas
   USE harris_energy_types,             ONLY: harris_energy_type
@@ -45,7 +41,6 @@ MODULE harris_functional
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -315,8 +310,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao_sm
 
 !   ------------------------------------------------------------------------
 
@@ -335,16 +328,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, matrix_ks=matrix_ks, &
                       para_env=para_env, error=error)
-      CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao_sm, error=error)
-
-    NULLIFY(rho_ao)
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
+      CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, error=error)
 
       nspins = dft_control%nspins
       DO ispin = 1,nspins
@@ -354,9 +338,6 @@ CONTAINS
 
       harris_energy%Eharris = harris_energy%sum_of_eigenvalues &
                             + harris_energy%Eharris_correction
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
-
     END IF
 
     CALL timestop(handle)
@@ -392,7 +373,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, p_mix_new
+      POINTER                                :: matrix_ks
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
 
@@ -416,26 +397,15 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks, &
                       para_env=para_env, error=error)
 
-    NULLIFY(p_mix_new)
-    CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(scf_env%p_mix_new), error )!sm->dbcsr
-    DO ispin=1,SIZE(p_mix_new)!sm->dbcsr
-       ALLOCATE(p_mix_new(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(p_mix_new(ispin)%matrix)
-       CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
       nspins = dft_control%nspins
       DO ispin = 1,nspins
-        CALL dbcsr_trace(matrix_ks(ispin)%matrix, p_mix_new(ispin)%matrix, &
+        CALL dbcsr_trace(matrix_ks(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
                             trace=harris_energy%sum_of_eigenvalues, &
                             error=error)
       END DO
 
       harris_energy%Eharris = harris_energy%sum_of_eigenvalues + &
                               harris_energy%Eharris_correction
-
-CALL dbcsr_deallocate_matrix_set( p_mix_new, error=error )!sm->dbcsr
-
     END IF
 
     CALL timestop(handle)

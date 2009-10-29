@@ -19,6 +19,9 @@ MODULE cp_dbcsr_output
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -60,10 +63,90 @@ MODULE cp_dbcsr_output
 
   PUBLIC :: dbcsr_write_sparse_matrix
   PUBLIC :: dbcsr_write_matrix_distribution
+  PUBLIC :: write_fm_with_basis_info
 
   PRIVATE
 
 CONTAINS
+
+
+! *****************************************************************************
+!> \brief Print a spherical matrix of blacs type. 
+!> \author Creation (12.06.2001,MK)
+!>       Allow for printing of a sub-matrix (01.07.2003,MK)
+! *****************************************************************************
+  SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,para_env,&
+       first_row,last_row,first_col,last_col,output_unit,error)
+
+    TYPE(cp_fm_type), POINTER                :: blacs_matrix
+    INTEGER, INTENT(IN)                      :: before, after
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
+                                                first_col, last_col
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_fm_with_basis_info', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=60)                        :: matrix_name
+    INTEGER                                  :: col1, col2, group, &
+                                                ncol_global, nrow_global, &
+                                                nsgf, row1, row2, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+
+    failure = .FALSE.
+    group = para_env%group
+    IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
+    CALL cp_fm_get_info(blacs_matrix,name=matrix_name,nrow_global=nrow_global,&
+         ncol_global=ncol_global,error=error)
+
+    ALLOCATE(matrix(nrow_global,ncol_global),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_fm_get_submatrix(blacs_matrix,matrix,error=error)
+
+    ! *** Get the matrix dimension and check the optional arguments ***
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+
+    IF (PRESENT(first_row)) THEN
+      row1 = MAX(1,first_row)
+    ELSE
+      row1 = 1
+    END IF
+
+    IF (PRESENT(last_row)) THEN
+      row2 = MIN(nsgf,last_row)
+    ELSE
+      row2 = nsgf
+    END IF
+
+    IF (PRESENT(first_col)) THEN
+      col1 = MAX(1,first_col)
+    ELSE
+      col1 = 1
+    END IF
+
+    IF (PRESENT(last_col)) THEN
+      col2 = MIN(nsgf,last_col)
+    ELSE
+      col2 = nsgf
+    END IF
+
+    CALL write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
+         row1,row2,col1,col2,output_unit,error=error)
+
+    ! *** Release work storage ***
+    IF (ASSOCIATED(matrix)) THEN
+       DEALLOCATE (matrix,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    
+  END SUBROUTINE write_fm_with_basis_info
 
   SUBROUTINE dbcsr_write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
                                       first_row,last_row,first_col,last_col,scale,&

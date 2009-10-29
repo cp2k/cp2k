@@ -15,11 +15,9 @@ MODULE qs_p_env_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_plus_fm_fm_t,&
-                                             dbcsr_sm_fm_multiply,&
-                                             sm_from_dbcsr
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
@@ -48,7 +46,6 @@ MODULE qs_p_env_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
@@ -86,9 +83,6 @@ MODULE qs_p_env_methods
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-                                             real_matrix_p_type,&
-                                             set_matrix
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -197,7 +191,6 @@ CONTAINS
        IF (PRESENT(p1_option)) THEN
           p_env%p1 => p1_option
        ELSE
-
 
           CALL dbcsr_allocate_matrix_set(p_env%p1,n_spins,error)
           DO spin=1, n_spins
@@ -369,6 +362,7 @@ CONTAINS
              CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc,error=error)
              p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
           END IF
+
        END IF
 
        IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
@@ -586,14 +580,13 @@ END SUBROUTINE p_env_did_change
              CALL get_mo_set(mos(spin)%mo_set,lfomo=lfomo,&
                   nmo=nmo,maxocc=maxocc)
              IF (lfomo>nmo) THEN
-                CALL set_matrix(qs_env%rho%rho_ao(spin)%matrix,&
-                     value=0.0_dp)
-                CALL cp_sm_plus_fm_fm_t(qs_env%rho%rho_ao(spin)%matrix,&
+                CALL dbcsr_set(qs_env%rho%rho_ao(spin)%matrix,0.0_dp,error=error)
+                CALL dbcsr_plus_fm_fm_t(qs_env%rho%rho_ao(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
                      ncol=p_env%n_mo(spin),error=error)
-                CALL cp_sm_scale_and_add(alpha=maxocc,&
-                     matrix_a=qs_env%rho%rho_ao(spin)%matrix,error=error)
+                CALL dbcsr_scale(qs_env%rho%rho_ao(spin)%matrix,alpha_scalar=maxocc,&
+                     error=error)
              ELSE
                 CALL cp_unimplemented_error(fromWhere=routineP,&
                      message="symmetrized onesided smearing to do",&
@@ -863,8 +856,10 @@ END SUBROUTINE p_env_did_change
        n_spins = dft_control%nspins
 
        DO ispin=1, SIZE(p1)
-          CALL sm_from_dbcsr(p_env%rho1%rho_ao(ispin)%matrix,p1(ispin)%matrix,&
-               p1(ispin)%matrix%m%dist2d,error=error)
+          ! hack to avoid crashes in ep regs
+          IF(.not.ASSOCIATED(p_env%rho1%rho_ao(ispin)%matrix,p1(ispin)%matrix)) THEN
+             CALL dbcsr_copy(p_env%rho1%rho_ao(ispin)%matrix,p1(ispin)%matrix,error=error)
+          ENDIF
        ENDDO
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
                               qs_env=qs_env, error=error)
@@ -1169,8 +1164,6 @@ END SUBROUTINE p_env_did_change
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p1_new_sm
 
     CALL timeset(routineN,handle)
 
@@ -1195,16 +1188,7 @@ END SUBROUTINE p_env_did_change
             error=error)
        n_spins=dft_control%nspins
 
-       p1_new_sm => p_env%rho1%rho_ao
-
-    NULLIFY(p1_new)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( p1_new, SIZE(p1_new_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(p1_new)!sm->dbcsr
-       ALLOCATE(p1_new(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(p1_new(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(p1_new(ispin)%matrix, p1_new_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
+       p1_new => p_env%rho1%rho_ao
 
     END IF
     IF (.not.failure) THEN
@@ -1238,12 +1222,6 @@ END SUBROUTINE p_env_did_change
        END DO
        CALL p_op_l2(p_env, qs_env, p1_new, res, alpha=my_alpha, beta=my_beta, error=error)
     END IF
-
-    DO ispin=1,SIZE(p1_new)!sm->dbcsr
-       CALL sm_from_dbcsr(p1_new_sm(ispin)%matrix, p1_new(ispin)%matrix, &!sm->dbcsr
-            p1_new(ispin)%matrix%m%dist2d, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-    CALL dbcsr_deallocate_matrix_set( p1_new, error )!sm->dbcsr
 
     CALL timestop(handle)
 

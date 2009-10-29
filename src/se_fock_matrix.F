@@ -16,10 +16,7 @@ MODULE se_fock_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -64,7 +61,6 @@ MODULE se_fock_matrix
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_finalize,&
                                              semi_empirical_si_initialize,&
                                              semi_empirical_si_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -121,8 +117,6 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_sm
     TYPE(scp_energy_type), POINTER           :: energy_scp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -163,14 +157,7 @@ CONTAINS
        se_control  => dft_control%qs_control%se_control
        scp_nddo    =  se_control%scp
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
-       matrix_p_sm => rho%rho_ao
-
-       NULLIFY(matrix_p)
-       CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
-       DO ispin=1,SIZE(matrix_p)!sm->dbcsr
-          ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
-          CALL dbcsr_from_sm(matrix_p(ispin)%matrix, matrix_p_sm(ispin)%matrix, error)!sm->dbcsr
-       ENDDO!sm->dbcsr
+       matrix_p => rho%rho_ao
 
        energy%qmmm_el = 0.0_dp
 
@@ -301,8 +288,6 @@ CONTAINS
        ENDIF
 
     END SELECT
-
-    CALL dbcsr_deallocate_matrix_set ( matrix_p, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

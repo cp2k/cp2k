@@ -65,7 +65,7 @@ MODULE qs_kpp1_env_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace_half_half
+  USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
@@ -74,8 +74,6 @@ MODULE qs_kpp1_env_methods
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_calc_2nd_deriv,&
@@ -413,8 +411,8 @@ CONTAINS
                 END IF
                 ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
                 CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
-                CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
-                     p_sm=rho%rho_ao(ispin),&
+                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                     p=rho%rho_ao(ispin),&
                      h=kpp1_env%v_ao(ispin),&
                      qs_env=qs_env,&
                      calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
@@ -425,8 +423,8 @@ CONTAINS
                                                v_hartree_rspace%pw%pw_grid%dvol
                     v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
 
-                    CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
-                         p_sm=rho%rho_ao(ispin),&
+                    CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                         p=rho%rho_ao(ispin),&
                          h=kpp1_env%v_ao(ispin),&
                          qs_env=qs_env,&
                          calculate_forces=.FALSE.,gapw=gapw,error=error)
@@ -434,22 +432,22 @@ CONTAINS
              ELSE
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
                CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
-               CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
-                     p_sm=rho%rho_ao(ispin),&
-                     h=kpp1_env%v_ao(ispin),&
-                     qs_env=qs_env,&
-                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                    p=rho%rho_ao(ispin),&
+                    h=kpp1_env%v_ao(ispin),&
+                    qs_env=qs_env,&
+                    calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
 
                IF (ispin == 1) THEN
                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
                                              v_hartree_rspace%pw%pw_grid%dvol
                END IF
                v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
-               CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
-                         p_sm=rho%rho_ao(ispin),&
-                         h=kpp1_env%v_ao(ispin),&
-                         qs_env=qs_env,&
-                         calculate_forces=.FALSE.,gapw=gapw,error=error)
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                    p=rho%rho_ao(ispin),&
+                    h=kpp1_env%v_ao(ispin),&
+                    qs_env=qs_env,&
+                    calculate_forces=.FALSE.,gapw=gapw,error=error)
              END IF
 
           ELSE
@@ -483,8 +481,8 @@ CONTAINS
 
             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
             CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
-            CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
-                 p_sm=rho%rho_ao(ispin),&
+            CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                 p=rho%rho_ao(ispin),&
                  h=kpp1_env%v_ao(ispin),&
                  qs_env=qs_env,&
                  calculate_forces=.FALSE.,gapw=gapw,error=error)
@@ -556,10 +554,8 @@ CONTAINS
     INTEGER                                  :: ispin, nspins
     REAL(KIND=dp)                            :: my_diff
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_2, matrix_s
+      POINTER                                :: ks_2, matrix_s, rho_ao
     TYPE(qs_energy_type), POINTER            :: qs_energy
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao
 
     NULLIFY(ks_2,matrix_s,qs_energy)
     nspins = SIZE(k_p_p1)
@@ -574,8 +570,8 @@ CONTAINS
     ! rho = rho0+h/2*rho1
     my_diff=my_diff/2.0_dp
     DO ispin=1,SIZE(k_p_p1)
-       CALL cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,&
-            matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff,error=error)
+       CALL dbcsr_add(rho%rho_ao(ispin)%matrix,rho1%rho_ao(ispin)%matrix,&
+            beta_scalar=my_diff,error=error)
        rho%rho_r(ispin)%pw%cr3d=rho%rho_r(ispin)%pw%cr3d+&
             my_diff*rho1%rho_r(ispin)%pw%cr3d
        rho%rho_g(ispin)%pw%cc=rho%rho_g(ispin)%pw%cc+&
@@ -598,8 +594,8 @@ CONTAINS
     ! rho = rho0-h/2*rho1
     my_diff=-2.0_dp*my_diff
     DO ispin=1,nspins
-       CALL cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,&
-            matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff,error=error)
+       CALL dbcsr_add(rho%rho_ao(ispin)%matrix,rho1%rho_ao(ispin)%matrix,&
+            beta_scalar=my_diff,error=error)
        rho%rho_r(ispin)%pw%cr3d=rho%rho_r(ispin)%pw%cr3d+&
             my_diff*rho1%rho_r(ispin)%pw%cr3d
        rho%rho_g(ispin)%pw%cc=rho%rho_g(ispin)%pw%cc+&
@@ -614,8 +610,8 @@ CONTAINS
     ! rho = rho0
     my_diff=-0.5_dp*my_diff
     DO ispin=1,nspins
-       CALL cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,&
-            matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff,error=error)
+       CALL dbcsr_add(rho%rho_ao(ispin)%matrix,rho1%rho_ao(ispin)%matrix,&
+            beta_scalar=my_diff,error=error)
        rho%rho_r(ispin)%pw%cr3d=rho%rho_r(ispin)%pw%cr3d+&
             my_diff*rho1%rho_r(ispin)%pw%cr3d
        rho%rho_g(ispin)%pw%cc=rho%rho_g(ispin)%pw%cc+&

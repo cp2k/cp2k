@@ -44,9 +44,11 @@ MODULE qs_scf
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix,&
+                                             write_fm_with_basis_info
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_power
@@ -69,8 +71,7 @@ MODULE qs_scf
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             sm_pools_flush_cache,&
-                                             sm_pools_give_back_matrix_vect
+                                             sm_pools_flush_cache
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_set
@@ -180,10 +181,6 @@ MODULE qs_scf
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type,&
                                              set_scp_env
-  USE sparse_matrix_output,            ONLY: write_fm_with_basis_info,&
-                                             write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             transfer_matrix
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -792,14 +789,14 @@ CONTAINS
                                             qs_env=qs_env,diis=diis_step,&
                                             invert=.TRUE.,error=error)
                   DO ispin=1,dft_control%nspins
-                     CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                          rho%rho_ao(ispin)%matrix,error=error)
+                     CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                          error=error)
                   END DO
                 CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
                       broyden_mixing_new_nr,multisecant_mixing_nr)
                   DO ispin=1,dft_control%nspins
-                     CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                        rho%rho_ao(ispin)%matrix,error=error)
+                     CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                          error=error)
                   END DO
                 END SELECT
              ENDIF
@@ -853,8 +850,8 @@ CONTAINS
           ! ** mixing methods have the new density matrix in p_mix_new **
           IF (scf_env%mixing_method>0) THEN
              DO ispin=1,dft_control%nspins
-                CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                     rho%rho_ao(ispin)%matrix,error=error)
+                CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                     error=error)
               END DO
           ENDIF
 
@@ -1174,13 +1171,11 @@ END SUBROUTINE qs_scf_print_summary
                                                 orthonormality
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
 
@@ -1205,7 +1200,7 @@ END SUBROUTINE qs_scf_print_summary
            dft_section,"PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
          iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/DENSITY",&
               extension=".Log",error=error)
-         CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,para_env,&
+         CALL dbcsr_write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,para_env,&
               output_unit=iw,error=error)
          CALL cp_print_key_finished_output(iw,logger,dft_section,&
               "PRINT%AO_MATRICES/DENSITY", error=error)
@@ -1823,7 +1818,7 @@ CPSourceFileRef)
     ! do some assertions here on these matrices having the same structure
     id_equal=ALL((/((matrix_s(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(matrix_s))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((rho%rho_ao(i)%matrix%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(rho%rho_ao))/))
+    id_equal=ALL((/((rho%rho_ao(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(rho%rho_ao))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     id_equal=ALL((/((matrix_h(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(matrix_h))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
@@ -2249,7 +2244,7 @@ CPSourceFileRef)
 !   *** allocate the mixing storage
     IF (scf_env%mixing_method>0) THEN
       CALL mixing_allocate(scf_env,scf_env%mixing_method,scf_env%mixing_store,&
-          S_sm_pools,dft_control%nspins,error)
+           matrix_s,dft_control%nspins,error)
     END IF
 
 !   *** allocate the ks env **
@@ -2399,8 +2394,6 @@ CPSourceFileRef)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
 
-!sm->dbcsr
-
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -2424,18 +2417,12 @@ CPSourceFileRef)
        IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho,error=error)
 
        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-
-          CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
-          !CALL sm_pools_give_back_matrix_vect(S_sm_pools,p_mix_new,&
-               error=error)
-
+          CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)
           CALL sm_pools_flush_cache(S_sm_pools,error=error)
        END IF
 
        IF (ASSOCIATED(scf_env%p_delta)) THEN
-          CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_delta,&
-          !CALL sm_pools_give_back_matrix_vect(S_sm_pools,p_mix_new,&
-               error=error)
+          CALL dbcsr_deallocate_matrix_set(scf_env%p_delta,error=error)
           CALL sm_pools_flush_cache(S_sm_pools,error=error)
        END IF
 

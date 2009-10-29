@@ -11,8 +11,13 @@
 ! *****************************************************************************
 MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type,&
-                                             sm_from_dbcsr
+  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_set
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -34,12 +39,6 @@ MODULE qs_rho_methods
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-  USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             allocate_matrix_set,&
-                                             copy_matrix,&
-                                             deallocate_matrix_set,&
-                                             replicate_matrix,&
-                                             set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -156,16 +155,16 @@ CONTAINS
       IF (my_rebuild_ao.OR..NOT.ASSOCIATED(rho%rho_ao)) THEN
          IF (.NOT.failure) THEN
             IF (ASSOCIATED(rho%rho_ao)) THEN
-               CALL deallocate_matrix_set(rho%rho_ao,error=error)
+               CALL dbcsr_deallocate_matrix_set(rho%rho_ao,error=error)
             END IF
-            CALL allocate_matrix_set(rho%rho_ao,nspins,error=error)
+            CALL dbcsr_allocate_matrix_set(rho%rho_ao,nspins,error=error)
             DO i=1,nspins
-               NULLIFY (rho%rho_ao(i)%matrix)
-               CALL sm_from_dbcsr(rho%rho_ao(i)%matrix,matrix_s(1)%matrix,error=error)
-               CALL set_matrix(rho%rho_ao(i)%matrix,0.0_dp)
-               !CALL replicate_matrix_structure(matrix_s(1)%matrix,&
-               !   rho%rho_ao(i)%matrix,&
-               !     "DENSITY_MATRIX_AUX_FIT_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
+               ALLOCATE(rho%rho_ao(i)%matrix)
+               CALL dbcsr_init(rho%rho_ao(i)%matrix)
+               CALL dbcsr_copy(rho%rho_ao(i)%matrix,matrix_s(1)%matrix,&
+                    "DENSITY_MATRIX_AUX_FIT_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))),&
+                    error=error)
+               CALL dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
             END DO
          END IF
        END IF
@@ -368,7 +367,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
       ! if needed compute also the gradient of the density
       IF (dft_control%drho_by_collocation) THEN
          DO ispin=1,nspins
-           CALL calculate_drho_elec(matrix_p_sm=rho_struct%rho_ao(ispin)%matrix,&
+           CALL calculate_drho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
              drho=rho_struct%drho_r(3*(ispin-1)+1:3*ispin),&
              drho_gspace=rho_struct%drho_g(3*(ispin-1)+1:3*ispin),&
              qs_env=qs_env,soft_valid=gapw,error=error)
@@ -414,7 +413,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
          ! if needed compute also the gradient of the density
          IF (dft_control%drho_by_collocation) THEN
             DO ispin=1,nspins
-              CALL calculate_drho_elec(matrix_p_sm=rho_xc%rho_ao(ispin)%matrix,&
+              CALL calculate_drho_elec(matrix_p=rho_xc%rho_ao(ispin)%matrix,&
                 drho=rho_xc%drho_r(3*(ispin-1)+1:3*ispin),&
                 drho_gspace=rho_xc%drho_g(3*(ispin-1)+1:3*ispin),&
                 qs_env=qs_env,soft_valid=gapw_xc,error=error)
@@ -505,14 +504,15 @@ END SUBROUTINE qs_rho_update_rho
       ! rho_ao
       IF (ASSOCIATED(rho_input%rho_ao)) THEN
         !CALL allocate_matrix_set(rho_output%rho_ao, SIZE(rho_input%rho_ao))
-        CALL allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
+         CALL dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
         !DO i = 1, SIZE(rho_input%rho_ao)
         DO i = 1, nspins
-          CALL replicate_matrix(source=rho_input%rho_ao(i)%matrix, &
-                                TARGET=rho_output%rho_ao(i)%matrix, &
-                                target_name="myDensityMatrix_for_Spin_"//&
-                                TRIM(ADJUSTL(cp_to_string(i))), &
-                                allocate_blocks=.TRUE.,error=error)
+           ALLOCATE(rho_output%rho_ao(i)%matrix)
+           CALL dbcsr_init(rho_output%rho_ao(i)%matrix)
+           CALL dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
+                name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))), &
+                error=error)
+           CALL dbcsr_set(rho_output%rho_ao(i)%matrix,0.0_dp,error=error)
         END DO
       END IF
     END IF
@@ -741,17 +741,14 @@ END SUBROUTINE qs_rho_update_rho
       ! rho_ao
       IF (ASSOCIATED(rho_input1%rho_ao) .AND. ASSOCIATED(rho_input2%rho_ao)) THEN
         !CALL allocate_matrix_set(rho_output%rho_ao, SIZE(rho_input%rho_ao))
-        CALL allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
+         CALL dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
         !DO i = 1, SIZE(rho_input%rho_ao)
         DO i = 1, nspins
-          CALL replicate_matrix(source=rho_input1%rho_ao(i)%matrix, &
-                                TARGET=rho_output%rho_ao(i)%matrix, &
-                                target_name="myDensityMatrix_for_Spin_"//&
-                                TRIM(ADJUSTL(cp_to_string(i))), &
-                                allocate_blocks=.TRUE.,error=error)
-          CALL add_matrices(c=rho_output%rho_ao(i)%matrix, alpha=a, &
-                            a=rho_input1%rho_ao(i)%matrix, beta=b, &
-                            b=rho_input2%rho_ao(i)%matrix)
+           CALL dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input1%rho_ao(i)%matrix, &
+                name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))), &
+                error=error)
+           CALL dbcsr_add(rho_output%rho_ao(i)%matrix,rho_input2%rho_ao(i)%matrix,&
+                alpha_scalar=a,beta_scalar=b,error=error)
         END DO
       END IF
     END IF
@@ -960,21 +957,17 @@ END SUBROUTINE qs_rho_update_rho
       ! rho_ao
       IF (ASSOCIATED(rho_input%rho_ao)) THEN
         IF (.NOT. ASSOCIATED(rho_output%rho_ao)) THEN
-          CALL allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
+           CALL dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
           DO i = 1, nspins
-            CALL replicate_matrix(source=rho_input%rho_ao(i)%matrix, &
-                                  TARGET=rho_output%rho_ao(i)%matrix, &
-                                  target_name="myDensityMatrix_for_Spin_"//&
-                                  TRIM(ADJUSTL(cp_to_string(i))), &
-                                  allocate_blocks=.TRUE.,error=error)
+             CALL dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
+                  name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))), &
+                  error=error)
+             CALL dbcsr_set(rho_output%rho_ao(i)%matrix,0.0_dp,error=error)
           END DO
         ELSE
           DO i = 1,nspins
-            CALL copy_matrix(source=rho_input%rho_ao(i)%matrix, &
-                             TARGET=rho_output%rho_ao(i)%matrix)
-            !CALL transfer_matrix(source_matrix=rho_input%rho_ao(i)%matrix, &
-            !                     target_matrix=rho_output%rho_ao(i)%matrix, &
-            !                     error=error)
+             CALL dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
+                  error=error)
           END DO
         END IF
       END IF

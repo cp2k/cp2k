@@ -12,7 +12,9 @@
 ! *****************************************************************************
 MODULE kg_gpw_wf_history
 
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+                                             dbcsr_from_sm,&
+                                             dbcsr_obj_p_type,&
                                              sm_from_dbcsr
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
@@ -63,7 +65,7 @@ CONTAINS
 !>      i.e. when all the terms have been added to the final mos
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE kg_gpw_fm_mol_linear(alpha,set_a,beta,set_b,matrix_p,matrix_s_b,error)
+  SUBROUTINE kg_gpw_fm_mol_linear(alpha,set_a,beta,set_b,matrix_p_b,matrix_s_b,error)
 
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
@@ -71,10 +73,8 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: beta
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: set_b
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_s_b
+      OPTIONAL, POINTER                      :: matrix_p_b, matrix_s_b
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_linear', &
@@ -93,14 +93,14 @@ CONTAINS
       POINTER                                :: mos_a, mos_b
     TYPE(mol_mo_set_type), POINTER           :: mo_set_a, mo_set_b
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_p, matrix_s
 
 !
 !
 
     failure = .FALSE.
     calculate_density = .FALSE.
-    IF(PRESENT(matrix_p) .AND. PRESENT(matrix_s_b)) calculate_density = .TRUE.
+    IF(PRESENT(matrix_p_b) .AND. PRESENT(matrix_s_b)) calculate_density = .TRUE.
 
     NULLIFY(matrix_s)!sm->dbcsr
     IF(PRESENT(matrix_s_b)) THEN!sm->dbcsr
@@ -109,6 +109,15 @@ CONTAINS
           CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
                matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
        ENDDO!sm->dbcsr
+    ENDIF
+
+    NULLIFY(matrix_p)!sm->dbcsr
+    IF(PRESENT(matrix_p_b)) THEN!sm->dbcsr
+    CALL allocate_matrix_set( matrix_p, SIZE(matrix_p_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_p(ispin)%matrix, matrix_p_b(ispin)%matrix, &
+            matrix_p_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
     ENDIF
 
     nmolecule_kind=SIZE(set_a,1)
@@ -198,6 +207,15 @@ CONTAINS
 
     IF(PRESENT(matrix_s_b))CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
 
+    IF(PRESENT(matrix_p_b))THEN
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       CALL dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
+       ALLOCATE(matrix_p_b(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
+    ENDIF
+
   END SUBROUTINE  kg_gpw_fm_mol_linear
 
 ! *****************************************************************************
@@ -221,7 +239,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE kg_gpw_fm_mol_ps(set_a, beta, set_b, ov_b_b, set_last, &
-                              matrix_p, matrix_s_b, error )
+                              matrix_p_b, matrix_s_b, error )
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: set_a
@@ -231,10 +249,8 @@ CONTAINS
     TYPE(dbcsr_obj), POINTER                 :: ov_b_b
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: set_last
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_s_b
+      OPTIONAL, POINTER                      :: matrix_p_b, matrix_s_b
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_ps', &
@@ -257,7 +273,7 @@ CONTAINS
       POINTER                                :: mos_a, mos_b, mos_l
     TYPE(mol_mo_set_type), POINTER           :: mo_set_a, mo_set_b, mo_set_l
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_p, matrix_s
     TYPE(real_matrix_type), POINTER          :: ov_b
 
 !
@@ -268,7 +284,7 @@ CONTAINS
 
     failure = .FALSE.
     calculate_density = .FALSE.
-    IF(PRESENT(matrix_p) .AND. PRESENT(matrix_s_b)) calculate_density = .TRUE.
+    IF(PRESENT(matrix_p_b) .AND. PRESENT(matrix_s_b)) calculate_density = .TRUE.
 
     NULLIFY(matrix_s)!sm->dbcsr
     IF(PRESENT(matrix_s_b)) THEN!sm->dbcsr
@@ -278,6 +294,15 @@ CONTAINS
                matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
        ENDDO!sm->dbcsr
     ENDIF
+
+    NULLIFY(matrix_p)!sm->dbcsr
+IF(PRESENT(matrix_p_b)) THEN!sm->dbcsr
+    CALL allocate_matrix_set( matrix_p, SIZE(matrix_p_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_p(ispin)%matrix, matrix_p_b(ispin)%matrix, &
+            matrix_p_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+ENDIF
 
     nmolecule_kind=SIZE(set_a,1)
     CPPostcondition(SIZE(set_b,1)==nmolecule_kind,cp_failure_level,routineP,error,failure)
@@ -399,6 +424,15 @@ CONTAINS
     CALL deallocate_matrix(ov_b,error=error)!sm->dbcsr
     IF(PRESENT(matrix_s_b))CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
 
+    IF(PRESENT(matrix_p_b))THEN
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       CALL dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
+       ALLOCATE(matrix_p_b(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
+ ENDIF
+
   END SUBROUTINE  kg_gpw_fm_mol_ps
 
 ! *****************************************************************************
@@ -409,14 +443,12 @@ CONTAINS
 !> \param erro r
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE kg_gpw_prev_wf(kg_fm_mol_set,matrix_p,matrix_s_b,error)
+  SUBROUTINE kg_gpw_prev_wf(kg_fm_mol_set,matrix_p_b,matrix_s_b,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_b
+      POINTER                                :: matrix_p_b, matrix_s_b
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_gpw_prev_wf', &
@@ -434,13 +466,20 @@ CONTAINS
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_p, matrix_s
 
     NULLIFY(matrix_s)!sm->dbcsr
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_s)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
             matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+
+    NULLIFY(matrix_p)!sm->dbcsr
+    CALL allocate_matrix_set( matrix_p, SIZE(matrix_p_b), error )!sm->dbcsr
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       CALL sm_from_dbcsr(matrix_p(ispin)%matrix, matrix_p_b(ispin)%matrix, &
+            matrix_p_b(1)%matrix%m%dist2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     failure = .FALSE.
@@ -491,6 +530,13 @@ CONTAINS
     END DO  ! imolecule_kind
 
     CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
+
+    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
+       CALL dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
+       ALLOCATE(matrix_p_b(ispin)%matrix)
+       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error)!sm->dbcsr
+    ENDDO!sm->dbcsr
+    CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
 
   END SUBROUTINE  kg_gpw_prev_wf
 

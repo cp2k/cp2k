@@ -11,7 +11,6 @@
 !> \author Teodoro Laino (07.2008)
 ! *****************************************************************************
 MODULE qs_scf_post_se
-!  USE stm_images,                      ONLY: th_stm_image
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
@@ -92,7 +91,6 @@ MODULE qs_scf_post_se
                                              qs_scf_post_unocc_cubes
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -917,7 +915,7 @@ CPSourceFileRef,&
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
+             CALL dbcsr_write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
                   para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&

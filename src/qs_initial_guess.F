@@ -19,11 +19,11 @@ MODULE qs_initial_guess
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix_set, dbcsr_from_fm, dbcsr_from_sm, &
-       dbcsr_obj_p_type, dbcsr_sm_fm_multiply, dbcsr_sm_sm_multiply, &
-       sm_from_dbcsr
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             dbcsr_from_fm,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply,&
+                                             dbcsr_sm_sm_multiply
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
@@ -87,7 +87,6 @@ MODULE qs_initial_guess
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_environment_types,           ONLY: scp_environment_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -167,9 +166,6 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_rmpv_sm
-                                                
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: s_sparse, h_core_sparse, p_rmpv
@@ -184,9 +180,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(all_potential,atomic_kind, mo_coeff, sv,&
          gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
-         ortho,work2,work1,mo_array,s_sparse,p_rmpv_sm,scf_control, &
+         ortho,work2,work1,mo_array,s_sparse,scf_control, &
          dft_control, distribution_2d, p_rmpv,&
-         ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
+         ortho,work2,work1,mo_array,s_sparse,scf_control, &
          dft_control,h_core_sparse, distribution_2d)
     NULLIFY(dft_section, input, subsys_section)
     NULLIFY(moa,mob)
@@ -204,14 +200,7 @@ CONTAINS
 
     nspin=dft_control%nspins
     scp = dft_control%scp
-    p_rmpv_sm => qs_env%rho%rho_ao
-
-    CALL dbcsr_allocate_matrix_set( p_rmpv, SIZE(p_rmpv_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(p_rmpv)!sm->dbcsr
-       ALLOCATE(p_rmpv(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(p_rmpv(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(p_rmpv(ispin)%matrix, p_rmpv_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+    p_rmpv => qs_env%rho%rho_ao
 
     work1 => scf_env%scf_work1
     work2 => scf_env%scf_work2
@@ -334,7 +323,7 @@ CPSourceFileRef,&
 
        DO ispin=1,nspin
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-               p_rmpv_sm(ispin)%matrix,error=error)
+               p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
     ELSE IF (density_guess == history_guess) THEN
@@ -375,7 +364,7 @@ CPSourceFileRef,&
 
              DO ispin=1,nspin
                 CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
-                                              p_rmpv_sm(ispin)%matrix,error=error)
+                                              p_rmpv(ispin)%matrix,error=error)
              ENDDO
           
              ! Write to extrapolation pipeline
@@ -407,7 +396,7 @@ CPSourceFileRef,&
 
        DO ispin=1,nspin
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-               p_rmpv_sm(ispin)%matrix,error=error)
+               p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
     ELSE IF (density_guess == core_guess) THEN
@@ -458,7 +447,7 @@ CPSourceFileRef,&
                                 smear=scf_control%smear,&
                                 error=error)
          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                       p_rmpv_sm(ispin)%matrix,&
+                                       p_rmpv(ispin)%matrix,&
                                        error=error)
        END DO
 
@@ -515,8 +504,6 @@ CPSourceFileRef,&
           scale=REAL(nelectron,dp)/trps1
           CALL dbcsr_scale(p_rmpv(ispin)%matrix, scale, error=error)
 
-          CALL sm_from_dbcsr ( p_rmpv_sm(ispin)%matrix, p_rmpv(ispin)%matrix, &
-                               distribution_2d, error=error )!sm->dbcsr
           IF (output_unit > 0) THEN
             IF (nspin > 1) THEN
               WRITE (UNIT=output_unit,FMT="(T2,A,I0,/)")&
@@ -567,7 +554,7 @@ CPSourceFileRef,&
                                     error=error)
 
              CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                           p_rmpv_sm(ispin)%matrix,&
+                                           p_rmpv(ispin)%matrix,&
                                            error=error)
           END IF
 
@@ -838,11 +825,8 @@ CPSourceFileRef,&
                                  smear=qs_env%scf_control%smear,&
                                  error=error)
 
-          CALL sm_from_dbcsr ( p_rmpv_sm(ispin)%matrix, p_rmpv(ispin)%matrix, &
-                               distribution_2d, error=error )!sm->dbcsr
-
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                        p_rmpv_sm(ispin)%matrix,&
+                                        p_rmpv(ispin)%matrix,&
                                         error=error)
           DO ikind=1,SIZE(atomic_kind_set)
             IF(ASSOCIATED(pmat(ikind)%mat)) THEN
@@ -1079,9 +1063,6 @@ CPSourceFileRef,&
 
           CALL dbcsr_set_diag(p_rmpv(ispin)%matrix, pdiag, error=error)
 
-          CALL sm_from_dbcsr ( p_rmpv_sm(ispin)%matrix, p_rmpv(ispin)%matrix, &
-                               distribution_2d, error=error )!sm->dbcsr
-
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
           IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
@@ -1116,7 +1097,7 @@ CPSourceFileRef,&
                                     error=error)
 
              CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                           p_rmpv_sm(ispin)%matrix,&
+                                           p_rmpv(ispin)%matrix,&
                                            error=error)
           END IF
        END DO
@@ -1188,8 +1169,6 @@ CPSourceFileRef,&
     ! once a run, we check the new bcsr code on real data, if things go wrong the user can
     ! disable this in the &QS section using the keyword CHECK_BCSR_CODE
     !
-    CALL dbcsr_deallocate_matrix_set( p_rmpv, error )!sm->dbcsr
-
     CALL timestop(handle)
 
   END SUBROUTINE calculate_first_density_matrix

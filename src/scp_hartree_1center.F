@@ -18,7 +18,6 @@ MODULE  scp_hartree_1center
                                              gto_basis_set_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
                                              dbcsr_get_block_node,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -45,7 +44,6 @@ MODULE  scp_hartree_1center
   USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -70,13 +68,13 @@ CONTAINS
 !>      for SCP.   
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE integrate_a_vhscp_b (qs_env,h_mat,p_mat_sm, just_energy, error, debug)
+  SUBROUTINE integrate_a_vhscp_b (qs_env,h_mat,p_mat, just_energy, error, debug)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       INTENT(INOUT)                          :: h_mat
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(IN)                             :: p_mat_sm
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      INTENT(IN)                             :: p_mat
     LOGICAL, INTENT(IN)                      :: just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
@@ -112,7 +110,7 @@ CONTAINS
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p, p_mat
+      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(gto_basis_set_type), POINTER        :: aux_basis, orb_basis
     TYPE(scp_energy_type), POINTER           :: energy
@@ -123,13 +121,6 @@ CONTAINS
 
     my_debug = .FALSE.
     IF ( PRESENT ( debug ) ) my_debug = debug
-
-    NULLIFY(p_mat)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( p_mat, SIZE(p_mat_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(p_mat)!sm->dbcsr
-       ALLOCATE(p_mat(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(p_mat(ispin)%matrix, p_mat_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
 
     ! Zero energy
     e_hartree_1c = 0._dp
@@ -563,7 +554,6 @@ CONTAINS
             "int_tmp,vv,ff")
     END IF
 
-    CALL dbcsr_deallocate_matrix_set( p_mat, error )
     CALL dbcsr_deallocate_matrix_set( diagmat_ks, error )
     CALL dbcsr_deallocate_matrix_set( diagmat_p, error )
 

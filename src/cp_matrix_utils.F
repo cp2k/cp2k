@@ -52,8 +52,8 @@ MODULE cp_matrix_utils
             sm_struct_add_sm_local_blocks
 
 INTERFACE sm_struct_add_sm_local_blocks
-   MODULE PROCEDURE sm_struct_add_sm_local_blocks_sm
-   MODULE PROCEDURE sm_struct_add_sm_local_blocks_dbcsr
+   MODULE PROCEDURE sm_s_add_sm_l_blocks_sm
+   MODULE PROCEDURE sm_s_add_sm_l_blocks_dbcsr
 END INTERFACE
 
 ! *****************************************************************************
@@ -365,13 +365,12 @@ END SUBROUTINE cp_sm_write
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE sm_struct_add_sm_local_blocks_sm(sm_struct,matrix,error)
+SUBROUTINE sm_s_add_sm_l_blocks_sm(sm_struct,matrix,error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'sm_struct_add_sm_local_blocks_sm', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_s_add_sm_l_blocks_sm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: block_col, block_row, handle
@@ -397,15 +396,14 @@ SUBROUTINE sm_struct_add_sm_local_blocks_sm(sm_struct,matrix,error)
      END DO
   END IF
   CALL timestop(handle)
-END SUBROUTINE sm_struct_add_sm_local_blocks_sm
+END SUBROUTINE sm_s_add_sm_l_blocks_sm
 
-SUBROUTINE sm_struct_add_sm_local_blocks_dbcsr(sm_struct,matrix,error)
+SUBROUTINE sm_s_add_sm_l_blocks_dbcsr(sm_struct,matrix,error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'sm_struct_add_sm_local_blocks_dbcsr', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_s_add_sm_l_blocks_dbcsr', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, block_col, block_row, &
@@ -434,6 +432,6 @@ SUBROUTINE sm_struct_add_sm_local_blocks_dbcsr(sm_struct,matrix,error)
      CALL dbcsr_iterator_stop(iter)
   END IF
   CALL timestop(handle)
-END SUBROUTINE sm_struct_add_sm_local_blocks_dbcsr
+END SUBROUTINE sm_s_add_sm_l_blocks_dbcsr
 
 END MODULE cp_matrix_utils

@@ -1159,7 +1159,7 @@ CONTAINS
 
           DO ispin=1,nspins
             CALL calculate_rho_mol(qs_env=qs_env,&
-                                   matrix_p_sm=rho_struct%rho_ao(ispin)%matrix,&
+                                   matrix_p=rho_struct%rho_ao(ispin)%matrix,&
                                    rho_r=rho_mol%rho_r(ispin),&
                                    rho_g=rho_mol%rho_g(ispin),&
                                    total_rho=rho_mol%tot_rho_r(ispin),&
@@ -1174,7 +1174,7 @@ CONTAINS
           IF (dft_control%use_kinetic_energy_density) THEN
             DO ispin=1,nspins
               CALL calculate_rho_mol(qs_env=qs_env,&
-                                     matrix_p_sm=rho_struct%rho_ao(ispin)%matrix,&
+                                     matrix_p=rho_struct%rho_ao(ispin)%matrix,&
                                      rho_r=rho_mol%tau_r(ispin),&
                                      rho_g=rho_mol%tau_g(ispin),&
                                      total_rho=dum,&  ! presumably not meaningful

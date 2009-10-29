@@ -36,6 +36,7 @@ MODULE xas_tp_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_copy
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: core_guess,&
@@ -88,7 +89,6 @@ MODULE xas_tp_scf
   USE qs_scf_types,                    ONLY: direct_mixing_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: transfer_matrix
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -472,8 +472,8 @@ CONTAINS
        !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
           DO ispin=1,dft_control%nspins
-             CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                  rho%rho_ao(ispin)%matrix,error=error)
+             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                  error=error)
           END DO
        ENDIF
 

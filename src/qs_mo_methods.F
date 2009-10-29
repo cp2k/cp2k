@@ -29,8 +29,6 @@ MODULE qs_mo_methods
                                              cp_fm_retain,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t
   USE dbcsr_operations,                ONLY: dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
@@ -38,8 +36,6 @@ MODULE qs_mo_methods
   USE message_passing,                 ONLY: mp_max
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
-  USE sparse_matrix_types,             ONLY: real_matrix_type,&
-                                             set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -49,26 +45,18 @@ MODULE qs_mo_methods
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_methods'
 
-  INTERFACE calculate_density_matrix
-    MODULE PROCEDURE calculate_density_matrix_blacs
-    MODULE PROCEDURE calculate_dm_sparse_old,calculate_dm_sparse_new!sm->dbcsr
-  END INTERFACE
-
-  INTERFACE calculate_subspace_eigenvalues!sm->dbcsr
-    MODULE PROCEDURE subspace_eigenvalues_ks_old,subspace_eigenvalues_ks_new!sm->dbcsr
-  END INTERFACE!sm->dbcsr
-
-  INTERFACE make_basis_sm!sm->dbcsr
-    MODULE PROCEDURE make_basis_sm_old,make_basis_sm_new!sm->dbcsr
-  END INTERFACE!sm->dbcsr
-
-  INTERFACE make_basis_lowdin!sm->dbcsr
-    MODULE PROCEDURE make_basis_lowdin_old,make_basis_lowdin_new!sm->dbcsr
-  END INTERFACE!sm->dbcsr
-
   PUBLIC :: make_basis_simple, make_basis_cholesky, make_basis_sv, make_basis_sm, &
             make_basis_lowdin, calculate_density_matrix, calculate_subspace_eigenvalues, &
             calculate_orthonormality, calculate_magnitude
+
+  INTERFACE calculate_density_matrix
+    MODULE PROCEDURE calculate_density_matrix_blacs
+    MODULE PROCEDURE calculate_dm_sparse
+  END INTERFACE
+
+  INTERFACE calculate_subspace_eigenvalues
+    MODULE PROCEDURE subspace_eigenvalues_ks
+  END INTERFACE
 
 CONTAINS
 
@@ -77,64 +65,14 @@ CONTAINS
 !> \param v and S
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! *****************************************************************************
-  SUBROUTINE make_basis_sm_old(vmatrix,ncol,matrix_s,error)
-    TYPE(cp_fm_type), POINTER                :: vmatrix
-    INTEGER, INTENT(IN)                      :: ncol
-    TYPE(real_matrix_type), POINTER          :: matrix_s
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sm_old', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
-
-    INTEGER                                  :: handle, n, ncol_global
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: overlap_vv, svmatrix
-
-    IF (ncol.EQ.0) RETURN
-
-    CALL timeset(routineN,handle)
-
-    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
-    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
-
-    CALL cp_fm_create(svmatrix,vmatrix%matrix_struct,"SV",error=error)
-    CALL cp_sm_fm_multiply(matrix_s,vmatrix,svmatrix,ncol,error=error)
-
-    NULLIFY(fm_struct_tmp)
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
-                             para_env=vmatrix%matrix_struct%para_env, &
-                             context=vmatrix%matrix_struct%context,error=error)
-    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv",error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv,error=error)
-    CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
-    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
-
-    CALL cp_fm_release(overlap_vv,error=error)
-    CALL cp_fm_release(svmatrix,error=error)
-
-    CALL timestop(handle)
-
-    END SUBROUTINE make_basis_sm_old
-  SUBROUTINE make_basis_sm_new(vmatrix,ncol,matrix_s,error)
+  SUBROUTINE make_basis_sm(vmatrix,ncol,matrix_s,error)
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
     TYPE(dbcsr_obj), POINTER                 :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sm_new', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sm', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
@@ -168,7 +106,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-    END SUBROUTINE make_basis_sm_new
+  END SUBROUTINE make_basis_sm
 
 ! *****************************************************************************
 !> \brief returns an S-orthonormal basis v and the corresponding matrix S*v as well
@@ -276,72 +214,15 @@ CONTAINS
 !> \note
 !> \par History
 !>      05.2009 created [MI]
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! *****************************************************************************
-  SUBROUTINE make_basis_lowdin_old(vmatrix,ncol,matrix_s,error)
-
-    TYPE(cp_fm_type), POINTER                :: vmatrix
-    INTEGER, INTENT(IN)                      :: ncol
-    TYPE(real_matrix_type), POINTER          :: matrix_s
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_lowdin_old', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
-
-    INTEGER                                  :: handle, n, ncol_global, ndep
-    REAL(dp)                                 :: threshold
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: csc, sc, work
-
-    IF (ncol.EQ.0) RETURN
-
-    CALL timeset(routineN,handle)
-    NULLIFY(fm_struct_tmp)
-    threshold = 1.0E-7_dp
-    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
-    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
-
-    CALL cp_fm_create(sc,vmatrix%matrix_struct,"SC",error=error)
-    CALL cp_sm_fm_multiply(matrix_s,vmatrix,sc,ncol,error=error)
-
-    NULLIFY(fm_struct_tmp)
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
-                             para_env=vmatrix%matrix_struct%para_env, &
-                             context=vmatrix%matrix_struct%context,error=error)
-    CALL cp_fm_create(csc,fm_struct_tmp,"csc",error=error)
-    CALL cp_fm_create(work,fm_struct_tmp,"work",error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,sc,rzero, csc,error=error)
-    CALL cp_fm_power(csc,work,-0.5_dp, threshold,ndep,error=error)
-    CALL cp_fm_gemm('N','N',n,ncol,ncol,rone,vmatrix,csc,rzero,sc,error=error)
-    CALL cp_fm_to_fm(sc, vmatrix, ncol, 1,1)
-
-    CALL cp_fm_release(csc,error=error)
-    CALL cp_fm_release(sc,error=error)
-    CALL cp_fm_release(work,error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE make_basis_lowdin_old
-
-  SUBROUTINE make_basis_lowdin_new(vmatrix,ncol,matrix_s,error)
+  SUBROUTINE make_basis_lowdin(vmatrix,ncol,matrix_s,error)
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
     TYPE(dbcsr_obj), POINTER                 :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_lowdin_new', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_lowdin', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
@@ -380,7 +261,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE make_basis_lowdin_new
+  END SUBROUTINE make_basis_lowdin
 
 ! *****************************************************************************
 !> \brief given a set of vectors, return an orthogonal (C^T C == 1) set
@@ -470,65 +351,14 @@ CONTAINS
 !> \par History
 !>       - Fractional occupied orbitals (MK)
 !> \version 1.0
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! *****************************************************************************
-  SUBROUTINE calculate_dm_sparse_old(mo_set,density_matrix,error)
-
-    TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(real_matrix_type), POINTER          :: density_matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse_old', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    REAL(KIND=dp)                            :: alpha
-    TYPE(cp_fm_type), POINTER                :: fm_tmp
-
-    CALL timeset(routineN,handle)
-
-    CALL set_matrix(density_matrix,0.0_dp)
-
-    IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
-       NULLIFY(fm_tmp)
-       CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct,error=error)
-       CALL cp_fm_to_fm(mo_set%mo_coeff,fm_tmp,error=error)
-       CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
-       alpha=1.0_dp
-
-    ELSE
-       alpha=mo_set%maxocc
-       fm_tmp => mo_set%mo_coeff
-       CALL cp_fm_retain(fm_tmp,error=error)
-    ENDIF
-
-    CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                            matrix_v=mo_set%mo_coeff,&
-                            matrix_g=fm_tmp,&
-                            ncol=mo_set%homo,&
-                            alpha=alpha,error=error)
-
-    CALL cp_fm_release(fm_tmp,error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE calculate_dm_sparse_old
-
-  SUBROUTINE calculate_dm_sparse_new(mo_set,density_matrix,error)
+  SUBROUTINE calculate_dm_sparse(mo_set,density_matrix,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(dbcsr_obj), POINTER                 :: density_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse_new', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
@@ -562,7 +392,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE calculate_dm_sparse_new
+  END SUBROUTINE calculate_dm_sparse
 
 ! *****************************************************************************
 !> \brief computes ritz values of a set of orbitals given a ks_matrix
@@ -579,141 +409,8 @@ CONTAINS
 !> \par History
 !>      08.2004 documented and added do_rotation [Joost VandeVondele]
 !>      09.2008 only compute eigenvalues if rotation is not needed
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     THIS ROUTINE WILL BE REMOVED SHORTLY
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! *****************************************************************************
-  SUBROUTINE subspace_eigenvalues_ks_old(orbitals,ks_matrix,evals_arg,ionode,scr,&
-       do_rotation,co_rotate,error)
-
-    TYPE(cp_fm_type), POINTER                :: orbitals
-    TYPE(real_matrix_type), POINTER          :: ks_matrix
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: evals_arg
-    LOGICAL, INTENT(IN), OPTIONAL            :: ionode
-    INTEGER, INTENT(IN), OPTIONAL            :: scr
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_rotation
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: co_rotate
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_old', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, j, ncol_global, &
-                                                nrow_global
-    LOGICAL                                  :: compute_evecs, &
-                                                do_rotation_local
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: e_vectors, h_block, &
-                                                weighted_vectors
-
-    CALL timeset(routineN,handle)
-
-    do_rotation_local=.TRUE.
-    IF (PRESENT(do_rotation)) do_rotation_local=do_rotation
-
-    NULLIFY(weighted_vectors,h_block,e_vectors,fm_struct_tmp)
-    CALL cp_fm_get_info(matrix=orbitals, &
-                                 ncol_global=ncol_global, &
-                                 nrow_global=nrow_global,error=error)
-
-    IF (do_rotation_local) THEN
-       compute_evecs=.TRUE.
-    ELSE
-       ! this would be the logical choice if syevx computing only evals were faster than syevd computing evecs and evals.
-       compute_evecs=.FALSE.
-       ! this is not the case, so lets compute evecs always
-       compute_evecs=.TRUE.
-    ENDIF
-
-    IF (ncol_global.GT.0) THEN
-
-        ALLOCATE(evals(ncol_global))
-
-        CALL cp_fm_create(weighted_vectors,orbitals%matrix_struct,"weighted_vectors",error=error)
-        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
-                                                para_env=orbitals%matrix_struct%para_env, &
-                                                context=orbitals%matrix_struct%context,error=error)
-        CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
-        IF (compute_evecs) THEN
-           CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors",error=error)
-        ENDIF
-        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-        ! h subblock and diag
-        CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
-
-        CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
-                        orbitals,weighted_vectors,0.0_dp,h_block,error=error)
-
-        ! if eigenvectors are required, go for syevd, otherwise only compute eigenvalues
-        IF (compute_evecs) THEN
-            CALL cp_fm_syevd(h_block,e_vectors,evals,error=error)
-        ELSE
-            CALL cp_fm_syevx(h_block,eigenvalues=evals,error=error)
-        ENDIF
-
-        ! rotate the orbitals
-        IF (do_rotation_local) THEN
-            CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
-                        orbitals,e_vectors,0.0_dp,weighted_vectors,error=error)
-            CALL cp_fm_to_fm(weighted_vectors,orbitals,error=error)
-            IF (PRESENT(co_rotate)) THEN
-              IF (ASSOCIATED(co_rotate)) THEN
-                CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
-                        co_rotate,e_vectors,0.0_dp,weighted_vectors,error=error)
-                CALL cp_fm_to_fm(weighted_vectors,co_rotate,error=error)
-              ENDIF
-            ENDIF
-        ENDIF
-
-        ! give output
-        IF (PRESENT(evals_arg)) THEN
-          evals_arg(:)=evals(:)
-        ENDIF
-
-        IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN
-          IF (.NOT. PRESENT(ionode)) CALL stop_program("subspace evals","IONODE?")
-          IF (.NOT. PRESENT(scr)) CALL stop_program("subspace evals","SCR?")
-          IF (ionode) THEN
-             DO i=1,ncol_global,4
-                j=MIN(3,ncol_global-i)
-                SELECT CASE (j)
-                CASE(3)
-                 WRITE(scr,'(1X,4F16.8)') evals(i:i+j)
-                CASE(2)
-                 WRITE(scr,'(1X,3F16.8)') evals(i:i+j)
-                CASE(1)
-                 WRITE(scr,'(1X,2F16.8)') evals(i:i+j)
-                CASE(0)
-                 WRITE(scr,'(1X,1F16.8)') evals(i:i+j)
-                END SELECT
-             ENDDO
-          ENDIF
-        ENDIF
-
-        CALL cp_fm_release(weighted_vectors,error=error)
-        CALL cp_fm_release(h_block,error=error)
-        IF (compute_evecs) THEN
-           CALL cp_fm_release(e_vectors,error=error)
-        ENDIF
-
-        DEALLOCATE(evals)
-
-    ENDIF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE subspace_eigenvalues_ks_old
-
-  SUBROUTINE subspace_eigenvalues_ks_new(orbitals,ks_matrix,evals_arg,ionode,scr,&
+  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,ionode,scr,&
        do_rotation,co_rotate,error)
 
     TYPE(cp_fm_type), POINTER                :: orbitals
@@ -726,7 +423,7 @@ CONTAINS
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: co_rotate
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_new', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, ncol_global, &
@@ -835,7 +532,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE subspace_eigenvalues_ks_new
+  END SUBROUTINE subspace_eigenvalues_ks
 
 ! computes the effective orthonormality of a set of mos given an s-matrix
 ! orthonormality is the max deviation from unity of the C^T S C

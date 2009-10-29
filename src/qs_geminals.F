@@ -20,10 +20,7 @@ MODULE qs_geminals
                                              get_geminal_basis_set,&
                                              get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
@@ -55,7 +52,6 @@ MODULE qs_geminals
                                              ri_vector_sync,&
                                              ri_vector_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -314,8 +310,6 @@ MODULE qs_geminals
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_sm
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_rhs
     TYPE(semi_empirical_si_type), POINTER    :: store_int
@@ -344,14 +338,8 @@ MODULE qs_geminals
     CALL get_ri_env(ri_env=ri_env,coeff=ri_coeff,rhs=ri_rhs,error=error)
     CALL ri_vector_set(ri_rhs, 0._dp, error)
 
-    matrix_p_sm => rho%rho_ao
-    nspins = SIZE(matrix_p_sm)
-
-    CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )
-    DO i = 1,SIZE(matrix_p)
-       ALLOCATE(matrix_p(i)%matrix)!super dirty
-       CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_sm(i)%matrix, error)
-    ENDDO
+    matrix_p => rho%rho_ao
+    nspins = SIZE(matrix_p)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -496,8 +484,6 @@ MODULE qs_geminals
     CALL mp_sum(ehfx2,para_env%group)
 
     ri_env%ehfx2 = -ehfx2
-
-    CALL dbcsr_deallocate_matrix_set( matrix_p, error=error )
 
     CALL timestop(handle)
 

@@ -23,10 +23,12 @@ MODULE dft_plus_u
                                              Dudarev1998,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_sm_to_dbcsr, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
-       dbcsr_get_block_node, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_sm_to_dbcsr,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_ger,&
                                              cp_fm_upper_to_full
@@ -70,7 +72,6 @@ MODULE dft_plus_u
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -244,8 +245,6 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_sm
 
     CALL timeset(routineN,handle)
 
@@ -299,13 +298,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
 
     sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-    matrix_p_sm => rho%rho_ao     ! Density matrices in sparse format
-
-    CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
-       ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_from_sm(matrix_p(ispin)%matrix, matrix_p_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+    matrix_p => rho%rho_ao     ! Density matrices in sparse format
 
     energy%dft_plus_u = 0.0_dp
 
@@ -747,8 +740,6 @@ CONTAINS
     CALL dbcsr_deallocate_matrix(sm_q,error=error)
     CALL dbcsr_deallocate_matrix(sm_v,error=error)
 
-    CALL dbcsr_deallocate_matrix_set ( matrix_p, error=error )!sm->dbcsr
-
     CALL timestop(handle)
 
   END SUBROUTINE lowdin
@@ -831,8 +822,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_sm
 
     CALL timeset(routineN,handle)
 
@@ -899,13 +888,7 @@ CONTAINS
 
     ! Get density matrices in sparse format
 
-    matrix_p_sm => rho%rho_ao
-
-    CALL dbcsr_allocate_matrix_set(matrix_p,SIZE(matrix_p_sm),error)!sm->dbcsr
-    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
-      ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
-      CALL dbcsr_from_sm(matrix_p(ispin)%matrix,matrix_p_sm(ispin)%matrix,error)!sm->dbcsr
-    END DO!sm->dbcsr
+    matrix_p => rho%rho_ao
 
     energy%dft_plus_u = 0.0_dp
 
@@ -1485,8 +1468,6 @@ CONTAINS
     CALL dbcsr_deallocate_matrix(sm_q,error=error)
     CALL dbcsr_deallocate_matrix(sm_v,error=error)
 
-    CALL dbcsr_deallocate_matrix_set(matrix_p,error=error)!sm->dbcsr
-
     CALL timestop(handle)
 
   END SUBROUTINE mulliken
@@ -1570,8 +1551,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_sm
 
     CALL timeset(routineN,handle)
 
@@ -1628,13 +1607,7 @@ CONTAINS
 
     ! Get density matrices in sparse format
 
-    matrix_p_sm => rho%rho_ao
-
-    CALL dbcsr_allocate_matrix_set(matrix_p,SIZE(matrix_p_sm),error)!sm->dbcsr
-    DO ispin=1,SIZE(matrix_p)!sm->dbcsr
-      ALLOCATE(matrix_p(ispin)%matrix)!sm->dbcsr
-      CALL dbcsr_from_sm(matrix_p(ispin)%matrix,matrix_p_sm(ispin)%matrix,error)!sm->dbcsr
-    END DO!sm->dbcsr
+    matrix_p => rho%rho_ao
 
     energy%dft_plus_u = 0.0_dp
 
@@ -2050,8 +2023,6 @@ CONTAINS
       DEALLOCATE (dEdq,STAT=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-
-    CALL dbcsr_deallocate_matrix_set(matrix_p,error=error)!sm->dbcsr
 
    CALL timestop(handle)
 

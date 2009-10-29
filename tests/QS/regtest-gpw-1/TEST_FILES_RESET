@@ -429,3 +429,7 @@ h2o_dip_berry.inp
 h2o_dip_iso.inp
 # bug fix self-interaction with periodic images
 Ar-13.inp
+#
+H2O-harris.inp
+#
+H2O-MD-harris.inp

@@ -10,10 +10,7 @@ MODULE qs_ks_apply_restraints
 
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
@@ -35,7 +32,6 @@ MODULE qs_ks_apply_restraints
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE s_square_methods,                ONLY: s2_restraint
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -139,23 +135,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_mulliken_restraint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao_sm
 
     energy%mulliken = 0.0_dp
     IF (dft_control%qs_control%mulliken_restraint) THEN
 
-    rho_ao_sm=>rho%rho_ao
-    NULLIFY(rho_ao)
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+    rho_ao=>rho%rho_ao
 
        IF (just_energy) THEN
           CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
@@ -166,8 +152,6 @@ CONTAINS
                para_env,matrix_s(1)%matrix,rho_ao,energy=energy%mulliken, &
                ks_matrix=ks_matrix, order_p=mulliken_order_p,error=error)
        ENDIF
-
-   CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
     ENDIF
 

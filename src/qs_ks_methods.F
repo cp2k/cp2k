@@ -23,10 +23,14 @@ MODULE qs_ks_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_sm_to_dbcsr, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
-       dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_sm_to_dbcsr,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_plus_fm_fm_t,&
+                                             dbcsr_sm_fm_multiply
   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD,&
                                              qs_ks_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -121,8 +125,7 @@ MODULE qs_ks_methods
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                              integrate_v_core_rspace,&
-                                             integrate_v_rspace,&
-                                             integrate_v_rspace_half_half
+                                             integrate_v_rspace
   USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_restraint,&
                                              qs_ks_mulliken_restraint,&
                                              qs_ks_s2_restraint
@@ -147,8 +150,6 @@ MODULE qs_ks_methods
                                              scp_environment_type
   USE scp_hartree_1center,             ONLY: integrate_a_vhscp_b
   USE se_fock_matrix,                  ONLY: build_se_fock_matrix
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -325,7 +326,9 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_dv, matrix_h, matrix_s
+      POINTER                                :: matrix_dv, matrix_h, &
+                                                matrix_p_aux_fit, matrix_s, &
+                                                my_rho
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -347,8 +350,6 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_ks_scp_env_type), POINTER        :: ks_scp_env
     TYPE(qs_rho_type), POINTER               :: my_rho_xc
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_aux_fit, my_rho
     TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
@@ -389,7 +390,6 @@ CONTAINS
          matrix_dv=matrix_dv,&
          ep_qs_env=ep_qs_env,&
          error=error)
-
 
 ! Define logicals for SCP
     scp_dft =  dft_control % scp 
@@ -868,8 +868,8 @@ CONTAINS
                        v_rspace_new(ispin)%pw%cr3d
 
                  ! add the xc  part due to v_rspace soft
-                 CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
-                      p_sm=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                      p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
                       qs_env=qs_env, &
                       calculate_forces=calculate_forces,&
                       gapw=gapw_xc,error=error)
@@ -879,8 +879,8 @@ CONTAINS
                       ks_env%v_hartree_rspace%pw%cr3d
 
                  ! add the hartree part due to v_rspace
-                 CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
-                      p_sm=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                      p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
                       qs_env=qs_env, &
                       calculate_forces=calculate_forces,&
                       gapw=gapw,error=error)
@@ -949,17 +949,18 @@ CONTAINS
                   ELSE
                      my_rho => rho%rho_ao
                   END IF
+
 !CJM compute matrix elements of V_HXC including nuclear force information through matrix_dv
                   IF (ASSOCIATED(matrix_dv)) THEN
-                     CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
-                          p_sm=my_rho(ispin),h=ks_matrix(ispin),&
+                     CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                          p=my_rho(ispin),h=ks_matrix(ispin),&
                           qs_env=qs_env, &
                           calculate_forces=calculate_forces,&
                           gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
                           error=error)
                   ELSE
-                     CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new(ispin),&
-                          p_sm=my_rho(ispin),h=ks_matrix(ispin),&
+                     CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                          p=my_rho(ispin),h=ks_matrix(ispin),&
                           qs_env=qs_env, &
                           calculate_forces=calculate_forces,&
                           gapw=gapw, error=error)
@@ -994,15 +995,15 @@ CONTAINS
                     my_rho => rho%rho_ao
                  END IF
                  IF (ASSOCIATED(matrix_dv)) THEN
-                    CALL integrate_v_rspace_half_half(v_rspace=ks_env%v_hartree_rspace,&
-                         p_sm=my_rho(ispin),h=ks_matrix(ispin),&
+                    CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
+                         p=my_rho(ispin),h=ks_matrix(ispin),&
                          qs_env=qs_env, &
                          calculate_forces=calculate_forces,&
                          gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
                          error=error)
                  ELSE
-                    CALL integrate_v_rspace_half_half(v_rspace=ks_env%v_hartree_rspace,&
-                         p_sm=my_rho(ispin),h=ks_matrix(ispin),&
+                    CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
+                         p=my_rho(ispin),h=ks_matrix(ispin),&
                          qs_env=qs_env, &
                          calculate_forces=calculate_forces,&
                          gapw=gapw, error=error)
@@ -1018,15 +1019,15 @@ CONTAINS
                       v_tau_rspace(ispin)%pw%cr3d
 
                  IF (ASSOCIATED(matrix_dv)) THEN
-                    CALL integrate_v_rspace_half_half(v_rspace=v_tau_rspace(ispin),&
-                         p_sm=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                    CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
+                         p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
                          qs_env=qs_env,&
                          calculate_forces=calculate_forces,compute_tau=.TRUE., &
                          gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
                          error=error)
                  ELSE
-                    CALL integrate_v_rspace_half_half(v_rspace=v_tau_rspace(ispin),&
-                         p_sm=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                    CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
+                         p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
                          qs_env=qs_env,&
                          calculate_forces=calculate_forces,compute_tau=.TRUE., &
                          gapw=gapw,&
@@ -1049,8 +1050,8 @@ CONTAINS
                    v_rspace_new_aux_fit(ispin)%pw%pw_grid%dvol * &
                    v_rspace_new_aux_fit(ispin)%pw%cr3d
                 ! Add potential to ks_matrix aux_fit
-                CALL integrate_v_rspace_half_half(v_rspace=v_rspace_new_aux_fit(ispin),&
-                                        p_sm=qs_env%rho_aux_fit%rho_ao(ispin),&
+                CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin),&
+                                        p=qs_env%rho_aux_fit%rho_ao(ispin),&
                                         h=qs_env%matrix_ks_aux_fit(ispin),&
                                         qs_env=qs_env, &
                                         calculate_forces=calculate_forces,&
@@ -1097,7 +1098,7 @@ CONTAINS
                               kg_sub_pw_env%molbox_env_set,&
                               kg_fm_set%kg_fm_mol_set,&
                               ks_global_b=ks_matrix,&
-                              p_global=rho%rho_ao,ekin_mol=energy%kg_gpw_ekin_mol,&
+                              p_global_b=rho%rho_ao,ekin_mol=energy%kg_gpw_ekin_mol,&
                               calculate_forces=calculate_forces,&
                               just_energy=just_energy,error=error)
        ! Change sign : it is the correction due to the double counting
@@ -1584,9 +1585,8 @@ CONTAINS
     DO ispin=1,Nspin
        ALLOCATE(matrix_p(ispin)%matrix)
        CALL dbcsr_init(matrix_p(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_p(ispin)%matrix,rho%rho_ao(1)%matrix,&
-            !name="density matrix low spin roks",
-            error=error)
+       CALL dbcsr_copy(matrix_p(ispin)%matrix,rho%rho_ao(1)%matrix,&
+            name="density matrix low spin roks",error=error)
        CALL dbcsr_set(matrix_p(ispin)%matrix,0.0_dp,error=error)
     ENDDO
 
@@ -1595,9 +1595,8 @@ CONTAINS
     DO ispin=1,Nspin
        ALLOCATE(matrix_h(ispin)%matrix)
        CALL dbcsr_init(matrix_h(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_h(ispin)%matrix,rho%rho_ao(1)%matrix,&
-            !name="KS matrix low spin roks",
-            error=error)
+       CALL dbcsr_copy(matrix_h(ispin)%matrix,rho%rho_ao(1)%matrix,&
+            name="KS matrix low spin roks",error=error)
        CALL dbcsr_set(matrix_h(ispin)%matrix,0.0_dp,error=error)
     ENDDO
 
@@ -1861,17 +1860,15 @@ CONTAINS
 
     ALLOCATE(orb_density_matrix)
     CALL dbcsr_init(orb_density_matrix)
-    CALL dbcsr_from_sm(orb_density_matrix,rho%rho_ao(1)%matrix,&
-            !name="orb_density_matrix",
-            error=error)
+    CALL dbcsr_copy(orb_density_matrix,rho%rho_ao(1)%matrix,&
+         name="orb_density_matrix",error=error)
     CALL dbcsr_set(orb_density_matrix,0.0_dp,error=error)
     orb_density_matrix_p%matrix=>orb_density_matrix
 
     ALLOCATE(orb_h)
     CALL dbcsr_init(orb_h)
-    CALL dbcsr_from_sm(orb_h,rho%rho_ao(1)%matrix,&
-            !name="orb_density_matrix",
-            error=error)
+    CALL dbcsr_copy(orb_h,rho%rho_ao(1)%matrix,&
+         name="orb_density_matrix",error=error)
     CALL dbcsr_set(orb_h,0.0_dp,error=error)
     orb_h_p%matrix=>orb_h
 
@@ -2341,7 +2338,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
         energy%core=0.0_dp
         DO ispin=1,dft_control%nspins
           CALL calculate_ecore(h=matrix_h(1)%matrix,&
-                               p_sm=rho%rho_ao(ispin)%matrix,&
+                               p=rho%rho_ao(ispin)%matrix,&
                                ecore=ecore,&
                                para_env=para_env,&
                                error=error)
@@ -2375,6 +2372,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
                calculate_forces=c_forces,just_energy=energy_only,&
                print_active=print_active,rho_xc=rho_xc,error=error)
         ELSE
+
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
@@ -3188,7 +3186,7 @@ END SUBROUTINE qs_vxc_create
   END SUBROUTINE calculate_w_matrix_2
 
 ! *****************************************************************************
-  SUBROUTINE calculate_w_matrix_roks(mo_set,matrix_ks,matrix_p_sm,matrix_w,error)
+  SUBROUTINE calculate_w_matrix_roks(mo_set,matrix_ks,matrix_p,matrix_w,error)
 
     ! Calculate the energy-weighted density matrix W if ROKS is active.
     ! The W matrix is returned in matrix_w.
@@ -3196,9 +3194,7 @@ END SUBROUTINE qs_vxc_create
     ! - Creation (04.05.06,MK)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(dbcsr_obj), POINTER                 :: matrix_ks
-    TYPE(real_matrix_type), POINTER          :: matrix_p_sm
-    TYPE(dbcsr_obj), POINTER                 :: matrix_w
+    TYPE(dbcsr_obj), POINTER                 :: matrix_ks, matrix_p, matrix_w
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks', &
@@ -3209,15 +3205,10 @@ END SUBROUTINE qs_vxc_create
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: c, ks, p, work
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: matrix_p
 
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-
-    ALLOCATE(matrix_p)!sm->dbcsr
-    CALL dbcsr_init(matrix_p)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_p, matrix_p_sm, error)!sm->dbcsr
 
     NULLIFY (c)
     NULLIFY (context)
@@ -3247,8 +3238,6 @@ END SUBROUTINE qs_vxc_create
     CALL cp_fm_release(work,error=error)
     CALL cp_fm_release(p,error=error)
     CALL cp_fm_release(ks,error=error)
-
-    CALL dbcsr_deallocate_matrix( matrix_p, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

@@ -24,15 +24,11 @@ MODULE hfx_energy_potential
                                              guidon2008
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_trace
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: distribute_ks_matrix,&
@@ -84,7 +80,6 @@ MODULE hfx_energy_potential
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -284,21 +279,12 @@ MODULE hfx_energy_potential
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
     REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl
     TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)::rho_ao
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao_sm
     INTEGER::ii
     REAL(dp), DIMENSION(:), POINTER          :: p_work
 
     CALL timeset(routineN,handle)
 
-    rho_ao_sm=>rho%rho_ao!sm->dbcsr
-    NULLIFY(rho_ao)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ii=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ii)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ii)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ii)%matrix, rho_ao_sm(ii)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+    rho_ao=>rho%rho_ao
 
     CALL cite_reference(Guidon2008)
 
@@ -2065,8 +2051,6 @@ MODULE hfx_energy_potential
     
 !$OMP BARRIER
 !$OMP END PARALLEL
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
     CALL timestop(handle)
   END SUBROUTINE integrate_four_center

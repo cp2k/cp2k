@@ -153,15 +153,15 @@
              !
              nze = a_row_size*a_col_size
              !
-             ! let's trace the blocks
-             !trace = trace + DOT_PRODUCT(a_data,b_data)
-             fac = 1.0_[prec1]
-             IF(row.NE.a_col) fac = sym_fac
-             trace = trace + fac * [dotname1] (nze,&
-                     a_data_p(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                     b_data_p(ABS(matrix_b%m%blk_p(b_blk))),1)
-             !trace = trace + ddot(nze,matrix_a%m%data(ABS(matrix_a%m%blk_p(a_blk))),1,&
-             !     matrix_b%m%data(ABS(matrix_b%m%blk_p(b_blk))),1)
+             IF(nze.GT.0) THEN
+                !
+                ! let's trace the blocks
+                fac = 1.0_[prec1]
+                IF(row.NE.a_col) fac = sym_fac
+                trace = trace + fac * [dotname1] (nze,&
+                        a_data_p(ABS(matrix_a%m%blk_p(a_blk))),1,&
+                        b_data_p(ABS(matrix_b%m%blk_p(b_blk))),1)
+             ENDIF
           ENDIF
        ENDDO ! a_col
     ENDDO ! a_row

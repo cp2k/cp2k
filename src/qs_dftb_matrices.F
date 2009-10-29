@@ -16,11 +16,13 @@ MODULE qs_dftb_matrices
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       dbcsr_add_block_node, dbcsr_allocate_matrix, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
-       dbcsr_get_block_node, dbcsr_obj_p_type, dbcsr_replicate_matrix_struct, &
-       dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_get_block_node,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_replicate_matrix_struct,&
+                                             dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -60,7 +62,6 @@ MODULE qs_dftb_matrices
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -149,8 +150,6 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_sm
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -177,7 +176,7 @@ CONTAINS
     ! Allocate the overlap and Hamiltonian matrix
     CALL setup_matrices(qs_env,calculate_forces,error)
 
-    NULLIFY (matrix_h,matrix_s,matrix_p_sm,matrix_p,matrix_w,gamma_matrix,atomic_kind_set,sab_orb)
+    NULLIFY (matrix_h,matrix_s,matrix_p,matrix_w,gamma_matrix,atomic_kind_set,sab_orb)
 
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
@@ -246,14 +245,7 @@ CONTAINS
                       rho=rho,matrix_w=matrix_w,&
                       virial=virial,&
                       force=force,error=error)
-      matrix_p_sm => rho%rho_ao
-
-      NULLIFY(matrix_p)!sm->dbcsr
-      CALL dbcsr_allocate_matrix_set( matrix_p, SIZE(matrix_p_sm), error )!sm->dbcsr
-      DO i=1,SIZE(matrix_p)!sm->dbcsr
-         ALLOCATE(matrix_p(i)%matrix)!sm->dbcsr
-         CALL dbcsr_from_sm(matrix_p(i)%matrix, matrix_p_sm(i)%matrix, error)!sm->dbcsr
-      END DO!sm->dbcsr
+      matrix_p => rho%rho_ao
 
       IF (SIZE(matrix_p) == 2) THEN
          CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
@@ -624,8 +616,6 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      END IF
 
-    CALL dbcsr_deallocate_matrix_set( matrix_p, error=error )!sm->dbcsr
-
     CALL timestop(handle)
 
   END SUBROUTINE build_dftb_matrices
@@ -663,21 +653,19 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_s
+      POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_sm
     TYPE(section_vals_type), POINTER         :: scf_section
 
     CALL timeset(routineN,handle)
 
     NULLIFY(dft_control, logger, scf_section)
-    NULLIFY(matrix_p_sm, particle_set)
+    NULLIFY(matrix_p, particle_set)
 
     energy%hartree = 0._dp
 
@@ -712,12 +700,12 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env,&
               particle_set=particle_set,&
               matrix_s=matrix_s,error=error)
-         matrix_p_sm => rho%rho_ao
+         matrix_p => rho%rho_ao
          natom=SIZE(particle_set)
          ALLOCATE(charges(natom,nspins),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          !
-         CALL mulliken_charges(matrix_p_sm,matrix_s(1)%matrix,para_env,charges,error=error)
+         CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
          !
          ALLOCATE(mcharge(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -15,12 +15,8 @@ MODULE harris_force
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_get,&
@@ -66,7 +62,6 @@ MODULE harris_force
   USE qs_rho_methods,                  ONLY: diff_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_calc_2nd_deriv,&
@@ -147,8 +142,6 @@ CONTAINS
       POINTER                                :: force, force_tmp
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao_sm
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -162,7 +155,7 @@ CONTAINS
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
             pw_env, auxbas_pw_pool, rho_core, cell, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
-            v_xc, harris_force, rho_r, ks_env, poisson_env, input,rho_ao)
+            v_xc, harris_force, rho_r, ks_env, poisson_env, input, rho_ao)
     para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
 
@@ -262,15 +255,7 @@ CONTAINS
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy=.FALSE., error=error)
 
-
-
-    rho_ao_sm => qs_env%rho%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+      rho_ao => qs_env%rho%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -281,8 +266,6 @@ CONTAINS
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
                                 gapw=.FALSE., error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_elec, para_env%group)
@@ -353,14 +336,7 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
 
-
-    rho_ao_sm => harris_env%rho%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+      rho_ao => harris_env%rho%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -371,8 +347,6 @@ CONTAINS
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
                                 gapw=.FALSE., error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         DO ispin = 1,nspins
@@ -551,8 +525,6 @@ CONTAINS
       POINTER                                :: force, force_tmp
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao_sm
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -661,13 +633,7 @@ CONTAINS
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy=.FALSE., error=error)
 
-    rho_ao_sm => qs_env%rho%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+    rho_ao => qs_env%rho%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -678,8 +644,6 @@ CONTAINS
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
                                 gapw=.FALSE., error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_elec, para_env%group)
@@ -766,13 +730,7 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
 
-    rho_ao_sm => harris_env%rho%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+    rho_ao => harris_env%rho%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -783,8 +741,6 @@ CONTAINS
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
                                 gapw=.FALSE., error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         DO ispin = 1,nspins
@@ -907,14 +863,7 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
       CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol, error=error)
 
-    rho_ao_sm => harris_env%rho%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
+    rho_ao => harris_env%rho%rho_ao
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
         CALL pw_axpy(v_hartree_rspace%pw,v_rspace_new(ispin)%pw,error=error)
@@ -923,9 +872,6 @@ CONTAINS
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
                                 gapw=.FALSE., error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
-
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, error=error)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw, error=error)
@@ -1067,8 +1013,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force, force_tmp
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao_sm
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -1138,14 +1082,7 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
       CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol, error=error)
 
-    rho_ao_sm => harris_env%rho_diff%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
+    rho_ao => harris_env%rho_diff%rho_ao
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, &
                                 p=rho_ao(ispin), &
@@ -1153,8 +1090,6 @@ CONTAINS
                                 calculate_forces=.TRUE., gapw=.FALSE., &
                                 error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_elec, para_env%group)
@@ -1177,14 +1112,7 @@ CONTAINS
       CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol, error=error)
 
 
-    rho_ao_sm => harris_env%rho_diff%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
+    rho_ao => harris_env%rho_diff%rho_ao
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, &
                                 p=rho_ao(ispin), &
@@ -1192,8 +1120,6 @@ CONTAINS
                                 calculate_forces=.TRUE., gapw=.FALSE., &
                                 error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, error=error)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw, error=error)
@@ -1221,13 +1147,7 @@ CONTAINS
       !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
       !                   exc=Exc, just_energy=.FALSE., harris=.FALSE., error=error)
 
-    rho_ao_sm => harris_env%rho_diff%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+    rho_ao => harris_env%rho_diff%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol, error=error)
@@ -1237,8 +1157,6 @@ CONTAINS
                                 calculate_forces=.TRUE., gapw=.FALSE., &
                                 error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_elec, para_env%group)
@@ -1294,13 +1212,7 @@ CONTAINS
 
       CALL xc_rho_set_release(rho_set,error=error)
 
-    rho_ao_sm => harris_env%rho_diff%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
+    rho_ao => harris_env%rho_diff%rho_ao
 
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
@@ -1309,8 +1221,6 @@ CONTAINS
                                 calculate_forces=.TRUE., gapw=.FALSE., &
                                 error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
       IF (ASSOCIATED(v_rspace_new)) THEN
         DO ispin = 1,nspins
@@ -1583,8 +1493,6 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force, force_tmp
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao_sm
 
 !   ------------------------------------------------------------------------
 
@@ -1687,21 +1595,12 @@ CONTAINS
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
 
-    rho_ao_sm => rho%rho_ao !sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(rho_ao_sm), error )!sm->dbcsr
-    DO ispin=1,SIZE(rho_ao)!sm->dbcsr
-       ALLOCATE(rho_ao(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init(rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(rho_ao(ispin)%matrix, rho_ao_sm(ispin)%matrix, error)!sm->dbcsr
-    ENDDO!sm->dbcsr
-
+    rho_ao => rho%rho_ao
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, &
                                 calculate_forces=.TRUE., gapw=.FALSE.,error=error)
       END DO
-
-    CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )!sm->dbcsr
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw, error=error)
 
