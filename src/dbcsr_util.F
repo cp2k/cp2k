@@ -2410,17 +2410,36 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_unrot', &
       routineP = moduleN//':'//routineN
 
-    TYPE(array_i1d_obj)                      :: right_col_dist
+    INTEGER                                  :: multiplicity, new_npcols, &
+                                                new_nprows, nimages
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_images
+    INTEGER, DIMENSION(:), POINTER           :: right_rd
+    TYPE(array_i1d_obj)                      :: left_col_dist, &
+                                                right_col_dist, right_row_dist
     TYPE(dbcsr_mp_obj)                       :: right_mp_env
 
 !   ---------------------------------------------------------------------------
 
     right_mp_env = dbcsr_distribution_mp (dist_left)
+    ! Create the column distribution
     CALL create_bl_distribution (right_col_dist,&
          right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env))
+    ! Create an even row distribution.
+    left_col_dist = dbcsr_distribution_col_dist (dist_left)
+    CALL array_nullify (right_row_dist)
+    ALLOCATE (right_rd(array_size (left_col_dist)))
+    ALLOCATE (tmp_images(array_size (left_col_dist)))
+    new_nprows = dbcsr_mp_nprows (right_mp_env)
+    new_npcols = dbcsr_mp_npcols (right_mp_env)
+    nimages = lcm (new_nprows, new_npcols) / new_nprows
+    multiplicity = new_nprows / gcd (new_nprows, new_npcols)
+    CALL rebin_distribution (right_rd, tmp_images, array_data (left_col_dist),&
+         new_nprows, multiplicity, nimages)
+    CALL array_new (right_row_dist, right_rd, gift=.TRUE.)
     CALL dbcsr_distribution_new (dist_right, right_mp_env,&
-         dbcsr_distribution_col_dist (dist_left), right_col_dist)
+         right_row_dist, right_col_dist)
     CALL array_release (right_col_dist)
+    CALL array_release (right_row_dist)
   END SUBROUTINE dbcsr_create_dist_r_unrot
 
 ! *****************************************************************************
@@ -5958,6 +5977,28 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes new distribution with multiplicity
+!> \par Definition of multiplicity and nimages
+!>      Multiplicity and number of images are used to match process
+!>      grid coordinates on non-square process grids. Given
+!>      source_nbins and target_nbins, their relation is
+!>          source_nbins * multiplicity = target_nbins * nimages.
+!>      It is best when both multiplicity and nimages are small. To
+!>      get these two factors, then, one can use the following formulas:
+!>          nimages      = lcm(source_nbins, target_nbins) / target_nbins
+!>          multiplicity = target_nbins / gcd(source_nbins, target_nbins)
+!> \par Mapping
+!>      The new distribution comprises of real bins and images within
+!>      bins. These can be view as target_nbins*nimages virtual
+!>      columns. These same virtual columns are also
+!>      source_nbins*multiplicity in number. Therefore these virtual
+!>      columns are mapped from source_nbins*multiplicity onto
+!>      target_bins*nimages (each target bin has nimages images):
+!>      Source 4: |1 2 3|4 5 6|7 8 9|A B C| (4*3)
+!>      Target 6: |1 2|3 4|5 6|7 8|9 A|B C| (6*2)
+!>      multiplicity=3, nimages=2, 12 virtual columns (1-C).
+!>      Source bin elements are evenly mapped into one of multiplicity
+!>      virtual columns. Other (non-even, block-size aware) mappings
+!>      could be better.
 !> \param[out] new_bins      new real distribution
 !> \param[out] images        new image distribution
 !> \param[in] source_bins    Basis for the new distribution and images
