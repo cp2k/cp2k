@@ -666,9 +666,6 @@ CONTAINS
 
           DO ispin=1,SIZE(scf_env%p_mix_new)
 
-WRITE(*,*) __FILE__,&
-__LINE__,'rho',dbcsr_checksum(qs_env%rho%rho_ao(ispin)%matrix,error)
-
              CALL cp_sm_mix(m1=p_mix_new(ispin)%matrix,&
                   m2=qs_env%rho%rho_ao(ispin)%matrix,&
                   p_mix=my_p_mix,&
@@ -747,9 +744,6 @@ __LINE__,'rho',dbcsr_checksum(qs_env%rho%rho_ao(ispin)%matrix,error)
        CALL timestop(handle2)
 
     END DO scf_loop
-
-WRITE(*,*) __FILE__,&
-__LINE__,'rho',dbcsr_checksum(qs_env%rho%rho_ao(1)%matrix,error)
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -949,9 +943,6 @@ __LINE__,'rho',dbcsr_checksum(qs_env%rho%rho_ao(1)%matrix,error)
            matrix_s=matrix_s_b,&
            ks_env=ks_env,&
            error=error)
-
-WRITE(*,*) __FILE__,&
-__LINE__,'rho',dbcsr_checksum(qs_env%rho%rho_ao(1)%matrix,error)
 
     NULLIFY(matrix_s)!sm->dbcsr
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr

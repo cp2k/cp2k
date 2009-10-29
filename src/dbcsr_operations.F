@@ -4230,9 +4230,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     shallow = .FALSE. ; IF (PRESENT (shallow_data)) shallow = shallow_data
 
-WRITE(*,*) __FILE__,__LINE__,ASSOCIATED(matrix_a%m%row_blk_size%low)
-WRITE(*,*) __FILE__,__LINE__,ASSOCIATED(matrix_a%m%row_blk_size%low%data)
-
     IF(PRESENT(name)) THEN
        CALL dbcsr_create(matrix_b, name, &
             matrix_a%m%dist, matrix_a%m%matrix_type, matrix_a%m%row_blk_size,&

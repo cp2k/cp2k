@@ -353,9 +353,6 @@ CONTAINS
 
        ! Compute grid-based forces
 
-WRITE(*,*) __FILE__,__LINE__,'rho',ASSOCIATED(qs_env%rho%rho_ao)
-WRITE(*,*) __FILE__,__LINE__,'rho',ASSOCIATED(qs_env%rho%rho_ao(1)%matrix)
-       
        IF (.NOT.qs_env%run_rtp)&
            CALL qs_ks_update_qs_env(ks_env=ks_env,&
                      qs_env=qs_env,&

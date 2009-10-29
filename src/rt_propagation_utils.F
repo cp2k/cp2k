@@ -502,7 +502,6 @@ MODULE  rt_propagation_utils
 
     DO m=1,3
 
-WRITE(*,*) __FILE__,__LINE__,'enter copy_dbcsr_to_fm'
        CALL copy_dbcsr_to_fm(s_derivs(m)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
        DO icol_local=1,ncol_local
