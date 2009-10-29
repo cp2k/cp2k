@@ -4932,6 +4932,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
+    integer, dimension(:), allocatable       :: map_row_el_blk, map_col_el_blk
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -4993,6 +4994,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     col_dist_new => array_data (dbcsr_distribution_col_dist (dist_new))
     nblkrows_total_new = dbcsr_nblkrows_total (redist)
     nblkcols_total_new = dbcsr_nblkcols_total (redist)
+    ! Create mappings of elements to new blocks.
+    allocate (map_row_el_blk (dbcsr_nfullrows_total (redist)))
+    call fill_map (map_row_el_blk, dbcsr_nfullrows_total (redist),&
+         row_start_new, nblkrows_total_new,&
+         row_blk_size_new(nblkrows_total_new))
+    allocate (map_col_el_blk (dbcsr_nfullcols_total (redist)))
+    call fill_map (map_col_el_blk, dbcsr_nfullcols_total (redist),&
+         col_start_new, nblkcols_total_new,&
+         col_blk_size_new(nblkcols_total_new))
     !
     mp_obj_new = dbcsr_distribution_mp (dist_new)
     pgrid => dbcsr_mp_pgrid (mp_obj_new)
@@ -5044,12 +5054,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ! For all new blocked columns that overlap the old block colum,
        ! count the data that should be sent to that column.
        DO full_col = col_start_old(col), col_end_old(col)
-          CALL find_block_of_element(full_col, blk_col_new, nblkcols_total_new,&
-               col_start_new, col_end_new, blk_col_prev_new)
+          blk_col_new = map_col_el_blk(full_col)
           DO full_row = row_start_old(row), row_end_old(row)
-             CALL find_block_of_element(full_row, blk_row_new,&
-                  nblkrows_total_new,&
-                  row_start_new, row_end_new, blk_row_prev_new)
+             blk_row_new = map_row_el_blk(full_row)
              IF (blk_col_new .NE. blk_col_prev_new&
                   .OR. blk_row_new .NE. blk_row_prev_new .OR. new_meta) THEN
                 CALL dbcsr_get_stored_coordinates (redist%m,&
@@ -5124,8 +5131,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
        col_offset_old = col_start_old(col) - 1
        DO full_col = col_start_old(col), col_end_old(col)
-          CALL find_block_of_element(full_col, blk_col_new, nblkcols_total_new,&
-               col_start_new, col_end_new, blk_col_prev_new)
+          blk_col_new = map_col_el_blk(full_col)
           row_offset_old = row_start_old(row) - 1
           IF (dbg) THEN
              WRITE(*,*)'col',full_col,'of',&
@@ -5138,9 +5144,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              ENDDO
           ENDIF
           DO full_row = row_start_old(row), row_end_old(row)
-             CALL find_block_of_element(full_row, blk_row_new,&
-                  nblkrows_total_new,&
-                  row_start_new, row_end_new, blk_row_prev_new)
+             blk_row_new = map_row_el_blk(full_row)
              IF (dbg) &
                   WRITE(*,*)'using block',blk_row_new,'x',blk_col_new
              IF (blk_col_new .NE. blk_col_prev_new&
@@ -5302,6 +5306,18 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DEALLOCATE(send_meta)
     DBG 'Done redistributing'
     CALL timestop(timing_handle)
+  CONTAINS
+    SUBROUTINE fill_map (map, nfull, offsets, nblks, last_size)
+      integer, dimension(nfull), intent(out) :: map
+      integer, dimension(nblks), intent(in)  :: offsets
+      integer, intent(in)                    :: nfull, nblks, last_size
+      integer                                :: blk
+      !
+      forall (blk = 1:nblks-1)
+         map(offsets(blk):offsets(blk+1)-1) = blk
+      end forall
+      map(offsets(nblks):offsets(nblks)+last_size-1) = nblks
+    END SUBROUTINE fill_map
   END SUBROUTINE dbcsr_complete_redistribute
 
 ! *****************************************************************************
