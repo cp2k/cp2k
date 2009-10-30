@@ -24,7 +24,7 @@ MODULE qs_ks_methods
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_sm_to_dbcsr,&
+                                             copy_fm_to_dbcsr,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
@@ -3233,7 +3233,7 @@ END SUBROUTINE qs_vxc_create
     CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,p,0.0_dp,work,error=error)
     CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,p,work,0.0_dp,ks,error=error)
     CALL dbcsr_set(matrix_w,0.0_dp,error=error)
-    CALL copy_fm_to_sm_to_dbcsr(ks,matrix_w,error=error)
+    CALL copy_fm_to_dbcsr(ks,matrix_w,keep_sparsity=.TRUE.)
 
     CALL cp_fm_release(work,error=error)
     CALL cp_fm_release(p,error=error)

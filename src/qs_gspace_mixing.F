@@ -8,7 +8,7 @@ MODULE qs_gspace_mixing
 
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_sm_to_dbcsr,&
+                                             copy_fm_to_dbcsr,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
@@ -279,8 +279,8 @@ CONTAINS
 !            p_out(ispin)%matrix,a_mix,1.0_dp)
 
        a_mix = scf_env%p_mix_alpha
-       CALL copy_fm_to_sm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
-            p_out(ispin)%matrix,a_mix,0.0_dp,error=error)
+       CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
+            p_out(ispin)%matrix,a_mix,0.0_dp,keep_sparsity=.TRUE.)
        CALL dbcsr_add(p_out(ispin)%matrix,p_in(ispin)%matrix,&
             alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
        CALL dbcsr_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, error=error)

@@ -18,7 +18,7 @@ MODULE wfn_fitting_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_sm_to_dbcsr,&
+                                             copy_fm_to_dbcsr,&
                                              dbcsr_add_block_node,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_get_block_node,&
@@ -465,8 +465,7 @@ MODULE wfn_fitting_methods
                     wfn_fitting_env%work_aux_orb,error)
 
     ! *** copy to sparse matrix
-    !CALL copy_fm_to_dbcsr(wfn_fitting_env%work_aux_orb, matrix_w_p)
-    CALL copy_fm_to_sm_to_dbcsr(wfn_fitting_env%work_aux_orb, matrix_w_p,error=error)
+    CALL copy_fm_to_dbcsr(wfn_fitting_env%work_aux_orb, matrix_w_p,keep_sparsity=.TRUE.)
  
     ! *** A*C*Y^(T)*C^(T)
     CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_orb,&
@@ -478,8 +477,7 @@ MODULE wfn_fitting_methods
                     wfn_fitting_env%work_aux_aux,error)
 
     ! *** copy to sparse matrix
-    !CALL copy_fm_to_dbcsr(wfn_fitting_env%work_aux_aux, matrix_w_s)
-    CALL copy_fm_to_sm_to_dbcsr(wfn_fitting_env%work_aux_aux, matrix_w_s,error=error)
+    CALL copy_fm_to_dbcsr(wfn_fitting_env%work_aux_aux, matrix_w_s,keep_sparsity=.TRUE.)
 
     ! *** This can be done in one call w_total = w_alpha + w_beta
 

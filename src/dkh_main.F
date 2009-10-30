@@ -12,7 +12,7 @@ MODULE dkh_main
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_sm_to_dbcsr, dbcsr_add_block_node, &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, dbcsr_add_block_node, &
        dbcsr_allocate_matrix, dbcsr_allocate_matrix_set, &
        dbcsr_deallocate_matrix_set, dbcsr_get_block_node, dbcsr_obj_p_type, &
        dbcsr_replicate_matrix_struct
@@ -917,9 +917,9 @@ CONTAINS
             qs_env%rel_control%rel_dkh_order,error)
 
 
-       CALL copy_fm_to_sm_to_dbcsr(matrix_s_full,matrix_spgf(1)%matrix,error=error)
-       CALL copy_fm_to_sm_to_dbcsr(matrix_v_full,matrix_hpgf(1)%matrix,error=error)
-       CALL copy_fm_to_sm_to_dbcsr(matrix_t_full,matrix_tpgf(1)%matrix,error=error)
+       CALL copy_fm_to_dbcsr(matrix_s_full,matrix_spgf(1)%matrix,keep_sparsity=.TRUE.)
+       CALL copy_fm_to_dbcsr(matrix_v_full,matrix_hpgf(1)%matrix,keep_sparsity=.TRUE.)
+       CALL copy_fm_to_dbcsr(matrix_t_full,matrix_tpgf(1)%matrix,keep_sparsity=.TRUE.)
 
        CALL dbcsr_add(matrix_hpgf(1)%matrix,matrix_tpgf(1)%matrix,&
                       alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)

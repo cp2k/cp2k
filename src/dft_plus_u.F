@@ -24,7 +24,7 @@ MODULE dft_plus_u
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_sm_to_dbcsr,&
+                                             copy_fm_to_dbcsr,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
@@ -434,7 +434,7 @@ CONTAINS
       ! interested in the diagonal (atomic) blocks, i.e. the previous full
       ! matrix product is not the most efficient choice, anyway.
 
-      CALL copy_fm_to_sm_to_dbcsr(fm_work2,sm_q,error=error)
+      CALL copy_fm_to_dbcsr(fm_work2,sm_q,keep_sparsity=.TRUE.)
 
       ! E[DFT+U] = E[DFT] + E[U]
       !          = E[DFT] + (U - J)*(Tr(q) - Tr(q*q))/2
@@ -697,7 +697,7 @@ CONTAINS
 
         END DO ! Next atomic kind "ikind"
 
-        CALL copy_fm_to_sm_to_dbcsr(fm_work1,sm_h,error=error)
+        CALL copy_fm_to_dbcsr(fm_work1,sm_h,keep_sparsity=.TRUE.)
 
       END IF ! An update of the Hamiltonian matrix is requested
 

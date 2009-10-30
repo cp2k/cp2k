@@ -29,8 +29,7 @@ MODULE cp_dbcsr_operations
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
-                                             cp_sm_fm_multiply,&
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_data_hold, dbcsr_data_release, &
@@ -120,8 +119,6 @@ MODULE cp_dbcsr_operations
             sm_from_dbcsr, dbcsr_type_from_sm_symmetry, &
             dbcsr_sm_fm_multiply, dbcsr_plus_fm_fm_t,&
             cp_dbcsr_get_id_nr
-
-  PUBLIC :: copy_fm_to_sm_to_dbcsr ! HACK
 
   INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
@@ -3050,32 +3047,11 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_finalize (bc_mat, reshuffle=.FALSE.)
 
     ! Now convert to the desired matrix distribution
-    CALL dbcsr_complete_redistribute (bc_mat, matrix, alpha=alpha)
+    CALL dbcsr_complete_redistribute (bc_mat, matrix, alpha=alpha,keep_sparsity=keep_sparsity)
     CALL dbcsr_release (bc_mat)
 
     CALL timestop(handle)
   END SUBROUTINE copy_fm_to_dbcsr
-
-  SUBROUTINE copy_fm_to_sm_to_dbcsr(fm,matrix,alpha,beta,error)
-    ! well another hack...
-    TYPE(cp_fm_type), POINTER                :: fm
-    TYPE(dbcsr_obj), POINTER                 :: matrix
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: alpha, beta
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    TYPE(dbcsr_obj), POINTER                 :: matrix2
-    TYPE(real_matrix_type), POINTER          :: sm
-
-    NULLIFY(sm,matrix2)
-    ALLOCATE(matrix2)
-    CALL dbcsr_init(matrix2)
-    CALL sm_from_dbcsr(sm, matrix, matrix%m%dist2d, error)
-    CALL copy_fm_to_sm(fm, sm, alpha=alpha, beta=beta)
-    CALL dbcsr_from_sm(matrix2, sm, error)
-    CALL dbcsr_copy(matrix,matrix2, error=error)
-    CALL dbcsr_deallocate_matrix(matrix2, error)
-    CALL deallocate_matrix(sm, error)
-  END SUBROUTINE copy_fm_to_sm_to_dbcsr
 
 ! *****************************************************************************
 !> \brief   Copy a DBCSR matrix to a BLACS matrix

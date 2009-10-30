@@ -13,7 +13,7 @@
 MODULE qs_scf_diagonalization
 
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_sm_to_dbcsr,&
+                                             copy_fm_to_dbcsr,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -282,6 +282,9 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: diis_step
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'do_ot_diag', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: homo, ispin, nmo
     LOGICAL                                  :: do_level_shift
     REAL(kind=dp)                            :: diis_error, eps_iter
@@ -310,9 +313,8 @@ CONTAINS
       scf_env%iter_param = diis_error
       scf_env%iter_method = "DIIS/OTdiag"
       DO ispin=1,SIZE(matrix_ks)
-         CALL copy_fm_to_sm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
-              matrix_ks(ispin)%matrix,error=error)
-         !CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,matrix_ks(ispin)%matrix)
+         CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
+              matrix_ks(ispin)%matrix,keep_sparsity=.TRUE.)
       END DO
       eps_iter = MAX(eps_iter,scf_control%diagonalization%eps_adapt*diis_error)
     ELSE
