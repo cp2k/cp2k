@@ -58,7 +58,7 @@ MODULE cp_dbcsr_operations
        dbcsr_replace_blocks, dbcsr_replicate_all, dbcsr_reserve_block2d, &
        dbcsr_scale, dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_types,                     ONLY: &
-       dbcsr_array_type, dbcsr_block_node_type, dbcsr_distribution_obj, &
+       dbcsr_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
@@ -113,7 +113,7 @@ MODULE cp_dbcsr_operations
             dbcsr_replicate_matrix_struct,&
             dbcsr_allocate_matrix, dbcsr_deallocate_matrix,&
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
-            dbcsr_obj_p_type, dbcsr_block_node_type, test_sm,&
+            dbcsr_obj_p_type, test_sm,&
             dbcsr_from_fm, dbcsr_from_sm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
             sm_from_dbcsr, dbcsr_type_from_sm_symmetry, &
             dbcsr_sm_fm_multiply, dbcsr_plus_fm_fm_t,&

@@ -18,7 +18,8 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, bp, csize, nze, rsize
+    INTEGER                                  :: blk_p, bp, csize, ithread, &
+                                                nze, rsize
     REAL(kind=real_8), DIMENSION(:), POINTER :: rbp
 
 !   ---------------------------------------------------------------------------
@@ -40,10 +41,18 @@
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        iterator%pos = iterator%pos+1
-       CALL find_first_valid_block (iterator%pos, iterator%nblks,&
-            iterator%blk_p)
-       CALL find_proper_row (iterator%pos, iterator%row,&
-            iterator%nblkrows_total, iterator%row_p)
+       IF (.NOT. iterator%shared) THEN
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p)
+       ELSE
+          ithread = 0
+!$        ithread = OMP_GET_THREAD_NUM()
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p,&
+               tdist=iterator%tdist, tid=ithread)
+       ENDIF
        IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
     ELSE
        row = 0
@@ -160,7 +169,8 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, bp, csize, nze, rsize
+    INTEGER                                  :: blk_p, bp, csize, ithread, &
+                                                nze, rsize
     REAL(kind=real_8), DIMENSION(:), POINTER :: lin_blk_p, rbp
 
 !   ---------------------------------------------------------------------------
@@ -197,10 +207,18 @@
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        iterator%pos = iterator%pos+1
-       CALL find_first_valid_block (iterator%pos, iterator%nblks,&
-            iterator%blk_p)
-       CALL find_proper_row (iterator%pos, iterator%row,&
-            iterator%nblkrows_total, iterator%row_p)
+       IF (.NOT.iterator%shared) THEN
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p)
+       ELSE
+          ithread = 0
+!$        ithread = OMP_GET_THREAD_NUM()
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p,&
+               tdist=iterator%tdist, tid=ithread)
+       ENDIF
        IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
     ELSE
        row = 0

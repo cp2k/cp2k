@@ -46,7 +46,6 @@ MODULE dbcsr_types
             dbcsr_mutable_obj, dbcsr_mutable_type,&
             dbcsr_magic_number
   ! CP2K compatibility
-  PUBLIC :: dbcsr_block_node_type
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
             dbcsr_slot_row_p,&
@@ -57,7 +56,9 @@ MODULE dbcsr_types
             dbcsr_num_slots
   PUBLIC :: dbcsr_type_real_4, dbcsr_type_real_8,&
             dbcsr_type_complex_4, dbcsr_type_complex_8,&
-            dbcsr_type_real_default, dbcsr_type_complex_default
+            dbcsr_type_real_default, dbcsr_type_complex_default,&
+            dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
+            dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d
   PUBLIC :: dbcsr_type_normal, dbcsr_type_symmetric,&
             dbcsr_type_antisymmetric, dbcsr_type_transposed
   PUBLIC :: dbcsr_repl_none, dbcsr_repl_row, dbcsr_repl_col, dbcsr_repl_full
@@ -157,10 +158,14 @@ MODULE dbcsr_types
 !> \var data_type   which of the data types is actually used
 ! *****************************************************************************
   TYPE dbcsr_data_area_type
-     REAL(KIND=real_4), DIMENSION(:), POINTER    :: r_sp
-     REAL(KIND=real_8), DIMENSION(:), POINTER    :: r_dp
-     COMPLEX(KIND=real_4), DIMENSION(:), POINTER :: c_sp
-     COMPLEX(KIND=real_8), DIMENSION(:), POINTER :: c_dp
+     REAL(KIND=real_4), DIMENSION(:), POINTER      :: r_sp
+     REAL(KIND=real_8), DIMENSION(:), POINTER      :: r_dp
+     COMPLEX(KIND=real_4), DIMENSION(:), POINTER   :: c_sp
+     COMPLEX(KIND=real_8), DIMENSION(:), POINTER   :: c_dp
+     REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: r2_sp
+     REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: r2_dp
+     COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: c2_sp
+     COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: c2_dp
      INTEGER                                  :: refcount
      LOGICAL                                  :: special
      CHARACTER                                :: data_type
@@ -175,6 +180,11 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER          :: dbcsr_type_complex_4 = 'c'
   CHARACTER, PARAMETER          :: dbcsr_type_complex_8 = 'C'
 
+  CHARACTER, PARAMETER          :: dbcsr_type_real_4_2d = 'x'
+  CHARACTER, PARAMETER          :: dbcsr_type_real_8_2d = 'X'
+  CHARACTER, PARAMETER          :: dbcsr_type_complex_4_2d = 'y'
+  CHARACTER, PARAMETER          :: dbcsr_type_complex_8_2d = 'Y'
+
 #ifndef __SGL
   CHARACTER, PARAMETER          :: dbcsr_type_real_default = 'R'
   CHARACTER, PARAMETER          :: dbcsr_type_complex_default = 'C'
@@ -186,15 +196,13 @@ MODULE dbcsr_types
 
 ! *****************************************************************************
 !> \brief An iterator over a DBCSR matrix.
-!> \note This is briefly change to allow being included in the dbcsr_type type
-!>       What is written here is what the structure should be.
+!> \note This is briefly changed to allow being included in the dbcsr_type type
+!>       What is written here is what the structure should be and not what it
+!>       is.
 !> \var matrix           the matrix
-!> \var buffer_r_sp      Real single precision buffer
-!> \var buffer_r_dp      Real double precision buffer
-!> \var buffer_c_sp      Complex single precision buffer
-!> \var buffer_c_dp      Complex double precision buffer
-!> \var row              Current row
-!> \var pos              Current position
+!> \var buffer_2d        Buffers for repointing 2d pointers (1 per thread)
+!> \var row              Current row (per thread)
+!> \var pos              Current position (per thread)
 !> \var row_size         Size of current row
 !> \var rbs, cbs         Pointer to row and column size array
 !> \var contiguous_pointers   Whether pointers to data should be contiguous
@@ -202,17 +210,17 @@ MODULE dbcsr_types
 ! *****************************************************************************
   TYPE dbcsr_iterator
      !TYPE(dbcsr_obj)                               :: matrix
-     REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: buffer_r_sp
-     REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: buffer_r_dp
-     COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: buffer_c_sp
-     COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: buffer_c_dp
-     INTEGER            :: row, row_size
-     INTEGER            :: pos
+     !REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: buffer_r_sp
+     !REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: buffer_r_dp
+     !COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: buffer_c_sp
+     !COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: buffer_c_dp
+     TYPE(dbcsr_data_obj)                           :: buffer_2d
+     INTEGER                                        :: pos, row, row_size
      INTEGER, DIMENSION(:), POINTER :: rbs, cbs
-     LOGICAL            :: contiguous_pointers
+     LOGICAL            :: contiguous_pointers, shared
      ! Copies from the matrix.
      INTEGER            :: nblks, nblkrows_total, max_r_size, max_c_size
-     INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p
+     INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p, tdist
      TYPE(dbcsr_data_obj) :: data_area
      !dbg
      INTEGER :: count_me
@@ -263,13 +271,6 @@ MODULE dbcsr_types
      !TYPE(btree_2d_d)        :: tree
      TYPE(dbcsr_mutable_obj)                 :: mutable
   END TYPE dbcsr_work_type
-
-!> \brief CP2k compatibility
-  TYPE dbcsr_block_node_type
-     TYPE(dbcsr_iterator)                   :: iter
-     INTEGER                                :: block_col
-     REAL(KIND=dp), DIMENSION(:,:), POINTER :: block
-  END TYPE dbcsr_block_node_type
 
 ! *****************************************************************************
 !> \brief The BCSR sparse matrix type.
@@ -344,7 +345,6 @@ MODULE dbcsr_types
      TYPE(dbcsr_distribution_obj)       :: dist
      INTEGER                 :: refcount
      LOGICAL                 :: work_mutable
-     TYPE(dbcsr_block_node_type), POINTER :: block_node
   END TYPE dbcsr_type
 
   INTEGER, PARAMETER :: dbcsr_magic_number = 879546213

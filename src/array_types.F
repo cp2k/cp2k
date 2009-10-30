@@ -346,25 +346,41 @@ CONTAINS
     TYPE(array_i1d_obj), INTENT(IN)          :: array
     INTEGER, DIMENSION(:), POINTER           :: DATA
 
-    DATA => array%low%data
+    IF (ASSOCIATED (array%low)) THEN
+       DATA => array%low%data
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
   END FUNCTION array_data_i1d
   FUNCTION array_data_i2d(array) RESULT (DATA)
     TYPE(array_i2d_obj), INTENT(IN)          :: array
     INTEGER, DIMENSION(:, :), POINTER        :: DATA
 
-    DATA => array%low%data
+    IF (ASSOCIATED (array%low)) THEN
+       DATA => array%low%data
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
   END FUNCTION array_data_i2d
   FUNCTION array_data_d1d(array) RESULT (DATA)
     TYPE(array_d1d_obj), INTENT(IN)          :: array
     REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
 
-    DATA => array%low%data
+    IF (ASSOCIATED (array%low)) THEN
+       DATA => array%low%data
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
   END FUNCTION array_data_d1d
   FUNCTION array_data_d2d(array) RESULT (DATA)
     TYPE(array_d2d_obj), INTENT(IN)          :: array
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
 
-    DATA => array%low%data
+    IF (ASSOCIATED (array%low)) THEN
+       DATA => array%low%data
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
   END FUNCTION array_data_d2d
 
   !
@@ -373,25 +389,41 @@ CONTAINS
     TYPE(array_i1d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
 
-    the_size = SIZE(array%low%data)
+    IF (ASSOCIATED (array%low)) THEN
+       the_size = SIZE(array%low%data)
+    ELSE
+       the_size = 0
+    ENDIF
   END FUNCTION array_size_i1d
   PURE FUNCTION array_size_i2d(array) RESULT (the_size)
     TYPE(array_i2d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
 
-    the_size = SIZE(array%low%data)
+    IF (ASSOCIATED (array%low)) THEN
+       the_size = SIZE(array%low%data)
+    ELSE
+       the_size = 0
+    ENDIF
   END FUNCTION array_size_i2d
   PURE FUNCTION array_size_d1d(array) RESULT (the_size)
     TYPE(array_d1d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
 
-    the_size = SIZE(array%low%data)
+    IF (ASSOCIATED (array%low)) THEN
+       the_size = SIZE(array%low%data)
+    ELSE
+       the_size = 0
+    ENDIF
   END FUNCTION array_size_d1d
   PURE FUNCTION array_size_d2d(array) RESULT (the_size)
     TYPE(array_d2d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
 
-    the_size = SIZE(array%low%data)
+    IF (ASSOCIATED (array%low)) THEN
+       the_size = SIZE(array%low%data)
+    ELSE
+       the_size = 0
+    ENDIF
   END FUNCTION array_size_d2d
 
   !
@@ -401,32 +433,40 @@ CONTAINS
     LOGICAL                                  :: are_equal
 
     are_equal = .FALSE.
-    IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
-    are_equal = ALL(array1%low%data .EQ. array2%low%data)
+    IF (ASSOCIATED (array1%low) .AND. ASSOCIATED (array2%low)) THEN
+       IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
+       are_equal = ALL(array1%low%data .EQ. array2%low%data)
+    ENDIF
   END FUNCTION array_equality_i1d
   PURE FUNCTION array_equality_i2d(array1, array2) RESULT (are_equal)
     TYPE(array_i2d_obj), INTENT(IN)          :: array1, array2
     LOGICAL                                  :: are_equal
 
     are_equal = .FALSE.
-    IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
-    are_equal = ALL(array1%low%data .EQ. array2%low%data)
+    IF (ASSOCIATED (array1%low) .AND. ASSOCIATED (array2%low)) THEN
+       IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
+       are_equal = ALL(array1%low%data .EQ. array2%low%data)
+    ENDIF
   END FUNCTION array_equality_i2d
   PURE FUNCTION array_equality_d1d(array1, array2) RESULT (are_equal)
     TYPE(array_d1d_obj), INTENT(IN)          :: array1, array2
     LOGICAL                                  :: are_equal
 
     are_equal = .FALSE.
-    IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
-    are_equal = ALL(array1%low%data .EQ. array2%low%data)
+    IF (ASSOCIATED (array1%low) .AND. ASSOCIATED (array2%low)) THEN
+       IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
+       are_equal = ALL(array1%low%data .EQ. array2%low%data)
+    ENDIF
   END FUNCTION array_equality_d1d
   PURE FUNCTION array_equality_d2d(array1, array2) RESULT (are_equal)
     TYPE(array_d2d_obj), INTENT(IN)          :: array1, array2
     LOGICAL                                  :: are_equal
 
     are_equal = .FALSE.
-    IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
-    are_equal = ALL(array1%low%data .EQ. array2%low%data)
+    IF (ASSOCIATED (array1%low) .AND. ASSOCIATED (array2%low)) THEN
+       IF (SIZE(array1%low%data) .NE. SIZE(array2%low%data)) RETURN
+       are_equal = ALL(array1%low%data .EQ. array2%low%data)
+    ENDIF
   END FUNCTION array_equality_d2d
 
 

@@ -679,7 +679,7 @@ CONTAINS
 !$OMP default(none) &
 !$OMP private(ithread,cosab,sinab,work,ilist,iatom,jatom)&
 !$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb)&
-!$OMP private(nrow,iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
+!$OMP private(nrow,iset,jset,ncoa,ncob,nnode,inode,irow,icol,found,tr)&
 !$OMP private(op_cos,op_sin,rab,rab2,dab,i,kvec)&
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&

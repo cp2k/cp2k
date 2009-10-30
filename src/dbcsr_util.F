@@ -776,11 +776,6 @@ CONTAINS
        IF (ASSOCIATED (matrix%m%wms)) THEN
           CALL dbcsr_work_destroy_all(matrix%m)
        ENDIF
-       IF (ASSOCIATED (matrix%m%block_node)) THEN
-          CALL dbcsr_iterator_stop (matrix%m%block_node%iter)
-          DEALLOCATE (matrix%m%block_node)
-          NULLIFY (matrix%m%block_node)
-       ENDIF
     ELSE
        ! Invalidate index
        NULLIFY(matrix%m%index)
@@ -841,12 +836,11 @@ CONTAINS
     ENDIF
     ! CP2K SM compatibility
     NULLIFY(matrix%m%dist2d)
-    NULLIFY(matrix%m%block_node)
     !
     ! Setup the data
     IF (.NOT. hijack) THEN
        CALL dbcsr_data_new (matrix%m%data_area, matrix%m%data_type, my_nze,&
-            matrix%m%special_memory)
+            special_memory=matrix%m%special_memory)
        IF (matrix%m%special_memory) THEN
           CALL mp_allocate(matrix%m%index, dbcsr_num_slots, stat=stat)
           IF (stat /= 0) CALL stop_memory (routineP, 'matrix%m%index', my_nze)
@@ -6417,6 +6411,7 @@ CONTAINS
 
     use_mutable = matrix%work_mutable
   END FUNCTION dbcsr_use_mutable
+
 
 ! *****************************************************************************
 !> \brief Calls the functions that are called in the included files but not
