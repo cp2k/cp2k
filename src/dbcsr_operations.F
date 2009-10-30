@@ -6042,7 +6042,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER                                  :: blk, col, mp_group, mynode, &
-                                                numnodes, p, row
+                                                nblks, numnodes, nze, p, row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
                                                 row_blk_size, row_dist, &
                                                 tmp_index
@@ -6114,8 +6114,25 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
             matrix%m%dist,&
             'N', matrix%m%row_blk_size, matrix%m%col_blk_size,&
             0, 0, matrix%m%data_type, special=matrix%m%special_memory)
-       CALL dbcsr_work_create(distributed)
        distributed%m%replication_type = dbcsr_repl_none
+       ! First count how many blocks are local.
+       nze = 0
+       nblks = 0
+       CALL dbcsr_iterator_start (iter, matrix)
+       DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
+          tr = .FALSE.
+          CALL dbcsr_get_stored_coordinates (matrix%m, row, col, tr, p)
+          IF (mynode .EQ. p) THEN
+             nze = nze + row_blk_size(row) * col_blk_size(col)
+             nblks = nblks + 1
+          ENDIF
+       ENDDO
+       CALL dbcsr_iterator_stop (iter)
+       ! Preallocate the erray
+       CALL dbcsr_work_create(distributed, nblks_guess=nblks,&
+            sizedata_guess=nze, work_mutable=.FALSE.)
+       ! Now actually do the work
        CALL dbcsr_iterator_start (iter, matrix)
        DO WHILE (dbcsr_iterator_blocks_left (iter))
           CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
