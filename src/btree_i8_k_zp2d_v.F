@@ -792,7 +792,7 @@ CONTAINS
 
 
   SUBROUTINE btree_find (tree, key, value, exists)
-    TYPE(btree), INTENT(INOUT)               :: tree
+    TYPE(btree), INTENT(IN)                  :: tree
     INTEGER(KIND=keyt), INTENT(IN)           :: key
     TYPE(zp2d), INTENT(OUT)                  :: value
     LOGICAL, INTENT(OUT), OPTIONAL           :: exists

@@ -14,9 +14,9 @@ MODULE qmmm_se_forces
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
@@ -86,7 +86,8 @@ CONTAINS
                                                 natorb_a, nkind, &
                                                 number_qm_atoms, stat
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: anag, defined, failure
+    LOGICAL                                  :: anag, defined, failure, &
+                                                found, tr
     REAL(KIND=dp)                            :: delta, enuclear
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces_QM, p_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -156,10 +157,8 @@ CONTAINS
                 iatom = list(i)
                 ! Give back block
                 NULLIFY(p_block_a)
-                CALL dbcsr_get_block_node(matrix=matrix_p(ispin)%matrix,&
-                                    block_row=iatom,&
-                                    block_col=iatom,&
-                                    BLOCK=p_block_a)
+                CALL dbcsr_get_block_p(matrix=matrix_p(ispin)%matrix,&
+                     row=iatom,col=iatom,BLOCK=p_block_a,tr=tr,found=found)
 
                 IF (ASSOCIATED(p_block_a)) THEN
                    ! Expand derivative of geometrical factors

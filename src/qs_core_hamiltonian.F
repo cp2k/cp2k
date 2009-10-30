@@ -86,7 +86,6 @@ MODULE qs_core_hamiltonian
                                              dbcsr_allocate_matrix,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_replicate_matrix_struct
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_matrix_distribution,&
@@ -98,7 +97,8 @@ MODULE qs_core_hamiltonian
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy
+                                             dbcsr_copy,&
+                                             dbcsr_get_block_p
   USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE dkh_main,                        ONLY: dkh_mol_integrals
@@ -188,9 +188,9 @@ CONTAINS
                                                 nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: all_potential_present, build_kinetic_energy_matrix, do_ep, &
-      epr_calculation, failure, gth_potential_present, harris_flag, &
+      epr_calculation, failure, found, gth_potential_present, harris_flag, &
       new_atom_b, oce_present, ppl_present, return_s_derivatives, &
-      return_t_derivatives, rho0_present, use_virial, xas_calculation
+      return_t_derivatives, rho0_present, tr, use_virial, xas_calculation
     REAL(KIND=dp)                            :: dab, eps_fit, eps_ppnl, f, &
                                                 f0, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -694,19 +694,15 @@ CONTAINS
 
                    IF (calculate_forces) THEN
                       NULLIFY(p_block)
-                      CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=p_block)
+                      CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                           row=irow,col=icol,BLOCK=p_block,tr=tr,found=found)
                       !IF (.NOT.ASSOCIATED(p_block)) THEN
                       !   CALL stop_program(routineN,moduleN,__LINE__,&
                       !        "A density matrix block is missing",para_env)
                       !END IF
                       NULLIFY(w_block)
-                      CALL dbcsr_get_block_node(matrix=matrix_w(1)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=w_block)
+                      CALL dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
+                           row=irow,col=icol,BLOCK=w_block,tr=tr,found=found)
                       !IF (.NOT.ASSOCIATED(w_block)) THEN
                       !   CALL stop_program(routineN,moduleN,__LINE__,&
                       !        "A weighted density matrix block is missing",para_env)

@@ -21,7 +21,6 @@ MODULE wfn_fitting_methods
                                              copy_fm_to_dbcsr,&
                                              dbcsr_add_block_node,&
                                              dbcsr_deallocate_matrix,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -36,7 +35,8 @@ MODULE wfn_fitting_methods
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
@@ -547,8 +547,8 @@ MODULE wfn_fitting_methods
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, new_atom_b, &
-                                                return_s_derivatives
+    LOGICAL                                  :: failure, found, new_atom_b, &
+                                                return_s_derivatives, tr
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: ai_work
@@ -742,10 +742,8 @@ MODULE wfn_fitting_methods
                 irow = iatom
                 icol = jatom
               END IF
-              CALL dbcsr_get_block_node(matrix=matrix_w,&
-                                  block_row=irow,&
-                                  block_col=icol,&
-                                  BLOCK=w_block)
+              CALL dbcsr_get_block_p(matrix=matrix_w,row=irow,col=icol,&
+                   block=w_block,tr=tr,found=found)
 
               IF (.NOT.ASSOCIATED(w_block)) THEN
                  CALL stop_program(routineN,moduleN,__LINE__,&

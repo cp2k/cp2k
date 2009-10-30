@@ -40,8 +40,7 @@ MODULE qs_collocate_density
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_get_block_node
+  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_type
@@ -52,7 +51,8 @@ MODULE qs_collocate_density
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_cp2k2d3
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
@@ -708,8 +708,8 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, &
-      map_consistent, my_compute_tau, my_soft, use_subpatch
+    LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, found, &
+      map_consistent, my_compute_tau, my_soft, tr, use_subpatch
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -978,10 +978,8 @@ CONTAINS
                   zet=zetb)          
           ENDIF
 
-          CALL dbcsr_get_block_node(matrix=deltap,&
-               block_row=brow,&
-               block_col=bcol,&
-               BLOCK=p_block)
+          CALL dbcsr_get_block_p(matrix=deltap,&
+               row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
           IF (.NOT.ASSOCIATED(p_block)) &
                CALL stop_program(routineP,"p_block not associated in deltap")
 
@@ -1133,8 +1131,8 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, &
-      map_consistent, my_soft, use_subpatch
+    LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, found, &
+      map_consistent, my_soft, tr, use_subpatch
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -1387,10 +1385,8 @@ CONTAINS
                   zet=zetb)          
           ENDIF
 
-          CALL dbcsr_get_block_node(matrix=deltap,&
-               block_row=brow,&
-               block_col=bcol,&
-               BLOCK=p_block)
+          CALL dbcsr_get_block_p(matrix=deltap,&
+               row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
           IF (.NOT.ASSOCIATED(p_block)) &
                CALL stop_program(routineP,"p_block not associated in deltap")
 

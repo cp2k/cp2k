@@ -15,10 +15,10 @@ MODULE preconditioner
                                              array_i1d_obj
   USE cp_dbcsr_operations,             ONLY: &
        copy_dbcsr_to_fm, cp_dbcsr_get_dist2d, dbcsr_copy_vec, &
-       dbcsr_deallocate_matrix, dbcsr_from_fm, dbcsr_get_block_node, &
-       dbcsr_multiply_vec, dbcsr_pack_vec, dbcsr_sm_fm_multiply, &
-       dbcsr_sm_sm_multiply, dbcsr_unpack_vec, packed_vec_bif_tech2, &
-       packed_vec_build_u, packed_vec_scale
+       dbcsr_deallocate_matrix, dbcsr_from_fm, dbcsr_multiply_vec, &
+       dbcsr_pack_vec, dbcsr_sm_fm_multiply, dbcsr_sm_sm_multiply, &
+       dbcsr_unpack_vec, packed_vec_bif_tech2, packed_vec_build_u, &
+       packed_vec_scale
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -47,8 +47,8 @@ MODULE preconditioner
        dbcsr_release, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: &
        block_add_on_diag_d, block_chol_inv_d, dbcsr_add, dbcsr_add_on_diag, &
-       dbcsr_btriu, dbcsr_copy, dbcsr_get_block, dbcsr_put_block, &
-       dbcsr_scale, dbcsr_trace
+       dbcsr_btriu, dbcsr_copy, dbcsr_get_block, dbcsr_get_block_p, &
+       dbcsr_put_block, dbcsr_scale, dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
                                              dbcsr_mp_obj,&
@@ -379,7 +379,7 @@ SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
 
     INTEGER                                  :: blk, handle, iblock_col, &
                                                 iblock_row, n, nblocks
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: found, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s
     TYPE(dbcsr_iterator)                     :: iter
 
@@ -401,10 +401,8 @@ SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
   CALL dbcsr_iterator_start(iter, matrix_h)
   DO WHILE (dbcsr_iterator_blocks_left(iter))
      CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, tr, blk)
-     CALL dbcsr_get_block_node(matrix=matrix_s,&
-                               block_row=iblock_row,&
-                               block_col=iblock_col,&
-                               BLOCK=block_s)
+     CALL dbcsr_get_block_p(matrix=matrix_s,&
+          row=iblock_row,col=iblock_col,BLOCK=block_s,tr=tr,found=found)
 
      IF(.NOT.ASSOCIATED(block_s))CALL stop_program("qs preconditioner",".NOT.ASSOCIATED(block_s)")
 

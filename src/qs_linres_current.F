@@ -28,7 +28,6 @@ MODULE qs_linres_current
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_plus_fm_fm_t,&
                                              dbcsr_sm_fm_multiply
@@ -53,6 +52,7 @@ MODULE qs_linres_current
   USE cube_utils,                      ONLY: cube_info_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_get_block_p,&
                                              dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE dbcsr_util,                      ONLY: dbcsr_create,&
@@ -588,8 +588,8 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, distributed_rs_grids, do_igaim, failure, &
-      map_consistent, my_minimum_image, my_soft
+    LOGICAL :: atom_pair_changed, den_found, den_tr, distributed_rs_grids, &
+      do_igaim, failure, map_consistent, my_minimum_image, my_soft
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_current, my_gauge, my_rho
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
@@ -899,22 +899,14 @@ CONTAINS
                 brow = iatom
                 bcol = jatom
 
-                CALL dbcsr_get_block_node(matrix=mat_a,&
-                     block_row=brow,&
-                     block_col=bcol,&
-                     BLOCK=jp_block_a)
-                CALL dbcsr_get_block_node(matrix=mat_b,&
-                     block_row=brow,&
-                     block_col=bcol,&
-                     BLOCK=jp_block_b)
-                CALL dbcsr_get_block_node(matrix=mat_c,&
-                     block_row=brow,&
-                     block_col=bcol,&
-                     BLOCK=jp_block_c)
-                IF(do_igaim) CALL dbcsr_get_block_node(matrix=mat_d,&
-                                  block_row=brow,&
-                                  block_col=bcol,&
-                                  BLOCK=jp_block_d)
+                CALL dbcsr_get_block_p(matrix=mat_a,row=brow,col=bcol,&
+                     block=jp_block_a,tr=den_tr,found=den_found)
+                CALL dbcsr_get_block_p(matrix=mat_b,row=brow,col=bcol,&
+                     block=jp_block_b,tr=den_tr,found=den_found)
+                CALL dbcsr_get_block_p(matrix=mat_c,row=brow,col=bcol,&
+                     block=jp_block_c,tr=den_tr,found=den_found)
+                IF(do_igaim) CALL dbcsr_get_block_p(matrix=mat_d,row=brow,col=bcol,&
+                     block=jp_block_d,tr=den_tr,found=den_found)
 
                 IF (.NOT.ASSOCIATED(jp_block_a)) THEN
                    sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -1107,22 +1099,14 @@ CONTAINS
 
           ENDIF
 
-          CALL dbcsr_get_block_node(matrix=deltajp_a,&
-               block_row=brow,&
-               block_col=bcol,&
-               BLOCK=jp_block_a)
-          CALL dbcsr_get_block_node(matrix=deltajp_b,&
-               block_row=brow,&
-               block_col=bcol,&
-               BLOCK=jp_block_b)
-          CALL dbcsr_get_block_node(matrix=deltajp_c,&
-               block_row=brow,&
-               block_col=bcol,&
-               BLOCK=jp_block_c)
-          IF(do_igaim) CALL dbcsr_get_block_node(matrix=deltajp_d,&
-                            block_row=brow,&
-                            block_col=bcol,&
-                            BLOCK=jp_block_d)
+          CALL dbcsr_get_block_p(matrix=deltajp_a,row=brow,col=bcol,&
+               block=jp_block_a,tr=den_tr,found=den_found)
+          CALL dbcsr_get_block_p(matrix=deltajp_b,row=brow,col=bcol,&
+               block=jp_block_b,tr=den_tr,found=den_found)
+          CALL dbcsr_get_block_p(matrix=deltajp_c,row=brow,col=bcol,&
+               block=jp_block_c,tr=den_tr,found=den_found)
+          IF(do_igaim) CALL dbcsr_get_block_p(matrix=deltajp_d,row=brow,col=bcol,&
+               block=jp_block_d,tr=den_tr,found=den_found)
 
           IF (.NOT.ASSOCIATED(jp_block_a)) &
                CALL stop_program(routineP,"p_block not associated in deltap")

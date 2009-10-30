@@ -17,9 +17,9 @@ MODULE core_ae
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
-  USE dbcsr_operations,                ONLY: dbcsr_add
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_get_block_p
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential
   USE kinds,                           ONLY: dp
@@ -83,7 +83,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, new_atom_b
+    LOGICAL                                  :: failure, found, new_atom_b, tr
     REAL(KIND=dp)                            :: alpha_c, core_charge, &
                                                 core_radius, dab, dac, dbc, &
                                                 f0, rab2, rac2, rbc2, zeta_c
@@ -225,16 +225,12 @@ CONTAINS
                       icol = iatom
                    END IF
                    NULLIFY(h_block)
-                   CALL dbcsr_get_block_node(matrix=matrix_h(1)%matrix,&
-                                        block_row=irow,&
-                                        block_col=icol,&
-                                        BLOCK=h_block)
+                   CALL dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
+                        row=irow,col=icol,BLOCK=h_block,tr=tr,found=found)
                    IF (calculate_forces) THEN
                       NULLIFY(p_block)
-                      CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=p_block)
+                      CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                           row=irow,col=icol,BLOCK=p_block,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
                       ! *** Decontract density matrix block ***
                       DO iset=1,nseta

@@ -18,9 +18,9 @@ MODULE se_fock_matrix_exchange
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: do_multipole_none,&
@@ -87,7 +87,8 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: size_p_block_a
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
-                                                failure, switch, use_virial
+                                                failure, found, switch, tr, &
+                                                use_virial
     REAL(KIND=dp)                            :: delta, dr
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot
@@ -193,15 +194,11 @@ CONTAINS
                       switch = .TRUE.
                    END IF
                    ! Retrieve blocks for KS and P
-                   CALL dbcsr_get_block_node(matrix=ks_matrix(1)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       BLOCK=ks_block_a)
+                   CALL dbcsr_get_block_p(matrix=ks_matrix(1)%matrix,&
+                        row=irow,col=icol,BLOCK=ks_block_a,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
-                   CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       BLOCK=p_block_a)
+                   CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                        row=irow,col=icol,BLOCK=p_block_a,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
                    size_p_block_a(1) = SIZE(p_block_a,1)
                    size_p_block_a(2) = SIZE(p_block_a,2)
@@ -209,15 +206,11 @@ CONTAINS
                    
                    ! Handle more configurations
                    IF ( nspins == 2 ) THEN
-                      CALL dbcsr_get_block_node(matrix=ks_matrix(2)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=ks_block_b)
+                      CALL dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
+                           row=irow,col=icol,BLOCK=ks_block_b,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
-                      CALL dbcsr_get_block_node(matrix=matrix_p(2)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=p_block_b)
+                      CALL dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
+                           row=irow,col=icol,BLOCK=p_block_b,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
                       check = (size_p_block_a(1)==SIZE(p_block_b,1)).AND.(size_p_block_a(2)==SIZE(p_block_b,2))
                       CPPostcondition(check,cp_failure_level,routineP,error,failure)

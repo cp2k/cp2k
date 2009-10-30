@@ -19,7 +19,6 @@ MODULE qs_core_energies
                                              plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -28,6 +27,7 @@ MODULE qs_core_energies
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -94,7 +94,7 @@ CONTAINS
 
     INTEGER                                  :: blk, handle, i, iblock_col, &
                                                 iblock_row, j
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: found, tr
     REAL(KIND=dp)                            :: ecore_block
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     TYPE(dbcsr_iterator)                     :: iter
@@ -106,10 +106,8 @@ CONTAINS
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, h_block, tr, blk)
 
-       CALL dbcsr_get_block_node(matrix=p,&
-                                 block_row=iblock_row,&
-                                 block_col=iblock_col,&
-                                 BLOCK=p_block)
+       CALL dbcsr_get_block_p(matrix=p,&
+            row=iblock_row,col=iblock_col,BLOCK=p_block,tr=tr,found=found)
 
        ! if no block we can cycle
        IF ( .NOT. ASSOCIATED ( p_block ) ) CYCLE

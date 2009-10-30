@@ -20,13 +20,13 @@ MODULE qs_geminals
                                              get_geminal_basis_set,&
                                              get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_iterator
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
@@ -282,7 +282,7 @@ MODULE qs_geminals
       nb, nd, nder, ngem, nkind, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list, atom_of_kind, &
                                                 kind_of
-    LOGICAL                                  :: failure = .FALSE., tr
+    LOGICAL                                  :: failure = .FALSE., found, tr
     REAL(KIND=dp)                            :: ehfx2, eps_screening, f0, fij
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: kdvec
@@ -368,18 +368,15 @@ MODULE qs_geminals
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block1, tr, blk)
        IF ( calculate_fock ) THEN
-          CALL dbcsr_get_block_node(matrix=matrix_ks(1)%matrix,&
-                                    block_row=iatom,block_col=jatom,&
-                                    BLOCK=ks_block1)
+          CALL dbcsr_get_block_p(matrix=matrix_ks(1)%matrix,&
+               row=iatom,col=jatom,BLOCK=ks_block1,tr=tr,found=found)
        END IF
        IF (nspins==2) THEN
-          CALL dbcsr_get_block_node(matrix=matrix_p(2)%matrix,&
-                                    block_row=iatom,block_col=jatom,&
-                                    BLOCK=p_block2)
+          CALL dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
+               row=iatom,col=jatom,BLOCK=p_block2,tr=tr,found=found)
           IF ( calculate_fock ) THEN
-             CALL dbcsr_get_block_node(matrix=matrix_ks(2)%matrix,&
-                                       block_row=iatom,block_col=jatom,&
-                                       BLOCK=ks_block2)
+             CALL dbcsr_get_block_p(matrix=matrix_ks(2)%matrix,&
+                  row=iatom,col=jatom,BLOCK=ks_block2,tr=tr,found=found)
           ENDIF
        ENDIF
 

@@ -24,9 +24,9 @@ MODULE kg_gpw_collocate_den
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
                                              dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
                                              sm_from_dbcsr
   USE cube_utils,                      ONLY: cube_info_type
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
@@ -129,8 +129,9 @@ CONTAINS
                                                 latom, tasks_local
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
     LOGICAL                                  :: distributed_rs_grids, &
-                                                failure, map_consistent, &
-                                                my_compute_tau
+                                                failure, found, &
+                                                map_consistent, &
+                                                my_compute_tau, tr
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -318,10 +319,8 @@ CONTAINS
 
           ! bad, should do better loop ordering XXXXXXXXXX
           NULLIFY(p_block)
-          CALL dbcsr_get_block_node(matrix=matrix_p,&
-                              block_row=brow,&
-                              block_col=bcol,&
-                              BLOCK=p_block)
+          CALL dbcsr_get_block_p(matrix=matrix_p,&
+               row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
           IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
           IF (.NOT. map_consistent) THEN
@@ -642,7 +641,8 @@ CONTAINS
                                                 first_sgfb, ival, tasks_local
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
     LOGICAL                                  :: calculate_forces, failure, &
-                                                map_consistent, my_compute_tau
+                                                found, map_consistent, &
+                                                my_compute_tau, tr
     REAL(dp)                                 :: dab, eps_gvg_rspace, &
                                                 kind_radius_b, rab2, zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb
@@ -829,17 +829,13 @@ CONTAINS
           END IF
 
           NULLIFY(h_block)
-          CALL dbcsr_get_block_node(matrix=matrix_h,&
-                              block_row=brow,&
-                              block_col=bcol,&
-                              BLOCK=h_block)
+          CALL dbcsr_get_block_p(matrix=matrix_h,&
+               row=brow,col=bcol,BLOCK=h_block,tr=tr,found=found)
           CPPrecondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
 
           NULLIFY(p_block)
-          CALL dbcsr_get_block_node(matrix=matrix_p,&
-                              block_row=brow,&
-                              block_col=bcol,&
-                              BLOCK=p_block)
+          CALL dbcsr_get_block_p(matrix=matrix_p,&
+               row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
           CPPrecondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
 
           rab2 = 0.0_dp

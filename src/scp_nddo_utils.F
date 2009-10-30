@@ -10,9 +10,9 @@
 MODULE scp_nddo_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node
   USE dbcsr_methods,                   ONLY: dbcsr_get_info
-  USE dbcsr_operations,                ONLY: dbcsr_get_diag,&
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p,&
+                                             dbcsr_get_diag,&
                                              dbcsr_set_diag
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE kinds,                           ONLY: dp
@@ -50,7 +50,7 @@ CONTAINS
                                                 iparticle, j, n_el, natorb, &
                                                 nkind, stat
     INTEGER, POINTER                         :: atom_list( : )
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, found, tr
     REAL(KIND=dp)                            :: app, asp, ass, ratio, &
                                                 sum_adiag, sum_ksdiag
     REAL(KIND=dp), ALLOCATABLE               :: ksdiag( : )
@@ -84,10 +84,8 @@ CONTAINS
        DO iparticle=1, SIZE ( atom_list )
           iatom = atom_list ( iparticle )
 
-          CALL dbcsr_get_block_node(matrix=pscp,&
-                              block_row=iatom,&
-                              block_col=iatom,&
-                              BLOCK=p_block)
+          CALL dbcsr_get_block_p(matrix=pscp,&
+               row=iatom,col=iatom,BLOCK=p_block,tr=tr,found=found)
           CPPrecondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
           DO i=1,SIZE(p_block,1)
              DO j=1,SIZE(p_block,2)
@@ -95,10 +93,8 @@ CONTAINS
              END DO
           END DO
           IF(.NOT.energy_only) THEN
-             CALL dbcsr_get_block_node(matrix=ks_scp,&
-                                 block_row=iatom,&
-                                 block_col=iatom,&
-                                 BLOCK=ks_block)
+             CALL dbcsr_get_block_p(matrix=ks_scp,&
+                  row=iatom,col=iatom,BLOCK=ks_block,tr=tr,found=found)
              CPPrecondition(ASSOCIATED(ks_block),cp_failure_level,routineP,error,failure)
              DO i=1,SIZE(ks_block,1) 
                 DO j=1,SIZE(ks_block,2) 

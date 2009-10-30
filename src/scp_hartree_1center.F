@@ -18,13 +18,13 @@ MODULE  scp_hartree_1center
                                              gto_basis_set_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_distribute,&
                                              dbcsr_get_block_diag,&
+                                             dbcsr_get_block_p,&
                                              dbcsr_replicate_all,&
                                              dbcsr_set,&
                                              dbcsr_sum_replicated
@@ -93,7 +93,7 @@ CONTAINS
                                                 lscp_min, npgf, npgf_scp, &
                                                 nsgf_scp_set, nsgf_set
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, first_sgf_scp
-    LOGICAL                                  :: my_debug
+    LOGICAL                                  :: found, my_debug, tr
     REAL(dp)                                 :: e_hartree_1c, fac, rpgfc, &
                                                 trace, zetc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
@@ -262,26 +262,18 @@ CONTAINS
 
           ! Retrieve KS and density matrix block for this atom
           NULLIFY ( p_block, p_block2, h_block, h_block2 )
-          CALL dbcsr_get_block_node(matrix=diagmat_ks(1)%matrix,&
-               block_row=iatom,&
-               block_col=iatom,&
-               BLOCK=h_block)
+          CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
+               row=iatom,col=iatom,BLOCK=h_block,tr=tr,found=found)
 
-          CALL dbcsr_get_block_node(matrix=diagmat_p(1)%matrix,&
-               block_row=iatom,&
-               block_col=iatom,&
-               BLOCK=p_block)
+          CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
+               row=iatom,col=iatom,BLOCK=p_block,tr=tr,found=found)
 
           IF(nspins == 2) THEN
-             CALL dbcsr_get_block_node(matrix=diagmat_ks(2)%matrix,&
-                  block_row=iatom,&
-                  block_col=iatom,&
-                  BLOCK=h_block2)
+             CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
+                  row=iatom,col=iatom,BLOCK=h_block2,tr=tr,found=found)
 
-             CALL dbcsr_get_block_node(matrix=diagmat_p(2)%matrix,&
-                  block_row=iatom,&
-                  block_col=iatom,&
-                  BLOCK=p_block2)
+             CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
+                  row=iatom,col=iatom,BLOCK=p_block2,tr=tr,found=found)
 
           END IF
           ! Initializing arrays for the calculation of the coefficient matrix CPC

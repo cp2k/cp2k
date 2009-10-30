@@ -19,7 +19,6 @@ MODULE kg_scf
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
                                              sm_from_dbcsr
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -31,6 +30,7 @@ MODULE kg_scf
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
@@ -1110,7 +1110,7 @@ CONTAINS
       imol, imol_kind, info, irow, irow_ortho, jat, jatom, ld_ortho, ld_work, &
       natom, nc_ortho, nc_work, nmol, nmol_kind, row_first, row_last
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, found, tr
     REAL(dp), DIMENSION(:, :), POINTER       :: ortho, s_block, work
     TYPE(dbcsr_obj), POINTER                 :: s
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
@@ -1162,10 +1162,8 @@ CONTAINS
 
              NULLIFY(s_block)
              IF (iatom <= jatom) THEN
-                CALL dbcsr_get_block_node(matrix=s,&
-                                   block_row=iatom,&
-                                   block_col=jatom,&
-                                   BLOCK=s_block)
+                CALL dbcsr_get_block_p(matrix=s,&
+                     row=iatom,col=jatom,BLOCK=s_block,tr=tr,found=found)
                icol =  1
                DO icol_ortho = col_first, col_last
                   irow = 1
@@ -1176,10 +1174,8 @@ CONTAINS
                   icol = icol + 1
                END DO   ! icol_ortho
              ELSE
-               CALL dbcsr_get_block_node(matrix=s,&
-                                   block_row=jatom,&
-                                   block_col=iatom,&
-                                   BLOCK=s_block)
+               CALL dbcsr_get_block_p(matrix=s,&
+                    row=jatom,col=iatom,BLOCK=s_block,tr=tr,found=found)
 
                icol =  1
                DO icol_ortho = col_first, col_last

@@ -14,15 +14,15 @@ MODULE qs_dftb_coulomb
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_multiply_local,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_multiply_local,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_operations,                ONLY: dbcsr_add
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_iterator
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_1d,&
@@ -117,7 +117,7 @@ CONTAINS
                                                 jkind, natom, nmat
     INTEGER, DIMENSION(3)                    :: periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
-    LOGICAL                                  :: do_ewald, failure, tr, &
+    LOGICAL                                  :: do_ewald, failure, found, tr, &
                                                 use_virial
     REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
@@ -189,10 +189,8 @@ CONTAINS
           CALL dbcsr_iterator_next_block(iter, iatom, jatom, gblock, tr, blk)
           DO i=1,3
              NULLIFY(gblock)
-             CALL dbcsr_get_block_node(matrix=gamma_matrix(i+1)%matrix,&
-                                       block_row=iatom,&
-                                       block_col=jatom,&
-                                       block=gblock)
+             CALL dbcsr_get_block_p(matrix=gamma_matrix(i+1)%matrix,&
+                  row=iatom,col=jatom,block=gblock,tr=tr,found=found)
              fij(i) = gblock(1,1)*mcharge(iatom)*mcharge(jatom)
           END DO
           rij = particle_set(iatom)%r - particle_set(jatom)%r
@@ -305,14 +303,10 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, iatom, jatom, ksblock, tr, blk)
          NULLIFY(sblock,ksblock_2)
-         IF (SIZE(ks_matrix,1)>1) CALL dbcsr_get_block_node(matrix=ks_matrix(2)%matrix,&
-                                                            block_row=iatom,&
-                                                            block_col=jatom, &
-                                                            block=ksblock_2)
-         CALL dbcsr_get_block_node(matrix=matrix_s(1)%matrix,&
-                                   block_row=iatom,&
-                                   block_col=jatom,&
-                                   block=sblock)
+         IF (SIZE(ks_matrix,1)>1) CALL dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
+              row=iatom,col=jatom,block=ksblock_2,tr=tr,found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
+              row=iatom,col=jatom,block=sblock,tr=tr,found=found)
          gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
          ksblock = ksblock - gmij*sblock
          IF (SIZE(ks_matrix,1)>1) ksblock_2 = ksblock_2 - gmij*sblock
@@ -322,16 +316,12 @@ CONTAINS
             jkind  = kind_of(jatom)
             atom_j = atom_of_kind(jatom)
             NULLIFY(pblock)
-            CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
-                                      block_row=iatom,&
-                                      block_col=jatom,&
-                                      block=pblock)
+            CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                 row=iatom,col=jatom,block=pblock,tr=tr,found=found)
             DO i=1,3
                NULLIFY(dsblock)
-               CALL dbcsr_get_block_node(matrix=matrix_s(1+i)%matrix,&
-                                         block_row=iatom,&
-                                         block_col=jatom,&
-                                         block=dsblock)
+               CALL dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
+                    row=iatom,col=jatom,block=dsblock,tr=tr,found=found)
                fi = -gmij*SUM(pblock*dsblock)
                force(ikind)%rho_elec(i,atom_i) =&
                     force(ikind)%rho_elec(i,atom_i) + fi

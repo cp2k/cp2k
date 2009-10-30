@@ -12,13 +12,13 @@
 MODULE hfx_communication 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
   USE f77_blas
@@ -101,7 +101,7 @@ MODULE hfx_communication
       istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, &
       req(2), source, source_cpu
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: failure, found, tr
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, &
@@ -128,10 +128,8 @@ MODULE hfx_communication
         nsetb = basis_parameter(jkind)%nset
         nsgfb => basis_parameter(jkind)%nsgf
         IF( get_max_vals_spin ) THEN
-          CALL dbcsr_get_block_node(rho_beta,&
-                              block_row=iatom,&
-                              block_col=jatom,&
-                              BLOCK=sparse_block_beta)
+          CALL dbcsr_get_block_p(rho_beta,&
+               row=iatom,col=jatom,BLOCK=sparse_block_beta,tr=tr,found=found)
           pa = 0
           DO iset = 1,nseta
             pb = 0

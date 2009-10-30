@@ -26,7 +26,6 @@ MODULE dft_plus_u
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              dbcsr_deallocate_matrix,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -48,6 +47,7 @@ MODULE dft_plus_u
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_operations,                ONLY: dbcsr_get_block_diag,&
+                                             dbcsr_get_block_p,&
                                              dbcsr_replicate_all,&
                                              dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
@@ -219,10 +219,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
-    LOGICAL                                  :: dft_plus_u_atom, failure, &
-                                                fm_work1_local_alloc, &
-                                                fm_work2_local_alloc, &
-                                                just_energy
+    LOGICAL :: dft_plus_u_atom, failure, fm_work1_local_alloc, &
+      fm_work2_local_alloc, found, just_energy, tr
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind
     REAL(KIND=dp)                            :: fspin, trq, trq2, u_minus_j, v
     REAL(KIND=dp), ALLOCATABLE, &
@@ -500,10 +498,8 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL dbcsr_get_block_node(matrix=sm_q,&
-                              block_row=atom_a,&
-                              block_col=atom_a,&
-                              block=q_block)
+          CALL dbcsr_get_block_p(matrix=sm_q,row=atom_a,col=atom_a,&
+               block=q_block,tr=tr,found=found)
 
           IF (.NOT.ASSOCIATED(q_block)) CYCLE
 
@@ -555,10 +551,8 @@ CONTAINS
 
           IF (.NOT.just_energy) THEN
 
-            CALL dbcsr_get_block_node(matrix=sm_v,&
-                                block_row=atom_a,&
-                                block_col=atom_a,&
-                                block=v_block)
+            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
+                 block=v_block,tr=tr,found=found)
             CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
             DO iset=1,nset
@@ -651,10 +645,8 @@ CONTAINS
                                natom=natom_of_kind)
           DO iatom=1,natom_of_kind
             atom_a = atom_list(iatom)
-            CALL dbcsr_get_block_node(matrix=sm_v,&
-                                block_row=atom_a,&
-                                block_col=atom_a,&
-                                block=v_block)
+            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
+                 block=v_block,tr=tr,found=found)
             CALL mp_sum(v_block,qs_env%para_env%group)
           END DO
         END IF
@@ -679,10 +671,8 @@ CONTAINS
 
           DO iatom=1,natom_of_kind
             atom_a = atom_list(iatom)
-            CALL dbcsr_get_block_node(matrix=sm_v,&
-                                block_row=atom_a,&
-                                block_col=atom_a,&
-                                block=v_block)
+            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
+                 block=v_block,tr=tr,found=found)
             sgfa = first_sgf_atom(atom_a) - 1
             DO isgf=1,SIZE(v_block,1)
               DO jsgf=1,SIZE(v_block,2)
@@ -799,7 +789,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell, orbitals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: dft_plus_u_atom, failure, &
-                                                just_energy, smear
+                                                found, just_energy, smear, tr
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind, orb_occ
     REAL(KIND=dp)                            :: eps_scf, fspin, occ, trq, &
                                                 trq2, u_minus_j
@@ -961,17 +951,13 @@ CONTAINS
 
       DO iatom=1,natom
 
-        CALL dbcsr_get_block_node(matrix=sm_p,&
-                                  block_row=iatom,&
-                                  block_col=iatom,&
-                                  block=p_block)
+        CALL dbcsr_get_block_p(matrix=sm_p,row=iatom,col=iatom,&
+             block=p_block,tr=tr,found=found)
 
         IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
-        CALL dbcsr_get_block_node(matrix=sm_q,&
-                                  block_row=iatom,&
-                                  block_col=iatom,&
-                                  block=q_block)
+        CALL dbcsr_get_block_p(matrix=sm_q,row=iatom,col=iatom,&
+             block=q_block,tr=tr,found=found)
         CPPostcondition(ASSOCIATED(q_block),cp_failure_level,routineP,error,failure)
 
         IF (orthonormal_basis) THEN
@@ -980,10 +966,8 @@ CONTAINS
             q_block(isgf,isgf) = p_block(isgf,isgf)
           END DO
         ELSE
-          CALL dbcsr_get_block_node(matrix=sm_s,&
-                                    block_row=iatom,&
-                                    block_col=iatom,&
-                                    block=s_block)
+          CALL dbcsr_get_block_p(matrix=sm_s,row=iatom,col=iatom,&
+               block=s_block,tr=tr,found=found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
           ! Exploit that P and S are symmetric
           DO jsgf=1,SIZE(p_block,2)
@@ -1099,10 +1083,8 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL dbcsr_get_block_node(matrix=sm_q,&
-                                    block_row=atom_a,&
-                                    block_col=atom_a,&
-                                    block=q_block)
+          CALL dbcsr_get_block_p(matrix=sm_q,row=atom_a,col=atom_a,&
+               block=q_block,tr=tr,found=found)
 
           ! Calculate energy contribution to E(U)
 
@@ -1146,10 +1128,8 @@ CONTAINS
 
               IF (.NOT.just_energy) THEN
 
-                CALL dbcsr_get_block_node(matrix=sm_v,&
-                                          block_row=atom_a,&
-                                          block_col=atom_a,&
-                                          block=v_block)
+                CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
+                     block=v_block,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
                 DO iset=1,nset
@@ -1262,10 +1242,8 @@ CONTAINS
 
               IF (.NOT.just_energy) THEN
 
-                CALL dbcsr_get_block_node(matrix=sm_v,&
-                                          block_row=atom_a,&
-                                          block_col=atom_a,&
-                                          block=v_block)
+                CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
+                     block=v_block,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
                 DO iset=1,nset
@@ -1365,17 +1343,13 @@ CONTAINS
 
             atom_a = atom_list(iatom)
 
-            CALL dbcsr_get_block_node(matrix=sm_h,&
-                                      block_row=atom_a,&
-                                      block_col=atom_a,&
-                                      block=h_block)
+            CALL dbcsr_get_block_p(matrix=sm_h,row=atom_a,col=atom_a,&
+                 block=h_block,tr=tr,found=found)
 
             IF (.NOT.ASSOCIATED(h_block)) CYCLE
 
-            CALL dbcsr_get_block_node(matrix=sm_v,&
-                                      block_row=atom_a,&
-                                      block_col=atom_a,&
-                                      block=v_block)
+            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
+                 block=v_block,tr=tr,found=found)
             CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
             IF (orthonormal_basis) THEN
@@ -1383,10 +1357,8 @@ CONTAINS
                 h_block(isgf,isgf) = h_block(isgf,isgf) + v_block(isgf,isgf)
               END DO
             ELSE
-              CALL dbcsr_get_block_node(matrix=sm_s,&
-                                        block_row=atom_a,&
-                                        block_col=atom_a,&
-                                        block=s_block)
+               CALL dbcsr_get_block_p(matrix=sm_s,row=atom_a,col=atom_a,&
+                    block=s_block,tr=tr,found=found)
               CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
               DO jsgf=1,SIZE(h_block,2)
                 DO isgf=1,SIZE(h_block,1)
@@ -1421,23 +1393,17 @@ CONTAINS
 
             atom_a = atom_list(iatom)
 
-            CALL dbcsr_get_block_node(matrix=sm_p,&
-                                      block_row=atom_a,&
-                                      block_col=atom_a,&
-                                      block=p_block)
+            CALL dbcsr_get_block_p(matrix=sm_p,row=atom_a,col=atom_a,&
+                 block=p_block,tr=tr,found=found)
 
             IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
-            CALL dbcsr_get_block_node(matrix=sm_v,&
-                                      block_row=atom_a,&
-                                      block_col=atom_a,&
-                                      block=v_block)
+            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
+                 block=v_block,tr=tr,found=found)
             CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
-            CALL dbcsr_get_block_node(matrix=sm_w,&
-                                      block_row=atom_a,&
-                                      block_col=atom_a,&
-                                      block=w_block)
+            CALL dbcsr_get_block_p(matrix=sm_w,row=atom_a,col=atom_a,&
+                 block=w_block,tr=tr,found=found)
             CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
 
             DO jsgf=1,SIZE(w_block,2)
@@ -1530,7 +1496,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: dft_plus_u_atom, failure, &
-                                                just_energy, tr
+                                                found, just_energy, tr
     REAL(KIND=dp)                            :: fspin, q, u_minus_j, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dEdq, trps
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1694,10 +1660,8 @@ CONTAINS
 
         ELSE
 
-          CALL dbcsr_get_block_node(matrix=sm_s,&
-                                    block_row=iatom,&
-                                    block_col=jatom,&
-                                    block=s_block)
+          CALL dbcsr_get_block_p(matrix=sm_s,row=iatom,col=jatom,&
+               block=s_block,tr=tr,found=found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
           sgf = first_sgf_atom(jatom)
@@ -1813,10 +1777,8 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL dbcsr_get_block_node(matrix=sm_p,&
-                                    block_row=atom_a,&
-                                    block_col=atom_a,&
-                                    block=p_block)
+          CALL dbcsr_get_block_p(matrix=sm_p,row=atom_a,col=atom_a,&
+               block=p_block,tr=tr,found=found)
 
           ! Calculate E(U) and dE(U)/dq
 
@@ -1903,10 +1865,8 @@ CONTAINS
 
             ! Request katom just to check for consistent sparse matrix pattern
 
-            CALL dbcsr_get_block_node(matrix=sm_s,&
-                                      block_row=iatom,&
-                                      block_col=jatom,&
-                                      block=s_block)
+            CALL dbcsr_get_block_p(matrix=sm_s,row=iatom,col=jatom,&
+                 block=s_block,tr=tr,found=found)
             CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
             ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
@@ -1956,10 +1916,8 @@ CONTAINS
 
           ! Request katom just to check for consistent sparse matrix patterns
 
-          CALL dbcsr_get_block_node(matrix=sm_w,&
-                                    block_row=iatom,&
-                                    block_col=jatom,&
-                                    block=w_block)
+          CALL dbcsr_get_block_p(matrix=sm_w,row=iatom,col=jatom,&
+               block=w_block,tr=tr,found=found)
           CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
 
           ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation

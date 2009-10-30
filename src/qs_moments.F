@@ -31,7 +31,6 @@ MODULE qs_moments
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -50,6 +49,7 @@ MODULE qs_moments
                                              put_results
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_get_block_p,&
                                              dbcsr_set,&
                                              dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_obj
@@ -114,7 +114,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, found, tr
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -278,10 +278,8 @@ CONTAINS
 
             DO i=1,nm
               NULLIFY (mint(i)%block)
-              CALL dbcsr_get_block_node(matrix=moments(i)%matrix,&
-                                  block_row=irow,&
-                                  block_col=icol,&
-                                  BLOCK=mint(i)%block)
+              CALL dbcsr_get_block_p(matrix=moments(i)%matrix,&
+                   row=irow,col=icol,BLOCK=mint(i)%block,tr=tr,found=found)
               mint(i)%block = 0._dp
             END DO
 
@@ -398,7 +396,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, found, tr
     REAL(dp), DIMENSION(:, :), POINTER       :: cblock, cosab, sblock, sinab, &
                                                 work
     REAL(KIND=dp)                            :: dab
@@ -523,15 +521,11 @@ CONTAINS
             END IF
 
             NULLIFY (cblock)
-            CALL dbcsr_get_block_node(matrix=cosmat,&
-                                block_row=irow,&
-                                block_col=icol,&
-                                BLOCK=cblock)
+            CALL dbcsr_get_block_p(matrix=cosmat,&
+                 row=irow,col=icol,BLOCK=cblock,tr=tr,found=found)
             NULLIFY (sblock)
-            CALL dbcsr_get_block_node(matrix=sinmat,&
-                                block_row=irow,&
-                                block_col=icol,&
-                                BLOCK=sblock)
+            CALL dbcsr_get_block_p(matrix=sinmat,&
+                 row=irow,col=icol,BLOCK=sblock,tr=tr,found=found)
             IF(ASSOCIATED(cblock).AND..NOT.ASSOCIATED(sblock).OR.&
                .NOT.ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)

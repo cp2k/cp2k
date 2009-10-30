@@ -11,11 +11,14 @@ MODULE dkh_main
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, dbcsr_add_block_node, &
-       dbcsr_allocate_matrix, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix_set, dbcsr_get_block_node, dbcsr_obj_p_type, &
-       dbcsr_replicate_matrix_struct
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             dbcsr_add_block_node,&
+                                             dbcsr_allocate_matrix,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_replicate_matrix_struct
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -38,7 +41,8 @@ MODULE dkh_main
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_add
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_get_block_p
   USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -123,8 +127,9 @@ CONTAINS
                                                 nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: all_potential_present, dkh_erfc, dkh_full, dkh_loc_atom, &
-      failure, gth_potential_present, kinetic_m, new_atom_b, oce_present, &
-      ppl_present, return_s_derivatives, return_t_derivatives, rho0_present
+      failure, found, gth_potential_present, kinetic_m, new_atom_b, &
+      oce_present, ppl_present, return_s_derivatives, return_t_derivatives, &
+      rho0_present, tr
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, rab2, &
                                                 rac2, rbc2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1071,41 +1076,35 @@ CONTAINS
                    END IF
 
                    NULLIFY(spgf_block)
-                   CALL dbcsr_get_block_node(matrix=matrix_spgf(1)%matrix,&
-                        block_row=iblock_row,&
-                        block_col=iblock_col,&
-                        BLOCK=spgf_block)
+                   CALL dbcsr_get_block_p(matrix=matrix_spgf(1)%matrix,&
+                        row=iblock_row,col=iblock_col,BLOCK=spgf_block,&
+                        tr=tr,found=found)
 
                    NULLIFY(hpgf_block)
-                   CALL dbcsr_get_block_node(matrix=matrix_hpgf(1)%matrix,&
-                        block_row=iblock_row,&
-                        block_col=iblock_col,&
-                        BLOCK=hpgf_block)
+                   CALL dbcsr_get_block_p(matrix=matrix_hpgf(1)%matrix,&
+                        row=iblock_row,col=iblock_col,BLOCK=hpgf_block,&
+                        tr=tr,found=found)
 
                    NULLIFY(tpgf_block)
-                   CALL dbcsr_get_block_node(matrix=matrix_tpgf(1)%matrix,&
-                        block_row=iblock_row,&
-                        block_col=iblock_col,&
-                        BLOCK=tpgf_block)
+                   CALL dbcsr_get_block_p(matrix=matrix_tpgf(1)%matrix,&
+                        row=iblock_row,col=iblock_col,BLOCK=tpgf_block,&
+                        tr=tr,found=found)
 
                    NULLIFY(s_block)
-                   CALL dbcsr_get_block_node(matrix=matrix_s(1)%matrix,&
-                        block_row=iblock_row,&
-                        block_col=iblock_col,&
-                        BLOCK=s_block)
+                   CALL dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
+                        row=iblock_row,col=iblock_col,BLOCK=s_block,&
+                        tr=tr,found=found)
 
                    NULLIFY(hp_block)
-                   CALL dbcsr_get_block_node(matrix=matrix_h(1)%matrix,&
-                        block_row=iblock_row,&
-                        block_col=iblock_col,&
-                        BLOCK=hp_block)
+                   CALL dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
+                        row=iblock_row,col=iblock_col,BLOCK=hp_block,&
+                        tr=tr,found=found)
 
                    IF(kinetic_m)THEN
                       NULLIFY(t_block)
-                      CALL dbcsr_get_block_node(matrix=matrix_t(1)%matrix,&
-                           block_row=iblock_row,&
-                           block_col=iblock_col,&
-                           BLOCK=t_block)
+                      CALL dbcsr_get_block_p(matrix=matrix_t(1)%matrix,&
+                           row=iblock_row,col=iblock_col,BLOCK=t_block,&
+                           tr=tr,found=found)
                    END IF
                 END IF
 

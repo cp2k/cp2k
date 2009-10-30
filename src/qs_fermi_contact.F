@@ -19,14 +19,14 @@ MODULE qs_fermi_contact
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -85,7 +85,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: new_atom_b
+    LOGICAL                                  :: found, new_atom_b, tr
     REAL(KIND=dp)                            :: dab, max_radius_a, &
                                                 max_radius_b, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -248,10 +248,8 @@ CONTAINS
                    END IF
 
                    NULLIFY (fcint(1)%block)
-                   CALL dbcsr_get_block_node(matrix=matrix_fc(1)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       BLOCK=fcint(1)%block)
+                   CALL dbcsr_get_block_p(matrix=matrix_fc(1)%matrix,&
+                        row=irow,col=icol,BLOCK=fcint(1)%block,tr=tr,found=found)
                 ENDIF
 
                 DO iset=1,nseta

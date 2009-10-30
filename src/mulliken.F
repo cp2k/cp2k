@@ -11,14 +11,14 @@
 MODULE mulliken
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cp_control_types,                ONLY: mulliken_restraint_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
                                              dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
   USE f77_blas
@@ -79,7 +79,7 @@ CONTAINS
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
                                                 ispin, nblock, nspin
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: found, tr
     REAL(kind=dp)                            :: mult, my_energy, my_order_p
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_deriv, &
                                                 ks_block, p_block, s_block, &
@@ -114,10 +114,8 @@ CONTAINS
           CALL dbcsr_iterator_start(iter, s_matrix)
           DO WHILE (dbcsr_iterator_blocks_left(iter))
              CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, tr, blk)
-             CALL dbcsr_get_block_node(matrix=ks_matrix(ispin)%matrix,&
-                                       block_row=iblock_row,&
-                                       block_col=iblock_col,&
-                                       BLOCK=ks_block)
+             CALL dbcsr_get_block_p(matrix=ks_matrix(ispin)%matrix,&
+                  row=iblock_row,col=iblock_col,BLOCK=ks_block,tr=tr,found=found)
 
              IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block) ) ) THEN
                 CALL stop_program("Mulliken","unexpected s / ks structure")
@@ -139,10 +137,8 @@ CONTAINS
           CALL dbcsr_iterator_start(iter, p_matrix(ispin)%matrix)
           DO WHILE (dbcsr_iterator_blocks_left(iter))
              CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, tr, blk)
-             CALL dbcsr_get_block_node(matrix=w_matrix(ispin)%matrix,&
-                                       block_row=iblock_row,&
-                                       block_col=iblock_col,&
-                                       BLOCK=w_block)
+             CALL dbcsr_get_block_p(matrix=w_matrix(ispin)%matrix,&
+                  row=iblock_row,col=iblock_col,BLOCK=w_block,tr=tr,found=found)
 
              ! we can cycle if a block is not present
              IF ( .NOT. (ASSOCIATED(w_block) .AND. ASSOCIATED(p_block) ) ) CYCLE
@@ -275,7 +271,7 @@ END SUBROUTINE rf_deriv_check
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
                                                 ispin, nblock, nspin
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: found, tr
     REAL(kind=dp)                            :: mult
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, s_block
     TYPE(dbcsr_iterator)                     :: iter
@@ -290,10 +286,8 @@ END SUBROUTINE rf_deriv_check
        CALL dbcsr_iterator_start(iter, s_matrix)
        DO WHILE (dbcsr_iterator_blocks_left(iter))
           CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, tr, blk)
-          CALL dbcsr_get_block_node(matrix=p_matrix(ispin)%matrix,&
-                                    block_row=iblock_row,&
-                                    block_col=iblock_col,&
-                                    BLOCK=p_block)
+          CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
+               row=iblock_row,col=iblock_col,BLOCK=p_block,tr=tr,found=found)
 
           ! we can cycle if a block is not present
           IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block) ) ) CYCLE

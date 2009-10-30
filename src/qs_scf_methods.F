@@ -14,8 +14,7 @@
 ! *****************************************************************************
 MODULE qs_scf_methods
 
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -35,7 +34,8 @@ MODULE qs_scf_methods
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_operations,                ONLY: dbcsr_add
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
   USE f77_blas
@@ -392,7 +392,7 @@ CONTAINS
 
     INTEGER                                  :: blk, handle, i, iblock_col, &
                                                 iblock_row, j
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: failure, found, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_delta_block, p_new_block, &
                                                 p_old_block
     TYPE(dbcsr_iterator)                     :: iter
@@ -404,16 +404,12 @@ CONTAINS
     CALL dbcsr_iterator_start(iter, m1)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, tr, blk)
-       CALL dbcsr_get_block_node(matrix=m2,&
-                                 block_row=iblock_row,&
-                                 block_col=iblock_col,&
-                                 BLOCK=p_old_block)
+       CALL dbcsr_get_block_p(matrix=m2,row=iblock_row,col=iblock_col,&
+            BLOCK=p_old_block,tr=tr,found=found)
        CPPostcondition(ASSOCIATED(p_old_block),cp_failure_level,routineP,error,failure)
        IF(PRESENT(m3)) THEN
-          CALL dbcsr_get_block_node(matrix=m3,&
-                                    block_row=iblock_row,&
-                                    block_col=iblock_col,&
-                                    BLOCK=p_delta_block)
+          CALL dbcsr_get_block_p(matrix=m3,row=iblock_row,col=iblock_col,&
+               BLOCK=p_delta_block,tr=tr,found=found)
           CPPostcondition(ASSOCIATED(p_delta_block),cp_failure_level,routineP,error,failure)
 
           DO j=1,SIZE(p_new_block,2)

@@ -40,19 +40,19 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_no_threads, &
        dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
-       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_init, dbcsr_iterator_blocks_left, &
-       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_size, &
+       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
+       dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_mp_pgrid_equal, dbcsr_mutable_new, dbcsr_nblkcols_total, &
        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
        dbcsr_release, dbcsr_row_block_sizes, dbcsr_uses_special_memory, &
        dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, &
-       dbcsr_distribute, dbcsr_filter, dbcsr_get_block, &
+       dbcsr_distribute, dbcsr_filter, dbcsr_get_block, dbcsr_get_block_p, &
        dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_new_transposed, &
        dbcsr_norm, dbcsr_put_block, dbcsr_redistribute, dbcsr_remove_block, &
        dbcsr_replace_blocks, dbcsr_replicate_all, dbcsr_reserve_block2d, &
@@ -72,10 +72,9 @@ MODULE cp_dbcsr_operations
        dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
        dbcsr_data_ensure_size, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
        dbcsr_dist2d_to_dist, dbcsr_finalize, dbcsr_find_column, &
-       dbcsr_get_block_index, dbcsr_make_col_images, &
-       dbcsr_make_index_canonical, dbcsr_set_debug, &
+       dbcsr_make_col_images, dbcsr_make_index_canonical, dbcsr_set_debug, &
        dbcsr_transpose_distribution, dbcsr_verify_matrix, dbcsr_work_create, &
-       pointer_set, pointer_view, swap
+       swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -110,7 +109,7 @@ MODULE cp_dbcsr_operations
        add_packed_vecs, dbcsr_mult_pack_vec, packed_vec_bif_tech, &
        packed_vec_bif_tech2, dbcsr_copy_vec, packed_vec_build_u
   ! CP2K API emulation
-  PUBLIC :: dbcsr_add_block_node,dbcsr_get_block_node,&
+  PUBLIC :: dbcsr_add_block_node,&
             dbcsr_replicate_matrix_struct,&
             dbcsr_allocate_matrix, dbcsr_deallocate_matrix,&
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
@@ -127,10 +126,6 @@ MODULE cp_dbcsr_operations
   INTERFACE dbcsr_deallocate_matrix_set
      MODULE PROCEDURE deallocate_dbcsr_matrix_set,&
                       deallocate_dbcsr_matrix_set_2d
-  END INTERFACE
-
-  INTERFACE dbcsr_get_block_node
-     MODULE PROCEDURE get_dbcsr_block_node, get_dbcsr_matrix_block
   END INTERFACE
 
   INTERFACE dbcsr_plus_fm_fm_t
@@ -702,7 +697,8 @@ CONTAINS
     ! Tests block getting
     DO row = 1, dbcsr_nblkrows_total (matrix_a2)
        DO col = 1, dbcsr_nblkcols_total (matrix_a2)
-          CALL dbcsr_get_block_node (matrix_a2, row, col, block=block2d)
+          CALL dbcsr_get_block_p (matrix_a2, row, col, block=block2d,&
+               tr=tr,found=found)
           !WRITE(*,*)'getting block_node:',row, col, ASSOCIATED(block2d)
        ENDDO
     ENDDO
@@ -2359,103 +2355,6 @@ CONTAINS
          routineN, "You should not add existing blocks according to old API.")
     IF(.NOT.is_there) block(:,:) = 0.0_dp
   END SUBROUTINE dbcsr_add_block_node
-
-
-! *****************************************************************************
-!> \brief Emulation of sparse_matrix_types/get_block_node mapped to
-!>        get_real_block_node
-! *****************************************************************************
-  SUBROUTINE get_dbcsr_block_node(block_node,block_col,BLOCK)
-
-    TYPE(dbcsr_block_node_type), INTENT(IN)  :: block_node
-    INTEGER, INTENT(OUT), OPTIONAL           :: block_col
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: BLOCK
-
-!   ---------------------------------------------------------------------------
-
-    IF (PRESENT(block_col)) block_col = block_node%block_col
-    IF (PRESENT(BLOCK)) BLOCK => block_node%block
-  END SUBROUTINE get_dbcsr_block_node
-
-
-! *****************************************************************************
-!> \brief Emulation of sparse_matrix_types/get_block_node mapped to
-!>        get_matrix_block
-! *****************************************************************************
-  SUBROUTINE get_dbcsr_matrix_block(matrix,block_row,block_col,&
-                                   first_row,last_row,first_col,last_col,&
-                                   block_node,BLOCK)
-    TYPE(dbcsr_obj)                          :: matrix
-    INTEGER, INTENT(IN)                      :: block_row, block_col
-    INTEGER, INTENT(OUT), OPTIONAL           :: first_row, last_row, &
-                                                first_col, last_col
-    TYPE(dbcsr_block_node_type), OPTIONAL, &
-      POINTER                                :: block_node
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: BLOCK
-
-    INTEGER                                  :: block_number, cbs, first_pos, &
-                                                offset, rbs, stored_col, &
-                                                stored_row
-    INTEGER, DIMENSION(:), POINTER           :: bs
-    LOGICAL                                  :: found, stored_tr
-
-!   ---------------------------------------------------------------------------
-
-    IF (PRESENT(first_row) .OR. PRESENT(last_row)) THEN
-       bs = array_data (dbcsr_row_block_sizes (matrix))
-       first_pos = 1 + SUM (bs(1:block_row-1))
-       IF (PRESENT(first_row)) first_row = first_pos
-       IF (PRESENT(last_row)) last_row = first_pos - 1 + bs(block_row)
-    ENDIF
-
-    IF (PRESENT(first_col) .OR. PRESENT(last_col)) THEN
-       bs = array_data (dbcsr_col_block_sizes (matrix))
-       first_pos = 1 + SUM (bs(1:block_col-1))
-       IF (PRESENT(first_col)) first_col = first_pos
-       IF (PRESENT(last_col)) last_col = first_pos - 1 + bs(block_col)
-    ENDIF
-    CALL make_block_node_exist (matrix)
-    CALL dbcsr_get_block_index (matrix, block_row, block_col, stored_row,&
-         stored_col, stored_tr, found, block_number, offset)
-    IF (found) THEN
-       matrix%m%block_node%block_col = block_col
-       rbs = matrix%m%block_node%iter%rbs(block_row)
-       cbs = matrix%m%block_node%iter%cbs(block_col)
-       IF (PRESENT (block_node)) block_node => matrix%m%block_node
-       IF (PRESENT (block)) THEN
-          CALL cp_assert (.NOT. stored_tr, cp_warning_level, cp_internal_error,&
-               "get_matrix_block", "Block is stored transposed")
-          CALL pointer_set (block,&
-               (/ rbs, cbs /), pointer_view (&
-               dbcsr_get_data_p (matrix%m%data_area, 0.0_dp), offset,&
-               offset+rbs*cbs-1),&
-               matrix%m%block_node%iter%buffer_r_dp)
-       ENDIF
-    ELSE
-       IF (PRESENT (block_node)) NULLIFY (block_node)
-       IF (PRESENT (block)) NULLIFY (block)
-    ENDIF
-  END SUBROUTINE get_dbcsr_matrix_block
-
-  SUBROUTINE make_block_node_exist(matrix)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-
-    IF (.NOT. ASSOCIATED (matrix%m%block_node)) THEN
-       ALLOCATE (matrix%m%block_node)
-       CALL dbcsr_iterator_start (matrix%m%block_node%iter, matrix)
-    ENDIF
-  END SUBROUTINE make_block_node_exist
-
-!  INTERFACE dbcsr_put_block_node
-!     MODULE PROCEDURE put_block_node, put_matrix_block
-!  END INTERFACE
-!
-!  INTERFACE dbcsr_next_block_node
-!     MODULE PROCEDURE next_block_node
-!  END INTERFACE
-
 
 ! *****************************************************************************
 !> \brief Emulation of sparse_matrix_types/allocate_matrix mapped to

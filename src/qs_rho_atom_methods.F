@@ -12,9 +12,9 @@ MODULE qs_rho_atom_methods
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: deallocate_lebedev_grids,&
@@ -490,7 +490,7 @@ MODULE qs_rho_atom_methods
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: a_list, list_a, list_b
     LOGICAL                                  :: dista, distab, distb, &
-                                                failure, paw_atom
+                                                failure, found, paw_atom, tr
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: p_matrix
     REAL(KIND=dp)                            :: eps_cpc, factor, pmax
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: CPC, PC1
@@ -641,10 +641,9 @@ MODULE qs_rho_atom_methods
 
             DO ispin = 1,nspins
                NULLIFY(p_block_spin(ispin)%r_coef)
-               CALL dbcsr_get_block_node(matrix=rho_ao(ispin)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         BLOCK=p_block_spin(ispin)%r_coef)
+               CALL dbcsr_get_block_p(matrix=rho_ao(ispin)%matrix,&
+                    row=irow,col=icol,BLOCK=p_block_spin(ispin)%r_coef,&
+                    tr=tr,found=found)
                pmax = pmax+MAXVAL(ABS(p_block_spin(ispin)%r_coef))
             ENDDO
 

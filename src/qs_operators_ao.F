@@ -23,7 +23,6 @@ MODULE qs_operators_ao
                                              pbc
   USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type
@@ -87,7 +86,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, new_atom_b
+    LOGICAL                                  :: failure, found, new_atom_b, tr
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -233,10 +232,8 @@ CONTAINS
 
                    DO i=1,3
                       NULLIFY(integral(i)%block)
-                      CALL dbcsr_get_block_node(matrix=matrix(i)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=integral(i)%block)
+                      CALL dbcsr_get_block_p(matrix=matrix(i)%matrix,&
+                           row=irow,col=icol,BLOCK=integral(i)%block,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,error,failure)
                    ENDDO
                 END IF
@@ -480,7 +477,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, new_atom_b
+    LOGICAL                                  :: failure, found, new_atom_b, tr
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -629,10 +626,8 @@ CONTAINS
 
                    DO i=1,3
                       NULLIFY(INTEGRAL(i)%block)
-                      CALL dbcsr_get_block_node(matrix=matrix(i)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=INTEGRAL(i)%block)
+                      CALL dbcsr_get_block_p(matrix=matrix(i)%matrix,&
+                           row=irow,col=icol,BLOCK=INTEGRAL(i)%block,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,error,failure)
                    ENDDO
                 END IF
@@ -901,8 +896,9 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, my_minimum_image, &
-                                                new_atom_b
+    LOGICAL                                  :: failure, found, &
+                                                my_minimum_image, new_atom_b, &
+                                                tr
     REAL(KIND=dp)                            :: alpha, dab, Lxo2, Lyo2, Lzo2, &
                                                 rab2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
@@ -1114,10 +1110,8 @@ CONTAINS
 
               DO i = 1,3
                  NULLIFY(op_dip(i)%block)
-                 CALL dbcsr_get_block_node(matrix=op(i)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     block=op_dip(i)%block)
+                 CALL dbcsr_get_block_p(matrix=op(i)%matrix,&
+                      row=irow,col=icol,block=op_dip(i)%block,tr=tr,found=found)
                  CPPostcondition(ASSOCIATED(op_dip(i)%block),cp_failure_level,routineP,error,failure)
               END DO
             END IF  ! new_atom_b
@@ -1270,8 +1264,9 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, my_minimum_image, &
-                                                my_soft, new_atom_b
+    LOGICAL                                  :: failure, found, &
+                                                my_minimum_image, my_soft, &
+                                                new_atom_b, tr
     REAL(KIND=dp)                            :: dab, Lxo2, Lyo2, Lzo2, rab2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
@@ -1487,10 +1482,8 @@ CONTAINS
 
               DO imom = 1, M_dim
                  NULLIFY(op_dip(imom)%block)
-                 CALL dbcsr_get_block_node(matrix=op(imom)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     block=op_dip(imom)%block)
+                 CALL dbcsr_get_block_p(matrix=op(imom)%matrix,&
+                      row=irow,col=icol,block=op_dip(imom)%block,tr=tr,found=found)
                  CPPostcondition(ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
               END DO   ! imom
             END IF  ! new_atom_b
@@ -1889,11 +1882,6 @@ CONTAINS
                                          block=op_dip(imom)%block,&
                                          tr=op_tr, found=op_found)
 CPPostcondition(op_found.and.ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
-                 !CALL dbcsr_get_block_node(matrix=op(imom)%matrix,&
-                 !                    block_row=irow,&
-                 !                    block_col=icol,&
-                 !                    block=op_dip(imom)%block)
-                 !CPPostcondition(ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
                  DO idir = 1,3
                    NULLIFY(op_dip_der(imom,idir)%block)
                    CALL dbcsr_get_block_p (matrix=op_der(imom,idir)%matrix,&
@@ -1901,11 +1889,6 @@ CPPostcondition(op_found.and.ASSOCIATED(op_dip(imom)%block),cp_failure_level,rou
                                            block=op_dip_der(imom,idir)%block,&
                                            tr=op_der_tr, found=op_der_found)
 CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_failure_level,routineP,error,failure)
-                   !CALL dbcsr_get_block_node(matrix=op_der(imom,idir)%matrix,&
-                   !                  block_row=irow,&
-                   !                  block_col=icol,&
-                   !                  block=op_dip_der(imom,idir)%block)
-                   !CPPostcondition(ASSOCIATED(op_dip_der(imom,idir)%block),cp_failure_level,routineP,error,failure)
                 END DO  ! idir
               END DO   ! imom
             END IF  ! new_atom_b

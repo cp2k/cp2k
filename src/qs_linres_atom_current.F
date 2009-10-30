@@ -22,9 +22,9 @@ MODULE qs_linres_atom_current
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&
                                              current_gauge_r_and_step_func
@@ -106,8 +106,8 @@ CONTAINS
       output_unit
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
-    LOGICAL :: dista, distab, distb, failure, is_not_associated, paw_atom, &
-      sgf_soft_only_a, sgf_soft_only_b
+    LOGICAL :: den_found, den_tr, dista, distab, distb, failure, &
+      is_not_associated, paw_atom, sgf_soft_only_a, sgf_soft_only_b
     REAL(dp)                                 :: eps_cpc, hard_radius_a, &
                                                 hard_radius_b, hard_radius_c, &
                                                 jmax, nbr_dbl, rab(3), rbc(3)
@@ -290,25 +290,21 @@ CONTAINS
                    NULLIFY(b_block(ispin)%r_coef)
                    NULLIFY(c_block(ispin)%r_coef)
                    NULLIFY(d_block(ispin)%r_coef)
-                   CALL dbcsr_get_block_node(matrix=mat_a(ispin)%matrix,&
-                        &              block_row=iatom,&
-                        &              block_col=jatom,&
-                        &              BLOCK=a_block(ispin)%r_coef)
+                   CALL dbcsr_get_block_p(matrix=mat_a(ispin)%matrix,&
+                        row=iatom,col=jatom,block=a_block(ispin)%r_coef,&
+                        tr=den_tr,found=den_found)
                    jmax = jmax + MAXVAL(ABS(a_block(ispin)%r_coef))
-                   CALL dbcsr_get_block_node(matrix=mat_b(ispin)%matrix,&
-                        &              block_row=iatom,&
-                        &              block_col=jatom,&
-                        &              BLOCK=b_block(ispin)%r_coef)
+                   CALL dbcsr_get_block_p(matrix=mat_b(ispin)%matrix,&
+                        row=iatom,col=jatom,block=b_block(ispin)%r_coef,&
+                        tr=den_tr,found=den_found)
                    jmax = jmax + MAXVAL(ABS(b_block(ispin)%r_coef))
-                   CALL dbcsr_get_block_node(matrix=mat_c(ispin)%matrix,&
-                        &              block_row=iatom,&
-                        &              block_col=jatom,&
-                        &              BLOCK=c_block(ispin)%r_coef)
+                   CALL dbcsr_get_block_p(matrix=mat_c(ispin)%matrix,&
+                        row=iatom,col=jatom,block=c_block(ispin)%r_coef,&
+                        tr=den_tr,found=den_found)
                    jmax = jmax + MAXVAL(ABS(c_block(ispin)%r_coef))
-                   CALL dbcsr_get_block_node(matrix=mat_d(ispin)%matrix,&
-                        &              block_row=iatom,&
-                        &              block_col=jatom,&
-                        &              BLOCK=d_block(ispin)%r_coef)
+                   CALL dbcsr_get_block_p(matrix=mat_d(ispin)%matrix,&
+                        row=iatom,col=jatom,block=d_block(ispin)%r_coef,&
+                        tr=den_tr,found=den_found)
                    jmax = jmax + MAXVAL(ABS(d_block(ispin)%r_coef))
                 ENDDO
                 !

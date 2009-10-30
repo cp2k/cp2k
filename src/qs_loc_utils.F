@@ -20,8 +20,7 @@ MODULE qs_loc_utils
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -32,6 +31,7 @@ MODULE qs_loc_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_get_block_p,&
                                              dbcsr_set
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -532,7 +532,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, new_atom_b
+    LOGICAL                                  :: failure, found, new_atom_b, tr
     REAL(KIND=dp)                            :: dab, kvec(3), rab2, &
                                                 vector_k(3,6)
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
@@ -743,15 +743,11 @@ CONTAINS
 
               DO i = 1,dim_op
                  NULLIFY(op_cos(i)%block)
-                 CALL dbcsr_get_block_node(matrix=op_sm_set(1,i)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     block=op_cos(i)%block)
+                 CALL dbcsr_get_block_p(matrix=op_sm_set(1,i)%matrix,&
+                      row=irow,col=icol,block=op_cos(i)%block,tr=tr,found=found)
                  NULLIFY(op_sin(i)%block)
-                 CALL dbcsr_get_block_node(matrix=op_sm_set(2,i)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     block=op_sin(i)%block)
+                 CALL dbcsr_get_block_p(matrix=op_sm_set(2,i)%matrix,&
+                      row=irow,col=icol,block=op_sin(i)%block,tr=tr,found=found)
               END DO
             END IF  ! new_atom_b
 

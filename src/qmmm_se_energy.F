@@ -15,7 +15,6 @@ MODULE qmmm_se_energy
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -25,6 +24,7 @@ MODULE qmmm_se_energy
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_get_block_p,&
                                              dbcsr_set
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -94,7 +94,7 @@ CONTAINS
                                                 itype, iw, natom, natorb_a, &
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: anag, defined
+    LOGICAL                                  :: anag, defined, found, tr
     REAL(KIND=dp)                            :: enuclear
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -178,10 +178,8 @@ CONTAINS
              iatom = list(i)
              ! Give back block
              NULLIFY(h_block_a)
-             CALL dbcsr_get_block_node(matrix=ks_qmmm_env_loc%matrix_h(1)%matrix,&
-                                 block_row=iatom,&
-                                 block_col=iatom,&
-                                 BLOCK=h_block_a)
+             CALL dbcsr_get_block_p(matrix=ks_qmmm_env_loc%matrix_h(1)%matrix,&
+                  row=iatom,col=iatom,BLOCK=h_block_a,tr=tr,found=found)
 
              IF (ASSOCIATED(h_block_a)) THEN
                 h_block_a = 0.0_dp

@@ -14,9 +14,9 @@ MODULE qs_ks_atom
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_get_block_node,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -81,9 +81,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: ks
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      INTENT(IN)                             :: p
+      INTENT(INOUT)                          :: ks, p
     LOGICAL, INTENT(IN)                      :: forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
@@ -100,8 +98,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
-    LOGICAL                                  :: dista, distb, failure, &
-                                                my_tddft, paw_atom, use_virial
+    LOGICAL                                  :: dista, distb, failure, found, &
+                                                my_tddft, paw_atom, tr, &
+                                                use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, p_matrix
     REAL(dp), DIMENSION(3)                   :: rac, rbc
     REAL(dp), DIMENSION(3, 3)                :: force_tmp
@@ -288,28 +287,20 @@ CONTAINS
             DO ispin = 1,nspins
               NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
               IF (iatom <= jatom) THEN
-                CALL dbcsr_get_block_node(matrix=ks(ispin)%matrix,&
-                                    block_row=iatom,&
-                                    block_col=jatom,&
-                                    BLOCK=mat_h(ispin)%array)
+                CALL dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
+                     row=iatom,col=jatom,BLOCK=mat_h(ispin)%array,tr=tr,found=found)
               ELSE
-                CALL dbcsr_get_block_node(matrix=ks(ispin)%matrix,&
-                                    block_row=jatom,&
-                                    block_col=iatom,&
-                                    BLOCK=mat_h(ispin)%array)
+                CALL dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
+                     row=jatom,col=iatom,BLOCK=mat_h(ispin)%array,tr=tr,found=found)
               END IF
 
               IF(forces) THEN
                 IF (iatom <= jatom) THEN
-                  CALL dbcsr_get_block_node(matrix=p(ispin)%matrix,&
-                                    block_row=iatom,&
-                                    block_col=jatom,&
-                                    BLOCK=mat_p(ispin)%array)
+                  CALL dbcsr_get_block_p(matrix=p(ispin)%matrix,&
+                       row=iatom,col=jatom,BLOCK=mat_p(ispin)%array,tr=tr,found=found)
                 ELSE
-                  CALL dbcsr_get_block_node(matrix=p(ispin)%matrix,&
-                                      block_row=jatom,&
-                                      block_col=iatom,&
-                                      BLOCK=mat_p(ispin)%array)
+                  CALL dbcsr_get_block_p(matrix=p(ispin)%matrix,&
+                       row=jatom,col=iatom,BLOCK=mat_p(ispin)%array,tr=tr,found=found)
                 END IF
               END IF
             END DO

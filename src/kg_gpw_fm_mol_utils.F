@@ -14,7 +14,6 @@ MODULE kg_gpw_fm_mol_utils
 
   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
                                              dbcsr_from_sm,&
-                                             dbcsr_get_block_node,&
                                              sm_from_dbcsr
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -23,7 +22,8 @@ MODULE kg_gpw_fm_mol_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_set
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p,&
+                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -93,7 +93,7 @@ CONTAINS
       imolecule_kind, inao, istat, jao, jat_mol, jatom, jfs, jls, jnao, ldao, &
       ldmo, nao_mol, nat_mol, nmo_mol(2), nmol_local, nmolecule_kind
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, found, tr
     REAL(dp)                                 :: eigocc
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: mo, w_block, wmo, wmo_x_mot
@@ -175,10 +175,8 @@ CONTAINS
             NULLIFY(w_block)
             IF(iatom <= jatom) THEN
 
-              CALL dbcsr_get_block_node(matrix=w_matrix,&
-                                  block_row=iatom,&
-                                  block_col=jatom,&
-                                  block=w_block)
+              CALL dbcsr_get_block_p(matrix=w_matrix,&
+                   row=iatom,col=jatom,block=w_block,tr=tr,found=found)
               CPPrecondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
               CPPrecondition(inao==SIZE(w_block,1),cp_failure_level,routineP,error,failure)
               CPPrecondition(jnao==SIZE(w_block,2),cp_failure_level,routineP,error,failure)
@@ -191,10 +189,8 @@ CONTAINS
 
             ELSE
 
-              CALL dbcsr_get_block_node(matrix=w_matrix,&
-                                  block_row=jatom,&
-                                  block_col=iatom,&
-                                  block=w_block)
+               CALL dbcsr_get_block_p(matrix=w_matrix,&
+                    row=jatom,col=iatom,block=w_block,tr=tr,found=found)
               CPPrecondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
               CPPrecondition(jnao==SIZE(w_block,1),cp_failure_level,routineP,error,failure)
               CPPrecondition(inao==SIZE(w_block,2),cp_failure_level,routineP,error,failure)
@@ -562,7 +558,7 @@ CONTAINS
     INTEGER :: col_first, col_last, iat, iatom, icol, icol_mol_s, irow, &
       irow_mol_s, jat, jatom, row_first, row_last
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, found, tr
     REAL(dp), DIMENSION(:, :), POINTER       :: s_block
     TYPE(dbcsr_obj), POINTER                 :: matrix
 
@@ -594,10 +590,8 @@ CONTAINS
 
         NULLIFY(s_block)
         IF (iatom <= jatom) THEN
-           CALL dbcsr_get_block_node(matrix=matrix,&
-                              block_row=iatom,&
-                              block_col=jatom,&
-                              BLOCK=s_block)
+           CALL dbcsr_get_block_p(matrix=matrix,&
+                row=iatom,col=jatom,BLOCK=s_block,tr=tr,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last
             irow = 1
@@ -608,10 +602,8 @@ CONTAINS
             icol = icol + 1
           END DO   ! icol_mol_s
         ELSE
-          CALL dbcsr_get_block_node(matrix=matrix,&
-                              block_row=jatom,&
-                              block_col=iatom,&
-                              BLOCK=s_block)
+          CALL dbcsr_get_block_p(matrix=matrix,&
+               row=jatom,col=iatom,BLOCK=s_block,tr=tr,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last
             irow = 1

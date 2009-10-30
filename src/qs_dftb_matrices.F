@@ -19,7 +19,6 @@ MODULE qs_dftb_matrices
   USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix,&
                                              dbcsr_allocate_matrix_set,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_replicate_matrix_struct,&
                                              dbcsr_sm_fm_multiply
@@ -34,7 +33,8 @@ MODULE qs_dftb_matrices
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy
+                                             dbcsr_copy,&
+                                             dbcsr_get_block_p
   USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -110,8 +110,9 @@ CONTAINS
       lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, &
       neighbor_list_id, ngrd, ngrdcut, nkind, nlist, nmat, nnode, nrow, spdim
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem
-    LOGICAL                                  :: defined, failure, hb_sr_damp, &
-                                                new_atom_b, use_virial
+    LOGICAL                                  :: defined, failure, found, &
+                                                hb_sr_damp, new_atom_b, tr, &
+                                                use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, f0, foab, fow, ga, &
                                                 gb, s_cut, urep_cut
@@ -367,16 +368,12 @@ CONTAINS
                    END IF
                    IF (calculate_forces) THEN
                      NULLIFY (pblock)
-                     CALL dbcsr_get_block_node(matrix=matrix_p(1)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         block=pblock)
+                     CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                          row=irow,col=icol,block=pblock,tr=tr,found=found)
                      CPPrecondition(ASSOCIATED(pblock),cp_failure_level,routineP,error,failure)
                      NULLIFY (wblock)
-                     CALL dbcsr_get_block_node(matrix=matrix_w(1)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         block=wblock)
+                     CALL dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
+                          row=irow,col=icol,block=wblock,tr=tr,found=found)
                      CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,error,failure)
                      IF ( dftb_control%self_consistent ) THEN
                        DO i=2,4

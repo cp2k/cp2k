@@ -39,7 +39,6 @@ MODULE qs_integrate_potential
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_get_block_node,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: compute_cube_center,&
@@ -879,10 +878,8 @@ CONTAINS
                CALL dbcsr_add_block_node ( dh, brow, bcol, h_block ,error=error)
           IF (has_dv) THEN
              DO idir=1,3
-                CALL dbcsr_get_block_node(matrix=ddv(idir)%matrix,&
-                     block_row=brow,&
-                     block_col=bcol,&
-                     BLOCK=dv_block(idir)%array)
+                CALL dbcsr_get_block_p(matrix=ddv(idir)%matrix,&
+                     row=brow,col=bcol,BLOCK=dv_block(idir)%array,tr=tr,found=found)
 
                 IF (.NOT.ASSOCIATED(dv_block(idir)%array)) &
                      CALL dbcsr_add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
@@ -890,10 +887,8 @@ CONTAINS
           END IF
 
           IF (pab_required) THEN
-             CALL dbcsr_get_block_node(matrix=deltap,&
-                  block_row=brow,&
-                  block_col=bcol,&
-                  BLOCK=p_block)
+             CALL dbcsr_get_block_p(matrix=deltap,&
+                  row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
 
              IF (.NOT.ASSOCIATED(p_block)) &
                   CALL stop_program(routineP,"p_block not associated in deltap")
