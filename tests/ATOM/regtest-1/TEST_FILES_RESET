@@ -113,3 +113,6 @@ Yb.inp  35
 Y.inp  35
 Zn.inp  35
 Zr.inp  35
+# bug fix numeric exchange
+Mo.inp  35
+Ga.inp  35

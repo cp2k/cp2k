@@ -418,7 +418,7 @@ CONTAINS
              basis%nbas(3) = basis%nbas(0) -12
            ELSEIF ( btyp == "AP" ) THEN
              CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
-             amax = 200._dp/aval
+             amax = 500._dp/aval
              basis%nbas = NINT((LOG(amax)/LOG(1.6_dp)))
              cval = 1.6_dp
              starti = 0

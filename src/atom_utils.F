@@ -653,7 +653,7 @@ CONTAINS
               nai(:) = orb(:,i)*basis%bf(:,ia,lad)
               CALL potential_numeric(cpot,nai,nu,basis%grid,error)
               DO ib=1,basis%nbas(lad)
-                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*state%occ(lbc,i)* &
+                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*state%occupation(lbc,i)* &
                   integrate_grid(cpot,orb(:,i),basis%bf(:,ib,lad),basis%grid)
               END DO
             END DO
@@ -736,7 +736,7 @@ CONTAINS
                 cpot(:) = cpot(:) + pot(:,ia,k)*wfn(k,i,lbc)
               END DO
               DO ib=1,basis%nbas(lad)
-                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*state%occ(lbc,i)* &
+                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*state%occupation(lbc,i)* &
                   integrate_grid(cpot,orb(:,i),basis%bf(:,ib,lad),basis%grid)
               END DO
             END DO
