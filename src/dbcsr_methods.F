@@ -1554,7 +1554,7 @@ iterator%count_me=count_me
           max_c_size = iterator%max_c_size
        ENDIF
     ENDIF
-    max_size = MAX (max_r_size, max_c_size)
+    max_size = MAX (matrix%m%max_rbs, matrix%m%max_cbs)
     CALL dbcsr_data_init(iterator%buffer_2d)
     CALL dbcsr_data_new(iterator%buffer_2d,&
          dbcsr_get_data_type(matrix),&
