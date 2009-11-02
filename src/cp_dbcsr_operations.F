@@ -70,9 +70,9 @@ MODULE cp_dbcsr_operations
        dbcsr_create_col_image_dist, dbcsr_create_dist_block_cyclic, &
        dbcsr_create_dist_elemental, dbcsr_create_dist_fullest, &
        dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
-       dbcsr_data_ensure_size, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
-       dbcsr_dist2d_to_dist, dbcsr_finalize, dbcsr_find_column, &
-       dbcsr_make_col_images, dbcsr_make_index_canonical, dbcsr_set_debug, &
+       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, &
+       dbcsr_finalize, dbcsr_find_column, dbcsr_make_col_images, &
+       dbcsr_make_index_canonical, dbcsr_set_debug, &
        dbcsr_transpose_distribution, dbcsr_verify_matrix, dbcsr_work_create, &
        swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
@@ -2913,7 +2913,6 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CALL dbcsr_work_create (bc_mat, nblks_guess=nblkrows_local*nblkcols_local,&
          sizedata_guess=nfullrows_local*nfullcols_local, work_mutable=.FALSE.)
-    CALL dbcsr_data_ensure_size (bc_mat%m%wms(1)%data_area, nfullrows_local*nfullcols_local)
     blk_p = 1
     bc_rows: DO row_l = 1, nblkrows_local
        row = local_rows (row_l)

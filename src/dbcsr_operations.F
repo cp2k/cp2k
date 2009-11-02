@@ -4922,7 +4922,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       row_dist_new, row_dist_old
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
     LOGICAL                                  :: found, my_keep_sparsity, &
-                                                new_meta, tr, valid_block
+                                                new_meta, tr, valid_block, sym
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:), TARGET                   :: recv_data
@@ -4963,6 +4963,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     !
     my_keep_sparsity = .FALSE.
     IF (PRESENT (keep_sparsity)) my_keep_sparsity = my_keep_sparsity
+    !
+    sym = dbcsr_get_matrix_type(redist) .EQ. dbcsr_type_symmetric .OR.&
+         dbcsr_get_matrix_type(redist) .EQ. dbcsr_type_antisymmetric
     ! Get row and column start and end positions
     ! Old matrix
     dist_old = dbcsr_distribution (matrix)
@@ -5057,13 +5060,16 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           blk_col_new = map_col_el_blk(full_col)
           DO full_row = row_start_old(row), row_end_old(row)
              blk_row_new = map_row_el_blk(full_row)
-             IF (blk_col_new .NE. blk_col_prev_new&
-                  .OR. blk_row_new .NE. blk_row_prev_new .OR. new_meta) THEN
-                CALL dbcsr_get_stored_coordinates (redist%m,&
-                     blk_row_new, blk_col_new, tr, dst_p)
-                send_count(1, dst_p) = send_count(1, dst_p) + 1
+             IF (.NOT. sym .OR. blk_col_new .GE. blk_row_new) THEN
+                IF (blk_col_new .NE. blk_col_prev_new&
+                     .OR. blk_row_new .NE. blk_row_prev_new .OR. new_meta) THEN
+                   tr = .FALSE.
+                   CALL dbcsr_get_stored_coordinates (redist%m,&
+                        blk_row_new, blk_col_new, tr, dst_p)
+                   send_count(1, dst_p) = send_count(1, dst_p) + 1
+                ENDIF
+                send_count(2, dst_p) = send_count(2, dst_p) + 1
              ENDIF
-             send_count(2, dst_p) = send_count(2, dst_p) + 1
           ENDDO
           new_meta = .TRUE.
        ENDDO
@@ -5145,55 +5151,58 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           ENDIF
           DO full_row = row_start_old(row), row_end_old(row)
              blk_row_new = map_row_el_blk(full_row)
-             IF (dbg) &
-                  WRITE(*,*)'using block',blk_row_new,'x',blk_col_new
-             IF (blk_col_new .NE. blk_col_prev_new&
-                  .OR. blk_row_new .NE. blk_row_prev_new .OR. new_meta) THEN
-                ! Start a new RLE run
-                CALL dbcsr_get_stored_coordinates (redist%m,&
-                     blk_row_new, blk_col_new, tr, dst_p)
-                send_count(1, dst_p) = send_count(1, dst_p) + 1
-                rel_full_row_new = full_row - row_start_new (blk_row_new)+1
-                rel_full_col_new = full_col - col_start_new (blk_col_new)+1
-                smp(dst_p) = smp(dst_p) + metalen
-                send_meta(smp(dst_p)) = blk_row_new   ! new blocked row
-                send_meta(smp(dst_p)+1) = blk_col_new ! new blocked column
-                send_meta(smp(dst_p)+2) = rel_full_row_new  ! row in new block
-                send_meta(smp(dst_p)+3) = rel_full_col_new  ! col in new block
-                send_meta(smp(dst_p)+4) = 1           ! RLE rows
-                send_meta(smp(dst_p)+5) = 1           ! RLE columns
-                send_meta(smp(dst_p)+6) = -7          ! Debugging marker
-             ELSE
-                ! We are continuing the RLE run
-                IF (blk_row_new .EQ. blk_row_prev_new) THEN
-                   send_meta(smp(dst_p)+2) = send_meta(smp(dst_p)+2) + 1
-                ELSEIF (blk_col_new .EQ. blk_col_prev_new) THEN
-                   send_meta(smp(dst_p)+3) = send_meta(smp(dst_p)+3) + 1
+             loc_ok: IF (.NOT. sym .OR. blk_col_new .GE. blk_row_new) THEN
+                IF (dbg) &
+                     WRITE(*,*)'using block',blk_row_new,'x',blk_col_new
+                IF (blk_col_new .NE. blk_col_prev_new&
+                     .OR. blk_row_new .NE. blk_row_prev_new .OR. new_meta) THEN
+                   ! Start a new RLE run
+                   tr = .FALSE.
+                   CALL dbcsr_get_stored_coordinates (redist%m,&
+                        blk_row_new, blk_col_new, tr, dst_p)
+                   send_count(1, dst_p) = send_count(1, dst_p) + 1
+                   rel_full_row_new = full_row - row_start_new (blk_row_new)+1
+                   rel_full_col_new = full_col - col_start_new (blk_col_new)+1
+                   smp(dst_p) = smp(dst_p) + metalen
+                   send_meta(smp(dst_p)) = blk_row_new   ! new blocked row
+                   send_meta(smp(dst_p)+1) = blk_col_new ! new blocked column
+                   send_meta(smp(dst_p)+2) = rel_full_row_new  ! row in new block
+                   send_meta(smp(dst_p)+3) = rel_full_col_new  ! col in new block
+                   send_meta(smp(dst_p)+4) = 1           ! RLE rows
+                   send_meta(smp(dst_p)+5) = 1           ! RLE columns
+                   send_meta(smp(dst_p)+6) = -7          ! Debugging marker
                 ELSE
-                   CALL cp_assert(.FALSE., cp_failure_level, cp_internal_error,&
-                        routineN, "logic error")
+                   ! We are continuing the RLE run
+                   IF (blk_row_new .EQ. blk_row_prev_new) THEN
+                      send_meta(smp(dst_p)+2) = send_meta(smp(dst_p)+2) + 1
+                   ELSEIF (blk_col_new .EQ. blk_col_prev_new) THEN
+                      send_meta(smp(dst_p)+3) = send_meta(smp(dst_p)+3) + 1
+                   ELSE
+                      CALL cp_assert(.FALSE., cp_failure_level, cp_internal_error,&
+                           routineN, "logic error")
+                   ENDIF
                 ENDIF
-             ENDIF
-             IF (.NOT. tr) THEN
-                IF (.NOT. PRESENT (alpha)) THEN
-                   send_data(sdp(dst_p))&
-                        = r2_dp(full_row-row_offset_old, full_col-col_offset_old)
+                IF (.NOT. tr) THEN
+                   IF (.NOT. PRESENT (alpha)) THEN
+                      send_data(sdp(dst_p))&
+                           = r2_dp(full_row-row_offset_old, full_col-col_offset_old)
                    ELSE
                       send_data(sdp(dst_p)) = alpha * &
                            r2_dp(full_row-row_offset_old, full_col-col_offset_old)
-
+                      
                    ENDIF
-             ELSE
-                IF (.NOT. PRESENT (alpha)) THEN
-                   send_data(sdp(dst_p))&
-                        = r2_dp(full_col-col_offset_old, full_row-row_offset_old)
                 ELSE
-                   send_data(sdp(dst_p)) = alpha * &
-                        r2_dp(full_col-col_offset_old, full_row-row_offset_old)
+                   IF (.NOT. PRESENT (alpha)) THEN
+                      send_data(sdp(dst_p))&
+                           = r2_dp(full_col-col_offset_old, full_row-row_offset_old)
+                   ELSE
+                      send_data(sdp(dst_p)) = alpha * &
+                           r2_dp(full_col-col_offset_old, full_row-row_offset_old)
+                   ENDIF
                 ENDIF
-             ENDIF
-             sdp(dst_p) = sdp(dst_p)+1
-             send_count(2, dst_p) = send_count(2, dst_p) + 1
+                sdp(dst_p) = sdp(dst_p)+1
+                send_count(2, dst_p) = send_count(2, dst_p) + 1
+             ENDIF loc_ok
           ENDDO
           new_meta = .TRUE.
        ENDDO

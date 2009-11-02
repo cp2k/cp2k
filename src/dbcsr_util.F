@@ -962,21 +962,8 @@ CONTAINS
     ENDIF
     ALLOCATE (matrix%m%wms(nw))
     DO iw = 1, nw
-       IF (PRESENT (nblks_guess)) THEN
-          IF (PRESENT (sizedata_guess)) THEN
-             CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
-                  nblks_guess, sizedata_guess)
-          ELSE
-             CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type, nblks_guess)
-          ENDIF
-       ELSE
-          IF (PRESENT (sizedata_guess)) THEN
-             CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
-                  sizedata_guess)
-          ELSE
-             CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type)
-          ENDIF
-       ENDIF
+       CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
+            nblks_guess=nblks_guess, sizedata_guess=sizedata_guess)
     END DO
   END SUBROUTINE dbcsr_work_create
 
