@@ -1155,7 +1155,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
 
-!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
+!$  INTEGER :: omp_get_max_threads, omp_get_num_threads, omp_get_thread_num
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -1185,7 +1185,7 @@ CONTAINS
     IF ( .NOT. PRESENT ( scale ) ) THEN
        num_threads = 1
        my_id = 0
-!$omp parallel default(none), &
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(c,2))), &
 !$omp          private(my_id, num_threads, lb, ub), &
 !$omp          shared(c)
 !$     num_threads = omp_get_num_threads()
@@ -1355,7 +1355,7 @@ CONTAINS
     LOGICAL                                  :: failure, test
     REAL(KIND=dp)                            :: norm
 
-!$  INTEGER :: omp_get_num_threads, omp_get_thread_num
+!$  INTEGER :: omp_get_max_threads, omp_get_num_threads, omp_get_thread_num
 
     failure = .FALSE.
     CALL timeset(routineN,handle2)
@@ -1531,7 +1531,7 @@ CONTAINS
 
        num_threads = 1
        my_id = 0
-!$omp parallel default(none), &
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), nrays)), &
 !$omp          private(my_id, num_threads, lb, ub), &
 !$omp          shared(grays,nrays)
 !$     num_threads = omp_get_num_threads()
