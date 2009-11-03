@@ -546,8 +546,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
-    CHARACTER(LEN=80)                        :: matrix_name
     CHARACTER                                :: matrix_type
+    CHARACTER(LEN=80)                        :: matrix_name
     INTEGER :: group, handle, ipe, mype, natom, nblock_max, nblock_sum, &
       nblock_tot, nelement_max, nelement_sum, npe, nrow, output_unit, stat, &
       tmp(2)
@@ -611,7 +611,7 @@ CONTAINS
        nblock_max=tmp(1) ; nelement_max=tmp(2)
     ENDIF
 
-    IF (matrix_type == dbcsr_type_symmetric .or.&
+    IF (matrix_type == dbcsr_type_symmetric .OR.&
          matrix_type == dbcsr_type_antisymmetric) THEN
       nblock_tot = natom*(natom + 1)/2
     ELSE

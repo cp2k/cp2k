@@ -134,10 +134,10 @@ MODULE dbcsr_methods
 
   INTERFACE dbcsr_iterator_next_block
      MODULE PROCEDURE iterator_next_block_index,&
-                      iterator_next_block_d,&
-                      iterator_next_block_s,&
-                      iterator_next_block_c,&
-                      iterator_next_block_z,&
+                      iterator_next_2d_block_d,&
+                      iterator_next_2d_block_s,&
+                      iterator_next_2d_block_c,&
+                      iterator_next_2d_block_z,&
                       iterator_next_1d_block_d,&
                       iterator_next_1d_block_s,&
                       iterator_next_1d_block_c,&
@@ -220,7 +220,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
-    call dbcsr_init(matrix%m)
+
+    CALL dbcsr_init(matrix%m)
     matrix%m%initialized = 0
   END SUBROUTINE dbcsr_init_obj
 
@@ -1726,14 +1727,17 @@ iterator%count_me=count_me
 !> \param[out] row           row of the data block
 !> \param[out] column        column of the data block
 !> \param[out] blk           block number
+!> \param[out] transposed    (optional) whether block is transposed
 !> \param[out] blk_p         (optional) index into block data array
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
 ! *****************************************************************************
   SUBROUTINE iterator_next_block_index (iterator, row, column, blk,&
-       transposed, blk_p)
+       transposed, blk_p, row_size, col_size)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column, blk
     LOGICAL, INTENT(OUT), OPTIONAL           :: transposed
-    INTEGER, INTENT(OUT), OPTIONAL           :: blk_p
+    INTEGER, INTENT(OUT), OPTIONAL           :: blk_p, row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_index', &
       routineP = moduleN//':'//routineN
@@ -1747,6 +1751,8 @@ iterator%count_me=count_me
        row = iterator%row
        column = iterator%col_i(iterator%pos)
        blk = iterator%pos
+       IF (PRESENT (row_size)) row_size = iterator%row_size
+       IF (PRESENT (col_size)) col_size = iterator%cbs(blk)
        IF (PRESENT (blk_p) .OR. PRESENT (transposed)) THEN
           bp = iterator%blk_p(iterator%pos)
           IF (PRESENT (blk_p)) blk_p = bp

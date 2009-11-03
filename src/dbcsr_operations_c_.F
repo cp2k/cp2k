@@ -183,18 +183,23 @@
 !> \param[out] block  the block to get (rank-2 array)
 !> \param[in] tr      whether the data is transposed
 !> \param[out] found  whether the block exists in the matrix
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_2d_block_c(matrix,row,col,block,tr,found)
+  SUBROUTINE dbcsr_get_2d_block_c(matrix,row,col,block,tr,found,&
+       row_size, col_size)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:,:), INTENT(OUT)     :: block
     LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
+    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_2d_block_c', &
       routineP = moduleN//':'//routineN
     
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block_1d
-    INTEGER                                  :: row_size, col_size,&
+    INTEGER                                  :: rsize, csize,&
                                                 blk, last_blk, nze, offset,&
                                                 frst_blk, stored_row,&
                                                 stored_col
@@ -209,22 +214,25 @@
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
 
+    rsize = dbcsr_blk_row_size (matrix%m, stored_row)
+    csize = dbcsr_blk_column_size (matrix%m, stored_col)
+    IF (PRESENT (row_size)) row_size = rsize
+    IF (PRESENT (col_size)) col_size = csize
+
     IF(found) THEN
-       row_size = dbcsr_blk_row_size (matrix%m, stored_row)
-       col_size = dbcsr_blk_column_size (matrix%m, stored_col)
-       nze = row_size*col_size
+       nze = rsize*csize
        IF (nze .GT. 0) THEN
           !
           ! let's copy the block
           block_1d => pointer_view (dbcsr_get_data_p (&
                matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1)
           IF (tr .EQV. stored_tr) THEN
-             CALL dbcsr_block_copy (block(:,:), block_1d, row_size, col_size)
+             CALL dbcsr_block_copy (block(:,:), block_1d, rsize, csize)
           ELSE
-             IF (stored_tr) CALL swap (row_size, col_size)
+             IF (stored_tr) CALL swap (rsize, csize)
              CALL dbcsr_block_transpose (block,&
                   block_1d,&
-                  row_size, col_size)
+                  rsize, csize)
           ENDIF
        ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
@@ -245,7 +253,7 @@
                 CALL ccopy(nze,&
                      data_block%p(1,1), 1, block(1,1), 1)
              ELSE
-                IF (data_block%tr) CALL swap (row_size, col_size)
+                IF (data_block%tr) CALL swap (rsize, csize)
                 block(:,:) = TRANSPOSE (data_block%p)
              ENDIF
           ENDIF
@@ -261,18 +269,23 @@
 !> \param[out] block  the block to get (rank-2 array)
 !> \param[out] tr     whether the data is transposed
 !> \param[out] found  whether the block exists in the matrix
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_2d_block_p_c(matrix,row,col,block,tr,found)
+  SUBROUTINE dbcsr_get_2d_block_p_c(matrix,row,col,block,tr,found,&
+       row_size, col_size)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:,:), POINTER         :: block
     LOGICAL, INTENT(OUT)                     :: tr
     LOGICAL, INTENT(OUT)                     :: found
+    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_2d_block_p_c', &
       routineP = moduleN//':'//routineN
     
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block_1d
-    INTEGER                                  :: row_size, col_size,&
+    INTEGER                                  :: rsize, csize,&
                                                 blk, last_blk, nze, offset,&
                                                 frst_blk, stored_row,&
                                                 stored_col
@@ -288,11 +301,14 @@
          stored_tr, found, blk, offset)
     tr = stored_tr
 
+    rsize = dbcsr_blk_row_size (matrix%m, stored_row)
+    csize = dbcsr_blk_column_size (matrix%m, stored_col)
+    IF (PRESENT (row_size)) row_size = rsize
+    IF (PRESENT (col_size)) col_size = csize
+
     NULLIFY (block)
     IF(found) THEN
-       row_size = dbcsr_blk_row_size (matrix%m, stored_row)
-       col_size = dbcsr_blk_column_size (matrix%m, stored_col)
-       nze = row_size*col_size
+       nze = rsize*csize
        IF(nze.eq.0) THEN
           found = .FALSE.
           NULLIFY (block)
@@ -300,9 +316,9 @@
           block_1d => pointer_view (dbcsr_get_data_p (&
                matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1)
 #if defined(__PTR_RANK_REMAP)
-          block(1:row_size, 1:col_size) => block_1d
+          block(1:rsize, 1:csize) => block_1d
 #elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-          CALL pointer_c_rank_remap2 (block, row_size, col_size, block_1d)
+          CALL pointer_c_rank_remap2 (block, rsize, csize, block_1d)
 #endif
        ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
@@ -334,20 +350,25 @@
 !> \param[out] block  the block to get (rank-1 array)
 !> \param[in] tr      whether the data is transposed
 !> \param[out] found  whether the block exists in the matrix
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_block_c(matrix,row,col,block,tr,found)
+  SUBROUTINE dbcsr_get_block_c(matrix,row,col,block,tr,found,&
+       row_size, col_size)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:), INTENT(OUT)       :: block
     LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
+    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
+
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_c', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col_size, frst_blk, &
+    INTEGER                                  :: blk, csize, frst_blk, &
                                                 last_blk, nze, offset, &
-                                                row_size, stored_row,&
+                                                rsize, stored_row,&
                                                 stored_col
     LOGICAL                                  :: stored_tr
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
@@ -361,10 +382,13 @@
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
 
+    rsize = dbcsr_blk_row_size (matrix%m, stored_row)
+    csize = dbcsr_blk_column_size (matrix%m, stored_col)
+    IF (PRESENT (row_size)) row_size = rsize
+    IF (PRESENT (col_size)) col_size = csize
+
     IF(found) THEN
-       row_size = dbcsr_blk_row_size (matrix%m, stored_row)
-       col_size = dbcsr_blk_column_size (matrix%m, stored_col)
-       nze = row_size*col_size
+       nze = rsize*csize
        IF (nze .GT. 0) THEN
           !
           ! let's copy the block
@@ -373,10 +397,10 @@
           IF (tr .EQV. stored_tr) THEN
              block(1:nze) = block_1d(1:nze)
           ELSE
-             IF (stored_tr) CALL swap (row_size, col_size)
+             IF (stored_tr) CALL swap (rsize, csize)
              CALL dbcsr_block_transpose (block,&
                   block_1d,&
-                  row_size, col_size)
+                  rsize, csize)
           ENDIF
        ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
@@ -394,10 +418,10 @@
                 !     data_block%p(1,1) 1, block(1), 1)
                 block(:) = RESHAPE (data_block%p(:,:), (/SIZE(data_block%p)/))
              ELSE
-                IF (data_block%tr) CALL swap (row_size, col_size)
+                IF (data_block%tr) CALL swap (rsize, csize)
                 CALL dbcsr_block_transpose (block,&
                      data_block%p,&
-                     row_size, col_size)
+                     rsize, csize)
              ENDIF
           ENDIF
        ENDIF
@@ -412,20 +436,24 @@
 !> \param[out] block  the block to get (rank-1 array)
 !> \param[out] tr     whether the data is transposed
 !> \param[out] found  whether the block exists in the matrix
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_block_p_c(matrix,row,col,block,tr,found)
+  SUBROUTINE dbcsr_get_block_p_c(matrix,row,col,block,tr,found,&
+       row_size, col_size)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block
     LOGICAL, INTENT(OUT)                     :: tr
     LOGICAL, INTENT(OUT)                     :: found
+    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_p_c', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col_size, frst_blk, &
+    INTEGER                                  :: blk, csize, frst_blk, &
                                                 last_blk, nze, offset, &
-                                                row_size, stored_row,&
+                                                rsize, stored_row,&
                                                 stored_col
     LOGICAL                                  :: stored_tr
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
@@ -439,11 +467,14 @@
          stored_tr, found, blk, offset)
     tr = stored_tr
 
+    rsize = dbcsr_blk_row_size (matrix%m, stored_row)
+    csize = dbcsr_blk_column_size (matrix%m, stored_col)
+    IF (PRESENT (row_size)) row_size = rsize
+    IF (PRESENT (col_size)) col_size = csize
+
     NULLIFY (block)
     IF(found) THEN
-       row_size = dbcsr_blk_row_size (matrix%m, stored_row)
-       col_size = dbcsr_blk_column_size (matrix%m, stored_col)
-       nze = row_size*col_size
+       nze = rsize*csize
        !
        block => pointer_view (&
             dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&

@@ -3527,6 +3527,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           a_row_size = row_blk_size(a_row)
           a_col_size = col_blk_size(a_col)
           a_nze = a_row_size * a_col_size
+          IF (a_nze .EQ. 0) CYCLE ! Skip empty blocks
           !
           ! let's scale
           IF(PRESENT(alpha_scalar)) THEN

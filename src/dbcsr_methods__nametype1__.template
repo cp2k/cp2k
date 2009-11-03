@@ -6,16 +6,19 @@
 !> \param[out] block         pointer to the data block
 !> \param[out] transposed    whether the block data is transposed
 !> \param[out] block_number  (optional) block number
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
 ! *****************************************************************************
   SUBROUTINE iterator_next_1d_block_[nametype1] (iterator, row, column, block,&
-       transposed, block_number)
+       transposed, block_number, row_size, col_size)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     [type1], DIMENSION(:), POINTER :: block
     LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number
+    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_[type1]', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_p, bp, csize, ithread, &
@@ -36,6 +39,8 @@
        rsize = iterator%row_size
        csize = iterator%cbs(column)
        nze = rsize * csize
+       IF (PRESENT (row_size)) row_size = rsize
+       IF (PRESENT (col_size)) col_size = csize
        rbp => dbcsr_get_data_p (iterator%data_area, [zero1])
        block => rbp(bp:bp+nze-1)
        IF (PRESENT (block_number)) block_number = iterator%pos
@@ -156,15 +161,19 @@
 !> \param[out] block         pointer to the data block
 !> \param[out] transposed    whether the block data is transposed
 !> \param[out] block_number  (optional) block number
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
 ! *****************************************************************************
-  SUBROUTINE iterator_next_block_[nametype1] (iterator, row, column, block, transposed,&
-       block_number)
+  SUBROUTINE iterator_next_2d_block_[nametype1] (iterator, row, column,&
+       block, transposed,&
+       block_number, row_size, col_size)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     [type1], DIMENSION(:, :), &
       POINTER                                :: block
     LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number
+    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_[nametype1]', &
       routineP = moduleN//':'//routineN
@@ -185,6 +194,8 @@
        bp = ABS (blk_p)
        rsize = iterator%row_size
        csize = iterator%cbs(column)
+       IF (PRESENT (row_size)) row_size = rsize
+       IF (PRESENT (col_size)) col_size = csize
        nze = rsize * csize
        rbp => dbcsr_get_data_p (iterator%data_area, [zero1])
 #if defined(__PTR_RANK_REMAP)
@@ -194,15 +205,15 @@
        CALL pointer_[nametype1]_rank_remap2 (block, rsize, csize, lin_blk_p)
 #else
        IF (iterator%contiguous_pointers) THEN
-          IF (SIZE (iterator%buffer_[base1]_[prec1], 1) .NE. rsize) THEN
-             DEALLOCATE (iterator%buffer_[base1]_[prec1])
-             ALLOCATE (iterator%buffer_[base1]_[prec1](&
+          IF (SIZE (iterator%buffer_2d%d%[base1]2_[prec1], 1) .NE. rsize) THEN
+             DEALLOCATE (iterator%buffer_2d%d%[base1]2_[prec1])
+             ALLOCATE (iterator%buffer_2d%d%[base1]2_[prec1](&
                   rsize, MAX(iterator%max_cbs, iterator%max_rbs)))
           ENDIF
        ENDIF
-       iterator%buffer_[base1]_[prec1] =&
+       iterator%buffer_2d%d%[base1]2_[prec1] =&
             RESHAPE (rbp(bp:bp+nze-1), (/rsize, csize/))
-       block => iterator%buffer_[base1]_[prec1](1:rsize, 1:csize)
+       block => iterator%buffer_2d%d%[base1]2_[prec1](1:rsize, 1:csize)
 #endif /* __PTR_RANK_REMAP || !__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION */
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
@@ -226,7 +237,7 @@
        NULLIFY (block)
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
-  END SUBROUTINE iterator_next_block_[nametype1]
+  END SUBROUTINE iterator_next_2d_block_[nametype1]
 
 #if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
 ! *****************************************************************************
