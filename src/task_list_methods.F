@@ -2017,8 +2017,6 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
   CALL convert_sizes_to_offsets (array_data (dbcsr_row_block_sizes (pmat)), first_row, last_row)
   CALL convert_sizes_to_offsets (array_data (dbcsr_col_block_sizes (pmat)), first_col, last_col)
 
-  CALL dbcsr_work_create(pmat,work_mutable=.TRUE.,error=error)
-
   ! set up send buffer sizes
   natom8=natoms
 
@@ -2111,6 +2109,10 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
   ! do communication
   CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
        recv_buf_r, recv_sizes, recv_disps, rs % desc % group)
+
+  CALL dbcsr_work_create(pmat,work_mutable=.TRUE.,&
+      nblks_guess=SIZE(atom_pair_recv),sizedata_guess=SIZE(recv_buf_r),&
+      error=error)
 
   !do unpacking
   recv_sizes=0

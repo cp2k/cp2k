@@ -2852,7 +2852,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     ! Create the block-cyclic DBCSR matrix
     CALL dbcsr_init (bc_mat)
     CALL dbcsr_create (bc_mat, "Block-cyclic "//matrix%m%name, bc_dist,&
-         "N", row_blk_size, col_blk_size, 0, 0)
+         dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0)
     !call dbcsr_finalize (bc_mat)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (row_blk_size)
