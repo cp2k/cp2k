@@ -194,6 +194,7 @@ CONTAINS
 
     matrix%initialized = dbcsr_magic_number
     matrix%valid = .FALSE.
+    matrix%refcount = 0
     ! Nullifies all pointers.
     NULLIFY (matrix%index, matrix%row_p, matrix%col_i,&
          matrix%blk_p)
@@ -219,7 +220,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
-
+    call dbcsr_init(matrix%m)
     matrix%m%initialized = 0
   END SUBROUTINE dbcsr_init_obj
 

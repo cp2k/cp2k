@@ -226,6 +226,7 @@ CONTAINS
       matrix=matrix*scale
     END IF
 
+    matrix_name = sparse_matrix%m%name
     IF (print_sym) THEN
        CALL write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
             row1,row2,col1,col2, output_unit,error=error)
@@ -545,7 +546,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
-    CHARACTER(LEN=80)                        :: matrix_name, matrix_symmetry
+    CHARACTER(LEN=80)                        :: matrix_name
+    CHARACTER                                :: matrix_type
     INTEGER :: group, handle, ipe, mype, natom, nblock_max, nblock_sum, &
       nblock_tot, nelement_max, nelement_sum, npe, nrow, output_unit, stat, &
       tmp(2)
@@ -585,7 +587,7 @@ CONTAINS
 
     CALL dbcsr_get_info(matrix=matrix,&
                         name=matrix_name,&
-                        matrix_type=matrix_symmetry,&
+                        matrix_type=matrix_type,&
                         nblkrows_total=natom,&
                         nfullrows_total=nrow)
 
@@ -609,7 +611,8 @@ CONTAINS
        nblock_max=tmp(1) ; nelement_max=tmp(2)
     ENDIF
 
-    IF (TRIM(matrix_symmetry) == "symmetric") THEN
+    IF (matrix_type == dbcsr_type_symmetric .or.&
+         matrix_type == dbcsr_type_antisymmetric) THEN
       nblock_tot = natom*(natom + 1)/2
     ELSE
       nblock_tot = natom*natom

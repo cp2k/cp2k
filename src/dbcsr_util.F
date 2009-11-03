@@ -1818,6 +1818,8 @@ CONTAINS
        ELSE
           CALL array_new (block_distribution, blk_dist(1:nblks), lb=1)
           CALL array_new (block_size, blk_sizes(1:nblks), lb=1)
+          DEALLOCATE (blk_dist)
+          DEALLOCATE (blk_sizes)
        ENDIF
     ELSE
        ALLOCATE (blk_dist (0), stat=stat)
