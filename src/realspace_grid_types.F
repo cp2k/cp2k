@@ -796,6 +796,7 @@ CONTAINS
     END IF
     CALL timestop(handle)
     CALL timestop(handle2)
+
   END SUBROUTINE rs_pw_transfer
 
 ! *****************************************************************************
@@ -968,9 +969,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=200)                       :: error_string
-    INTEGER :: completed, dest_down, dest_up, i, idir, j, k, my_pw_rank, &
-      my_rs_rank, n_shifts, nn, position, source_down, source_up, stat, x, y, &
-      z
+    INTEGER :: completed, dest_down, dest_up, i, idir, j, k, lb, my_id, &
+      my_pw_rank, my_rs_rank, n_shifts, nn, num_threads, position, &
+      source_down, source_up, stat, ub, x, y, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, recv_disps, &
                                                 recv_sizes, send_disps, &
                                                 send_sizes, ushifts
@@ -990,7 +991,13 @@ CONTAINS
                                                 send_buf_3d_down, &
                                                 send_buf_3d_up
 
+!$  INTEGER :: omp_get_max_threads, omp_get_num_threads, omp_get_thread_num
+
+    num_threads = 1
+    my_id = 0
+
     IF ( dir == rs2pw ) THEN
+
        ! safety check, to be removed once we're absolute sure the routine is correct
        IF (debug_this_module) THEN
           rs_sum=accurate_sum(rs%r)*ABS(det_3x3(rs%desc % dh))
@@ -1074,8 +1081,18 @@ CONTAINS
                      lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=stat )
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                send_buf_3d_down = rs % r ( lb_send_down(1):ub_send_down(1), &
-                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) )
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), ub_send_down(3)-lb_send_down(3)+1)), &
+!$omp          private(lb,ub,my_id,num_threads), &
+!$omp          shared(send_buf_3d_down,rs,lb_send_down,ub_send_down)
+!$              num_threads = omp_get_num_threads()
+!$              my_id = omp_get_thread_num()
+                lb = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*my_id)/num_threads 
+                ub = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*(my_id+1))/num_threads - 1
+
+                send_buf_3d_down(lb_send_down(1):ub_send_down(1), lb_send_down(2):ub_send_down(2), &
+                                 lb:ub) = rs % r ( lb_send_down(1):ub_send_down(1), &
+                                 lb_send_down(2):ub_send_down(2), lb:ub )
+!$omp end parallel
 
                 CALL mp_isend (send_buf_3d_down, dest_down, rs % desc % group, req(3))
 
@@ -1124,10 +1141,18 @@ CONTAINS
                      lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=stat )
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), ub_send_up(3)-lb_send_up(3)+1)), &
+!$omp          private(lb,ub,my_id,num_threads), &
+!$omp          shared(send_buf_3d_up,rs,lb_send_up,ub_send_up)
+!$              num_threads = omp_get_num_threads()
+!$              my_id = omp_get_thread_num()
+                lb = lb_send_up(3) + ((ub_send_up(3)-lb_send_up(3)+1)*my_id)/num_threads
+                ub = lb_send_up(3) + ((ub_send_up(3)-lb_send_up(3)+1)*(my_id+1))/num_threads - 1
 
-                send_buf_3d_up = rs % r ( lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2),&
-                                          lb_send_up(3):ub_send_up(3) )
-
+                send_buf_3d_up ( lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2), &
+                                 lb:ub ) = rs % r ( lb_send_up(1):ub_send_up(1), &
+                                 lb_send_up(2):ub_send_up(2), lb:ub )
+!$omp end parallel
 
                 CALL mp_isend (send_buf_3d_up, dest_up, rs % desc % group, req(4))
 
@@ -1141,13 +1166,21 @@ CONTAINS
 
                       ! only some procs may need later shifts
                       IF(ub_recv_down(idir).GE.lb_recv_down(idir))THEN
-
                          ! Sum the data in the RS Grid
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), ub_recv_down(3)-lb_recv_down(3)+1)), &
+!$omp          private(lb,ub,my_id,num_threads), &
+!$omp          shared(recv_buf_3d_down,rs,lb_recv_down,ub_recv_down)
+!$                       num_threads = omp_get_num_threads()
+!$                       my_id = omp_get_thread_num()
+                         lb = lb_recv_down(3) + ((ub_recv_down(3)-lb_recv_down(3)+1)*my_id)/num_threads
+                         ub = lb_recv_down(3) + ((ub_recv_down(3)-lb_recv_down(3)+1)*(my_id+1))/num_threads - 1
+
                          rs % r ( lb_recv_down(1):ub_recv_down(1), &
-                              lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) = &
+                              lb_recv_down(2):ub_recv_down(2), lb:ub ) = &
                               rs % r ( lb_recv_down(1):ub_recv_down(1), &
-                              lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) + &
-                              recv_buf_3d_down (:, :, :)
+                              lb_recv_down(2):ub_recv_down(2), lb:ub ) + &
+                              recv_buf_3d_down (:, :, lb:ub)
+!$omp end parallel
                       END IF
                       DEALLOCATE( recv_buf_3d_down, STAT=stat)
                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1155,12 +1188,21 @@ CONTAINS
 
                       ! only some procs may need later shifts
                       IF(ub_recv_up(idir).GE.lb_recv_up(idir))THEN
-
                          ! Sum the data in the RS Grid
-                         rs % r ( lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) = &
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), ub_recv_up(3)-lb_recv_up(3)+1)), &
+!$omp          private(lb,ub,my_id,num_threads), &
+!$omp          shared(recv_buf_3d_up,rs,lb_recv_up,ub_recv_up)
+!$              num_threads = omp_get_num_threads()
+!$              my_id = omp_get_thread_num()
+                         lb = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*my_id)/num_threads
+                         ub = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*(my_id+1))/num_threads - 1
+
+                         rs % r ( lb_recv_up(1):ub_recv_up(1), & 
+                              lb_recv_up(2):ub_recv_up(2), lb:ub ) = &
                               rs % r ( lb_recv_up(1):ub_recv_up(1), &
-                              lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) + &
-                              recv_buf_3d_up (:, :, :)
+                              lb_recv_up(2):ub_recv_up(2), lb:ub ) + &
+                              recv_buf_3d_up (:, :, lb:ub)
+!$omp end parallel
                       END IF
                       DEALLOCATE( recv_buf_3d_up, STAT=stat)
                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1239,6 +1281,12 @@ CONTAINS
        ! find the processors that should hold our data
        ! should be part of the rs grid type
        ! this is a loop over real ranks (i.e. the in-order cartesian ranks)
+       ! do the recv and send tasks in two seperate loops which will
+       ! load balance better for OpenMP with large numbers of MPI tasks
+
+!$omp parallel do default(none), &
+!$omp             private(coords,idir,pos,lb_send,ub_send), &
+!$omp             shared(rs,bounds,my_rs_rank,recv_tasks,recv_sizes)
        DO i = 0, rs % desc % group_size -1
 
           coords(:) = rs % desc % rank2coord ( : , rs % desc % real2virtual(i))
@@ -1251,42 +1299,53 @@ CONTAINS
              ub_send(idir) = pos(2)                
           ENDDO
 
-          IF(i==my_rs_rank)THEN
-             lb_recv(:) = lb_send(:)
-             ub_recv(:) = ub_send(:)
-          ENDIF
+          IF (lb_send(1) .GT.bounds(my_rs_rank,2)) CYCLE
+          IF (ub_send(1) .LT.bounds(my_rs_rank,1)) CYCLE 
+          IF (lb_send(2) .GT.bounds(my_rs_rank,4)) CYCLE
+          IF (ub_send(2) .LT.bounds(my_rs_rank,3)) CYCLE 
 
-          DO j = 0, pw % pw_grid % para % group_size - 1
-
-             IF (lb_send(1) .GT.bounds(j,2)) CYCLE
-             IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
-
-             IF (lb_send(2) .GT.bounds(j,4)) CYCLE
-             IF (ub_send(2) .LT.bounds(j,3)) CYCLE 
-
-             IF(i==my_rs_rank) THEN
-                send_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
-                send_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
-                send_tasks(j,3)= MAX(lb_send(2),bounds(j,3))
-                send_tasks(j,4)= MIN(ub_send(2),bounds(j,4))
-                send_tasks(j,5)= lb_send(3)
-                send_tasks(j,6)= ub_send(3)
-                send_sizes(j)  = (send_tasks( j ,2)-send_tasks( j ,1)+1)* &
-                     (send_tasks( j ,4)-send_tasks( j ,3)+1)*(send_tasks( j ,6)-send_tasks( j ,5)+1)
-             ENDIF
-
-             IF(j==my_rs_rank) THEN
-                recv_tasks(i,1)= MAX(lb_send(1),bounds(j,1))
-                recv_tasks(i,2)= MIN(ub_send(1),bounds(j,2))
-                recv_tasks(i,3)= MAX(lb_send(2),bounds(j,3))
-                recv_tasks(i,4)= MIN(ub_send(2),bounds(j,4))
-                recv_tasks(i,5)= lb_send(3)
-                recv_tasks(i,6)= ub_send(3)
-                recv_sizes(i)  = (recv_tasks(i,2)-recv_tasks( i ,1)+1)* &
-                     (recv_tasks( i ,4)-recv_tasks( i ,3)+1)*(recv_tasks( i ,6)-recv_tasks( i ,5)+1)
-             ENDIF
-          ENDDO
+          recv_tasks(i,1)= MAX(lb_send(1),bounds(my_rs_rank,1))
+          recv_tasks(i,2)= MIN(ub_send(1),bounds(my_rs_rank,2))
+          recv_tasks(i,3)= MAX(lb_send(2),bounds(my_rs_rank,3))
+          recv_tasks(i,4)= MIN(ub_send(2),bounds(my_rs_rank,4))
+          recv_tasks(i,5)= lb_send(3)
+          recv_tasks(i,6)= ub_send(3)
+          recv_sizes(i)  = (recv_tasks(i,2)-recv_tasks( i ,1)+1)* &
+             (recv_tasks( i ,4)-recv_tasks( i ,3)+1)*(recv_tasks( i ,6)-recv_tasks( i ,5)+1)
+           
        ENDDO
+!$omp end parallel do
+
+       coords(:) = rs % desc % rank2coord ( : , rs % desc % real2virtual(my_rs_rank))
+       DO idir = 1,3
+          pos (:) = get_limit ( rs % desc %  npts ( idir ), rs % desc % group_dim ( idir ), coords(idir) )
+          pos (:) = pos (:) - rs % desc %  npts (idir) / 2 - 1
+          lb_send(idir) = pos(1)
+          ub_send(idir) = pos(2)
+       ENDDO
+
+       lb_recv(:) = lb_send(:)
+       ub_recv(:) = ub_send(:)
+!$omp parallel do default(none), &
+!$omp             shared(pw,lb_send,ub_send,bounds,send_tasks,send_sizes)
+       DO j = 0, pw % pw_grid % para % group_size - 1
+
+          IF (lb_send(1) .GT.bounds(j,2)) CYCLE
+          IF (ub_send(1) .LT.bounds(j,1)) CYCLE
+          IF (lb_send(2) .GT.bounds(j,4)) CYCLE
+          IF (ub_send(2) .LT.bounds(j,3)) CYCLE
+
+          send_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
+          send_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
+          send_tasks(j,3)= MAX(lb_send(2),bounds(j,3))
+          send_tasks(j,4)= MIN(ub_send(2),bounds(j,4))
+          send_tasks(j,5)= lb_send(3)
+          send_tasks(j,6)= ub_send(3)
+          send_sizes(j)  = (send_tasks( j ,2)-send_tasks( j ,1)+1)* &
+               (send_tasks( j ,4)-send_tasks( j ,3)+1)*(send_tasks( j ,6)-send_tasks( j ,5)+1)
+
+       END DO
+!$omp end parallel do
 
        send_disps(0)=0
        recv_disps(0)=0
@@ -1424,6 +1483,14 @@ CONTAINS
        ! find the processors that should hold our data
        ! should be part of the rs grid type
        ! this is a loop over real ranks (i.e. the in-order cartesian ranks)
+       ! do the recv and send tasks in two seperate loops which will
+       ! load balance better for OpenMP with large numbers of MPI tasks
+
+       ! this is the reverse of rs2pw: what were the sends are now the recvs
+
+!$omp parallel do default(none), &
+!$omp             private(coords,idir,pos,lb_send,ub_send), &
+!$omp             shared(rs,bounds,my_rs_rank,send_tasks,send_sizes)
        DO i = 0, pw % pw_grid % para % group_size -1
 
           coords(:) = rs % desc % rank2coord ( : , rs % desc % real2virtual(i))
@@ -1436,42 +1503,54 @@ CONTAINS
              ub_send(idir) = pos(2)                
           ENDDO
 
-          IF(i==my_rs_rank)THEN
-             lb_recv(:) = lb_send(:)
-             ub_recv(:) = ub_send(:)
-          ENDIF
+          IF (ub_send(1) .LT.bounds(my_rs_rank,1)) CYCLE
+          IF (lb_send(1) .GT.bounds(my_rs_rank,2)) CYCLE
+          IF (ub_send(2) .LT.bounds(my_rs_rank,3)) CYCLE
+          IF (lb_send(2) .GT.bounds(my_rs_rank,4)) CYCLE
 
-          DO j = 0, pw % pw_grid % para % group_size - 1
+          send_tasks(i,1)= MAX(lb_send(1),bounds(my_rs_rank,1))
+          send_tasks(i,2)= MIN(ub_send(1),bounds(my_rs_rank,2))
+          send_tasks(i,3)= MAX(lb_send(2),bounds(my_rs_rank,3))
+          send_tasks(i,4)= MIN(ub_send(2),bounds(my_rs_rank,4))
+          send_tasks(i,5)= lb_send(3)
+          send_tasks(i,6)= ub_send(3)
+          send_sizes(i)  = (send_tasks(i,2)-send_tasks( i ,1)+1)* &
+               (send_tasks( i ,4)-send_tasks( i ,3)+1)*(send_tasks( i ,6)-send_tasks( i ,5)+1)
 
-             IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
-             IF (lb_send(1) .GT.bounds(j,2)) CYCLE
-             IF (ub_send(2) .LT.bounds(j,3)) CYCLE
-             IF (lb_send(2) .GT.bounds(j,4)) CYCLE
-
-             ! this is the reverse of rs2pw: what were the sends are now the recvs
-             IF(i==my_rs_rank) THEN
-                recv_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
-                recv_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
-                recv_tasks(j,3)= MAX(lb_send(2),bounds(j,3))
-                recv_tasks(j,4)= MIN(ub_send(2),bounds(j,4))
-                recv_tasks(j,5)= lb_send(3)
-                recv_tasks(j,6)= ub_send(3)
-                recv_sizes(j)  = (recv_tasks( j ,2)-recv_tasks( j ,1)+1)* &
-                     (recv_tasks( j ,4)-recv_tasks( j ,3)+1)*(recv_tasks( j ,6)-recv_tasks( j ,5)+1)
-             ENDIF
-
-             IF(j==my_rs_rank) THEN
-                send_tasks(i,1)= MAX(lb_send(1),bounds(j,1))
-                send_tasks(i,2)= MIN(ub_send(1),bounds(j,2))
-                send_tasks(i,3)= MAX(lb_send(2),bounds(j,3))
-                send_tasks(i,4)= MIN(ub_send(2),bounds(j,4))
-                send_tasks(i,5)= lb_send(3)
-                send_tasks(i,6)= ub_send(3)
-                send_sizes(i)  = (send_tasks(i,2)-send_tasks( i ,1)+1)* &
-                     (send_tasks( i ,4)-send_tasks( i ,3)+1)*(send_tasks( i ,6)-send_tasks( i ,5)+1)
-             ENDIF
-          ENDDO
        ENDDO
+!$omp end parallel do
+
+       coords(:) = rs % desc % rank2coord ( : , rs % desc % real2virtual(my_rs_rank))
+       DO idir = 1,3
+          pos (:) = get_limit ( rs % desc % npts ( idir ), rs % desc % group_dim ( idir ), coords(idir) )
+          pos (:) = pos (:) - rs % desc % npts (idir) / 2 - 1
+          lb_send(idir) = pos(1)
+          ub_send(idir) = pos(2)
+       ENDDO
+
+       lb_recv(:) = lb_send(:)
+       ub_recv(:) = ub_send(:)
+
+!$omp parallel do default(none), &
+!$omp             shared(pw,lb_send,ub_send,bounds,recv_tasks,recv_sizes)
+       DO j = 0, pw % pw_grid % para % group_size - 1
+
+          IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
+          IF (lb_send(1) .GT.bounds(j,2)) CYCLE
+          IF (ub_send(2) .LT.bounds(j,3)) CYCLE
+          IF (lb_send(2) .GT.bounds(j,4)) CYCLE
+
+          recv_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
+          recv_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
+          recv_tasks(j,3)= MAX(lb_send(2),bounds(j,3))
+          recv_tasks(j,4)= MIN(ub_send(2),bounds(j,4))
+          recv_tasks(j,5)= lb_send(3)
+          recv_tasks(j,6)= ub_send(3)
+          recv_sizes(j)  = (recv_tasks( j ,2)-recv_tasks( j ,1)+1)* &
+               (recv_tasks( j ,4)-recv_tasks( j ,3)+1)*(recv_tasks( j ,6)-recv_tasks( j ,5)+1)
+
+       ENDDO
+!$omp end parallel do
 
        send_disps(0)=0
        recv_disps(0)=0
@@ -1620,8 +1699,18 @@ CONTAINS
                      lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=stat )
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                send_buf_3d_down = rs % r ( lb_send_down(1):ub_send_down(1), &
-                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) )
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), ub_send_down(3)-lb_send_down(3)+1)), &
+!$omp          private(lb,ub,my_id,num_threads), &
+!$omp          shared(send_buf_3d_down,rs,lb_send_down,ub_send_down)
+!$              num_threads = omp_get_num_threads()
+!$              my_id = omp_get_thread_num()
+                lb = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*my_id)/num_threads
+                ub = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*(my_id+1))/num_threads - 1
+
+                send_buf_3d_down ( lb_send_down(1):ub_send_down(1) ,lb_send_down(2):ub_send_down(2), &
+                                   lb:ub ) = rs % r ( lb_send_down(1):ub_send_down(1), &
+                                   lb_send_down(2):ub_send_down(2), lb:ub )
+!$omp end parallel
 
                 CALL mp_isend ( send_buf_3d_down, dest_down, rs % desc % group, req(3))
 
@@ -1674,8 +1763,18 @@ CONTAINS
                      lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=stat )
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                send_buf_3d_up = rs % r ( lb_send_up(1):ub_send_up(1), &
-                     lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) )
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), ub_send_up(3)-lb_send_up(3)+1)), &
+!$omp          private(lb,ub,my_id,num_threads), &
+!$omp          shared(send_buf_3d_up,rs,lb_send_up,ub_send_up)
+!$              num_threads = omp_get_num_threads()
+!$              my_id = omp_get_thread_num()
+                lb = lb_send_up(3) + ((ub_send_up(3)-lb_send_up(3)+1)*my_id)/num_threads
+                ub = lb_send_up(3) + ((ub_send_up(3)-lb_send_up(3)+1)*(my_id+1))/num_threads - 1
+
+                send_buf_3d_up ( lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2), &
+                                 lb:ub ) = rs % r ( lb_send_up(1):ub_send_up(1), &
+                                 lb_send_up(2):ub_send_up(2), lb:ub )
+!$omp end parallel
 
                 CALL mp_isend ( send_buf_3d_up, dest_up, rs % desc % group, req(4) )
 
@@ -1690,10 +1789,18 @@ CONTAINS
                       ! only some procs may need later shifts
                       IF(ub_recv_down(idir).GE.lb_recv_down(idir))THEN
 
-                         ! Sum the data in the RS Grid
-                         rs % r ( lb_recv_down(1):ub_recv_down(1), lb_recv_down(2):ub_recv_down(2), &
-                              lb_recv_down(3):ub_recv_down(3) ) =  recv_buf_3d_down ( :, :, : )
+                         ! Add the data to the RS Grid
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), ub_recv_down(3)-lb_recv_down(3)+1)), &
+!$omp          private(lb,ub,my_id,num_threads), &
+!$omp          shared(recv_buf_3d_down,rs,lb_recv_down,ub_recv_down)
+!$                       num_threads = omp_get_num_threads()
+!$                       my_id = omp_get_thread_num()
+                         lb = lb_recv_down(3) + ((ub_recv_down(3)-lb_recv_down(3)+1)*my_id)/num_threads
+                         ub = lb_recv_down(3) + ((ub_recv_down(3)-lb_recv_down(3)+1)*(my_id+1))/num_threads - 1
 
+                         rs % r ( lb_recv_down(1):ub_recv_down(1), lb_recv_down(2):ub_recv_down(2), &
+                              lb:ub ) =  recv_buf_3d_down ( :, :, lb:ub )
+!$omp end parallel
                       END IF
 
                       DEALLOCATE ( recv_buf_3d_down, STAT=stat )
@@ -1704,8 +1811,17 @@ CONTAINS
                       IF(ub_recv_up(idir).GE.lb_recv_up(idir))THEN
 
                          ! Add the data to the RS Grid
+!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), ub_recv_up(3)-lb_recv_up(3)+1)), &
+!$omp          private(lb,ub,my_id,num_threads), &
+!$omp          shared(recv_buf_3d_up,rs,lb_recv_up,ub_recv_up)
+!$                       num_threads = omp_get_num_threads()
+!$                       my_id = omp_get_thread_num()
+                         lb = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*my_id)/num_threads
+                         ub = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*(my_id+1))/num_threads - 1
+
                          rs % r ( lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), &
-                              lb_recv_up(3):ub_recv_up(3) ) =  recv_buf_3d_up ( :, :, : )
+                              lb:ub ) = recv_buf_3d_up ( :, :, lb:ub )
+!$omp end parallel
                       END IF
 
                       DEALLOCATE ( recv_buf_3d_up, STAT=stat )
