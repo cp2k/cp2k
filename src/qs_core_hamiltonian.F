@@ -649,6 +649,7 @@ CONTAINS
                         ikind, jkind, sbc_3c, VH_3c_list, reduced_3c_rho0,&
                         .FALSE.,qs_env%dft_control%qs_control%eps_rho_rspace,error)
                 END IF
+! MI get rid of full gapw
                 
                 IF (calculate_forces) atom_b = atom_of_kind(jatom)
                 

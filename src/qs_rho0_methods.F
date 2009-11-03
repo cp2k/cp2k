@@ -274,7 +274,6 @@ MODULE qs_rho0_methods
 
             rho0_atom_set(iatom)%rho0_rad_h%r_coef(1:nr,iso) = &
               g0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)
-
             rho0_atom_set(iatom)%vrho0_rad_h%r_coef(1:nr,iso) = &
               vg0_h(1:nr,l) * mpole_rho%Qlm_tot(iso)
 
@@ -331,6 +330,7 @@ MODULE qs_rho0_methods
         END DO  ! lshell
      END DO  ! iat
     END IF
+!MI get rid of full gapw
 
    CALL timestop(handle)
 

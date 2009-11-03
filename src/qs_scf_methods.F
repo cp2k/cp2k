@@ -45,11 +45,10 @@ MODULE qs_scf_methods
                                              cholesky_restore
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
-  USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              mo_set_type
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_scf_types,                    ONLY: mixing_storage_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -83,42 +82,40 @@ CONTAINS
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_env_density_mixing(p_mix_new,scf_env,iter_delta,&
-                                    qs_env,diis,invert,error)
-
+!<<<<<<< qs_scf_methods.F
+  SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_store, rho_ao, para_env, iter_delta,&
+                                    iter_count,diis,invert,error)
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: p_mix_new
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(mixing_storage_type), POINTER       :: mixing_store
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
+    TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(in)                      :: diis
-    LOGICAL, INTENT(in), OPTIONAL            :: invert
+    INTEGER, INTENT(IN)                      :: iter_count
+    LOGICAL, INTENT(in), OPTIONAL            :: diis, invert
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure, my_invert
+    LOGICAL                                  :: failure, my_diis, my_invert
     REAL(KIND=dp)                            :: my_p_mix, tmp
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(rho_ao)
-    rho_ao => qs_env%rho%rho_ao
-
     failure=.FALSE.
+    my_diis=.FALSE.
+    IF (PRESENT(diis)) my_diis=diis
     my_invert=.FALSE.
     IF (PRESENT(invert)) my_invert=invert
-    my_p_mix = scf_env%p_mix_alpha
-    IF (diis .OR. scf_env%iter_count<scf_env%nskip_mixing) THEN
+    my_p_mix = mixing_store%alpha
+    IF (my_diis .OR. iter_count<mixing_store%nskip_mixing) THEN
         my_p_mix = 1.0_dp
     END IF
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    iter_delta = 0.0_dp
     IF (.NOT.failure) THEN
        CPPrecondition(ASSOCIATED(p_mix_new),cp_failure_level,routineP,error,failure)
        DO ispin=1,SIZE(p_mix_new)
@@ -136,7 +133,7 @@ CONTAINS
                   m2=rho_ao(ispin)%matrix,&
                   p_mix=my_p_mix,&
                   delta=tmp,&
-                  para_env=qs_env%para_env,&
+                  para_env=para_env,&
                   error=error)
              iter_delta=MAX(iter_delta,tmp)
           END IF

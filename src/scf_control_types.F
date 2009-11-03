@@ -134,7 +134,7 @@ MODULE scf_control_types
     INTEGER                               :: max_iter_lumos, max_diis, nmixing
     INTEGER                               :: max_scf,nrow_block,max_scf_hist,&
                                              ncol_block,maxl,nkind
-    LOGICAL                               :: gradient_functional,gth_potential_present,&
+    LOGICAL                               :: do_diag_sub,gradient_functional,gth_potential_present,&
                                              use_cholesky,use_ot,use_diag
     INTEGER                               :: ref_count,id_nr
     INTEGER, DIMENSION(2)                 :: added_mos
@@ -190,6 +190,7 @@ CONTAINS
       scf_control%nmixing = 2
       scf_control%use_cholesky = .TRUE.
       scf_control%use_diag = .TRUE.
+      scf_control%do_diag_sub = .FALSE.
       scf_control%use_ot = .FALSE.
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp
@@ -377,6 +378,10 @@ CONTAINS
        CALL section_vals_val_get(scf_section,"ncol_block",i_val=scf_control%ncol_block,error=error)
        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%_SECTION_PARAMETERS_",&
             l_val=scf_control%use_diag,error=error)
+       IF(scf_control%use_diag) THEN
+         CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%_SECTION_PARAMETERS_",&
+            l_val=scf_control%do_diag_sub,error=error)
+       END IF    
        CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=scf_control%use_ot,error=error)
        IF ( scf_control%use_diag .AND. scf_control%use_ot ) THEN
           ! don't allow both options to be true

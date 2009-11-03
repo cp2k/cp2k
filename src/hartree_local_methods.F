@@ -335,113 +335,14 @@ CONTAINS
     !   Here starts the loop over all the atoms
     DO ikind = 1,nkind
 
-       atom_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atom_kind, atom_list=atom_list,&
+      atom_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atom_kind, atom_list=atom_list,&
             orb_basis_set=orb_basis,&
             natom=nat,grid_atom=grid_atom,&
             harmonics=harmonics,ngrid_rad=nr,&
             max_iso_not0=max_iso_not0,paw_atom=paw_atom)
-!===========   NO  PAW   ===============
-       IF (.NOT. paw_atom .AND. .FALSE. ) THEN
-
-         CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
-              maxso=maxso,npgf=npgf,&
-              nset=nset,zet=zet)
-         nsotot = maxso*nset
-!         ALLOCATE(aVh1b_00(nsotot,nsotot),STAT=istat)
-!         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-         NULLIFY(g0_h)
-         CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
-              l0_ikind=lmax0, &
-              g0_h=g0_h)
-         nchan_0 = nsoset(lmax0)
-
-         NULLIFY(Vh1_h,Vh1_s)
-         ALLOCATE(Vh1_h(nr,nchan_0),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(Vh1_s(nr,nchan_0),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-         NULLIFY(rrad_z,my_CG)
-!         my_CG  => harmonics%my_CG
-
-       !     set to zero temporary arrays
-         sqrtwr=0.0_dp
-         g0_h_w=0.0_dp
-
-         sqrtwr(1:nr) = SQRT(grid_atom%wr(1:nr))
-         DO l_ang = 0,lmax0
-            g0_h_w(1:nr,l_ang) = g0_h(1:nr,l_ang)*grid_atom%wr(1:nr)
-         END DO
-
-       ! Distribute the atoms of this kind
-         num_pe = para_env%num_pe
-         mepos  = para_env%mepos
-         bo = get_limit( nat, num_pe, mepos )
-
-         DO iat = bo(1), bo(2) !1,nat
-            iatom = atom_list(iat)
-
-            NULLIFY(rho_atom)
-            rho_atom => rho_atom_set(iatom)
-
-            NULLIFY(rrad_0,vrrad_0)
-            rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
-            vrrad_0 => rho0_atom_set(iatom)%vrho0_rad_h%r_coef
-
-            Vh1_h = 0.0_dp
-            Vh1_s = 0.0_dp
-            IF (.NOT.my_tddft) THEN
-               rrad_z  => rhoz_set(ikind)%r_coef
-               vrrad_z => rhoz_set(ikind)%vr_coef
-               Vh1_h(:,1) = vrrad_z(:)
-            END IF
-
-            DO iso = 1,nchan_0
-               Vh1_s(:,iso) = vrrad_0(:,iso)
-            END DO
-
-            IF(my_periodic .AND. back_ch .GT. 1.E-3_dp ) THEN
-                factor = -2.0_dp*pi/3.0_dp*SQRT(fourpi)*qs_charges%background
-                DO ir = 1,nr
-                   Vh1_h(ir,1) =  Vh1_h(ir,1)  +  &
-                        factor * grid_atom%rad2(ir)*grid_atom%wr(ir)
-                   Vh1_s(ir,1) =  Vh1_s(ir,1)  +  &
-                        factor * grid_atom%rad2(ir)*grid_atom%wr(ir)
-                END DO
-            END IF
-
-             !       Calculate the contributions to Ecoul coming from Vh1_h*rhoz
-
-            ecoul_1_z = 0.0_dp
-            IF(.NOT. my_tddft) THEN
-               DO ir = 1,nr
-                  ecoul_1_z = ecoul_1_z + Vh1_h(ir,1)*rrad_z(ir)*grid_atom%wr(ir)
-               END DO
-               ecoul_1_z = 0.5_dp*ecoul_1_z
-            END IF
-
-          !       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
-            ecoul_1_0 = 0.0_dp
-            DO iso = 1,nchan_0
-               ec_tmp = 0.0_dp
-               DO ir = 1,nr
-                  ec_tmp = ec_tmp + Vh1_s(ir,iso)*rrad_0(ir,iso)*&
-                       grid_atom%wr(ir)
-               END DO  ! ir
-               ecoul_1_0 = ecoul_1_0 + ec_tmp
-            END DO  ! iso
-            ecoul_1_0 = 0.5_dp*ecoul_1_0
-
-            CALL set_ecoul_1c(ecoul_1c,iatom,ecoul_1_z=ecoul_1_z,ecoul_1_0=ecoul_1_0)
-
-            energy_hartree_1c = energy_hartree_1c +  ecoul_1_z -  ecoul_1_0
-
-         END DO  ! iat     
-         DEALLOCATE(Vh1_h,Vh1_s, STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ELSEIF(paw_atom) THEN
+! MI get rid of full gapw 
+      IF(paw_atom) THEN
 !===========    PAW   ===============
          CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
               maxso=maxso,npgf=npgf,maxl=maxl,&
@@ -717,6 +618,8 @@ CONTAINS
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       ELSE
+!===========   NO  PAW   ===============
+!  This term is taken care of using the core density as in GPW
            CYCLE
       END IF  ! paw
     END DO  ! ikind

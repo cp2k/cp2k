@@ -94,6 +94,7 @@ MODULE xas_methods
                                              scf_env_cleanup
   USE qs_scf_types,                    ONLY: direct_mixing_nr,&
                                              general_diag_method_nr,&
+                                             mixing_storage_create,&
                                              ot_method_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
@@ -187,6 +188,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, loc_section, &
+                                                mixing_section, &
                                                 print_loc_section, &
                                                 scf_section, xas_section
     TYPE(xas_environment_type), POINTER      :: xas_env
@@ -400,41 +402,60 @@ CONTAINS
     END IF
     ! by using td-dft case the oscillator strength should be obtained from the linear response orbitals
 
+    ! DO SCF if required
+    NULLIFY(scf_env)
+    CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
+     ! OT cannot be used with different occupation numbers in the core
+     ! Therefore in case of XAS the general_diag_method_nr is imposed
+    ch_method_flags = .FALSE.
+    IF( xas_control%occ_estate .LT. 1.0_dp .AND. scf_env%method == ot_method_nr) THEN
+    CPPostcondition( xas_env%scf_method==xas_scf_general,cp_failure_level,routineP,error,failure)
+       method0 = scf_env%method
+       scf_env%method = general_diag_method_nr
+       mixing0 = scf_env%mixing_method
+       xas_env%mixing_method = direct_mixing_nr
+       ch_method_flags = .TRUE.
+    ELSE
+       xas_env%mixing_method = scf_env%mixing_method 
+    END IF
+    mixing_section => section_vals_get_subs_vals(xas_section,"MIXING",error=error)
+    CALL mixing_storage_create(xas_env%mixing_store, mixing_section, xas_env%mixing_method, &
+            dft_control%qs_control%cutoff, error=error)
+
     DO iat = 1,xas_control%nexc_atoms
-       iatom = xas_control%exc_atoms(iat)
-       ! determine which state has to be excited in the global list
-       state_to_be_excited = state_of_atom(iat)
+      iatom = xas_control%exc_atoms(iat)
+      ! determine which state has to be excited in the global list
+      state_to_be_excited = state_of_atom(iat)
 
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
-       CALL get_mo_set(mos(1)%mo_set, &
-            occupation_numbers=occupation_numbers,homo=homo,nmo=nmo,nelectron=nelectron)
-       IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
-         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
-          homo = nelectron + 1
-          CPPrecondition(.NOT.(nmo<homo),cp_failure_level,routineP,error,failure)
-          CALL set_mo_set(mos(1)%mo_set, homo = homo, error=error)
-       END IF
-       occupation_numbers(1:homo)  = 1.0_dp
+      CALL get_mo_set(mos(1)%mo_set, &
+           occupation_numbers=occupation_numbers,homo=homo,nmo=nmo,nelectron=nelectron)
+      IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
+        .OR.  xas_control%xas_method==xas_tp_xfh) THEN
+         homo = nelectron + 1
+         CPPrecondition(.NOT.(nmo<homo),cp_failure_level,routineP,error,failure)
+         CALL set_mo_set(mos(1)%mo_set, homo = homo, error=error)
+      END IF
+      occupation_numbers(1:homo)  = 1.0_dp
       ! If the restart file for this atom exists, the mos and the
       ! occupation numbers are overwritten
       ! It is necessary that the restart is for the same xas method
       ! otherwise the number of electrons and the occupation numbers
       ! may not  be consistent
       IF(xas_control%xas_restart) THEN
-         CALL xas_read_restart(xas_control,xas_section, qs_env,iatom,&
-              state_to_be_excited,error=error)
+        CALL xas_read_restart(xas_control,xas_section, qs_env,iatom,&
+             state_to_be_excited,error=error)
       END IF
 
-       dft_control % xas_estate  = state_to_be_excited
-       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
-       CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,error,failure)
-       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,state_to_be_excited,&
-            nao,1,transpose=.TRUE.,error=error)
-       CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
-            nao,1,transpose=.TRUE.,error=error)
+      dft_control % xas_estate  = state_to_be_excited
+      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+      CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,error,failure)
+      CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,state_to_be_excited,&
+           nao,1,transpose=.TRUE.,error=error)
+      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
+           nao,1,transpose=.TRUE.,error=error)
 
       IF (transition_potential) THEN
-
         IF(.NOT. skip_scf) THEN
           IF (output_unit>0) THEN
             IF(xas_control%xas_method==xas_dscf) THEN
@@ -453,21 +474,6 @@ CONTAINS
             END IF
           END IF
 
-         ! DO SCF if required
-          NULLIFY(scf_env)
-          CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
-          ! OT cannot be used with different occupation numbers in the core
-          ! Therefore in case of XAS the general_diag_method_nr is imposed
-          ch_method_flags = .FALSE.
-          IF( xas_control%occ_estate .LT. 1.0_dp .AND. scf_env%method == ot_method_nr) THEN
-        CPPostcondition( xas_env%scf_method==xas_scf_general,cp_failure_level,routineP,error,failure)
-            method0 = scf_env%method
-            scf_env%method = general_diag_method_nr
-            mixing0 = scf_env%mixing_method
-            scf_env%mixing_method = direct_mixing_nr
-            ch_method_flags = .TRUE.
-          END IF
-
           CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
                   scf_section=scf_section, error=error)
           ! this is not standing optimally here, but for the time being retains functionality
@@ -484,11 +490,6 @@ CONTAINS
           END IF
           IF(iat == xas_control%nexc_atoms) THEN
              CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
-          END IF
-          ! Set back the original method for the optimize
-          IF(ch_method_flags) THEN
-            scf_env%method = method0
-            scf_env%mixing_method = mixing0
           END IF
 
         END IF
@@ -530,6 +531,12 @@ CONTAINS
       END IF
 
     END DO
+
+    ! Set back the original method for the optimize
+    IF(ch_method_flags) THEN
+      scf_env%method = method0
+      scf_env%mixing_method = mixing0
+    END IF
 
   ! Release what has to be released
     DEALLOCATE(vecbuffer,STAT=istat)

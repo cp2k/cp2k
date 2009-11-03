@@ -163,7 +163,7 @@ CPSourceFileRef,&
        IF (ionode) THEN
          IF(my_zero_tails) THEN
            DO I3 = L3,U3
-             IF(ABS(buf(I3))<1.E-8_dp) buf(I3) = 0.0_dp
+             IF(buf(I3)<1.E-7_dp) buf(I3) = 0.0_dp
            END DO
          END IF
          WRITE(iunit,'(6E13.5)') (buf(I3),I3=L3,U3,my_stride(3))

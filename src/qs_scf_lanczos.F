@@ -89,28 +89,33 @@ CONTAINS
         nblock =  krylov_space%nblock
         nspin = SIZE(mos,1)
      
-        ALLOCATE(krylov_space%mo_conv(nspin))
-        ALLOCATE(krylov_space%mo_refine(nspin))
+        ALLOCATE(krylov_space%mo_conv(nspin),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(krylov_space%mo_refine(nspin),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(krylov_space%chc_mat(nspin),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(krylov_space%c_vec(nspin),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         max_nmo = 0
         DO ispin = 1,nspin
            CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, nao=nao, nmo=nmo)
            CALL cp_fm_create(krylov_space%mo_conv(ispin)%matrix,mo_coeff%matrix_struct,error=error)
            CALL cp_fm_create(krylov_space%mo_refine(ispin)%matrix,mo_coeff%matrix_struct,error=error)
+           NULLIFY(fm_struct_tmp)
+           CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo,&
+                                       para_env=mo_coeff%matrix_struct%para_env, &
+                                       context=mo_coeff%matrix_struct%context,error=error)
+           CALL cp_fm_create(krylov_space%chc_mat(ispin)%matrix,fm_struct_tmp,"chc",error=error)
+           CALL cp_fm_create(krylov_space%c_vec(ispin)%matrix,fm_struct_tmp,"vec",error=error)
+           CALL cp_fm_struct_release(fm_struct_tmp,error=error)
            max_nmo = MAX(max_nmo,nmo)
         END DO
      
      
         !the use of max_nmo might not be ok, in this case allocate nspin matrices
-        NULLIFY(fm_struct_tmp)
-        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=max_nmo, ncol_global=max_nmo,&
-                                       para_env=mo_coeff%matrix_struct%para_env, &
-                                       context=mo_coeff%matrix_struct%context,error=error)
-        CALL cp_fm_create(krylov_space%chc_mat,fm_struct_tmp,"chc",error=error)
-        CALL cp_fm_create(krylov_space%c_vec,fm_struct_tmp,"vec",error=error)
-        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
         ALLOCATE(krylov_space%c_eval(max_nmo),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     
      
         ALLOCATE(krylov_space%v_mat(nk),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -171,13 +176,14 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE lanczos_refinement(krylov_space, ks, c0, c1, eval,  nao,  &
-              eps_iter, check_moconv_only, error)
+              eps_iter, ispin, check_moconv_only, error)
 
     TYPE(krylov_space_type), POINTER         :: krylov_space
     TYPE(cp_fm_type), POINTER                :: ks, c0, c1
     REAL(dp), DIMENSION(:), POINTER          :: eval
     INTEGER, INTENT(IN)                      :: nao
     REAL(dp), INTENT(IN)                     :: eps_iter
+    INTEGER, INTENT(IN)                      :: ispin
     LOGICAL, INTENT(IN), OPTIONAL            :: check_moconv_only
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -214,8 +220,8 @@ CONTAINS
     my_check_moconv_only = .FALSE.
     IF(PRESENT(check_moconv_only)) my_check_moconv_only = check_moconv_only
 
-    chc => krylov_space%chc_mat
-    evec => krylov_space%c_vec
+    chc => krylov_space%chc_mat(ispin)%matrix
+    evec => krylov_space%c_vec(ispin)%matrix
     c_res => krylov_space%c_eval
     t_eval => krylov_space%t_eval
 
@@ -500,13 +506,14 @@ CONTAINS
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
  SUBROUTINE lanczos_refinement_2v(krylov_space, ks, c0, c1, eval,  nao,  &
-              homo, eps_iter, check_moconv_only, error)
+               eps_iter, ispin, check_moconv_only, error)
 
     TYPE(krylov_space_type), POINTER         :: krylov_space
     TYPE(cp_fm_type), POINTER                :: ks, c0, c1
     REAL(dp), DIMENSION(:), POINTER          :: eval
-    INTEGER, INTENT(IN)                      :: nao, homo
+    INTEGER, INTENT(IN)                      :: nao
     REAL(dp), INTENT(IN)                     :: eps_iter
+    INTEGER, INTENT(IN)                      :: ispin
     LOGICAL, INTENT(IN), OPTIONAL            :: check_moconv_only
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -548,8 +555,8 @@ CONTAINS
     my_check_moconv_only = .FALSE.
     IF(PRESENT(check_moconv_only)) my_check_moconv_only = check_moconv_only
 
-    chc => krylov_space%chc_mat
-    evec => krylov_space%c_vec
+    chc => krylov_space%chc_mat(ispin)%matrix
+    evec => krylov_space%c_vec(ispin)%matrix
     c_res => krylov_space%c_eval
     t_eval => krylov_space%t_eval
 

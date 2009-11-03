@@ -225,7 +225,6 @@ CONTAINS
     NULLIFY(rho0%mp_rho)
     NULLIFY(rho0%mp_gau)
     NULLIFY(rho0%norm_g0l_h)
-!MI get rid of full gapw
     NULLIFY(rho0%orb_radius_3c)
     NULLIFY(rho0%set_radius_3c)
 !MI get rid of full gapw
@@ -276,7 +275,6 @@ CONTAINS
     gexp(1:nr) = gh_tmp(1:nr)
     rho0_mpole%mp_gau(ik)%g0_h(1:nr,0) = gh_tmp(1:nr)* &
                                          rho0_mpole%norm_g0l_h(0)
-
     CALL whittaker_c0a(int1,grid_atom%rad,gh_tmp,erf_z_h,z_h,0,0,nr)
     CALL whittaker_ci(int2,grid_atom%rad,gh_tmp,z_h,0,nr)
 
@@ -489,6 +487,11 @@ CONTAINS
                             zet0_h, igrid_zet0_s, rpgf0_h,rpgf0_s, &
                             r_V0hmV0s, max_rpgf0_s, rho0_s_rs, rho0_s_gs)
 
+!MI get rid of full gapw
+! g0_s,  norm_g0l_s, zet0_s, 
+! orb_radius_3c, set_radius_3c, r_V0hmV0s,
+!  Qlm_car_h, Qlm_car_s,
+!MI get rid of full gapw
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: g0_h, vg0_h

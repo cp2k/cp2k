@@ -27,6 +27,8 @@ MODULE xas_env_types
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                              qs_loc_env_release,&
                                              qs_loc_env_retain
+  USE qs_scf_types,                    ONLY: mixing_storage_release,&
+                                             mixing_storage_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -69,7 +71,7 @@ MODULE xas_env_types
     INTEGER :: iter_count
     INTEGER :: nao,exc_state
     INTEGER :: nvirtual,nvirtual1,nvirtual2
-    INTEGER :: scf_method
+    INTEGER :: scf_method, mixing_method
     INTEGER :: unoccupied_max_iter
     INTEGER, DIMENSION(:), POINTER :: state_of_atom
     INTEGER, DIMENSION(:), POINTER :: atom_of_state
@@ -92,6 +94,7 @@ MODULE xas_env_types
     TYPE( cp_fm_type ), POINTER :: unoccupied_orbs
     TYPE( cp_fm_type ), POINTER :: all_vectors
     TYPE( cp_fm_type ), POINTER :: fm_work
+    TYPE(mixing_storage_type), POINTER :: mixing_store
     TYPE( dbcsr_obj_p_type ), DIMENSION(:), POINTER :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
 
@@ -244,6 +247,7 @@ CONTAINS
       xas_env%nvirtual=0
       xas_env%nvirtual1=0
       xas_env%nvirtual2=0
+      xas_env%mixing_method=1
 
       NULLIFY(xas_env%ao_mo_fm_pools)
       NULLIFY(xas_env%my_gto_basis)
@@ -256,6 +260,7 @@ CONTAINS
       NULLIFY(xas_env%all_evals,xas_env%all_vectors)
       NULLIFY(xas_env%unoccupied_evals,xas_env%unoccupied_orbs)
       NULLIFY(xas_env%stogto_overlap)
+      NULLIFY(xas_env%mixing_store)
 
     END IF
 
@@ -357,6 +362,11 @@ CONTAINS
            DEALLOCATE(xas_env%stogto_overlap,STAT=istat)
            CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
+
+         IF (ASSOCIATED(xas_env%mixing_store)) THEN
+           CALL mixing_storage_release(xas_env%mixing_store,error=error)
+         END IF
+
 
          DEALLOCATE(xas_env,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)

@@ -1924,7 +1924,6 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="FORCE_PAW",&
             description="Use the GAPW scheme also for atoms with soft basis sets, i.e. "//&
             " the local densities are computed even if hard and soft should be equal. "//&
@@ -3662,6 +3661,13 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"DIAG_SUB_SCF",&
+            description="Controls the printing of information on subspace diagonalization internal loop. ", &
+            print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -5010,9 +5016,84 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       NULLIFY(subsection)
+       CALL create_diag_subspace_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
     END IF
 
   END SUBROUTINE create_diagonalization_section
+
+  SUBROUTINE create_diag_subspace_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_diag_subspace_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure = .FALSE. 
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"DIAG_SUB_SCF",&
+            description="Activation of self-consistenf subspace refinement by diagonalization "//&
+            "of H by adjusting the occupation but keeping the MOS unchanged.",&
+            n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of inner SCF loop to refine occupations in MOS subspace",&
+            usage="&DIAG_SUB_SCF T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            description="Maximum number of iterations for the SCF inner loop",&
+            usage="MAX_ITER 20",&
+            default_i_val=2,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_ENE",&
+            description="Required energy accuracy for convergence of subspace diagonalization",&
+            usage="EPS_ENE 1.e-8",&
+            default_r_val=1.e-4_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_ADAPT_SCF",&
+            description="Required density matrix accuracy as compared to current SCF convergence",&
+            usage="EPS_ADAPT_SCF 1.e-1",&
+            default_r_val=1._dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_SKIP_SUB_DIAG",&
+            description="Level of convergence to be reached before starting the internal loop of subspace rotations."//&
+            " Above this threshold only the outer diagonalization method is used. "//&
+            " If negative the subspace rotation is started at the first iteration",&
+            usage="EPS_SKIP_SUB_DIAG 0.001",&
+            default_r_val=-1.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_mixing_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+    END IF
+  END SUBROUTINE create_diag_subspace_section
 
 ! *****************************************************************************
 !> \brief makes the input section for core-level spectroscopy simulations

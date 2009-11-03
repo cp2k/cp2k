@@ -139,7 +139,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: exist, failure, id_equal, &
                                                 ortho_basis, scp, tr
-    LOGICAL                                  :: ionode
+    LOGICAL                                  :: ionode, do_std_diag
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 my_sum, total_rho, trps1, trps2, &
@@ -170,7 +170,7 @@ CONTAINS
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: s_sparse, h_core_sparse, p_rmpv
     TYPE(section_vals_type), POINTER         :: dft_section, input, subsys_section
-    TYPE(dbcsr_obj)                          :: p_dbcsr, s_dbcsr, mo_dbcsr, mo_tmp_dbcsr
+    TYPE(dbcsr_obj)                          :: mo_dbcsr, mo_tmp_dbcsr
     TYPE(array_i1d_obj)                      :: col_blk_size
     TYPE(dbcsr_distribution_obj)             :: dist, product_dist
     TYPE(dbcsr_iterator)                     :: iter
@@ -209,7 +209,7 @@ CONTAINS
     dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
 
     density_guess=scf_control%density_guess
-
+    do_std_diag = .FALSE.
     ortho_basis = .FALSE.
     IF ( dft_control%qs_control%semi_empirical ) THEN
        IF ( dft_control%qs_control%se_control%orthogonal_basis ) &
@@ -518,8 +518,9 @@ CPSourceFileRef,&
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
+          IF(ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
           IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
-               scf_env%method==block_krylov_diag_method_nr ) THEN
+               (scf_env%method==block_krylov_diag_method_nr .AND. .NOT. do_std_diag)) THEN
              IF (dft_control%restricted.AND.(ispin == 2)) THEN
                 CALL mo_set_restrict(mo_array,error=error)
              ELSE
@@ -1065,8 +1066,9 @@ CPSourceFileRef,&
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
+          IF(ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
           IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
-               scf_env%method==block_krylov_diag_method_nr ) THEN
+               (scf_env%method==block_krylov_diag_method_nr .AND. .NOT.do_std_diag)) THEN
              IF (dft_control%restricted.AND.(ispin == 2)) THEN
                 CALL mo_set_restrict(mo_array,error=error)
              ELSE
