@@ -522,7 +522,7 @@ CPSourceFileRef,&
                   eps_gradient=scf_control%eps_lumos, &
                   preconditioner=local_preconditioner, &
                   iter_max=scf_control%max_iter_lumos,&
-                  size_ortho_space=homo,error=error)
+                  size_ortho_space=nmo,error=error)
 
              CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
                   unoccupied_evals(ispin)%array, scr=output_unit, &
@@ -530,7 +530,6 @@ CPSourceFileRef,&
 
              has_lumo=.TRUE.
              homo_lumo(ispin,2)=unoccupied_evals(ispin)%array(1)
-
              ! Prints the cube files of UNOCCUPIED ORBITALS
              CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
                   unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, ionode, error)
