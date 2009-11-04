@@ -1,7 +1,7 @@
 &GLOBAL
-  PROJECT H2O-uks-diag
+  PROJECT H2O-uks-otcg
   PRINT_LEVEL low
-  RUN_TYPE GEO_OPT
+  RUN_TYPE energy
 &END GLOBAL
 
 &MOTION
@@ -18,7 +18,7 @@
     MULTIPLICITY 1
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
     POTENTIAL_FILE_NAME ../GTH_POTENTIALS
-    PLUS_U_METHOD mulliken
+    PLUS_U_METHOD Lowdin
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -38,25 +38,25 @@
     &SCF
       EPS_SCF 1.0E-5
       MAX_SCF 30
-      &OT OFF
+      &OT ON
         MINIMIZER cg
       &END OT
-      &OUTER_SCF OFF
+      &OUTER_SCF ON
         EPS_SCF 1.0E-5
         MAX_SCF 10
       &END OUTER_SCF
       &PRINT
         &RESTART
-          &EACH 
-             GEO_OPT 1 
-             QS_SCF 30
+          &EACH
+            GEO_OPT 1
+            QS_SCF 30
           &END
           ADD_LAST NUMERIC
           FILENAME =RESTART
           BACKUP_COPIES 0
         &END RESTART
       &END PRINT
-      SCF_GUESS atomic
+      SCF_GUESS restart
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -82,6 +82,12 @@
       &DFT_PLUS_U
         L 1
         U_MINUS_J 0.08
+        &ENFORCE_OCCUPATION
+          ORBITALS 1 -1  0
+          EPS_SCF 1.0E-2
+          MAX_SCF 3
+          SMEAR ON
+        &END ENFORCE_OCCUPATION
       &END DFT_PLUS_U
     &END KIND
     &PRINT

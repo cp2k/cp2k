@@ -1,7 +1,7 @@
 &GLOBAL
   PROJECT H2O-uks-diag
   PRINT_LEVEL low
-  RUN_TYPE GEO_OPT
+  RUN_TYPE energy
 &END GLOBAL
 
 &MOTION
@@ -18,7 +18,7 @@
     MULTIPLICITY 1
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
     POTENTIAL_FILE_NAME ../GTH_POTENTIALS
-    PLUS_U_METHOD mulliken
+    PLUS_U_METHOD Lowdin
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -82,6 +82,12 @@
       &DFT_PLUS_U
         L 1
         U_MINUS_J 0.08
+        &ENFORCE_OCCUPATION
+          ORBITALS 1 -1  0
+          EPS_SCF 1.0E-2
+          MAX_SCF 3
+          SMEAR ON
+        &END ENFORCE_OCCUPATION
       &END DFT_PLUS_U
     &END KIND
     &PRINT

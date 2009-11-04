@@ -28,6 +28,8 @@ MODULE dft_plus_u
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix,&
+                                             write_fm_with_basis_info
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_ger,&
                                              cp_fm_upper_to_full
@@ -56,12 +58,10 @@ MODULE dft_plus_u
   USE f77_blas
   USE input_constants,                 ONLY: plus_u_lowdin,&
                                              plus_u_mulliken,&
-                                             plus_u_mulliken_block_diag,&
                                              plus_u_mulliken_charges
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE machine
   USE mathlib,                         ONLY: jacobi
   USE message_passing,                 ONLY: mp_sum
   USE orbital_symbols,                 ONLY: sgf_symbol
@@ -106,12 +106,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: output_unit
+    INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: failure, orthonormal_basis, &
                                                 should_output
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(section_vals_type), POINTER         :: input
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -153,16 +155,14 @@ CONTAINS
         ! For an orthonormal basis the Lowdin method and the Mulliken method
         ! are equivalent
         CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,&
-                      .FALSE.,should_output,output_unit,error)
+                      should_output,output_unit,error)
       ELSE
-        CALL lowdin(qs_env,matrix_h,matrix_w,error)
+        CALL lowdin(qs_env,matrix_h,matrix_w,&
+                    should_output,output_unit,error)
       END IF
     CASE (plus_u_mulliken)
       CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,&
-                    .FALSE.,should_output,output_unit,error)
-    CASE (plus_u_mulliken_block_diag)
-      CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,&
-                    .TRUE.,should_output,output_unit,error)
+                    should_output,output_unit,error)
     CASE (plus_u_mulliken_charges)
       CALL mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,&
                             should_output,output_unit,error)
@@ -174,6 +174,8 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,input,"DFT%PRINT%PLUS_U",&
                                       ignore_should_output=should_output,&
                                       error=error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE plus_u
 
@@ -204,27 +206,38 @@ CONTAINS
 !> \date          02.07.2008
 !> \version       1.0
 ! *****************************************************************************
-  SUBROUTINE lowdin(qs_env,matrix_h,matrix_w,error)
+  SUBROUTINE lowdin(qs_env,matrix_h,matrix_w,should_output,output_unit,error)
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_w
+    LOGICAL, INTENT(IN)                      :: should_output
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lowdin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, handle, i, iatom, ikind, iset, isgf, ishell, ispin, j, &
-      jset, jsgf, jshell, lu, maxnset, maxshell, n, natom, natom_of_kind, &
-      nkind, nsb, nset, nsgf, nspin, sgfa, stat
+    CHARACTER(LEN=10)                        :: spin_info
+    CHARACTER(LEN=6), ALLOCATABLE, &
+      DIMENSION(:)                           :: symbol
+    CHARACTER(LEN=default_string_length)     :: atomic_kind_name
+    INTEGER :: atom_a, handle, i, i0, iatom, ikind, iorb, isb, iset, isgf, &
+      ishell, ispin, j, jsb, jset, jsgf, jshell, lu, m, max_scf, n, natom, &
+      natom_of_kind, nkind, norb, nsb, nsbsize, nset, nsgf, nsgf_kind, nspin, &
+      sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
+    INTEGER, DIMENSION(1)                    :: iloc
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell, orbitals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
-    LOGICAL :: dft_plus_u_atom, failure, fm_work1_local_alloc, &
-      fm_work2_local_alloc, found, just_energy, tr
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind
-    REAL(KIND=dp)                            :: fspin, trq, trq2, u_minus_j, v
+    LOGICAL :: debug, dft_plus_u_atom, failure, fm_work1_local_alloc, &
+      fm_work2_local_alloc, found, just_energy, smear, tr
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind, orb_occ
+    REAL(KIND=dp)                            :: eps_scf, fspin, occ, trq, &
+                                                trq2, u_minus_j, v
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: q_eigval
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: q_matrix
+      DIMENSION(:, :)                        :: q_eigvec, q_matrix, q_work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: q_block, v_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -246,6 +259,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    debug = .FALSE. ! Set to .TRUE. to print debug information
+
     NULLIFY (atom_list)
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
@@ -263,6 +278,7 @@ CONTAINS
     NULLIFY (last_sgf)
     NULLIFY (nshell)
     NULLIFY (orb_basis_set)
+    NULLIFY (orbitals)
     NULLIFY (particle_set)
     NULLIFY (q_block)
     NULLIFY (rho)
@@ -276,6 +292,10 @@ CONTAINS
     NULLIFY (v_block)
 
     failure = .FALSE.
+
+    smear = .FALSE.
+    max_scf = -1
+    eps_scf = 1.0E30_dp
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -312,23 +332,22 @@ CONTAINS
     ! functions, and atomic kinds
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxnset=maxnset,&
-                             maxshell=maxshell,&
                              natom=natom,&
                              nsgf=nsgf)
 
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (is_plus_u_kind(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     is_plus_u_kind(:) = .FALSE.
 
     ALLOCATE (first_sgf_atom(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     first_sgf_atom(:) = 0
 
     CALL get_particle_set(particle_set=particle_set,&
-                          first_sgf=first_sgf_atom,error=error)
+                          first_sgf=first_sgf_atom,&
+                          error=error)
 
     IF (PRESENT(matrix_h).OR.PRESENT(matrix_w)) THEN
       just_energy  = .FALSE.
@@ -382,12 +401,15 @@ CONTAINS
 
     ! Create local block diagonal matrices
 
+    ALLOCATE (sm_q,STAT=stat) ! distributed
+    CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     CALL dbcsr_init(sm_q,error=error)
-    CALL dbcsr_get_block_diag(sm_s, sm_q, error=error)
-    CALL dbcsr_replicate_all(sm_q)
+    CALL dbcsr_get_block_diag(sm_s,sm_q,error=error)
 
+    ALLOCATE (sm_v,STAT=stat) ! replicated
+    CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     CALL dbcsr_init(sm_v,error=error)
-    CALL dbcsr_get_block_diag(sm_s, sm_v, error=error)
+    CALL dbcsr_get_block_diag(sm_s,sm_v,error=error)
     CALL dbcsr_replicate_all(sm_v)
 
     ! Loop over all spins
@@ -427,6 +449,17 @@ CONTAINS
                       beta=0.0_dp,&
                       matrix_c=fm_work2,&
                       error=error)
+      IF (debug) THEN
+        CALL dbcsr_write_sparse_matrix(sm_p,4,6,qs_env,qs_env%para_env,&
+                                       output_unit=output_unit,&
+                                       error=error)
+        CALL write_fm_with_basis_info(fm_s_half,4,6,qs_env,qs_env%para_env,&
+                                      output_unit=output_unit,&
+                                      error=error)
+        CALL write_fm_with_basis_info(fm_work2,4,6,qs_env,qs_env%para_env,&
+                                      output_unit=output_unit,&
+                                      error=error)
+      END IF ! debug
 
       ! Copy occupation matrix to sparse matrix format, finally we are only
       ! interested in the diagonal (atomic) blocks, i.e. the previous full
@@ -453,9 +486,15 @@ CONTAINS
                              atom_list=atom_list,&
                              dft_plus_u_atom=dft_plus_u_atom,&
                              l_of_dft_plus_u=lu,&
+                             name=atomic_kind_name,&
                              natom=natom_of_kind,&
+                             nsgf=nsgf_kind,&
                              orb_basis_set=orb_basis_set,&
-                             u_minus_j=u_minus_j)
+                             u_minus_j=u_minus_j,&
+                             orbitals=orbitals,&
+                             eps_scf=eps_scf,&
+                             max_scf=max_scf,&
+                             smear=smear)
 
         ! Check, if the atoms of this atomic kind need a DFT+U correction
 
@@ -484,11 +523,35 @@ CONTAINS
           END DO
         END DO
 
-        n = nsb*(2*lu + 1)
+        nsbsize = (2*lu + 1)
+        n = nsb*nsbsize
 
         ALLOCATE (q_matrix(n,n),STAT=stat)
         CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
         q_matrix(:,:) = 0.0_dp
+
+        ! Print headline if requested
+
+        IF (should_output) THEN
+          IF (output_unit > 0) THEN
+            ALLOCATE (symbol(nsbsize),STAT=stat)
+            CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+            DO m=-lu,lu
+              symbol(lu+m+1) = sgf_symbol(0,lu,m)
+            END DO
+            IF (nspin > 1) THEN
+              WRITE (UNIT=spin_info,FMT="(A8,I2)") " of spin",ispin
+            ELSE
+              spin_info = ""
+            END IF
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,I0,A,/,/,T5,A,10(2X,A6))")&
+              "DFT+U occupations"//TRIM(spin_info)//" for the atoms of atomic kind ",ikind,&
+              ": "//TRIM(atomic_kind_name),&
+              "Atom   Shell  ",(ADJUSTR(symbol(i)),i=1,nsbsize)," Trace"
+            DEALLOCATE (symbol,STAT=stat)
+            CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+          END IF
+        END IF
 
         ! Loop over all atoms of the current atomic kind
 
@@ -496,78 +559,34 @@ CONTAINS
 
           atom_a = atom_list(iatom)
 
+          q_matrix(:,:) = 0.0_dp
+
           ! Get diagonal block
 
-          CALL dbcsr_get_block_p(matrix=sm_q,row=atom_a,col=atom_a,&
-               block=q_block,tr=tr,found=found)
+          CALL dbcsr_get_block_p(matrix=sm_q,&
+                                 row=atom_a,&
+                                 col=atom_a,&
+                                 block=q_block,&
+                                 tr=tr,&
+                                 found=found)
 
-          IF (.NOT.ASSOCIATED(q_block)) CYCLE
+          IF (ASSOCIATED(q_block)) THEN
 
             ! Calculate energy contribution to E(U)
 
-! Begin: Off-diagonal blocks include
-          q_matrix(:,:) = 0.0_dp
-
-          i = 0
-          DO iset=1,nset
-            DO ishell=1,nshell(iset)
-              IF (l(ishell,iset) /= lu) CYCLE
-              DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-                i = i + 1
-                j = 0
-                DO jset=1,nset
-                  DO jshell=1,nshell(jset)
-                    IF (l(jshell,jset) /= lu) CYCLE
-                    DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
-                      j = j + 1
-                      q_matrix(i,j) = q_block(isgf,jsgf)
-                    END DO ! next contracted spherical Gaussian function "jsgf"
-                  END DO ! next shell "jshell"
-                END DO ! next shell set "jset"
-              END DO ! next contracted spherical Gaussian function "isgf"
-            END DO ! next shell "ishell"
-          END DO ! next shell set "iset"
-
-          trq = 0.0_dp
-          trq2 = 0.0_dp
-
-          DO i=1,n
-            trq = trq + q_matrix(i,i)
-!DBG        WRITE (*,"(I6,20F10.6)") i,q_matrix(i,:)
-            DO j=1,n
-              trq2 = trq2 + q_matrix(i,j)*q_matrix(j,i)
-            END DO
-          END DO
-
-          trq = fspin*trq
-          trq2 = fspin*fspin*trq2
-!DBG      WRITE (*,*) trq,trq2,trq - trq2
-
-          ! Calculate energy contribution to E(U)
-
-          energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
-
-          ! Calculate potential V(U) = dE(U)/dq
-
-          IF (.NOT.just_energy) THEN
-
-            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
-                 block=v_block,tr=tr,found=found)
-            CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
-
+            i = 0
             DO iset=1,nset
               DO ishell=1,nshell(iset)
                 IF (l(ishell,iset) /= lu) CYCLE
                 DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+                  i = i + 1
+                  j = 0
                   DO jset=1,nset
                     DO jshell=1,nshell(jset)
                       IF (l(jshell,jset) /= lu) CYCLE
                       DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
-                        IF (isgf == jsgf) THEN
-                          v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
-                        ELSE
-                          v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
-                        END IF
+                        j = j + 1
+                        q_matrix(i,j) = q_block(isgf,jsgf)
                       END DO ! next contracted spherical Gaussian function "jsgf"
                     END DO ! next shell "jshell"
                   END DO ! next shell set "jset"
@@ -575,7 +594,211 @@ CONTAINS
               END DO ! next shell "ishell"
             END DO ! next shell set "iset"
 
-          END IF ! not just energy
+            ! Perform the requested manipulations of the (initial) orbital occupations
+
+            IF (ASSOCIATED(orbitals)) THEN
+              IF ((qs_env%scf_env%iter_delta >= eps_scf).OR.&
+                  ((qs_env%scf_env%outer_scf%iter_count == 0).AND.&
+                   (qs_env%scf_env%iter_count <= max_scf))) THEN
+                ALLOCATE (orb_occ(nsbsize),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                ALLOCATE (q_eigval(n),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigval(:) = 0.0_dp
+                ALLOCATE (q_eigvec(n,n),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigvec(:,:) = 0.0_dp
+                norb = SIZE(orbitals)
+                CALL jacobi(q_matrix,q_eigval,q_eigvec)
+                q_matrix(:,:) = 0.0_dp
+                DO isb=1,nsb
+                  trq = 0.0_dp
+                  DO i=(isb-1)*nsbsize+1,isb*nsbsize
+                    trq = trq + q_eigval(i)
+                  END DO
+                  IF (smear) THEN
+                    occ = trq/REAL(norb,KIND=dp)
+                  ELSE
+                    occ = 1.0_dp/fspin
+                  END IF
+                  orb_occ(:) = .FALSE.
+                  iloc = MAXLOC(q_eigvec(:,isb*nsbsize))
+                  jsb = INT((iloc(1)-1)/nsbsize) + 1
+                  i = 0
+                  i0 = (jsb-1)*nsbsize + 1
+                  iorb = -1000
+                  DO j=i0,jsb*nsbsize
+                    i = i + 1
+                    IF (i > norb) THEN
+                      DO m=-lu,lu
+                        IF (.NOT.orb_occ(lu+m+1)) THEN
+                          iorb = i0 + lu + m
+                          orb_occ(lu+m+1) = .TRUE.
+                        END IF
+                      END DO
+                    ELSE
+                      iorb = i0 + lu + orbitals(i)
+                      orb_occ(lu+orbitals(i)+1) = .TRUE.
+                    END IF
+                    CPPostcondition((iorb /= -1000),cp_failure_level,routineP,error,failure)
+                    iloc = MAXLOC(q_eigvec(iorb,:))
+                    q_eigval(iloc(1)) = MIN(occ,trq)
+                    q_matrix(:,iloc(1)) = q_eigval(iloc(1))*q_eigvec(:,iloc(1)) ! backtransform left
+                    trq = trq - q_eigval(iloc(1))
+                  END DO
+                END DO
+                q_matrix = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
+                DEALLOCATE (orb_occ,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                DEALLOCATE (q_eigval,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                DEALLOCATE (q_eigvec,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              END IF
+            END IF ! orbitals associated
+
+            trq = 0.0_dp
+            trq2 = 0.0_dp
+
+            DO i=1,n
+              trq = trq + q_matrix(i,i)
+              DO j=1,n
+                trq2 = trq2 + q_matrix(i,j)*q_matrix(j,i)
+              END DO
+            END DO
+
+            trq = fspin*trq
+            trq2 = fspin*fspin*trq2
+
+            ! Calculate energy contribution to E(U)
+
+            energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
+
+            ! Calculate potential V(U) = dE(U)/dq
+
+            IF (.NOT.just_energy) THEN
+
+              CALL dbcsr_get_block_p(matrix=sm_v,&
+                                     row=atom_a,&
+                                     col=atom_a,&
+                                     block=v_block,&
+                                     tr=tr,&
+                                     found=found)
+              CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
+
+              i = 0
+              DO iset=1,nset
+                DO ishell=1,nshell(iset)
+                  IF (l(ishell,iset) /= lu) CYCLE
+                  DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+                    i = i + 1
+                    j = 0
+                    DO jset=1,nset
+                      DO jshell=1,nshell(jset)
+                        IF (l(jshell,jset) /= lu) CYCLE
+                        DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
+                          j = j + 1
+                          IF (isgf == jsgf) THEN
+                            v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_matrix(i,i))
+                          ELSE
+                            v_block(isgf,jsgf) = -u_minus_j*fspin*q_matrix(j,i)
+                          END IF
+                        END DO ! next contracted spherical Gaussian function "jsgf"
+                      END DO ! next shell "jshell"
+                    END DO ! next shell set "jset"
+                  END DO ! next contracted spherical Gaussian function "isgf"
+                END DO ! next shell "ishell"
+              END DO ! next shell set "iset"
+
+            END IF ! not just energy
+
+          END IF ! q_block associated
+
+          ! Consider print requests
+
+          IF (should_output) THEN
+            CALL mp_sum(q_matrix,qs_env%para_env%group)
+            IF (output_unit > 0) THEN
+              ALLOCATE (q_work(nsb,nsbsize),STAT=stat)
+              CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              q_work(:,:) = 0.0_dp
+              DO isb=1,nsb
+                j = 0
+                DO i=(isb-1)*nsbsize+1,isb*nsbsize
+                  j = j + 1
+                  q_work(isb,j) = q_matrix(i,i)
+                END DO
+              END DO
+              DO isb=1,nsb
+                WRITE (UNIT=output_unit,FMT="(T3,I6,2X,I6,2X,10F8.3)")&
+                  atom_a,isb,q_work(isb,:),SUM(q_work(isb,:))
+              END DO
+              WRITE (UNIT=output_unit,FMT="(T12,A,2X,10F8.3)")&
+                "Total",(SUM(q_work(:,i)),i=1,nsbsize),SUM(q_work)
+              WRITE (UNIT=output_unit,FMT="(A)") ""
+              DEALLOCATE (q_work,STAT=stat)
+              CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              IF (debug) THEN
+                ! Print the DFT+U occupation matrix
+                WRITE (UNIT=output_unit,FMT="(T9,70I10)") (i,i=1,n)
+                DO i=1,n
+                  WRITE (UNIT=output_unit,FMT="(T3,I6,70F10.6)") i,q_matrix(i,:)
+                END DO
+                ! Print the eigenvalues and eigenvectors of the occupation matrix
+                ALLOCATE (q_eigval(n),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigval(:) = 0.0_dp
+                ALLOCATE (q_eigvec(n,n),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigvec(:,:) = 0.0_dp
+                CALL jacobi(q_matrix,q_eigval,q_eigvec)
+                WRITE (UNIT=output_unit,FMT="(/,T9,70I10)") (i,i=1,n)
+                WRITE (UNIT=output_unit,FMT="(T9,71F10.6)") (q_eigval(i),i=1,n),&
+                                                            SUM(q_eigval(1:n))
+                DO i=1,n
+                  WRITE (UNIT=output_unit,FMT="(T3,I6,70F10.6)") i,q_eigvec(i,:)
+                END DO
+                DEALLOCATE (q_eigval,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                DEALLOCATE (q_eigvec,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              END IF ! debug
+            END IF
+            IF (debug) THEN
+              ! Print the full atomic occupation matrix block
+              ALLOCATE (q_work(nsgf_kind,nsgf_kind),STAT=stat)
+              CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              q_work(:,:) = 0.0_dp
+              IF (ASSOCIATED(q_block)) q_work(:,:) = q_block(:,:)
+              CALL mp_sum(q_work,qs_env%para_env%group)
+              IF (output_unit > 0) THEN
+                norb = SIZE(q_work,1)
+                WRITE (UNIT=output_unit,FMT="(/,T9,200I10)") (i,i=1,norb)
+                DO i=1,norb
+                  WRITE (UNIT=output_unit,FMT="(T3,I6,200F10.6)") i,q_work(i,:)
+                END DO
+                ALLOCATE (q_eigval(norb),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                 q_eigval(:) = 0.0_dp
+                ALLOCATE (q_eigvec(norb,norb),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigvec(:,:) = 0.0_dp
+                CALL jacobi(q_work,q_eigval,q_eigvec)
+                WRITE (UNIT=output_unit,FMT="(/,T9,200I10)") (i,i=1,norb)
+                WRITE (UNIT=output_unit,FMT="(T9,201F10.6)") (q_eigval(i),i=1,norb),&
+                                                             SUM(q_eigval(1:norb))
+                DO i=1,norb
+                  WRITE (UNIT=output_unit,FMT="(T3,I6,200F10.6)") i,q_eigvec(i,:)
+                END DO
+                DEALLOCATE (q_eigval,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                DEALLOCATE (q_eigvec,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              END IF
+              DEALLOCATE (q_work,STAT=stat)
+              CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+            END IF ! debug
+          END IF ! should output
 
         END DO ! next atom "iatom" of atomic kind "ikind"
 
@@ -583,74 +806,30 @@ CONTAINS
           DEALLOCATE (q_matrix,STAT=stat)
           CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
         END IF
-! End: Off-diagonal blocks included
-
-! Begin: Only diagonal blocks
-!MK            DO iset=1,nset
-!MK              DO ishell=1,nshell(iset)
-!MK                IF (l(ishell,iset) /= lu) CYCLE
-!MK                trq = 0.0_dp
-!MK                trq2 = 0.0_dp
-!MK                DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-!MK                  trq = trq + q_block(isgf,isgf)
-!MK                  DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-!MK                    trq2 = trq2 + q_block(isgf,jsgf)*q_block(jsgf,isgf)
-!MK                  END DO ! next contracted spherical Gaussian function "jsgf"
-!MK                END DO ! next contracted spherical Gaussian function "isgf"
-!MK                trq = fspin*trq
-!MK                trq2 = fspin*fspin*trq2
-!MK!DBG            WRITE (*,*) trq,trq2,trq - trq2
-!MK                energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
-!MK              END DO ! next shell "ishell"
-!MK            END DO ! next shell set "iset"
-
-!MK            ! Calculate potential V(U) = dE(U)/dq
-
-!MK            IF (.NOT.just_energy) THEN
-!MK              CALL get_block_node(matrix=sm_v,&
-!MK                                  block_row=atom_a,&
-!MK                                  block_col=atom_a,&
-!MK                                  block=v_block)
-!MK              DO iset=1,nset
-!MK                DO ishell=1,nshell(iset)
-!MK                  IF (l(ishell,iset) /= lu) CYCLE
-!MK                  DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-!MK                    DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-!MK                      IF (isgf == jsgf) THEN
-!MK                        v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
-!MK                      ELSE
-!MK                        v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
-!MK                      END IF
-!MK                    END DO ! next contracted spherical Gaussian function "jsgf"
-!MK                  END DO ! next contracted spherical Gaussian function "isgf"
-!MK                END DO ! next shell "ishell"
-!MK              END DO ! next shell set "iset"
-
-!MK            END IF ! not just energy
-
-!MK          END IF ! this process is the owner of the sparse matrix block?
-
-!MK        END DO ! next atom "iatom" of atomic kind "ikind"
-! End: Only diagonal blocks
-
       END DO ! next atomic kind "ikind"
 
       ! Scatter DFT+U potential matrix
 
-      DO ikind=1,nkind
-        IF (is_plus_u_kind(ikind)) THEN
-          kind_a => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=kind_a,&
-                               atom_list=atom_list,&
-                               natom=natom_of_kind)
-          DO iatom=1,natom_of_kind
-            atom_a = atom_list(iatom)
-            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
-                 block=v_block,tr=tr,found=found)
-            CALL mp_sum(v_block,qs_env%para_env%group)
-          END DO
-        END IF
-      END DO
+      IF (ASSOCIATED(sm_h).OR.ASSOCIATED(sm_w)) THEN
+        DO ikind=1,nkind
+          IF (is_plus_u_kind(ikind)) THEN
+            kind_a => atomic_kind_set(ikind)
+            CALL get_atomic_kind(atomic_kind=kind_a,&
+                                 atom_list=atom_list,&
+                                 natom=natom_of_kind)
+            DO iatom=1,natom_of_kind
+              atom_a = atom_list(iatom)
+              CALL dbcsr_get_block_p(matrix=sm_v,&
+                                     row=atom_a,&
+                                     col=atom_a,&
+                                     block=v_block,&
+                                     tr=tr,&
+                                     found=found)
+              CALL mp_sum(v_block,qs_env%para_env%group)
+            END DO
+          END IF
+        END DO
+      END IF
 
       ! Add V(i,j)[U] to V(i,j)[DFT]
 
@@ -670,10 +849,18 @@ CONTAINS
                                natom=natom_of_kind)
 
           DO iatom=1,natom_of_kind
+
             atom_a = atom_list(iatom)
-            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
-                 block=v_block,tr=tr,found=found)
+
+            CALL dbcsr_get_block_p(matrix=sm_v,&
+                                   row=atom_a,&
+                                   col=atom_a,&
+                                   block=v_block,&
+                                   tr=tr,&
+                                   found=found)
+
             sgfa = first_sgf_atom(atom_a) - 1
+
             DO isgf=1,SIZE(v_block,1)
               DO jsgf=1,SIZE(v_block,2)
                 IF (v_block(isgf,jsgf) /= 0.0_dp) THEN
@@ -683,6 +870,7 @@ CONTAINS
                 END IF
               END DO
             END DO
+
           END DO ! next atom "iatom" of atomic kind "ikind"
 
         END DO ! Next atomic kind "ikind"
@@ -763,14 +951,13 @@ CONTAINS
 !> \version       1.0
 ! *****************************************************************************
   SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,&
-                      mulliken_block_diag,should_output,output_unit,error)
+                      should_output,output_unit,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_w
-    LOGICAL, INTENT(IN)                      :: mulliken_block_diag, &
-                                                should_output
+    LOGICAL, INTENT(IN)                      :: should_output
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -782,20 +969,20 @@ CONTAINS
       DIMENSION(:)                           :: symbol
     CHARACTER(LEN=default_string_length)     :: atomic_kind_name
     INTEGER :: atom_a, handle, i, i0, iatom, ikind, iorb, isb, iset, isgf, &
-      ishell, ispin, j, jsb, jset, jsgf, jshell, lu, m, max_scf, maxnset, &
-      maxshell, n, natom, natom_of_kind, nkind, norb, nsb, nsbsize, nset, &
-      nsgf, nspin, stat
+      ishell, ispin, j, jsb, jset, jsgf, jshell, lu, m, max_scf, n, natom, &
+      natom_of_kind, nkind, norb, nsb, nsbsize, nset, nsgf_kind, nspin, stat
     INTEGER, DIMENSION(1)                    :: iloc
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell, orbitals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
-    LOGICAL                                  :: dft_plus_u_atom, failure, &
-                                                found, just_energy, smear, tr
+    LOGICAL                                  :: debug, dft_plus_u_atom, &
+                                                failure, found, just_energy, &
+                                                smear, tr
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind, orb_occ
     REAL(KIND=dp)                            :: eps_scf, fspin, occ, trq, &
                                                 trq2, u_minus_j
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: q_eigval
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: q_eigvec, q_ii, q_matrix
+      DIMENSION(:, :)                        :: q_eigvec, q_matrix, q_work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, q_block, &
                                                 s_block, v_block, w_block
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -814,6 +1001,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
+
+    debug = .FALSE. ! Set to .TRUE. to print debug information
 
     NULLIFY (atom_list)
     NULLIFY (atomic_kind)
@@ -894,10 +1083,7 @@ CONTAINS
     ! functions, and atomic kinds
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxnset=maxnset,&
-                             maxshell=maxshell,&
-                             natom=natom,&
-                             nsgf=nsgf)
+                             natom=natom)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -939,7 +1125,7 @@ CONTAINS
         CALL dbcsr_init(sm_q,error=error)
         CALL dbcsr_get_block_diag(sm_p,sm_q,error=error)
       END IF
-      CALL dbcsr_set(sm_q, 0.0_dp, error=error)
+      CALL dbcsr_set(sm_q,0.0_dp,error=error)
 
       IF (.NOT.ASSOCIATED(sm_v)) THEN
         ALLOCATE (sm_v,STAT=stat)
@@ -951,13 +1137,21 @@ CONTAINS
 
       DO iatom=1,natom
 
-        CALL dbcsr_get_block_p(matrix=sm_p,row=iatom,col=iatom,&
-             block=p_block,tr=tr,found=found)
+        CALL dbcsr_get_block_p(matrix=sm_p,&
+                               row=iatom,&
+                               col=iatom,&
+                               block=p_block,&
+                               tr=tr,&
+                               found=found)
 
         IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
-        CALL dbcsr_get_block_p(matrix=sm_q,row=iatom,col=iatom,&
-             block=q_block,tr=tr,found=found)
+        CALL dbcsr_get_block_p(matrix=sm_q,&
+                               row=iatom,&
+                               col=iatom,&
+                               block=q_block,&
+                               tr=tr,&
+                               found=found)
         CPPostcondition(ASSOCIATED(q_block),cp_failure_level,routineP,error,failure)
 
         IF (orthonormal_basis) THEN
@@ -966,8 +1160,12 @@ CONTAINS
             q_block(isgf,isgf) = p_block(isgf,isgf)
           END DO
         ELSE
-          CALL dbcsr_get_block_p(matrix=sm_s,row=iatom,col=iatom,&
-               block=s_block,tr=tr,found=found)
+          CALL dbcsr_get_block_p(matrix=sm_s,&
+                                 row=iatom,&
+                                 col=iatom,&
+                                 block=s_block,&
+                                 tr=tr,&
+                                 found=found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
           ! Exploit that P and S are symmetric
           DO jsgf=1,SIZE(p_block,2)
@@ -1000,6 +1198,7 @@ CONTAINS
                              l_of_dft_plus_u=lu,&
                              name=atomic_kind_name,&
                              natom=natom_of_kind,&
+                             nsgf=nsgf_kind,&
                              orb_basis_set=orb_basis_set,&
                              u_minus_j=u_minus_j,&
                              orbitals=orbitals,&
@@ -1040,15 +1239,6 @@ CONTAINS
         ALLOCATE (q_matrix(n,n),STAT=stat)
         CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
         q_matrix(:,:) = 0.0_dp
-        ALLOCATE (q_eigvec(n,n),STAT=stat)
-        CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-        q_eigvec(:,:) = 0.0_dp
-        ALLOCATE (q_eigval(n),STAT=stat)
-        CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-        q_eigval(:) = 0.0_dp
-        ALLOCATE (orb_occ(nsbsize),STAT=stat)
-        CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-        orb_occ(:) = .FALSE.
 
         ! Print headline if requested
 
@@ -1083,75 +1273,128 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL dbcsr_get_block_p(matrix=sm_q,row=atom_a,col=atom_a,&
-               block=q_block,tr=tr,found=found)
+          CALL dbcsr_get_block_p(matrix=sm_q,&
+                                 row=atom_a,&
+                                 col=atom_a,&
+                                 block=q_block,&
+                                 tr=tr,&
+                                 found=found)
 
           ! Calculate energy contribution to E(U)
 
           IF (ASSOCIATED(q_block)) THEN
 
-            IF (mulliken_block_diag) THEN
-
-              ! Consider only the diagonal shell blocks
-
-              i = 0
-              DO iset=1,nset
-                DO ishell=1,nshell(iset)
-                  IF (l(ishell,iset) /= lu) CYCLE
-                  trq = 0.0_dp
-                  trq2 = 0.0_dp
-                  DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-                    trq = trq + q_block(isgf,isgf)
-                    DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-                      trq2 = trq2 + q_block(isgf,jsgf)*q_block(jsgf,isgf)
-                    END DO ! next contracted spherical Gaussian function "jsgf"
-                  END DO ! next contracted spherical Gaussian function "isgf"
-                  trq = fspin*trq
-                  trq2 = fspin*fspin*trq2
-                  energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
-                  ! q_matrix is only needed in the case of print requests
-                  IF (should_output) THEN
-                    i0 = i
-                    DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-                      j = i0
-                      i = i + 1
-                      DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+            i = 0
+            DO iset=1,nset
+              DO ishell=1,nshell(iset)
+                IF (l(ishell,iset) /= lu) CYCLE
+                DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+                  i = i + 1
+                  j = 0
+                  DO jset=1,nset
+                    DO jshell=1,nshell(jset)
+                      IF (l(jshell,jset) /= lu) CYCLE
+                      DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
                         j = j + 1
                         q_matrix(i,j) = q_block(isgf,jsgf)
-                      END DO
-                    END DO
-                  END IF ! should output
-                END DO ! next shell "ishell"
-              END DO ! next shell set "iset"
-
-              ! Calculate potential V(U) = dE(U)/dq
-
-              IF (.NOT.just_energy) THEN
-
-                CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
-                     block=v_block,tr=tr,found=found)
-                CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
-
-                DO iset=1,nset
-                  DO ishell=1,nshell(iset)
-                    IF (l(ishell,iset) /= lu) CYCLE
-                    DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-                      DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-                        IF (isgf == jsgf) THEN
-                          v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
-                        ELSE
-                          v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
-                        END IF
                       END DO ! next contracted spherical Gaussian function "jsgf"
-                    END DO ! next contracted spherical Gaussian function "isgf"
-                  END DO ! next shell "ishell"
-                END DO ! next shell set "iset"
+                    END DO ! next shell "jshell"
+                  END DO ! next shell set "jset"
+                END DO ! next contracted spherical Gaussian function "isgf"
+              END DO ! next shell "ishell"
+            END DO ! next shell set "iset"
 
-              END IF ! not just energy
+            ! Perform the requested manipulations of the (initial) orbital occupations
 
-            ELSE
+            IF (ASSOCIATED(orbitals)) THEN
+              IF ((qs_env%scf_env%iter_delta >= eps_scf).OR.&
+                  ((qs_env%scf_env%outer_scf%iter_count == 0).AND.&
+                   (qs_env%scf_env%iter_count <= max_scf))) THEN
+                ALLOCATE (orb_occ(nsbsize),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                ALLOCATE (q_eigval(n),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigval(:) = 0.0_dp
+                ALLOCATE (q_eigvec(n,n),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigvec(:,:) = 0.0_dp
+                norb = SIZE(orbitals)
+                CALL jacobi(q_matrix,q_eigval,q_eigvec)
+                q_matrix(:,:) = 0.0_dp
+                DO isb=1,nsb
+                  trq = 0.0_dp
+                  DO i=(isb-1)*nsbsize+1,isb*nsbsize
+                    trq = trq + q_eigval(i)
+                  END DO
+                  IF (smear) THEN
+                    occ = trq/REAL(norb,KIND=dp)
+                  ELSE
+                    occ = 1.0_dp/fspin
+                  END IF
+                  orb_occ(:) = .FALSE.
+                  iloc = MAXLOC(q_eigvec(:,isb*nsbsize))
+                  jsb = INT((iloc(1)-1)/nsbsize) + 1
+                  i = 0
+                  i0 = (jsb-1)*nsbsize + 1
+                  iorb = -1000
+                  DO j=i0,jsb*nsbsize
+                    i = i + 1
+                    IF (i > norb) THEN
+                      DO m=-lu,lu
+                        IF (.NOT.orb_occ(lu+m+1)) THEN
+                          iorb = i0 + lu + m
+                          orb_occ(lu+m+1) = .TRUE.
+                        END IF
+                      END DO
+                    ELSE
+                      iorb = i0 + lu + orbitals(i)
+                      orb_occ(lu+orbitals(i)+1) = .TRUE.
+                    END IF
+                    CPPostcondition((iorb /= -1000),cp_failure_level,routineP,error,failure)
+                    iloc = MAXLOC(q_eigvec(iorb,:))
+                    q_eigval(iloc(1)) = MIN(occ,trq)
+                    q_matrix(:,iloc(1)) = q_eigval(iloc(1))*q_eigvec(:,iloc(1)) ! backtransform left
+                    trq = trq - q_eigval(iloc(1))
+                  END DO
+                END DO
+                q_matrix = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
+                DEALLOCATE (orb_occ,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                DEALLOCATE (q_eigval,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                DEALLOCATE (q_eigvec,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              END IF
+            END IF ! orbitals associated
 
-              ! Consider also the off-diagonal shell blocks
+            trq = 0.0_dp
+            trq2 = 0.0_dp
+
+            DO i=1,n
+              trq = trq + q_matrix(i,i)
+              DO j=1,n
+                trq2 = trq2 + q_matrix(i,j)*q_matrix(j,i)
+              END DO
+            END DO
+
+            trq = fspin*trq
+            trq2 = fspin*fspin*trq2
+
+            ! Calculate energy contribution to E(U)
+
+            energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
+
+            ! Calculate potential V(U) = dE(U)/dq
+
+            IF (.NOT.just_energy) THEN
+
+              CALL dbcsr_get_block_p(matrix=sm_v,&
+                                     row=atom_a,&
+                                     col=atom_a,&
+                                     block=v_block,&
+                                     tr=tr,&
+                                     found=found)
+              CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
               i = 0
               DO iset=1,nset
@@ -1165,7 +1408,11 @@ CONTAINS
                         IF (l(jshell,jset) /= lu) CYCLE
                         DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
                           j = j + 1
-                          q_matrix(i,j) = q_block(isgf,jsgf)
+                          IF (isgf == jsgf) THEN
+                            v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_matrix(i,i))
+                          ELSE
+                            v_block(isgf,jsgf) = -u_minus_j*fspin*q_matrix(j,i)
+                          END IF
                         END DO ! next contracted spherical Gaussian function "jsgf"
                       END DO ! next shell "jshell"
                     END DO ! next shell set "jset"
@@ -1173,102 +1420,7 @@ CONTAINS
                 END DO ! next shell "ishell"
               END DO ! next shell set "iset"
 
-              ! Perform the requested manipulations of the (initial) orbital occupations
-
-              IF (ASSOCIATED(orbitals)) THEN
-                IF ((qs_env%scf_env%iter_count <= max_scf).OR.&
-                    (qs_env%scf_env%iter_delta >= eps_scf)) THEN
-                  norb = SIZE(orbitals)
-                  CALL jacobi(q_matrix,q_eigval,q_eigvec)
-                  q_matrix(:,:) = 0.0_dp
-                  DO isb=1,nsb
-                    trq = 0.0_dp
-                    DO i=(isb-1)*nsbsize+1,isb*nsbsize
-                      trq = trq + q_eigval(i)
-                    END DO
-                    IF (smear) THEN
-                      occ = trq/(fspin*REAL(norb,KIND=dp))
-                    ELSE
-                      occ = 1.0_dp/fspin
-                    END IF
-                    orb_occ(:) = .FALSE.
-                    iloc = MAXLOC(q_eigvec(:,isb*nsbsize))
-                    jsb = INT((iloc(1)-1)/nsbsize) + 1
-                    i = 0
-                    i0 = (jsb-1)*nsbsize + 1
-                    iorb = -1000
-                    DO j=i0,jsb*nsbsize
-                      i = i + 1
-                      IF (i > norb) THEN
-                        DO m=-lu,lu
-                          IF (.NOT.orb_occ(lu+m+1)) THEN
-                            iorb = i0 + lu + m
-                            orb_occ(lu+m+1) = .TRUE.
-                          END IF
-                        END DO
-                      ELSE
-                        iorb = i0 + lu + orbitals(i)
-                        orb_occ(lu+orbitals(i)+1) = .TRUE.
-                      END IF
-                      CPPostcondition((iorb /= -1000),cp_failure_level,routineP,error,failure)
-                      iloc = MAXLOC(q_eigvec(iorb,:))
-                      q_eigval(iloc(1)) = MIN(occ,trq)
-                      q_matrix(:,iloc(1)) = q_eigval(iloc(1))*q_eigvec(:,iloc(1))
-                      trq = trq - q_eigval(iloc(1))
-                    END DO
-                  END DO
-                  q_matrix = MATMUL(q_matrix,TRANSPOSE(q_eigvec))
-                END IF
-              END IF ! orbitals associated
-
-              trq = 0.0_dp
-              trq2 = 0.0_dp
-
-              DO i=1,n
-                trq = trq + q_matrix(i,i)
-                DO j=1,n
-                  trq2 = trq2 + q_matrix(i,j)*q_matrix(j,i)
-                END DO
-              END DO
-
-              trq = fspin*trq
-              trq2 = fspin*fspin*trq2
-
-              ! Calculate energy contribution to E(U)
-
-              energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
-
-              ! Calculate potential V(U) = dE(U)/dq
-
-              IF (.NOT.just_energy) THEN
-
-                CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
-                     block=v_block,tr=tr,found=found)
-                CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
-
-                DO iset=1,nset
-                  DO ishell=1,nshell(iset)
-                    IF (l(ishell,iset) /= lu) CYCLE
-                    DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
-                      DO jset=1,nset
-                        DO jshell=1,nshell(jset)
-                          IF (l(jshell,jset) /= lu) CYCLE
-                          DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
-                            IF (isgf == jsgf) THEN
-                              v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
-                            ELSE
-                              v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
-                            END IF
-                          END DO ! next contracted spherical Gaussian function "jsgf"
-                        END DO ! next shell "jshell"
-                      END DO ! next shell set "jset"
-                    END DO ! next contracted spherical Gaussian function "isgf"
-                  END DO ! next shell "ishell"
-                END DO ! next shell set "iset"
-
-              END IF ! not just energy
-
-            END IF ! only diagonal shell blocks
+            END IF ! not just energy
 
           END IF ! q_block associated
 
@@ -1277,49 +1429,91 @@ CONTAINS
           IF (should_output) THEN
             CALL mp_sum(q_matrix,qs_env%para_env%group)
             IF (output_unit > 0) THEN
-              ALLOCATE (q_ii(nsb,nsbsize),STAT=stat)
+              ALLOCATE (q_work(nsb,nsbsize),STAT=stat)
               CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-              q_ii(:,:) = 0.0_dp
+              q_work(:,:) = 0.0_dp
               DO isb=1,nsb
                 j = 0
                 DO i=(isb-1)*nsbsize+1,isb*nsbsize
                   j = j + 1
-                  q_ii(isb,j) = q_matrix(i,i)
+                  q_work(isb,j) = q_matrix(i,i)
                 END DO
               END DO
               DO isb=1,nsb
                 WRITE (UNIT=output_unit,FMT="(T3,I6,2X,I6,2X,10F8.3)")&
-                  atom_a,isb,q_ii(isb,:),SUM(q_ii(isb,:))
+                  atom_a,isb,q_work(isb,:),SUM(q_work(isb,:))
               END DO
               WRITE (UNIT=output_unit,FMT="(T12,A,2X,10F8.3)")&
-                "Total",(SUM(q_ii(:,i)),i=1,nsbsize),SUM(q_ii)
+                "Total",(SUM(q_work(:,i)),i=1,nsbsize),SUM(q_work)
               WRITE (UNIT=output_unit,FMT="(A)") ""
-              DEALLOCATE (q_ii,STAT=stat)
+              DEALLOCATE (q_work,STAT=stat)
               CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-              !MK Uncomment the following lines to print the full occupation matrix
-              !WRITE (UNIT=output_unit,FMT="(T9,70I10)") (i,i=1,n)
-              !DO i=1,n
-              !  WRITE (UNIT=output_unit,FMT="(T3,I6,70F10.6)") i,q_matrix(i,:)
-              !END DO
+              IF (debug) THEN
+                ! Print the DFT+U occupation matrix
+                WRITE (UNIT=output_unit,FMT="(T9,70I10)") (i,i=1,n)
+                DO i=1,n
+                  WRITE (UNIT=output_unit,FMT="(T3,I6,70F10.6)") i,q_matrix(i,:)
+                END DO
+                ! Print the eigenvalues and eigenvectors of the occupation matrix
+                ALLOCATE (q_eigval(n),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigval(:) = 0.0_dp
+                ALLOCATE (q_eigvec(n,n),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigvec(:,:) = 0.0_dp
+                CALL jacobi(q_matrix,q_eigval,q_eigvec)
+                WRITE (UNIT=output_unit,FMT="(/,T9,70I10)") (i,i=1,n)
+                WRITE (UNIT=output_unit,FMT="(T9,71F10.6)") (q_eigval(i),i=1,n),&
+                                                            SUM(q_eigval(1:n))
+                DO i=1,n
+                  WRITE (UNIT=output_unit,FMT="(T3,I6,70F10.6)") i,q_eigvec(i,:)
+                END DO
+                DEALLOCATE (q_eigval,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                DEALLOCATE (q_eigvec,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              END IF ! debug
             END IF
+            IF (debug) THEN
+              ! Print the full atomic occupation matrix block
+              ALLOCATE (q_work(nsgf_kind,nsgf_kind),STAT=stat)
+              CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              q_work(:,:) = 0.0_dp
+              IF (ASSOCIATED(q_block)) q_work(:,:) = q_block(:,:)
+              CALL mp_sum(q_work,qs_env%para_env%group)
+              IF (output_unit > 0) THEN
+                norb = SIZE(q_work,1)
+                WRITE (UNIT=output_unit,FMT="(/,T9,200I10)") (i,i=1,norb)
+                DO i=1,norb
+                  WRITE (UNIT=output_unit,FMT="(T3,I6,200F10.6)") i,q_work(i,:)
+                END DO
+                ALLOCATE (q_eigval(norb),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                 q_eigval(:) = 0.0_dp
+                ALLOCATE (q_eigvec(norb,norb),STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                q_eigvec(:,:) = 0.0_dp
+                CALL jacobi(q_work,q_eigval,q_eigvec)
+                WRITE (UNIT=output_unit,FMT="(/,T9,200I10)") (i,i=1,norb)
+                WRITE (UNIT=output_unit,FMT="(T9,201F10.6)") (q_eigval(i),i=1,norb),&
+                                                             SUM(q_eigval(1:norb))
+                DO i=1,norb
+                  WRITE (UNIT=output_unit,FMT="(T3,I6,200F10.6)") i,q_eigvec(i,:)
+                END DO
+                DEALLOCATE (q_eigval,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+                DEALLOCATE (q_eigvec,STAT=stat)
+                CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+              END IF
+              DEALLOCATE (q_work,STAT=stat)
+              CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+            END IF ! debug
           END IF ! should output
 
         END DO ! next atom "iatom" of atomic kind "ikind"
 
         IF (ALLOCATED(q_matrix)) THEN
           DEALLOCATE (q_matrix,STAT=stat)
-          CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-        END IF
-        IF (ALLOCATED(q_eigvec)) THEN
-          DEALLOCATE (q_eigvec,STAT=stat)
-          CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-        END IF
-        IF (ALLOCATED(q_eigval)) THEN
-          DEALLOCATE (q_eigval,STAT=stat)
-          CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-        END IF
-        IF (ALLOCATED(orb_occ)) THEN
-          DEALLOCATE (orb_occ,STAT=stat)
           CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
         END IF
 
@@ -1343,13 +1537,21 @@ CONTAINS
 
             atom_a = atom_list(iatom)
 
-            CALL dbcsr_get_block_p(matrix=sm_h,row=atom_a,col=atom_a,&
-                 block=h_block,tr=tr,found=found)
+            CALL dbcsr_get_block_p(matrix=sm_h,&
+                                   row=atom_a,&
+                                   col=atom_a,&
+                                   block=h_block,&
+                                   tr=tr,&
+                                   found=found)
 
             IF (.NOT.ASSOCIATED(h_block)) CYCLE
 
-            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
-                 block=v_block,tr=tr,found=found)
+            CALL dbcsr_get_block_p(matrix=sm_v,&
+                                   row=atom_a,&
+                                   col=atom_a,&
+                                   block=v_block,&
+                                   tr=tr,&
+                                   found=found)
             CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
             IF (orthonormal_basis) THEN
@@ -1357,8 +1559,12 @@ CONTAINS
                 h_block(isgf,isgf) = h_block(isgf,isgf) + v_block(isgf,isgf)
               END DO
             ELSE
-               CALL dbcsr_get_block_p(matrix=sm_s,row=atom_a,col=atom_a,&
-                    block=s_block,tr=tr,found=found)
+               CALL dbcsr_get_block_p(matrix=sm_s,&
+                                      row=atom_a,&
+                                      col=atom_a,&
+                                      block=s_block,&
+                                      tr=tr,&
+                                      found=found)
               CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
               DO jsgf=1,SIZE(h_block,2)
                 DO isgf=1,SIZE(h_block,1)
@@ -1393,17 +1599,29 @@ CONTAINS
 
             atom_a = atom_list(iatom)
 
-            CALL dbcsr_get_block_p(matrix=sm_p,row=atom_a,col=atom_a,&
-                 block=p_block,tr=tr,found=found)
+            CALL dbcsr_get_block_p(matrix=sm_p,&
+                                   row=atom_a,&
+                                   col=atom_a,&
+                                   block=p_block,&
+                                   tr=tr,&
+                                   found=found)
 
             IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
-            CALL dbcsr_get_block_p(matrix=sm_v,row=atom_a,col=atom_a,&
-                 block=v_block,tr=tr,found=found)
+            CALL dbcsr_get_block_p(matrix=sm_v,&
+                                   row=atom_a,&
+                                   col=atom_a,&
+                                   block=v_block,&
+                                   tr=tr,&
+                                   found=found)
             CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
-            CALL dbcsr_get_block_p(matrix=sm_w,row=atom_a,col=atom_a,&
-                 block=w_block,tr=tr,found=found)
+            CALL dbcsr_get_block_p(matrix=sm_w,&
+                                   row=atom_a,&
+                                   col=atom_a,&
+                                   block=w_block,&
+                                   tr=tr,&
+                                   found=found)
             CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
 
             DO jsgf=1,SIZE(w_block,2)
@@ -1472,7 +1690,7 @@ CONTAINS
 !>                calls are performed
 ! *****************************************************************************
   SUBROUTINE mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,&
-                               should_output,output_unit,error)
+                              should_output,output_unit,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
@@ -1660,8 +1878,12 @@ CONTAINS
 
         ELSE
 
-          CALL dbcsr_get_block_p(matrix=sm_s,row=iatom,col=jatom,&
-               block=s_block,tr=tr,found=found)
+          CALL dbcsr_get_block_p(matrix=sm_s,&
+                                 row=iatom,&
+                                 col=jatom,&
+                                 block=s_block,&
+                                 tr=tr,&
+                                 found=found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
           sgf = first_sgf_atom(jatom)
@@ -1777,8 +1999,12 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL dbcsr_get_block_p(matrix=sm_p,row=atom_a,col=atom_a,&
-               block=p_block,tr=tr,found=found)
+          CALL dbcsr_get_block_p(matrix=sm_p,&
+                                 row=atom_a,&
+                                 col=atom_a,&
+                                 block=p_block,&
+                                 tr=tr,&
+                                 found=found)
 
           ! Calculate E(U) and dE(U)/dq
 
@@ -1865,8 +2091,12 @@ CONTAINS
 
             ! Request katom just to check for consistent sparse matrix pattern
 
-            CALL dbcsr_get_block_p(matrix=sm_s,row=iatom,col=jatom,&
-                 block=s_block,tr=tr,found=found)
+            CALL dbcsr_get_block_p(matrix=sm_s,&
+                                   row=iatom,&
+                                   col=jatom,&
+                                   block=s_block,&
+                                   tr=tr,&
+                                   found=found)
             CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
             ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
@@ -1916,8 +2146,12 @@ CONTAINS
 
           ! Request katom just to check for consistent sparse matrix patterns
 
-          CALL dbcsr_get_block_p(matrix=sm_w,row=iatom,col=jatom,&
-               block=w_block,tr=tr,found=found)
+          CALL dbcsr_get_block_p(matrix=sm_w,&
+                                 row=iatom,&
+                                 col=jatom,&
+                                 block=w_block,&
+                                 tr=tr,&
+                                 found=found)
           CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
 
           ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation

@@ -2167,7 +2167,9 @@ CONTAINS
       CALL section_create(subsection,&
                           name="ENFORCE_OCCUPATION",&
                           description="Enforce and control a special (initial) orbital occupation. "//&
-                                      "Note, this feature works only for the method MULLIKEN.",&
+                                      "Note, this feature works only for the methods MULLIKEN and LOWDIN. "//&
+                                      "It should only be used to prepare an initial configuration. An "//&
+                                      "inadequate parameter choice can easily inhibit SCF convergence.",&
                           n_keywords=5,&
                           n_subsections=0,&
                           repeats=.FALSE.,&
