@@ -40,7 +40,6 @@ MODULE rt_propagation_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy
@@ -68,7 +67,6 @@ MODULE rt_propagation_methods
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
-  USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
@@ -594,8 +592,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -617,22 +613,15 @@ CONTAINS
     CALL calculate_ecore_overlap(qs_env, para_env, &
          calculate_forces=.FALSE.,error=error)
     CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_s=matrix_s,ks_env=ks_env,error=error)
-    CALL mpools_get(qs_env%mpools,&
-         S_sm_pools=S_sm_pools,&
-         error=error)
     
     IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       !CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
-       !     name="KOHN-SHAM_MATRIX",&
-       !     error=error)
-CALL dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
-DO ispin=1,dft_control%nspins
-   ALLOCATE(matrix_ks(ispin)%matrix)
-   CALL dbcsr_init(matrix_ks(ispin)%matrix)
-   CALL dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
-        name="KOHN-SHAM_MATRIX",error=error)
-ENDDO
-WRITE(*,*) 'WARNING rt_propagation_methods.F need to fix that'
+       CALL dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
+       DO ispin=1,dft_control%nspins
+          ALLOCATE(matrix_ks(ispin)%matrix)
+          CALL dbcsr_init(matrix_ks(ispin)%matrix)
+          CALL dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
+               name="KOHN-SHAM_MATRIX",error=error)
+       ENDDO
 
        CALL set_qs_env(qs_env=qs_env,&
             matrix_ks=matrix_ks,error=error)
@@ -826,14 +815,11 @@ WRITE(*,*) 'WARNING rt_propagation_methods.F need to fix that'
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL get_qs_env(qs_env,&
          rtp=rtp,&
          error=error)
-    CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools, error=error)
 
 
     IF(PRESENT(exp_H))THEN
@@ -849,15 +835,10 @@ WRITE(*,*) 'WARNING rt_propagation_methods.F need to fix that'
    END IF
    
    IF(PRESENT(s_mat))THEN
-      CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools, error=error)
        IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
           ! (future struct:check)
           CALL dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
        END IF
-       !CALL sm_pool_create_matrix(S_sm_pools(1)%pool,&
-       !     rtp%history%s_history(ihist)%matrix,"hist%overlap",error=error)
-       WRITE(*,*) 'WARNING rt_propagation_methods.F need to fix that'
-
        ALLOCATE(rtp%history%s_history(ihist)%matrix)
        CALL dbcsr_init(rtp%history%s_history(ihist)%matrix)
        CALL dbcsr_copy(rtp%history%s_history(ihist)%matrix,s_mat(1)%matrix,error=error)
