@@ -77,8 +77,10 @@ MODULE qs_ks_methods
        xc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
@@ -310,8 +312,8 @@ CONTAINS
       do_ep, do_hfx, do_hfx_ri, do_ppl, explicit_potential, failure, gapw, &
       gapw_xc, hfx_treat_lsd_in_core, ionode, my_kg_gpw, my_print, scp_dft, &
       uniform_occupation, use_virial
-    REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_dDFA, scale_ddW0, &
-      scale_dEx1, scale_dEx2, total_energy_xc
+    REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_c, scale_dDFA, &
+      scale_ddW0, scale_dEx1, scale_dEx2, scale_x, total_energy_xc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     REAL(KIND=dp)                            :: ddapc_order_p, ecore_ppl, &
                                                 mulliken_order_p, s2_order_p
@@ -352,9 +354,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: my_rho_xc
     TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
-                                                hfx_ri_section, hfx_sections, &
-                                                input, scf_section
+    TYPE(section_vals_type), POINTER :: adiabatic_rescaling_section, &
+      hfx_ri_section, hfx_sections, input, scf_section, xc_fun, xc_section
     TYPE(virial_type), POINTER               :: virial
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
@@ -601,6 +602,7 @@ CONTAINS
          NULLIFY(mo_coeff_aux_fit)
          CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
          CALL get_qs_env(qs_env,mos=mos,wfn_fitting_env=wfn_fitting_env,error=error)
+
          CALL fit_mo_coeffs(wfn_fitting_env, para_env, &
                             qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
                             mos, mos_aux_fit, ks_env%s_mstruct_changed, error)
@@ -616,7 +618,9 @@ CONTAINS
                 total_rho=qs_env%rho_aux_fit%tot_rho_r(ispin),&
                 qs_env=qs_env,soft_valid=.FALSE.,&
                 basis_set_id=use_aux_fit_basis_set, error=error)
+
          END DO
+
          qs_env%rho_aux_fit%rho_r_valid=.TRUE.
          qs_env%rho_aux_fit%rho_g_valid=.TRUE.
        END IF
@@ -630,10 +634,32 @@ CONTAINS
 ! CJM getting the XC potential
          !! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
          IF( dft_control%do_wfn_fitting ) THEN
+
+!*************** HACK for PBE0 correction (just to have some regtests)
+
+           CALL get_qs_env(qs_env, input=input, error=error)
+           xc_section => section_vals_get_subs_vals(input,"DFT%XC%XC_FUNCTIONAL",error=error)
+           xc_fun => section_vals_get_subs_vals2(xc_section,i_section=1,error=error)
+           CALL section_vals_val_get(xc_fun,"scale_c",r_val=scale_c,error=error)
+           CALL section_vals_val_get(xc_fun,"scale_x",r_val=scale_x,error=error)
+
+           CALL section_vals_val_set(xc_fun,"scale_c",r_val=0.0_dp,error=error)
+           CALL section_vals_val_set(xc_fun,"scale_x",r_val=0.25_dp,error=error)
+
            CALL qs_vxc_create(qs_env=qs_env,&
               vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
               just_energy=just_energy, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
               error=error)
+
+          CALL section_vals_val_set(xc_fun,"scale_c",r_val=scale_c,error=error)
+          CALL section_vals_val_set(xc_fun,"scale_x",r_val=scale_x,error=error)
+
+           energy%exc_aux_fit = -energy%exc_aux_fit
+           IF (.NOT. just_energy .AND. ASSOCIATED(v_rspace_new_aux_fit) ) THEN
+             DO ispin = 1,nspins
+               v_rspace_new_aux_fit(ispin)%pw%cr3d  = - v_rspace_new_aux_fit(ispin)%pw%cr3d
+             END DO
+           END IF
          END IF
          CALL qs_vxc_create(qs_env=qs_env,&
               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
@@ -710,6 +736,11 @@ CONTAINS
                                                 ispin=ispin, error=error)
                    END DO
                  END IF
+                 IF( calculate_forces ) THEN
+                   CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+                   CALL derivatives_four_center(qs_env, qs_env%rho_aux_fit, hfx_sections, &
+                                                para_env, irep, error=error)
+                 END IF
                ELSE
                  IF ( .NOT. hfx_treat_lsd_in_core ) THEN
                    CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
@@ -722,11 +753,11 @@ CONTAINS
                                                 ispin=ispin, error=error)
                    END DO
                  END IF
-               END IF
-               IF( calculate_forces ) THEN
-                 CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-                 CALL derivatives_four_center(qs_env, rho, hfx_sections, &
-                                              para_env, irep, error=error)
+                 IF( calculate_forces ) THEN
+                   CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+                   CALL derivatives_four_center(qs_env, rho, hfx_sections, &
+                                                para_env, irep, error=error)
+                 END IF
                END IF
              ELSE
                IF( .NOT. hfx_treat_lsd_in_core ) THEN
@@ -1174,7 +1205,7 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
                CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
                CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
-               CALL merge_mo_derivs(ispin, qs_env%wfn_fitting_env, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
+               CALL merge_mo_derivs(ispin, qs_env%wfn_fitting_env, mos(ispin)%mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
                                     mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, error)
              END IF
 
@@ -1255,6 +1286,10 @@ CONTAINS
          output_unit = -1
        END IF
        IF (output_unit>0) THEN
+          IF (dft_control%do_wfn_fitting) THEN
+            WRITE (UNIT=output_unit,FMT="((T3,A,T60,F20.10))")&
+                   "Wfn fit exchange-correlation energy:           ",energy%exc_aux_fit
+          END IF
           IF(my_kg_gpw) THEN
             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
                "Core Hamiltonian energy of separated molecules:",energy%core,&

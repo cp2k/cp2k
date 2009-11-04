@@ -22,8 +22,10 @@ MODULE wfn_fitting_methods
                                              dbcsr_add_block_node,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type
+  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_schur_product,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -33,11 +35,17 @@ MODULE wfn_fitting_methods
                                              cp_fm_set_element,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_types,                     ONLY: dbcsr_obj,&
+                                             dbcsr_type_normal
+  USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -50,12 +58,12 @@ MODULE wfn_fitting_methods
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type
+                                             mo_set_p_type,&
+                                             mo_set_type
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE wfn_fitting_types,               ONLY: wfn_fitting_env_create,&
@@ -156,6 +164,7 @@ MODULE wfn_fitting_methods
     ! *** Calculate the mo_coeffs for the fitting basis
     DO ispin=1,nspins
       nmo = wfn_fitting_env%nmo(ispin)
+      IF( nmo == 0 ) CYCLE
       !! Lambda = C^(T)*B*C
       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
       CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
@@ -213,10 +222,11 @@ MODULE wfn_fitting_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE merge_mo_derivs(ispin, wfn_fitting_env, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
+  SUBROUTINE merge_mo_derivs(ispin, wfn_fitting_env, mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
                              mo_derivs_aux_fit, matrix_ks_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
+    TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
@@ -228,8 +238,14 @@ MODULE wfn_fitting_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, nao_aux_fit, &
-                                                nao_orb, nmo
-    REAL(dp)                                 :: eig_diff, pole
+                                                nao_orb, nmo, stat
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: eig_diff, pole, tmp32, tmp52, &
+                                                tmp72, tmp92
+    REAL(dp), DIMENSION(:), POINTER          :: occupation_numbers, &
+                                                scaling_factor
+
+    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -244,6 +260,13 @@ MODULE wfn_fitting_methods
                     1.0_dp,wfn_fitting_env%K(ispin)%matrix,mo_coeff_aux_fit,0.0_dp,&
                     wfn_fitting_env%H(ispin)%matrix,error)
 
+    CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers)
+    ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    scaling_factor = 2.0_dp*occupation_numbers
+
+    CALL cp_fm_column_scale(wfn_fitting_env%H(ispin)%matrix,scaling_factor)
+
     CALL cp_fm_to_fm(wfn_fitting_env%H(ispin)%matrix, mo_derivs_aux_fit(ispin)%matrix, error=error) 
 
     ! *** Add first term 
@@ -251,19 +274,24 @@ MODULE wfn_fitting_methods
                     1.0_dp,wfn_fitting_env%H(ispin)%matrix,wfn_fitting_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
                     wfn_fitting_env%work_aux_nmo(ispin)%matrix,error)
     CALL cp_fm_gemm('T','N', nao_orb, nmo, nao_aux_fit,&
-                    1.0_dp,wfn_fitting_env%A,wfn_fitting_env%work_aux_nmo(ispin)%matrix,1.0_dp,&
-                    mo_derivs(ispin)%matrix,error)
+                    1.0_dp,wfn_fitting_env%A,wfn_fitting_env%work_aux_nmo(ispin)%matrix,0.0_dp,&
+                    wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,error)
 
 
     ! *** Construct Matrix M for Hadamard Product
     pole = 0.0_dp
     DO i=1,nmo
       DO j=i,nmo
-        eig_diff = ABS( wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(i) -&
-                        wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j) )
+        eig_diff = ( wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(i) -&
+                     wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j) )
         ! *** two eigenvalues could be the degenerated. In that case use 2nd order formula for the poles
-        IF( i==j .OR. ( eig_diff == 0.0_dp ) ) THEN
-          pole = -0.5_dp/SQRT(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(i))**3
+        IF( ABS(eig_diff) < 0.0001_dp ) THEN
+          tmp32 = 1.0_dp/SQRT(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j))**3
+          tmp52 = tmp32/wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
+          tmp72 = tmp52/wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
+          tmp92 = tmp72/wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
+
+          pole = -0.5_dp*tmp32 + 3.0_dp/8.0_dp*tmp52 - 5.0_dp/16.0_dp*tmp72 + 35.0_dp/128.0_dp*tmp92
           CALL cp_fm_set_element(wfn_fitting_env%M(ispin)%matrix,i,j,pole,error)
         ELSE
           pole = 1.0_dp/SQRT(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(i))
@@ -319,13 +347,23 @@ MODULE wfn_fitting_methods
     ! *** B^(T)*c* R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)
     CALL cp_fm_gemm('N','N', nao_orb, nmo, nmo,&
                     1.0_dp,wfn_fitting_env%work_orb_nmo(ispin)%matrix,wfn_fitting_env%R_schur_R_t(ispin)%matrix,1.0_dp,&
-                    mo_derivs(ispin)%matrix,error)
+                    wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,error)
 
     ! *** Add second term to fm_H
     ! *** B*C *[ R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)]^(T)
     CALL cp_fm_gemm('N','T', nao_orb, nmo, nmo,&
                     1.0_dp,wfn_fitting_env%work_orb_nmo(ispin)%matrix,wfn_fitting_env%R_schur_R_t(ispin)%matrix,1.0_dp,&
-                    mo_derivs(ispin)%matrix,error)
+                    wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,error)
+
+    DO i = 1,SIZE(scaling_factor)
+      scaling_factor(i) = 1.0_dp/scaling_factor(i)
+    END DO
+
+    CALL cp_fm_column_scale(wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,scaling_factor)
+    CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(ispin)%matrix,1.0_dp,wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,error)
+
+    DEALLOCATE(scaling_factor, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
@@ -366,7 +404,8 @@ MODULE wfn_fitting_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE calc_mixed_overlap_force(qs_env, para_env, ispin, wfn_fitting_env, mo_coeff,  &
-                                      matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, error)
+                                      matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, logger,&
+                                      iw, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -376,6 +415,8 @@ MODULE wfn_fitting_methods
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb
+    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: iw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mixed_overlap_force', &
@@ -405,7 +446,11 @@ MODULE wfn_fitting_methods
     ALLOCATE(matrix_w_s)
     CALL dbcsr_init(matrix_w_s)
     CALL dbcsr_copy(matrix_w_s,matrix_s_aux_fit(1)%matrix,&
-         name="W MATRIX AUX S",error=error)
+                    name="W MATRIX AUX S",error=error)
+
+    ! *** The W matrix has NOT the same symmetry as the S matrix
+    matrix_w_s%m%matrix_type = dbcsr_type_normal
+
 
     ! *** allocate all blocks
     CALL allocate_w_matrix_blocks(qs_env, &
@@ -415,10 +460,11 @@ MODULE wfn_fitting_methods
                                   error=error)
 
 
+
     ALLOCATE(matrix_w_p)
     CALL dbcsr_init(matrix_w_p)
     CALL dbcsr_copy(matrix_w_p,matrix_s_aux_fit_vs_orb(1)%matrix,&
-         "W MATRIX AUX P",error=error)
+                    "W MATRIX AUX P",error=error)
 
     ! *** S'^(-T)*H'
     CALL cp_fm_gemm('T', 'N', nao_aux_fit, nmo, nao_aux_fit,&
@@ -488,7 +534,24 @@ MODULE wfn_fitting_methods
     CALL calc_overlap_force_general(qs_env,para_env,matrix_w_p,&
                                     use_aux_fit_basis_set, use_orb_basis_set, qs_env%sab_aux_fit_vs_orb, &
                                     do_symmetric=.FALSE., error=error)
-   
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",&
+            extension=".Log",error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_w_s,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT", error=error)
+    END IF
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",&
+            extension=".Log",error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_w_p,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT", error=error)
+    END IF
+
     ! *** Deallocated weighted density matrices
     CALL dbcsr_deallocate_matrix(matrix_w_s,error)
     CALL dbcsr_deallocate_matrix(matrix_w_p,error)
@@ -745,10 +808,7 @@ MODULE wfn_fitting_methods
               CALL dbcsr_get_block_p(matrix=matrix_w,row=irow,col=icol,&
                    block=w_block,tr=tr,found=found)
 
-              IF (.NOT.ASSOCIATED(w_block)) THEN
-                 CALL stop_program(routineN,moduleN,__LINE__,&
-                      "A weighted density matrix block is missing",para_env)
-              END IF
+              IF (.NOT.ASSOCIATED(w_block)) CYCLE
             END IF
 
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -873,7 +933,7 @@ MODULE wfn_fitting_methods
 
     nkind = SIZE(atomic_kind_set)
 
-    
+ 
     DO ikind=1,nkind
       DO jkind=1,nkind
         iab = ikind + nkind*(jkind - 1)
@@ -939,6 +999,8 @@ MODULE wfn_fitting_methods
       END DO
 
     END DO
+
+    CALL dbcsr_finalize(matrix_w,error=error)    
 
   END SUBROUTINE allocate_w_matrix_blocks
 

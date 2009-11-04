@@ -243,6 +243,9 @@ MODULE hfx_types
     INTEGER, DIMENSION(:), POINTER           :: nshell
     REAL(dp), DIMENSION(:,:,:,:), POINTER &
                                              :: sphi_ext
+    REAL(dp), DIMENSION(:), POINTER          :: set_radius
+    REAL(dp), DIMENSION(:,:), POINTER        :: pgf_radius
+    REAL(dp)                                 :: kind_radius
   END TYPE
 
 ! *****************************************************************************
@@ -612,7 +615,10 @@ MODULE hfx_types
                                    sphi=actual_x_data%basis_parameter(ikind)%sphi, &
                                    nsgf=actual_x_data%basis_parameter(ikind)%nsgf_total,&
                                    l=actual_x_data%basis_parameter(ikind)%nl,&
-                                   nshell=actual_x_data%basis_parameter(ikind)%nshell)
+                                   nshell=actual_x_data%basis_parameter(ikind)%nshell,&
+                                   set_radius=actual_x_data%basis_parameter(ikind)%set_radius,&
+                                   pgf_radius=actual_x_data%basis_parameter(ikind)%pgf_radius,&
+                                   kind_radius=actual_x_data%basis_parameter(ikind)%kind_radius)
         END DO
         DO ikind = 1,nkind
           ALLOCATE(actual_x_data%basis_parameter(ikind)%nsgfl(0:actual_x_data%basis_info%max_am,max_set))

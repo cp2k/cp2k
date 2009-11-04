@@ -157,8 +157,8 @@ MODULE hfx_energy_potential
     INTEGER(int_8) :: estimate_to_store_int, mem_compression_counter, &
       mem_compression_counter_disk, mem_eris, mem_eris_disk, mem_max_val, &
       my_current_counter, my_istart, n_processes, ncpu, neris_disk, &
-      neris_incore, neris_onthefly, neris_total, stor_count_int_disk, &
-      stor_count_max_val, storage_counter_integrals
+      neris_incore, neris_onthefly, neris_total, shm_mem_compression_counter, &
+      stor_count_int_disk, stor_count_max_val, storage_counter_integrals
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
@@ -387,7 +387,8 @@ MODULE hfx_energy_potential
 !$OMP                                  shm_task_list,&
 !$OMP                                  shm_total_bins,&
 !$OMP                                  shm_master_x_data,&
-!$OMP                                  shm_pmax_atom)
+!$OMP                                  shm_pmax_atom,&
+!$OMP                                  shm_mem_compression_counter)
 
 
     ln_10 = LOG(10.0_dp)
@@ -816,11 +817,11 @@ MODULE hfx_energy_potential
 
 
     IF( .NOT. shm_master_x_data%screen_funct_is_initialized ) THEN
-      CALL calc_pair_dist_radii(qs_env,&
+      CALL calc_pair_dist_radii(qs_env, basis_parameter,&
                                 shm_master_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz,&
                                 n_threads, i_thread, error)
 !$OMP BARRIER
-      CALL calc_screening_functions(qs_env, private_lib, shm_master_x_data%potential_parameter,&
+      CALL calc_screening_functions(qs_env, basis_parameter, private_lib, shm_master_x_data%potential_parameter,&
                                     shm_master_x_data%screen_funct_coeffs_set,&
                                     shm_master_x_data%screen_funct_coeffs_kind, &
                                     shm_master_x_data%screen_funct_coeffs_pgf, &
@@ -1684,16 +1685,15 @@ MODULE hfx_energy_potential
 
     ! ** Calculate how much memory has already been used (might be needed for in-core forces
 !$OMP MASTER
-    mem_compression_counter = 0
+    shm_mem_compression_counter = 0
     DO i=1,n_threads
-      mem_compression_counter = mem_compression_counter + &
-                                qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage *&
-                                memory_parameter%cache_size
+      shm_mem_compression_counter = shm_mem_compression_counter + &
+                                    qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage *&
+                                    memory_parameter%cache_size
     END DO
 !$OMP END MASTER
 !$OMP BARRIER
-    actual_x_data%memory_parameter%final_comp_counter_energy = mem_compression_counter
-
+    actual_x_data%memory_parameter%final_comp_counter_energy = shm_mem_compression_counter
 
 
 !$OMP MASTER   

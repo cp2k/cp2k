@@ -2248,7 +2248,7 @@ CPSourceFileRef)
          DO ispin=1,dft_control%nspins
             ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
             CALL dbcsr_init(matrix_ks_aux_fit(ispin)%matrix)
-            CALL dbcsr_copy(matrix_ks_aux_fit(ispin)%matrix,matrix_s(1)%matrix,&
+            CALL dbcsr_copy(matrix_ks_aux_fit(ispin)%matrix,qs_env%matrix_s_aux_fit(1)%matrix,&
                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                  "KOHN-SHAM_MATRIX for wfn fitting",error=error)
          ENDDO

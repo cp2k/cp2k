@@ -97,6 +97,8 @@ MODULE wfn_fitting_types
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: H
     TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs_tmp
+    TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: K
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: M
@@ -209,6 +211,8 @@ MODULE wfn_fitting_types
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(wfn_fitting_env%work_aux_nmo2(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(wfn_fitting_env%mo_derivs_tmp(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
 
 
@@ -247,6 +251,7 @@ MODULE wfn_fitting_types
       CALL cp_fm_create(wfn_fitting_env%M(ispin)%matrix,fm_struct_nmo_nmo,name="M",error=error)
       CALL cp_fm_create(wfn_fitting_env%work_aux_nmo(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo",error=error)
       CALL cp_fm_create(wfn_fitting_env%work_aux_nmo2(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo2",error=error)
+      CALL cp_fm_create(wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,fm_struct_orb_nmo,name="mo_derivs_tmp",error=error)
       ALLOCATE(wfn_fitting_env%eigvals_lambda(ispin)%eigvals, STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(nmo), STAT=istat)
@@ -304,6 +309,7 @@ MODULE wfn_fitting_types
       CALL cp_fm_release(wfn_fitting_env%work_nmo_nmo2(ispin)%matrix, error=error)
       CALL cp_fm_release(wfn_fitting_env%work_aux_nmo(ispin)%matrix, error=error)
       CALL cp_fm_release(wfn_fitting_env%work_aux_nmo2(ispin)%matrix, error=error)
+      CALL cp_fm_release(wfn_fitting_env%mo_derivs_tmp(ispin)%matrix, error=error)
       DEALLOCATE(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(wfn_fitting_env%eigvals_lambda(ispin)%eigvals,STAT=istat)
@@ -334,6 +340,8 @@ MODULE wfn_fitting_types
     DEALLOCATE(wfn_fitting_env%work_aux_nmo,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(wfn_fitting_env%work_aux_nmo2,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(wfn_fitting_env%mo_derivs_tmp,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(wfn_fitting_env, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -12,8 +12,7 @@
 MODULE hfx_screening_methods 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
+  USE basis_set_types,                 ONLY: gto_basis_set_type
   USE f77_blas
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen
   USE hfx_libint_wrapper_types,        ONLY: lib_int
@@ -280,11 +279,13 @@ MODULE hfx_screening_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
 
-  SUBROUTINE calc_screening_functions(qs_env, lib, potential_parameter, &
+  SUBROUTINE calc_screening_functions(qs_env, basis_parameter, lib, potential_parameter, &
                                       coeffs_set, coeffs_kind, coeffs_pgf, radii_pgf,&
                                       max_set, max_pgf, n_threads, i_thread,&
                                       p_work, error) 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(lib_int)                            :: lib
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(hfx_screen_coeff_type), &
@@ -362,33 +363,35 @@ MODULE hfx_screening_methods
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             zet=zeta,&
-                             set_radius=set_radius_a,&
-                             first_sgf=first_sgfa,&
-                             sphi=sphi_a,&
-                             nsgf_set=nsgfa,&
-                             pgf_radius=rpgfa)
+
+      la_max => basis_parameter(ikind)%lmax
+      la_min => basis_parameter(ikind)%lmin
+      npgfa => basis_parameter(ikind)%npgf
+      nseta = basis_parameter(ikind)%nset
+      zeta => basis_parameter(ikind)%zet
+      set_radius_a => basis_parameter(ikind)%set_radius
+      first_sgfa => basis_parameter(ikind)%first_sgf
+      sphi_a => basis_parameter(ikind)%sphi
+      nsgfa => basis_parameter(ikind)%nsgf
+      rpgfa => basis_parameter(ikind)%pgf_radius
+
       DO jkind = 1,nkind
         NULLIFY(atom_kind,orb_basis)
         atom_kind => atomic_kind_set(jkind)
         CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                               lmax=lb_max,&
-                               lmin=lb_min,&
-                               npgf=npgfb,&
-                               nset=nsetb,&
-                               zet=zetb,&
-                               set_radius=set_radius_b,&
-                               first_sgf=first_sgfb,&
-                               sphi=sphi_b,&
-                               nsgf_set=nsgfb,&
-                               pgf_radius=rpgfb)
+
+        lb_max => basis_parameter(jkind)%lmax
+        lb_min => basis_parameter(jkind)%lmin
+        npgfb => basis_parameter(jkind)%npgf
+        nsetb = basis_parameter(jkind)%nset
+        zetb => basis_parameter(jkind)%zet
+        set_radius_b => basis_parameter(jkind)%set_radius
+        first_sgfb => basis_parameter(jkind)%first_sgf
+        sphi_b => basis_parameter(jkind)%sphi
+        nsgfb => basis_parameter(jkind)%nsgf
+        rpgfb => basis_parameter(jkind)%pgf_radius
+
         DO iset = 1,nseta
           ncoa = npgfa(iset)*ncoset(la_max(iset))
           sgfa = first_sgfa(1,iset)
@@ -462,31 +465,42 @@ MODULE hfx_screening_methods
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             zet=zeta,&
-                             set_radius=set_radius_a,&
-                             first_sgf=first_sgfa,&
-                             sphi=sphi_a,&
-                             nsgf_set=nsgfa)
+!      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
+!                             lmax=la_max,&
+!                             lmin=la_min,&
+!                             npgf=npgfa,&
+!                             nset=nseta,&
+!                             zet=zeta,&
+!                             set_radius=set_radius_a,&
+!                             first_sgf=first_sgfa,&
+!                             sphi=sphi_a,&
+!                             nsgf_set=nsgfa)
+      la_max => basis_parameter(ikind)%lmax
+      la_min => basis_parameter(ikind)%lmin
+      npgfa => basis_parameter(ikind)%npgf
+      nseta = basis_parameter(ikind)%nset
+      zeta => basis_parameter(ikind)%zet
+      set_radius_a => basis_parameter(ikind)%set_radius
+      first_sgfa => basis_parameter(ikind)%first_sgf
+      sphi_a => basis_parameter(ikind)%sphi
+      nsgfa => basis_parameter(ikind)%nsgf
+
       DO jkind = 1,nkind
         NULLIFY(atom_kind,orb_basis)
         atom_kind => atomic_kind_set(jkind)
         CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                               lmax=lb_max,&
-                               lmin=lb_min,&
-                               npgf=npgfb,&
-                               nset=nsetb,&
-                               zet=zetb,&
-                               set_radius=set_radius_b,&
-                               first_sgf=first_sgfb,&
-                               sphi=sphi_b,&
-                               nsgf_set=nsgfb)
+
+        lb_max => basis_parameter(jkind)%lmax
+        lb_min => basis_parameter(jkind)%lmin
+        npgfb => basis_parameter(jkind)%npgf
+        nsetb = basis_parameter(jkind)%nset
+        zetb => basis_parameter(jkind)%zet
+        set_radius_b => basis_parameter(jkind)%set_radius
+        first_sgfb => basis_parameter(jkind)%first_sgf
+        sphi_b => basis_parameter(jkind)%sphi
+        nsgfb => basis_parameter(jkind)%nsgf
+
         DO iset = 1,nseta
           ncoa = npgfa(iset)*ncoset(la_max(iset))
           sgfa = first_sgfa(1,iset)
@@ -544,31 +558,33 @@ MODULE hfx_screening_methods
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             zet=zeta,&
-                             kind_radius=kind_radius_a,&
-                             first_sgf=first_sgfa,&
-                             sphi=sphi_a,&
-                             nsgf_set=nsgfa)
+
+      la_max => basis_parameter(ikind)%lmax
+      la_min => basis_parameter(ikind)%lmin
+      npgfa => basis_parameter(ikind)%npgf
+      nseta = basis_parameter(ikind)%nset
+      zeta => basis_parameter(ikind)%zet
+      kind_radius_a = basis_parameter(ikind)%kind_radius
+      first_sgfa => basis_parameter(ikind)%first_sgf
+      sphi_a => basis_parameter(ikind)%sphi
+      nsgfa => basis_parameter(ikind)%nsgf
+
       DO jkind = 1,nkind
         NULLIFY(atom_kind,orb_basis)
         atom_kind => atomic_kind_set(jkind)
         CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                               lmax=lb_max,&
-                               lmin=lb_min,&
-                               npgf=npgfb,&
-                               nset=nsetb,&
-                               zet=zetb,&
-                               kind_radius=kind_radius_b,&
-                               first_sgf=first_sgfb,&
-                               sphi=sphi_b,&
-                               nsgf_set=nsgfb)
+
+        lb_max => basis_parameter(jkind)%lmax
+        lb_min => basis_parameter(jkind)%lmin
+        npgfb => basis_parameter(jkind)%npgf
+        nsetb = basis_parameter(jkind)%nset
+        zetb => basis_parameter(jkind)%zet
+        kind_radius_b = basis_parameter(jkind)%kind_radius
+        first_sgfb => basis_parameter(jkind)%first_sgf
+        sphi_b => basis_parameter(jkind)%sphi
+        nsgfb => basis_parameter(jkind)%nsgf
+
 
         radius=kind_radius_a + kind_radius_b
         DO iset=1,nseta
@@ -635,11 +651,13 @@ MODULE hfx_screening_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
 
-  SUBROUTINE calc_pair_dist_radii(qs_env,&
+  SUBROUTINE calc_pair_dist_radii(qs_env, basis_parameter, &
                                   radii_pgf, max_set, max_pgf, eps_schwarz, &
                                   n_threads, i_thread, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: radii_pgf
     INTEGER, INTENT(IN)                      :: max_set, max_pgf
@@ -709,33 +727,36 @@ MODULE hfx_screening_methods
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                              lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             zet=zeta,&
-                             set_radius=set_radius_a,&
-                             first_sgf=first_sgfa,&
-                             sphi=sphi_a,&
-                             nsgf_set=nsgfa,&
-                             pgf_radius=rpgfa)
+
+      la_max => basis_parameter(ikind)%lmax
+      la_min => basis_parameter(ikind)%lmin
+      npgfa => basis_parameter(ikind)%npgf
+      nseta = basis_parameter(ikind)%nset
+      zeta => basis_parameter(ikind)%zet
+      set_radius_a => basis_parameter(ikind)%set_radius
+      first_sgfa => basis_parameter(ikind)%first_sgf
+      sphi_a => basis_parameter(ikind)%sphi
+      nsgfa => basis_parameter(ikind)%nsgf
+      rpgfa => basis_parameter(ikind)%pgf_radius
+    
+      
       DO jkind = 1,nkind
         NULLIFY(atom_kind,orb_basis)
         atom_kind => atomic_kind_set(jkind)
         CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                               lmax=lb_max,&
-                               lmin=lb_min,&
-                               npgf=npgfb,&
-                               nset=nsetb,&
-                               zet=zetb,&
-                               set_radius=set_radius_b,&
-                               first_sgf=first_sgfb,&
-                               sphi=sphi_b,&
-                               nsgf_set=nsgfb,&
-                               pgf_radius=rpgfb)
+
+        lb_max => basis_parameter(jkind)%lmax
+        lb_min => basis_parameter(jkind)%lmin
+        npgfb => basis_parameter(jkind)%npgf
+        nsetb = basis_parameter(jkind)%nset
+        zetb => basis_parameter(jkind)%zet
+        set_radius_b => basis_parameter(jkind)%set_radius
+        first_sgfb => basis_parameter(jkind)%first_sgf
+        sphi_b => basis_parameter(jkind)%sphi
+        nsgfb => basis_parameter(jkind)%nsgf
+        rpgfb => basis_parameter(jkind)%pgf_radius
+
         DO iset = 1,nseta
           ncoa = npgfa(iset)*ncoset(la_max(iset))
           sgfa = first_sgfa(1,iset)

@@ -1109,6 +1109,11 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="w_matrix_aux_fit",&
+            description="If the printkey is activated controls the printing of the w matrix",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="derivatives",&
             description="If the printkey is activated controls the printing "//&
             "of derivatives (for the matrixes that support this)",&

@@ -371,8 +371,9 @@ CONTAINS
              mo_set => mos(ispin)%mo_set
              CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff) 
 
-             CALL calc_mixed_overlap_force(qs_env, para_env, ispin, wfn_fitting_env, mo_coeff,  &
-                  matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, error)
+             CALL calc_mixed_overlap_force(qs_env, para_env, ispin, wfn_fitting_env, mo_coeff, &
+                                           matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, logger, &
+                                           iw, error)
           END DO
        END IF
 
