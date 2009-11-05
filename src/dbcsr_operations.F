@@ -344,9 +344,10 @@ CONTAINS
     DO mult = 1, left_multiplicity
        CALL dbcsr_init (lbuffer_1%mats(mult), error)
        CALL dbcsr_create (lbuffer_1%mats(mult),&
-            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
-            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
-            nblks, nze, special=.FALSE., error=error)
+            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, &
+            dbcsr_type_normal, left_set%mats(1)%m%row_blk_size, &
+            left_set%mats(1)%m%col_blk_size, nblks, nze, special=.FALSE., &
+            error=error)
             lbuffer_1%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
        CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
@@ -359,9 +360,10 @@ CONTAINS
        !
        CALL dbcsr_init (lbuffer_2%mats(mult), error)
        CALL dbcsr_create (lbuffer_2%mats(mult),&
-            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
-            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
-            nblks, nze, special=.FALSE., error=error)
+            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, &
+            dbcsr_type_normal, left_set%mats(1)%m%row_blk_size, &
+            left_set%mats(1)%m%col_blk_size, nblks, nze, special=.FALSE., &
+            error=error)
             lbuffer_2%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
        CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
@@ -383,7 +385,7 @@ CONTAINS
     CALL dbcsr_init (rbuffer_1, error)
     CALL dbcsr_create (rbuffer_1,&
          'rbuffer1'//right_matrix%m%name, right_matrix%m%dist,&
-         'N',&
+         dbcsr_type_normal, &
          right_matrix%m%row_blk_size,&
          right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
@@ -400,7 +402,7 @@ CONTAINS
     CALL dbcsr_init (rbuffer_2, error)
     CALL dbcsr_create (rbuffer_2,&
          'rbuffer2'//right_matrix%m%name, right_matrix%m%dist,&
-         'N',&
+         dbcsr_type_normal,&
          right_matrix%m%row_blk_size,&
          right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
@@ -845,9 +847,10 @@ CONTAINS
     DO mult = 1, left_multiplicity
        CALL dbcsr_init (lbuffer_1%mats(mult), error)
        CALL dbcsr_create (lbuffer_1%mats(mult),&
-            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
-            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
-            nblks, nze, special=.FALSE., error=error)
+            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, &
+            dbcsr_type_normal, left_set%mats(1)%m%row_blk_size, &
+            left_set%mats(1)%m%col_blk_size, nblks, nze, special=.FALSE., &
+            error=error)
             lbuffer_1%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
        CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
@@ -860,9 +863,10 @@ CONTAINS
        !
        CALL dbcsr_init (lbuffer_2%mats(mult), error)
        CALL dbcsr_create (lbuffer_2%mats(mult),&
-            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
-            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
-            nblks, nze, special=.FALSE., error=error)
+            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, &
+            dbcsr_type_normal, left_set%mats(1)%m%row_blk_size, &
+            left_set%mats(1)%m%col_blk_size, nblks, nze, special=.FALSE., &
+            error=error)
             lbuffer_2%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
        CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%m%data_area,&
             MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
@@ -881,7 +885,7 @@ CONTAINS
     CALL dbcsr_init (rbuffer_1, error)
     CALL dbcsr_create (rbuffer_1,&
          'rbuffer1'//right_matrix%m%name, right_matrix%m%dist,&
-         'N',&
+         dbcsr_type_normal,&
          right_matrix%m%row_blk_size,&
          right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
@@ -898,7 +902,7 @@ CONTAINS
     CALL dbcsr_init (rbuffer_2, error)
     CALL dbcsr_create (rbuffer_2,&
          'rbuffer2'//right_matrix%m%name, right_matrix%m%dist,&
-         'N',&
+         dbcsr_type_normal,&
          right_matrix%m%row_blk_size,&
          right_matrix%m%col_blk_size,&
          0, 0, special=.FALSE., error=error)
@@ -4672,7 +4676,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ALLOCATE (rm_disp(0:numnodes-1))
     CALL dbcsr_init (replicated)
     CALL dbcsr_create(replicated, 'Replicated '//matrix%m%name, matrix%m%dist,&
-         'N', matrix%m%row_blk_size, matrix%m%col_blk_size,&
+         dbcsr_type_normal, matrix%m%row_blk_size, matrix%m%col_blk_size,&
          0, 0, matrix%m%data_type, special=matrix%m%special_memory,&
          replication_type=dbcsr_repl_full)
     ! Count initial sizes for sending.
@@ -5758,7 +5762,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        !write (*,*)routineN//" redistributing"
        CALL dbcsr_init (t2)
        CALL dbcsr_create (t2, transposed%m%name, transposed%m%dist,&
-            'N', transposed%m%row_blk_size, transposed%m%col_blk_size,&
+            dbcsr_type_normal, transposed%m%row_blk_size, transposed%m%col_blk_size,&
             error=error)
        CALL dbcsr_redistribute (transposed, t2)
        CALL dbcsr_release (transposed)
@@ -6150,7 +6154,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL dbcsr_init(distributed)
        CALL dbcsr_create(distributed, 'Distributed '//matrix%m%name,&
             matrix%m%dist,&
-            'N', matrix%m%row_blk_size, matrix%m%col_blk_size,&
+            dbcsr_type_normal, matrix%m%row_blk_size, matrix%m%col_blk_size,&
             0, 0, matrix%m%data_type, special=matrix%m%special_memory)
        distributed%m%replication_type = dbcsr_repl_none
        ! First count how many blocks are local.

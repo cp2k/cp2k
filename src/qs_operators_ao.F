@@ -13,6 +13,10 @@ MODULE qs_operators_ao
                                              diffop,&
                                              moment
   USE ai_os_rr,                        ONLY: os_rr_ovlp
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -21,16 +25,24 @@ MODULE qs_operators_ao
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
+                                             dbcsr_add_block_node,&
+                                             dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_get_matrix_type,&
+                                             dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj,&
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj,&
                                              dbcsr_type_antisymmetric,&
-                                             dbcsr_type_normal
-  USE dbcsr_util,                      ONLY: dbcsr_finalize
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist,&
+                                             dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -2048,13 +2060,17 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_up_op_sm', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=1)                         :: sym_matrix
     INTEGER :: iab, iatom, icol, ikind, ilist, inode, irow, istat, jatom, &
       jkind, last_jatom, natom, neighbor_list_id, nkind, nlist, nnode, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: failure, new_atom_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -2074,6 +2090,18 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
          distribution_2d=distribution_2d,&
          neighbor_list_id=neighbor_list_id,error=error)
 
+
+    SELECT CASE(symmetry)
+    CASE('symmetric')
+       sym_matrix=dbcsr_type_symmetric
+    CASE('antisymmetric')
+       sym_matrix=dbcsr_type_antisymmetric
+    CASE('none')
+       sym_matrix=dbcsr_type_normal
+    CASE default
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+    
     IF(symmetry=="none") THEN
       CALL get_qs_env(qs_env=qs_env,&
            sab_all=sab_orb,error=error)
@@ -2095,19 +2123,28 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
 
-    CALL dbcsr_allocate_matrix(matrix=matrix,&
-                         nblock_row=natom,&
-                         nblock_col=natom,&
-                         nrow=nsgf,&
-                         ncol=nsgf,&
-                         first_row=first_sgf,&
-                         last_row=last_sgf,&
-                         first_col=first_sgf,&
-                         last_col=last_sgf,&
-                         matrix_name=name,&
-                         matrix_symmetry=symmetry,&
-                         sparsity_id=neighbor_list_id, &
-                         distribution_2d=distribution_2d,error=error)
+    ! prepare for allocation
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+
+    IF(ASSOCIATED(matrix)) CALL dbcsr_deallocate_matrix(matrix,error)
+    ALLOCATE(matrix)
+    CALL dbcsr_init(matrix,error=error)
+
+    CALL dbcsr_create(matrix=matrix, &
+         name=name, &
+         dist=dbcsr_dist, matrix_type=sym_matrix,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (matrix%m, distribution_2d, error)
+
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
 
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -48,8 +48,7 @@ MODULE cp_dbcsr_operations
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_mp_pgrid_equal, dbcsr_mutable_new, dbcsr_nblkcols_total, &
        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_row_block_sizes, dbcsr_uses_special_memory, &
-       dbcsr_valid_index
+       dbcsr_release, dbcsr_row_block_sizes, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, &
        dbcsr_distribute, dbcsr_filter, dbcsr_get_block, dbcsr_get_block_p, &
@@ -62,10 +61,9 @@ MODULE cp_dbcsr_operations
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric
+       dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: &
-       add_work_coordinate, convert_offsets_to_sizes, &
-       convert_sizes_to_offsets, create_bl_distribution, &
+       add_work_coordinate, convert_sizes_to_offsets, create_bl_distribution, &
        dbcsr_add_wm_from_matrix, dbcsr_checksum, dbcsr_create, &
        dbcsr_create_col_image_dist, dbcsr_create_dist_block_cyclic, &
        dbcsr_create_dist_elemental, dbcsr_create_dist_fullest, &
@@ -110,8 +108,7 @@ MODULE cp_dbcsr_operations
        packed_vec_bif_tech2, dbcsr_copy_vec, packed_vec_build_u
   ! CP2K API emulation
   PUBLIC :: dbcsr_add_block_node,&
-            dbcsr_replicate_matrix_struct,&
-            dbcsr_allocate_matrix, dbcsr_deallocate_matrix,&
+            dbcsr_deallocate_matrix,&
             dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
             dbcsr_obj_p_type, test_sm,&
             dbcsr_from_fm, dbcsr_from_sm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
@@ -646,13 +643,7 @@ CONTAINS
     !
     ! Tests (undefined) block addition then subsequently setting the
     ! data area.
-    DEALLOCATE (matrix_a2)
-    CALL dbcsr_allocate_matrix (matrix_a2, matrix_s%nrow, matrix_s%ncol,&
-         matrix_s%nblock_row, matrix_s%nblock_col,&
-         matrix_s%first_row, matrix_s%last_row,&
-         matrix_s%first_col, matrix_s%last_col,&
-         matrix_s%name, matrix_s%symmetry,&
-         0, matrix_s%distribution_2d, error=error)
+    CALL dbcsr_from_sm(matrix_a2, matrix_s, error)
     !write(*,*)'zeroing..., second time around'
     rbs => array_data (dbcsr_row_block_sizes (matrix_a2))
     cbs => array_data (dbcsr_col_block_sizes (matrix_a2))
@@ -706,19 +697,6 @@ CONTAINS
     !CALL dbcsr_release (matrix_a2)
     CALL dbcsr_deallocate_matrix (matrix_a2, error)
     !
-    ! Tests matrix structure replication
-    CALL dbcsr_replicate_matrix_struct(matrix_a, matrix_a2, "replication",&
-         error=error)
-    CALL dbcsr_finalize (matrix_a2, error=error)
-    CALL dbcsr_verify_matrix(matrix_a2, error)
-    checksum = dbcsr_checksum(matrix_a2, error)
-    IF (ldbg.AND.ionode) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum5", checksum
-    ENDIF
-    !
-    CALL dbcsr_deallocate_matrix (matrix_a2, error)
-    
-
     checksum = 0.0_dp
     CALL cp_fm_frobenius_norm(matrix_x, checksum, error)
     !WRITE(*,*)'x checksum',checksum*checksum
@@ -881,7 +859,7 @@ CONTAINS
     walltime1 = m_walltime()
     flop = 0
     CALL dbcsr_init (matrix_c, error=error)
-    CALL dbcsr_create (matrix_c, "C", product_dist, 'N',&
+    CALL dbcsr_create (matrix_c, "C", product_dist, dbcsr_type_normal,&
          matrix_a%m%row_blk_size, matrix_b%m%col_blk_size,&
          error=error)
     CALL dbcsr_sm_sm_multiply(1.0_dp, matrix_a, matrix_b, 0.0_dp, matrix_c,&
@@ -945,7 +923,7 @@ CONTAINS
          dbcsr_nfullcols_total(matrix_b),&
          dbcsr_distribution_mp(dist_right),&
          row_blk_size, col_blk_size)
-    CALL dbcsr_create (matrix_bt, "Elemental", weird_dist, 'N',&
+    CALL dbcsr_create (matrix_bt, "Elemental", weird_dist, dbcsr_type_normal,&
          row_blk_size, col_blk_size, 0, 0)
     CALL dbcsr_distribution_release (weird_dist)
     CALL array_release (row_blk_size)
@@ -963,7 +941,7 @@ CONTAINS
          dbcsr_nfullcols_total(matrix_b),&
          dbcsr_distribution_mp(dist_right),&
          row_blk_size, col_blk_size)
-    CALL dbcsr_create (matrix_bt, "Fullest", weird_dist, 'N',&
+    CALL dbcsr_create (matrix_bt, "Fullest", weird_dist, dbcsr_type_normal,&
          row_blk_size, col_blk_size, 0, 0)
     CALL dbcsr_distribution_release (weird_dist)
     CALL array_release (row_blk_size)
@@ -1083,6 +1061,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Adds distribution_2d_type to a DBCSR matrix
 !> \author  Urban
+!> \vw is that needed for something else than for convertion sm <-> dbcsr?
 !> \date    2009-05-27
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_add_dist2d (matrix, distribution_2d, error)
@@ -1365,7 +1344,7 @@ CONTAINS
        CALL dbcsr_create_dist_r_unrot (dist_right_in, matrix%m%dist, k_in, &
             col_blk_size_right_in)
        CALL dbcsr_init(in,error)
-       CALL dbcsr_create(in, "D", dist_right_in, 'N', &
+       CALL dbcsr_create(in, "D", dist_right_in, dbcsr_type_normal, &
             matrix%m%row_blk_size, col_blk_size_right_in,&
             0, 0, error=error)
        CALL dbcsr_finalize(in)
@@ -1386,7 +1365,7 @@ CONTAINS
        !   write(*,*)routineN//" out cs", out_col_blk_sizes
        !endif
 
-       CALL dbcsr_create(out, "D", product_dist, 'N', &
+       CALL dbcsr_create(out, "D", product_dist, dbcsr_type_normal, &
             matrix%m%row_blk_size, col_blk_size_right_out,&
             0, 0, error=error)
        CALL dbcsr_finalize(out)
@@ -2357,119 +2336,6 @@ CONTAINS
   END SUBROUTINE dbcsr_add_block_node
 
 ! *****************************************************************************
-!> \brief Emulation of sparse_matrix_types/allocate_matrix mapped to
-!>        allocate_real_matrix
-!> \param[in,out] matrix      DBCSR matrix
-!> \param[in] nrow            number of full rows
-!> \param[in] ncol            number of full columns
-!> \param[in] nblock_row      number of blocked rows
-!> \param[in] nblock_col      number of blocked columns
-!> \param[in] first_row       starting offsets of blocked rows
-!> \param[in] last_row        ending offsets of blocked rows
-!> \param[in] first_col       starting offsets of blocked columns
-!> \param[in] last_col        ending offsets of blocked columns
-!> \param[in] matrix_name     name of matrix
-!> \param[in] matrix_symmetry matrix symmetry type (mapped do DBCSR symmetries)
-!> \param[in] sparsity_id     sparsity id (not used)
-!> \param[in] distribution_2d use this distribution
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_allocate_matrix (matrix,nrow,ncol,nblock_row,nblock_col,&
-       first_row,last_row,first_col,last_col,matrix_name,matrix_symmetry,&
-       sparsity_id,distribution_2d,replication_type,error)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
-    INTEGER, INTENT(IN)                      :: nrow, ncol, nblock_row, &
-                                                nblock_col
-    INTEGER, DIMENSION(nblock_row), &
-      INTENT(IN)                             :: first_row, last_row
-    INTEGER, DIMENSION(nblock_col), &
-      INTENT(IN)                             :: first_col, last_col
-    CHARACTER(LEN=*), INTENT(IN)             :: matrix_name, matrix_symmetry
-    INTEGER, INTENT(IN)                      :: sparsity_id
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_allocate_matrix', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER                                :: dbcsr_matrix_type
-    INTEGER                                  :: stat, timing_handle
-    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
-    TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-
-!   ---------------------------------------------------------------------------
-! Setup the distribution
-
-    CALL timeset(routineN, timing_handle)
-
-    IF (ASSOCIATED (matrix)) CALL dbcsr_deallocate_matrix (matrix, error)
-    ALLOCATE (matrix)
-    CALL dbcsr_init (matrix, error)
-    CALL cp_assert (ASSOCIATED(distribution_2d),&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "distribution_2d not associated", error=error)
-    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
-    CALL cp_assert (&
-         dbcsr_distribution_nrows (dbcsr_dist) .EQ. nblock_row,&
-         cp_warning_level, cp_caller_error, routineN,&
-         "Inconsistent number of blocked rows", error=error)
-    CALL cp_assert (&
-         dbcsr_distribution_ncols (dbcsr_dist) .EQ. nblock_row,&
-         cp_warning_level, cp_caller_error, routineN,&
-         "Inconsistent number of blocked columns", error=error)
-    ! Create row and column block sizes arrays.
-    ALLOCATE (rbs(nblock_row), stat=stat)
-    IF (stat /= 0) CALL stop_memory (routineP, "rbs", nblock_row)
-    ALLOCATE (cbs(nblock_col), stat=stat)
-    IF (stat /= 0) CALL stop_memory (routineP, "cbs", nblock_col)
-    CALL convert_offsets_to_sizes (first_row, rbs, last_row)
-    CALL convert_offsets_to_sizes (first_col, cbs, last_col)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_nullify (col_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-    CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
-    ! Transform matrix type
-    CALL dbcsr_type_from_sm_symmetry (dbcsr_matrix_type, matrix_symmetry)
-    !SELECT CASE (matrix_symmetry)
-    !CASE ("symmetric")
-    !   dbcsr_matrix_type = dbcsr_type_symmetric
-    !CASE ("anisymmetric")
-    !   dbcsr_matrix_type = dbcsr_type_antisymmetric
-    !CASE ("none", "no symmetry")
-    !   dbcsr_matrix_type = dbcsr_type_normal
-    !CASE default
-    !   CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
-    !        "Unknown matrix type "//"matrix_symmetry", failure=failure,&
-    !        error=error)
-    !END SELECT
-    ! Create the matrix
-    CALL dbcsr_create (matrix, matrix_name, dbcsr_dist, dbcsr_matrix_type,&
-         row_blk_sizes, col_blk_sizes, 0, 0, dbcsr_type_real_default,&
-         mutable_work=.TRUE., replication_type=replication_type, error=error)
-    CALL cp_dbcsr_add_dist2d (matrix%m, distribution_2d, error)
-    matrix%m%sparsity_id = sparsity_id
-    !
-    ! these are needed for the sm_pool
-    !last_matrix_id=last_matrix_id+1
-    !matrix%m%id_nr=last_matrix_id
-
-    ! Clean up
-    CALL dbcsr_distribution_release (dbcsr_dist)
-    CALL array_release (row_blk_sizes)
-    CALL array_release (col_blk_sizes)
-    CALL dbcsr_work_create (matrix)
-    matrix%m%valid = .FALSE.
-    CALL dbcsr_mutable_new (matrix%m%wms(1)%mutable,&
-         dbcsr_get_data_type (matrix))
-
-    CALL timestop(timing_handle)
-
-  END SUBROUTINE dbcsr_allocate_matrix
-
-
-! *****************************************************************************
 !> \brief returns the id of the given matrix (from cp_sm_get_id_nr)
 !> \param matrix the matrix you want info about
 !> \param error variable to control error logging, stopping,...
@@ -2522,52 +2388,6 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_deallocate_matrix
-
-
-! *****************************************************************************
-!> \brief Emulation of sparse_matrix_types/replicate_matrix_structure mapped to
-!>        replicate_real_matrix_structure
-!> \note This just sets up the metadata; it does not acutally replicate the
-!>       block structure.
-!> \param[in] matrix          source matrix to replicate
-!> \param[out] nrow           replicated matrix
-!> \param[in] target_name     name of the replicated matrix
-!> \param[in] target_symmetry symmetry of the target matrix
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_replicate_matrix_struct(source,TARGET,target_name,&
-                                             target_symmetry,error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: source
-    TYPE(dbcsr_obj), POINTER                 :: TARGET
-    CHARACTER(LEN=*), INTENT(IN)             :: target_name
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: target_symmetry
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_replicate_matrix_struct', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER                                :: dbcsr_matrix_type
-
-!   ---------------------------------------------------------------------------
-
-    IF (PRESENT (target_symmetry)) THEN
-       CALL dbcsr_type_from_sm_symmetry (dbcsr_matrix_type, target_symmetry)
-    ELSE
-       dbcsr_matrix_type = dbcsr_get_matrix_type (source)
-    ENDIF
-    ALLOCATE (TARGET)
-    CALL dbcsr_init (TARGET)
-    CALL dbcsr_create (TARGET, target_name, dbcsr_distribution (source),&
-         dbcsr_matrix_type,&
-         dbcsr_row_block_sizes (source), dbcsr_col_block_sizes (source),&
-         0, 0, dbcsr_get_data_type (source),&
-         dbcsr_uses_special_memory (source), mutable_work=source%m%work_mutable,&
-         error=error)
-    CALL cp_dbcsr_add_dist2d (TARGET%m, source%m%dist2d, error)
-    TARGET%m%sparsity_id=source%m%sparsity_id
-  END SUBROUTINE dbcsr_replicate_matrix_struct
-
 
 ! *****************************************************************************
 ! CP2k-compatible matrix sets
@@ -2749,12 +2569,12 @@ END FUNCTION cp_dbcsr_get_id_nr
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_from_fm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, timing_handle
+    INTEGER                                  :: timing_handle
 
     CALL timeset(routineN, timing_handle)
 
     !CALL dbcsr_init (matrix, error)! the matrix should already be initialized
-    CALL dbcsr_create(matrix, fm%name, distribution, 'N',&
+    CALL dbcsr_create(matrix, fm%name, distribution, dbcsr_type_normal,&
          row_blk_size, col_blk_size,&
          0, 0, dbcsr_type_real_8, error=error)
     CALL dbcsr_finalize(matrix)
@@ -3023,7 +2843,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CALL dbcsr_init (bc_mat)
     CALL dbcsr_create (bc_mat, "Block-cyclic"//matrix%m%name, bc_dist,&
-         "N", rbs, cbs, 0, 0)
+         dbcsr_type_normal, rbs, cbs, 0, 0)
     CALL dbcsr_finalize (bc_mat)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (rbs)

@@ -192,3 +192,5 @@ NO2-EPR-keys-1.inp
 NO2-EPR-1.inp
 NO2-EPR-2.inp
 NO2-EPR-3.inp
+# changed eps to 1e-6
+NO2-EPR-3.inp

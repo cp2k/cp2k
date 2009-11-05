@@ -179,9 +179,6 @@ CONTAINS
      CALL dbcsr_init(matrix_h(1)%matrix)
      CALL dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX",error=error)
      CALL dbcsr_set(matrix_h(1)%matrix,0.0_dp,error=error)
-     !CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
-     !               TARGET=matrix_h(1)%matrix,&
-     !               target_name="CORE HAMILTONIAN MATRIX",error=error)
 
      ! Allocate a diagonal block matrix
      ALLOCATE(diagmat_h)!sm->dbcsr

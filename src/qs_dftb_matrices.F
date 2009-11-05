@@ -9,6 +9,10 @@
 ! *****************************************************************************
 MODULE qs_dftb_matrices
 
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
@@ -16,11 +20,10 @@ MODULE qs_dftb_matrices
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_struct,&
                                              dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -31,11 +34,18 @@ MODULE qs_dftb_matrices
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
                                              dbcsr_get_block_p
-  USE dbcsr_util,                      ONLY: dbcsr_finalize
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_type_antisymmetric,&
+                                             dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist,&
+                                             dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -109,7 +119,8 @@ CONTAINS
       inode, irow, istat, iw, jatom, jkind, l1, l2, la, last_jatom, lb, llm, &
       lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, &
       neighbor_list_id, ngrd, ngrdcut, nkind, nlist, nmat, nnode, nrow, spdim
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem, &
+                                                rbs
     LOGICAL                                  :: defined, failure, found, &
                                                 hb_sr_damp, new_atom_b, tr, &
                                                 use_virial
@@ -125,11 +136,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: dfblock, dsblock, fblock, &
       fmatij, fmatji, gblock, pblock, sblock, scoeff, smatij, smatji, spxr, &
       wblock
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(2:4)       :: dgblocks, dsblocks
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: gamma_matrix, matrix_h, &
                                                 matrix_p, matrix_s, matrix_w
@@ -215,26 +228,40 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       gamma_matrix=gamma_matrix,error=error)
 
+      CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+      ALLOCATE (rbs(natom), STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CALL convert_offsets_to_sizes (felem, rbs, lelem)
+      CALL array_nullify (row_blk_sizes)
+      CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+
+
       CALL dbcsr_allocate_matrix_set(gamma_matrix,nmat,error=error)
       ALLOCATE(gamma_matrix(1)%matrix)
       CALL dbcsr_init(gamma_matrix(1)%matrix)
-      CALL dbcsr_allocate_matrix(matrix=gamma_matrix(1)%matrix,&
-                nblock_row=natom,nblock_col=natom,&
-                nrow=nrow,ncol=ncol,&
-                first_row=felem,last_row=lelem,&
-                first_col=felem,last_col=lelem,&
-                matrix_name="GAMMA MATRIX",&
-                matrix_symmetry="symmetric",&
-                sparsity_id=neighbor_list_id, &
-                distribution_2d=distribution_2d,error=error)
+
+      CALL dbcsr_create(matrix=gamma_matrix(1)%matrix, &
+           name="GAMMA MATRIX", &
+           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+           nblks=0, nze=0, mutable_work=.TRUE., &
+           error=error)
+
       DO i=2,nmat
-         !allocate(gamma_matrix(i)%matrix)
-         !call dbcsr_init(gamma_matrix(i)%matrix)
-         CALL dbcsr_replicate_matrix_struct(source=gamma_matrix(1)%matrix,&
-                                    TARGET=gamma_matrix(i)%matrix,&
-                                    target_name="DERIVATIVE GAMMA MATRIX",&
-                                    target_symmetry="antisymmetric",error=error)
+         ALLOCATE(gamma_matrix(i)%matrix)
+         CALL dbcsr_init(gamma_matrix(i)%matrix)
+
+         CALL dbcsr_create(matrix=gamma_matrix(i)%matrix, &
+              name="DERIVATIVE GAMMA MATRIX", &
+              dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+              nblks=0, nze=0, mutable_work=.TRUE., &
+              error=error)
       END DO
+
+      CALL dbcsr_distribution_release (dbcsr_dist)
+      CALL array_release (row_blk_sizes)
+
       DEALLOCATE (felem,lelem,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -249,8 +276,10 @@ CONTAINS
       matrix_p => rho%rho_ao
 
       IF (SIZE(matrix_p) == 2) THEN
-         CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
-         CALL dbcsr_add(matrix_w(1)%matrix,matrix_w(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+         CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+              alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+         CALL dbcsr_add(matrix_w(1)%matrix,matrix_w(2)%matrix,&
+              alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
       END IF
       natom = SIZE (particle_set)
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -688,8 +717,7 @@ CONTAINS
 
        DO ispin=1,nspins
          ! copy the core matrix into the fock matrix
-          !CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
-         CALL dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+          CALL dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
        END DO
 
        IF ( dft_control%qs_control%dftb_control%self_consistent ) THEN
@@ -778,9 +806,12 @@ CONTAINS
                                                 neighbor_list_id, nkind, &
                                                 nmat, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: failure
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -827,46 +858,57 @@ CONTAINS
       nmat = 1
     END IF
 
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+
     CALL dbcsr_allocate_matrix_set(matrix_s,nmat,error=error)
     CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)
-    !allocate(matrix_s(1)%matrix)
-    !call dbcsr_init(matrix_s(1)%matrix)
-    !allocate(matrix_h(1)%matrix)
-    !call dbcsr_init(matrix_h(1)%matrix)
 
-    CALL dbcsr_allocate_matrix(matrix=matrix_s(1)%matrix,&
-                         nblock_row=natom,&
-                         nblock_col=natom,&
-                         nrow=nsgf,&
-                         ncol=nsgf,&
-                         first_row=first_sgf,&
-                         last_row=last_sgf,&
-                         first_col=first_sgf,&
-                         last_col=last_sgf,&
-                         matrix_name="OVERLAP MATRIX DFTB",&
-                         matrix_symmetry="symmetric",&
-                         sparsity_id=neighbor_list_id, &
-                         distribution_2d=distribution_2d,error=error)
+    ALLOCATE(matrix_s(1)%matrix)
+    CALL dbcsr_init(matrix_s(1)%matrix)
+    CALL dbcsr_create(matrix=matrix_s(1)%matrix, &
+         name="OVERLAP MATRIX DFTB", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (matrix_s(1)%matrix%m, distribution_2d, error)
 
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
-                                    TARGET=matrix_h(1)%matrix,&
-                                    target_name="CORE HAMILTONIAN MATRIX DFTB",&
-                                    target_symmetry="symmetric",error=error)
+    ALLOCATE(matrix_h(1)%matrix)
+    CALL dbcsr_init(matrix_h(1)%matrix)
+    CALL dbcsr_create(matrix=matrix_h(1)%matrix, &
+         name="CORE HAMILTONIAN MATRIX DFTB", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (matrix_h(1)%matrix%m, distribution_2d, error)
+
     IF ( nmat > 1 ) THEN
       DO i=2,nmat
-         !allocate(matrix_s(i)%matrix)
-         !call dbcsr_init(matrix_s(i)%matrix)
-         CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
-                                        TARGET=matrix_s(i)%matrix,&
-                                        target_name="OVERLAP DERIVATIVE MATRIX",&
-                                        target_symmetry="antisymmetric",error=error)
+         ALLOCATE(matrix_s(i)%matrix)
+         CALL dbcsr_init(matrix_s(i)%matrix)
+         CALL dbcsr_create(matrix=matrix_s(i)%matrix, &
+              name="OVERLAP DERIVATIVE MATRIX DFTB", &
+              dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+              nblks=0, nze=0, mutable_work=.TRUE., &
+              error=error)
+         CALL cp_dbcsr_add_dist2d (matrix_s(i)%matrix%m, distribution_2d, error)
       END DO
     END IF
+
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
 
     CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
     CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)

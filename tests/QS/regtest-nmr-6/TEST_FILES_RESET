@@ -700,3 +700,31 @@ no-gapw-1-replicated.inp
 no-gapw-gpw-1.inp
 #
 no-gapw-1-distributed.inp
+# changed eps to 1e-6
+ch4-gapw-1.inp
+# changed eps to 1e-6
+ch4-gapw-2.inp
+# changed eps to 1e-6
+ch4-gapw-3.inp
+# changed eps to 1e-6
+ch4-gapw-4.inp
+# changed eps to 1e-6
+ch4-gapw-5.inp
+# changed eps to 1e-6
+no-gapw-3.inp
+# changed eps to 1e-6
+no-gapw-4.inp
+# changed eps to 1e-6
+ch4-gapw-1-distributed.inp
+# changed eps to 1e-6
+ch4-gapw-1-replicated.inp
+# changed eps to 1e-6
+w2_qmmm-1.inp
+# changed eps to 1e-6
+w2_qmmm-2.inp
+# changed eps to 1e-6
+w2_qmmm-3.inp
+# changed eps to 1e-6
+ch3m-gapw-1.inp
+# changed eps to 1e-6
+ch3p-gapw-1.inp

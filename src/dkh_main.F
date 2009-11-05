@@ -6,6 +6,10 @@ MODULE dkh_main
   USE ai_kinetic,                      ONLY: kinetic
   USE ai_overlap_new,                  ONLY: overlap
   USE ai_overlap_ppl,                  ONLY: overlap_ppl
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -14,11 +18,9 @@ MODULE dkh_main
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_struct
+                                             dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -41,9 +43,16 @@ MODULE dkh_main
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_get_block_p
-  USE dbcsr_util,                      ONLY: dbcsr_finalize
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist,&
+                                             dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
@@ -124,7 +133,7 @@ CONTAINS
                                                 last_pgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 lb_max, lb_min, npgfa, npgfb, &
-                                                nsgfa, nsgfb
+                                                nsgfa, nsgfb, rbs
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: all_potential_present, dkh_erfc, dkh_full, dkh_loc_atom, &
       failure, found, gth_potential_present, kinetic_m, new_atom_b, &
@@ -146,6 +155,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: sdabt
     TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -154,6 +164,7 @@ CONTAINS
                                                 matrix_s_full, matrix_t_full, &
                                                 matrix_v_full
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: matrix_h, matrix_hpgf, &
       matrix_pVppgf, matrix_s, matrix_spgf, matrix_t, matrix_tpgf, matrix_vnuc
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -296,20 +307,21 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_pgf, rbs, last_pgf)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+
     CALL dbcsr_allocate_matrix_set(matrix_spgf,1,error=error)
-    CALL dbcsr_allocate_matrix(matrix=matrix_spgf(1)%matrix,&
-         nblock_row=natom,&
-         nblock_col=natom,&
-         nrow=nsgf,& 
-         ncol=nsgf,&
-         first_row=first_pgf,&                       
-         last_row=last_pgf,&
-         first_col=first_pgf,&
-         last_col=last_pgf,&
-         matrix_name="OVERLAP MATRIX PGF",&
-         matrix_symmetry="symmetric",&
-         sparsity_id=neighbor_list_id, &
-         distribution_2d=distribution_2d,&
+    ALLOCATE(matrix_spgf(1)%matrix)
+    CALL dbcsr_init(matrix_spgf(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=matrix_spgf(1)%matrix, &
+         name="OVERLAP MATRIX PGF", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
 
     DEALLOCATE (first_pgf,STAT=stat)
@@ -322,31 +334,46 @@ CONTAINS
     !   *********************************************************************
 
     CALL dbcsr_allocate_matrix_set(matrix_tpgf,1,error=error)             
-    CALL dbcsr_replicate_matrix_struct(source=matrix_spgf(1)%matrix,&
-         TARGET=matrix_tpgf(1)%matrix,&
-         target_name="KINETIC ENERGY MATRIX PGF",&
+    ALLOCATE(matrix_tpgf(1)%matrix)
+    CALL dbcsr_init(matrix_tpgf(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=matrix_tpgf(1)%matrix, name="KINETIC ENERGY MATRIX PGF", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-
 
     CALL dbcsr_allocate_matrix_set(matrix_hpgf,1,error=error)
-    CALL dbcsr_replicate_matrix_struct(source=matrix_spgf(1)%matrix,&
-         TARGET=matrix_hpgf(1)%matrix,&
-         target_name="CORE HAMILTONIAN MATRIX PGF",&
+    ALLOCATE(matrix_hpgf(1)%matrix)
+    CALL dbcsr_init(matrix_hpgf(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=matrix_hpgf(1)%matrix, &
+         name="CORE HAMILTONIAN MATRIX PGF", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-
 
     CALL dbcsr_allocate_matrix_set(matrix_vnuc,1,error=error)                                   
-    CALL dbcsr_replicate_matrix_struct(source=matrix_spgf(1)%matrix,&            
-         TARGET=matrix_vnuc(1)%matrix,&            
-         target_name="NUCLEAR POTENTIAL ENERGY MATRIX",&
+    ALLOCATE(matrix_vnuc(1)%matrix)
+    CALL dbcsr_init(matrix_vnuc(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=matrix_vnuc(1)%matrix, &
+         name="NUCLEAR POTENTIAL ENERGY MATRIX PGF", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-
 
     CALL dbcsr_allocate_matrix_set(matrix_pVppgf,1,error=error)
-    CALL dbcsr_replicate_matrix_struct(source=matrix_spgf(1)%matrix,&
-         TARGET=matrix_pVppgf(1)%matrix,&
-         target_name="pVp MATRIX PGF",&
+    ALLOCATE(matrix_pVppgf(1)%matrix)
+    CALL dbcsr_init(matrix_pVppgf(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=matrix_pVppgf(1)%matrix, &
+         name="pVp MATRIX PGF", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
+
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
 
     !   *********************************************************************
     !   ***  Allocate work storage                            ***************

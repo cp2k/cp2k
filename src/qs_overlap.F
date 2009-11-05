@@ -13,17 +13,20 @@
 MODULE qs_overlap
 
   USE ai_overlap_new,                  ONLY: overlap
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_struct
+                                             dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_matrix_distribution,&
                                              dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -31,7 +34,16 @@ MODULE qs_overlap
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_util,                      ONLY: dbcsr_finalize
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_init
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_type_antisymmetric,&
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist,&
+                                             dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -122,11 +134,12 @@ CONTAINS
       nsgf_a, nsgf_b, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_a, first_sgf_b, &
                                                 last_sgf_a, last_sgf_b
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+    INTEGER, DIMENSION(:), POINTER           :: cbs, la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb
+                                                nsgfb, rbs
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: do_symmetric, new_atom_b, &
+    LOGICAL                                  :: do_symmetric, failure, &
+                                                new_atom_b, &
                                                 return_s_derivatives
     REAL(KIND=dp)                            :: dab, f, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -137,12 +150,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
+    TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: sint
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
@@ -150,6 +165,8 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+
+    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     NULLIFY(logger)
@@ -204,27 +221,37 @@ CONTAINS
                           basis_set_id=basis_set_id_b,error=error)
 
    do_symmetric = .TRUE.
-   symmetry_string = "symmetric"
+   symmetry_string = dbcsr_type_symmetric
    IF( basis_set_id_a /= basis_set_id_b ) THEN
      do_symmetric = .FALSE.
-     symmetry_string = "none"
+     symmetry_string = dbcsr_type_normal
    END IF
    ! XXXXXXX, sparsity_id, does this result in the same overlap matrix
    ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have
    ! XXXXXXX, the code duplication,if not, this sparsity_id is wrong.
-   CALL dbcsr_allocate_matrix(matrix=matrix_s(1)%matrix,&
-                         nblock_row=natom,&
-                         nblock_col=natom,&
-                         nrow=nsgf_a,&
-                         ncol=nsgf_b,&
-                         first_row=first_sgf_a,&
-                         last_row=last_sgf_a,&
-                         first_col=first_sgf_b,&
-                         last_col=last_sgf_b,&
-                         matrix_name=TRIM(matrix_name),&
-                         matrix_symmetry=symmetry_string,&
-                         sparsity_id=neighbor_list_id, &
-                         distribution_2d=distribution_2d,error=error)
+
+
+    ! prepare for allocation
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf_a, rbs, last_sgf_a)
+    CALL convert_offsets_to_sizes (first_sgf_b, cbs, last_sgf_b)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_nullify (col_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
+
+
+    ALLOCATE(matrix_s(1)%matrix)
+    CALL dbcsr_init(matrix_s(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=matrix_s(1)%matrix, &
+         name=TRIM(matrix_name), &
+         dist=dbcsr_dist, matrix_type=symmetry_string,&
+         row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (matrix_s(1)%matrix%m, distribution_2d, error)
 
     DEALLOCATE (first_sgf_a,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -240,9 +267,9 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "last_sgf_b")
 
-    symmetry_string = "antisymmetric"
+    symmetry_string = dbcsr_type_antisymmetric
     IF( basis_set_id_a /= basis_set_id_b) THEN
-      symmetry_string = "none"
+      symmetry_string = dbcsr_type_normal
     END IF
     DO i=2,maxder
       cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -250,11 +277,19 @@ CONTAINS
              " W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
-                                            TARGET=matrix_s(i)%matrix,&
-                                            target_name=TRIM(name),&
-                                            target_symmetry=TRIM(symmetry_string),error=error)
+      ALLOCATE(matrix_s(i)%matrix)
+      CALL dbcsr_init(matrix_s(i)%matrix,error=error)
+      CALL dbcsr_create(matrix=matrix_s(i)%matrix, &
+           name=TRIM(name), &
+           dist=dbcsr_dist, matrix_type=symmetry_string,&
+           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
+           nblks=0, nze=0, mutable_work=.TRUE., &
+           error=error)
     END DO
+
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
+    CALL array_release (col_blk_sizes)
 
 !   *** Allocate work storage ***
     max_maxco = 0

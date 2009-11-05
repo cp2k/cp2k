@@ -332,3 +332,15 @@ o2-gapw-uks-4.inp
 #
 o2-gapw-uks-1.inp
 o2-gapw-uks-3.inp
+# changed eps to 1e-6
+h2o-gapw-1.inp
+# changed eps to 1e-6
+h2o-gapw-3.inp
+# changed eps to 1e-6
+h2o-gapw-4.inp
+# changed eps to 1e-6
+o2-gapw-uks-1.inp
+# changed eps to 1e-6
+o2-gapw-uks-3.inp
+# changed eps to 1e-6
+o2-gapw-uks-4.inp

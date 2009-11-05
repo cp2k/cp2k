@@ -109,3 +109,7 @@ h2o-nmr-nics-1.inp
 no-gapw-nics.inp
 # merged linres and ot preconditioner
 no-gapw-nics.inp
+# changed eps to 1e-6
+ch2o-nmr-nics-1.inp
+# changed eps to 1e-6
+h2o-nmr-nics-1.inp

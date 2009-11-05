@@ -1787,10 +1787,10 @@ CPSourceFileRef)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, i, ispin, iw, &
-                                                nao, ndep, nelectron_spin, &
-                                                nmo, output_unit
-    LOGICAL :: cho_inverse, failure, gth_potential_present, id_equal, &
+    INTEGER                                  :: handle, homo, ispin, iw, nao, &
+                                                ndep, nelectron_spin, nmo, &
+                                                output_unit
+    LOGICAL :: cho_inverse, failure, gth_potential_present, &
       my_transition_potential, s_minus_half_available
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1839,16 +1839,6 @@ CPSourceFileRef)
        ENDIF
        CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
     ENDIF
-
-    ! do some assertions here on these matrices having the same structure
-    id_equal=ALL((/((matrix_s(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(matrix_s))/))
-    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((rho%rho_ao(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(rho%rho_ao))/))
-    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((matrix_h(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(matrix_h))/))
-    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((matrix_ks(i)%matrix%m%sparsity_id==matrix_s(1)%matrix%m%sparsity_id),i=1,SIZE(matrix_ks))/))
-    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)

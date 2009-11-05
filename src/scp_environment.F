@@ -8,20 +8,30 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE scp_environment
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
+                                             dbcsr_add_block_node
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_get_info,&
                                              dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_get_diag,&
                                              dbcsr_set
-  USE dbcsr_types,                     ONLY: dbcsr_obj,&
-                                             dbcsr_repl_full
-  USE dbcsr_util,                      ONLY: dbcsr_finalize
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj,&
+                                             dbcsr_repl_full,&
+                                             dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist,&
+                                             dbcsr_finalize
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -156,15 +166,17 @@ CONTAINS
                                                 first_sgf_b( : ), &
                                                 last_sgf_a( : ), &
                                                 last_sgf_b( : )
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cbs, rbs
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: app, asp, ass
     REAL(KIND=dp), DIMENSION(9, 9)           :: a_scp
     REAL(KIND=dp), POINTER                   :: ascp_diag( : ), block( :, : )
+    TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(particle_type), DIMENSION(:), &
@@ -218,21 +230,30 @@ CONTAINS
                           last_sgf=last_sgf_b,&
                           error=error)
 
-    CALL dbcsr_allocate_matrix(matrix=pscp,&
-                               nblock_row=natom,&
-                               nblock_col=natom,&
-                               nrow=nsgf_a,&
-                               ncol=nsgf_b,&
-                               first_row=first_sgf_a,&
-                               last_row=last_sgf_a,&
-                               first_col=first_sgf_b,&
-                               last_col=last_sgf_b,&
-                               matrix_name="PSCP",&
-                               matrix_symmetry="symmetric",&
-                               sparsity_id=neighbor_list_id, &
-                               distribution_2d=distribution_2d,&
-                               replication_type=dbcsr_repl_full,&
-                               error=error)
+    ! prepare for allocation
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom),cbs(natom), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf_a, rbs, last_sgf_a)
+    CALL convert_offsets_to_sizes (first_sgf_b, cbs, last_sgf_b)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_nullify (col_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
+
+    ALLOCATE(pscp)
+    CALL dbcsr_init(pscp,error=error)
+    CALL dbcsr_create(matrix=pscp, &
+         name="PSCP", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., replication_type=dbcsr_repl_full, &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (pscp%m, distribution_2d, error)
+
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
+    CALL array_release (col_blk_sizes)
 
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)

@@ -403,12 +403,6 @@ CONTAINS
     ! do some assertions here on these matrices having the same structure,
     ! as is currently required
 
-
-    DO ispin=1,SIZE(matrix_s)
-      id_equal=(matrix_s(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    ENDDO
-
     NULLIFY(matrix_p)!sm->dbcsr
     CALL allocate_matrix_set( matrix_p, SIZE(qs_env%rho%rho_ao), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
@@ -423,11 +417,11 @@ CONTAINS
 
     DO ispin=1,SIZE(matrix_h)
       id_equal=(matrix_h(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+      !CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     ENDDO
     DO ispin=1,SIZE(matrix_ks)
       id_equal=(matrix_ks(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+      !CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     ENDDO
     ! end sparsity check
 
@@ -964,7 +958,6 @@ CONTAINS
 
 !   *** Allocate matrix_ks and put it in the QS environment ***
       IF (.not.ASSOCIATED(matrix_ks)) THEN
-!write(*,*) 'WARNING kg_scf.F need to fix that... fucked up!'
          CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
               "KOHN-SHAM_MATRIX",&

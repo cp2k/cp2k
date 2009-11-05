@@ -13,6 +13,10 @@ MODULE  rt_propagation_utils
 
   
   USE ai_overlap_new,                  ONLY: overlap
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -22,11 +26,9 @@ MODULE  rt_propagation_utils
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_struct
+                                             dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -42,7 +44,15 @@ MODULE  rt_propagation_utils
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE dbcsr_util,                      ONLY: dbcsr_finalize
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_init
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_type_antisymmetric,&
+                                             dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist,&
+                                             dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_restart_wfn,&
                                              use_rt_restart
@@ -126,8 +136,8 @@ MODULE  rt_propagation_utils
                                                 last_sgf
     INTEGER, DIMENSION(6, 2)                 :: c_map_mat
     INTEGER, DIMENSION(:), POINTER :: col_atom_index, col_indices, la_max, &
-      la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, row_atom_index, &
-      row_indices
+      la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, rbs, &
+      row_atom_index, row_indices
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, new_atom_b, &
                                                 return_s_derivatives
@@ -139,6 +149,7 @@ MODULE  rt_propagation_utils
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data, rpgfa, rpgfb, &
                                                 sab, sphi_a, sphi_b, work, &
                                                 zeta, zetb
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -149,6 +160,7 @@ MODULE  rt_propagation_utils
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: C_mat
     TYPE(cp_fm_type), POINTER                :: B_mat, tmp_mat, tmp_mat2
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: s_derivs
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -210,52 +222,51 @@ MODULE  rt_propagation_utils
     CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf,&
          error=error)
 
-    ! assert here that the S-matrix is of the type distribution_2d if this one is non-null
-    ! we assert that the sparsity of s is determined by the neighbor list that is used to build it
-    ! is that right ? i.e. this implies that even if forces are computed the sparsity of s remains the same.
-    ! this seems necessary anyway.
+    ! prepare for allocation
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+
     CALL dbcsr_allocate_matrix_set(s_derivs,maxder-1,error=error)
-    CALL dbcsr_allocate_matrix(matrix=s_derivs(1)%matrix,&
-                         nblock_row=natom,&
-                         nblock_col=natom,&
-                         nrow=nsgf,&
-                         ncol=nsgf,&
-                         first_row=first_sgf,&
-                         last_row=last_sgf,&
-                         first_col=first_sgf,&
-                         last_col=last_sgf,&
-                         matrix_name="X DERIVATIVE",&
-                         matrix_symmetry="antisymmetric",&
-                         sparsity_id=neighbor_list_id, &
-                         distribution_2d=distribution_2d,error=error)
 
-    
-
-    DO m=2,3
+    DO m=1,3
        cgfsym = cgf_symbol(1,indco(1:3,m+1))
        name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE OVERLAP MATRIX "//&
             "W.R.T. THE NUCLEAR COORDINATES"
-      CALL compress(name)
-      CALL uppercase(name)
-      CALL dbcsr_replicate_matrix_struct(source=s_derivs(1)%matrix,&
-                                      TARGET=s_derivs(m)%matrix,&
-                                      target_name=TRIM(name),&
-                                      target_symmetry="antisymmetric",error=error)
-   END DO
-
+       CALL compress(name)
+       CALL uppercase(name)
+       ALLOCATE(s_derivs(m)%matrix)
+       CALL dbcsr_init(s_derivs(m)%matrix,error=error)
+       CALL dbcsr_create(matrix=s_derivs(m)%matrix, &
+            name=TRIM(name), &
+            dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+            nblks=0, nze=0, mutable_work=.TRUE., &
+            error=error)
+    ENDDO
 
     DO m=4,maxder-1
        cgfsym = cgf_symbol(1,indco(1:3,m+1))
        name = TRIM(cgfsym(4:))//" SECOND DERIVATIVE OF THE OVERLAP MATRIX "//&
             "W.R.T. THE NUCLEAR COORDINATES"
-      CALL compress(name)
-      CALL uppercase(name)
-      CALL dbcsr_replicate_matrix_struct(source=s_derivs(1)%matrix,&
-                                      TARGET=s_derivs(m)%matrix,&
-                                      target_name=TRIM(name),&
-                                      target_symmetry="symmetric",error=error)
-   END DO
-    
+       CALL compress(name)
+       CALL uppercase(name)
+       ALLOCATE(s_derivs(m)%matrix)
+       CALL dbcsr_init(s_derivs(m)%matrix,error=error)
+       CALL dbcsr_create(matrix=s_derivs(m)%matrix, &
+            name=TRIM(name), &
+            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+            nblks=0, nze=0, mutable_work=.TRUE., &
+            error=error)
+    ENDDO
+
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
+
     ! *** Allocate work storage ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxcoa,&

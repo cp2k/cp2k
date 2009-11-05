@@ -5441,7 +5441,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EPS",&
             description="target accuracy for the convergence of the conjugate gradient.",&
-            usage="EPS 1.e-6", default_r_val=1.e-5_dp,error=error)
+            usage="EPS 1.e-6", default_r_val=1.e-6_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

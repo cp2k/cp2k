@@ -56,3 +56,5 @@ He_nmr_full.inp
 He_nmr_full.inp
 # reduced precision
 He_nmr_full.inp
+# changed eps to 1e-6
+He_nmr_full.inp

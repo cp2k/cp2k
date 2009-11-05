@@ -173,3 +173,11 @@ O2-uks-chi-gpw-2.inp
 O2-uks-chi-gpw-1.inp
 #
 O2-uks-chi-gpw-2.inp
+# changed eps to 1e-6
+H2O-chi-gpw-1.inp
+# changed eps to 1e-6
+H2O-chi-gpw-2.inp
+# changed eps to 1e-6
+O2-uks-chi-gpw-1.inp
+# changed eps to 1e-6
+O2-uks-chi-gpw-2.inp

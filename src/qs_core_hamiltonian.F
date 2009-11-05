@@ -73,6 +73,10 @@ MODULE qs_core_hamiltonian
 
   USE ai_kinetic,                      ONLY: kinetic
   USE ai_overlap_new,                  ONLY: overlap
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -82,12 +86,11 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_replicate_matrix_struct
+                                             dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_matrix_distribution,&
                                              dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -95,11 +98,18 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
                                              dbcsr_get_block_p
-  USE dbcsr_util,                      ONLY: dbcsr_finalize
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_type_antisymmetric,&
+                                             dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist,&
+                                             dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE dkh_main,                        ONLY: dkh_mol_integrals
   USE ep_qs_types,                     ONLY: ep_qs_type
@@ -185,7 +195,7 @@ CONTAINS
                                                 last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 lb_max, lb_min, npgfa, npgfb, &
-                                                nsgfa, nsgfb
+                                                nsgfa, nsgfb, rbs
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: all_potential_present, build_kinetic_energy_matrix, do_ep, &
       epr_calculation, failure, found, gth_potential_present, harris_flag, &
@@ -205,6 +215,7 @@ CONTAINS
       POINTER                                :: habt, pabt, sabt, sdab, workt
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: sdabt
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -214,6 +225,7 @@ CONTAINS
       POINTER                                :: sintt, tintt
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s, &
                                                 matrix_t, matrix_w
@@ -401,19 +413,24 @@ CONTAINS
     ! we assert that the sparsity of s is determined by the neighbor list that is used to build it
     ! is that right ? i.e. this implies that even if forces are computed the sparsity of s remains the same.
     ! this seems necessary anyway.
-    CALL dbcsr_allocate_matrix(matrix_s(1)%matrix,&
-                         nblock_row=natom,&
-                         nblock_col=natom,&
-                         nrow=nsgf,&
-                         ncol=nsgf,&
-                         first_row=first_sgf,&
-                         last_row=last_sgf,&
-                         first_col=first_sgf,&
-                         last_col=last_sgf,&
-                         matrix_name="OVERLAP MATRIX",&
-                         matrix_symmetry="symmetric",&
-                         sparsity_id=neighbor_list_id, &
-                         distribution_2d=distribution_2d,error=error)
+
+    ! prepare for allocation
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+
+    ALLOCATE(matrix_s(1)%matrix)
+    CALL dbcsr_init(matrix_s(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=matrix_s(1)%matrix, &
+         name="OVERLAP MATRIX", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (matrix_s(1)%matrix%m, distribution_2d, error)
 
 !   *** Allocate the matrix of coefficients for one center expansions
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
@@ -434,10 +451,14 @@ CONTAINS
             "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
-                                            TARGET=matrix_s(i)%matrix,&
-                                            target_name=TRIM(name),&
-                                            target_symmetry="antisymmetric",error=error)
+      ALLOCATE(matrix_s(i)%matrix)
+      CALL dbcsr_init(matrix_s(i)%matrix,error=error)
+      CALL dbcsr_create(matrix=matrix_s(i)%matrix, &
+           name=TRIM(name), &
+           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+           nblks=0, nze=0, mutable_work=.TRUE., &
+           error=error)
    END DO
    
    !   *** Allocate the kinetic energy integral ***
@@ -473,9 +494,14 @@ CONTAINS
          return_t_derivatives = .FALSE.
       END IF
 
-      CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
-                                            TARGET=matrix_t(1)%matrix,&
-                                            target_name="KINETIC ENERGY MATRIX",error=error)
+      ALLOCATE(matrix_t(1)%matrix)
+      CALL dbcsr_init(matrix_t(1)%matrix,error=error)
+      CALL dbcsr_create(matrix=matrix_t(1)%matrix, &
+           name="KINETIC ENERGY MATRIX", &
+           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+           nblks=0, nze=0, mutable_work=.TRUE., &
+           error=error)
 
       DO i=2,SIZE(matrix_t)
          cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -483,18 +509,30 @@ CONTAINS
               "W.R.T. THE NUCLEAR COORDINATES"
          CALL compress(name)
          CALL uppercase(name)
-         CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
-                                               TARGET=matrix_t(i)%matrix,&
-                                               target_name=name,&
-                                               target_symmetry="antisymmetric",error=error)
+         ALLOCATE(matrix_t(i)%matrix)
+         CALL dbcsr_init(matrix_t(i)%matrix,error=error)
+         CALL dbcsr_create(matrix=matrix_t(i)%matrix, &
+              name=TRIM(name), &
+              dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+              nblks=0, nze=0, mutable_work=.TRUE., &
+              error=error)
       END DO
    END IF
 
    ! *** Allocate the core Hamiltonian matrix ***
    CALL dbcsr_allocate_matrix_set(matrix_h,1,error)
-   CALL dbcsr_replicate_matrix_struct(source=matrix_s(1)%matrix,&
-                                         TARGET=matrix_h(1)%matrix,&
-                                         target_name="CORE HAMILTONIAN MATRIX",error=error)
+
+   ALLOCATE(matrix_h(1)%matrix)
+   CALL dbcsr_init(matrix_h(1)%matrix,error=error)
+   CALL dbcsr_create(matrix=matrix_h(1)%matrix, &
+        name="CORE HAMILTONIAN MATRIX", &
+        dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+        nblks=0, nze=0, mutable_work=.TRUE., &
+        error=error)
+   CALL cp_dbcsr_add_dist2d (matrix_h(1)%matrix%m, distribution_2d, error)
+
    ! *** Allocate work storage ***
    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                             gth_potential_present=gth_potential_present,&
@@ -1017,6 +1055,9 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
+
     ! Print matrices if requested
     CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
          oce, qs_env, calculate_forces, para_env, error)
