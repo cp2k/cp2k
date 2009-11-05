@@ -4905,40 +4905,46 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=80)                        :: ifmt
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
-    INTEGER :: blk, blk_col_new, blk_col_prev_new, blk_ps, blk_row_new, &
-      blk_row_prev_new, blks, col, col_offset_old, col_rle, data_offset_l, &
-      dst_p, full_col, full_row, i, meta_l, mp_group, nblkcols_total_new, &
-      nblkrows_total_new, numnodes, rel_full_col_new, rel_full_row_new, row, &
-      row_offset_old, row_prev, row_rle, src_p, stored_col_new, &
-      stored_row_new, timing_handle
+    INTEGER :: blk, blk_col_new, blk_col_prev_new, blk_ps, blk_row_new, blks, &
+      cnt_fnd, cnt_new, cnt_skip, col, col_int, col_offset_new, &
+      col_offset_old, col_rle, data_offset_l, dst_p, i, meta_l, mp_group, &
+      nblkcols_total_new, nblkrows_total_new, numnodes, nze_rle, row, &
+      row_int, row_offset_new, row_offset_old, row_prev, row_rle, src_p, &
+      stored_col_new, stored_row_new, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:) :: col_end_new, col_end_old, &
       col_start_new, col_start_old, rd_disp, recv_meta, rm_disp, row_end_new, &
       row_end_old, row_start_new, row_start_old, sd_disp, sdp, send_meta, &
       sm_disp, smp
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count, &
-                                                total_recv_count, &
-                                                total_send_count
+    INTEGER, ALLOCATABLE, DIMENSION(:, :) :: col_reblocks, n_col_reblocks, &
+      n_row_reblocks, recv_count, row_reblocks, send_count, total_recv_count, &
+      total_send_count
     INTEGER, DIMENSION(:), POINTER :: col_blk_size_new, col_blk_size_old, &
       col_dist_new, col_dist_old, row_blk_size_new, row_blk_size_old, &
       row_dist_new, row_dist_old
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
     LOGICAL                                  :: found, my_keep_sparsity, &
-                                                new_meta, tr, valid_block, sym
+                                                new_meta, sym, tr, valid_block
+    REAL(kind=dp)                            :: t_all, t_blk, t_blk2, &
+                                                t_count, t_fill, t_prolog, &
+                                                t_unpack, t_xfer1, t_xfer2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :), TARGET                :: r2_dp_buff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r2_dp
     REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: map_row_el_blk, map_col_el_blk
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
+    t_all = m_walltime()
+    t_prolog = t_all
     CALL cp_assert (dbcsr_valid_index(matrix%m),&
          cp_fatal_level, cp_caller_error,&
          routineN, "Input not valid.")
@@ -4998,15 +5004,17 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     col_dist_new => array_data (dbcsr_distribution_col_dist (dist_new))
     nblkrows_total_new = dbcsr_nblkrows_total (redist)
     nblkcols_total_new = dbcsr_nblkcols_total (redist)
-    ! Create mappings of elements to new blocks.
-    ALLOCATE (map_row_el_blk (dbcsr_nfullrows_total (redist)))
-    CALL fill_map (map_row_el_blk, dbcsr_nfullrows_total (redist),&
-         row_start_new, nblkrows_total_new,&
-         row_blk_size_new(nblkrows_total_new))
-    ALLOCATE (map_col_el_blk (dbcsr_nfullcols_total (redist)))
-    CALL fill_map (map_col_el_blk, dbcsr_nfullcols_total (redist),&
-         col_start_new, nblkcols_total_new,&
-         col_blk_size_new(nblkcols_total_new))
+    ! Create mappings
+    i = dbcsr_nfullrows_total (redist)
+    ALLOCATE (row_reblocks (2,i))
+    ALLOCATE (n_row_reblocks (2, dbcsr_nblkrows_total (matrix)))
+    CALL dbcsr_reblocking_targets (row_reblocks, i, n_row_reblocks,&
+         row_blk_size_old, row_blk_size_new)
+    i = dbcsr_nfullcols_total (redist)
+    ALLOCATE (col_reblocks (2,i))
+    ALLOCATE (n_col_reblocks (2, dbcsr_nblkcols_total (matrix)))
+    CALL dbcsr_reblocking_targets (col_reblocks, i, n_col_reblocks,&
+         col_blk_size_old, col_blk_size_new)
     !
     mp_obj_new = dbcsr_distribution_mp (dist_new)
     pgrid => dbcsr_mp_pgrid (mp_obj_new)
@@ -5039,6 +5047,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ALLOCATE (sm_disp(0:numnodes-1))
     ALLOCATE (rd_disp(0:numnodes-1))
     ALLOCATE (rm_disp(0:numnodes-1))
+    !if (dbg) call dbcsr_print(matrix)
+    !cs1 = dbcsr_checksum (matrix)
+    !
+    t_count = m_walltime()
+    t_prolog = t_count - t_prolog
+    !
     ! Count initial sizes for sending.
     !
     ! We go through every element of every local block and determine
@@ -5047,35 +5061,32 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DBG 'A'
     send_count(:,:) = 0
     CALL dbcsr_iterator_start (iter, matrix)
-    blk_col_prev_new = 0
-    blk_row_prev_new = 0
-    row_prev = 0
     dst_p = -1
     new_meta = .TRUE.
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk)
-       IF (row .NE. row_prev) blk_col_prev_new = 0 ! Reset the "hint"
-       ! For all new blocked columns that overlap the old block colum,
-       ! count the data that should be sent to that column.
-       DO full_col = col_start_old(col), col_end_old(col)
-          blk_col_new = map_col_el_blk(full_col)
-          DO full_row = row_start_old(row), row_end_old(row)
-             blk_row_new = map_row_el_blk(full_row)
+       DO col_int = n_col_reblocks (1,col),&
+            n_col_reblocks(1,col) + n_col_reblocks(2,col)-1
+          blk_col_new = col_reblocks(1, col_int)
+          DO row_int = n_row_reblocks (1, row),&
+               n_row_reblocks(1,row) + n_row_reblocks(2,row)-1
+             blk_row_new = row_reblocks(1, row_int)
              IF (.NOT. sym .OR. blk_col_new .GE. blk_row_new) THEN
-                IF (blk_col_new .NE. blk_col_prev_new&
-                     .OR. blk_row_new .NE. blk_row_prev_new .OR. new_meta) THEN
-                   tr = .FALSE.
-                   CALL dbcsr_get_stored_coordinates (redist%m,&
-                        blk_row_new, blk_col_new, tr, dst_p)
-                   send_count(1, dst_p) = send_count(1, dst_p) + 1
-                ENDIF
-                send_count(2, dst_p) = send_count(2, dst_p) + 1
+                tr = .FALSE.
+                CALL dbcsr_get_stored_coordinates (redist%m,&
+                     blk_row_new, blk_col_new, tr, dst_p)
+                send_count(1, dst_p) = send_count(1, dst_p) + 1
+                send_count(2, dst_p) = send_count(2, dst_p) +&
+                     col_reblocks(2,col_int)*row_reblocks(2,row_int)
              ENDIF
           ENDDO
-          new_meta = .TRUE.
        ENDDO
     ENDDO
     CALL dbcsr_iterator_stop (iter)
+    !
+    t_xfer1 = m_walltime()
+    t_count = t_xfer1 - t_count
+    !
     DBG 'B'
     CALL mp_alltoall(send_count, recv_count, 2, mp_group)
     DBG 'C'
@@ -5126,90 +5137,93 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        WRITE(*,*)'row_start_new',row_start_new
        WRITE(*,*)'row_blk_size_new',row_blk_size_new
     ENDIF
+    !
+    t_fill = m_walltime()
+    t_xfer1 = t_fill - t_xfer1
+    !
     CALL dbcsr_iterator_start (iter, matrix)
-    blk_col_prev_new = 0
-    blk_row_prev_new = 0
     row_prev = 0
     dst_p = -1
-    new_meta = .TRUE.
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, r2_dp, tr, blk)
        IF (row .NE. row_prev) blk_col_prev_new = 0 ! Reset the "hint"
        !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
-       col_offset_old = col_start_old(col) - 1
-       DO full_col = col_start_old(col), col_end_old(col)
-          blk_col_new = map_col_el_blk(full_col)
-          row_offset_old = row_start_old(row) - 1
-          IF (dbg) THEN
-             WRITE(*,*)'col',full_col,'of',&
-                  col_start_old(col),col_end_old(col),'/',SIZE(r2_dp,2)
-             WRITE(*,*)'rows',0,'of',&
-                  row_start_old(row),row_end_old(row),'/',SIZE(r2_dp,1)
-             DO i = 1, SIZE(r2_dp,1)
-                WRITE(ifmt,'("(",I2,"(1X,F5.2))")')SIZE(r2_dp,2)
-                WRITE(*,ifmt)r2_dp(i,:)
-             ENDDO
-          ENDIF
-          DO full_row = row_start_old(row), row_end_old(row)
-             blk_row_new = map_row_el_blk(full_row)
+       col_offset_old = 1
+       DO col_int = n_col_reblocks (1,col),&
+            n_col_reblocks(1,col) + n_col_reblocks(2,col)-1
+          blk_col_new = col_reblocks(1, col_int)
+          row_offset_old = 1
+          DO row_int = n_row_reblocks (1, row),&
+               n_row_reblocks(1,row) + n_row_reblocks(2,row)-1
+             blk_row_new = row_reblocks(1, row_int)
              loc_ok: IF (.NOT. sym .OR. blk_col_new .GE. blk_row_new) THEN
                 IF (dbg) &
                      WRITE(*,*)'using block',blk_row_new,'x',blk_col_new
-                IF (blk_col_new .NE. blk_col_prev_new&
-                     .OR. blk_row_new .NE. blk_row_prev_new .OR. new_meta) THEN
-                   ! Start a new RLE run
-                   tr = .FALSE.
-                   CALL dbcsr_get_stored_coordinates (redist%m,&
-                        blk_row_new, blk_col_new, tr, dst_p)
-                   send_count(1, dst_p) = send_count(1, dst_p) + 1
-                   rel_full_row_new = full_row - row_start_new (blk_row_new)+1
-                   rel_full_col_new = full_col - col_start_new (blk_col_new)+1
-                   smp(dst_p) = smp(dst_p) + metalen
-                   send_meta(smp(dst_p)) = blk_row_new   ! new blocked row
-                   send_meta(smp(dst_p)+1) = blk_col_new ! new blocked column
-                   send_meta(smp(dst_p)+2) = rel_full_row_new  ! row in new block
-                   send_meta(smp(dst_p)+3) = rel_full_col_new  ! col in new block
-                   send_meta(smp(dst_p)+4) = 1           ! RLE rows
-                   send_meta(smp(dst_p)+5) = 1           ! RLE columns
-                   send_meta(smp(dst_p)+6) = -7          ! Debugging marker
-                ELSE
-                   ! We are continuing the RLE run
-                   IF (blk_row_new .EQ. blk_row_prev_new) THEN
-                      send_meta(smp(dst_p)+2) = send_meta(smp(dst_p)+2) + 1
-                   ELSEIF (blk_col_new .EQ. blk_col_prev_new) THEN
-                      send_meta(smp(dst_p)+3) = send_meta(smp(dst_p)+3) + 1
-                   ELSE
-                      CALL cp_assert(.FALSE., cp_failure_level, cp_internal_error,&
-                           routineN, "logic error")
-                   ENDIF
-                ENDIF
+                ! Start a new RLE run
+                tr = .FALSE.
+                CALL dbcsr_get_stored_coordinates (redist%m,&
+                     blk_row_new, blk_col_new, tr, dst_p)
+                row_rle = row_reblocks(2,row_int)
+                col_rle = col_reblocks(2,col_int)
+                row_offset_new = row_offset_old + row_start_old(row) - &
+                                 row_start_new(blk_row_new)
+                col_offset_new = col_offset_old + col_start_old(col) - &
+                                 col_start_new(blk_col_new)
+                smp(dst_p) = smp(dst_p) + metalen
+                send_meta(smp(dst_p)) = blk_row_new   ! new blocked row
+                send_meta(smp(dst_p)+1) = blk_col_new ! new blocked column
+                send_meta(smp(dst_p)+2) = row_offset_new  ! row in new block
+                send_meta(smp(dst_p)+3) = col_offset_new  ! col in new block
+                send_meta(smp(dst_p)+4) = row_rle ! RLE rows
+                send_meta(smp(dst_p)+5) = col_rle ! RLE columns
+                send_meta(smp(dst_p)+6) = sdp(dst_p)-sd_disp(dst_p) ! Offset in data
+                nze_rle = row_rle * col_rle
                 IF (.NOT. tr) THEN
                    IF (.NOT. PRESENT (alpha)) THEN
-                      send_data(sdp(dst_p))&
-                           = r2_dp(full_row-row_offset_old, full_col-col_offset_old)
+                      CALL dbcsr_block_copy(&
+                           send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                           r2_dp(&
+                             row_offset_old:row_offset_old+row_rle-1,&
+                             col_offset_old:col_offset_old+col_rle-1),&
+                           row_rle, col_rle)
                    ELSE
-                      send_data(sdp(dst_p)) = alpha * &
-                           r2_dp(full_row-row_offset_old, full_col-col_offset_old)
-                      
+                      CALL dbcsr_block_copy(&
+                           send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                           alpha*r2_dp(&
+                             row_offset_old:row_offset_old+row_rle-1,&
+                             col_offset_old:col_offset_old+col_rle-1),&
+                           row_rle, col_rle)
                    ENDIF
                 ELSE
                    IF (.NOT. PRESENT (alpha)) THEN
-                      send_data(sdp(dst_p))&
-                           = r2_dp(full_col-col_offset_old, full_row-row_offset_old)
+                      CALL dbcsr_block_transpose(&
+                           send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                           r2_dp(&
+                             col_offset_old:col_offset_old+col_rle-1,&
+                             row_offset_old:row_offset_old+row_rle-1),&
+                           row_rle, col_rle)
                    ELSE
-                      send_data(sdp(dst_p)) = alpha * &
-                           r2_dp(full_col-col_offset_old, full_row-row_offset_old)
+                      CALL dbcsr_block_transpose(&
+                           send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                           alpha*r2_dp(&
+                             col_offset_old:col_offset_old+col_rle-1,&
+                             row_offset_old:row_offset_old+row_rle-1),&
+                           row_rle, col_rle)
                    ENDIF
                 ENDIF
-                sdp(dst_p) = sdp(dst_p)+1
-                send_count(2, dst_p) = send_count(2, dst_p) + 1
+                sdp(dst_p) = sdp(dst_p)+nze_rle
              ENDIF loc_ok
-          ENDDO
-          new_meta = .TRUE.
-       ENDDO
+             row_offset_old = row_offset_old + row_reblocks(2, row_int)
+          ENDDO ! row_int
+          col_offset_old = col_offset_old + col_reblocks(2, col_int)
+       ENDDO ! col_int
     ENDDO
     CALL dbcsr_iterator_stop (iter)
     ! Exchange the data and metadata structures.
+    !
+    t_xfer2 = m_walltime()
+    t_fill = t_xfer2 - t_fill
+    !
     DBG 'E'
     CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
          recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
@@ -5226,6 +5240,10 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DBG 'recv_data'
     IF (dbg) WRITE(*,'(10(1X,F5.2))') recv_data
     DBG 'G'
+    !
+    t_unpack = m_walltime()
+    t_xfer2 = t_unpack - t_xfer2
+    !
     ! Now fill in the data.
     CALL dbcsr_work_create(redist,&
             SUM(recv_count(1,:)),&
@@ -5238,56 +5256,69 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     !blk = 1
     blk_ps = 0
     blks = 0
+    t_blk2 = 0.0_dp
+    cnt_fnd = 0 ; cnt_new = 0 ; cnt_skip = 0
+    ALLOCATE (r2_dp_buff (redist%m%max_rbs, redist%m%max_cbs))
+    r2_dp_buff(:,:) = 9.9_dp ! Needed for nagging compilers.
     DO src_p = 0, numnodes-1
        data_offset_l = rd_disp(src_p)
        DO meta_l = 1, recv_count(1, src_p)
           stored_row_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1))
           stored_col_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+1)
-          rel_full_row_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+2)
-          rel_full_col_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+3)
+          row_offset_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+2)
+          col_offset_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+3)
           row_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+4)
           col_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+5)
+          data_offset_l = rd_disp(src_p)&
+               + recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+6)
           DBG 'blk: p',blks,src_p,'; row, col',&
                stored_row_new,stored_col_new,&
                '; blk_ps',blk_ps
           NULLIFY (r2_dp)
+          t_blk = m_walltime()
           CALL dbcsr_get_block_p(redist, stored_row_new, stored_col_new,&
                r2_dp, tr, found)
+          t_blk2 = t_blk2 + (m_walltime() - t_blk)
           valid_block = found
+          IF (found) cnt_fnd = cnt_fnd + 1
           IF (.NOT. found .AND. .NOT. my_keep_sparsity) THEN
-             ALLOCATE (r2_dp(row_blk_size_new (stored_row_new),&
-                  col_blk_size_new (stored_col_new)))
-             r2_dp(:,:) = 0.0_dp ! Needed for nagging compilers.
+             r2_dp => r2_dp_buff(1:row_blk_size_new (stored_row_new),&
+                                 1:col_blk_size_new (stored_col_new))
+             r2_dp(:,:) = 0.0_dp
              tr = .FALSE.
-             !redist%m%wms(1)%lastblk = redist%m%wms(1)%lastblk+1
-             !redist%m%wms(1)%datasize = redist%m%wms(1)%datasize&
-             !     + row_rle + col+col_rle
              blks = blks + 1
              blk_ps = blk_ps + row_blk_size_new (stored_row_new) * &
                                col_blk_size_new (stored_col_new)
              valid_block = .TRUE.
+             cnt_new = cnt_new + 1
           ENDIF
+          nze_rle = row_rle*col_rle
           IF (valid_block) THEN
-             DO col = rel_full_col_new, rel_full_col_new + col_rle - 1
-                DO row = rel_full_row_new, rel_full_row_new + row_rle - 1
-                   IF (dbg) &
-                        WRITE(*,*)'adding point',row,col,&
-                        data_offset_l,recv_data(data_offset_l)
-                   IF (.NOT. tr) THEN
-                      r2_dp(row, col) = recv_data(data_offset_l)
-                   ELSE
-                      r2_dp(col, row) = recv_data(data_offset_l)
-                   ENDIF
-                   data_offset_l = data_offset_l + 1
-                ENDDO
-             ENDDO
+             IF (.NOT. tr) THEN
+                CALL dbcsr_block_copy (&
+                     r2_dp(&
+                       row_offset_new:row_offset_new+row_rle-1,&
+                       col_offset_new:col_offset_new+col_rle-1),&
+                     recv_data(data_offset_l:data_offset_l+nze_rle-1),&
+                     row_rle, col_rle)
+             ELSE
+                CALL dbcsr_block_transpose (&
+                     r2_dp(&
+                       col_offset_new:col_offset_new+col_rle-1,&
+                       row_offset_new:row_offset_new+row_rle-1),&
+                     recv_data(data_offset_l:data_offset_l+nze_rle-1),&
+                     row_rle, col_rle)
+             ENDIF
+          ELSE
+             cnt_skip = cnt_skip+1
           ENDIF
+          data_offset_l = data_offset_l + nze_rle
           IF (.NOT. found .AND. valid_block) THEN
              IF (dbg) WRITE(*,*)routineN//" Adding new block at",&
                   stored_row_new, stored_col_new
              CALL dbcsr_put_block(redist, stored_row_new, stored_col_new,&
                   r2_dp, tr)
-             DEALLOCATE (r2_dp)
+             !DEALLOCATE (r2_dp)
           ELSE
              IF (.NOT. my_keep_sparsity .AND. dbg) &
                   WRITE(*,*)routineN//" Reusing block at",&
@@ -5315,24 +5346,21 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
     DBG 'Done redistributing'
+    t_unpack = m_walltime() - t_unpack
+    t_all = MAX(m_walltime() - t_all, 0.001_dp)
+    !write(*,'(A,2(1X,F9.3),F5.1,"%",4(1X,I7))')&
+    !     " Times total, lookup", t_all, t_blk2,&
+    !     100.0_dp*t_blk2/t_all,&
+    !     cnt_fnd, cnt_new, cnt_skip, redist%m%nblks
+    !write(*,'(A,6(1X,F9.3))')" Times              ",&
+    !     t_prolog, t_count, t_xfer1, t_fill, t_xfer2, t_unpack
+    !write(*,*)" "
+    !if (dbg) call dbcsr_print(redist)
+    !cs2 = dbcsr_checksum (matrix)
+    !write(*,*)cs1,cs2
+    !call cp_assert (cs1-cs2 .lt. 0.000001, cp_failure_level, cp_internal_error,&
+    !     routineN, "Oops!")
     CALL timestop(timing_handle)
-  CONTAINS
-    SUBROUTINE fill_map (map, nfull, offsets, nblks, last_size)
-    INTEGER, INTENT(in)                      :: nfull
-    INTEGER, DIMENSION(nfull), INTENT(out)   :: map
-    INTEGER, INTENT(in)                      :: nblks
-    INTEGER, DIMENSION(nblks), INTENT(in)    :: offsets
-    INTEGER, INTENT(in)                      :: last_size
-
-    INTEGER                                  :: blk
-
-!
-
-      FORALL (blk = 1:nblks-1)
-         map(offsets(blk):offsets(blk+1)-1) = blk
-      END FORALL
-      map(offsets(nblks):offsets(nblks)+last_size-1) = nblks
-    END SUBROUTINE fill_map
   END SUBROUTINE dbcsr_complete_redistribute
 
 ! *****************************************************************************
