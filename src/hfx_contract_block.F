@@ -15,6 +15,7 @@ MODULE hfx_contract_block
 
   IMPLICIT NONE
   PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_contract_block'
   PUBLIC :: contract_block
 CONTAINS
   SUBROUTINE contract_block(ma_max,mb_max,mc_max,md_max,kbd,kbc,kad,kac,pbd,pbc,pad,pac,prim,scale)
@@ -24,6 +25,7 @@ CONTAINS
       pbc(mb_max*mc_max), pad(ma_max*md_max), pac(ma_max*mc_max), &
       prim(ma_max*mb_max*mc_max*md_max), scale
 
+#if defined (__LIBINT)
     SELECT CASE(ma_max) 
     CASE(1) 
       SELECT CASE(mb_max) 
@@ -3975,7 +3977,12 @@ CONTAINS
     CASE DEFAULT 
       CALL block_default(ma_max,mb_max,mc_max,md_max,kbd,kbc,kad,kac,pbd,pbc,pad,pac,prim,scale)
     END SELECT
+#else
+    RETURN
+#endif
   END SUBROUTINE contract_block
+
+#if defined (__LIBINT)
   SUBROUTINE block_default(ma_max,mb_max,mc_max,md_max,kbd,kbc,kad,kac,pbd,pbc,pad,pac,prim,scale)
     INTEGER                                  :: ma_max, mb_max, mc_max, md_max
     REAL(KIND=dp) :: kbd(mb_max*md_max), kbc(mb_max*mc_max), &
@@ -18681,4 +18688,5 @@ CONTAINS
         END DO
       END DO
   END SUBROUTINE block_15_15
+#endif
 END MODULE hfx_contract_block
