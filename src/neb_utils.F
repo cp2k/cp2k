@@ -449,7 +449,8 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF (PRESENT(neb_env)) THEN
           ! First identify the image of the chain with the higher potential energy
-          neb_env%nr_HE_image = MAXLOC(energies,1)
+          ! First and last point of the band are never considered
+          neb_env%nr_HE_image = MAXLOC(energies(2:n_rep_neb-1),1)+1
           ALLOCATE(tangent(nsize_wrk),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ! Then modify image forces accordingly to the scheme chosen for the
