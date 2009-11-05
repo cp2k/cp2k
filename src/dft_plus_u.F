@@ -154,14 +154,14 @@ CONTAINS
       IF (orthonormal_basis) THEN
         ! For an orthonormal basis the Lowdin method and the Mulliken method
         ! are equivalent
-        CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,&
+        CALL mulliken(qs_env,orthonormal_basis,matrix_h,&
                       should_output,output_unit,error)
       ELSE
         CALL lowdin(qs_env,matrix_h,matrix_w,&
                     should_output,output_unit,error)
       END IF
     CASE (plus_u_mulliken)
-      CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,&
+      CALL mulliken(qs_env,orthonormal_basis,matrix_h,&
                     should_output,output_unit,error)
     CASE (plus_u_mulliken_charges)
       CALL mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,&
@@ -944,19 +944,18 @@ CONTAINS
 !>  \f}
 !> \param[in]     qs_env Quickstep environment
 !> \param[in,out] matrix_h Hamiltonian matrices for each spin
-!> \param[in,out] matrix_w Energy weighted density matrices for each spin
 !> \param[in]     error environment
 !> \author        Matthias Krack (MK)
 !> \date          03.07.2008
 !> \version       1.0
 ! *****************************************************************************
-  SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,&
+  SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,&
                       should_output,output_unit,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h, matrix_w
+      OPTIONAL, POINTER                      :: matrix_h
     LOGICAL, INTENT(IN)                      :: should_output
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -984,12 +983,11 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: q_eigvec, q_matrix, q_work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, q_block, &
-                                                s_block, v_block, w_block
+                                                s_block, v_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind, kind_a
-    TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_q, sm_s, sm_v, &
-                                                sm_w
+    TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_q, sm_s, sm_v
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1029,9 +1027,7 @@ CONTAINS
     NULLIFY (sm_q)
     NULLIFY (sm_s)
     NULLIFY (sm_v)
-    NULLIFY (sm_w)
     NULLIFY (v_block)
-    NULLIFY (w_block)
 
     failure = .FALSE.
 
@@ -1091,7 +1087,7 @@ CONTAINS
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     is_plus_u_kind(:) = .FALSE.
 
-    IF (PRESENT(matrix_h).OR.PRESENT(matrix_w)) THEN
+    IF (PRESENT(matrix_h)) THEN
       just_energy = .FALSE.
     ELSE
       just_energy = .TRUE.
@@ -1106,13 +1102,6 @@ CONTAINS
         sm_h => matrix_h(ispin)%matrix
       ELSE
         NULLIFY (sm_h)
-      END IF
-
-      IF (PRESENT(matrix_w)) THEN
-        ! Energy weighted density matrix for spin ispin in sparse format
-        sm_w => matrix_w(ispin)%matrix
-      ELSE
-        NULLIFY (sm_w)
       END IF
 
       ! Get density matrix for spin ispin in sparse format
@@ -1578,63 +1567,6 @@ CONTAINS
         END DO ! Next atomic kind "ikind"
 
       END IF ! An update of the Hamiltonian matrix is requested
-
-      ! Calculate the contribution (non-Pulay part) to the derivatives
-      ! w.r.t. the nuclear positions, which requires an update of the
-      ! energy weighted density W.
-
-      IF (ASSOCIATED(sm_w).AND.(.NOT.orthonormal_basis)) THEN
-
-        DO ikind=1,nkind
-
-          IF (.NOT.is_plus_u_kind(ikind)) CYCLE
-
-          kind_a => atomic_kind_set(ikind)
-
-          CALL get_atomic_kind(atomic_kind=kind_a,&
-                               atom_list=atom_list,&
-                               natom=natom_of_kind)
-
-          DO iatom=1,natom_of_kind
-
-            atom_a = atom_list(iatom)
-
-            CALL dbcsr_get_block_p(matrix=sm_p,&
-                                   row=atom_a,&
-                                   col=atom_a,&
-                                   block=p_block,&
-                                   tr=tr,&
-                                   found=found)
-
-            IF (.NOT.ASSOCIATED(p_block)) CYCLE
-
-            CALL dbcsr_get_block_p(matrix=sm_v,&
-                                   row=atom_a,&
-                                   col=atom_a,&
-                                   block=v_block,&
-                                   tr=tr,&
-                                   found=found)
-            CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
-
-            CALL dbcsr_get_block_p(matrix=sm_w,&
-                                   row=atom_a,&
-                                   col=atom_a,&
-                                   block=w_block,&
-                                   tr=tr,&
-                                   found=found)
-            CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
-
-            DO jsgf=1,SIZE(w_block,2)
-              DO isgf=1,SIZE(w_block,1)
-                w_block(isgf,jsgf) = w_block(isgf,jsgf) + v_block(isgf,jsgf)*p_block(isgf,jsgf)
-              END DO
-            END DO
-
-          END DO ! next atom "iatom" of atomic kind "ikind"
-
-        END DO ! Next atomic kind "ikind"
-
-      END IF ! W matrix update requested
 
     END DO ! next spin "ispin"
 
@@ -2142,7 +2074,12 @@ CONTAINS
         CALL dbcsr_iterator_start(iter,sm_p)
 
         DO WHILE (dbcsr_iterator_blocks_left(iter))
+
           CALL dbcsr_iterator_next_block(iter,iatom,jatom,p_block,tr,blk)
+
+          ! Skip the diagonal blocks of the W matrix
+
+          IF (iatom == jatom) CYCLE
 
           ! Request katom just to check for consistent sparse matrix patterns
 
@@ -2180,7 +2117,7 @@ CONTAINS
             sgf = sgf + 1
           END DO
 
-        END DO ! next block node -> "jatom"
+        END DO ! next block node "jatom"
 
         CALL dbcsr_iterator_stop(iter)
 
