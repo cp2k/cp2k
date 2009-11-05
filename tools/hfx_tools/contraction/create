@@ -96,6 +96,7 @@ echo " " >> select.dat
 echo "    REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b,nsoc*nl_c,nsod*nl_d) :: primitives" >> select.dat
 echo "    REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)  :: buffer1, buffer2" >> select.dat
 echo " " >> select.dat
+echo "#if defined(__LIBINT)" >> select.dat
 echo "    SELECT CASE(n_a)"  >> select.dat
 for a in `seq 0 $lmax` 
 do
@@ -185,6 +186,9 @@ echo "                           sphi_d, &"  >> select.dat
 echo "                           primitives, &"  >> select.dat
 echo "                           buffer1, buffer2)"  >> select.dat
 echo "    END SELECT"  >> select.dat
+echo "#else" >> select.dat
+echo "    RETURN" >> select.dat
+echo "#endif" >> select.dat
 echo "  END SUBROUTINE  contract" >> select.dat
 
 lmax=$lmax_specific
@@ -316,8 +320,10 @@ rm tmp
 
 cat templates/header > hfx_contraction_methods.F
 cat select.dat >> hfx_contraction_methods.F
+echo "#if defined (__LIBINT)" >> hfx_contraction_methods.F
 cat specific.dat >> hfx_contraction_methods.F
 cat generic.dat >> hfx_contraction_methods.F
+echo "#endif" >> hfx_contraction_methods.F
 cat templates/footer >> hfx_contraction_methods.F
 rm select.dat
 rm generic.dat

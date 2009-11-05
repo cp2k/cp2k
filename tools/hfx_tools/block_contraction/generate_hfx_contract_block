@@ -257,13 +257,21 @@ CONTAINS
       kad(ma_max*md_max), kac(ma_max*mc_max), pbd(mb_max*md_max), &
       pbc(mb_max*mc_max), pad(ma_max*md_max), pac(ma_max*mc_max), &
       prim(ma_max*mb_max*mc_max*md_max), scale
+
+#if defined (__LIBINT)
 EOF
 cat caller >> hfx_contract_block.F
 cat << EOF >> hfx_contract_block.F
+#else
+    RETURN
+#endif
   END SUBROUTINE contract_block
+
+#if defined (__LIBINT)
 EOF
 cat functions >> hfx_contract_block.F
 cat << EOF >> hfx_contract_block.F
+#endif
 END MODULE hfx_contract_block
 EOF
 
