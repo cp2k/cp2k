@@ -759,22 +759,36 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a distribution for threads
 !> \param[in,out] dist   Add thread distribution to this distribution
+!> \param[in] row_sizes  (optional) row block sizes
 ! *****************************************************************************
-  SUBROUTINE dbcsr_distribution_make_threads(dist)
+  SUBROUTINE dbcsr_distribution_make_threads(dist, row_sizes)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT), VOLATILE                :: dist
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: row_sizes
 
-    INTEGER                                  :: first, ithread, last, nrows, &
-                                                nthreads, rpt, t
-    INTEGER, DIMENSION(:), POINTER           :: td
+    INTEGER                                  :: first, ithread, last, nlcols, &
+                                                nlrows, nrows, nthreads, rpt, &
+                                                size_local, size_sum, t
+    INTEGER, DIMENSION(:), POINTER           :: lcols, lrows, td
 
 !   ---------------------------------------------------------------------------
 
     ithread = 0 ; nthreads = 1
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM()
-    nrows = dbcsr_distribution_nlocal_rows (dist)
+    nrows = dbcsr_distribution_nrows (dist)
+    nlrows = dbcsr_distribution_nlocal_rows (dist)
+    nlcols = dbcsr_distribution_nlocal_cols (dist)
+    lrows => array_data (dbcsr_distribution_local_rows (dist))
+    lcols => array_data (dbcsr_distribution_local_cols (dist))
+    !
+!$OMP MASTER
     CALL array_release (dist%d%thread_dist)
     ALLOCATE (td(nrows))
+    CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
+!$OMP END MASTER
+!$OMP BARRIER
+    td => array_data (dist%d%thread_dist)
     rpt = CEILING (REAL(nrows) / REAL(nthreads))
     t = ithread
     first = MIN (t*rpt+1, nrows)
@@ -782,7 +796,38 @@ CONTAINS
     IF(first.GE.1.AND.last.LE.nrows) THEN
        td(first:last) = t
     ENDIF
-    CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
+!$OMP BARRIER
+    ! Calculate row distribution
+    IF (PRESENT (row_sizes)) THEN
+       size_local = 0
+       DO t = 1, nlrows
+          size_local = size_local + row_sizes(lrows(t))
+       END DO
+       rpt = CEILING (REAL(size_local) / REAL(nthreads))
+       first = MIN (ithread*rpt, nlrows)
+       last = MIN ((ithread+1)*rpt, nlrows)
+       size_sum = 0
+       DO t = 1, nlrows
+          IF (size_sum .GE. first .AND. size_sum .LT. last) THEN
+             td(lrows(t)) = ithread
+          ELSEIF (size_sum .GE. size_local) THEN
+             td(lrows(t)) = nthreads-1
+          ENDIF
+          size_sum = size_sum + row_sizes(lrows(t))
+          IF (size_sum .LT. last) EXIT
+       ENDDO
+    ELSE
+       size_local = nlrows
+       rpt = CEILING (REAL(nlrows) / REAL(nthreads))
+       first = MIN (ithread*rpt+1, nlrows)
+       last = MIN ((ithread+1)*rpt, nlrows)
+       IF(first.GE.1.AND.last.LE.nlrows) THEN
+          FORALL (t = first:last)
+             td(lrows(t)) = ithread
+          END FORALL
+       ENDIF
+    ENDIF
+!$OMP BARRIER
   END SUBROUTINE dbcsr_distribution_make_threads
 
   SUBROUTINE dbcsr_distribution_no_threads(dist)
@@ -1611,6 +1656,7 @@ iterator%count_me=count_me
 
 !   ---------------------------------------------------------------------------
 
+    IF (pos .LT. 1) pos = 1
     DO WHILE (pos .LE. maxpos)
        IF (blk_p(pos) .EQ. 0) THEN
           !WRITE(*,*)routineN//" Skipping deleted block."
@@ -1645,6 +1691,11 @@ iterator%count_me=count_me
 !   ---------------------------------------------------------------------------
 
     IF (pos .GT. 0) THEN
+       IF (row .LT. 1) THEN
+          row = 1
+       ELSEIF (row .GT. maxrows) THEN
+          row = maxrows
+       ENDIF
        DO WHILE (row_p(row+1) .LT. pos)
           row = row+1
           IF (row .GT. maxrows) THEN
@@ -1694,7 +1745,7 @@ iterator%count_me=count_me
        IF (pos.EQ.0) pos = 1
        CALL find_first_valid_block (pos, maxpos, blk_p)
        CALL find_proper_row(pos, row, maxrows, row_p)
-       row_inrange = row .NE. 0
+       row_inrange = row .NE. 0 .AND. row .LE. maxrows
        row_ok = row_inrange
 !$     IF (present (tdist) .AND. PRESENT (tid) .AND. row_inrange) THEN
 !$        row_ok = tdist(row) .EQ. tid
