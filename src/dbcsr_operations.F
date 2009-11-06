@@ -4231,6 +4231,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     INTEGER                                  :: timing_handle
     LOGICAL                                  :: keep_sparse, shallow
+    real(kind=dp)                            :: sm
 
 !   ---------------------------------------------------------------------------
 
@@ -4294,7 +4295,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ENDIF
        matrix_b%m%sparsity_id = matrix_a%m%sparsity_id
     ENDIF
-
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_copy
@@ -4320,6 +4320,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     INTEGER :: dst_row, dst_col, dst_pos, row_size, col_size, rs, cs
     TYPE(dbcsr_iterator) :: src_iter, dst_iter
     REAL(KIND=dp), DIMENSION(:), POINTER :: src_r_dp, dst_r_dp
+    real(kind=dp) :: sm
 
 !   ---------------------------------------------------------------------------
 
@@ -4339,13 +4340,17 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ! target; 3 zero blocks not present in the source.
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_8)
-       CALL dbcsr_iterator_next_block (src_iter, src_row, src_col, src_r_dp,&
-            src_tr)
+       IF (dbcsr_iterator_blocks_left (src_iter)) THEN
+          CALL dbcsr_iterator_next_block (src_iter, src_row, src_col, src_r_dp,&
+               src_tr)
+       ELSE
+          src_row = 0 ; src_col = 0
+       ENDIF
     CASE DEFAULT
        CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
               routineN, "Invalid matrix type")
     END SELECT
-    DO WHILE (dbcsr_iterator_blocks_left (src_iter))
+    DO WHILE (dbcsr_iterator_blocks_left (dst_iter))
        CALL dbcsr_iterator_next_block (dst_iter, dst_row, dst_col, dst_r_dp,&
             dst_tr, row_size=row_size, col_size=col_size)
        ! Now find the source position that is greater or equal to the
