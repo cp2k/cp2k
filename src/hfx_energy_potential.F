@@ -11,13 +11,6 @@
 ! *****************************************************************************
 MODULE hfx_energy_potential 
 
-!#if defined (__HAS_NO_ISO_C_BINDING)
-!#else
-!#if !defined (__HAS_ISO_C_BINDING)
-!#define __HAS_ISO_C_BINDING
-!#endif
-!#endif
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: cite_reference,&
@@ -2043,12 +2036,6 @@ MODULE hfx_energy_potential
     DEALLOCATE(nimages, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    !
-    ! this wraps to free_libint, but currently causes a segfault
-    ! as a result, we don't call it, but some memory remains allocated
-    !  
-    ! CALL terminate_libint(lib(i_thread))
-    
 !$OMP BARRIER
 !$OMP END PARALLEL
 
