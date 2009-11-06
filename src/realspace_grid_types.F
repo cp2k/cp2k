@@ -1492,7 +1492,7 @@ CONTAINS
 
 !$omp parallel do default(none), &
 !$omp             private(coords,idir,pos,lb_send,ub_send), &
-!$omp             shared(rs,bounds,my_rs_rank,send_tasks,send_sizes)
+!$omp             shared(rs,bounds,my_rs_rank,send_tasks,send_sizes,pw)
        DO i = 0, pw % pw_grid % para % group_size -1
 
           coords(:) = rs % desc % rank2coord ( : , rs % desc % real2virtual(i))
