@@ -1167,10 +1167,6 @@ CPSourceFileRef,&
        CALL stop_program(routineP,"An invalid keyword for the initial density guess was specified")
     END IF
 
-    !
-    ! once a run, we check the new bcsr code on real data, if things go wrong the user can
-    ! disable this in the &QS section using the keyword CHECK_BCSR_CODE
-    !
     CALL timestop(handle)
 
   END SUBROUTINE calculate_first_density_matrix

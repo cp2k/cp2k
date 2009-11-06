@@ -83,6 +83,8 @@ OBJECTS_GENERIC =\
  cp_cfm_types.o\
  cp_control_types.o\
  cp_control_utils.o\
+ cp_dbcsr_cholesky.o\
+ cp_dbcsr_diag.o\
  cp_dbcsr_operations.o\
  cp_dbcsr_output.o\
  cp_ddapc.o\
