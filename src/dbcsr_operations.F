@@ -4210,73 +4210,204 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
 ! *****************************************************************************
 !> \brief copy a matrix 
-!> \param[in]    matrix_a  DBCSR matrix
-!> \param[inout] matrix_b  DBCSR matrix
-!> \param[in]    name      (optional) name of the new matrix
-!> \param[in,out] error    cp2k error
-!> \param[in]    shallow_data  (optional) shallow data copy
+!> \param[inout] matrix_b       target DBCSR matrix
+!> \param[in]    matrix_a       source DBCSR matrix
+!> \param[in]    name           (optional) name of the new matrix
+!> \param[in,out] error         cp2k error
+!> \param[in]    keep_sparsity  (optional) keep the target matrix sparsity;
+!>                              default is False.
+!> \param[in]    shallow_data   (optional) shallow data copy
 ! *****************************************************************************
-  SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, error, shallow_data)
+  SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, error, keep_sparsity,&
+       shallow_data)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    LOGICAL, INTENT(IN), OPTIONAL            :: shallow_data
+    LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity, shallow_data
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
-    LOGICAL                                  :: shallow
+    LOGICAL                                  :: keep_sparse, shallow
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
 
     shallow = .FALSE. ; IF (PRESENT (shallow_data)) shallow = shallow_data
+    keep_sparse = .FALSE.
+    IF (PRESENT (keep_sparsity)) keep_sparse = keep_sparsity
 
-    IF(PRESENT(name)) THEN
-       CALL dbcsr_create(matrix_b, name, &
-            matrix_a%m%dist, matrix_a%m%matrix_type, matrix_a%m%row_blk_size,&
-            matrix_a%m%col_blk_size, nblks=matrix_a%m%nblks,&
-            data_type=matrix_a%m%data_type, special=matrix_a%m%special_memory,&
-            error=error)
+    CALL cp_assert (.not.keep_sparse.or.dbcsr_valid_index(matrix_b),&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Target matrix must be valid to keep its sparsity", error=error)
+    CALL cp_assert (.not.keep_sparse.or..not.shallow, cp_warning_level,&
+         cp_wrong_args_error, routineN,&
+         "Shallow copy not compatibly with sparsity retainment", error=error)
+    IF (keep_sparse) THEN
+       IF (PRESENT (name)) matrix_b%m%name = name
+       CALL dbcsr_copy_into_existing(matrix_b, matrix_a, error)
     ELSE
-       CALL dbcsr_create(matrix_b,'copy of '//matrix_a%m%name, &
-            matrix_a%m%dist, matrix_a%m%matrix_type, matrix_a%m%row_blk_size,&
-            matrix_a%m%col_blk_size, nblks=matrix_a%m%nblks, &
-            data_type=matrix_a%m%data_type, special=matrix_a%m%special_memory,&
+       IF(PRESENT(name)) THEN
+          CALL dbcsr_create(matrix_b, name, &
+               matrix_a%m%dist, matrix_a%m%matrix_type,&
+               matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
+               nblks=matrix_a%m%nblks, data_type=matrix_a%m%data_type,&
+               special=matrix_a%m%special_memory, error=error)
+       ELSE
+          CALL dbcsr_create(matrix_b,'copy of '//matrix_a%m%name, &
+               matrix_a%m%dist, matrix_a%m%matrix_type,&
+               matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
+               nblks=matrix_a%m%nblks, data_type=matrix_a%m%data_type,&
+               special=matrix_a%m%special_memory, error=error)
+       ENDIF
+       CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index),&
             error=error)
-    ENDIF
-    CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index), error=error)
-    !
-    ! copy index and data
-    matrix_b%m%index(1:SIZE(matrix_a%m%index)) = matrix_a%m%index(:)
-    IF (.NOT. shallow) THEN
-       CALL dbcsr_data_ensure_size (matrix_b%m%data_area, matrix_a%m%nze)
-       CALL dbcsr_data_copyall (matrix_b%m%data_area, matrix_a%m%data_area)
-    ELSE
-       CALL dbcsr_data_release (matrix_b%m%data_area)
-       matrix_b%m%data_area = matrix_a%m%data_area
-       CALL dbcsr_data_hold (matrix_b%m%data_area)
-    ENDIF
-    !
-    ! the row_p, col_i and blk_p ...
-    CALL dbcsr_repoint_index(matrix_b%m)
-    matrix_b%m%nze = matrix_a%m%nze
-    matrix_b%m%nblks = matrix_b%m%nblks
-    matrix_b%m%valid = .TRUE.
+       !
+       ! copy index and data
+       matrix_b%m%index(1:SIZE(matrix_a%m%index)) = matrix_a%m%index(:)
+       IF (.NOT. shallow) THEN
+          CALL cp_assert (matrix_a%m%nze .LE. dbcsr_get_data_size(matrix_a),&
+               cp_fatal_level, cp_internal_error, routineN,&
+               "Source matrix sizes not consistent!", error=error)
+          CALL dbcsr_data_ensure_size (matrix_b%m%data_area,&
+               dbcsr_get_data_size(matrix_a))
+          CALL dbcsr_data_copyall (matrix_b%m%data_area, matrix_a%m%data_area)
+       ELSE
+          CALL dbcsr_data_release (matrix_b%m%data_area)
+          matrix_b%m%data_area = matrix_a%m%data_area
+          CALL dbcsr_data_hold (matrix_b%m%data_area)
+       ENDIF
+       !
+       ! the row_p, col_i and blk_p ...
+       CALL dbcsr_repoint_index(matrix_b%m)
+       matrix_b%m%nze = matrix_a%m%nze
+       matrix_b%m%nblks = matrix_b%m%nblks
+       matrix_b%m%valid = .TRUE.
 
-    ! Now do cp2k special stuff
-    IF (ASSOCIATED (matrix_a%m%dist2d)) THEN
-       matrix_b%m%dist2d => matrix_a%m%dist2d
-       CALL distribution_2d_retain (matrix_b%m%dist2d, error)
+       ! Now do cp2k special stuff
+       IF (ASSOCIATED (matrix_a%m%dist2d)) THEN
+          matrix_b%m%dist2d => matrix_a%m%dist2d
+          CALL distribution_2d_retain (matrix_b%m%dist2d, error)
+       ENDIF
+       matrix_b%m%sparsity_id = matrix_a%m%sparsity_id
     ENDIF
-    matrix_b%m%sparsity_id = matrix_a%m%sparsity_id
 
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_copy
+
+! *****************************************************************************
+!> \brief copy a matrix, retaining current sparsity
+!> \param[inout] matrix_b       target DBCSR matrix
+!> \param[in]    matrix_a       source DBCSR matrix
+!> \param[in,out] error         cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_copy_into_existing(matrix_b, matrix_a, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_into_existing', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: timing_handle, rel
+    CHARACTER                                :: data_type
+    INTEGER :: src_row, src_col, src_pos
+    LOGICAL :: src_tr, dst_tr
+    INTEGER :: dst_row, dst_col, dst_pos, row_size, col_size, rs, cs
+    TYPE(dbcsr_iterator) :: src_iter, dst_iter
+    REAL(KIND=dp), DIMENSION(:), POINTER :: src_r_dp, dst_r_dp
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    CALL cp_assert (dbcsr_get_data_type(matrix_b)&
+         .EQ. dbcsr_get_data_type(matrix_a), cp_fatal_level,&
+         cp_wrong_args_error, routineN, "Matrices have different data types.",&
+         error=error)
+    data_type = dbcsr_get_data_type (matrix_b)
+
+    CALL dbcsr_iterator_start (src_iter, matrix_a)
+    CALL dbcsr_iterator_start (dst_iter, matrix_b)
+    ! Iterate through the blocks of the source and destination
+    ! matrix. There are three possibilites: 1. copy the data for
+    ! blocks present in both; 2 skip source blocks not present in the
+    ! target; 3 zero blocks not present in the source.
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_iterator_next_block (src_iter, src_row, src_col, src_r_dp,&
+            src_tr)
+    CASE DEFAULT
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
+              routineN, "Invalid matrix type")
+    END SELECT
+    DO WHILE (dbcsr_iterator_blocks_left (src_iter))
+       CALL dbcsr_iterator_next_block (dst_iter, dst_row, dst_col, dst_r_dp,&
+            dst_tr, row_size=row_size, col_size=col_size)
+       ! Now find the source position that is greater or equal to the
+       ! target one. I.e, skip blocks that the target doesn't have.
+       rel = pos_relation (dst_row, dst_col, src_row, src_col)
+       DO WHILE (rel .EQ. 1 .AND. dbcsr_iterator_blocks_left (src_iter))
+          CALL dbcsr_iterator_next_block (src_iter, src_row, src_col,&
+               src_r_dp, src_tr)
+          rel = pos_relation (dst_row, dst_col, src_row, src_col)
+       ENDDO
+       SELECT CASE (rel)
+       CASE (-1, 1)
+           ! Target lags source or ran out of source
+          dst_r_dp(:) = 0.0_dp
+       CASE (0)
+          ! Copy the data
+          CALL cp_assert (SIZE (src_r_dp) .EQ. SIZE (dst_r_dp), cp_fatal_level,&
+               cp_internal_error, routineN, "Block sizes not equal!",&
+               error=error)
+          IF (src_tr .EQV. dst_tr) THEN
+             dst_r_dp(:) = src_r_dp(:)
+          ELSE
+             rs = row_size
+             cs = col_size
+             IF (src_tr) CALL swap (rs, cs)
+             CALL dbcsr_block_transpose (dst_r_dp, src_r_dp, rs, cs)
+          ENDIF
+       CASE default
+          CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
+               routineN, "Trouble syncing iterators", error=error)
+       END SELECT
+    END DO
+    CALL dbcsr_iterator_stop (src_iter)
+    CALL dbcsr_iterator_stop (dst_iter)
+
+    CALL timestop(timing_handle)
+  CONTAINS
+    !> \brief Determines the relation between two matrix positions.
+    !> \retval relation  Relation between positions 1 and 2.
+    !>                    0: same
+    !>                   -1: pos1 < pos2
+    !>                    1: pos1 > pos2
+    elemental FUNCTION pos_relation (row1, col1, row2, col2)&
+         RESULT (relation)
+    INTEGER, INTENT(in)                      :: row1, col1, row2, col2
+    INTEGER                                  :: relation
+
+      IF (row1 .LT. row2) THEN
+         relation = -1
+      ELSEIF (row1 .GT. row2) THEN
+         relation = 1
+      ELSE ! rows are equal, check column
+         IF (col1 .LT. col2) THEN
+            relation = -1
+         ELSEIF (col1 .GT. col2) THEN
+            relation = 1
+         ELSE
+            relation = 0
+         ENDIF
+      ENDIF
+    END FUNCTION pos_relation
+  END SUBROUTINE dbcsr_copy_into_existing
 
 
 ! *****************************************************************************

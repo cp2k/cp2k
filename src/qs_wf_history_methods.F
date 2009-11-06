@@ -734,8 +734,10 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
           DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
-             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,t0_state%rho_frozen%rho_ao(ispin)%matrix,&
-                  error=error)
+             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+                             t0_state%rho_frozen%rho_ao(ispin)%matrix,&
+                             keep_sparsity=.TRUE.,&
+                             error=error)
           END DO
           !FM updating rho_ao directly with t0_state%rho_ao would have the
           !FM wrong matrix structure
@@ -750,8 +752,10 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
-                  error=error)
+             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+                             t0_state%rho_ao(ispin)%matrix,&
+                             keep_sparsity=.TRUE.,&
+                             error=error)
           END DO
           rho%rho_g_valid=.TRUE.
           IF(my_kg_gpw) THEN
@@ -796,8 +800,10 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
-                  error=error)
+             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+                             t0_state%rho_ao(ispin)%matrix,&
+                             keep_sparsity=.TRUE.,&
+                             error=error)
           END DO
           !FM updating rho_ao directly with t0_state%rho_ao would have the
           !FM wrong matrix structure
