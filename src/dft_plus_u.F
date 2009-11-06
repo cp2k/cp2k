@@ -23,16 +23,15 @@ MODULE dft_plus_u
                                              Dudarev1998,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
+  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type,&
+                                             dbcsr_plus_fm_fm_t,&
                                              dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_ger,&
-                                             cp_fm_upper_to_full
+                                             cp_fm_transpose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -50,7 +49,6 @@ MODULE dft_plus_u
                                              dbcsr_iterator_stop
   USE dbcsr_operations,                ONLY: dbcsr_get_block_diag,&
                                              dbcsr_get_block_p,&
-                                             dbcsr_replicate_all,&
                                              dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
@@ -225,7 +223,7 @@ CONTAINS
     INTEGER :: atom_a, handle, i, i0, iatom, ikind, iorb, isb, iset, isgf, &
       ishell, ispin, j, jsb, jset, jsgf, jshell, lu, m, max_scf, n, natom, &
       natom_of_kind, nkind, norb, nsb, nsbsize, nset, nsgf, nsgf_kind, nspin, &
-      sgfa, stat
+      stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
     INTEGER, DIMENSION(1)                    :: iloc
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell, orbitals
@@ -234,14 +232,14 @@ CONTAINS
       fm_work2_local_alloc, found, just_energy, smear, tr
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind, orb_occ
     REAL(KIND=dp)                            :: eps_scf, fspin, occ, trq, &
-                                                trq2, u_minus_j, v
+                                                trq2, u_minus_j
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: q_eigval
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: q_eigvec, q_matrix, q_work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: q_block, v_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind, kind_a
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
     TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_q, sm_s, sm_v, &
@@ -401,16 +399,15 @@ CONTAINS
 
     ! Create local block diagonal matrices
 
-    ALLOCATE (sm_q,STAT=stat) ! distributed
+    ALLOCATE (sm_q,STAT=stat)
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     CALL dbcsr_init(sm_q,error=error)
     CALL dbcsr_get_block_diag(sm_s,sm_q,error=error)
 
-    ALLOCATE (sm_v,STAT=stat) ! replicated
+    ALLOCATE (sm_v,STAT=stat)
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     CALL dbcsr_init(sm_v,error=error)
     CALL dbcsr_get_block_diag(sm_s,sm_v,error=error)
-    CALL dbcsr_replicate_all(sm_v)
 
     ! Loop over all spins
 
@@ -808,74 +805,13 @@ CONTAINS
         END IF
       END DO ! next atomic kind "ikind"
 
-      ! Scatter DFT+U potential matrix
-
-      IF (ASSOCIATED(sm_h).OR.ASSOCIATED(sm_w)) THEN
-        DO ikind=1,nkind
-          IF (is_plus_u_kind(ikind)) THEN
-            kind_a => atomic_kind_set(ikind)
-            CALL get_atomic_kind(atomic_kind=kind_a,&
-                                 atom_list=atom_list,&
-                                 natom=natom_of_kind)
-            DO iatom=1,natom_of_kind
-              atom_a = atom_list(iatom)
-              CALL dbcsr_get_block_p(matrix=sm_v,&
-                                     row=atom_a,&
-                                     col=atom_a,&
-                                     block=v_block,&
-                                     tr=tr,&
-                                     found=found)
-              CALL mp_sum(v_block,qs_env%para_env%group)
-            END DO
-          END IF
-        END DO
-      END IF
-
       ! Add V(i,j)[U] to V(i,j)[DFT]
 
       IF (ASSOCIATED(sm_h)) THEN
 
-        CALL copy_dbcsr_to_fm(sm_h,fm_work1)
-        CALL cp_fm_upper_to_full(matrix=fm_work1,work=fm_work2,error=error)
-
-        DO ikind=1,nkind
-
-          IF (.NOT.is_plus_u_kind(ikind)) CYCLE
-
-          kind_a => atomic_kind_set(ikind)
-
-          CALL get_atomic_kind(atomic_kind=kind_a,&
-                               atom_list=atom_list,&
-                               natom=natom_of_kind)
-
-          DO iatom=1,natom_of_kind
-
-            atom_a = atom_list(iatom)
-
-            CALL dbcsr_get_block_p(matrix=sm_v,&
-                                   row=atom_a,&
-                                   col=atom_a,&
-                                   block=v_block,&
-                                   tr=tr,&
-                                   found=found)
-
-            sgfa = first_sgf_atom(atom_a) - 1
-
-            DO isgf=1,SIZE(v_block,1)
-              DO jsgf=1,SIZE(v_block,2)
-                IF (v_block(isgf,jsgf) /= 0.0_dp) THEN
-                  v = v_block(isgf,jsgf)
-                  CALL cp_fm_ger(v,fm_s_half,1,sgfa+isgf,fm_s_half,1,sgfa+jsgf,&
-                                 fm_work1,error)
-                END IF
-              END DO
-            END DO
-
-          END DO ! next atom "iatom" of atomic kind "ikind"
-
-        END DO ! Next atomic kind "ikind"
-
-        CALL copy_fm_to_dbcsr(fm_work1,sm_h,keep_sparsity=.TRUE.)
+        CALL dbcsr_sm_fm_multiply(sm_v,fm_s_half,fm_work1,nsgf,error=error)
+        CALL cp_fm_transpose(fm_work1,fm_work2,error=error)
+        CALL dbcsr_plus_fm_fm_t(sm_h,fm_s_half,fm_work2,nsgf,error=error)
 
       END IF ! An update of the Hamiltonian matrix is requested
 
