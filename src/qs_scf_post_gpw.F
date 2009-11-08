@@ -184,13 +184,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, ispin, istat, n, n_mo(2), nao, nelectron, nhomo, &
-      nlumo, nlumos, nmo, nmoloc(2), nmos, output_unit, unit_nr
+    INTEGER :: handle, homo, i, ilast_intocc, ispin, istat, n, n_mo(2), nao, &
+      nelectron, nhomo, nlumo, nlumos, nmo, nmoloc(2), nmos, output_unit, &
+      unit_nr
     LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, failure, has_homo, &
-      has_lumo, ionode, my_localized_wfn, p_loc, uniform_occ
+      has_lumo, ionode, my_localized_wfn, p_loc
     REAL(dp)                                 :: e_kin, e_kinAtt
-    REAL(KIND=dp)                            :: gap, homo_lumo(2,2), maxocc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    REAL(KIND=dp)                            :: gap, homo_lumo(2,2)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, occupation
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -238,7 +239,7 @@ CONTAINS
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env, scf_control, &
          unoccupied_orbs, mo_eigenvalues, unoccupied_evals, fm_struct_tmp, &
          molecule_set, tddfpt_control, subsys, particles, input, &
-         print_key,kinetic_m)
+         print_key,kinetic_m, occupation)
 
     has_homo=.FALSE.
     has_lumo=.FALSE.
@@ -385,11 +386,57 @@ CONTAINS
              ! Some setup for MOs to be localized
              nmoloc = 0
              DO ispin = 1,dft_control%nspins
-                CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,maxocc=maxocc)
+                CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,homo=homo,nao=nao,&
+                     mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, occupation_numbers=occupation)
+                ! Get eigenstates
+                IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)==0) THEN
+                   IF (ionode) WRITE(output_unit,*) " "
+                   IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
+                   IF (homo .NE. nmo) THEN
+                      IF (ionode) WRITE(output_unit,*) " and ",nmo-homo," added MO eigenvalues"
+                   ENDIF
+                   IF (ionode) WRITE(output_unit,*) "---------------------------------------------"
+                   CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
+                        evals_arg=mo_eigenvalues, scr=output_unit, &
+                        ionode=ionode, do_rotation=.TRUE.,error=error)
+
+                   CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
+                   IF (ionode) WRITE(output_unit,'(T2,A,F12.6)') "Fermi Energy [eV] :",mos(ispin)%mo_set%mu*evolt
+                END IF
+
                 IF(qs_loc_env%localized_wfn_control%set_of_states == state_loc_all) THEN
-                   nmoloc(ispin) = NINT(nelectron/maxocc)
+                   nmoloc(ispin) = NINT(nelectron/occupation(1))
+                   IF(n_mo(ispin)>homo) THEN
+                     DO i= nmoloc(ispin),1,-1
+                       IF(occupation(1)-occupation(i) < qs_loc_env%localized_wfn_control%eps_occ) THEN
+                         ilast_intocc = i
+                         EXIT
+                       END IF
+                     END DO
+                   ELSE
+                    ilast_intocc = nmoloc(ispin)
+                   END IF
+                   nmoloc(ispin) = ilast_intocc
+                   IF(nmoloc(ispin)/=nmo) THEN
+                     IF (ionode) WRITE(output_unit,"(/,T2,A,I6,A,F12.6,A,F12.6,A)") "LOCALIZATION| The first ",&
+                        ilast_intocc," occupied orbitals are localized, corresponding to energy range from ",&
+                        mo_eigenvalues(1), " to ",  mo_eigenvalues(ilast_intocc) , " [a.u.]." 
+                   END IF
                 ELSE
                    nmoloc(ispin) = MIN(qs_loc_env%localized_wfn_control%nloc_states(1) ,n_mo(ispin))
+                   IF (ionode) WRITE(output_unit,"(/,T2,A,I6,A)") "LOCALIZATION| ",&
+                       nmoloc(ispin)," occupied orbitals are localized, as given in the input list."
+                   IF(n_mo(ispin)>homo) THEN
+                     ! write warning
+                     CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                        "User requested the calculation of localized wavefunction from a subset of MOs, "//&
+                        "since there are MOs with different occupations, check that in the selected subset "//&
+                        " the MOs have same occupation, because the electronic density is not invariant with "//&
+                        "respect to rotations among orbitals with different occupation numbers!"//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
+
+                   END IF
                 ENDIF
              ENDDO  ! ispin
              CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mo,dft_control%nspins,error=error)
@@ -416,32 +463,15 @@ CPSourceFileRef,&
           ELSE
              nmos=0
              DO ispin=1,dft_control%nspins
-                CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,uniform_occupation=uniform_occ)
-                CPPrecondition(uniform_occ,cp_failure_level,routineP,error,failure)
+                CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo)
                 nmos=MAX(nmos,nmo)
              END DO
              qs_loc_env%tag_mo="HOMO"
              DO ispin=1,dft_control%nspins
-                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                                eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
-                ! Get eigenstates
-                IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)==0) THEN
-                   IF (ionode) WRITE(output_unit,*) " "
-                   IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
-                   IF (homo .NE. nmo) THEN
-                      IF (ionode) WRITE(output_unit,*) " and ",nmo-homo," added MO eigenvalues"
-                   ENDIF
-                   IF (ionode) WRITE(output_unit,*) "---------------------------------------------"
-                   ! Also rotate the OT derivs, since they are needed for force calculations
-                   IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-                      mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
-                   ELSE
-                      mo_coeff_deriv=>NULL()
-                   ENDIF
-                   CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
-                        evals_arg=mo_eigenvalues, scr=output_unit, &
-                        ionode=ionode, do_rotation=.TRUE.,error=error)
-                END IF
+ !
+                CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo,homo=homo,nao=nao,&
+                     mo_coeff=mo_coeff)
+!
                 NULLIFY(mo_localized)
                 CALL cp_fm_create(mo_localized,mo_coeff%matrix_struct,error=error)
                 CALL cp_fm_to_fm(mo_coeff,mo_localized,error=error)

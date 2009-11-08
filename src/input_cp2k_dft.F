@@ -664,6 +664,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EPS_OCCUPATION",&
+            description="Tolerance in the occupation number to select only fully occupied orbitals for the rotation",&
+            usage="EPS_OCCUPATION 1.E-5", default_r_val=1.0E-8_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="OUT_ITER_EACH",&
             description="Every how many iterations of the localization algorithm"//&
             "(Jacobi) the tolerance value is printed out",&

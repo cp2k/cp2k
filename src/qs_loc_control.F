@@ -64,6 +64,7 @@ MODULE qs_loc_control
     REAL(KIND=dp)                        :: eps_localization
     REAL(KIND=dp)                        :: max_crazy_angle
     REAL(KIND=dp)                        :: crazy_scale
+    REAL(KIND=dp)                        :: eps_occ
     LOGICAL                              :: crazy_use_diag
     LOGICAL                              :: print_cubes, jacobi_fallback
     LOGICAL                              :: print_centers
@@ -231,6 +232,8 @@ CONTAINS
                r_val=localized_wfn_control%max_crazy_angle,error=error)
           CALL section_vals_val_get(loc_section,"CRAZY_SCALE",&
                r_val=localized_wfn_control%crazy_scale,error=error)
+          CALL section_vals_val_get(loc_section,"EPS_OCCUPATION",&
+               r_val=localized_wfn_control%eps_occ,error=error)
           CALL section_vals_val_get(loc_section,"CRAZY_USE_DIAG",&
                l_val=localized_wfn_control%crazy_use_diag,error=error)
           CALL section_vals_val_get(loc_section,"OUT_ITER_EACH",&
@@ -299,6 +302,9 @@ CONTAINS
              CASE (state_loc_all)
                 WRITE (UNIT=output_unit,FMT="(T2,A)")&
                      "LOCALIZE| Orbitals to be localized: All the occupied"
+                WRITE (UNIT=output_unit,FMT="(T2,A,F16.8)")&
+                     "LOCALIZE| If fractional occupation, fully occupied MOs are those within occupation tolerance of ", &
+                       localized_wfn_control%eps_occ
              CASE (state_loc_range)
                 WRITE (UNIT=output_unit,FMT="(T2,A,T65,2I8)")&
                      "LOCALIZE| Orbitals to be localized: Those with index between ",&

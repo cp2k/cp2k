@@ -26,3 +26,7 @@ si8_broy_lsd.inp        1
 md-01.inp               2
 # bugs in berry phase dipole
 bug_ai_moments.inp     39
+#
+si8_broy_stm.inp         1
+si8_broy_wc.inp        23
+si8_broy_wc_crazy.inp  23

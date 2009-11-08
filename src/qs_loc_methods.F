@@ -822,7 +822,6 @@ CONTAINS
                    centers(1:6,i) = localized_wfn_control%centers_set(ispin)%array(1:6,j)
                    EXIT
                 ENDIF
-                centers(1:6,i) = 0.0_dp
              END DO
           END DO ! ncubes
 

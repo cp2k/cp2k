@@ -397,7 +397,7 @@ CONTAINS
                 ! Get the index in the full set
                 imo = localized_wfn_control%loc_states(i)
                 occ_imo = occupations(imo)
-                IF(ABS(occ_imo-my_occ) > EPSILON(1.0_dp)) THEN
+                IF(ABS(occ_imo-my_occ) > localized_wfn_control% eps_occ) THEN
                    IF(localized_wfn_control%localization_method /= do_loc_none) &
                         CALL stop_program(routineP,"States with different occupations"//&
                         " cannot be rotated together")
@@ -413,7 +413,7 @@ CONTAINS
           ELSE
              my_occ  = occupations( lb )
              occ_imo = occupations( ub )
-             IF(ABS(occ_imo-my_occ) >  EPSILON(1.0_dp)) THEN
+             IF(ABS(occ_imo-my_occ) >  localized_wfn_control% eps_occ) THEN
                 IF(localized_wfn_control%localization_method /= do_loc_none) &
                      CALL stop_program(routineP,"States with different occupations"//&
                      " cannot be rotated together")

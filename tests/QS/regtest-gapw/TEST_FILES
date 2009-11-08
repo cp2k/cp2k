@@ -34,5 +34,5 @@ Na_atom.inp        1
 #
 h2o_dist.inp       1
 H2S-gapw-gop.inp       1
-H2S-gapw-ot.inp
-H2S-gapw-gop-ot.inp
+H2S-gapw-ot.inp        1
+H2S-gapw-gop-ot.inp    1
