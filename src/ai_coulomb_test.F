@@ -34,7 +34,7 @@ MODULE ai_coulomb_test
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_coulomb_test'
 
-  REAL(KIND=dp), PARAMETER :: threshold=1.0E-8_dp
+  REAL(KIND=dp), PARAMETER :: threshold=1.0E-6_dp
 
   PRIVATE
 
@@ -154,8 +154,8 @@ CONTAINS
          END DO
          tend = m_walltime ( )
          t = tend - tstart + threshold
-         perf = ii*nco(l)**2 * REAL(npgfa*npgfc,dp)/t
-         WRITE(iw,'(A,T40,A,T66,F15.0)') " Performance [integrals/s] ",i2c(l),perf
+         perf = REAL(ii*nco(l)**2)*1.e-6_dp * REAL(npgfa*npgfc,dp)/t
+         WRITE(iw,'(A,T40,A,T66,F15.3)') " Performance [Mintegrals/s] ",i2c(l),perf
          DEALLOCATE(f,v,vac,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END DO
@@ -193,8 +193,8 @@ CONTAINS
          END DO
          tend = m_walltime ( )
          t = tend - tstart + threshold
-         perf = ii*REAL(ll,dp)**4 * REAL(na*nb,dp)/t
-         WRITE(iw,'(A,T40,A,T66,F15.0)') " Performance [integrals/s] ",i2g(l),perf
+         perf = ii*REAL(ll,dp)**4*1.e-6_dp * REAL(na*nb,dp)/t
+         WRITE(iw,'(A,T40,A,T66,F15.3)') " Performance [Mintegrals/s] ",i2g(l),perf
          DEALLOCATE(iab,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END DO
@@ -226,8 +226,8 @@ CONTAINS
          END DO
          tend = m_walltime ( )
          t = tend - tstart + threshold
-         perf = ii*REAL(ll,dp)**4 * REAL(npgfa*npgfc*nb,dp)/t
-         WRITE(iw,'(A,T40,A,T66,F15.0)') " Performance [integrals/s] ",i2f(l),perf
+         perf = ii*REAL(ll,dp)**4*1.e-6 * REAL(npgfa*npgfc*nb,dp)/t
+         WRITE(iw,'(A,T40,A,T66,F15.3)') " Performance [Mintegrals/s] ",i2f(l),perf
          DEALLOCATE(iabc,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END DO
