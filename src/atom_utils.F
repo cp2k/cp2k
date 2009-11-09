@@ -19,10 +19,10 @@ MODULE atom_utils
   USE basis_set_types,                 ONLY: srules
   USE erf_fn,                          ONLY: erf
   USE f77_blas
+  USE input_constants
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE lapack
-  USE input_constants
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              fourpi,&
@@ -67,7 +67,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: ostring
     REAL(Kind=dp), DIMENSION(0:3, 10)        :: occupation, wfnocc
-    INTEGER, OPTIONAL, INTENT(OUT)           :: multiplicity
+    INTEGER, INTENT(OUT), OPTIONAL           :: multiplicity
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_set_occupation', &
@@ -76,7 +76,7 @@ CONTAINS
     CHARACTER(len=2)                         :: elem
     CHARACTER(LEN=default_string_length)     :: pstring
     INTEGER                                  :: i, i1, i2, ielem, is, jd, jf, &
-                                                jp, js, k, l, n, mult
+                                                jp, js, k, l, mult, n
     LOGICAL                                  :: failure
     REAL(Kind=dp)                            :: e0, el, oo
 
@@ -1356,9 +1356,8 @@ CONTAINS
   END SUBROUTINE wigner_slater_functional
 ! *****************************************************************************
   FUNCTION atom_consistent_method(method,multiplicity) RESULT(consistent)
-    INTEGER, INTENT(IN)                   :: method
-    INTEGER, INTENT(IN)                   :: multiplicity
-    LOGICAL                               :: consistent
+    INTEGER, INTENT(IN)                      :: method, multiplicity
+    LOGICAL                                  :: consistent
 
     SELECT CASE (method)
       CASE DEFAULT

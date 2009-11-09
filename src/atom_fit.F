@@ -19,11 +19,11 @@ MODULE atom_fit
        GTO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, &
        atom_p_type, atom_potential_type, atom_type, create_opgrid, &
        opgrid_type, release_opgrid, set_atom
-  USE atom_utils,                      ONLY: atom_denmat,&
+  USE atom_utils,                      ONLY: atom_consistent_method,&
+                                             atom_denmat,&
                                              atom_density,&
                                              atom_orbital_charge,&
                                              atom_orbital_nodes,&
-                                             atom_consistent_method,&
                                              get_maxn_occ,&
                                              integrate_grid
   USE cp_files,                        ONLY: close_file,&
@@ -349,10 +349,10 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: wem
     REAL(KIND=dp), DIMENSION(:), POINTER     :: w
-    TYPE(opt_state_type)                     :: ostate
     TYPE(atom_type), POINTER                 :: atom
+    TYPE(opt_state_type)                     :: ostate
 
-    ! weights for the optimization
+! weights for the optimization
 
     CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend, error=error)
     CALL section_vals_val_get(powell_section,"STEP_SIZE", r_val=ostate%rhobeg, error=error)

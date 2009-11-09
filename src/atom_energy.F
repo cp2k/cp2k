@@ -23,8 +23,8 @@ MODULE atom_energy
        atom_type, create_atom_orbs, create_atom_type, init_atom_basis, &
        init_atom_potential, read_atom_opt_section, release_atom_basis, &
        release_atom_potential, release_atom_type, set_atom
-  USE atom_utils,                      ONLY: atom_set_occupation,&
-                                             atom_consistent_method,&
+  USE atom_utils,                      ONLY: atom_consistent_method,&
+                                             atom_set_occupation,&
                                              get_maxl_occ,&
                                              get_maxn_occ
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -67,7 +67,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, maxl, mb, &
-      method, mo, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz, multiplicity
+      method, mo, multiplicity, n_meth, n_rep, nder, num_gto, reltyp, zcore, &
+      zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, &

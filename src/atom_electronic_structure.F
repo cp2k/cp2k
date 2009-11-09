@@ -59,7 +59,6 @@ CONTAINS
 
     INTEGER                                  :: handle, method
     LOGICAL                                  :: failure
-    TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
 
     failure = .FALSE.
 
@@ -361,11 +360,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_unrestricted', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iter, l, max_iter, &
-                                                method, reltyp, k
+    INTEGER                                  :: handle, i, iter, k, l, &
+                                                max_iter, method, reltyp
     LOGICAL                                  :: do_hfx, doguess, failure, &
                                                 need_x, need_xc
-    REAL(KIND=dp)                            :: deps, eps_scf, hf_frac, nm, ne
+    REAL(KIND=dp)                            :: deps, eps_scf, hf_frac, ne, nm
     TYPE(atom_history_type)                  :: history
     TYPE(opgrid_type), POINTER               :: cpot, density
     TYPE(opmat_type), POINTER                :: fmat, hcore, jmat, kmat, xcmat
@@ -470,6 +469,7 @@ CONTAINS
       hcore%op = hcore%op + atom%potential%acon * atom%integrals%conf
     END IF
 
+!uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu
     NULLIFY(fmat,jmat,kmat,xcmat)
     CALL create_opmat(fmat,atom%basis%nbas,error)
     CALL create_opmat(jmat,atom%basis%nbas,error)
