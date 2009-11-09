@@ -22,6 +22,7 @@ MODULE atom_utils
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE lapack
+  USE input_constants
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              fourpi,&
@@ -46,7 +47,7 @@ MODULE atom_utils
   PUBLIC :: exchange_numeric, exchange_semi_analytic
   PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix
   PUBLIC :: slater_density, wigner_slater_functional
-  PUBLIC :: atom_orbital_charge, atom_orbital_nodes
+  PUBLIC :: atom_orbital_charge, atom_orbital_nodes, atom_consistent_method
 
 !-----------------------------------------------------------------------------!
 
@@ -62,10 +63,11 @@ MODULE atom_utils
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE atom_set_occupation(ostring,occupation,wfnocc,error)
+  SUBROUTINE atom_set_occupation(ostring,occupation,wfnocc,multiplicity,error)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: ostring
     REAL(Kind=dp), DIMENSION(0:3, 10)        :: occupation, wfnocc
+    INTEGER, OPTIONAL, INTENT(OUT)           :: multiplicity
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_set_occupation', &
@@ -74,7 +76,7 @@ CONTAINS
     CHARACTER(len=2)                         :: elem
     CHARACTER(LEN=default_string_length)     :: pstring
     INTEGER                                  :: i, i1, i2, ielem, is, jd, jf, &
-                                                jp, js, k, l, n
+                                                jp, js, k, l, n, mult
     LOGICAL                                  :: failure
     REAL(Kind=dp)                            :: e0, el, oo
 
@@ -86,14 +88,31 @@ CONTAINS
     CPPrecondition(SIZE(ostring) > 0,cp_failure_level,routineP,error,failure)
 
     is = 1
-    IF ( INDEX(ostring(1),"CORE") /= 0 ) is = 2   !Pseudopotential detected
-    IF ( INDEX(ostring(1),"none") /= 0 ) is = 2   !no electrons, used with CORE
-    IF ( INDEX(ostring(1),"[") /= 0 ) THEN
-      ! core occupation from element [XX]
-      i1 = INDEX(ostring(1),"[")
-      i2 = INDEX(ostring(1),"]")
+    ! look for multiplicity
+    mult = -1 !not specified
+    IF ( INDEX(ostring(is),"(") /= 0 ) THEN
+      i1 = INDEX(ostring(is),"(")
+      i2 = INDEX(ostring(is),")")
       CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,error,failure)
-      elem = ostring(1)(i1+1:i2-1)
+      elem = ostring(is)(i1+1:i2-1)
+      IF ( INDEX(elem,"HS") /= 0 ) THEN
+        mult=-2 !High spin
+      ELSE IF ( INDEX(elem,"LS") /= 0 ) THEN
+        mult=-3 !Low spin
+      ELSE
+        READ(elem,*) mult
+      END IF
+      is=is+1
+    END IF
+
+    IF ( INDEX(ostring(is),"CORE") /= 0 ) is = is+1   !Pseudopotential detected
+    IF ( INDEX(ostring(is),"none") /= 0 ) is = is+1   !no electrons, used with CORE
+    IF ( INDEX(ostring(is),"[") /= 0 ) THEN
+      ! core occupation from element [XX]
+      i1 = INDEX(ostring(is),"[")
+      i2 = INDEX(ostring(is),"]")
+      CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,error,failure)
+      elem = ostring(is)(i1+1:i2-1)
       ielem=0
       DO k=1,nelem
         IF(elem==ptable(k)%symbol) THEN
@@ -111,7 +130,7 @@ CONTAINS
           IF ( e0 <= 0._dp ) EXIT
         END DO
       END DO
-      is = 2
+      is = is+1
     END IF
     DO i=is,SIZE(ostring)
       pstring = ostring(i)
@@ -170,6 +189,42 @@ CONTAINS
         END IF
       END DO
     END DO
+
+    !Check for consistency with multiplicity
+    IF (mult /= -1) THEN
+      ! count open shells
+      js=0
+      DO l=0,3
+        k=2*(2*l+1)
+        DO i=1,10
+          IF(wfnocc(l,i) /= 0._dp .AND. wfnocc(l,i) /= REAL(k,dp)) THEN
+            js = js+1
+            i1 = l
+            i2 = i
+          END IF
+        END DO
+      END DO
+ 
+      IF (js==0 .AND. mult==-2) mult=1
+      IF (js==0) THEN
+        CPAssert(mult==1,cp_failure_level,routineP,error,failure)
+      END IF
+      IF (js==1) THEN
+        l=i1
+        i=i2
+        k = wfnocc(l,i)
+        IF(k > (2*l+1)) k=2*(2*l+1)-k
+        IF(mult==-2) mult=k+1
+        IF(mult==-3) mult=MOD(k,2)+1
+        CPAssert(MOD(k+1-mult,2)==0,cp_failure_level,routineP,error,failure)
+      END IF
+      IF (js>1) THEN
+        CPAssert(mult==-2,cp_failure_level,routineP,error,failure)
+      END IF
+      
+    END IF
+
+    IF(PRESENT(multiplicity)) multiplicity = mult
 
   END SUBROUTINE atom_set_occupation
 
@@ -1299,6 +1354,28 @@ CONTAINS
     END DO
 
   END SUBROUTINE wigner_slater_functional
+! *****************************************************************************
+  FUNCTION atom_consistent_method(method,multiplicity) RESULT(consistent)
+    INTEGER, INTENT(IN)                   :: method
+    INTEGER, INTENT(IN)                   :: multiplicity
+    LOGICAL                               :: consistent
+
+    SELECT CASE (method)
+      CASE DEFAULT
+        consistent=.FALSE.
+      CASE (do_rks_atom)
+        consistent=(multiplicity==-1)
+      CASE (do_uks_atom)
+        consistent=(multiplicity/=-1)
+      CASE (do_rhf_atom)
+        consistent=(multiplicity==-1)
+      CASE (do_uhf_atom)
+        consistent=(multiplicity/=-1)
+      CASE (do_rohf_atom)
+        consistent=.FALSE.
+    END SELECT
+
+  END FUNCTION atom_consistent_method
 ! *****************************************************************************
 
 END MODULE atom_utils

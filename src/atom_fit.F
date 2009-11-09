@@ -23,6 +23,7 @@ MODULE atom_fit
                                              atom_density,&
                                              atom_orbital_charge,&
                                              atom_orbital_nodes,&
+                                             atom_consistent_method,&
                                              get_maxn_occ,&
                                              integrate_grid
   USE cp_files,                        ONLY: close_file,&
@@ -349,8 +350,9 @@ CONTAINS
       DIMENSION(:, :)                        :: wem
     REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(opt_state_type)                     :: ostate
+    TYPE(atom_type), POINTER                 :: atom
 
-! weights for the optimization
+    ! weights for the optimization
 
     CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend, error=error)
     CALL section_vals_val_get(powell_section,"STEP_SIZE", r_val=ostate%rhobeg, error=error)
@@ -407,33 +409,36 @@ CONTAINS
     !set all reference values
     DO i=1,SIZE(atom_info,1)
       DO j=1,SIZE(atom_info,2)
-        atom_info(i,j)%atom%weight = wem(i,j)
-        ncore = get_maxn_occ(atom_info(i,j)%atom%state%core)
-        DO l=0,3
-          np = atom_info(i,j)%atom%state%maxn_calc(l)
-          DO k=1,np
-            CALL atom_orbital_charge(charge,atom_refs(i,j)%atom%orbitals%wfn(:,ncore(l)+k,l),&
-                                     rcov,l,atom_refs(i,j)%atom%basis,error)
-            atom_info(i,j)%atom%orbitals%refene(k,l) = atom_refs(i,j)%atom%orbitals%ener(ncore(l)+k,l)
-            atom_info(i,j)%atom%orbitals%refchg(k,l) = charge
-            IF ( k > atom_info(i,j)%atom%state%maxn_occ(l) ) THEN
-              atom_info(i,j)%atom%orbitals%wrefene(k,l) = w_virt
-              atom_info(i,j)%atom%orbitals%wrefchg(k,l) = w_virt
-            ELSEIF ( k < atom_info(i,j)%atom%state%maxn_occ(l) ) THEN
-              atom_info(i,j)%atom%orbitals%wrefene(k,l) = w_semi
-              atom_info(i,j)%atom%orbitals%wrefchg(k,l) = w_semi
-            ELSE
-              atom_info(i,j)%atom%orbitals%wrefene(k,l) = w_valence
-              atom_info(i,j)%atom%orbitals%wrefchg(k,l) = w_valence
-            END IF
+        atom => atom_info(i,j)%atom
+        IF(atom_consistent_method(atom%method_type,atom%state%multiplicity)) THEN
+          atom%weight = wem(i,j)
+          ncore = get_maxn_occ(atom_info(i,j)%atom%state%core)
+          DO l=0,3
+            np = atom%state%maxn_calc(l)
+            DO k=1,np
+              CALL atom_orbital_charge(charge,atom_refs(i,j)%atom%orbitals%wfn(:,ncore(l)+k,l),&
+                                       rcov,l,atom_refs(i,j)%atom%basis,error)
+              atom%orbitals%refene(k,l) = atom_refs(i,j)%atom%orbitals%ener(ncore(l)+k,l)
+              atom%orbitals%refchg(k,l) = charge
+              IF ( k > atom%state%maxn_occ(l) ) THEN
+                atom%orbitals%wrefene(k,l) = w_virt
+                atom%orbitals%wrefchg(k,l) = w_virt
+              ELSEIF ( k < atom%state%maxn_occ(l) ) THEN
+                atom%orbitals%wrefene(k,l) = w_semi
+                atom%orbitals%wrefchg(k,l) = w_semi
+              ELSE
+                atom%orbitals%wrefene(k,l) = w_valence
+                atom%orbitals%wrefchg(k,l) = w_valence
+              END IF
+            END DO
+            DO k=1,np
+              atom%orbitals%refnod(k,l) = REAL(k-1,KIND=dp)
+              ! we only enforce 0-nodes for the first state
+              IF ( k==1 .AND. atom%state%occupation(l,k)/=0._dp ) atom%orbitals%wrefnod(k,l) = w_node
+            END DO
           END DO
-          DO k=1,np
-            atom_info(i,j)%atom%orbitals%refnod(k,l) = REAL(k-1,KIND=dp)
-            ! we only enforce 0-nodes for the first state
-            IF ( k==1 .AND. atom_info(i,j)%atom%state%occupation(l,k)/=0._dp ) atom_info(i,j)%atom%orbitals%wrefnod(k,l) = w_node
-          END DO
-        END DO
-        CALL calculate_atom(atom_info(i,j)%atom,0,error=error)
+          CALL calculate_atom(atom,0,error=error)
+        END IF
       END DO
     END DO
 
@@ -443,22 +448,24 @@ CONTAINS
     WRITE(iunit,'(/," POWELL| Initial errors of target values")')
     DO i=1,SIZE(atom_info,1)
       DO j=1,SIZE(atom_info,2)
-        WRITE(iunit,'(/," Reference configuration  ",T31,i5,T50," Method number ",T76,i5)') i,j
-        WRITE(iunit,'("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
-        DO l=0,3
-          np = atom_info(i,j)%atom%state%maxn_calc(l)
-          IF (np > 0) THEN
-            DO k=1,np
-              oc = atom_info(i,j)%atom%state%occupation(l,k)
-              eig = atom_info(i,j)%atom%orbitals%ener(k,l)
-              deig = eig - atom_info(i,j)%atom%orbitals%refene(k,l)
-              CALL atom_orbital_charge(charge,atom_info(i,j)%atom%orbitals%wfn(:,k,l),&
-                                     rcov,l,atom_info(i,j)%atom%basis,error)
-              drho = charge - atom_info(i,j)%atom%orbitals%refchg(k,l)
-              WRITE(iunit,'(I5,I5,F14.2,F21.10,F18.10,F17.10)') l,k,oc,eig*evolt,deig*evolt,drho
-            END DO
-          END IF
-        END DO
+        atom => atom_info(i,j)%atom
+        IF(atom_consistent_method(atom%method_type,atom%state%multiplicity)) THEN
+          WRITE(iunit,'(/," Reference configuration  ",T31,i5,T50," Method number ",T76,i5)') i,j
+          WRITE(iunit,'("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
+          DO l=0,3
+            np = atom%state%maxn_calc(l)
+            IF (np > 0) THEN
+              DO k=1,np
+                oc = atom%state%occupation(l,k)
+                eig = atom%orbitals%ener(k,l)
+                deig = eig - atom%orbitals%refene(k,l)
+                CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
+                drho = charge - atom%orbitals%refchg(k,l)
+                WRITE(iunit,'(I5,I5,F14.2,F21.10,F18.10,F17.10)') l,k,oc,eig*evolt,deig*evolt,drho
+              END DO
+            END IF
+          END DO
+        END IF
       END DO
       WRITE(iunit,*)
     END DO
@@ -500,27 +507,29 @@ CONTAINS
       WRITE(iunit,'(" POWELL| Final value of function",T61,F20.10)') ostate%f
 
       CALL put_pseudo_param(x,ppot%gth_pot,error)
-      CALL pseudo_fit (atom_info,ppot,ostate%f,error)
+      CALL pseudo_fit(atom_info,ppot,ostate%f,error)
 
       WRITE(iunit,'(/," POWELL| Final errors of target values")') 
       DO i=1,SIZE(atom_info,1)
         DO j=1,SIZE(atom_info,2)
-          WRITE(iunit,'(/," Reference configuration  ",T31,i5,T50," Method number ",T76,i5)') i,j
-          WRITE(iunit,'("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
-          DO l=0,3
-            np = atom_info(i,j)%atom%state%maxn_calc(l)
-            IF (np > 0) THEN
-              DO k=1,np
-                oc = atom_info(i,j)%atom%state%occupation(l,k)
-                eig = atom_info(i,j)%atom%orbitals%ener(k,l)
-                deig = eig - atom_info(i,j)%atom%orbitals%refene(k,l)
-                CALL atom_orbital_charge(charge,atom_info(i,j)%atom%orbitals%wfn(:,k,l),&
-                                       rcov,l,atom_info(i,j)%atom%basis,error)
-                drho = charge - atom_info(i,j)%atom%orbitals%refchg(k,l)
-                WRITE(iunit,'(I5,I5,F14.2,F21.10,F18.10,F17.10)') l,k,oc,eig*evolt,deig*evolt,drho
-              END DO
-            END IF
-          END DO
+          atom => atom_info(i,j)%atom
+          IF(atom_consistent_method(atom%method_type,atom%state%multiplicity)) THEN
+            WRITE(iunit,'(/," Reference configuration  ",T31,i5,T50," Method number ",T76,i5)') i,j
+            WRITE(iunit,'("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
+            DO l=0,3
+              np = atom%state%maxn_calc(l)
+              IF (np > 0) THEN
+                DO k=1,np
+                  oc = atom%state%occupation(l,k)
+                  eig = atom%orbitals%ener(k,l)
+                  deig = eig - atom%orbitals%refene(k,l)
+                  CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
+                  drho = charge - atom%orbitals%refchg(k,l)
+                  WRITE(iunit,'(I5,I5,F14.2,F21.10,F18.10,F17.10)') l,k,oc,eig*evolt,deig*evolt,drho
+                END DO
+              END IF
+            END DO
+          END IF
         END DO
       END DO
     END IF
@@ -681,12 +690,13 @@ CONTAINS
     DO in=1,nn
       DO im=1,nm
         atom => atom_info(in,im)%atom
-        IF ( pptype .EQV. atom%pp_calc ) THEN
-          CALL set_atom(atom,basis=basis,error=error)
-          CALL set_atom(atom,integrals=atint,error=error)
-          CALL calculate_atom(atom,iw,error=error)
-
-          afun =afun + atom%energy%etot*atom%weight
+        IF(atom_consistent_method(atom%method_type,atom%state%multiplicity)) THEN
+          IF ( pptype .EQV. atom%pp_calc ) THEN
+            CALL set_atom(atom,basis=basis,error=error)
+            CALL set_atom(atom,integrals=atint,error=error)
+            CALL calculate_atom(atom,iw,error=error)
+            afun =afun + atom%energy%etot*atom%weight
+          END IF
         END IF
       END DO
     END DO
@@ -725,22 +735,24 @@ CONTAINS
     DO i=1,SIZE(atom_info,1)
       DO j=1,SIZE(atom_info,2)
         atom => atom_info(i,j)%atom
-        CALL set_atom(atom,integrals=pp_int,potential=ppot,error=error)
-        CALL calculate_atom(atom,0,noguess=.TRUE.,error=error)
-        DO l=0,atom%state%maxl_calc
-          n = atom%state%maxn_calc(l)
-          DO k=1,n
-            afun = afun + atom%weight*atom%orbitals%wrefene(k,l)*(atom%orbitals%ener(k,l)-atom%orbitals%refene(k,l))**2
-            IF(atom%orbitals%wrefchg(k,l) > 0._dp) THEN
-              CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
-              afun = afun + atom%weight*atom%orbitals%wrefchg(k,l)*(charge-atom%orbitals%refchg(k,l))**2
-            END IF
-            IF(atom%orbitals%wrefnod(k,l) > 0._dp) THEN
-              CALL atom_orbital_nodes(node,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
-              afun = afun + atom%weight*atom%orbitals%wrefnod(k,l)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l))
-            END IF
+        IF(atom_consistent_method(atom%method_type,atom%state%multiplicity)) THEN
+          CALL set_atom(atom,integrals=pp_int,potential=ppot,error=error)
+          CALL calculate_atom(atom,0,noguess=.TRUE.,error=error)
+          DO l=0,atom%state%maxl_calc
+            n = atom%state%maxn_calc(l)
+            DO k=1,n
+              afun = afun + atom%weight*atom%orbitals%wrefene(k,l)*(atom%orbitals%ener(k,l)-atom%orbitals%refene(k,l))**2
+              IF(atom%orbitals%wrefchg(k,l) > 0._dp) THEN
+                CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
+                afun = afun + atom%weight*atom%orbitals%wrefchg(k,l)*(charge-atom%orbitals%refchg(k,l))**2
+              END IF
+              IF(atom%orbitals%wrefnod(k,l) > 0._dp) THEN
+                CALL atom_orbital_nodes(node,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
+                afun = afun + atom%weight*atom%orbitals%wrefnod(k,l)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l))
+              END IF
+            END DO
           END DO
-        END DO
+        END IF
       END DO
     END DO
 
@@ -833,7 +845,7 @@ CONTAINS
     CALL open_file(file_name="GTH-PARAMETER",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
     WRITE(iw,'(A2,A)') gthpot%symbol,ADJUSTL(TRIM(gthpot%pname))
     WRITE(iw,'(4I5)') gthpot%econf
-    WRITE(iw,'(F15.9,I8,5F15.9)') gthpot%rc,gthpot%ncl,(gthpot%cl(i),i=1,gthpot%ncl)
+    WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rc,gthpot%ncl,(gthpot%cl(i),i=1,gthpot%ncl)
     n = 0
     DO i=0,3
       IF ( gthpot%nl(i) > 0 ) n = n+1
@@ -841,9 +853,9 @@ CONTAINS
     WRITE(iw,'(I8)') n
     DO i=0,3
       IF ( gthpot%nl(i) > 0 ) THEN
-        WRITE(iw,'(F15.9,I8,5F15.9)') gthpot%rcnl(i),gthpot%nl(i),(gthpot%hnl(1,k,i),k=1,gthpot%nl(i))
+        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rcnl(i),gthpot%nl(i),(gthpot%hnl(1,k,i),k=1,gthpot%nl(i))
         DO j=2,gthpot%nl(i)
-          WRITE(iw,'(T24,5F15.9)') (gthpot%hnl(j,k,i),k=j,gthpot%nl(i))
+          WRITE(iw,'(T20,5F18.12)') (gthpot%hnl(j,k,i),k=j,gthpot%nl(i))
         END DO
       END IF
     END DO

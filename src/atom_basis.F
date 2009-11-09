@@ -61,6 +61,7 @@ CONTAINS
                                                 ierr, im, in, iw, k, maxl, &
                                                 mb, method, mo, n_meth, &
                                                 n_rep, reltyp, zcore, zval, zz
+    INTEGER                                  :: multiplicity
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, &
@@ -178,7 +179,7 @@ CONTAINS
                                   c_vals=tmpstringlist, error=error)
 
         ! set occupations 
-        CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,error)
+        CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,state%multiplicity,error)
         state%maxl_occ = get_maxl_occ(state%occ)
         state%maxn_occ = get_maxn_occ(state%occ)
 
@@ -195,7 +196,7 @@ CONTAINS
         IF ( pp_calc ) THEN
           ! get and set the core occupations 
           CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
-          CALL atom_set_occupation(tmpstringlist,state%core,pocc,error)
+          CALL atom_set_occupation(tmpstringlist,state%core,pocc,error=error)
           zcore = zval - SUM(state%core)
           CALL set_atom(atom_info(in,im)%atom,zcore=zcore,pp_calc=.TRUE.,error=error)
           had_pp = .TRUE.
@@ -214,21 +215,7 @@ CONTAINS
         CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_val=im,error=error)
         CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_section=im,error=error)
         CALL set_atom(atom_info(in,im)%atom,method_type=method,relativistic=reltyp,error=error)
-
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
-        CALL atom_print_method(atom_info(in,im)%atom,iw,error)
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
-
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
-        IF ( pp_calc ) THEN
-          IF(iw > 0) CALL atom_print_potential(p_pot,iw,error)
-        ELSE
-          IF(iw > 0) CALL atom_print_potential(ae_pot,iw,error)
-        END IF
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL",error=error)
-
         CALL set_atom(atom_info(in,im)%atom,state=state,error=error)
-
         CALL set_atom(atom_info(in,im)%atom,coulomb_integral_type=do_eric,&
                       exchange_integral_type=do_erie,error=error)
 

@@ -24,6 +24,7 @@ MODULE atom_pseudo
        init_atom_potential, read_atom_opt_section, release_atom_basis, &
        release_atom_potential, release_atom_type, set_atom
   USE atom_utils,                      ONLY: atom_set_occupation,&
+                                             atom_consistent_method,&
                                              get_maxl_occ,&
                                              get_maxn_occ
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -66,7 +67,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER :: ads, do_eric, do_erie, handle, i, ierr, im, in, iw, k, l, &
-      maxl, mb, method, mo, n_meth, n_rep, reltyp, zcore, zval, zz
+      maxl, mb, method, mo, n_meth, n_rep, reltyp, zcore, zval, zz, multiplicity
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, pp_calc
@@ -213,7 +214,7 @@ CONTAINS
         CPPostcondition(.NOT.pp_calc, cp_failure_level, routineP, error, failure)
 
         ! set occupations 
-        CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,error)
+        CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,state%multiplicity,error)
         state%maxl_occ = get_maxl_occ(state%occ)
         state%maxn_occ = get_maxn_occ(state%occ)
         ! set number of states to be calculated
@@ -231,7 +232,7 @@ CONTAINS
 
         ! set occupations for pseudopotential calculation
         CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
-        CALL atom_set_occupation(tmpstringlist,statepp%core,pocc,error)
+        CALL atom_set_occupation(tmpstringlist,statepp%core,pocc,error=error)
         zcore = zval - SUM(statepp%core)
         CALL set_atom(atom_info(in,im)%atom,zcore=zcore,pp_calc=.TRUE.,error=error)
 
@@ -256,15 +257,12 @@ CONTAINS
           statepp%maxn_calc(k) = state%maxn_calc(k)-maxn(k)
           statepp%maxn_calc(k) = MIN(statepp%maxn_calc(k),pp_basis%nbas(k))
         END DO
+        statepp%multiplicity=state%multiplicity
 
         CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_val=im,error=error)
         CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_section=im,error=error)
         CALL set_atom(atom_info(in,im)%atom,method_type=method,error=error)
         CALL set_atom(atom_refs(in,im)%atom,method_type=method,relativistic=reltyp,error=error)
-
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
-        CALL atom_print_method(atom_refs(in,im)%atom,iw,error)
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
 
         ! calculate integrals: pseudopotential basis
         ! general integrals
@@ -310,10 +308,16 @@ CONTAINS
         CALL create_atom_orbs(orbitals,mb,mo,error)
         CALL set_atom(atom_refs(in,im)%atom,orbitals=orbitals,error=error)
 
-        !Calculate the electronic structure
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
-        CALL calculate_atom(atom_refs(in,im)%atom,iw,error=error)
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
+        IF(atom_consistent_method(atom_refs(in,im)%atom%method_type,atom_refs(in,im)%atom%state%multiplicity)) THEN
+          !Print method info
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
+          CALL atom_print_method(atom_refs(in,im)%atom,iw,error)
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
+          !Calculate the electronic structure
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
+          CALL calculate_atom(atom_refs(in,im)%atom,iw,error=error)
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
+        END IF
 
       END DO
     END DO

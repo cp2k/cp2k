@@ -118,14 +118,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="CORE",&
             description="Specifies the core electrons for a pseudopotential",&
-            usage="CORE 1s2 ... or CORE [Ne]", required=.TRUE., repeats=.FALSE.,&
+            usage="CORE 1s2 ... or CORE [Ne] or CORE none for 0 electron cores", required=.TRUE., repeats=.FALSE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ELECTRON_CONFIGURATION",&
-            description="Specifies the electron configuration",&
-            usage="ELECTRON_CONFIGURATION [Ne] 3s2 ... ", required=.TRUE., repeats=.TRUE.,&
+            description="Specifies the electron configurationi.",&
+            usage="ELECTRON_CONFIGURATION (1) [Ne] 3s2 ... ", required=.TRUE., repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

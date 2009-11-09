@@ -387,7 +387,7 @@ CONTAINS
     atom%state%occ = 0._dp
     atom%state%occ(0:3,1:7)  = REAL(ncalc(0:3,1:7),dp)
     atom%state%occupation = 0._dp
-
+    atom%state%multiplicity = -1
     DO l=0,3
       k = 0
       DO i=1,7

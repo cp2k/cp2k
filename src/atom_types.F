@@ -110,6 +110,8 @@ MODULE atom_types
     INTEGER,DIMENSION(0:3)                        :: maxn_occ
     INTEGER                                       :: maxl_calc
     INTEGER,DIMENSION(0:3)                        :: maxn_calc
+    INTEGER                                       :: multiplicity
+    REAL(KIND=dp),DIMENSION(0:3,10)               :: occa, occb
   END TYPE atom_state
 
 !> Holds atomic integrals

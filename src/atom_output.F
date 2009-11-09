@@ -74,6 +74,27 @@ CONTAINS
     WRITE(iw,'(T5,A,T71,F10.2)') "Total number of core electrons",SUM(state%core)
     WRITE(iw,'(T5,A,T71,F10.2)') "Total number of valence electrons",SUM(state%occ)
     WRITE(iw,'(T5,A,T71,F10.2)') "Total number of electrons",SUM(state%occ+state%core)
+    SELECT CASE (state%multiplicity)
+      CASE (-1)
+        WRITE(iw,'(T5,A,T68,A)') "Multiplicity","not specified"
+      CASE (-2)
+        WRITE(iw,'(T5,A,T68,A)') "Multiplicity","not specified"
+      CASE (1)
+        WRITE(iw,'(T5,A,T74,A)') "Multiplicity","singlet"
+      CASE (2)
+        WRITE(iw,'(T5,A,T74,A)') "Multiplicity","doublet"
+      CASE (3)
+        WRITE(iw,'(T5,A,T74,A)') "Multiplicity","triplet"
+      CASE (4)
+        WRITE(iw,'(T5,A,T74,A)') "Multiplicity","quartet"
+      CASE (5)
+        WRITE(iw,'(T5,A,T74,A)') "Multiplicity","quintet"
+      CASE (6)
+        WRITE(iw,'(T5,A,T75,A)') "Multiplicity","sextet"
+      CASE (7)
+        WRITE(iw,'(T5,A,T75,A)') "Multiplicity","septet"
+      CASE DEFAULT
+    END SELECT
 
     mlo = get_maxl_occ(state%occ)
     mlc = get_maxl_occ(state%core)

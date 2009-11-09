@@ -24,6 +24,7 @@ MODULE atom_energy
        init_atom_potential, read_atom_opt_section, release_atom_basis, &
        release_atom_potential, release_atom_type, set_atom
   USE atom_utils,                      ONLY: atom_set_occupation,&
+                                             atom_consistent_method,&
                                              get_maxl_occ,&
                                              get_maxn_occ
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -66,7 +67,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, maxl, mb, &
-      method, mo, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz
+      method, mo, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz, multiplicity
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, &
@@ -191,7 +192,7 @@ CONTAINS
                                   c_vals=tmpstringlist, error=error)
 
         ! set occupations 
-        CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,error)
+        CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,state%multiplicity,error)
         state%maxl_occ = get_maxl_occ(state%occ)
         state%maxn_occ = get_maxn_occ(state%occ)
 
@@ -208,7 +209,7 @@ CONTAINS
         IF ( pp_calc ) THEN
           ! get and set the core occupations 
           CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
-          CALL atom_set_occupation(tmpstringlist,state%core,pocc,error)
+          CALL atom_set_occupation(tmpstringlist,state%core,pocc,error=error)
           zcore = zval - SUM(state%core)
           CALL set_atom(atom_info(in,im)%atom,zcore=zcore,pp_calc=.TRUE.,error=error)
         ELSE
@@ -216,21 +217,23 @@ CONTAINS
           CALL set_atom(atom_info(in,im)%atom,zcore=zval,pp_calc=.FALSE.,error=error)
         END IF
 
-        CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_val=im,error=error)
+        CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_section=im,error=error)
         CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_section=im,error=error)
         CALL set_atom(atom_info(in,im)%atom,method_type=method,relativistic=reltyp,error=error)
 
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
-        CALL atom_print_method(atom_info(in,im)%atom,iw,error)
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
-
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
-        IF ( pp_calc ) THEN
-          IF(iw > 0) CALL atom_print_potential(p_pot,iw,error)
-        ELSE
-          IF(iw > 0) CALL atom_print_potential(ae_pot,iw,error)
+        IF(atom_consistent_method(method,state%multiplicity)) THEN
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
+          CALL atom_print_method(atom_info(in,im)%atom,iw,error)
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
+  
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
+          IF ( pp_calc ) THEN
+            IF(iw > 0) CALL atom_print_potential(p_pot,iw,error)
+          ELSE
+            IF(iw > 0) CALL atom_print_potential(ae_pot,iw,error)
+          END IF
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL",error=error)
         END IF
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL",error=error)
 
         ! calculate integrals
         IF ( pp_calc ) THEN
@@ -272,28 +275,30 @@ CONTAINS
         CALL create_atom_orbs(orbitals,mb,mo,error)
         CALL set_atom(atom_info(in,im)%atom,orbitals=orbitals,error=error)
 
-        !Calculate the electronic structure
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
-        CALL calculate_atom(atom_info(in,im)%atom,iw,error=error)
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
+        IF(atom_consistent_method(method,state%multiplicity)) THEN
+          !Calculate the electronic structure
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
+          CALL calculate_atom(atom_info(in,im)%atom,iw,error=error)
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
 
-        ! perform a fit of the total electronic density
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_DENSITY",extension=".log",error=error)
-        IF (iw>0) THEN
-          CALL section_vals_val_get(atom_section,"PRINT%FIT_DENSITY%NUM_GTO", i_val=num_gto, error=error)
-          powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
-          CALL atom_fit_density(atom_info(in,im)%atom,num_gto,iw,powell_section,error)
-        END IF
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_DENSITY",error=error)
+          ! perform a fit of the total electronic density
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_DENSITY",extension=".log",error=error)
+          IF (iw>0) THEN
+            CALL section_vals_val_get(atom_section,"PRINT%FIT_DENSITY%NUM_GTO", i_val=num_gto, error=error)
+            powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
+            CALL atom_fit_density(atom_info(in,im)%atom,num_gto,iw,powell_section,error)
+          END IF
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_DENSITY",error=error)
 
-        ! perform a fit of the total electronic density
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%RESPONSE_BASIS",extension=".log",error=error)
-        IF (iw>0) THEN
-          CALL section_vals_val_get(atom_section,"PRINT%RESPONSE_BASIS%DELTA_CHARGE", r_val=delta, error=error)
-          CALL section_vals_val_get(atom_section,"PRINT%RESPONSE_BASIS%DERIVATIVES", i_val=nder, error=error)
-          CALL atom_response_basis(atom_info(in,im)%atom,delta,nder,iw,error)
+          ! generate a response basis
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%RESPONSE_BASIS",extension=".log",error=error)
+          IF (iw>0) THEN
+            CALL section_vals_val_get(atom_section,"PRINT%RESPONSE_BASIS%DELTA_CHARGE", r_val=delta, error=error)
+            CALL section_vals_val_get(atom_section,"PRINT%RESPONSE_BASIS%DERIVATIVES", i_val=nder, error=error)
+            CALL atom_response_basis(atom_info(in,im)%atom,delta,nder,iw,error)
+          END IF
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%RESPONSE_BASIS",error=error)
         END IF
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%RESPONSE_BASIS",error=error)
 
       END DO
     END DO
