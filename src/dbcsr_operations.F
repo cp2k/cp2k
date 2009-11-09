@@ -4231,7 +4231,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     INTEGER                                  :: timing_handle
     LOGICAL                                  :: keep_sparse, shallow
-    real(kind=dp)                            :: sm
 
 !   ---------------------------------------------------------------------------
 
@@ -4320,7 +4319,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     INTEGER :: dst_row, dst_col, dst_pos, row_size, col_size, rs, cs
     TYPE(dbcsr_iterator) :: src_iter, dst_iter
     REAL(KIND=dp), DIMENSION(:), POINTER :: src_r_dp, dst_r_dp
-    real(kind=dp) :: sm
+    REAL(kind=dp) :: sm
 
 !   ---------------------------------------------------------------------------
 
