@@ -66,9 +66,6 @@
       RMS_FORCE 0.0005
     &END
     ROTATE_FRAMES T
-    &CI_NEB
-       NSTEPS_IT  5
-    &END
     &OPTIMIZE_BAND
       OPT_TYPE MD
       &MD
