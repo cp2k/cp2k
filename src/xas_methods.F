@@ -12,6 +12,10 @@
 MODULE xas_methods
 
   USE ai_overlap_new,                  ONLY: overlap
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: &
@@ -22,7 +26,9 @@ MODULE xas_methods
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
+                                             dbcsr_alloc_block_from_nbl,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -43,9 +49,16 @@ MODULE xas_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_type_antisymmetric
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_none, state_loc_all, state_loc_list, state_loc_range, &
@@ -86,9 +99,9 @@ MODULE xas_methods
                                              mo_set_p_type,&
                                              set_mo_set,&
                                              write_mo_set
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
-                                             rRc_xyz_ao,&
-                                             set_up_op_sm
+                                             rRc_xyz_ao
   USE qs_scf,                          ONLY: init_scf_loop,&
                                              init_scf_run,&
                                              scf_env_cleanup
@@ -591,28 +604,34 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name_sto
     INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, l, n_mo(2), &
-      n_rep, nao, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, nkind, &
-      nmo, nmoloc(2), norb(0:3), nsgf_gto, nsgf_sto, nspins, nwork
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_type_tmp, kind_z_tmp
+      n_rep, nao, natom, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, &
+      nkind, nmo, nmoloc(2), norb(0:3), nsgf_gto, nsgf_sto, nspins, nwork
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_type_tmp, &
+                                                kind_z_tmp, last_sgf
     INTEGER, DIMENSION(4, 7)                 :: ne
-    INTEGER, DIMENSION(:), POINTER           :: bounds, list, lq, nq
+    INTEGER, DIMENSION(:), POINTER           :: bounds, list, lq, nq, rbs
     LOGICAL                                  :: failure, ihavethis
     REAL(dp)                                 :: zatom
     REAL(dp), DIMENSION(:), POINTER          :: sto_zet
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(localized_wfn_control_type), &
       POINTER                                :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
@@ -632,6 +651,8 @@ CONTAINS
 
       NULLIFY( atomic_kind_set, dft_control, scf_control, matrix_s, mos, mpools )
       NULLIFY( para_env, particle_set, scf_env)
+    NULLIFY(distribution_2d)
+    NULLIFY(sab_orb)
       CALL get_qs_env(qs_env=qs_env, &
               atomic_kind_set=atomic_kind_set, &
               dft_control = dft_control, &
@@ -639,7 +660,10 @@ CONTAINS
               mpools=mpools,&
               matrix_s=matrix_s, mos=mos, &
               para_env=para_env, particle_set=particle_set,&
-              scf_env=scf_env, error=error)
+              scf_env=scf_env, &
+              sab_orb=sab_orb,&
+              distribution_2d=distribution_2d,&
+              error=error)
 
       nexc_search = xas_control%nexc_search
       nexc_atoms = xas_control%nexc_atoms
@@ -843,10 +867,39 @@ CONTAINS
            CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
         END DO
       ELSEIF(xas_control%dipole_form==xas_dip_vel) THEN
+         !
+         ! prepare for allocation
+         natom = SIZE(particle_set,1)
+         ALLOCATE (first_sgf(natom),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE (last_sgf(natom),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CALL get_particle_set(particle_set=particle_set,&
+              first_sgf=first_sgf,&
+              last_sgf=last_sgf,error=error)
+         CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+         ALLOCATE (rbs(natom), STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
+         CALL array_nullify (row_blk_sizes)
+         CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+         DEALLOCATE (first_sgf,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE (last_sgf,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         !
+         !
          CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
-         NULLIFY(xas_env%ostrength_sm(1)%matrix)
-         CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="antisymmetric",&
-              name="xas_env%ostrength_sm",error=error)
+         ALLOCATE(xas_env%ostrength_sm(1)%matrix)
+         CALL dbcsr_init(xas_env%ostrength_sm(1)%matrix)
+         CALL dbcsr_create(matrix=xas_env%ostrength_sm(1)%matrix, &
+              name="xas_env%ostrength_sm", &
+              dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+              nblks=0, nze=0, mutable_work=.TRUE., &
+              error=error)
+         CALL cp_dbcsr_add_dist2d (xas_env%ostrength_sm(1)%matrix%m, distribution_2d, error)
+         CALL dbcsr_alloc_block_from_nbl(xas_env%ostrength_sm(1)%matrix,sab_orb,error=error)
          CALL dbcsr_set(xas_env%ostrength_sm(1)%matrix,0.0_dp,error=error)
         DO i = 2,3
            ALLOCATE(xas_env%ostrength_sm(i)%matrix)
@@ -855,7 +908,11 @@ CONTAINS
                 "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
            CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
         END DO
-      END IF
+
+        CALL dbcsr_distribution_release (dbcsr_dist)
+        CALL array_release (row_blk_sizes)
+
+     END IF
 
    !Define the qs_loc_env : to find centers, spread and possibly localize them
       my_localized_wfn_control =>  xas_control%localized_wfn_control

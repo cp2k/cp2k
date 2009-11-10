@@ -84,6 +84,10 @@ MODULE cp_dbcsr_operations
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum_i8
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, checksum_matrix, deallocate_matrix, &
        first_block_node, get_block_node, next_block_node, &
@@ -114,7 +118,8 @@ MODULE cp_dbcsr_operations
             dbcsr_from_fm, dbcsr_from_sm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
             sm_from_dbcsr, dbcsr_type_from_sm_symmetry, &
             dbcsr_sm_fm_multiply, dbcsr_plus_fm_fm_t,&
-            cp_dbcsr_get_id_nr
+            cp_dbcsr_get_id_nr,&
+            dbcsr_alloc_block_from_nbl
 
   INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
@@ -156,6 +161,124 @@ MODULE cp_dbcsr_operations
 
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief allocate the blocks of a dbcsr based on the neighbor list
+!> \note
+!> \param matrix        the matrix
+!> \param sab_orb       the corresponding neighbor list
+!> \param error
+!> \par History
+!>      11.2009 created vw
+!> \author vw
+! *****************************************************************************
+
+  SUBROUTINE dbcsr_alloc_block_from_nbl(matrix,sab_orb,error)
+
+    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_alloc_block_from_nbl', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=1)                         :: symmetry
+    INTEGER                                  :: iab, iatom, icol, ilist, &
+                                                inode, irow, jatom, &
+                                                last_jatom, nlist, nnode
+    LOGICAL                                  :: failure, new_atom_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+
+    failure = .FALSE.
+
+    symmetry = dbcsr_get_matrix_type(matrix)
+
+    CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
+
+    !nkind = SIZE(atomic_kind_set,1)
+    !DO ikind=1,nkind
+    !DO jkind=1,nkind
+    DO iab = 1, SIZE(sab_orb)
+       !iab = ikind + nkind*(jkind - 1)
+
+       IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+
+       CALL get_neighbor_list_set(neighbor_list_set=&
+            sab_orb(iab)%neighbor_list_set,&
+            nlist=nlist)
+
+       NULLIFY ( sab_orb_neighbor_list )
+
+       DO ilist=1,nlist
+
+          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
+             sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
+          ELSE
+             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+          END IF
+          sab_orb_neighbor_list_local => sab_orb_neighbor_list
+
+          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
+               atom=iatom,&
+               nnode=nnode)
+
+          last_jatom = 0
+
+          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
+
+          DO inode=1,nnode
+
+             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                  neighbor=jatom)
+
+             IF (jatom /= last_jatom) THEN
+                new_atom_b = .TRUE.
+                last_jatom = jatom
+             ELSE
+                new_atom_b = .FALSE.
+                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+                CYCLE
+             END IF
+
+             NULLIFY(block)
+             IF(symmetry==dbcsr_type_normal) THEN
+                CALL dbcsr_add_block_node(matrix=matrix,&
+                     block_row=iatom,&
+                     block_col=jatom,&
+                     block=block,error=error)
+             ELSE
+                IF(iatom<=jatom) THEN
+                   irow = iatom
+                   icol = jatom
+                ELSE
+                   irow = jatom
+                   icol = iatom
+                END IF
+                CALL dbcsr_add_block_node(matrix=matrix,&
+                     block_row=irow,&
+                     block_col=icol,&
+                     block=block,error=error)
+             END IF
+
+             block(:,:) = 0.0_dp
+
+             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+
+          END DO  ! inode
+
+       END DO  ! ilist
+
+       !END DO  ! jkind
+
+    END DO  ! ikind
+
+    CALL dbcsr_finalize( matrix, error=error )
+
+  END SUBROUTINE dbcsr_alloc_block_from_nbl
 
 ! *****************************************************************************
 !> \brief Performs a multiplication of two dbcsr_type matrices.
@@ -2516,8 +2639,6 @@ END FUNCTION cp_dbcsr_get_id_nr
       IF (istat /= 0) CALL stop_memory(routineP,"matrix_set")
     END IF
   END SUBROUTINE deallocate_dbcsr_matrix_set_2d
-
-
 
 ! *****************************************************************************
 !> \brief Maps sparse_matrix_type symmetry to DBCSR matrix type

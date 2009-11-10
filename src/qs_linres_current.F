@@ -14,6 +14,10 @@
 ! *****************************************************************************
 MODULE qs_linres_current
 
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -24,13 +28,11 @@ MODULE qs_linres_current
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_plus_fm_fm_t,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_add_dist2d, dbcsr_add_block_node, dbcsr_alloc_block_from_nbl, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
+       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, &
+       dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -50,13 +52,20 @@ MODULE qs_linres_current
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_get_block_p,&
                                              dbcsr_set
-  USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_create,&
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj,&
+                                             dbcsr_type_antisymmetric,&
+                                             dbcsr_type_normal
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist,&
                                              dbcsr_finalize
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
   USE input_section_types,             ONLY: section_get_ivals,&
@@ -71,7 +80,8 @@ MODULE qs_linres_current
   USE message_passing
   USE orbital_pointers,                ONLY: ncoset
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_axpy,&
@@ -111,8 +121,7 @@ MODULE qs_linres_current
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
-                                             rRc_xyz_der_ao,&
-                                             set_up_op_sm
+                                             rRc_xyz_der_ao
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_desc_type,&
@@ -188,6 +197,8 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: ext, filename, my_pos
     INTEGER :: handle, idir, iiB, iiiB, ispin, istat, istate, j, jstate, nao, &
       natom, nmo, nspins, nstates(2), output_unit, unit_nr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: append_cube, failure, gapw, &
                                                 ionode
     REAL(dp)                                 :: dk(3), jrho_tot_G(3,3), &
@@ -195,6 +206,7 @@ CONTAINS
                                                 scale_fac
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ddk
     REAL(dp), EXTERNAL                       :: DDOT
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
@@ -206,14 +218,18 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: density_matrix0, &
                                                 density_matrix_a, &
                                                 density_matrix_ii, &
                                                 density_matrix_iii
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_all
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -232,8 +248,8 @@ CONTAINS
     NULLIFY(jrho_rspace,jrho_gspace,logger,current_section,density_matrix0,density_matrix_a,&
          &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,&
          &  particle_set,pw_env,auxbas_rs_desc,auxbas_pw_pool,&
-         &  para_env,center_list,mo_coeff,psi_a_iB,&
-         &  psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order)
+         &  para_env,center_list,mo_coeff,psi_a_iB,distribution_2d,&
+         &  psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order,sab_all)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -258,9 +274,12 @@ CONTAINS
          &          mpools=mpools,&
          &          pw_env=pw_env,&
          &          para_env=para_env,&
-         &          particle_set=particle_set,&
          &          subsys=subsys,&
+         &          sab_all=sab_all,&
+         &          particle_set=particle_set,&
+         &          distribution_2d=distribution_2d,&
          &          error=error)
+
     CALL cp_subsys_get(subsys,particles=particles,error=error)
 
     gapw  = dft_control%qs_control%gapw
@@ -283,24 +302,61 @@ CONTAINS
     CALL dbcsr_allocate_matrix_set(density_matrix_ii,nspins,error=error)
     CALL dbcsr_allocate_matrix_set(density_matrix_iii,nspins,error=error)
     !
+    ! prepare for allocation
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (last_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf,&
+                          last_sgf=last_sgf,error=error)
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    DEALLOCATE (first_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (last_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
+    !
     DO ispin = 1,nspins
        !
        !density_matrix0
-       CALL set_up_op_sm(density_matrix0(ispin)%matrix,qs_env,symmetry="none",&
-                         name="density_matrix0",error=error)
+       ALLOCATE(density_matrix0(ispin)%matrix)
+       CALL dbcsr_init(density_matrix0(ispin)%matrix,error=error)
+       CALL dbcsr_create(matrix=density_matrix0(ispin)%matrix, &
+            name="density_matrix0", &
+            dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
+            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+            nblks=0, nze=0, mutable_work=.TRUE., &
+            error=error)
+       CALL cp_dbcsr_add_dist2d (density_matrix0(ispin)%matrix%m, distribution_2d, error)
+       CALL dbcsr_alloc_block_from_nbl(density_matrix0(ispin)%matrix,sab_all,error=error)
        !
        !density_matrix_a
-       CALL set_up_op_sm(density_matrix_a(ispin)%matrix,qs_env,symmetry="none",&
-                         name="density_matrix_a",error=error)
+       ALLOCATE(density_matrix_a(ispin)%matrix)
+       CALL dbcsr_init(density_matrix_a(ispin)%matrix,error=error)
+       CALL dbcsr_copy(density_matrix_a(ispin)%matrix,density_matrix0(ispin)%matrix,&
+            name="density_matrix_a",error=error)
        !
        !density_matrix_ii
-       CALL set_up_op_sm(density_matrix_ii(ispin)%matrix,qs_env,symmetry="none",&
-                         name="density_matrix_ii",error=error)
+       ALLOCATE(density_matrix_ii(ispin)%matrix)
+       CALL dbcsr_init(density_matrix_ii(ispin)%matrix,error=error)
+       CALL dbcsr_copy(density_matrix_ii(ispin)%matrix,density_matrix0(ispin)%matrix,&
+            name="density_matrix_ii",error=error)
        !
        !density_matrix_iii
-       CALL set_up_op_sm(density_matrix_iii(ispin)%matrix,qs_env,symmetry="none",&
-                         name="density_matrix_iii",error=error)
+       ALLOCATE(density_matrix_iii(ispin)%matrix)
+       CALL dbcsr_init(density_matrix_iii(ispin)%matrix,error=error)
+       CALL dbcsr_copy(density_matrix_iii(ispin)%matrix,density_matrix0(ispin)%matrix,&
+            name="density_matrix_iii",error=error)
     ENDDO
+    !
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
     !
     !
     current_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%CURRENT",error=error)
@@ -2167,13 +2223,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, &
-      istat, istate, j, jstate, max_states, nao, nbr_center(2), nmo, nspins, &
-      nstate_loc, nstates(2), output_unit
+      istat, istate, j, jstate, max_states, nao, natom, nbr_center(2), nmo, &
+      nspins, nstate_loc, nstates(2), output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: chi_pbc, failure, gapw, ionode
     REAL(dp)                                 :: chi(3), chi_tmp, contrib, &
                                                 contrib2, dk(3), &
                                                 int_current(3), &
                                                 int_current_tmp, maxocc
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
@@ -2189,13 +2248,19 @@ CONTAINS
                                                 psi_p1, psi_p2, psi_rxp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: op_mom_ao, op_p_ao
     TYPE(dbcsr_obj_p_type), &
       DIMENSION(:, :), POINTER               :: op_mom_der_ao
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_all, sab_orb
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
     failure = .FALSE.
     !
@@ -2204,7 +2269,7 @@ CONTAINS
     NULLIFY(dft_control,mos,para_env,mo_coeff,op_mom_ao,&
          &  op_mom_der_ao,center_list,centers_set,psi0,psi_rxp,psi_D,psi_p1,psi_p2,&
          &  op_p_ao,psi1_p,psi1_rxp,psi1_D,p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,&
-         &  cell,psi0_order)
+         &  cell,psi0_order,particle_set)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -2215,6 +2280,10 @@ CONTAINS
          &          mos=mos,&
          &          para_env=para_env,&
          &          cell=cell,&
+         &          distribution_2d=distribution_2d,&
+         &          particle_set=particle_set,&
+         &          sab_all=sab_all,&
+         &          sab_orb=sab_orb,&
          &          error=error)
 
     nspins = dft_control%nspins
@@ -2251,8 +2320,39 @@ CONTAINS
     ! Remember the derivatives are antisymmetric
     CALL dbcsr_allocate_matrix_set(op_mom_ao,9,error=error)
     CALL dbcsr_allocate_matrix_set(op_mom_der_ao,9,3,error=error)
-    CALL set_up_op_sm(op_mom_ao(1)%matrix,qs_env,symmetry="none",&
-         &            name="op_mom",error=error)
+    !
+    ! prepare for allocation
+    natom = SIZE(particle_set,1)
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (last_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf,&
+                          last_sgf=last_sgf,error=error)
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    DEALLOCATE (first_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (last_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
+    !
+    ALLOCATE(op_mom_ao(1)%matrix)
+    CALL dbcsr_init(op_mom_ao(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=op_mom_ao(1)%matrix, &
+         name="op_mom", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (op_mom_ao(1)%matrix%m, distribution_2d, error)
+    CALL dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all,error=error)
+
     DO idir2=1,3
        ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
        CALL dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
@@ -2274,13 +2374,27 @@ CONTAINS
     ENDDO
     !
     CALL dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
-    CALL set_up_op_sm(op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="op_p_ao",error=error)
+    ALLOCATE(op_p_ao(1)%matrix)
+    CALL dbcsr_init(op_p_ao(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
+         name="op_p_ao", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (op_p_ao(1)%matrix%m, distribution_2d, error)
+    CALL dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb, error=error)
+
     DO idir=2,3
        ALLOCATE(op_p_ao(idir)%matrix)
        CALL dbcsr_init(op_p_ao(idir)%matrix)
        CALL dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
             "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
     ENDDO
+    !
+    !
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
     !
     !
     ! Allocate full matrices for only one vector
@@ -2578,11 +2692,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_one_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, jdir, jjdir, kdir, &
-      max_states, nao, nbr_center(2), nmo, nspins, nstates(2), output_unit
+    INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, istat, jdir, jjdir, &
+      kdir, max_states, nao, natom, nbr_center(2), nmo, nspins, nstates(2), &
+      output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: chi_pbc, failure, gapw, ionode
     REAL(dp)                                 :: chi(3), contrib, dk(3), &
                                                 int_current(3), maxocc
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
@@ -2596,13 +2714,19 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: buf, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: op_mom_ao, op_p_ao
     TYPE(dbcsr_obj_p_type), &
       DIMENSION(:, :), POINTER               :: op_mom_der_ao
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_all, sab_orb
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
     failure = .FALSE.
     !
@@ -2621,6 +2745,10 @@ CONTAINS
          &          mos=mos,&
          &          para_env=para_env,&
          &          cell=cell,&
+         &          particle_set=particle_set,&
+         &          sab_all=sab_all,&
+         &          sab_orb=sab_orb,&
+         &          distribution_2d=distribution_2d,&
          &          error=error)
 
     nspins = dft_control%nspins
@@ -2645,8 +2773,39 @@ CONTAINS
     ! Remember the derivatives are antisymmetric
     CALL dbcsr_allocate_matrix_set(op_mom_ao,9,error=error)
     CALL dbcsr_allocate_matrix_set(op_mom_der_ao,9,3,error=error)
-    CALL set_up_op_sm(op_mom_ao(1)%matrix,qs_env,symmetry="none",&
-         &            name="op_mom",error=error)
+    !
+    ! prepare for allocation
+    natom = SIZE(particle_set,1)
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (last_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf,&
+                          last_sgf=last_sgf,error=error)
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    DEALLOCATE (first_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (last_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
+    !
+    ALLOCATE(op_mom_ao(1)%matrix)
+    CALL dbcsr_init(op_mom_ao(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=op_mom_ao(1)%matrix, &
+         name="op_mom", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (op_mom_ao(1)%matrix%m, distribution_2d, error)
+    CALL dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all,error=error)
+
     DO idir2=1,3
        ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
        CALL dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
@@ -2668,13 +2827,27 @@ CONTAINS
     ENDDO
     !
     CALL dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
-    CALL set_up_op_sm(op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="op_p_ao",error=error)
+    ALLOCATE(op_p_ao(1)%matrix)
+    CALL dbcsr_init(op_p_ao(1)%matrix,error=error)
+    CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
+         name="op_p_ao", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (op_p_ao(1)%matrix%m, distribution_2d, error)
+    CALL dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb, error=error)
+
     DO idir=2,3
        ALLOCATE(op_p_ao(idir)%matrix)
        CALL dbcsr_init(op_p_ao(idir)%matrix)
        CALL dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
             "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
     ENDDO
+    !
+    !
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
     !
     !
     ! Allocate full matrices for only one vector

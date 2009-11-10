@@ -19,7 +19,7 @@ MODULE wfn_fitting_methods
                                              gto_basis_set_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             dbcsr_add_block_node,&
+                                             dbcsr_alloc_block_from_nbl,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
@@ -45,7 +45,6 @@ MODULE wfn_fitting_methods
                                              dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                              dbcsr_type_normal
-  USE dbcsr_util,                      ONLY: dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -62,8 +61,8 @@ MODULE wfn_fitting_methods
                                              mo_set_type
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
-       neighbor_list_type, neighbor_node_type, next
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE wfn_fitting_types,               ONLY: wfn_fitting_env_create,&
@@ -453,13 +452,7 @@ MODULE wfn_fitting_methods
 
 
     ! *** allocate all blocks
-    CALL allocate_w_matrix_blocks(qs_env, &
-                                  matrix_w_s, &
-                                  qs_env%sab_aux_fit_asymm, &
-                                  do_symmetric=.FALSE., &
-                                  error=error)
-
-
+    CALL dbcsr_alloc_block_from_nbl(matrix_w_s,qs_env%sab_aux_fit_asymm,error=error)
 
     ALLOCATE(matrix_w_p)
     CALL dbcsr_init(matrix_w_p)
@@ -888,120 +881,5 @@ MODULE wfn_fitting_methods
     CALL timestop(handle)
 
   END SUBROUTINE calc_overlap_force_general
-
-! *****************************************************************************
-!> \brief Allocates all blocks of a distributed weighted density matrix W wrt
-!>        symmetry and neighbor list
-!>      
-!> \param qs_env the qs environment 
-!> \param matrix_w the energy weighted density matrix
-!> \param neighbor_list_sab the corresponding neighbor list
-!> \param do_symmetric flag to indicate if W and the neighbor list are symmetric
-!>        both have to be consistent!
-!> \param error 
-!>
-!> \par History
-!>      05.2008 created [Manuel Guidon]
-!> \author Manuel Guidon
-! *****************************************************************************
-  SUBROUTINE allocate_w_matrix_blocks(qs_env, matrix_w, neighbor_list_sab, do_symmetric, error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj), POINTER                 :: matrix_w
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: neighbor_list_sab
-    LOGICAL, INTENT(IN)                      :: do_symmetric
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: iab, iatom, icol, ikind, &
-                                                ilist, inode, irow, jatom, &
-                                                jkind, last_jatom, nkind, &
-                                                nlist, nnode
-    LOGICAL                                  :: new_atom_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
-    TYPE(neighbor_list_type), POINTER        :: neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: neighbor_node
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    distribution_2d=distribution_2d,&
-                    error=error)
-
-    nkind = SIZE(atomic_kind_set)
-
- 
-    DO ikind=1,nkind
-      DO jkind=1,nkind
-        iab = ikind + nkind*(jkind - 1)
-
-        IF (.NOT.ASSOCIATED(neighbor_list_sab(iab)%neighbor_list_set)) CYCLE
-
-        neighbor_list_set => neighbor_list_sab(iab)%neighbor_list_set
-
-        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
-                                   nlist=nlist)
-
-        neighbor_list => first_list(neighbor_list_set)
-
-        DO ilist=1,nlist
-
-          CALL get_neighbor_list(neighbor_list=neighbor_list,&
-                                 atom=iatom,&
-                                 nnode=nnode)
-
-          last_jatom = 0
-
-          neighbor_node => first_node(neighbor_list)
-
-          DO inode=1,nnode
-
-            CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                   neighbor=jatom)
-
-            IF (jatom /= last_jatom) THEN
-              new_atom_b = .TRUE.
-              last_jatom = jatom
-            ELSE
-              new_atom_b = .FALSE.
-            END IF
-
-            IF (new_atom_b) THEN
-              IF( do_symmetric ) THEN
-                IF (iatom <= jatom) THEN
-                  irow = iatom
-                  icol = jatom
-                ELSE
-                  irow = jatom
-                  icol = iatom
-                END IF
-              ELSE
-                irow = iatom
-                icol = jatom
-              END IF
-              NULLIFY (block)
-              CALL dbcsr_add_block_node(matrix=matrix_w,&
-                                  block_row=irow,&
-                                  block_col=icol,&
-                                  BLOCK=block,error=error)
-            END IF
-            neighbor_node => next(neighbor_node)
-
-          END DO
-
-          neighbor_list => next(neighbor_list)
-
-        END DO
-
-      END DO
-
-    END DO
-
-    CALL dbcsr_finalize(matrix_w,error=error)    
-
-  END SUBROUTINE allocate_w_matrix_blocks
 
 END MODULE wfn_fitting_methods

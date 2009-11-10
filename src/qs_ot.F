@@ -52,7 +52,6 @@ MODULE qs_ot
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type,&
                                              get_aux_coeff
-  USE sparse_matrix_types,             ONLY: transfer_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -950,8 +949,6 @@ CONTAINS
     TYPE(dbcsr_obj), POINTER                 :: pscp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-!CALL transfer_matrix ( qs_ot_env%xmat, pscp, error )
-
     CALL dbcsr_copy(pscp,qs_ot_env%xmat,error=error)
 
   END SUBROUTINE qs_ot_get_scp_nddo_coeffs
@@ -961,10 +958,7 @@ CONTAINS
     TYPE(dbcsr_obj), POINTER                 :: pscp, fscp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-!CALL transfer_matrix ( pscp, qs_ot_env%xmat, error )
-
     CALL dbcsr_copy(qs_ot_env%xmat,pscp,error=error)
-    !CALL transfer_matrix ( fscp, qs_ot_env%gxmat, error )
     CALL dbcsr_copy(qs_ot_env%gxmat,fscp,error=error)
 
   END SUBROUTINE qs_ot_get_scp_nddo_derivative 

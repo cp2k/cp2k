@@ -14,6 +14,10 @@
 !> \author MI
 ! *****************************************************************************
 MODULE qs_linres_op
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
@@ -21,7 +25,9 @@ MODULE qs_linres_op
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
+                                             dbcsr_alloc_block_from_nbl,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
@@ -36,10 +42,18 @@ MODULE qs_linres_op
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_set
-  USE dbcsr_util,                      ONLY: dbcsr_checksum
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_type_antisymmetric,&
+                                             dbcsr_type_normal
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
+                                             dbcsr_checksum,&
+                                             dbcsr_create,&
+                                             dbcsr_dist2d_to_dist
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -58,10 +72,10 @@ MODULE qs_linres_op
                                              linres_control_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: build_ang_mom_matrix,&
                                              build_lin_mom_matrix,&
-                                             rRc_xyz_ao,&
-                                             set_up_op_sm
+                                             rRc_xyz_ao
   USE qs_spin_orbit,                   ONLY: build_pso_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -104,9 +118,11 @@ CONTAINS
     INTEGER :: handle, iao, icenter, idir, ii, iii, ispin, istat, istate, j, &
       nao, natom, nbr_center(2), nmo, nsgf, nspins, nstates(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: rbs
     LOGICAL                                  :: failure
     REAL(dp)                                 :: chk(3), ck(3), ckdk(3), dk(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: basisfun_center, vecbuf_c0
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -124,10 +140,14 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: op_ao
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_all
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: lr_section
@@ -140,7 +160,7 @@ CONTAINS
          &  logger,particle_set,lr_section,fm_work1,&
          &  basisfun_center,centers_set,center_list,p_psi0,&
          &  rxp_psi0,vecbuf_c0,psi0_order,&
-         &  mo_coeff,op_ao)
+         &  mo_coeff,op_ao,sab_all,distribution_2d)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,&
@@ -160,6 +180,8 @@ CONTAINS
                     linres_control=linres_control, &
                     para_env=para_env, &
                     particle_set=particle_set, &
+                    sab_all=sab_all,&
+                    distribution_2d=distribution_2d,&
                     error=error)
 
     nspins = dft_control%nspins
@@ -178,6 +200,19 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDDO
 
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+
+    natom = SIZE(particle_set,1)
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (last_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf,&
+                          last_sgf=last_sgf,error=error)
+
+
     ! Calculate the (r - dk)xp operator applied to psi0k
     ! We use the distributive property of the vector product and calculatr
     ! (r-c)xp + (c-d)xp
@@ -191,17 +226,39 @@ CONTAINS
     !************************************************************
     !
 
+
+    !
+    ! prepare for allocation
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    ALLOCATE (rbs(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
+    CALL array_nullify (row_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    !
+    !
     CALL dbcsr_allocate_matrix_set(op_ao,3,error=error)
     ALLOCATE(op_ao(1)%matrix,op_ao(2)%matrix,op_ao(3)%matrix)
     CALL dbcsr_init (op_ao(1)%matrix)
     CALL dbcsr_init (op_ao(2)%matrix)
     CALL dbcsr_init (op_ao(3)%matrix)
-    CALL set_up_op_sm(op_ao(1)%matrix,qs_env,symmetry="none",name="op_ao",error=error)
+
+    CALL dbcsr_create(matrix=op_ao(1)%matrix, &
+         name="op_ao", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (op_ao(1)%matrix%m, distribution_2d, error)
+    CALL dbcsr_alloc_block_from_nbl(op_ao(1)%matrix,sab_all,error=error)
+    CALL dbcsr_set(op_ao(1)%matrix,0.0_dp,error=error)
+
     DO idir=2,3
        CALL dbcsr_copy(op_ao(idir)%matrix,op_ao(1)%matrix,&
             "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error=error)
        CALL dbcsr_set(op_ao(idir)%matrix,0.0_dp,error=error)
     ENDDO
+
 
     chk(:) = 0.0_dp
     DO ispin = 1,nspins
@@ -255,7 +312,17 @@ CONTAINS
     CALL dbcsr_init (op_ao(1)%matrix)
     CALL dbcsr_init (op_ao(2)%matrix)
     CALL dbcsr_init (op_ao(3)%matrix)
-    CALL set_up_op_sm(op_ao(1)%matrix,qs_env,symmetry="antisymmetric",name="op_ao",error=error)
+
+    CALL dbcsr_create(matrix=op_ao(1)%matrix, &
+         name="op_ao", &
+         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+         nblks=0, nze=0, mutable_work=.TRUE., &
+         error=error)
+    CALL cp_dbcsr_add_dist2d (op_ao(1)%matrix%m, distribution_2d, error)
+    CALL dbcsr_alloc_block_from_nbl(op_ao(1)%matrix,sab_all,error=error)
+    CALL dbcsr_set(op_ao(1)%matrix,0.0_dp,error=error)
+
     DO idir=2,3
        CALL dbcsr_copy(op_ao(idir)%matrix,op_ao(1)%matrix,&
             "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error=error)
@@ -300,18 +367,6 @@ CONTAINS
     !            rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
     !  END DO
     !END DO
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
-
-    natom = SIZE(particle_set,1)
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    CALL get_particle_set(particle_set=particle_set,&
-                          first_sgf=first_sgf,&
-                          last_sgf=last_sgf,error=error)
 
     !Calculate the second term of the operator state by state
     !!!! what follows is a way to avoid calculating the L matrix for each centers.
@@ -377,6 +432,9 @@ CONTAINS
 
        END DO  ! ispin
     ENDIF
+
+    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL array_release (row_blk_sizes)
 
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
