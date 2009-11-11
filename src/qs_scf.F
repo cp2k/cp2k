@@ -43,6 +43,8 @@ MODULE qs_scf
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_add_dist2d,&
+                                             dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -74,7 +76,11 @@ MODULE qs_scf
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_set
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_types,                     ONLY: dbcsr_obj,&
+                                             dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: dbcsr_create,&
+                                             dbcsr_finalize
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
@@ -1999,6 +2005,7 @@ CPSourceFileRef)
       POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
                                                 matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -2010,7 +2017,7 @@ CPSourceFileRef)
             dft_control, mos, occupation_numbers, S_sm_pools, ks_env,&
             ao_mo_fm_pools_aux_fit, matrix_ks_aux_fit, S_sm_pools_aux_fit)
     NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control, mo_coeff_aux_fit,&
-            mo_derivs_aux_fit,para_env)
+            mo_derivs_aux_fit,para_env,distribution_2d)
 
     failure=.FALSE.
 
@@ -2028,6 +2035,7 @@ CPSourceFileRef)
          ks_env=ks_env,&
          atomic_kind_set=atomic_kind_set,&
          matrix_s=matrix_s,&
+         distribution_2d=distribution_2d,&
          para_env=para_env,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
@@ -2220,27 +2228,50 @@ CPSourceFileRef)
        DO ispin=1,dft_control%nspins
           ALLOCATE(matrix_ks(ispin)%matrix)
           CALL dbcsr_init(matrix_ks(ispin)%matrix)
-          CALL dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
+
+          CALL dbcsr_create(matrix=matrix_ks(ispin)%matrix, &
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-               "KOHN-SHAM_MATRIX",error=error)
+               "KOHN-SHAM_MATRIX", &
+               dist=matrix_s(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric, &
+               row_blk_size=matrix_s(1)%matrix%m%row_blk_size,&
+               col_blk_size=matrix_s(1)%matrix%m%col_blk_size,&
+               nblks=0, nze=0, mutable_work=.TRUE., &
+               error=error)
+          CALL dbcsr_finalize(matrix_ks(ispin)%matrix,error=error)
+          CALL cp_dbcsr_add_dist2d (matrix_ks(ispin)%matrix%m, distribution_2d, error)
+          ! for hfx we need to allocate the blocks
+          CALL dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
           CALL dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
        ENDDO
 
        CALL set_qs_env(qs_env=qs_env,&
             matrix_ks=matrix_ks,error=error)
+
     END IF
 
 !   *** Allocate matrix_ks_aux_fit if requested and put it in the QS environment ***
 
     IF( dft_control%do_wfn_fitting) THEN
-      IF (.not.ASSOCIATED(matrix_ks_aux_fit)) THEN
+      IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
          CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
          DO ispin=1,dft_control%nspins
             ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
             CALL dbcsr_init(matrix_ks_aux_fit(ispin)%matrix)
-            CALL dbcsr_copy(matrix_ks_aux_fit(ispin)%matrix,qs_env%matrix_s_aux_fit(1)%matrix,&
+
+            CALL dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                 "KOHN-SHAM_MATRIX for wfn fitting",error=error)
+                 "KOHN-SHAM_MATRIX for wfn fitting", &
+                 dist=qs_env%matrix_s_aux_fit(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric, &
+                 row_blk_size=qs_env%matrix_s_aux_fit(1)%matrix%m%row_blk_size,&
+                 col_blk_size=qs_env%matrix_s_aux_fit(1)%matrix%m%col_blk_size,&
+                 nblks=0, nze=0, mutable_work=.TRUE., &
+                 error=error)
+            CALL dbcsr_finalize(matrix_ks_aux_fit(ispin)%matrix,error=error)
+            CALL cp_dbcsr_add_dist2d (matrix_ks_aux_fit(ispin)%matrix%m, distribution_2d, error)
+            ! for hfx we need to allocate the blocks
+            CALL dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_orb,&
+                 error=error)
+            CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
          ENDDO
 
          CALL set_qs_env(qs_env=qs_env,&

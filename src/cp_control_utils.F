@@ -460,6 +460,10 @@ CPSourceFileRef,&
     IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_RHO_GSPACE",r_val=qs_control%eps_rho_gspace,error=error)
     END IF
+    CALL section_vals_val_get(qs_section,"EPS_FILTER_MATRIX",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN
+       CALL section_vals_val_get(qs_section,"EPS_FILTER_MATRIX",r_val=qs_control%eps_filter_matrix,error=error)
+    END IF
     CALL section_vals_val_get(qs_section,"EPS_KG_GPW",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_KG_GPW",r_val=qs_control%eps_kg_gpw,error=error)

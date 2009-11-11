@@ -4492,33 +4492,37 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     my_method = 'fro'
     IF(PRESENT(method)) my_method = method
 
-    CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       SELECT CASE (dbcsr_get_data_type(matrix))
-          !CASE (dbcsr_type_real_4)
-       CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
-               row_size, col_size)
-          blk_nze = row_size * col_size
-          SELECT CASE(my_method)
-          CASE('fro')
-             !
-             ! Frobenius based
-             nrm = SQRT(DDOT(SIZE(data_d), data_d(1), 1, data_d(1), 1))
-             IF(nrm.LT.eps) CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
+    IF(eps.GT.0.0_dp) THEN
+
+       CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+          SELECT CASE (dbcsr_get_data_type(matrix))
+             !CASE (dbcsr_type_real_4)
+          CASE (dbcsr_type_real_8)
+             CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
+                  row_size, col_size)
+             blk_nze = row_size * col_size
+             SELECT CASE(my_method)
+             CASE('fro')
+                !
+                ! Frobenius based
+                nrm = SQRT(DDOT(SIZE(data_d), data_d(1), 1, data_d(1), 1))
+                IF(nrm.LT.eps) CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
+             CASE DEFAULT
+                CALL cp_unimplemented_error (routineN,&
+                     "Only Frobenius based filtering")
+             END SELECT
+             !CASE (dbcsr_type_complex_4)
+             !CASE (dbcsr_type_complex_8)
           CASE DEFAULT
              CALL cp_unimplemented_error (routineN,&
-                  "Only Frobenius based filtering")
+                  "Only real double precision")
           END SELECT
-          !CASE (dbcsr_type_complex_4)
-          !CASE (dbcsr_type_complex_8)
-       CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,&
-               "Only real double precision")
-       END SELECT
-    ENDDO
-    CALL dbcsr_iterator_stop(iter)
-    CALL dbcsr_finalize (matrix, error=error)
+       ENDDO
+       CALL dbcsr_iterator_stop(iter)
+       CALL dbcsr_finalize (matrix, error=error)
+
+    ENDIF
 
     CALL timestop(timing_handle)
 

@@ -964,11 +964,8 @@ CONTAINS
 
     DO i = 1,SIZE(matrix_s)
        CALL dbcsr_finalize(matrix_s(i)%matrix, error=error)
-       IF(.FALSE.)THEN
-          WRITE(*,*) 'call filter_1',matrix_s(i)%matrix%m%nze
-          CALL dbcsr_filter(matrix_s(i)%matrix, 1e-3_dp, error=error)
-          WRITE(*,*) 'call filter_2',matrix_s(i)%matrix%m%nze
-       ENDIF
+       CALL dbcsr_filter(matrix_s(i)%matrix, &
+            qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
     ENDDO
 
     IF (build_kinetic_energy_matrix) THEN

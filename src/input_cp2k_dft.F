@@ -1879,6 +1879,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EPS_FILTER_MATRIX",&
+            description="Sets the threshold for filtering matrix elements",&
+            usage="EPS_FILTER_MATRIX 1E-6", default_r_val=0.0_dp, type_of_var=real_t,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="EPS_KG_GPW",&
             description="Sets precision of KG_GPW single molecule density integration."//&
             " Overrides SQRT(EPS_DEFAULT)*1000.0 value",&
