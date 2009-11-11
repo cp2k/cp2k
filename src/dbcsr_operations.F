@@ -3712,9 +3712,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[in]  col            column of block to remove
 !> \param[in]  block_number   (optional) the block number, if it is known
 ! *****************************************************************************
-  SUBROUTINE dbcsr_remove_block(matrix, row, col, block_number)
+  SUBROUTINE dbcsr_remove_block(matrix, row, col, block_nze, block_number)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    INTEGER, INTENT(IN)                      :: row, col
+    INTEGER, INTENT(IN)                      :: row, col, block_nze
     INTEGER, INTENT(IN), OPTIONAL            :: block_number
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_remove_block', &
@@ -3750,6 +3750,10 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ! Mark the block for deletion.
        matrix%m%blk_p(b) = 0
        matrix%m%valid = .FALSE.
+       ! update nze accordingly
+       matrix%m%nze = matrix%m%nze - block_nze
+       CALL cp_assert (matrix%m%nze .GE. 0, cp_failure_level,&
+            cp_caller_error, routineN, "nze < 0!")
     ELSE
        CALL cp_assert (b .NE. 0, cp_warning_level, cp_caller_error, routineN,&
             "Block does not exist or is already deleted.")
@@ -4429,7 +4433,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_btriu', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER                                  :: blk, blk_nze, col, col_size, &
+                                                row, row_size, timing_handle
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -4441,11 +4446,14 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_iterator_start(iter, matrix_b)
 
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, blk)
-       IF(row.GT.col) CALL dbcsr_remove_block(matrix_b, row, col, blk)
+       CALL dbcsr_iterator_next_block(iter, row, col, blk,&
+            row_size=row_size, col_size=col_size)
+       blk_nze = row_size * col_size
+       IF(row.GT.col) CALL dbcsr_remove_block(matrix_b, row, col, blk_nze, blk)
     ENDDO
 
     CALL dbcsr_iterator_stop(iter)
+
     CALL dbcsr_finalize (matrix_b, error=error)
 
     CALL timestop(timing_handle)
@@ -4470,7 +4478,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=3)                         :: my_method
-    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER                                  :: blk, blk_nze, col, col_size, &
+                                                row, row_size, timing_handle
     LOGICAL                                  :: tr
     REAL(dp)                                 :: ddot, nrm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
@@ -4488,13 +4497,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        SELECT CASE (dbcsr_get_data_type(matrix))
           !CASE (dbcsr_type_real_4)
        CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
+               row_size, col_size)
+          blk_nze = row_size * col_size
           SELECT CASE(my_method)
           CASE('fro')
              !
              ! Frobenius based
              nrm = SQRT(DDOT(SIZE(data_d), data_d(1), 1, data_d(1), 1))
-             IF(nrm.LT.eps) CALL dbcsr_remove_block(matrix, row, col, blk)
+             IF(nrm.LT.eps) CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
           CASE DEFAULT
              CALL cp_unimplemented_error (routineN,&
                   "Only Frobenius based filtering")

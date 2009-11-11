@@ -102,6 +102,7 @@ MODULE qs_core_hamiltonian
                                              dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
+                                             dbcsr_filter,&
                                              dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
@@ -430,6 +431,7 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
+    CALL dbcsr_finalize(matrix_s(1)%matrix,error=error)
     CALL cp_dbcsr_add_dist2d (matrix_s(1)%matrix%m, distribution_2d, error)
 
 !   *** Allocate the matrix of coefficients for one center expansions
@@ -459,6 +461,7 @@ CONTAINS
            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
            nblks=0, nze=0, mutable_work=.TRUE., &
            error=error)
+      CALL dbcsr_finalize(matrix_s(i)%matrix,error=error)
    END DO
    
    !   *** Allocate the kinetic energy integral ***
@@ -502,6 +505,8 @@ CONTAINS
            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
            nblks=0, nze=0, mutable_work=.TRUE., &
            error=error)
+      CALL dbcsr_finalize(matrix_t(1)%matrix,error=error)
+
 
       DO i=2,SIZE(matrix_t)
          cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -517,6 +522,7 @@ CONTAINS
               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
               nblks=0, nze=0, mutable_work=.TRUE., &
               error=error)
+         CALL dbcsr_finalize(matrix_t(i)%matrix,error=error)
       END DO
    END IF
 
@@ -531,6 +537,7 @@ CONTAINS
         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
         nblks=0, nze=0, mutable_work=.TRUE., &
         error=error)
+   CALL dbcsr_finalize(matrix_h(1)%matrix,error=error)
    CALL cp_dbcsr_add_dist2d (matrix_h(1)%matrix%m, distribution_2d, error)
 
    ! *** Allocate work storage ***
@@ -957,6 +964,11 @@ CONTAINS
 
     DO i = 1,SIZE(matrix_s)
        CALL dbcsr_finalize(matrix_s(i)%matrix, error=error)
+       IF(.FALSE.)THEN
+          WRITE(*,*) 'call filter_1',matrix_s(i)%matrix%m%nze
+          CALL dbcsr_filter(matrix_s(i)%matrix, 1e-3_dp, error=error)
+          WRITE(*,*) 'call filter_2',matrix_s(i)%matrix%m%nze
+       ENDIF
     ENDDO
 
     IF (build_kinetic_energy_matrix) THEN

@@ -135,7 +135,11 @@
     DO row = 1, matrix_a%m%nblkrows_total
        a_row_size = a_row_blk_size(row)
        b_row_size = b_row_blk_size(row)
-       IF(a_row_size.NE.b_row_size) CALL stop_program(routineN,"matrices not consistent")
+       IF(a_row_size.NE.b_row_size) THEN
+          write(*,*) 'a_row_size',a_row_size
+          write(*,*) 'b_row_size',b_row_size
+          CALL stop_program(routineN,"matrices not consistent")
+       ENDIF
        b_blk = matrix_b%m%row_p(row)+1
        b_frst_blk = matrix_b%m%row_p(row)+1
        b_last_blk = matrix_b%m%row_p(row+1)
@@ -149,7 +153,11 @@
                matrix_b%m%blk_p,b_blk,found)
           IF(found) THEN
              b_col_size = b_col_blk_size(a_col)
-             IF(a_col_size.NE.b_col_size) CALL stop_program(routineN,"matrices not consistent")
+             IF(a_col_size.NE.b_col_size)  THEN
+                write(*,*) 'a_col_size',a_col_size
+                write(*,*) 'b_col_size',b_col_size
+                CALL stop_program(routineN,"matrices not consistent")
+             ENDIF
              !
              nze = a_row_size*a_col_size
              !

@@ -11,13 +11,19 @@
 ! *****************************************************************************
 MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
+                                             dbcsr_alloc_block_from_nbl,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
                                              dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: dbcsr_create,&
+                                             dbcsr_finalize
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -36,6 +42,7 @@ MODULE qs_rho_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_local_rho_types,              ONLY: local_rho_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
@@ -95,10 +102,14 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
+    NULLIFY(sab_orb)
     CALL timeset(routineN,handle)
     failure=.FALSE.
     my_gapw_xc=.FALSE.
@@ -117,11 +128,18 @@ CONTAINS
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set) 
       CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
-           matrix_s=matrix_s,error=error)
+           matrix_s=matrix_s, &
+           sab_orb=sab_orb,&
+           distribution_2d=distribution_2d,&
+           error=error)
     CASE (use_aux_fit_basis_set)
       CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
-           matrix_s_aux_fit=matrix_s,error=error)
+           matrix_s_aux_fit=matrix_s,&
+           sab_orb=sab_orb,&
+           distribution_2d=distribution_2d,&
+           error=error)
     END SELECT
+
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
     nspins=dft_control%nspins
   
@@ -157,13 +175,21 @@ CONTAINS
             IF (ASSOCIATED(rho%rho_ao)) THEN
                CALL dbcsr_deallocate_matrix_set(rho%rho_ao,error=error)
             END IF
+            !
             CALL dbcsr_allocate_matrix_set(rho%rho_ao,nspins,error=error)
             DO i=1,nspins
                ALLOCATE(rho%rho_ao(i)%matrix)
                CALL dbcsr_init(rho%rho_ao(i)%matrix)
-               CALL dbcsr_copy(rho%rho_ao(i)%matrix,matrix_s(1)%matrix,&
-                    "DENSITY_MATRIX_AUX_FIT_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))),&
+               CALL dbcsr_create(matrix=rho%rho_ao(i)%matrix, &
+                    name="DENSITY_MATRIX_AUX_FIT_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))), &
+                    dist=matrix_s(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric, &
+                    row_blk_size=matrix_s(1)%matrix%m%row_blk_size,&
+                    col_blk_size=matrix_s(1)%matrix%m%col_blk_size,&
+                    nblks=0, nze=0,mutable_work=.TRUE., &
                     error=error)
+               CALL dbcsr_finalize(rho%rho_ao(i)%matrix,error=error)
+               CALL cp_dbcsr_add_dist2d (rho%rho_ao(i)%matrix%m, distribution_2d, error)
+               CALL dbcsr_alloc_block_from_nbl(rho%rho_ao(i)%matrix,sab_orb,error=error)
                CALL dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
             END DO
          END IF

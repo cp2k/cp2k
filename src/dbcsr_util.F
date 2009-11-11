@@ -3927,6 +3927,7 @@ CONTAINS
        finished(smallest) = wm_blk_p(smallest) .GT. matrix%wms(smallest)%lastblk
     ENDDO
     matrix%row_p(smallest_row+1:matrix%nblkrows_total+1) = blk-1
+    matrix%nze = blk_p - 1
     IF (.NOT. srt .AND. ASSOCIATED (matrix%wms(1)%blk_p)) THEN
        matrix%blk_p(1:matrix%wms(1)%lastblk)&
             = matrix%wms(1)%blk_p(1:matrix%wms(1)%lastblk)

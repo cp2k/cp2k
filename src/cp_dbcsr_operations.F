@@ -585,8 +585,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col, colsize, handle, k, &
-                                                output_unit, row, rowsize
+    INTEGER                                  :: blk_nze, col, col_size, &
+                                                colsize, handle, k, &
+                                                output_unit, row, row_size, &
+                                                rowsize
     INTEGER(KIND=int_8)                      :: flop
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: failure, found, ionode, ldbg, &
@@ -727,7 +729,9 @@ CONTAINS
     !WRITE(*,*)'Deleting all blocks!'
     CALL dbcsr_iterator_start (iter, matrix_a2)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, k)
+       CALL dbcsr_iterator_next_block (iter, row, col, k, &
+            row_size=row_size, col_size=col_size)
+       blk_nze = row_size * col_size
        CALL dbcsr_remove_block (matrix_a2, row, col, k)
     ENDDO
     CALL dbcsr_iterator_stop (iter)
@@ -856,7 +860,9 @@ CONTAINS
        IF (ldbg.AND.ionode) THEN
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksumL", checksum
        ENDIF
-       CALL dbcsr_iterator_next_block (iter, row, col, block2d, tr)
+       CALL dbcsr_iterator_next_block (iter, row, col, block2d, tr, &
+            row_size=row_size, col_size=col_size)
+       blk_nze = row_size * col_size
        !write(*,*)'got block',row,col,tr
        CALL dbcsr_put_block (matrix_b, row, col, block2d, tr)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
@@ -885,7 +891,7 @@ CONTAINS
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum3", checksum
        ENDIF
        !write(*,*)'removing block'
-       CALL dbcsr_remove_block (matrix_b, row, col)
+       CALL dbcsr_remove_block (matrix_b, row, col, blk_nze)
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error=error, local=.TRUE.)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
@@ -1012,10 +1018,12 @@ CONTAINS
     CALL dbcsr_copy(matrix_bt, matrix_b, error=error)
     CALL dbcsr_iterator_start(iter,matrix_bt)
     DO WHILE(dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter,row,col,k)
+       CALL dbcsr_iterator_next_block(iter,row,col,k, &
+            row_size=row_size, col_size=col_size)
+       blk_nze = row_size * col_size
        !write(*,*)'i have',row,col
        IF (MOD(row+col,3) .EQ. 0) &
-            CALL dbcsr_remove_block(matrix_bt,row,col,k)
+            CALL dbcsr_remove_block(matrix_bt,row,col,blk_nze,k)
     ENDDO
     CALL dbcsr_iterator_stop(iter)
     !call dbcsr_remove_block(matrix_bt, 1, 1)
