@@ -55,9 +55,11 @@ MODULE qs_ks_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_get_occupation,&
+                                             dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
+                                             dbcsr_filter,&
                                              dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE dft_plus_u,                      ONLY: plus_u
@@ -1173,6 +1175,15 @@ CONTAINS
        ELSE
          energy%dft_plus_u = 0.0_dp
        END IF
+
+       ! At this point the ks matrix should be up to date, filter it if requested
+       DO ispin=1,nspins
+          IF(.FALSE.)WRITE(*,*) 'before',dbcsr_get_occupation(ks_matrix(ispin)%matrix)
+          CALL dbcsr_filter(ks_matrix(ispin)%matrix,&
+               qs_env%dft_control%qs_control%eps_filter_matrix,&
+               error=error)
+          IF(.FALSE.)WRITE(*,*) 'after',dbcsr_get_occupation(ks_matrix(ispin)%matrix)
+       ENDDO
 
        ! prepare to add electronic entropic contribution is needed
        IF (dft_control%smear) THEN

@@ -300,7 +300,7 @@ CONTAINS
        DO ispin=1,nspin
              ALLOCATE(matrix_w(ispin)%matrix)
              CALL dbcsr_init(matrix_w(ispin)%matrix)
-             CALL dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
+             CALL dbcsr_copy(matrix_w(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
                   name="W MATRIX",error=error)
              CALL dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
        END DO

@@ -32,16 +32,18 @@ MODULE dbcsr_methods
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_magic_number, &
        dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, &
-       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
-       dbcsr_type_real_8, dbcsr_type_real_8_2d
+       dbcsr_type_real_8, dbcsr_type_real_8_2d, dbcsr_type_symmetric
   USE distribution_2d_types,           ONLY: distribution_2d_release
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              real_4,&
                                              real_8
   USE message_passing,                 ONLY: mp_allocate,&
-                                             mp_deallocate
+                                             mp_deallocate,&
+                                             mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -73,7 +75,7 @@ MODULE dbcsr_methods
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
             dbcsr_nfullrows_local, dbcsr_nfullcols_local,&
             dbcsr_max_row_size, dbcsr_max_col_size,&
-            dbcsr_uses_special_memory
+            dbcsr_uses_special_memory, dbcsr_get_occupation
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_copyall, dbcsr_get_data_size,&
             dbcsr_data_set_pointer, dbcsr_data_area
@@ -1508,6 +1510,36 @@ CONTAINS
 
     num_blocks = matrix%m%nblks
   END FUNCTION dbcsr_get_num_blocks
+
+! *****************************************************************************
+!> \brief Returns the occupation of the matrix
+!> \param matrix     matrix from which to get data
+! *****************************************************************************
+  FUNCTION dbcsr_get_occupation (matrix) RESULT (occupation)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    REAL(KIND=real_8)                        :: occupation
+
+    INTEGER                                  :: nfullcols, nfullrows
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
+
+    occupation = REAL(matrix%m%nze,real_8)
+    CALL mp_sum(occupation,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+
+    nfullrows = dbcsr_nfullrows_total(matrix)
+    nfullcols = dbcsr_nfullcols_total(matrix)
+
+    row_blk_size => array_data (matrix%m%row_blk_size)
+
+    IF(dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
+       dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric) THEN
+       occupation = 2.0_real_8 * occupation / &
+            ( REAL(nfullrows,real_8) * REAL(nfullrows-1,real_8) + &
+            SUM( REAL(row_blk_size,real_8) * REAL(row_blk_size-1,real_8) ) )
+    ELSE
+       occupation = occupation / ( REAL(nfullrows,real_8) * REAL(nfullcols,real_8) )
+    ENDIF
+
+  END FUNCTION dbcsr_get_occupation
 
 
 ! *****************************************************************************

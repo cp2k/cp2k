@@ -3769,27 +3769,22 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[in] beta_scalar    (optional)
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, &
-                       first_column, last_column, error)
+  SUBROUTINE dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha_scalar, beta_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: first_column, last_column
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, ibeg, iend, &
-                                                my_first_column, &
-                                                my_last_column, row, &
-                                                timing_handle
+    INTEGER                                  :: blk, col, row, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size
-    LOGICAL                                  :: is_allocated, tr
+    LOGICAL                                  :: tr
     REAL(dp)                                 :: my_alpha_scalar, &
                                                 my_beta_scalar
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d, data_d_tmp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
 !real(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
@@ -3817,16 +3812,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     my_beta_scalar = 1.0_dp
     IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
     !
-    my_first_column = 1
-    IF(PRESENT(first_column)) my_first_column = first_column
-    my_last_column = dbcsr_nfullcols_total(matrix_a)
-    IF(PRESENT(last_column)) my_last_column = last_column
-    IF(dbcsr_nfullcols_total(matrix_a).NE.offset(matrix_a%m%nblkcols_total+1)-1) &
-         CALL stop_program(routineN,"something wrong here 1")
-    IF(my_first_column.LT.1) CALL stop_program(routineN,"first_column less than 1")
-    IF(my_last_column.GT.dbcsr_nfullcols_total(matrix_a)) &
-         CALL stop_program(routineN,"last_column greater than nfullcols_total")
-    !
     ! let's go
     IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total) THEN
        CALL stop_program(routineN,"matrices not consistent")
@@ -3847,49 +3832,13 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CASE (dbcsr_type_real_8)
              CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
 
-             IF(offset(col+1).LT.my_first_column.OR.offset(col).GT.my_last_column) CYCLE
-
-             data_d_tmp => data_d
-             is_allocated = .FALSE.
-             !
-             IF(offset(col).LT.my_first_column.AND.offset(col+1).GT.my_first_column.AND.&
-                offset(col+1).LT.my_last_column) THEN
-                NULLIFY(data_d_tmp)
-                ALLOCATE(data_d_tmp(SIZE(data_d,1),SIZE(data_d,2)))
-                is_allocated = .TRUE.
-                data_d_tmp = 0.0_dp
-                ibeg = my_first_column - offset(col) + 1
-                iend = SIZE(data_d_tmp,2)
-                data_d_tmp(:,ibeg:iend) = data_d(:,ibeg:iend)
-             ELSEIF(offset(col).LT.my_last_column.AND.offset(col+1).GT.my_last_column.AND.&
-                offset(col).GT.my_first_column) THEN
-                NULLIFY(data_d_tmp)
-                ALLOCATE(data_d_tmp(SIZE(data_d,1),SIZE(data_d,2)))
-                is_allocated = .TRUE.
-                data_d_tmp = 0.0_dp
-                ibeg = 1
-                iend = my_last_column - offset(col) + 1
-                data_d_tmp(:,ibeg:iend) = data_d(:,ibeg:iend)
-             ELSEIF(offset(col).LE.my_first_column.AND.offset(col+1).GT.my_last_column.OR.&
-                offset(col).LT.my_first_column.AND.offset(col+1).GE.my_last_column) THEN
-                NULLIFY(data_d_tmp)
-                ALLOCATE(data_d_tmp(SIZE(data_d,1),SIZE(data_d,2)))
-                is_allocated = .TRUE.
-                data_d_tmp = 0.0_dp
-                ibeg = my_first_column - offset(col) + 1
-                iend = my_last_column - offset(col) + 1
-                data_d_tmp(:,ibeg:iend) = data_d(:,ibeg:iend)
-             ENDIF
-             !
              IF (my_beta_scalar.EQ.1.0_dp) THEN
-                CALL dbcsr_put_block(matrix_a, row, col, data_d_tmp, tr,&
+                CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
                      summation=.TRUE.)
              ELSE
-                CALL dbcsr_put_block(matrix_a, row, col, data_d_tmp, tr,&
+                CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
                      summation=.TRUE., scale=my_beta_scalar)
              ENDIF
-
-             IF(is_allocated) DEALLOCATE(data_d_tmp)
              !CASE (dbcsr_type_complex_4)
              !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
              !   CALL dbcsr_put_block(matrix_a, row, col, data_c)
@@ -4502,6 +4451,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
                   row_size, col_size)
              blk_nze = row_size * col_size
+             IF (blk_nze .EQ. 0) CYCLE ! Skip empty blocks
              SELECT CASE(my_method)
              CASE('fro')
                 !

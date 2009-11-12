@@ -99,6 +99,7 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+                                             dbcsr_get_occupation,&
                                              dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
@@ -150,6 +151,7 @@ MODULE qs_core_hamiltonian
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: compress,&
                                              uppercase
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -742,17 +744,9 @@ CONTAINS
                       NULLIFY(p_block)
                       CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                            row=irow,col=icol,BLOCK=p_block,tr=tr,found=found)
-                      !IF (.NOT.ASSOCIATED(p_block)) THEN
-                      !   CALL stop_program(routineN,moduleN,__LINE__,&
-                      !        "A density matrix block is missing",para_env)
-                      !END IF
                       NULLIFY(w_block)
                       CALL dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
                            row=irow,col=icol,BLOCK=w_block,tr=tr,found=found)
-                      !IF (.NOT.ASSOCIATED(w_block)) THEN
-                      !   CALL stop_program(routineN,moduleN,__LINE__,&
-                      !        "A weighted density matrix block is missing",para_env)
-                      !END IF
                    END IF
                 END IF
                 
@@ -767,6 +761,10 @@ CONTAINS
                       sgfb = first_sgfb(1,jset)
                       IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
                          IF (calculate_forces.AND.((iatom /= jatom).OR.use_virial)) THEN
+                            IF (.NOT.ASSOCIATED(w_block)) THEN
+                               CALL stop_program(routineN,moduleN,__LINE__,&
+                                    "A weighted density matrix block is missing",para_env)
+                            ENDIF
                             ! *** Decontract W matrix block ***
                             IF (iatom <= jatom) THEN
                                CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
@@ -835,6 +833,10 @@ CONTAINS
                          END DO
                          ! *** Decontract density matrix block ***
                          IF (calculate_forces) THEN
+                            IF (.NOT.ASSOCIATED(p_block)) THEN
+                               CALL stop_program(routineN,moduleN,__LINE__,&
+                                    "A density matrix block is missing",para_env)
+                            ENDIF
                             IF (iatom <= jatom) THEN
                                CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
                                     1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -964,8 +966,10 @@ CONTAINS
 
     DO i = 1,SIZE(matrix_s)
        CALL dbcsr_finalize(matrix_s(i)%matrix, error=error)
+       IF(.FALSE.)WRITE(*,*) 'before',dbcsr_get_occupation(matrix_s(i)%matrix)
        CALL dbcsr_filter(matrix_s(i)%matrix, &
             qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
+       IF(.FALSE.)WRITE(*,*) 'after',dbcsr_get_occupation(matrix_s(i)%matrix)
     ENDDO
 
     IF (build_kinetic_energy_matrix) THEN
@@ -1149,10 +1153,6 @@ CONTAINS
       CALL dbcsr_init(matrix_v(1)%matrix)
       CALL dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
            name="POTENTIAL ENERGY MATRIX",error=error)
-      !CALL replicate_matrix_structure(source=matrix_h(1)%matrix,&
-      !                                TARGET=matrix_v(1)%matrix,&
-      !                                target_name="POTENTIAL ENERGY MATRIX",error=error)
-      !CALL add_matrices(matrix_v(1)%matrix,1.0_dp,matrix_h(1)%matrix,-1.0_dp,matrix_t(1)%matrix)
       CALL dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&
            alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
       CALL dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
