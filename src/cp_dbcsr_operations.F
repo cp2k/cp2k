@@ -58,8 +58,9 @@ MODULE cp_dbcsr_operations
        dbcsr_scale, dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_types,                     ONLY: &
        dbcsr_array_type, dbcsr_distribution_obj, &
-       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
-       dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
+       dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
+       dbcsr_obj, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: &
@@ -709,15 +710,18 @@ CONTAINS
     CALL dbcsr_release(matrix_a2)
     !
     ! some norms here
-    CALL dbcsr_norm(matrix_a, 'MaxAbsNorm', checksum, error=error)
+    CALL dbcsr_norm(matrix_a, which_norm=dbcsr_norm_maxabsnorm, &
+         norm_scalar=checksum, error=error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR maxabsval(S)", checksum
     ENDIF
-    CALL dbcsr_norm(matrix_a, 'Frobenius', checksum, error=error)
+    CALL dbcsr_norm(matrix_a, which_norm=dbcsr_norm_frobenius, &
+         norm_scalar=checksum, error=error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Frobenius(S)", checksum
     ENDIF
-    CALL dbcsr_norm(matrix_a, 'Gershgorin', checksum, error=error)
+    CALL dbcsr_norm(matrix_a, which_norm=dbcsr_norm_gershgorin, &
+         norm_scalar=checksum, error=error)
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Gershgorin(S)", checksum
     ENDIF

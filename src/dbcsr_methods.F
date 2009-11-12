@@ -1513,7 +1513,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Returns the occupation of the matrix
-!> \param matrix     matrix from which to get data
+!> \param matrix     matrix from which to get the occupation
 ! *****************************************************************************
   FUNCTION dbcsr_get_occupation (matrix) RESULT (occupation)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1533,7 +1533,7 @@ CONTAINS
     IF(dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
        dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric) THEN
        occupation = 2.0_real_8 * occupation / &
-            ( REAL(nfullrows,real_8) * REAL(nfullrows-1,real_8) + &
+            ( REAL(nfullrows,real_8) * REAL(nfullrows+1,real_8) + &
             SUM( REAL(row_blk_size,real_8) * REAL(row_blk_size-1,real_8) ) )
     ELSE
        occupation = occupation / ( REAL(nfullrows,real_8) * REAL(nfullcols,real_8) )

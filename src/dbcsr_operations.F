@@ -4420,15 +4420,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
     REAL(dp), INTENT(IN)                     :: eps
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: method
+    INTEGER, INTENT(IN), OPTIONAL            :: method
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_filter', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=3)                         :: my_method
     INTEGER                                  :: blk, blk_nze, col, col_size, &
-                                                row, row_size, timing_handle
+                                                my_method, row, row_size, &
+                                                timing_handle
     LOGICAL                                  :: tr
     REAL(dp)                                 :: ddot, nrm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
@@ -4438,7 +4438,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
 
-    my_method = 'fro'
+    my_method = dbcsr_filter_frobenius
     IF(PRESENT(method)) my_method = method
 
     IF(eps.GT.0.0_dp) THEN
@@ -4453,7 +4453,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              blk_nze = row_size * col_size
              IF (blk_nze .EQ. 0) CYCLE ! Skip empty blocks
              SELECT CASE(my_method)
-             CASE('fro')
+             CASE(dbcsr_filter_frobenius)
                 !
                 ! Frobenius based
                 nrm = SQRT(DDOT(SIZE(data_d), data_d(1), 1, data_d(1), 1))
@@ -4488,7 +4488,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
   SUBROUTINE dbcsr_norm(matrix, which_norm, norm_scalar, norm_vector, error)
 
     TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
-    CHARACTER(LEN=*), INTENT(IN)             :: which_norm
+    INTEGER, INTENT(IN)                      :: which_norm
     REAL(dp), INTENT(OUT), OPTIONAL          :: norm_scalar
     REAL(dp), DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: norm_vector
@@ -4530,7 +4530,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     SELECT CASE(which_norm)
 
-    CASE('Frobenius')
+    CASE(dbcsr_norm_frobenius)
 
        IF(PRESENT(norm_scalar)) THEN
           norm_scalar = 0.0_dp
@@ -4556,7 +4556,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           norm_scalar = SQRT(norm_scalar)
        ENDIF
 
-    CASE('MaxAbsNorm')
+    CASE(dbcsr_norm_maxabsnorm)
 
        IF(PRESENT(norm_scalar)) THEN
           norm_scalar = 0.0_dp
@@ -4577,7 +4577,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CALL mp_max(norm_scalar,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
        ENDIF
 
-    CASE('Gershgorin')
+    CASE(dbcsr_norm_gershgorin)
 
        IF(PRESENT(norm_scalar)) THEN
           IF(nr.NE.nc) CALL stop_program(routineN,"not a square matrix")
@@ -4618,7 +4618,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           DEALLOCATE(buff_d)
        ENDIF
 
-    CASE('Column')
+    CASE(dbcsr_norm_column)
 
        IF(PRESENT(norm_vector)) THEN
           norm_vector(:) = 0.0_dp

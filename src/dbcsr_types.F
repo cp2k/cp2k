@@ -63,6 +63,9 @@ MODULE dbcsr_types
             dbcsr_type_antisymmetric, dbcsr_type_transposed
   PUBLIC :: dbcsr_repl_none, dbcsr_repl_row, dbcsr_repl_col, dbcsr_repl_full
 
+  PUBLIC :: dbcsr_filter_frobenius
+  PUBLIC :: dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm,&
+            dbcsr_norm_gershgorin, dbcsr_norm_column
 
   INTEGER, PARAMETER :: dbcsr_meta_size = 13 ! The number of meta fields
 
@@ -193,6 +196,14 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER          :: dbcsr_type_complex_default = 'c'
 #endif
 
+  ! Different method for dbcsr_filter
+  INTEGER, PARAMETER            :: dbcsr_filter_frobenius = 1
+
+  ! Different norm for dbcsr_norm
+  INTEGER, PARAMETER            :: dbcsr_norm_frobenius = 1
+  INTEGER, PARAMETER            :: dbcsr_norm_maxabsnorm = 2
+  INTEGER, PARAMETER            :: dbcsr_norm_gershgorin = 3
+  INTEGER, PARAMETER            :: dbcsr_norm_column = 4
 
 ! *****************************************************************************
 !> \brief An iterator over a DBCSR matrix.
