@@ -1835,7 +1835,7 @@ iterator%count_me=count_me
        column = iterator%col_i(iterator%pos)
        blk = iterator%pos
        IF (PRESENT (row_size)) row_size = iterator%row_size
-       IF (PRESENT (col_size)) col_size = iterator%cbs(blk)
+       IF (PRESENT (col_size)) col_size = iterator%cbs(column)
        IF (PRESENT (blk_p) .OR. PRESENT (transposed)) THEN
           bp = iterator%blk_p(iterator%pos)
           IF (PRESENT (blk_p)) blk_p = bp
